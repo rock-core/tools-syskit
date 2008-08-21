@@ -30,11 +30,13 @@ struct IllegalServer
 class CorbaAccess
 {
     static CORBA::ORB_var orb;
+    static CosNaming::NamingContext_var rootContext;
 
     public:
     static bool           InitOrb(int argc, char* argv[] );
     static void           DestroyOrb();
     static CORBA::ORB_var getOrb();
+    static CosNaming::NamingContext_var getRootContext();
     static std::list<std::string> knownTasks();
     static RTT::Corba::ControlTask_var findByName(std::string const& name);
 };

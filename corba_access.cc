@@ -3,7 +3,8 @@
 using namespace CORBA;
 using namespace std;
 
-CORBA::ORB_var CorbaAccess::orb;
+CORBA::ORB_var               CorbaAccess::orb;
+CosNaming::NamingContext_var CorbaAccess::rootContext;
 
 IllegalServer::IllegalServer() : reason("This server does not exist or has the wrong type.") {}
 
@@ -18,6 +19,14 @@ bool CorbaAccess::InitOrb(int argc, char* argv[] ) {
     try {
         // First initialize the ORB, that will remove some arguments...
         orb = CORBA::ORB_init (argc, const_cast<char**>(argv), "omniORB4");
+
+        CORBA::Object_var rootObj = orb->resolve_initial_references("NameService");
+        rootContext = CosNaming::NamingContext::_narrow(rootObj.in());
+        if (CORBA::is_nil(rootObj.in() )) {
+            cerr << "CorbaAccess could not acquire NameService."<<endl;
+            throw IllegalServer();
+        }
+        cout << "found CORBA NameService."<<endl;
 
         // Also activate the POA Manager, since we may get call-backs !
 #if 0
@@ -43,6 +52,7 @@ void CorbaAccess::DestroyOrb()
     try {
         // Destroy the POA, waiting until the destruction terminates
         //poa->destroy (1, 1);
+        rootContext->destroy();
         orb->destroy();
         std::cerr <<"Orb destroyed."<<std::endl;
     }
@@ -52,21 +62,12 @@ void CorbaAccess::DestroyOrb()
     }
 }
 
-CORBA::ORB_var CorbaAccess::getOrb()
-{
-    return orb;
-}
+CORBA::ORB_var               CorbaAccess::getOrb() { return orb; }
+CosNaming::NamingContext_var CorbaAccess::getRootContext() { return rootContext; }
 
 list<string> CorbaAccess::knownTasks()
 {
     // NameService
-    CORBA::Object_var rootObj = orb->resolve_initial_references("NameService");
-    CosNaming::NamingContext_var rootContext = CosNaming::NamingContext::_narrow(rootObj.in());
-    if (CORBA::is_nil(rootObj.in() )) {
-        cerr << "CorbaAccess could not acquire NameService."<<endl;
-        throw IllegalServer();
-    }
-    cout << "found CORBA NameService."<<endl;
 
     CosNaming::Name serverName;
     serverName.length(1);
@@ -94,14 +95,6 @@ list<string> CorbaAccess::knownTasks()
 RTT::Corba::ControlTask_var CorbaAccess::findByName(std::string const& name)
 {
     try {
-        // NameService
-        CORBA::Object_var rootObj = orb->resolve_initial_references("NameService");
-        CosNaming::NamingContext_var rootContext = CosNaming::NamingContext::_narrow(rootObj.in());
-        if (CORBA::is_nil(rootContext.in() )) {
-            cerr << "CorbaAccess could not acquire NameService."<<endl;
-            throw IllegalServer();
-        }
-        cout << "CorbaAccess found CORBA NameService."<<endl;
         CosNaming::Name serverName;
         serverName.length(2);
         serverName[0].id = CORBA::string_dup("ControlTasks");
