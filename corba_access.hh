@@ -1,9 +1,11 @@
 #ifndef EXEC_CLIENT_CONTROL_TASK_HPP
 #define EXEC_CLIENT_CONTROL_TASK_HPP
 
-#include <omniORB4/CORBA.h>
+#include <tao/corba.h>
+#include <orbsvcs/CosNamingC.h>
+
 #include <exception>
-#include "ControlTask.hh"
+#include "ControlTaskC.h"
 #include <iostream>
 #include <string>
 #include <stack>
