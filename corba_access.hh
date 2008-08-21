@@ -32,7 +32,7 @@ class CorbaAccess
     static CORBA::ORB_var orb;
     static CosNaming::NamingContext_var rootContext;
 
-    public:
+public:
     static bool           InitOrb(int argc, char* argv[] );
     static void           DestroyOrb();
     static CORBA::ORB_var getOrb();
