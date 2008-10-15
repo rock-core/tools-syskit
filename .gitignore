@@ -2,4 +2,11 @@ doc/
 *.swp
 *.o
 *.so
+.orogen
 ext/build
+test/data/prefix
+test/data/process/.gitignore
+test/data/process/.gitignore
+test/data/process/CMakeLists.txt
+test/data/process/tasks
+build/
