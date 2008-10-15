@@ -1,0 +1,5 @@
+doc/
+*.swp
+*.o
+*.so
+ext/build
