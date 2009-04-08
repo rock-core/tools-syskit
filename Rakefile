@@ -15,7 +15,6 @@ begin
         # p.changes     = p.paragraphs_of('History.txt', 0..1).join("\n\n")
 
         p.extra_deps << 'utilrb' << 'rake'
-        p.rdoc_pattern = /(ext\/\w+\.cc$|lib)|txt/
     end
     config.spec.extensions << 'ext/extconf.rb'
 rescue LoadError
