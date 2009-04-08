@@ -5,8 +5,6 @@ doc/
 .orogen
 ext/build
 test/data/prefix
-test/data/process/.gitignore
-test/data/process/.gitignore
-test/data/process/CMakeLists.txt
-test/data/process/tasks
+test/data/*/.gitignore
+test/working_copy
 build/
