@@ -2,6 +2,7 @@ doc/
 *.swp
 *.o
 *.so
+orocos.log
 .orogen
 ext/build
 test/data/prefix
