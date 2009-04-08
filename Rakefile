@@ -43,6 +43,23 @@ task :setup do
     FileUtils.ln_sf "../ext/rorocos_ext.so", "lib/rorocos_ext.so"
 end
 
+def build_orogen(name)
+    require 'lib/orocos/test'
+    work_dir = File.expand_path(File.join('test', 'working_copy'))
+    prefix   = File.join(work_dir, 'prefix')
+    data_dir = File.expand_path(File.join('test', 'data'))
+
+    Orocos::Test.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir
+end
+
+desc "builds the modules that are needed by the tests"
+task "setup_tests" => :setup do
+    build_orogen 'process'
+    build_orogen 'simple_sink'
+    build_orogen 'simple_source'
+end
+
+
 desc "remove by-products of setup"
 task :clean do
     FileUtils.rm_rf "ext/build"
