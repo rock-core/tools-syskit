@@ -25,24 +25,6 @@ rescue Exception => e
     STDERR.puts "  #{e.backtrace.join("\n  ")}"
 end
 
-desc "builds Orocos.rb C extension"
-task :setup do
-    builddir = File.join('ext', 'build')
-    prefix   = File.join(Dir.pwd, 'ext')
-
-    FileUtils.mkdir_p builddir
-    Dir.chdir(builddir) do
-        if !system("cmake", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=gnulinux", "..")
-            throw "unable to configure the extension using CMake"
-        end
-
-        if !system("make") || !system("make", "install")
-            throw "unable to build the extension"
-        end
-    end
-    FileUtils.ln_sf "../ext/rorocos_ext.so", "lib/rorocos_ext.so"
-end
-
 def build_orogen(name)
     require 'lib/orocos/test'
     work_dir = File.expand_path(File.join('test', 'working_copy'))
@@ -52,18 +34,49 @@ def build_orogen(name)
     Orocos::Test.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir
 end
 
-desc "builds the modules that are needed by the tests"
-task "setup_tests" => :setup do
-    build_orogen 'process'
-    build_orogen 'simple_sink'
-    build_orogen 'simple_source'
-end
+namespace :setup do
+    desc "builds Orocos.rb C extension"
+    task :ext do
+        builddir = File.join('ext', 'build')
+        prefix   = File.join(Dir.pwd, 'ext')
 
+        FileUtils.mkdir_p builddir
+        Dir.chdir(builddir) do
+            if !system("cmake", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=gnulinux", "..")
+                throw "unable to configure the extension using CMake"
+            end
+
+            if !system("make") || !system("make", "install")
+                throw "unable to build the extension"
+            end
+        end
+        FileUtils.ln_sf "../ext/rorocos_ext.so", "lib/rorocos_ext.so"
+    end
+
+    desc "builds the oroGen modules that are needed by the tests"
+    task :orogen_all => :ext do
+        build_orogen 'process'
+        build_orogen 'simple_sink'
+        build_orogen 'simple_source'
+        build_orogen 'echo'
+    end
+
+    desc "builds the test 'process' module"
+    task :orogen_process do build_orogen 'process' end
+    desc "builds the test 'simple_sink' module"
+    task :orogen_sink    do build_orogen 'simple_sink' end
+    desc "builds the test 'simple_source' module"
+    task :orogen_source  do build_orogen 'simple_source' end
+    desc "builds the test 'echo' module"
+    task :orogen_echo    do build_orogen 'echo' end
+end
+task :setup => "setup:ext"
 
 desc "remove by-products of setup"
 task :clean do
     FileUtils.rm_rf "ext/build"
     FileUtils.rm_rf "ext/rorocos_ext.so"
     FileUtils.rm_rf "lib/rorocos_ext.so"
+    FileUtils.rm_rf "test/working_copy"
 end
 
