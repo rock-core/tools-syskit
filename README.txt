@@ -1,4 +1,4 @@
-= Orocos.rb: Ruby bindings to access Orocos modules
+= Orocos.rb: deploying and supervising Orocos/RTT modules
 
 Orocos.rb is a Ruby library which allows to access, read out and control Orocos RTT
 (http://www.orocos.org) components. It uses the CORBA transport of Orocos for that,
