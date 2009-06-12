@@ -42,7 +42,7 @@ namespace :setup do
 
         FileUtils.mkdir_p builddir
         Dir.chdir(builddir) do
-            if !system("cmake", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=gnulinux", "..")
+            if !system("cmake", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=gnulinux", "-DCMAKE_BUILD_TYPE=Debug", "..")
                 throw "unable to configure the extension using CMake"
             end
 
