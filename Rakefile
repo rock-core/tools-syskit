@@ -41,8 +41,9 @@ namespace :setup do
         prefix   = File.join(Dir.pwd, 'ext')
 
         FileUtils.mkdir_p builddir
+        orocos_target = ENV['OROCOS_TARGET'] || 'gnulinux'
         Dir.chdir(builddir) do
-            if !system("cmake", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=gnulinux", "-DCMAKE_BUILD_TYPE=Debug", "..")
+            if !system("cmake", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=#{orocos_target}", "-DCMAKE_BUILD_TYPE=Debug", "..")
                 throw "unable to configure the extension using CMake"
             end
 
