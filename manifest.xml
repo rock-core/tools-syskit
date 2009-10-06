@@ -1,5 +1,9 @@
 <package>
+    <depend package="orocos/orogen" />
     <depend package="orocos/rtt" />
+    <depend package="typelib" />
+    <depend package="utilrb" />
     <rosdep name="hoe" />
+    <rosdep name="omniorb" />
 </package>
 
