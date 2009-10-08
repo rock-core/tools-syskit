@@ -1,0 +1,5 @@
+<package>
+    <depend package="orocos/rtt" />
+    <rosdep name="hoe" />
+</package>
+
