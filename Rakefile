@@ -44,7 +44,7 @@ namespace :setup do
         orocos_target = ENV['OROCOS_TARGET'] || 'gnulinux'
         Dir.chdir(builddir) do
             if !system("cmake", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=#{orocos_target}", "-DCMAKE_BUILD_TYPE=Debug", "..")
-                throw "unable to configure the extension using CMake"
+                raise "unable to configure the extension using CMake"
             end
 
             if !system("make") || !system("make", "install")
