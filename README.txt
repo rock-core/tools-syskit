@@ -94,6 +94,8 @@ Though, the script will be independent from that choice because you can use
 Orocos::TaskContext.get returns a Orocos::TaskContext instance. See the
 documentation of that class for more details.
 
+== Changing and reading a task context's state
+
 == Manipulating a task context
 
 You can change the task's properties with:
@@ -138,7 +140,7 @@ is possible to specify a connection policy:
   port_reader = c.currentReadings.reader(:type => :buffer, :size => 10, :pull => true)
   port_writer = c.speed.writer(:type => :buffer, :size => 10, :pull => true)
 
-The default policy is a data policy with +pull+ being false.
+See Orocos::Port#validate_policy for an in-depth explanation of possible values.
 
 Finally, the task's methods can be used in this way:
 
@@ -172,22 +174,6 @@ It is possible to connect ports using orocos.rb. Simply do:
   output_port.connect_to(input_port, policy)
 
 +policy+ is the connection. It is a hash whose arguments are the policy
-parameters. Valid policies are:
-
- * buffer policy. Values are stored in a FIFO of the specified size.
-   Connecting with a buffer policy is done with:
-
-     output_port.connect_to(input_port, :type => :buffer, :size => 10)
-
- * data policy. The input port will always read the last value pushed by the
-   output port. It is the default policy, but can be explicitly specified with:
-
-     output_port.connect_to(input_port, :type => :data)
-
-Additionally, a +:pull+ option specifies if samples should be pushed by the
-output end (i.e. if all samples that are written on the output port are sent to
-the input port), or if the values are transmitted only when the input port is
-read. For instance:
-
-  output_port.connect_to(input_port, :type => :data, :pull => true)
+parameters. See Orocos::Port#validate_policy for an in-depth explanation of
+possible values.
 
