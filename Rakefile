@@ -72,6 +72,7 @@ namespace :setup do
         build_orogen 'simple_sink'
         build_orogen 'simple_source'
         build_orogen 'echo'
+        build_orogen 'states'
     end
 
     desc "builds the test 'process' module"
@@ -82,6 +83,8 @@ namespace :setup do
     task :orogen_source  do build_orogen 'simple_source' end
     desc "builds the test 'echo' module"
     task :orogen_echo    do build_orogen 'echo' end
+    desc "builds the test 'states' module"
+    task :orogen_states    do build_orogen 'states' end
 end
 task :setup => "setup:ext"
 
