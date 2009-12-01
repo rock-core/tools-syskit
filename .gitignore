@@ -9,3 +9,5 @@ test/data/prefix
 test/data/*/.gitignore
 test/working_copy
 build/
+*.ior
+*autobuild-stamp
