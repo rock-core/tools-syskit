@@ -85,17 +85,11 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
         assert_equal('rightCamera', right.device_name)
     end
 
-    def test_device_selection
+    def test_direct_disambiguation
         device_tests_spec
-
-        subsystem = sys_model.subsystem "ImageAcquisition" do
-            add "camera"
-            add "camera::Filter"
-        end
-
-        orocos_engine.add("ImageAcquisition", :as => 'leftImage').
+        orocos_engine.add("ImageAcquisition").
             using("camera" => "leftCamera")
-        orocos_engine.add("ImageAcquisition", :as => 'rightImage').
+        orocos_engine.add("ImageAcquisition").
             using("camera" => "rightCamera")
         orocos_engine.instanciate
 
@@ -103,29 +97,13 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
 
         # Check the camera drivers in the plan
         assert_equal(2, plan.find_tasks(camera_driver).to_a.size)
-        left_camera = plan.find_tasks(camera_driver, :device_name => 'leftCamera').
-            to_a.first
-        assert(left_camera)
-        right_camera = plan.find_tasks(camera_driver, :device_name => 'rightCamera').
-            to_a.first
-        assert(right_camera)
-        assert_not_same(left_camera, right_camera)
+        acquisition = plan.find_tasks(ImageAcquisition).
+            with_child(Camera::Driver).
+            with_child(Camera::Filter).to_a
+        assert_equal(2, acquisition.size)
 
-        # Now, check the rest of the structure
-        right_parents = right_camera.parents.to_a
-        assert(1, right_parents.size)
-        right_image = right_parents.first
-        assert(right_image.root?)
-
-        left_parents = left_camera.parents.to_a
-        assert(1, left_parents.size)
-        left_image = left_parents.first
-        assert(left_image.root?)
-
-        assert_not_same(left_image, right_image)
-        assert(left_filter  = left_image.children.find { |t| t != left_camera })
-        assert(right_filter = right_image.children.find { |t| t != right_camera })
-        assert_not_same(left_filter, right_filter)
+        # Both structures should be separated
+        assert((acquisition[0].children.to_value_set & acquisition[1].children.to_value_set).empty?)
     end
 
     def test_system_instanciation
