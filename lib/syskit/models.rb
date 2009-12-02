@@ -323,6 +323,7 @@ module Orocos
 
                 new_model = Composition.new_submodel(name, self)
                 subsystems[name] = new_model
+                Orocos::RobyPlugin.const_set(name, new_model)
                 new_model.instance_eval(&block)
                 new_model
             end
