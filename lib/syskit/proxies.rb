@@ -212,7 +212,8 @@ module Orocos
             end
 
             def self.instanciate(plan, arguments = Hash.new)
-                plan.add(task = new(arguments))
+                _, task_arguments = Model.filter_instanciation_arguments(arguments)
+                plan.add(task = new(task_arguments))
                 task
             end
 
@@ -328,6 +329,14 @@ module Orocos
             # Interrupts the execution of this task context
             event :stop do
                 interrupt!
+            end
+
+            def self.driver_for(device_type)
+                if device_model = Roby.app.orocos_devices[device_type]
+                    include device_model
+                else
+                    raise ArgumentError, "there is no declared device named #{device_type}"
+                end
             end
 
             # Creates a subclass of TaskContext that represents the given task

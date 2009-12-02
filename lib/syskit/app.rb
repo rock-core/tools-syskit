@@ -12,6 +12,8 @@ module Orocos
             # A mapping from deployment name to the corresponding
             # subclass of Orocos::RobyPlugin::Deployment
             attribute(:orocos_deployments) { Hash.new }
+            # A mapping from device type to the corresponding subclass of Device
+            attribute(:orocos_devices) { Hash.new }
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
             def loaded_orogen_project?(name); loaded_orogen_projects.include?(name) end
@@ -66,11 +68,14 @@ module Orocos
                     name = name.camelcase(true)
                     Orocos::RobyPlugin::Deployments.send(:remove_const, name)
                 end
+                orocos_deployments.clear
 
                 projects.each do |name|
                     name = name.camelcase(true)
                     Orocos::RobyPlugin.send(:remove_const, name)
                 end
+
+                orocos_devices.clear
             end
 
             def self.run(app)
