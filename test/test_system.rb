@@ -103,7 +103,14 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
 
         # Both structures should be separated
         assert((acquisition[0].children.to_value_set & acquisition[1].children.to_value_set).empty?)
-        return *acquisition
+
+        # the :model flag on the dependency should be set right
+        cameras = plan.find_tasks(Camera::Driver).to_a
+        cameras.each do |cam|
+            acq = cam.parents.first
+            assert_equal(Roby.app.orocos_devices['camera'].task_model, acq[cam, TaskStructure::Dependency][:model].first)
+        end
+        return acquisition
     end
 
     def check_stereo_disambiguated_structure
@@ -161,6 +168,38 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
 
         assert_equal(8, plan.size)
         check_stereo_disambiguated_structure
+    end
+
+    def test_merge
+        device_tests_spec
+        sys_model.subsystem "Safety" do
+            add "imu"
+            add "ImageAcquisition", :as => 'image'
+        end
+        orocos_engine.add("Stereo").
+            using("image0.acquisition" => "leftCamera").
+            using("image1.acquisition" => "rightCamera")
+        orocos_engine.add("Safety").
+            using("image.camera" => "leftCamera")
+
+        orocos_engine.instanciate
+        # The stereo (7 tasks) is already disambiguated, but the Safety
+        # subsystem should have instanciated an ImageAcquisition subsystem
+        # linked to the left camera (3 tasks more).
+        assert_equal(12, plan.size)
+
+        orocos_engine.merge
+        engine.garbage_collect
+        assert_equal(9, plan.size)
+
+        # Check the stereo substructure
+        check_stereo_disambiguated_structure
+        # Now check the safety substructure
+        assert(safety = plan.find_tasks(Compositions::Safety).to_a.first)
+        assert(acq    = plan.find_tasks(Compositions::ImageAcquisition).
+               with_child(Camera::Driver, :device_name => 'leftCamera').to_a.first)
+        assert(imu    = plan.find_tasks(Imu::Driver).to_a.first)
+        assert_equal([imu, acq].to_value_set, safety.children.to_value_set)
     end
 end
 

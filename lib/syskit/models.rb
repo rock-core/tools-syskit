@@ -132,7 +132,7 @@ module Orocos
                                end
             end
 
-            def resolve_composition
+            def compute_autoconnection
                 if @autoconnect && !@autoconnect.empty?
                     do_autoconnect(@autoconnect)
                 end
@@ -233,11 +233,11 @@ module Orocos
 
             attribute(:connections) { Array.new }
 
-            def instanciate(plan, arguments = Hash.new)
+            def instanciate(engine, arguments = Hash.new)
                 arguments, task_arguments = Model.filter_instanciation_arguments(arguments)
                 selection = arguments[:selection]
 
-                plan.add(self_task = new(task_arguments))
+                engine.plan.add(self_task = new(task_arguments))
 
                 children_tasks = Hash.new
                 children.each do |child_name, child_model|
@@ -275,14 +275,16 @@ module Orocos
                         arguments[:selection].each do |from, to|
                             if from.respond_to?(:to_str) && from =~ /^#{child_name}\./
                                 from = from.gsub(/^#{child_name}\./, '')
+                                sel_from = engine.apply_selection(from)
+                                from = sel_from || from
                             end
                             child_arguments[:selection][from] = to
                         end
-                        task = child_model.instanciate(plan, child_arguments)
+                        task = child_model.instanciate(engine, child_arguments)
                     end
 
                     children_tasks[child_name] = task
-                    self_task.depends_on(task, :model => dependent_model, :roles => role)
+                    self_task.depends_on(task, :model => [dependent_model, task.arguments], :roles => role)
                 end
 
                 connections.each do |out_name, out_port, in_name, in_port|

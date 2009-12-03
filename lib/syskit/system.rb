@@ -38,7 +38,7 @@ module Orocos
                     raise ArgumentError, "unknown device type '#{device_type}'"
                 end
 
-                devices[name] = device_model.task_model.instanciate(engine.plan, {:device_name => name}.merge(device_options))
+                devices[name] = device_model.task_model.instanciate(engine, {:device_name => name}.merge(device_options))
             end
         end
 
@@ -93,11 +93,7 @@ module Orocos
                     @using_spec = Hash.new
                 end
                 def apply_selection(name)
-                    sel = (Roby.app.orocos_tasks[name] || engine.subsystem(name))
-                    if !sel && device_type = Roby.app.orocos_devices[name]
-                        sel = device_type.task_model
-                    end
-                    sel
+                    engine.apply_selection(name)
                 end
 
                 def using(mapping)
@@ -105,7 +101,7 @@ module Orocos
                     self
                 end
 
-                def instanciate(plan)
+                def instanciate(engine)
                     selection = Hash.new
                     using_spec.each do |from, to|
                         sel_from = (apply_selection(from) || from)
@@ -114,13 +110,21 @@ module Orocos
                         end
                         selection[sel_from] = sel_to
                     end
-                    model.instanciate(plan, arguments.merge(:selection => selection))
+                    model.instanciate(engine, arguments.merge(:selection => selection))
                 end
             end
 
             # Returns the task that is currently handling the given device
             def subsystem(name)
                 tasks[name]
+            end
+
+            def apply_selection(name)
+                sel = (Roby.app.orocos_tasks[name] || subsystem(name))
+                if !sel && device_type = Roby.app.orocos_devices[name]
+                    sel = device_type.task_model
+                end
+                sel
             end
 
             def add(name, arguments = Hash.new)
@@ -132,16 +136,28 @@ module Orocos
             end
 
             def instanciate
+                model.subsystems.each_value do |composition_model|
+                    if composition_model.respond_to?(:compute_autoconnection)
+                        composition_model.compute_autoconnection
+                    end
+                end
+
                 robot.devices.each do |name, task|
                     tasks[name] = task
                 end
 
                 instances.each do |instance|
-                    task = instance.instanciate(plan)
+                    task = instance.instanciate(self)
                     if name = instance.name
                         tasks[name] = task
                     end
+                    plan.add_permanent(task)
                 end
+            end
+
+            def resolve
+                instanciate
+                merge
             end
 
             def merge
@@ -150,13 +166,71 @@ module Orocos
                 all_tasks = plan.find_tasks(Orocos::RobyPlugin::Component).
                     to_value_set
 
-                remaining = all_tasks.dup
                 # First pass, we look into all tasks that have no inputs in
                 # +remaining+, check for duplicates and merge the duplicates
+                remaining = all_tasks.dup
+                
+
+                rank = 1
+                old_size = nil
+                while remaining.size != 0 && (old_size != remaining.size)
+                    old_size = remaining.size
+                    rank += 1
+                    roots = remaining.map do |t|
+                        inputs  = t.parent_objects(Flows::DataFlow).to_value_set
+                        if !inputs.intersects?(remaining)
+                            children = t.children.to_value_set
+                            if !children.intersects?(remaining)
+                                [t, inputs, children]
+                            end
+                        end
+                    end.compact
+                    remaining -= roots.map { |t, _| t }.to_value_set
+                    puts "  -- Tasks"
+                    puts "   " + roots.map { |t, _| t.to_s }.join("\n   ")
+
+                    # Create mergeability associations. +merge+ maps a task to
+                    # all the tasks it can replace
+                    merges = Hash.new { |h, k| h[k] = ValueSet.new }
+                    STDERR.puts "  -- Merge candidates"
+                    roots.each do |task, task_inputs, task_children|
+                        roots.each do |target_task, target_inputs, target_children|
+                            next if target_task == task
+                            next if !task_children.include_all?(target_children)
+                            next if (task_inputs & target_inputs).size != task_inputs.size
+                            if task.can_replace?(target_task)
+                                merges[task] << target_task
+                                STDERR.puts "   #{task} => #{target_task}"
+                            end
+                        end
+                    end
+
+                    # Now, just do the replacement in a greedy manner, i.e. take
+                    # the task that can replace the most other tasks and so on
+                    # ...
+                    merges = merges.to_a.sort_by { |task, targets| targets.size }
+                    while !merges.empty?
+                        task, targets = merges.shift
+                        targets.each do |target_task|
+                            plan.replace_task(target_task, task)
+                        end
+                        merges.delete_if do |task, _|
+                            targets.include?(task)
+                        end
+                    end
+
+                    STDERR.puts
+                end
 
                 # Second pass. The remaining tasks are cycles. For those, we
                 # actually extract each of the cycles and merge all at once the
                 # cycles that are identical.
+                if !remaining.empty?
+                    raise NotImplementedError
+                end
+            end
+
+            def create_communication_busses
             end
         end
     end

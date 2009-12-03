@@ -176,7 +176,8 @@ class TC_RobySpec_Models < Test::Unit::TestCase
         device_model = Orocos::RobyPlugin::Device.new_submodel("camera")
         Echo::Echo.driver_for 'camera'
 
-        device_model.task_model
+        assert_same(Echo::Echo, device_model.task_model)
+        assert(Echo::Echo.arguments.include?(:device_name))
     end
 
     def test_device_ambiguous_task_selection

@@ -211,9 +211,9 @@ module Orocos
                 @orogen_task && super
             end
 
-            def self.instanciate(plan, arguments = Hash.new)
+            def self.instanciate(engine, arguments = Hash.new)
                 _, task_arguments = Model.filter_instanciation_arguments(arguments)
-                plan.add(task = new(task_arguments))
+                engine.plan.add(task = new(task_arguments))
                 task
             end
 
