@@ -109,8 +109,6 @@ module Orocos
                         sel_to = apply_selection(to)
                         selection[sel_from] = sel_to
                     end
-
-                    selection.merge!(mapping)
                 end
                 def instanciate(plan)
                     model.instanciate(plan, arguments.merge(:selection => selection))
