@@ -161,9 +161,7 @@ class TC_Orocos < Test::Unit::TestCase
                 task.orogen_task.send(method)
             end
 
-            STDERR.puts state
             sleep 1
-            STDERR.puts deployment.running?
         end
     end
 

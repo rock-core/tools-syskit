@@ -278,9 +278,7 @@ module Orocos
                     @stopping_because_of_error = true
                     @stopping_origin = orogen_state
                     if orogen_task.fatal_error_state?(orogen_state)
-                        puts "FATAL: #{orogen_state}"
                         orogen_task.reset_error
-                        orogen_task.stop
                     else
                         orogen_task.stop
                     end
