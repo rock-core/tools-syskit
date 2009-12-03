@@ -54,7 +54,6 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
     attr_reader :camera_driver
     attr_reader :imu_driver
 
-    # For now, cheat big time ;-)
     def device_tests_spec
         sys_model.device_type 'camera'
         sys_model.device_type 'imu'
