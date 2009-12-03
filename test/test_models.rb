@@ -9,7 +9,7 @@ require 'orocos/roby/app'
 require 'orocos/roby'
 
 APP_DIR = File.join(BASE_DIR, "test")
-class TC_RobySpec < Test::Unit::TestCase
+class TC_RobySpec_Models < Test::Unit::TestCase
     include Orocos::RobyPlugin
     include Roby::Test
     include Roby::Test::Assertions

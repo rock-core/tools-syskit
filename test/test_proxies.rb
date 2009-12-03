@@ -10,7 +10,7 @@ require 'orocos/roby'
 
 APP_DIR = File.join(BASE_DIR, "test")
 
-class TC_Orocos < Test::Unit::TestCase
+class TC_RobyPlugin_Proxies < Test::Unit::TestCase
     include Roby::Test
     include Roby::Test::Assertions
 
