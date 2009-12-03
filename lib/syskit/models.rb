@@ -8,8 +8,8 @@ module Orocos
                 supermodels = ancestors.map(&:name)
                 i = supermodels.index("Orocos::RobyPlugin::Component")
                 supermodels = supermodels[0, i]
-                supermodels.each do |name|
-                    name.gsub!(/Orocos::RobyPlugin::(.*)/, "\\1")
+                supermodels = supermodels.map do |name|
+                    name.gsub(/Orocos::RobyPlugin::(.*)/, "\\1") if name
                 end
                 "#<#{supermodels.join(" < ")}>"
             end
