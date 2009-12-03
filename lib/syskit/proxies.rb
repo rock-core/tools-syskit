@@ -91,7 +91,7 @@ module Orocos
             # Event emitted when the deployment is up and running
             event :ready
             on :ready do
-                each_parent_object(TaskStructure::ExecutionAgent) do |task|
+                each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
                                        rescue NotFound
                                            STDERR.puts "WARN: #{task.orocos_name} cannot be found"
@@ -134,7 +134,7 @@ module Orocos
             end
 
             on :stop do
-                each_parent_object(TaskStructure::ExecutionAgent) do |task|
+                each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orogen_task = nil
                 end
             end
