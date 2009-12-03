@@ -246,6 +246,10 @@ module Orocos
                            else [child_name].to_set
                            end
 
+                    # The model this composition actually requires. It may be
+                    # different than child_model in case of explicit selection
+                    dependent_model = child_model
+
                     # Check if an explicit selection applies
                     selected_object = (selection[child_model] || selection[child_name])
                     if selected_object
@@ -263,11 +267,22 @@ module Orocos
                     end
 
                     if !task
-                        task = child_model.instanciate(plan, arguments)
+                        # Filter out arguments: check if some of the mappings
+                        # are prefixed by "child_name.", in which case we
+                        # transform the mapping for our child
+                        child_arguments = arguments.dup
+                        child_selection = Hash.new
+                        arguments[:selection].each do |from, to|
+                            if from.respond_to?(:to_str) && from =~ /^#{child_name}\./
+                                from = from.gsub(/^#{child_name}\./, '')
+                            end
+                            child_arguments[:selection][from] = to
+                        end
+                        task = child_model.instanciate(plan, child_arguments)
                     end
 
                     children_tasks[child_name] = task
-                    self_task.depends_on(task, :model => child_model, :roles => role)
+                    self_task.depends_on(task, :model => dependent_model, :roles => role)
                 end
 
                 connections.each do |out_name, out_port, in_name, in_port|
@@ -275,6 +290,10 @@ module Orocos
                 end
                 self_task
             end
+        end
+
+        # Module in which all composition models are registered
+        module Compositions
         end
 
         class Composition < Component
@@ -328,7 +347,8 @@ module Orocos
 
                 new_model = Composition.new_submodel(name, self)
                 subsystems[name] = new_model
-                Orocos::RobyPlugin.const_set(name, new_model)
+                Roby.app.orocos_compositions[name] = new_model
+                Orocos::RobyPlugin::Compositions.const_set(name.camelcase(true), new_model)
                 new_model.instance_eval(&block)
                 new_model
             end

@@ -14,6 +14,9 @@ module Orocos
             attribute(:orocos_deployments) { Hash.new }
             # A mapping from device type to the corresponding subclass of Device
             attribute(:orocos_devices) { Hash.new }
+            # A mapping from name to the corresponding subclass of Composition
+            attribute(:orocos_compositions) { Hash.new }
+
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
             def loaded_orogen_project?(name); loaded_orogen_projects.include?(name) end
@@ -56,6 +59,12 @@ module Orocos
 
             def orocos_clear_models
                 projects = Set.new
+                orocos_compositions.each_value do |model|
+                    task_name    = model.name.camelcase(true)
+                    constant("Orocos::RobyPlugin::Compositions").send(:remove_const, task_name)
+                end
+                orocos_compositions.clear
+
                 orocos_tasks.each_value do |model|
                     project_name = model.orogen_spec.component.name.camelcase(true)
                     task_name    = model.orogen_spec.basename.camelcase(true)

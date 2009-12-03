@@ -68,6 +68,15 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
             device 'leftCamera',  :type => 'camera'
             device 'rightCamera', :type => 'camera'
         end
+        sys_model.subsystem "ImageAcquisition" do
+            add "camera", :as => 'acquisition'
+            add "camera::Filter"
+            autoconnect
+        end
+        sys_model.subsystem "Stereo" do
+            add "ImageAcquisition", :as => 'image0'
+            add "ImageAcquisition", :as => 'image1'
+        end
     end
 
     def test_device_definition
@@ -84,6 +93,26 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
         assert_equal('rightCamera', right.device_name)
     end
 
+    def check_left_right_disambiguated_structure
+        # Check the camera drivers in the plan
+        assert_equal(2, plan.find_tasks(camera_driver).to_a.size)
+        acquisition = plan.find_tasks(Compositions::ImageAcquisition).
+            with_child(Camera::Driver).
+            with_child(Camera::Filter).to_a
+        assert_equal(2, acquisition.size)
+
+        # Both structures should be separated
+        assert((acquisition[0].children.to_value_set & acquisition[1].children.to_value_set).empty?)
+        return *acquisition
+    end
+
+    def check_stereo_disambiguated_structure
+        acquisition = check_left_right_disambiguated_structure
+        assert(stereo = plan.find_tasks(Compositions::Stereo).to_a.first)
+
+        assert_equal(acquisition.to_value_set, stereo.children.to_value_set)
+    end
+
     def test_device_model_disambiguation
         device_tests_spec
         orocos_engine.add("ImageAcquisition").
@@ -93,16 +122,7 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
         orocos_engine.instanciate
 
         assert_equal(7, plan.size)
-
-        # Check the camera drivers in the plan
-        assert_equal(2, plan.find_tasks(camera_driver).to_a.size)
-        acquisition = plan.find_tasks(ImageAcquisition).
-            with_child(Camera::Driver).
-            with_child(Camera::Filter).to_a
-        assert_equal(2, acquisition.size)
-
-        # Both structures should be separated
-        assert((acquisition[0].children.to_value_set & acquisition[1].children.to_value_set).empty?)
+        check_left_right_disambiguated_structure
     end
 
     def test_child_name_direct_disambiguation
@@ -114,24 +134,33 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
         orocos_engine.instanciate
 
         assert_equal(7, plan.size)
-
-        # Check the camera drivers in the plan
-        assert_equal(2, plan.find_tasks(camera_driver).to_a.size)
-        acquisition = plan.find_tasks(ImageAcquisition).
-            with_child(Camera::Driver).
-            with_child(Camera::Filter).to_a
-        assert_equal(2, acquisition.size)
-
-        # Both structures should be separated
-        assert((acquisition[0].children.to_value_set & acquisition[1].children.to_value_set).empty?)
+        check_left_right_disambiguated_structure
     end
 
-    def test_system_instanciation
-        engine = RobyPlugin::Engine.new(plan, sys_model)
-        simple_composition
-        engine.add "simple"
+    def test_child_name_indirect_disambiguation
+        device_tests_spec
+        orocos_engine.add("Stereo").
+            using("image0.acquisition" => "leftCamera").
+            using("image1.acquisition" => "rightCamera")
+        orocos_engine.instanciate
 
-        engine.resolve_compositions
+        assert_equal(8, plan.size)
+        check_stereo_disambiguated_structure
+    end
+
+    def test_instance_name_direct_disambiguation
+        device_tests_spec
+        orocos_engine.add("ImageAcquisition", :as => 'leftImage').
+            using("acquisition" => "leftCamera")
+        orocos_engine.add("ImageAcquisition", :as => 'rightImage').
+            using("acquisition" => "rightCamera")
+        orocos_engine.add("Stereo").
+            using("image0" => "leftImage").
+            using("image1" => "rightImage")
+        orocos_engine.instanciate
+
+        assert_equal(8, plan.size)
+        check_stereo_disambiguated_structure
     end
 end
 

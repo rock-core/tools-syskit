@@ -51,6 +51,8 @@ module Orocos
             attr_reader :robot
             # The instances we are supposed to build
             attr_reader :instances
+            # A name => Task mapping of tasks we built so far
+            attr_reader :tasks
 
             # Describes the robot. Example:
             #
@@ -70,30 +72,28 @@ module Orocos
                 @robot
             end
 
-            # Returns the task that is currently handling the given device
-            def device(name)
-                robot.devices[name]
-            end
-
             def initialize(plan, model)
                 @plan      = plan
                 @model     = model
                 @instances = Array.new
+                @tasks     = Hash.new
             end
 
             class InstanciatedComponent
                 attr_reader :engine
+                attr_reader :name
                 attr_reader :model
                 attr_reader :arguments
-                attr_reader :selection
-                def initialize(engine, model, arguments)
+                attr_reader :using_spec
+                def initialize(engine, name, model, arguments)
                     @engine    = engine
+                    @name      = name
                     @model     = model
                     @arguments = arguments
-                    @selection = Hash.new
+                    @using_spec = Hash.new
                 end
                 def apply_selection(name)
-                    sel = (Roby.app.orocos_tasks[name] || engine.device(name))
+                    sel = (Roby.app.orocos_tasks[name] || engine.subsystem(name))
                     if !sel && device_type = Roby.app.orocos_devices[name]
                         sel = device_type.task_model
                     end
@@ -101,29 +101,46 @@ module Orocos
                 end
 
                 def using(mapping)
-                    mapping.each do |from, to|
+                    using_spec.merge!(mapping)
+                    self
+                end
+
+                def instanciate(plan)
+                    selection = Hash.new
+                    using_spec.each do |from, to|
                         sel_from = (apply_selection(from) || from)
                         if !(sel_to = apply_selection(to))
                             raise SpecError, "#{to} is not a task model name, not a device type nor a device name"
                         end
                         selection[sel_from] = sel_to
                     end
-                end
-                def instanciate(plan)
                     model.instanciate(plan, arguments.merge(:selection => selection))
                 end
             end
 
+            # Returns the task that is currently handling the given device
+            def subsystem(name)
+                tasks[name]
+            end
+
             def add(name, arguments = Hash.new)
+                arguments, task_arguments = Kernel.filter_options arguments, :as => nil
                 task_model = model.get(name)
-                instance = InstanciatedComponent.new(self, task_model, arguments)
+                instance = InstanciatedComponent.new(self, arguments[:as], task_model, task_arguments)
                 instances << instance
                 instance
             end
 
             def instanciate
+                robot.devices.each do |name, task|
+                    tasks[name] = task
+                end
+
                 instances.each do |instance|
-                    instance.instanciate(plan)
+                    task = instance.instanciate(plan)
+                    if name = instance.name
+                        tasks[name] = task
+                    end
                 end
             end
 
