@@ -246,10 +246,15 @@ module Orocos
                            else [child_name].to_set
                            end
 
-                    if selected_object = selection[child_model]
+                    # Check if an explicit selection applies
+                    selected_object = (selection[child_model] || selection[child_name])
+                    if selected_object
+                        # Check that the selection is actually valid
                         if !selected_object.fullfills?(child_model)
                             raise SpecError, "cannot select #{submodel} for #{child_model}: #{submodel} is not a specialized model for #{child_model}"
                         end
+                        # Now, +selected_object+ can either be a task instance
+                        # or a task model. Check ...
                         if selected_object.kind_of?(child_model)
                             task = selected_object # selected an instance explicitely
                         else

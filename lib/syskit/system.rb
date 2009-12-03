@@ -93,20 +93,19 @@ module Orocos
                     @selection = Hash.new
                 end
                 def apply_selection(name)
-                    sel = Roby.app.orocos_tasks[name] || engine.device(name)
+                    sel = (Roby.app.orocos_tasks[name] || engine.device(name))
                     if !sel && device_type = Roby.app.orocos_devices[name]
                         sel = device_type.task_model
-                    end
-                    if !sel
-                        raise SpecError, "I know nothing about '#{name}'"
                     end
                     sel
                 end
 
                 def using(mapping)
                     mapping.each do |from, to|
-                        sel_from = apply_selection(from)
-                        sel_to = apply_selection(to)
+                        sel_from = (apply_selection(from) || from)
+                        if !(sel_to = apply_selection(to))
+                            raise SpecError, "#{to} is not a task model name, not a device type nor a device name"
+                        end
                         selection[sel_from] = sel_to
                     end
                 end

@@ -85,12 +85,33 @@ class TC_RobyPlugin_System < Test::Unit::TestCase
         assert_equal('rightCamera', right.device_name)
     end
 
-    def test_direct_disambiguation
+    def test_device_model_disambiguation
         device_tests_spec
         orocos_engine.add("ImageAcquisition").
             using("camera" => "leftCamera")
         orocos_engine.add("ImageAcquisition").
             using("camera" => "rightCamera")
+        orocos_engine.instanciate
+
+        assert_equal(7, plan.size)
+
+        # Check the camera drivers in the plan
+        assert_equal(2, plan.find_tasks(camera_driver).to_a.size)
+        acquisition = plan.find_tasks(ImageAcquisition).
+            with_child(Camera::Driver).
+            with_child(Camera::Filter).to_a
+        assert_equal(2, acquisition.size)
+
+        # Both structures should be separated
+        assert((acquisition[0].children.to_value_set & acquisition[1].children.to_value_set).empty?)
+    end
+
+    def test_child_name_direct_disambiguation
+        device_tests_spec
+        orocos_engine.add("ImageAcquisition").
+            using("acquisition" => "leftCamera")
+        orocos_engine.add("ImageAcquisition").
+            using("acquisition" => "rightCamera")
         orocos_engine.instanciate
 
         assert_equal(7, plan.size)
