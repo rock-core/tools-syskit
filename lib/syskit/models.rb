@@ -83,8 +83,9 @@ module Orocos
                 "#<Device: #{name}>"
             end
         end
-        Device = DeviceModel.new
-        Device.argument :device_name
+        Device = DeviceModel.new do
+            argument "device_name"
+        end
 
         module CompositionModel
             include Model
