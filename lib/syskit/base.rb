@@ -131,6 +131,14 @@ module Orocos
                 end
             end
         end
+
+        class Component::TransactionProxy < Roby::Transactions::Task
+            proxy_for Component
+        end
+
+        Flows = Roby::RelationSpace(Component)
+        Flows.apply_on Component::TransactionProxy
+        Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false
     end
 end
 

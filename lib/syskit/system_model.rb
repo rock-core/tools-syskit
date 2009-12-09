@@ -154,9 +154,6 @@ module Orocos
                 self
             end
         end
-
-        Flows = Roby::RelationSpace(Component)
-        Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false
     end
 end
 
