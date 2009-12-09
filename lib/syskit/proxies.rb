@@ -318,6 +318,11 @@ module Orocos
             event :fatal_error
             forward :fatal_error => :failed
 
+            def self.port(name)
+                name = name.to_str
+                orogen_spec.each_port.find { |p| p.name == name }
+            end
+
             def self.each_output(&block)
                 orogen_spec.each_output_port(&block)
             end

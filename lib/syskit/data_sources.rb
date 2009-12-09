@@ -14,8 +14,8 @@ module Orocos
 
                 model = options[:type].new
                 model.include self
-                model::ClassExtension.include self::ClassExtension
-                model.name    = name.to_str
+                model.extend  self::ClassExtension
+                model.name = name.to_str
                 model
             end
 

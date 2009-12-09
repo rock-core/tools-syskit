@@ -11,10 +11,11 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
     def test_data_source
         model = sys_model.data_source_type("image")
-        assert_equal("image", model.name)
-        assert_same(model, Roby.app.orocos_data_sources["image"])
         assert_kind_of(DataSourceModel, model)
         assert(model < DataSource)
+
+        assert_equal("image", model.name)
+        assert_equal("#<DataSource: image>", model.to_s)
     end
 
     def test_data_source_submodel
@@ -29,6 +30,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         model = sys_model.device_type("camera")
         assert_same(model, Roby.app.orocos_devices["camera"])
         assert_equal("camera", model.name)
+        assert_equal("#<DeviceDriver: camera>", model.to_s)
         assert(data_source = Roby.app.orocos_data_sources["camera"])
         assert(data_source != model)
 
