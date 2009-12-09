@@ -329,12 +329,10 @@ module Orocos
                 interrupt!
             end
 
-            def self.driver_for(device_type)
-                if device_model = Roby.app.orocos_devices[device_type]
-                    include device_model
-                else
-                    raise ArgumentError, "there is no declared device named #{device_type}"
-                end
+            def self.driver_for(name, arguments = Hash.new)
+                model = DataSourceModel.apply_selection(self, "device", name,
+                           Roby.app.orocos_devices[name], arguments)
+                data_source(name, arguments.merge(:model => model))
             end
 
             # Creates a subclass of TaskContext that represents the given task

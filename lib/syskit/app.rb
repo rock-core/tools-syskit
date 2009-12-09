@@ -12,7 +12,11 @@ module Orocos
             # A mapping from deployment name to the corresponding
             # subclass of Orocos::RobyPlugin::Deployment
             attribute(:orocos_deployments) { Hash.new }
-            # A mapping from device type to the corresponding subclass of Device
+            # A mapping from device type to the corresponding submodel of
+            # DeviceDriver
+            attribute(:orocos_data_sources) { Hash.new }
+            # A mapping from device type to the corresponding submodel of
+            # DeviceDriver
             attribute(:orocos_devices) { Hash.new }
             # A mapping from name to the corresponding subclass of Composition
             attribute(:orocos_compositions) { Hash.new }
@@ -67,10 +71,12 @@ module Orocos
                 orocos_compositions.clear
 
                 orocos_tasks.each_value do |model|
-                    project_name = model.orogen_spec.component.name.camelcase(true)
-                    task_name    = model.orogen_spec.basename.camelcase(true)
-                    projects << project_name
-                    constant("Orocos::RobyPlugin::#{project_name}").send(:remove_const, task_name)
+                    if model.orogen_spec
+                        project_name = model.orogen_spec.component.name.camelcase(true)
+                        task_name    = model.orogen_spec.basename.camelcase(true)
+                        projects << project_name
+                        constant("Orocos::RobyPlugin::#{project_name}").send(:remove_const, task_name)
+                    end
                 end
                 orocos_tasks.clear
 
@@ -86,6 +92,7 @@ module Orocos
                 end
 
                 orocos_devices.clear
+                orocos_data_sources.clear
             end
 
             def self.run(app)
