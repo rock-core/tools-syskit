@@ -26,6 +26,7 @@ module Orocos
                 return if loaded_orogen_project?(name)
 
                 orogen = Orocos::Generation.load_task_library(name)
+		Orocos.registry.merge(orogen.registry)
                 loaded_orogen_projects[name] = orogen
 
                 orogen.tasks.each do |task_def|
