@@ -1,4 +1,6 @@
 require 'orocos/roby/base'
-require 'orocos/roby/models'
+require 'orocos/roby/data_sources'
+require 'orocos/roby/compositions'
+require 'orocos/roby/system_model'
 require 'orocos/roby/proxies'
 require 'orocos/roby/system'
