@@ -198,7 +198,7 @@ module Orocos
                     end
 
                     children_tasks[child_name] = task
-                    self_task.depends_on(task, :model => [dependent_model, task.arguments], :roles => role)
+                    self_task.depends_on(task, :model => [dependent_model, dependent_model.meaningful_arguments(task.arguments)], :roles => role)
                 end
 
                 connections.each do |out_name, out_port, in_name, in_port|
