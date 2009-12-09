@@ -215,12 +215,6 @@ module Orocos
                 @orogen_task && super
             end
 
-            def self.instanciate(engine, arguments = Hash.new)
-                _, task_arguments = Model.filter_instanciation_arguments(arguments)
-                engine.plan.add(task = new(task_arguments))
-                task
-            end
-
             # The Orocos::TaskContext instance that gives us access to the
             # remote task context. Note that it is set only when the task is
             # started.

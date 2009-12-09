@@ -44,6 +44,12 @@ module Orocos
         class Component < ::Roby::Task
             inherited_enumerable(:data_source, :data_sources, :map => true) { Hash.new }
 
+            def self.instanciate(engine, arguments = Hash.new)
+                _, task_arguments = Model.filter_instanciation_arguments(arguments)
+                engine.plan.add(task = new(task_arguments))
+                task
+            end
+
             def self.data_source(type_name, arguments = Hash.new)
                 type_name = type_name.to_str
                 source_arguments, arguments = Kernel.filter_options arguments,
