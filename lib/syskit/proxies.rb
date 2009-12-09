@@ -192,7 +192,11 @@ module Orocos
             extend Model
 
             class << self
-                def name; orogen_spec.name end
+                def name
+                    if orogen_spec then orogen_spec.name
+                    else "#<unnamed task model>"
+                    end
+                end
                 # The Orocos::Generation::StaticDeployment that represents this
                 # task context.
                 attr_reader :orogen_spec
