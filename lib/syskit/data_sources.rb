@@ -81,9 +81,159 @@ module Orocos
         ComBusDriver = DataSourceModel.new
 
         module DataSource
-            def self.to_s # :nodoc:
-                "#<DataSource: #{name}>"
+            module ClassExtension
+                def to_s # :nodoc:
+                    "#<DataSource: #{name}>"
+                end
+
+                def each_child_data_source(parent_name, &block)
+                    each_data_source(nil, false).
+                        find_all { |name, model| name =~ /^#{parent_name}\./ }.
+                        map { |name, model| [name.gsub(/^#{parent_name}\./, ''), model] }.
+                        each(&block)
+                end
+
+                # Returns the parent_name, child_name pair for the given source
+                # name. child_name is empty if the source is a root source.
+                def break_data_source_name(name)
+                    name.split '.'
+                end
+
+                # Returns true if +name+ is a root data source in this component
+                def root_data_source?(name)
+                    name !~ /\./
+                end
+
+                # Returns true if +name+ is a main data source on this component
+                def main_data_source?(name)
+                    name = name.to_str
+                    each_main_data_source.any? { |source_name| source_name == name }
+                end
+
+                def data_source_name(type_name)
+                    candidates = each_data_source.find_all do |name, type|
+                        type.name == type_name
+                    end
+                    if candidates.empty?
+                        raise ArgumentError, "no source of type '#{type_name}' declared on #{self}"
+                    elsif candidates.size > 1
+                        raise ArgumentError, "multiple sources of type #{type_name} are declared on #{self}"
+                    end
+                    candidates.first.first
+                end
+
+                # Returns the type of the given data source, or raises
+                # ArgumentError if no such source is declared on this model
+                def data_source_type(name)
+                    each_data_source(name) do |type|
+                        return type
+                    end
+                    raise ArgumentError, "no source #{name} is declared on #{self}"
+                end
+
+                # call-seq:
+                #   TaskModel.each_root_data_source do |name, source_model|
+                #   end
+                #
+                # Enumerates all sources that are root (i.e. not slave of other
+                # sources)
+                def each_root_data_source(&block)
+                    each_data_source(nil, false).
+                        find_all { |name, _| root_data_source?(name) }.
+                        each(&block)
+                end
             end
+
+            # Returns true if +self+ can replace +other_task+ in the plan. The
+            # super() call checks graph-declared dependencies (i.e. that all
+            # dependencies that +other_task+ meets are also met by +self+.
+            #
+            # This method checks that +other_task+ and +self+ do not represent
+            # two different data sources
+            def can_replace?(other_task)
+                return false if !super
+
+                each_merged_source(other_task) do |selection, other_name, self_names, source_type|
+                    if self_names.empty?
+                        return false
+                    end
+                end
+                true
+            end
+            def merge(merged_task)
+                # First thing to do is reassign data sources from the merged
+                # task into ourselves. Note that we do that only for sources
+                # that are actually in use.
+                each_merged_source(merged_task) do |selection, other_name, self_names, source_type|
+                    if self_names.empty?
+                        raise SpecError, "trying to merge #{merged_task} into #{self}, but that seems to not be possible"
+                    end
+
+                    # "select" one source to use to handle other_name
+                    target_name = self_names.pop
+                    # set the argument
+                    arguments["#{target_name}_name"] = selection
+
+                    # What we also need to do is map port names from the ports
+                    # in +merged_task+ into the ports in +self+
+                    #
+                    # For that, we first build a name mapping and then we apply
+                    # it by moving edges from +merged_task+ into +self+.
+                    if other_name  != target_name && !(merged_task.model.main_data_source?(other_name) && model.main_data_source?(target_name))
+                        raise NotImplementedError, "mapping data flow ports is not implemented yet"
+                    end
+                end
+
+                # Finally, remove +merged_task+ from the data flow graph and use
+                # #replace_task to replace it completely
+                Flows::DataFlow.remove(merged_task)
+                plan.replace_task(merged_task, self)
+                nil
+            end
+
+            def using_data_source?(source_name)
+                source_type = model.data_source_type(source_name)
+                inputs  = source_type.each_input.
+                    map { |p| model.map_port_name(p.name, source_type, source_name) }
+                outputs = source_type.each_output.
+                    map { |p| model.map_port_name(p.name, source_type, source_name) }
+
+                each_source do |output|
+                    description = output[self, Flows::DataFlow]
+                    if description.any? { |_, to, _| inputs.include?(to) }
+                        return true
+                    end
+                end
+                each_sink do |input, description|
+                    if description.any? { |from, _, _| outputs.include?(from) }
+                        return true
+                    end
+                end
+                false
+            end
+
+            # Finds the sources of +other_task+ that are in use, and yields
+            # merge candidates in +self+
+            def each_merged_source(other_task) # :nodoc:
+                other_task.model.each_root_data_source do |other_name, other_type|
+                    other_selection = other_task.selected_data_source(other_name)
+                    next if !other_selection
+
+                    self_selection = nil
+                    available_sources = model.each_data_source.find_all do |self_name, self_type|
+                        self_selection = selected_data_source(self_name)
+
+                        self_type == other_type &&
+                            (!self_selection || self_selection == other_selection)
+                    end
+
+                    if self_selection != other_selection
+                        yield(other_selection, other_name, available_sources.map(&:first), other_type)
+                    end
+                end
+            end
+
+            extend ClassExtension
         end
 
         # Module that represents the device drivers in the task models. It

@@ -1,3 +1,5 @@
+require 'utilrb/module/include'
+require 'utilrb/symbol/to_str'
 require 'orocos/roby/base'
 require 'orocos/roby/data_sources'
 require 'orocos/roby/compositions'

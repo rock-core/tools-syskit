@@ -42,6 +42,7 @@ module Orocos
         # Base class for models that represent components (TaskContext,
         # Composition)
         class Component < ::Roby::Task
+            inherited_enumerable(:main_data_source, :main_data_sources) { Set.new }
             inherited_enumerable(:data_source, :data_sources, :map => true) { Hash.new }
 
             def self.instanciate(engine, arguments = Hash.new)
@@ -53,9 +54,11 @@ module Orocos
             def self.data_source(type_name, arguments = Hash.new)
                 type_name = type_name.to_str
                 source_arguments, arguments = Kernel.filter_options arguments,
-                    :model => nil, :as => type_name, :slave_of => nil
+                    :model => nil, :as => nil, :slave_of => nil
 
-                name = source_arguments[:as].to_str
+                main_data_source = !arguments[:as]
+
+                name = (source_arguments[:as] || type_name).to_str
                 if has_data_source?(name)
                     raise SpecError, "#{self} already has a data source named #{name}"
                 end
@@ -74,29 +77,26 @@ module Orocos
                 else
                     argument "#{name}_name"
                     data_sources[name] = model
+                    if main_data_source
+                        main_data_sources << name
+                    end
                 end
                 model
             end
 
-            # call-seq:
-            #   TaskModel.each_root_data_source do |name, source_model|
-            #   end
-            #
-            # Enumerates all sources that are root (i.e. not slave of other
-            # sources)
-            def self.each_root_data_source(&block)
-                each_data_source(nil, false).
-                    find_all { |name, source| name !~ /\./ }.
-                    each(&block)
-            end
 
-            # Returns the type of the given data source, or raises
-            # ArgumentError if no such source is declared on this model
-            def self.data_source_type(name)
-                each_data_source(name) do |type|
-                    return type
+            # Return the selected name for the given data source, or nil if none
+            # is selected yet
+            def selected_data_source(data_source_name)
+                root_source, child_source = model.break_data_source_name(data_source_name)
+                if child_source
+                    # Get the root name
+                    if selected_source = selected_data_source(root_source)
+                        return "#{selected_source}.#{child_source}"
+                    end
+                else
+                    arguments["#{root_source}_name"]
                 end
-                raise ArgumentError, "no source #{name} is declared on #{self}"
             end
 
             def data_source_type(source_name)
@@ -122,19 +122,30 @@ module Orocos
                 model
             end
 
-            def data_source_name(model_name)
-                model_name = model_name.to_str
-                root_model_name, subname = model_name.split '.'
-
-                root_model = model.data_source_type(root_model_name)
-                root_name  = arguments[:"#{root_model_name}_name"]
-
-                # Validate the subname as well
-                if subname
-                    model.data_source_type("#{root_model_name}.#{subname}")
-                    root_name + ".#{subname}"
+            def self.method_missing(name, *args)
+                if args.empty? && (port = self.port(name))
+                    port
                 else
-                    root_name
+                    super
+                end
+            end
+
+            # Map the given port name of the data source's interface into the
+            # actual port of the given component.
+            def self.map_port_name(port_name, source_type, source_name)
+                if main_data_source?(source_name)
+                    if port(port_name)
+                        return port_name
+                    else
+                        raise ArgumentError, "expected #{self} to have a port named #{source_name}"
+                    end
+                else
+                    target_name = "#{source_name}#{port_name.capitalize}"
+                    if port(target_name)
+                        return target_name
+                    else
+                        raise ArgumentError, "expected #{self} to have a port named #{target_name}"
+                    end
                 end
             end
         end

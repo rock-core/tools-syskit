@@ -152,8 +152,23 @@ module Orocos
                 tasks[name]
             end
 
-            def apply_selection(name)
+            def apply_selection(seed)
+                if seed.kind_of?(Class) && seed < Component
+                    return seed
+                end
+
+                name = seed.to_str
                 sel = (Roby.app.orocos_tasks[name] || subsystem(name))
+                if !sel
+                    begin
+                        sel = model.get(name)
+                    rescue ArgumentError
+                    end
+                end
+
+                if !sel && data_source_type = Roby.app.orocos_data_sources[name]
+                    sel = data_source_type.task_model
+                end
                 if !sel && device_type = Roby.app.orocos_devices[name]
                     sel = device_type.task_model
                 end
@@ -169,28 +184,60 @@ module Orocos
             end
 
             def instanciate
-                model.subsystems.each_value do |composition_model|
-                    if composition_model.respond_to?(:compute_autoconnection)
-                        composition_model.compute_autoconnection
+                engine_plan = @plan
+                plan.in_transaction do |trsc|
+                    @plan = trsc
+                    self.tasks.clear
+
+                    model.subsystems.each_value do |composition_model|
+                        if composition_model.respond_to?(:compute_autoconnection)
+                            composition_model.compute_autoconnection
+                        end
                     end
+
+                    robot.devices.each do |name, task|
+                        proxy = trsc[task]
+                        tasks[name] = proxy
+                        trsc.add_permanent(proxy)
+                    end
+
+                    instances.each do |instance|
+                        task = instance.instanciate(self)
+                        if name = instance.name
+                            tasks[name] = task
+                        end
+                        trsc.add_permanent(task)
+                    end
+
+                    STDERR.puts "========== Instanciation Results ==============="
+                    STDERR.puts "-- Tasks"
+                    trsc.each_task do |task|
+                        puts "  #{task} #{task.children.map(&:to_s)}"
+                    end
+                    STDERR.puts "-- Connections"
+                    Flows::DataFlow.each_edge do |from, to, info|
+                        STDERR.puts "  #{from} => #{to} (#{info})"
+                    end
+                    STDERR.puts "================================================"
+                    STDERR.puts
+
+                    trsc.commit_transaction
                 end
 
-                robot.devices.each do |name, task|
-                    tasks[name] = task
-                end
-
-                instances.each do |instance|
-                    task = instance.instanciate(self)
-                    if name = instance.name
-                        tasks[name] = task
-                    end
-                    plan.add_permanent(task)
-                end
+            ensure
+                @plan = engine_plan
             end
 
             def resolve
                 instanciate
                 merge
+
+                # Validate the result
+                still_abstract = trsc.find_tasks(Component).
+                    abstract.to_a
+                if !still_abstract.empty?
+                    raise Ambiguous, "there are ambiguities left in the plan: #{still_abstract}"
+                end
             end
 
             def merge
@@ -245,7 +292,11 @@ module Orocos
                     while !merges.empty?
                         task, targets = merges.shift
                         targets.each do |target_task|
-                            plan.replace_task(target_task, task)
+                            if task.respond_to?(:merge)
+                                task.merge(target_task)
+                            else
+                                plan.replace_task(target_task, task)
+                            end
                         end
                         merges.delete_if do |task, _|
                             targets.include?(task)
