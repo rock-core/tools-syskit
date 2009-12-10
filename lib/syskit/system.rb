@@ -163,7 +163,7 @@ module Orocos
                     engine.apply_selection(name)
                 end
 
-                def using(mapping)
+                def use(mapping)
                     using_spec.merge!(mapping)
                     self
                 end
