@@ -66,5 +66,35 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_raises(Ambiguous) { subsys.compute_autoconnection }
     end
 
+    def test_composition_port_export
+        source, sink1, sink2 = nil
+        subsys = sys_model.subsystem("source_sink0") do
+            source = add "simple_source::source", :as => 'source'
+            sink1  = add "simple_sink::sink", :as => 'sink1'
+            sink2  = add "simple_sink::sink", :as => 'sink2'
+        end
+            
+        subsys.export sink1.cycle
+        assert_same(sink1.cycle, subsys.port('cycle'))
+        assert_raises(SpecError) { subsys.export(sink2.cycle) }
+        
+        subsys.export sink2.cycle, :as => 'cycle2'
+        assert_same(sink1.cycle, subsys.port('cycle'))
+        assert_same(sink2.cycle, subsys.port('cycle2'))
+        assert_same(sink1.cycle, subsys.cycle)
+        assert_same(sink2.cycle, subsys.cycle2)
+    end
+
+    def test_composition_explicit_connection
+        source, sink1, sink2 = nil
+        subsys = sys_model.subsystem("source_sink0") do
+            source = add "simple_source::source", :as => 'source'
+            sink1  = add "simple_sink::sink", :as => 'sink1'
+            sink2  = add "simple_sink::sink", :as => 'sink2'
+
+            connect source.cycle => sink1.cycle
+            connect source.cycle => sink2.cycle
+        end
+    end
 end
 

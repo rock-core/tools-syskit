@@ -61,6 +61,20 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         assert_kind_of(Orocos::Generation::TaskContext, Orocos::RobyPlugin::Echo::Echo.orogen_spec)
     end
 
+    def test_task_port_access
+        Roby.app.load_orogen_project "echo"
+
+        assert(input  = Echo::Echo.port('input'))
+        assert_same(input, Echo::Echo.input)
+        assert_equal('input', input.name)
+        assert(output = Echo::Echo.port('output'))
+        assert_same(output, Echo::Echo.output)
+        assert_equal('output', output.name)
+
+        assert_equal(['input', 'input_struct'].to_set, Echo::Echo.each_input.map(&:name).to_set)
+        assert_equal(['output', 'state'].to_set, Echo::Echo.each_output.map(&:name).to_set)
+    end
+
     def test_task_model_inheritance
         Roby.app.load_orogen_project "echo"
 
