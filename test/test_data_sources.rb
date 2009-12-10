@@ -142,7 +142,25 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert(task_model.fullfills?(source_model))
         assert_equal(source_model, task_model.data_source_type('left_image'))
         assert_equal([["left_image", source_model]], task_model.each_root_data_source.to_a)
-        assert_equal([:left_image_name], task_model.arguments.to_a)
+    end
+
+    def test_task_data_source_overriden_by_device_driver
+        source_model = sys_model.data_source_type 'image'
+        driver_model = sys_model.device_type 'camera', :provides => 'image'
+
+        parent_model   = Class.new(TaskContext) do
+            data_source 'image', :as => 'left_image'
+        end
+        task_model = Class.new(parent_model)
+        task_model.driver_for('camera', :as => 'left_image')
+
+        assert(task_model.has_data_source?('left_image'))
+
+        assert(task_model.fullfills?(source_model))
+        assert(task_model.fullfills?(driver_model))
+        assert_equal(driver_model, task_model.data_source_type('left_image'))
+        assert_equal([["left_image", driver_model]], task_model.each_data_source.to_a)
+        assert_equal([["left_image", driver_model]], task_model.each_root_data_source.to_a)
     end
 
     def test_slave_data_source_declaration

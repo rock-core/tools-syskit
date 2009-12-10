@@ -333,8 +333,9 @@ module Orocos
             end
 
             def self.driver_for(name, arguments = Hash.new)
-                model = DataSourceModel.apply_selection(self, "device", name,
-                           Roby.app.orocos_devices[name], arguments)
+                if !(model = Roby.app.orocos_devices[name])
+                    raise ArgumentError, "there is no device type '#{name}'"
+                end
                 data_source(name, arguments.merge(:model => model))
             end
 

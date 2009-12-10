@@ -51,22 +51,32 @@ module Orocos
                 task
             end
 
+            DATA_SOURCE_ARGUMENTS = { :model => nil, :as => nil, :slave_of => nil }
+
             def self.data_source(type_name, arguments = Hash.new)
                 type_name = type_name.to_str
                 source_arguments, arguments = Kernel.filter_options arguments,
-                    :model => nil, :as => nil, :slave_of => nil
+                    DATA_SOURCE_ARGUMENTS
 
                 main_data_source = !arguments[:as]
 
                 name = (source_arguments[:as] || type_name).to_str
-                if has_data_source?(name)
-                    raise SpecError, "#{self} already has a data source named #{name}"
+                model = source_arguments[:model] || Roby.app.orocos_data_sources[type_name]
+                if !model
+                    raise ArgumentError, "there is no data source called #{type_name}"
                 end
 
-                model = source_arguments[:model] ||
-                    DataSourceModel.apply_selection(self, "data source", type_name,
-                           Roby.app.orocos_data_sources[type_name], arguments)
+                if has_data_source?(name)
+                    parent_type = data_source_type(name)
+                    if !(model < parent_type)
+                        raise SpecError, "#{self} already has a data source named #{name}"
+                    end
+                end
+
                 include model
+                arguments.each do |key, value|
+                    send("#{key}=", value)
+                end
 
                 if parent_source = source_arguments[:slave_of]
                     if !has_data_source?(parent_source.to_str)

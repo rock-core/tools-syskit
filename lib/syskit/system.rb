@@ -64,14 +64,14 @@ module Orocos
             def device(device_type, options = Hash.new)
                 device_type = device_type.to_str
                 options, device_options = Kernel.filter_options options,
-                    :as => device_type, :expected_model => DeviceDriver
+                    :as => device_type, :model => nil, :expected_model => DeviceDriver
 
                 name = options[:as].to_str
                 if devices[name]
                     raise SpecError, "device #{name} is already defined"
                 end
 
-                if !(device_model = Roby.app.orocos_devices[device_type])
+                if !(device_model = options[:model] || Roby.app.orocos_devices[device_type])
                     raise SpecError, "unknown device type '#{device_type}'"
                 end
                 if !(device_model < options[:expected_model])

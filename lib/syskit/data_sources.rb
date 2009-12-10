@@ -23,20 +23,6 @@ module Orocos
                 model
             end
 
-            # Helper method to select a given data source model in 
-            def self.apply_selection(task, type, name, model, arguments) # :nodoc:
-                if model
-                    task.include model
-                    arguments.each do |key, value|
-                        task.send("#{key}=", value)
-                    end
-                    model
-                else
-                    raise ArgumentError, "there is no #{type} type #{name}"
-                end
-                model
-            end
-
             attr_reader :stereotypical_component
 
             # Returns the most generic task model that implements +self+. If
@@ -87,7 +73,7 @@ module Orocos
                 end
 
                 def each_child_data_source(parent_name, &block)
-                    each_data_source(nil, false).
+                    each_data_source(nil).
                         find_all { |name, model| name =~ /^#{parent_name}\./ }.
                         map { |name, model| [name.gsub(/^#{parent_name}\./, ''), model] }.
                         each(&block)
@@ -138,7 +124,7 @@ module Orocos
                 # Enumerates all sources that are root (i.e. not slave of other
                 # sources)
                 def each_root_data_source(&block)
-                    each_data_source(nil, false).
+                    each_data_source(nil).
                         find_all { |name, _| root_data_source?(name) }.
                         each(&block)
                 end
