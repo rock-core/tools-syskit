@@ -218,18 +218,32 @@ module Orocos
                     dependent_model = child_model
 
                     # Check if an explicit selection applies
-                    selected_object = (selection[child_model] || selection[child_name])
-                    if selected_object
+                    selected_object_name = (selection[child_model.name] || selection[child_name])
+                    if selected_object_name
+                        if !(selected_object = engine.apply_selection(selected_object_name))
+                            raise SpecError, "#{to} is not a task model name, not a device type nor a device name"
+                        end
+
                         # Check that the selection is actually valid
                         if !selected_object.fullfills?(child_model)
-                            raise SpecError, "cannot select #{submodel} for #{child_model}: #{submodel} is not a specialized model for #{child_model}"
+                            raise SpecError, "cannot select #{selected_object} for #{child_model}: #{selected_object} is not a specialized model for #{child_model}"
                         end
-                        # Now, +selected_object+ can either be a task instance
+
+                        # +selected_object+ can either be a task instance
                         # or a task model. Check ...
                         if selected_object.kind_of?(child_model)
                             task = selected_object # selected an instance explicitely
+                            child_model = task.model
                         else
                             child_model = selected_object
+                        end
+
+                        if (dependent_model < DataSource) && !(dependent_model < Roby::Task)
+                            # Verify if we must do port mapping from dependent_model
+                            # to child_model
+                            if !child_model.main_data_source?(selected_object_name)
+                                raise NotImplementedError, "port mapping is not yet implemented"
+                            end
                         end
                     end
 

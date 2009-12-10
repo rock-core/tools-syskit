@@ -159,9 +159,6 @@ module Orocos
                     @arguments = arguments
                     @using_spec = Hash.new
                 end
-                def apply_selection(name)
-                    engine.apply_selection(name)
-                end
 
                 def use(mapping)
                     using_spec.merge!(mapping)
@@ -169,15 +166,7 @@ module Orocos
                 end
 
                 def instanciate(engine)
-                    selection = Hash.new
-                    using_spec.each do |from, to|
-                        sel_from = (apply_selection(from) || from)
-                        if !(sel_to = apply_selection(to))
-                            raise SpecError, "#{to} is not a task model name, not a device type nor a device name"
-                        end
-                        selection[sel_from] = sel_to
-                    end
-                    model.instanciate(engine, arguments.merge(:selection => selection))
+                    model.instanciate(engine, arguments.merge(:selection => using_spec))
                 end
             end
 

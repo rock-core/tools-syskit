@@ -25,6 +25,15 @@ module Orocos
 
             attr_reader :stereotypical_component
 
+            # Returns true if a port mapping is needed between the two given
+            # data sources. Note that this relation is symmetric.
+            #
+            # It is assumed that the name0 source in model0 and the name1 source
+            # in model1 are of compatible types (same types or derived types)
+            def self.needs_port_mapping?(model0, name0, model1, name1)
+                name0 != name1 && !(model0.main_data_source?(name0) && model1.main_data_source?(name1))
+            end
+
             # Returns the most generic task model that implements +self+. If
             # more than one task model is found, raises Ambiguous
             def task_model
@@ -165,7 +174,7 @@ module Orocos
                     #
                     # For that, we first build a name mapping and then we apply
                     # it by moving edges from +merged_task+ into +self+.
-                    if other_name  != target_name && !(merged_task.model.main_data_source?(other_name) && model.main_data_source?(target_name))
+                    if DataSourceModel.needs_port_mapping?(merged_task.model, other_name, model, target_name)
                         raise NotImplementedError, "mapping data flow ports is not implemented yet"
                     end
                 end
