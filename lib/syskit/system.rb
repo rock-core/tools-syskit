@@ -218,60 +218,63 @@ module Orocos
             end
 
             def instanciate
+                self.tasks.clear
+
+                model.subsystems.each_value do |composition_model|
+                    if composition_model.respond_to?(:compute_autoconnection)
+                        composition_model.compute_autoconnection
+                    end
+                end
+
+                robot.devices.each do |name, task|
+                    proxy = plan[task]
+                    puts name
+                    tasks[name] = proxy
+                    plan.add_permanent(proxy)
+                end
+
+                instances.each do |instance|
+                    task = instance.instanciate(self)
+                    if name = instance.name
+                        tasks[name] = task
+                    end
+                    plan.add_permanent(task)
+                end
+
+                STDERR.puts "========== Instanciation Results ==============="
+                STDERR.puts "-- Tasks"
+                plan.each_task do |task|
+                    puts "  #{task} #{task.children.map(&:to_s)}"
+                end
+                STDERR.puts "-- Connections"
+                Flows::DataFlow.each_edge do |from, to, info|
+                    STDERR.puts "  #{from} => #{to} (#{info})"
+                end
+                STDERR.puts "================================================"
+                STDERR.puts
+            end
+
+            def validate_result(plan)
+                still_abstract = plan.find_tasks(Component).
+                    abstract.to_a
+                if !still_abstract.empty?
+                    raise Ambiguous, "there are ambiguities left in the plan: #{still_abstract}"
+                end
+            end
+
+            def resolve
                 engine_plan = @plan
                 plan.in_transaction do |trsc|
                     @plan = trsc
-                    self.tasks.clear
-
-                    model.subsystems.each_value do |composition_model|
-                        if composition_model.respond_to?(:compute_autoconnection)
-                            composition_model.compute_autoconnection
-                        end
-                    end
-
-                    robot.devices.each do |name, task|
-                        proxy = trsc[task]
-                        tasks[name] = proxy
-                        trsc.add_permanent(proxy)
-                    end
-
-                    instances.each do |instance|
-                        task = instance.instanciate(self)
-                        if name = instance.name
-                            tasks[name] = task
-                        end
-                        trsc.add_permanent(task)
-                    end
-
-                    STDERR.puts "========== Instanciation Results ==============="
-                    STDERR.puts "-- Tasks"
-                    trsc.each_task do |task|
-                        puts "  #{task} #{task.children.map(&:to_s)}"
-                    end
-                    STDERR.puts "-- Connections"
-                    Flows::DataFlow.each_edge do |from, to, info|
-                        STDERR.puts "  #{from} => #{to} (#{info})"
-                    end
-                    STDERR.puts "================================================"
-                    STDERR.puts
+                    instanciate
+                    validate_result(trsc)
+                    merge
 
                     trsc.commit_transaction
                 end
 
             ensure
                 @plan = engine_plan
-            end
-
-            def resolve
-                instanciate
-                merge
-
-                # Validate the result
-                still_abstract = trsc.find_tasks(Component).
-                    abstract.to_a
-                if !still_abstract.empty?
-                    raise Ambiguous, "there are ambiguities left in the plan: #{still_abstract}"
-                end
             end
 
             def merge
