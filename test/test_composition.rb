@@ -75,14 +75,14 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
             
         subsys.export sink1.cycle
-        assert_same(sink1.cycle, subsys.port('cycle'))
+        assert_equal(sink1.cycle, subsys.port('cycle'))
         assert_raises(SpecError) { subsys.export(sink2.cycle) }
         
         subsys.export sink2.cycle, :as => 'cycle2'
-        assert_same(sink1.cycle, subsys.port('cycle'))
-        assert_same(sink2.cycle, subsys.port('cycle2'))
-        assert_same(sink1.cycle, subsys.cycle)
-        assert_same(sink2.cycle, subsys.cycle2)
+        assert_equal(sink1.cycle, subsys.port('cycle'))
+        assert_equal(sink2.cycle, subsys.port('cycle2'))
+        assert_equal(sink1.cycle, subsys.cycle)
+        assert_equal(sink2.cycle, subsys.cycle2)
     end
 
     def test_composition_explicit_connection

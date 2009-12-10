@@ -15,12 +15,25 @@ module Orocos
                     raise NoMethodError, "#{child} has no port named #{name}", caller(1)
                 end
             end
+
+            def ==(other)
+                other.composition == composition &&
+                    other.name == name
+            end
         end
         class CompositionChildPort
             attr_reader :child, :port
+            def name
+                port.name
+            end
             def initialize(child, port)
                 @child = child
                 @port  = port
+            end
+
+            def ==(other)
+                other.child == child &&
+                    other.port == port
             end
         end
 
@@ -145,12 +158,12 @@ module Orocos
 
             def export(port, options = Hash.new)
                 options = Kernel.validate_options options, :as => port.name
-                name = options[:as]
+                name = options[:as].to_str
                 if self.port(name)
                     raise SpecError, "there is already a port named #{name} on #{self}"
                 end
 
-                case port
+                case port.port
                 when Generation::OutputPort
                     outputs[name] = port
                 when Generation::InputPort
