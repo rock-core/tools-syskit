@@ -63,6 +63,7 @@ module Orocos
                 model = source_arguments[:model] ||
                     DataSourceModel.apply_selection(self, "data source", type_name,
                            Roby.app.orocos_data_sources[type_name], arguments)
+                include model
 
                 if parent_source = source_arguments[:slave_of]
                     if !has_data_source?(parent_source.to_str)

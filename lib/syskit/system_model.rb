@@ -31,7 +31,13 @@ module Orocos
                 end
             end
 
-            def data_source_type(name, parent_model = DataSource)
+            def data_source_type(name, options = Hash.new)
+                options = Kernel.validate_options options,
+                    :parent_model => DataSource,
+                    :interface    => nil
+
+                parent_model = options[:parent_model]
+
                 if model = Roby.app.orocos_data_sources[name]
                     model
                 else
@@ -40,13 +46,13 @@ module Orocos
                             raise SpecError, "no data source named #{parent_model}"
                         end
                     end
-                    model = Roby.app.orocos_data_sources[name.to_str] = parent_model.new_submodel(name)
+                    model = Roby.app.orocos_data_sources[name.to_str] = parent_model.new_submodel(name, :interface => options[:interface])
                 end
                 data_source_types[name] = model
             end
 
             def device_type(name, options = Hash.new)
-                options, device_options = Kernel.filter_options options, :provides => false
+                options, device_options = Kernel.filter_options options, :provides => false, :interface => nil
 
                 if !(device_model = Roby.app.orocos_devices[name])
                     device_model = Roby.app.orocos_devices[name.to_str] = DeviceDriver.new_submodel(name)
@@ -64,7 +70,7 @@ module Orocos
                     end
                 else
                     if !(data_source = Roby.app.orocos_data_sources[name])
-                        data_source = self.data_source_type(name)
+                        data_source = self.data_source_type(name, :interface => options[:interface])
                     end
                     device_model.include data_source
                 end
@@ -96,8 +102,10 @@ module Orocos
             def get(name)
                 if subsystem = subsystems[name] 
                     subsystem
+                elsif data_source_model = Roby.app.orocos_data_sources[name]
+                    data_source_model
                 elsif device_model = Roby.app.orocos_devices[name]
-                    device_model.task_model
+                    device_model
                 else
                     raise ArgumentError, "no subsystem, task or device type matches '#{name}'"
                 end

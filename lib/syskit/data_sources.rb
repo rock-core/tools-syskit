@@ -10,11 +10,15 @@ module Orocos
             # Creates a new DataSourceModel that is a submodel of +self+
             def new_submodel(name, options = Hash.new)
                 options = Kernel.validate_options options,
-                    :type => self.class
+                    :type => self.class, :interface => nil
 
                 model = options[:type].new
                 model.include self
                 model.extend  self::ClassExtension
+                if options[:interface]
+                    iface_spec = Roby.app.get_orocos_task_model(options[:interface]).orogen_spec
+                    model.instance_variable_set(:@stereotypical_component, iface_spec)
+                end
                 model.name = name.to_str
                 model
             end
@@ -33,6 +37,8 @@ module Orocos
                 model
             end
 
+            attr_reader :stereotypical_component
+
             # Returns the most generic task model that implements +self+. If
             # more than one task model is found, raises Ambiguous
             def task_model
@@ -40,22 +46,33 @@ module Orocos
                     return @task_model
                 end
 
-                # Get all task models that implement this device
-                tasks = Roby.app.orocos_tasks.
-                    find_all { |_, t| t.fullfills?(self) }.
-                    map { |_, t| t }
-
-                # Now, get the most abstract ones
-                tasks.delete_if do |model|
-                    tasks.any? { |t| model < t }
+                @task_model = Class.new(TaskContext) do
+                    class << self
+                        attr_accessor :name
+                    end
                 end
+                @task_model.instance_variable_set(:@orogen_spec, stereotypical_component)
+                @task_model.abstract
+                @task_model.name = "#{name}DataSourceTask"
+                @task_model.extend Model
+                @task_model.data_source name, :model => self
+                @task_model
+            end
 
-                if tasks.size > 1
-                    raise Ambiguous, "#{tasks.map(&:name).join(", ")} can all handle '#{name}', please select one explicitely with the 'using' statement"
-                elsif tasks.empty?
-                    raise SpecError, "no task can handle the device '#{name}'"
-                end
-                @task_model = tasks.first
+            def port(name)
+                name = name.to_str
+                stereotypical_component.each_port.find { |p| p.name == name }
+            end
+
+            def each_output(&block)
+                stereotypical_component.each_output_port(&block)
+            end
+            def each_input(&block)
+                stereotypical_component.each_input_port(&block)
+            end
+
+            def instanciate(*args, &block)
+                task_model.instanciate(*args, &block)
             end
         end
 
@@ -77,16 +94,18 @@ module Orocos
             argument "com_bus"
             argument "bus_name"
 
-            def self.to_s # :nodoc:
-                "#<DeviceDriver: #{name}>"
-            end
+            module ClassExtension
+                def to_s # :nodoc:
+                    "#<DeviceDriver: #{name}>"
+                end
 
-            def device_name=(new_value)
-                self.subdevices = self.class.subdevices.
-                    keys.map { |subname| "#{new_value}.#{subname}" }
-                arguments[:device_name] = new_value
+                def task_model
+                    model = super
+                    model.name = "#{name}DeviceDriverTask"
+                    model
+                end
             end
-
+            extend ClassExtension
         end
 
         # Module that represents the communication busses in the task models. It

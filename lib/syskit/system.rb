@@ -27,18 +27,51 @@ module Orocos
                 bus
             end
 
-            def device(name, options = Hash.new)
-                options, device_options = Kernel.filter_options options, :type => name
+            def device(device_type, options = Hash.new)
+                device_type = device_type.to_str
+                options, device_options = Kernel.filter_options options,
+                    :as => device_type, :expected_model => DeviceDriver
+
+                name = options[:as].to_str
                 if devices[name]
                     raise SpecError, "device #{name} is already defined"
                 end
 
-                device_type  = options[:type]
                 if !(device_model = Roby.app.orocos_devices[device_type])
-                    raise ArgumentError, "unknown device type '#{device_type}'"
+                    raise SpecError, "unknown device type '#{device_type}'"
+                end
+                if !(device_model < options[:expected_model])
+                    raise SpecError, "device #{device_type} is not a #{options[:expected_model]}"
                 end
 
-                devices[name] = device_model.task_model.instanciate(engine, {:device_name => name}.merge(device_options))
+                # Since we want to drive a particular device, we actually need a
+                # concrete task model. So, search for one.
+                #
+                # Get all task models that implement this device
+                tasks = Roby.app.orocos_tasks.
+                    find_all { |_, t| t.fullfills?(device_model) }.
+                    map { |_, t| t }
+
+                # Now, get the most abstract ones
+                tasks.delete_if do |model|
+                    tasks.any? { |t| model < t }
+                end
+
+                if tasks.size > 1
+                    raise Ambiguous, "#{tasks.map(&:name).join(", ")} can all handle '#{name}', please select one explicitely with the 'using' statement"
+                elsif tasks.empty?
+                    raise SpecError, "no task can handle the device '#{name}'"
+                end
+
+                task_model = tasks.first
+                data_source_name = task_model.data_source_name(device_type)
+                device_arguments = {"#{data_source_name}_name" => name, :com_bus => nil}
+                task = task_model.instanciate(engine, device_arguments.merge(device_options))
+                devices[name] = task
+
+                task_model.each_child_data_source(data_source_name) do |child_name, _|
+                    devices["#{name}.#{child_name}"] = task
+                end
             end
         end
 
