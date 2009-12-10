@@ -340,7 +340,60 @@ module Orocos
                 end
             end
 
-            def create_communication_busses
+            def link_to_busses
+                candidates = plan.find_tasks(Orocos::RobyPlugin::DeviceDriver).
+                    find_all { |t| t.com_bus }.
+                    to_value_set
+
+                candidates.each do |task|
+                    if !(com_bus = robot.devices[task.com_bus])
+                        raise SpecError, "no communication bus called #{task.com_bus} found"
+                    end
+
+                    # Assume that if the com bus is one of our dependencies,
+                    # then it means we are already linked to it
+                    next if task.depends_on?(com_bus)
+
+                    # Enumerate in/out ports on task of the bus datatype
+                    message_type = Orocos.registry.get(com_bus.model.message_type).name
+                    out_ports = task.model.each_output.find_all do |p|
+                        p.type.name == message_type
+                    end
+                    in_ports = task.model.each_input.find_all do |p|
+                        p.type.name == message_type
+                    end
+                    if out_ports.empty? && in_ports.empty?
+                        raise SpecError, "device #{task.device_name} is supposed to be connected to #{com_bus.device_name}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
+                    end
+
+		    bus_name = task.bus_name || task.device_name
+		    if in_ports.size > 1 # need to disambiguate
+			filtered = in_ports.find_all { |p| p.name =~  /#{bus_name}/ }
+			if filtered.size != 1
+			    raise Ambiguous, "I don't know which port in #{in_ports.map(&:name)} to use to connect #{task.device_name} to #{com_bus.device_name}"
+			end
+			in_ports = filtered
+		    end
+		    if out_ports.size > 1 # need to disambiguate
+			filtered = out_ports.find_all { |p| p.name =~  /#{bus_name}/ }
+			if filtered.size != 1
+			    raise Ambiguous, "I don't know which port in #{out_ports.map(&:name)} to use to connect #{task.device_name} to #{com_bus.device_name}"
+			end
+			out_ports = filtered
+		    end
+
+		    # Now connect !
+		    task.depends_on com_bus
+		    in_ports.each do |p|
+			output_port_name = com_bus.output_name_for(bus_name)
+			com_bus.add_sink(task, [p.name, output_port_name])
+		    end
+		    out_ports.each do |p|
+			input_port_name = com_bus.input_name_for(bus_name)
+			task.add_sink(com_bus, [input_port_name, p.name])
+		    end
+                end
+                nil
             end
         end
     end
