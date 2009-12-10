@@ -166,7 +166,23 @@ module Orocos
 
         Flows = Roby::RelationSpace(Component)
         Flows.apply_on Component::TransactionProxy
-        Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false
+        Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false do
+            def connect_to(target_task, mappings)
+                # TODO: validate that all ports in +mappings+ actually exist on
+                # the tasks
+                if child_object?(target_task, Flows::DataFlow)
+                    current_mappings = self[target_task, Flows::DataFlow]
+                    self[target_task, Flows::DataFlow] = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
+                        if old_options != new_options
+                            raise Roby::ModelViolation, "cannot override connection setup with #connect_to"
+                        end
+                        old_options
+                    end
+                else
+                    add_sink(target_task, mappings)
+                end
+            end
+        end
     end
 end
 

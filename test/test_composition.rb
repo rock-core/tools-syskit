@@ -37,7 +37,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
         subsys.compute_autoconnection
 
-        assert_equal([%w{source cycle sink cycle}],
+        assert_equal({%w{source sink} => {%w{cycle cycle} => {}}},
             subsys.connections)
     end
 
