@@ -63,6 +63,29 @@ class TC_RobySpec_System < Test::Unit::TestCase
             Flows::DataFlow.enum_for(:each_edge).to_set)
     end
 
+    def test_robot_device_definition
+        sys_model.device_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.device_type 'camera', :interface => SystemTest::CameraDriver
+        stereo_model = SystemTest::Stereo
+        stereo_model.data_source 'stereo'
+
+        stereo_driver = SystemTest::StereoCamera
+        stereo_driver.driver_for 'stereo'
+        stereo_driver.data_source 'camera', :as => 'left',  :slave_of => 'stereo'
+        stereo_driver.data_source 'camera', :as => 'right', :slave_of => 'stereo'
+
+        orocos_engine.robot do
+            device 'stereo',  :as => 'frontStereo'
+        end
+        
+        driver_task = orocos_engine.robot.devices['frontStereo']
+        assert_kind_of stereo_driver, driver_task
+
+        camera_type = Roby.app.orocos_data_sources['camera']
+        assert_kind_of camera_type, orocos_engine.robot.devices['frontStereo.left']
+        assert_kind_of camera_type, orocos_engine.robot.devices['frontStereo.right']
+    end
+
     def device_tests_spec
         sys_model.bus_type 'can'
         sys_model.device_type 'camera',          :interface => "system_test::CameraDriver"
