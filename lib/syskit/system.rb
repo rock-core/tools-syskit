@@ -94,7 +94,7 @@ module Orocos
                 if tasks.size > 1
                     raise Ambiguous, "#{tasks.map(&:name).join(", ")} can all handle '#{name}', please select one explicitely with the 'using' statement"
                 elsif tasks.empty?
-                    raise SpecError, "no task can handle the device '#{name}'"
+                    raise SpecError, "no task can handle devices of type '#{device_type}'"
                 end
 
                 task_model = tasks.first
