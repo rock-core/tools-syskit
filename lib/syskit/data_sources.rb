@@ -14,7 +14,6 @@ module Orocos
 
                 model = options[:type].new
                 model.include self
-                model.extend  self::ClassExtension
                 if options[:interface]
                     iface_spec = Roby.app.get_orocos_task_model(options[:interface]).orogen_spec
                     model.instance_variable_set(:@stereotypical_component, iface_spec)
@@ -69,6 +68,10 @@ module Orocos
             def instanciate(*args, &block)
                 task_model.instanciate(*args, &block)
             end
+
+            def to_s # :nodoc:
+                "#<DataSource: #{name}>"
+            end
         end
 
         DataSource   = DataSourceModel.new
@@ -77,10 +80,6 @@ module Orocos
 
         module DataSource
             module ClassExtension
-                def to_s # :nodoc:
-                    "#<DataSource: #{name}>"
-                end
-
                 def each_child_data_source(parent_name, &block)
                     each_data_source(nil).
                         find_all { |name, model| name =~ /^#{parent_name}\./ }.
@@ -239,7 +238,9 @@ module Orocos
             argument "com_bus"
             argument "bus_name"
 
-            module ClassExtension
+            include DataSource
+
+            module ModuleExtension
                 def to_s # :nodoc:
                     "#<DeviceDriver: #{name}>"
                 end
@@ -250,7 +251,7 @@ module Orocos
                     model
                 end
             end
-            extend ClassExtension
+            extend ModuleExtension
         end
 
         # Module that represents the communication busses in the task models. It
@@ -273,6 +274,7 @@ module Orocos
                 # this bus
                 attr_accessor :message_type
             end
+            extend ClassExtension
 
             # The output port name for the +bus_name+ device attached on this
             # bus
