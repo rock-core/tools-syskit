@@ -1,5 +1,35 @@
 module Orocos
     module RobyPlugin
+        # This class represents a communication bus on the robot, i.e. a device
+        # that multiplexes and demultiplexes I/O for device modules
+        class CommunicationBus
+            # The Robot object we are part of
+            attr_reader :robot
+            # The bus name
+            attr_reader :name
+
+            def initialize(robot, name, options = Hash.new)
+                @robot = robot
+                @name  = name
+                @options = options
+            end
+
+            def through(&block)
+                instance_eval(&block)
+            end
+
+            # Used by the #through call to override com_bus specification.
+            def device(type_name, options = Hash.new)
+                # Check that we do have the configuration data for that device,
+                # and declare it as being passing through us.
+                if options[:com_bus] || options['com_bus']
+                    raise SpecError, "cannot use the 'com_bus' option in a through block"
+                end
+                options[:com_bus] = self.name
+                robot.device(type_name, options)
+            end
+        end
+
         class Robot
             def initialize(engine)
                 @engine     = engine
@@ -14,8 +44,12 @@ module Orocos
             # The devices that are available on this robot
             attr_reader :devices
 
-            def com_bus(name)
-                com_busses[name] = CommunicationBus.new(self, name)
+            def com_bus(type_name, options = Hash.new)
+                bus_options, _ = Kernel.filter_options options, :as => type_name
+                name = bus_options[:as].to_str
+                com_busses[name] = CommunicationBus.new(self, name, options)
+
+                device(type_name, options)
             end
 
             def through(com_bus, &block)

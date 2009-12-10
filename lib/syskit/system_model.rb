@@ -77,9 +77,9 @@ module Orocos
 
                 device_model
             end
-            def bus_type(name)
+            def bus_type(name, options  = Hash.new)
                 if !(device_model = Roby.app.orocos_devices[name])
-                    Roby.app.orocos_devices[name.to_str] = ComBus.new_submodel(name)
+                    Roby.app.orocos_devices[name.to_str] = ComBusDriver.new_submodel(name, options)
                 end
             end
 
