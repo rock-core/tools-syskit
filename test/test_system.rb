@@ -96,10 +96,10 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
         @can_bus        = SystemTest::CanBus
         can_bus.driver_for 'can', :message_type => 'can/Message'
+        @camera_driver  = SystemTest::CameraDriver
+        camera_driver.driver_for 'camera'
         @imu_driver     = SystemTest::IMU
         imu_driver.driver_for 'imu'
-        @camera_driver = SystemTest::CameraDriver
-        camera_driver.driver_for 'camera'
         @motors         = SystemTest::MotorController
         motors.driver_for 'motors'
         @controldev     = SystemTest::ControlDevices
@@ -161,7 +161,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         cameras = plan.find_tasks(SystemTest::CameraDriver).to_a
         cameras.each do |cam|
             acq = cam.parents.first
-            assert_equal(Roby.app.orocos_devices['camera'], acq[cam, TaskStructure::Dependency][:model].first)
+            assert_equal(Roby.app.orocos_data_sources['camera'], acq[cam, TaskStructure::Dependency][:model].first)
         end
         return acquisition
     end
@@ -170,7 +170,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
         acquisition = check_left_right_disambiguated_structure
         assert(stereo = plan.find_tasks(Compositions::Stereo).to_a.first)
 
-        assert_equal(acquisition.to_value_set, stereo.children.to_value_set)
+        stereo_processing = plan.find_tasks(SystemTest::StereoProcessing).to_value_set
+        assert_equal(acquisition.to_value_set | stereo_processing, stereo.children.to_value_set)
     end
 
     def test_device_model_disambiguation
@@ -296,14 +297,13 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def test_demultiplexing
-        self.event_logger = true
         sys_model.device_type 'stereo', :interface => SystemTest::Stereo
         sys_model.device_type 'camera', :interface => SystemTest::CameraDriver
 
         SystemTest::StereoCamera.class_eval do
             driver_for 'stereo'
-            data_source 'camera', :as => 'image0', :slave_of => 'stereo'
-            data_source 'camera', :as => 'image1', :slave_of => 'stereo'
+            data_source 'camera', :as => 'left', :slave_of => 'stereo'
+            data_source 'camera', :as => 'right', :slave_of => 'stereo'
         end
         SystemTest::CameraDriver.driver_for 'camera'
 
@@ -321,40 +321,35 @@ class TC_RobySpec_System < Test::Unit::TestCase
             add "stereo", :as => "stereo1"
         end
 
-        dev_stereo, dev_left_camera, dev_right_camera = nil
+        dev_stereo = nil
         orocos_engine.robot do
             dev_stereo       = device 'stereo', :as => 'front_stereo'
-            dev_left_camera  = device 'camera', :as => 'left_camera'
-            dev_right_camera = device 'camera', :as => 'right_camera'
         end
         root_task = orocos_engine.add("StereoComparison")
 
         # Try to instanciate without disambiguation. This should fail miserably
-        assert(3, plan.size)
-        assert_raises(Ambiguous) { orocos_engine.instanciate }
-        assert(3, plan.size)
+        assert_equal(1, plan.size)
+        assert_raises(Ambiguous) { orocos_engine.resolve }
+        assert_equal(1, plan.size)
 
         # Add disambiguation information and reinstanciate
         root_task.use("image0" => "left_camera").
-            use("image1" => "right_camera").
-            use("stereo0" => Compositions::Stereo).
-            use("stereo1" => "front_stereo")
+            use('stereo0' => 'front_stereo').
+            use('stereo1' => 'Stereo').
+            use('image0' => 'front_stereo.left').
+            use('image1' => 'front_stereo.right')
 
         orocos_engine.instanciate
 
         # Two cameras, a stereocamera, a stereoprocessing, a Stereo composition
         # and a StereoComparison composition => 6 tasks
-        assert_equal(6, plan.size)
+        assert_equal(4, plan.size)
 
         # Check the structure
         root_tasks = plan.find_tasks(Compositions::StereoComparison).
             with_child(Compositions::Stereo).
             with_child(SystemTest::StereoCamera).to_a
         assert_equal(1, root_tasks.size)
-
-        plan.each_task do |task|
-            puts "#{task} #{task.model} #{task.children.map(&:to_s)}"
-        end
     end
 
     def test_provides
