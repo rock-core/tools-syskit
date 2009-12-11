@@ -296,7 +296,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         assert_equal(1, root_tasks.size)
     end
 
-    def test_demultiplexing
+    def test_failed_resolve_does_not_impact_the_plan
         sys_model.device_type 'stereo', :interface => SystemTest::Stereo
         sys_model.device_type 'camera', :interface => SystemTest::CameraDriver
 
@@ -331,25 +331,75 @@ class TC_RobySpec_System < Test::Unit::TestCase
         assert_equal(1, plan.size)
         assert_raises(Ambiguous) { orocos_engine.resolve }
         assert_equal(1, plan.size)
+    end
 
-        # Add disambiguation information and reinstanciate
-        root_task.use("image0" => "left_camera").
+    def test_port_mapping_at_instanciation_time
+        sys_model.device_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.device_type 'camera', :interface => SystemTest::CameraDriver
+
+        SystemTest::StereoCamera.class_eval do
+            driver_for 'stereo'
+            data_source 'camera', :as => 'left', :slave_of => 'stereo'
+            data_source 'camera', :as => 'right', :slave_of => 'stereo'
+        end
+        SystemTest::CameraDriver.driver_for 'camera'
+
+        sys_model.subsystem "Stereo" do
+            data_source 'stereo'
+            stereo = add "system_test::StereoProcessing", :as => 'processing'
+            image0 = add "camera", :as => "image0"
+            image1 = add "camera", :as => "image1"
+            connect image0.image => stereo.leftImage
+            connect image1.image => stereo.rightImage
+        end
+
+        sys_model.subsystem "StereoComparison" do
+            add "stereo", :as => "stereo0"
+            add "stereo", :as => "stereo1"
+        end
+
+        dev_stereo = nil
+        orocos_engine.robot do
+            dev_stereo       = device 'stereo', :as => 'front_stereo'
+        end
+
+        # We compare the stereovision engine on the stereocamera with our own
+        # algorithm by instanciating the stereocamera directly, and using its
+        # cameras to inject into the Stereo composition.
+        root_task = orocos_engine.add("StereoComparison").
             use('stereo0' => 'front_stereo').
             use('stereo1' => 'Stereo').
-            use('image0' => 'front_stereo.left').
-            use('image1' => 'front_stereo.right')
+            use('stereo1.image0'  => 'front_stereo.left').
+            use('stereo1.image1'  => 'front_stereo.right')
 
-        orocos_engine.instanciate
+        # Add disambiguation information and reinstanciate
+        orocos_engine.resolve
 
-        # Two cameras, a stereocamera, a stereoprocessing, a Stereo composition
-        # and a StereoComparison composition => 6 tasks
+        # A stereocamera, a stereoprocessing, a Stereo composition
+        # and a StereoComparison composition => 4 tasks
         assert_equal(4, plan.size)
 
-        # Check the structure
-        root_tasks = plan.find_tasks(Compositions::StereoComparison).
+        # Check the dependency structure
+        tasks = plan.find_tasks(Compositions::StereoComparison).
             with_child(Compositions::Stereo).
             with_child(SystemTest::StereoCamera).to_a
-        assert_equal(1, root_tasks.size)
+        assert_equal(1, tasks.size)
+
+        tasks = plan.find_tasks(Compositions::Stereo).
+            with_child(SystemTest::StereoCamera, :roles => ['image0', 'image1'].to_set).
+            to_a
+        assert_equal(1, tasks.size)
+
+        # Check the data flow
+        expected_connections = {
+            ['rightImage', 'rightImage'] => {:type => :data, :lock => :lock_free, :pull => false, :init => false},
+            ['leftImage', 'leftImage']   => {:type => :data, :lock => :lock_free, :pull => false, :init => false}
+        }
+
+        tasks = plan.find_tasks(SystemTest::StereoCamera).
+            with_child( SystemTest::StereoProcessing, Flows::DataFlow, expected_connections ).
+            to_a
+        assert_equal(1, tasks.size)
     end
 
     def test_provides

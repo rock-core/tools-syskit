@@ -213,6 +213,29 @@ module Orocos
                 end
             end
 
+            def apply_port_mappings(connections, child_name, port_mappings)
+                connections.each do |(out_name, in_name), mappings|
+                    mapped_connections = Hash.new
+
+                    if out_name == child_name
+                        mappings.delete_if do |(out_port, in_port), options|
+                            if mapped_port = port_mappings[out_port]
+                                mapped_connections[ [in_port, mapped_port] ] = options
+                            end
+                        end
+
+                    elsif in_name == child_name
+                        mappings.delete_if do |(out_port, in_port), options|
+                            if mapped_port = port_mappings[in_port]
+                                mapped_connections[ [mapped_port, out_port] ] = options
+                            end
+                        end
+                    end
+                    mappings.merge!(mapped_connections)
+                end
+                connections
+            end
+
             def instanciate(engine, arguments = Hash.new)
                 arguments, task_arguments = Model.filter_instanciation_arguments(arguments)
                 selection = arguments[:selection]
@@ -252,10 +275,17 @@ module Orocos
                         end
 
                         if (dependent_model < DataSource) && !(dependent_model < Roby::Task)
-                            # Verify if we must do port mapping from dependent_model
-                            # to child_model
-                            if !child_model.main_data_source?(selected_object_name)
-                                raise NotImplementedError, "port mapping is not yet implemented"
+                            if selected_object_name
+                                _, *selection_name = selected_object_name.split '.'
+                                selection_name = if selection_name.empty? then nil
+                                                 else selection_name.join(".")
+                                                 end
+                            end
+
+                            target_source_name = child_model.find_matching_source(dependent_model, selection_name)
+                            if !child_model.main_data_source?(target_source_name)
+                                port_mappings = DataSourceModel.compute_port_mappings(dependent_model, child_model, target_source_name)
+                                apply_port_mappings(connections, child_name, port_mappings)
                             end
                         end
                     end

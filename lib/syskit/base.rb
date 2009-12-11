@@ -141,9 +141,12 @@ module Orocos
                 end
             end
 
-            # Map the given port name of the data source's interface into the
-            # actual port of the given component.
-            def self.map_port_name(port_name, source_type, source_name)
+            # Map the given port name of +source_type+ into the port that
+            # is owned by +source_name+ on +target_type+
+            #
+            # +source_type+ has to be a plain data source (i.e. not a task)
+            def self.source_port(source_type, source_name, port_name)
+                source_port = source_type.port(port_name)
                 if main_data_source?(source_name)
                     if port(port_name)
                         return port_name
@@ -151,12 +154,23 @@ module Orocos
                         raise ArgumentError, "expected #{self} to have a port named #{source_name}"
                     end
                 else
-                    target_name = "#{source_name}#{port_name.capitalize}"
-                    if port(target_name)
-                        return target_name
-                    else
-                        raise ArgumentError, "expected #{self} to have a port named #{target_name}"
+                    path    = source_name.split '.'
+                    targets = []
+                    while !path.empty?
+                        target_name = "#{path.join('_')}_#{port_name}".camelcase
+                        if port(target_name)
+                            return target_name
+                        end
+                        targets << target_name
+
+                        target_name = "#{port_name}_#{path.join('_')}".camelcase
+                        if port(target_name)
+                            return target_name
+                        end
+                        targets << target_name
+                        path.shift
                     end
+                    raise ArgumentError, "expected #{self} to have a port of type #{source_port.type_name} named as one of the following possibilities: #{targets.join(", ")}"
                 end
             end
         end

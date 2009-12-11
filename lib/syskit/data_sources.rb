@@ -33,6 +33,20 @@ module Orocos
                 name0 != name1 && !(model0.main_data_source?(name0) && model1.main_data_source?(name1))
             end
 
+            # Computes the port mapping from a plain data source to the given
+            # data source on the target
+            def self.compute_port_mappings(source, target, target_name)
+                if source < Roby::Task
+                    raise InternalError, "#{source} should have been a plain data source, but it is a task model"
+                end
+
+                result = Hash.new
+                source.each_port do |source_port|
+                    result[source_port.name] = target.source_port(source, target_name, source_port.name)
+                end
+                result
+            end
+
             # Returns the most generic task model that implements +self+. If
             # more than one task model is found, raises Ambiguous
             def task_model
@@ -56,6 +70,16 @@ module Orocos
             def port(name)
                 name = name.to_str
                 stereotypical_component.each_port.find { |p| p.name == name }
+            end
+
+            def each_port(&block)
+                if block_given?
+                    each_input(&block)
+                    each_output(&block)
+                    self
+                else
+                    enum_for(:each_port)
+                end
             end
 
             def each_output(&block)
@@ -248,9 +272,9 @@ module Orocos
             def using_data_source?(source_name)
                 source_type = model.data_source_type(source_name)
                 inputs  = source_type.each_input.
-                    map { |p| model.map_port_name(p.name, source_type, source_name) }
+                    map { |p| model.source_port(source_type, source_name, p.name) }
                 outputs = source_type.each_output.
-                    map { |p| model.map_port_name(p.name, source_type, source_name) }
+                    map { |p| model.source_port(source_type, source_name, p.name) }
 
                 each_source do |output|
                     description = output[self, Flows::DataFlow]
