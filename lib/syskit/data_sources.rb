@@ -218,6 +218,9 @@ module Orocos
                 end
                 true
             end
+
+            # Replace +merged_task+ by +self+, possibly modifying +self+ so that
+            # it is possible.
             def merge(merged_task)
                 # First thing to do is reassign data sources from the merged
                 # task into ourselves. Note that we do that only for sources
