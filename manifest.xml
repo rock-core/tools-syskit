@@ -17,5 +17,6 @@
     <depend package="utilrb" />
     <rosdep name="hoe" />
     <rosdep name="omniorb" />
+    <rosdep name="omniorb-nameserver" />
 </package>
 
