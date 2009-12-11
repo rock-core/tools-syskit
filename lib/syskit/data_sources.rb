@@ -95,12 +95,19 @@ module Orocos
 
                 # Returns true if +name+ is a root data source in this component
                 def root_data_source?(name)
+                    name = name.to_str
+                    if !has_data_source?(name)
+                        raise ArgumentError, "there is no source named #{name} in #{self}"
+                    end
                     name !~ /\./
                 end
 
                 # Returns true if +name+ is a main data source on this component
                 def main_data_source?(name)
                     name = name.to_str
+                    if !has_data_source?(name)
+                        raise ArgumentError, "there is no source named #{name} in #{self}"
+                    end
                     each_main_data_source.any? { |source_name| source_name == name }
                 end
 
