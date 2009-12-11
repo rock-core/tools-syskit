@@ -229,8 +229,15 @@ module Orocos
         Flows.apply_on Component::TransactionProxy
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false do
             def connect_to(target_task, mappings)
-                # TODO: validate that all ports in +mappings+ actually exist on
-                # the tasks
+                mappings.each do |(out_port, in_port), options|
+                    if !model.output_port(out_port) && !model.dynamic_output_port?(out_port)
+                        raise ArgumentError, "#{self} has no port called #{out_port}"
+                    end
+                    if !target_task.model.input_port(in_port) && !target_task.model.dynamic_input_port?(in_port)
+                        raise ArgumentError, "#{self} has no port called #{in_port}"
+                    end
+                end
+
                 if child_object?(target_task, Flows::DataFlow)
                     current_mappings = self[target_task, Flows::DataFlow]
                     self[target_task, Flows::DataFlow] = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
