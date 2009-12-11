@@ -38,11 +38,57 @@ module Orocos
                 arguments, task_arguments = Kernel.filter_options(
                     options, :selection => Hash.new, :as => nil)
             end
+
+        end
+
+        module ComponentModel
+            def port(name)
+                name = name.to_str
+                output_port(name) || input_port(name)
+            end
+
+            def each_output(&block)
+                orogen_spec.each_output_port(&block)
+            end
+
+            def each_input(&block)
+                orogen_spec.each_input_port(&block)
+            end
+
+            def each_port(&block)
+                if block_given?
+                    each_input(&block)
+                    each_output(&block)
+                    self
+                else
+                    enum_for(:each_port)
+                end
+            end
+
+            def dynamic_output_port?(name)
+                orogen_spec.dynamic_output_port?(name)
+            end
+
+            def dynamic_input_port?(name)
+                orogen_spec.dynamic_input_port?(name)
+            end
+
+            def output_port(name)
+                name = name.to_str
+                each_output.find { |p| p.name == name }
+            end
+
+            def input_port(name)
+                name = name.to_str
+                each_input.find { |p| p.name == name }
+            end
         end
 
         # Base class for models that represent components (TaskContext,
         # Composition)
         class Component < ::Roby::Task
+            extend ComponentModel
+
             inherited_enumerable(:main_data_source, :main_data_sources) { Set.new }
             inherited_enumerable(:data_source, :data_sources, :map => true) { Hash.new }
 

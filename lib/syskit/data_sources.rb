@@ -16,13 +16,13 @@ module Orocos
                 model.include self
                 if options[:interface]
                     iface_spec = Roby.app.get_orocos_task_model(options[:interface]).orogen_spec
-                    model.instance_variable_set(:@stereotypical_component, iface_spec)
+                    model.instance_variable_set(:@orogen_spec, iface_spec)
                 end
                 model.name = name.to_str
                 model
             end
 
-            attr_reader :stereotypical_component
+            attr_reader :orogen_spec
 
             # Returns true if a port mapping is needed between the two given
             # data sources. Note that this relation is symmetric.
@@ -59,7 +59,7 @@ module Orocos
                         attr_accessor :name
                     end
                 end
-                @task_model.instance_variable_set(:@orogen_spec, stereotypical_component)
+                @task_model.instance_variable_set(:@orogen_spec, orogen_spec)
                 @task_model.abstract
                 @task_model.name = "#{name}DataSourceTask"
                 @task_model.extend Model
@@ -67,27 +67,7 @@ module Orocos
                 @task_model
             end
 
-            def port(name)
-                name = name.to_str
-                stereotypical_component.each_port.find { |p| p.name == name }
-            end
-
-            def each_port(&block)
-                if block_given?
-                    each_input(&block)
-                    each_output(&block)
-                    self
-                else
-                    enum_for(:each_port)
-                end
-            end
-
-            def each_output(&block)
-                stereotypical_component.each_output_port(&block)
-            end
-            def each_input(&block)
-                stereotypical_component.each_input_port(&block)
-            end
+            include ComponentModel
 
             def instanciate(*args, &block)
                 task_model.instanciate(*args, &block)

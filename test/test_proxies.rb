@@ -160,5 +160,13 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         end
         assert(task.failed?)
     end
+
+    def test_dynamic_ports
+        Roby.app.load_orogen_project 'system_test'
+
+        assert(SystemTest::CanBus.dynamic_output_port?('motors'))
+        assert(!SystemTest::CanBus.dynamic_input_port?('motors'))
+        assert(SystemTest::CanBus.dynamic_input_port?('motorsw'))
+    end
 end
 
