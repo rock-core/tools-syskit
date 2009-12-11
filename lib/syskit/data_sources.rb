@@ -104,6 +104,59 @@ module Orocos
                     each_main_data_source.any? { |source_name| source_name == name }
                 end
 
+                def find_data_sources(&block)
+                    each_data_source.find_all(&block)
+                end
+
+                # Generic data source selection method, based on a source type
+                # and an optional source name. It implements the following
+                # algorithm:
+                #  
+                #  * only sources that match +target_model+ are considered
+                #  * if there is only one source of that type and no pattern is
+                #    given, that source is returned
+                #  * if there is a pattern given, it must be either the source
+                #    full name or its subname (for slaves)
+                #  * if an ambiguity is found between root and slave data
+                #    sources, and there is only one root data source matching,
+                #    that data source is returned.
+                def find_matching_source(target_model, pattern = nil)
+                    # Find sources in +child_model+ that match the type
+                    # specification
+                    matching_sources = self.
+                        find_data_sources { |_, source_type| source_type <= target_model }.
+                        map { |source_name, _| source_name }
+
+                    if pattern # explicit selection
+                        # Find the selected source. There can be shortcuts, so
+                        # for instance bla.left would be able to select both the
+                        # 'left' main source or the 'bla.blo.left' slave source.
+                        rx = /(^|\.)#{pattern}$/
+                        matching_sources.delete_if { |name| name !~ rx }
+                        if matching_sources.empty?
+                            raise SpecError, "no source of type #{target_model.name} with the name #{pattern} exists in #{name}"
+                        end
+                    else
+                        if matching_sources.empty?
+                            raise InternalError, "no data source of type #{target_model} found in #{self}"
+                        end
+                    end
+
+                    selected_name = nil
+                    if matching_sources.size > 1
+                        main_matching_sources = matching_sources.find_all { |source_name| root_data_source?(source_name) }
+                        if main_matching_sources.size != 1
+                            raise Ambiguous, "there is more than one source of type #{target_model.name} in #{self.name}: #{matching_sources.map { |n, _| n }.join(", ")}); you must select one explicitely with a 'use' statement"
+                        end
+                        selected_name = main_matching_sources.first
+                    else
+                        selected_name = matching_sources.first
+                    end
+
+                    selected_name
+                end
+                    
+
                 def data_source_name(type_name)
                     candidates = each_data_source.find_all do |name, type|
                         type.name == type_name

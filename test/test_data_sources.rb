@@ -189,6 +189,29 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert_equal([:stereo_name], task_model.arguments.to_a)
     end
 
+    def test_data_source_find_matching_source
+        stereo_model = sys_model.data_source_type 'stereocam'
+        image_model  = sys_model.data_source_type 'image'
+        task_model   = Class.new(TaskContext) do
+            data_source 'stereocam', :as => 'stereo'
+            data_source 'image', :as => 'left',  :slave_of => 'stereo'
+            data_source 'image', :as => 'right', :slave_of => 'stereo'
+        end
+
+        assert_equal "stereo",     task_model.find_matching_source(stereo_model)
+        assert_raises(Ambiguous) { task_model.find_matching_source(image_model) }
+        assert_equal "stereo.left", task_model.find_matching_source(image_model, "left")
+        assert_equal "stereo.left", task_model.find_matching_source(image_model, "stereo.left")
+
+        # Add fakes to trigger disambiguation by main/non-main
+        task_model.data_source 'image', :as => 'left'
+        assert_equal "left", task_model.find_matching_source(image_model)
+        task_model.data_source 'image', :as => 'right'
+        assert_raises(Ambiguous) { task_model.find_matching_source(image_model) }
+        assert_equal "left", task_model.find_matching_source(image_model, "left")
+        assert_equal "stereo.left", task_model.find_matching_source(image_model, "stereo.left")
+    end
+
     def test_data_source_instance
         stereo_model = sys_model.data_source_type 'stereocam'
         task_model   = Class.new(TaskContext) do

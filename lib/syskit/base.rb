@@ -6,6 +6,7 @@ module Orocos
     # Orocos task contexts and deployment processes in Roby, and a model-based
     # system configuration environment.
     module RobyPlugin
+        class InternalError < RuntimeError; end
         class ConfigError < RuntimeError; end
         class SpecError < RuntimeError; end
         class Ambiguous < SpecError; end
