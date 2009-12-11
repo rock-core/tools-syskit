@@ -74,8 +74,7 @@ namespace :setup do
         build_orogen 'echo'
         build_orogen 'states'
         build_orogen 'uncaught'
-        build_orogen 'camera'
-        build_orogen 'imu'
+        build_orogen 'system'
     end
 
     desc "builds the test 'process' module"
@@ -90,10 +89,8 @@ namespace :setup do
     task :orogen_states    do build_orogen 'states' end
     desc "builds the test 'uncaught' module"
     task :orogen_uncaught    do build_orogen 'uncaught' end
-    desc "builds the test 'camera' module"
-    task :orogen_camera    do build_orogen 'camera' end
-    desc "builds the test 'imu' module"
-    task :orogen_imu    do build_orogen 'imu' end
+    desc "builds the test 'system' module"
+    task :orogen_system    do build_orogen 'system' end
 end
 task :setup => "setup:ext"
 
