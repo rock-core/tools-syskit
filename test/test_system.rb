@@ -483,11 +483,33 @@ class TC_RobySpec_System < Test::Unit::TestCase
         complete_robot_definition
 
         assert_equal 'can0', orocos_engine.robot.devices['motors'].com_bus
-        assert_equal 'can0', orocos_engine.robot.devices['control_devices'].com_bus
+        assert_equal 'can0', orocos_engine.robot.devices['joystick'].com_bus
+        assert_equal 'can0', orocos_engine.robot.devices['sliderbox'].com_bus
 
+        orocos_engine.instanciate
+        orocos_engine.merge
         orocos_engine.link_to_busses
+        engine.garbage_collect
+
         tasks = plan.find_tasks(SystemTest::MotorController).
-            with_child(orocos_engine.robot.devices['can0'], :device_name => 'can0')
+            with_child(orocos_engine.robot.devices['can0']).to_a
+        assert_equal(1, tasks.to_a.size)
+
+        tasks = plan.find_tasks(SystemTest::MotorController).
+            with_child(orocos_engine.robot.devices['can0'], Flows::DataFlow, ['can_out', 'motorsw'] => Hash.new).
+            with_parent(orocos_engine.robot.devices['can0'], Flows::DataFlow, ['motors', 'can_in'] => Hash.new).
+            to_a
+        assert_equal(1, tasks.to_a.size)
+
+        tasks = plan.find_tasks(SystemTest::ControlDevices).
+            with_child(orocos_engine.robot.devices['can0']).to_a
+        assert_equal(1, tasks.to_a.size)
+
+        tasks = plan.find_tasks(SystemTest::ControlDevices).
+            with_parent(orocos_engine.robot.devices['can0'], Flows::DataFlow,
+                        ['joystick', 'can_in_joystick'] => Hash.new,
+                        ['sliderbox', 'can_in_sliderbox'] => Hash.new).
+            to_a
         assert_equal(1, tasks.to_a.size)
     end
 end

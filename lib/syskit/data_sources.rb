@@ -300,7 +300,17 @@ module Orocos
         # DeviceDriver::ClassExtension
         module DeviceDriver
             argument "com_bus"
-            argument "bus_name"
+
+            def bus_name
+                if arguments[:bus_name]
+                    arguments[:bus_name]
+                else
+                    roots = model.each_root_data_source.to_a
+                    if roots.size == 1
+                        roots.first.first
+                    end
+                end
+            end
 
             include DataSource
 

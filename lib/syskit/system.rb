@@ -354,7 +354,7 @@ module Orocos
 
                 candidates.each do |task|
                     if !(com_bus = robot.devices[task.com_bus])
-                        raise SpecError, "no communication bus called #{task.com_bus} found"
+                        raise SpecError, "there is no communication bus named #{task.com_bus}"
                     end
 
                     # Assume that if the com bus is one of our dependencies,
@@ -363,42 +363,75 @@ module Orocos
 
                     # Enumerate in/out ports on task of the bus datatype
                     message_type = Orocos.registry.get(com_bus.model.message_type).name
-                    out_ports = task.model.each_output.find_all do |p|
+                    out_candidates = task.model.each_output.find_all do |p|
                         p.type.name == message_type
                     end
-                    in_ports = task.model.each_input.find_all do |p|
+                    in_candidates = task.model.each_input.find_all do |p|
                         p.type.name == message_type
                     end
-                    if out_ports.empty? && in_ports.empty?
-                        raise SpecError, "device #{task.device_name} is supposed to be connected to #{com_bus.device_name}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
+                    if out_candidates.empty? && in_candidates.empty?
+                        raise SpecError, "#{task} is supposed to be connected to #{com_bus}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
                     end
 
-		    bus_name = task.bus_name || task.device_name
-		    if in_ports.size > 1 # need to disambiguate
-			filtered = in_ports.find_all { |p| p.name =~  /#{bus_name}/ }
-			if filtered.size != 1
-			    raise Ambiguous, "I don't know which port in #{in_ports.map(&:name)} to use to connect #{task.device_name} to #{com_bus.device_name}"
-			end
-			in_ports = filtered
-		    end
-		    if out_ports.size > 1 # need to disambiguate
-			filtered = out_ports.find_all { |p| p.name =~  /#{bus_name}/ }
-			if filtered.size != 1
-			    raise Ambiguous, "I don't know which port in #{out_ports.map(&:name)} to use to connect #{task.device_name} to #{com_bus.device_name}"
-			end
-			out_ports = filtered
-		    end
-
-		    # Now connect !
 		    task.depends_on com_bus
-		    in_ports.each do |p|
-			output_port_name = com_bus.output_name_for(bus_name)
-			com_bus.add_sink(task, [p.name, output_port_name])
-		    end
-		    out_ports.each do |p|
-			input_port_name = com_bus.input_name_for(bus_name)
-			task.add_sink(com_bus, [input_port_name, p.name])
-		    end
+
+                    in_connections  = Hash.new
+                    out_connections = Hash.new
+                    handled    = Hash.new
+                    used_ports = Set.new
+                    task.model.each_root_data_source do |source_name, _|
+                        in_ports  = in_candidates.find_all  { |p| p.name =~ /#{source_name}/ }
+                        out_ports = out_candidates.find_all { |p| p.name =~ /#{source_name}/ }
+                        if in_ports.size > 1
+                            raise Ambiguous, "there are multiple options to connect #{com_bus.name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
+                        elsif out_ports.size > 1
+                            raise Ambiguous, "there are multiple options to connect #{source_name} in #{task} to #{com_bus.name}: #{out_ports.map(&:name)}"
+                        end
+
+                        handled[source_name] = [!out_ports.empty?, !in_ports.empty?]
+                        if !in_ports.empty?
+                            port = in_ports.first
+                            used_ports << port.name
+                            in_connections[ [com_bus.output_name_for(source_name), port.name] ] = Hash.new
+                        end
+                        if !out_ports.empty?
+                            port = out_ports.first
+                            used_ports << port.name
+                            out_connections[ [port.name, com_bus.input_name_for(source_name)] ] = Hash.new
+                        end
+                    end
+
+                    # Remove handled ports from in_candidates and
+                    # out_candidates, and check if there is a generic
+                    # input/output port in the component
+                    in_candidates.delete_if  { |p| used_ports.include?(p.name) }
+                    out_candidates.delete_if { |p| used_ports.include?(p.name) }
+
+                    if in_candidates.size > 1
+                        raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                    elsif in_candidates.size == 1
+                        # One generic input port
+                        if !task.bus_name
+                            raise SpecError, "#{task} has one generic input port '#{in_candidates.first.name}' but no bus name"
+                        end
+                        in_connections[ [com_bus.output_name_for(task.bus_name), in_candidates.first.name] ] = Hash.new
+
+                    end
+
+                    if out_candidates.size > 1
+                        raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                    elsif out_candidates.size == 1
+                        # One generic output port
+                        if !task.bus_name
+                            raise SpecError, "#{task} has one generic output port '#{out_candidates.first.name} but no bus name"
+                        end
+                        out_connections[ [out_candidates.first.name, com_bus.input_name_for(task.bus_name)] ] = Hash.new
+                    end
+
+                    puts in_connections.inspect
+                    puts out_connections.inspect
+                    com_bus.connect_to(task, in_connections)
+                    task.connect_to(com_bus, out_connections)
                 end
                 nil
             end
