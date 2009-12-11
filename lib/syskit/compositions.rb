@@ -301,12 +301,11 @@ module Orocos
                         child_selection = Hash.new
                         arguments[:selection].each do |from, to|
                             if from.respond_to?(:to_str) && from =~ /^#{child_name}\./
-                                from = from.gsub(/^#{child_name}\./, '')
-                                sel_from = engine.apply_selection(from)
-                                from = sel_from || from
+                                from = $'
                             end
-                            child_arguments[:selection][from] = to
+                            child_selection[from] = to
                         end
+                        child_arguments[:selection] = child_selection
                         task = child_model.instanciate(engine, child_arguments)
                     end
 
