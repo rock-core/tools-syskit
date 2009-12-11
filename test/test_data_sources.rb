@@ -256,14 +256,14 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert(!stereo.using_data_source?('stereocam'))
 
         plan.add(camera = SystemTest::CameraDriver.new)
-        camera.add_sink stereo, [['image', 'image0', {}]]
+        camera.connect_ports stereo, ['image', 'leftImage'] => Hash.new
         assert(camera.using_data_source?('camera'))
         assert(stereo.using_data_source?('stereocam'))
 
         plan.remove_object(camera)
         plan.add(dem = SystemTest::DemBuilder.new)
         assert(!stereo.using_data_source?('stereocam'))
-        stereo.add_sink dem, [['cloud', 'cloud', {}]]
+        stereo.connect_ports dem, ['cloud', 'cloud'] => Hash.new
         assert(stereo.using_data_source?('stereocam'))
     end
 

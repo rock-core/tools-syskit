@@ -261,12 +261,12 @@ module Orocos
 
                 each_source do |output|
                     description = output[self, Flows::DataFlow]
-                    if description.any? { |_, to, _| inputs.include?(to) }
+                    if description.any? { |(_, to), _| inputs.include?(to) }
                         return true
                     end
                 end
                 each_sink do |input, description|
-                    if description.any? { |from, _, _| outputs.include?(from) }
+                    if description.any? { |(from, _), _| outputs.include?(from) }
                         return true
                     end
                 end
