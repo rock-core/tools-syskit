@@ -85,6 +85,27 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_equal(sink2.cycle, subsys.cycle2)
     end
 
+    def test_composition_port_export_instanciation
+        source, sink1, sink2 = nil
+        subsys = sys_model.subsystem("source_sink0") do
+            source = add "simple_source::source", :as => 'source'
+            sink1  = add "simple_sink::sink", :as => 'sink1'
+        end
+            
+        subsys.export source.cycle, :as => 'out_cycle'
+        subsys.export sink1.cycle, :as => 'in_cycle'
+
+        orocos_engine    = Engine.new(plan, sys_model)
+        orocos_engine.add("source_sink0")
+        orocos_engine.instanciate
+
+        tasks = plan.find_tasks(Compositions::SourceSink0).
+            with_child(SimpleSink::Sink, Flows::DataFlow, ['in_cycle', 'cycle'] => Hash.new).
+            with_parent(SimpleSource::Source, Flows::DataFlow, ['cycle', 'out_cycle'] => Hash.new).
+            to_a
+        assert_equal 1, tasks.size
+    end
+
     def test_composition_explicit_connection
         source, sink1, sink2 = nil
         subsys = sys_model.subsystem("source_sink0") do

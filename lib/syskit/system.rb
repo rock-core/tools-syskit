@@ -430,8 +430,8 @@ module Orocos
 
                     puts in_connections.inspect
                     puts out_connections.inspect
-                    com_bus.connect_to(task, in_connections)
-                    task.connect_to(com_bus, out_connections)
+                    com_bus.connect_ports(task, in_connections)
+                    task.connect_ports(com_bus, out_connections)
                 end
                 nil
             end

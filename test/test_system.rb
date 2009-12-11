@@ -125,8 +125,10 @@ class TC_RobySpec_System < Test::Unit::TestCase
         sys_model.subsystem "ImageAcquisition" do
             data_source "camera"
             add "camera", :as => 'acquisition'
-            add "system_test::CameraFilter"
+            filter = add "system_test::CameraFilter"
             autoconnect
+
+            export filter.out, :as => "image"
         end
         sys_model.subsystem "Stereo" do
             data_source 'stereo'

@@ -1,31 +1,30 @@
 module Orocos
     module RobyPlugin
         class CompositionChild
-            attr_reader :composition, :name, :child
-            def initialize(composition, name, child)
+            attr_reader :composition, :child_name
+            def initialize(composition, child_name)
                 @composition = composition
-                @name = name
-                @child = child
+                @child_name  = child_name
             end
 
             def method_missing(name, *args)
-                if args.empty? && (port = child.port(name))
+                if args.empty? && (port = composition.children[child_name].port(name))
                     CompositionChildPort.new(self, port)
                 else
-                    raise NoMethodError, "#{child} has no port named #{name}", caller(1)
+                    raise NoMethodError, "child #{child_name} of #{composition} has no port named #{name}", caller(1)
                 end
             end
 
             def ==(other)
                 other.composition == composition &&
-                    other.name == name
+                    other.child_name == child_name
             end
         end
+
         class CompositionChildPort
             attr_reader :child, :port
-            def name
-                port.name
-            end
+            def name; port.name end
+
             def initialize(child, port)
                 @child = child
                 @port  = port
@@ -63,7 +62,7 @@ module Orocos
                 task = system.get(model_name)
 
                 add_child(options[:as], task)
-                CompositionChild.new(self, options[:as], task)
+                CompositionChild.new(self, options[:as])
             end
 
             # The set of connections specified by the user for this composition
@@ -178,26 +177,14 @@ module Orocos
                 outputs[name] || inputs[name]
             end
 
+            def output_port(name); outputs[name] end
+            def input_port(name); inputs[name] end
+            def dynamic_input_port?(name); false end
+            def dynamic_output_port?(name); false end
+
             def exported_port?(port_model)
                 outputs.values.any? { |p| port_model == p } ||
                     inputs.values.any? { |p| port_model == p }
-            end
-
-            def each_output(&block)
-                if !@exported_outputs
-                    @exported_outputs = outputs.map do |name, p|
-                        p.class.new(self, name, p.type_name, p.port_model)
-                    end
-                end
-                @exported_outputs.each(&block)
-            end
-            def each_input(&block)
-                if !@exported_inputs
-                    @exported_inputs = inputs.map do |name, p|
-                        p.class.new(self, name, p.type_name, p.port_model)
-                    end
-                end
-                @exported_inputs.each(&block)
             end
 
             def connect(mappings)
@@ -209,7 +196,7 @@ module Orocos
                 end
                 options = Kernel.validate_options options, Orocos::Port::CONNECTION_POLICY_OPTIONS
                 mappings.each do |out_p, in_p|
-                    explicit_connections[[out_p.child.name, in_p.child.name]][ [out_p.port.name, in_p.port.name] ] = options
+                    explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.port.name, in_p.port.name] ] = options
                 end
             end
 
@@ -313,8 +300,24 @@ module Orocos
                     self_task.depends_on(task, :model => [dependent_model, dependent_model.meaningful_arguments(task.arguments)], :roles => role)
                 end
 
+                output_connections = Hash.new { |h, k| h[k] = Hash.new }
+                outputs.each do |output_name, port|
+                    output_connections[ port.child.child_name ].merge!([port.name, output_name] => Hash.new)
+                end
+                output_connections.each do |child_name, mappings|
+                    children_tasks[child_name].forward_port(self_task, mappings)
+                end
+
+                input_connections = Hash.new { |h, k| h[k] = Hash.new }
+                inputs.each do |input_name, port|
+                    input_connections[ port.child.child_name ].merge!([input_name, port.name] => Hash.new)
+                end
+                input_connections.each do |child_name, mappings|
+                    self_task.forward_port(children_tasks[child_name], mappings)
+                end
+
                 connections.each do |(out_name, in_name), mappings|
-                    children_tasks[out_name].connect_to(children_tasks[in_name], mappings)
+                    children_tasks[out_name].connect_ports(children_tasks[in_name], mappings)
                 end
                 self_task
             end

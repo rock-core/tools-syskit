@@ -228,16 +228,44 @@ module Orocos
         Flows = Roby::RelationSpace(Component)
         Flows.apply_on Component::TransactionProxy
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false do
-            def connect_to(target_task, mappings)
-                mappings.each do |(out_port, in_port), options|
-                    if !model.output_port(out_port) && !model.dynamic_output_port?(out_port)
-                        raise ArgumentError, "#{self} has no port called #{out_port}"
+            def forward_port(target_task, mappings)
+                if self.child_object?(target_task, Roby::TaskStructure::Dependency)
+                    mappings.each do |(from, to), options|
+                        if !model.input_port(from) && !model.dynamic_input_port?(from)
+                            raise ArgumentError, "#{self} has no input port called #{from}"
+                        end
+                        if !target_task.model.input_port(to) && !target_task.model.dynamic_input_port?(to)
+                            raise ArgumentError, "#{target_task.model} has no input port called #{to}"
+                        end
                     end
-                    if !target_task.model.input_port(in_port) && !target_task.model.dynamic_input_port?(in_port)
-                        raise ArgumentError, "#{self} has no port called #{in_port}"
+                elsif target_task.child_object?(self, Roby::TaskStructure::Dependency)
+                    mappings.each do |(from, to), options|
+                        if !model.output_port(from) && !model.dynamic_output_port?(from)
+                            raise ArgumentError, "#{self} has no output port called #{from}"
+                        end
+                        if !target_task.model.output_port(to) && !target_task.model.dynamic_output_port?(to)
+                            raise ArgumentError, "#{target_task.model} has no output port called #{to}"
+                        end
                     end
                 end
 
+                add_connections(target_task, mappings)
+            end
+
+            def connect_ports(target_task, mappings)
+                mappings.each do |(out_port, in_port), options|
+                    if !model.output_port(out_port) && !model.dynamic_output_port?(out_port)
+                        raise ArgumentError, "#{self} has no output port called #{out_port}"
+                    end
+                    if !target_task.model.input_port(in_port) && !target_task.model.dynamic_input_port?(in_port)
+                        raise ArgumentError, "#{target_task.model} has no input port called #{in_port}"
+                    end
+                end
+                add_connections(target_task, mappings)
+            end
+
+            # Helper class for #connect_to and #forward_to
+            def add_connections(target_task, mappings) # :nodoc:
                 if child_object?(target_task, Flows::DataFlow)
                     current_mappings = self[target_task, Flows::DataFlow]
                     self[target_task, Flows::DataFlow] = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
