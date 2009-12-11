@@ -208,7 +208,7 @@ module Orocos
             #
             # This method checks that +other_task+ and +self+ do not represent
             # two different data sources
-            def can_replace?(other_task)
+            def can_merge?(other_task)
                 return false if !super
 
                 each_merged_source(other_task) do |selection, other_name, self_names, source_type|

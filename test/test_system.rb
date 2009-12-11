@@ -94,7 +94,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
             com_bus 'can', :as => 'can0'
             through 'can0' do
-                device 'control_devices'
+                device 'joystick'
+                device 'sliderbox'
                 device 'motors'
             end
         end
@@ -102,11 +103,12 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
     def complete_system_model
         sys_model.bus_type 'can'
-        sys_model.device_type 'camera',          :interface => "system_test::CameraDriver"
-        sys_model.device_type 'stereo',          :interface => "system_test::Stereo"
-        sys_model.device_type 'imu',             :interface => "system_test::IMU"
-        sys_model.device_type 'motors',          :interface => "system_test::MotorController"
-        sys_model.device_type 'control_devices', :interface => "system_test::ControlDevices"
+        sys_model.device_type 'camera',    :interface => SystemTest::CameraDriver
+        sys_model.device_type 'stereo',    :interface => SystemTest::Stereo
+        sys_model.device_type 'imu',       :interface => SystemTest::IMU
+        sys_model.device_type 'motors',    :interface => SystemTest::MotorController
+        sys_model.device_type 'joystick',  :interface => SystemTest::Joystick
+        sys_model.device_type 'sliderbox', :interface => SystemTest::Sliderbox
 
         @can_bus        = SystemTest::CanBus
         can_bus.driver_for 'can', :message_type => 'can/Message'
@@ -117,7 +119,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
         @motors         = SystemTest::MotorController
         motors.driver_for 'motors'
         @controldev     = SystemTest::ControlDevices
-        controldev.driver_for 'control_devices'
+        controldev.driver_for 'sliderbox'
+        controldev.driver_for 'joystick'
 
         sys_model.subsystem "ImageAcquisition" do
             data_source "camera"
@@ -433,6 +436,46 @@ class TC_RobySpec_System < Test::Unit::TestCase
             with_child( SystemTest::StereoProcessing, Flows::DataFlow, expected_connections ).
             to_a
         assert_equal(1, tasks.size)
+    end
+
+    def test_device_merging
+        complete_system_model
+        orocos_engine.robot do
+            device "joystick"
+            device "sliderbox"
+
+            com_bus "can", :as => "can0"
+            through "can0" do
+                device "joystick", :as => "joystick1"
+                device "sliderbox", :as => "sliderbox1"
+            end
+
+            com_bus "can", :as => "can1"
+            through "can1" do
+                device "sliderbox", :as => "sliderbox2"
+            end
+        end
+        orocos_engine.instanciate
+        assert_equal 7, plan.size
+
+        joystick   = orocos_engine.tasks['joystick']
+        joystick1  = orocos_engine.tasks['joystick1']
+        sliderbox  = orocos_engine.tasks['sliderbox']
+        sliderbox1 = orocos_engine.tasks['sliderbox1']
+        sliderbox2 = orocos_engine.tasks['sliderbox2']
+
+        assert(joystick.can_merge?(sliderbox))
+        assert(sliderbox.can_merge?(joystick))
+        assert(joystick1.can_merge?(sliderbox1))
+        assert(sliderbox1.can_merge?(joystick1))
+        assert(!sliderbox.can_merge?(sliderbox2))
+        assert(!sliderbox1.can_merge?(sliderbox2))
+        assert(!joystick.can_merge?(sliderbox2))
+        assert(!joystick1.can_merge?(sliderbox2))
+
+        orocos_engine.merge
+        engine.garbage_collect
+        assert_equal 5, plan.size
     end
 
     def test_communication_busses

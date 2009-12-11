@@ -306,7 +306,7 @@ module Orocos
                             next if target_task == task
                             next if !task_children.include_all?(target_children)
                             next if (task_inputs & target_inputs).size != task_inputs.size
-                            if task.can_replace?(target_task)
+                            if task.can_merge?(target_task)
                                 merges[task] << target_task
                                 STDERR.puts "   #{task} => #{target_task}"
                             end

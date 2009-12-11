@@ -223,7 +223,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert_equal(stereo_model, task.data_source_type('front_stereo'))
     end
 
-    def test_data_source_can_replace
+    def test_data_source_can_merge
         Roby.app.load_orogen_project 'system_test'
         task_model = SystemTest::StereoProcessing
 
@@ -236,12 +236,12 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         parent.depends_on task0, :model => Roby.app.orocos_data_sources['stereocam']
         parent.depends_on task1, :model => Roby.app.orocos_data_sources['stereocam']
 
-        assert(task0.can_replace?(task1))
-        assert(task1.can_replace?(task0))
+        assert(task0.can_merge?(task1))
+        assert(task1.can_merge?(task0))
 
         task1.stereo_name = 'back_stereo'
-        assert(!task0.can_replace?(task1))
-        assert(!task1.can_replace?(task0))
+        assert(!task0.can_merge?(task1))
+        assert(!task1.can_merge?(task0))
     end
 
     def test_using_data_source
@@ -290,8 +290,8 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         parent.depends_on task0, :model => Roby.app.orocos_data_sources['camera']
         parent.depends_on task1, :model => Roby.app.orocos_data_sources['camera']
 
-        assert(task0.can_replace?(task1))
-        assert(!task1.can_replace?(task0))
+        assert(task0.can_merge?(task1))
+        assert(!task1.can_merge?(task0))
         # Complex merge of data flow is actually not implemented. Make sure we
         # won't do anything stupid and clearly tell that to the user.
         assert_raises(NotImplementedError) { task0.merge(task1) }
