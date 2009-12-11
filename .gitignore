@@ -11,3 +11,4 @@ test/working_copy
 build/
 *.ior
 *autobuild-stamp
+*.log
