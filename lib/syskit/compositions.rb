@@ -259,7 +259,7 @@ module Orocos
                         if selected_object.respond_to?(:to_str)
                             selected_object_name = selected_object.to_str
                             if !(selected_object = engine.apply_selection(selected_object_name))
-                                raise SpecError, "#{to} is not a task model name, not a device type nor a device name"
+                                raise SpecError, "#{selected_object_name} is not a task model name, not a device type nor a device name"
                             end
                         end
 
