@@ -31,7 +31,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         end
 
         subsys_model.compute_autoconnection
-        assert_equal([ [["source", "sink"], [["cycle", "cycle", Hash.new]]] ].to_set,
+        assert_equal([ [["source", "sink"], {["cycle", "cycle"] => Hash.new}] ].to_set,
             subsys_model.connections.to_set)
 
         subsys_task = subsys_model.instanciate(orocos_engine)
@@ -59,7 +59,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         assert_equal(['source'].to_set, subsys_task[source, TaskStructure::Dependency][:roles])
         assert_equal(['sink'].to_set, subsys_task[sink, TaskStructure::Dependency][:roles])
 
-        assert_equal([ [source, sink, [["cycle", "cycle", Hash.new]]] ].to_set,
+        assert_equal([ [source, sink, {["cycle", "cycle"] => Hash.new}] ].to_set,
             Flows::DataFlow.enum_for(:each_edge).to_set)
     end
 
@@ -86,7 +86,21 @@ class TC_RobySpec_System < Test::Unit::TestCase
         assert_kind_of camera_type, orocos_engine.robot.devices['frontStereo.right']
     end
 
-    def device_tests_spec
+    def complete_robot_definition
+        orocos_engine.robot do
+            device 'imu'
+            device 'camera',  :as => 'leftCamera'
+            device :camera,   :as => :rightCamera
+
+            com_bus 'can', :as => 'can0'
+            through 'can0' do
+                device 'control_devices'
+                device 'motors'
+            end
+        end
+    end
+
+    def complete_system_model
         sys_model.bus_type 'can'
         sys_model.device_type 'camera',          :interface => "system_test::CameraDriver"
         sys_model.device_type 'stereo',          :interface => "system_test::Stereo"
@@ -105,17 +119,6 @@ class TC_RobySpec_System < Test::Unit::TestCase
         @controldev     = SystemTest::ControlDevices
         controldev.driver_for 'control_devices'
 
-        orocos_engine.robot do
-            device 'imu'
-            device 'camera',  :as => 'leftCamera'
-            device :camera,   :as => :rightCamera
-
-            com_bus 'can', :as => 'can0'
-            through 'can0' do
-                device 'control_devices'
-                device 'motors'
-            end
-        end
         sys_model.subsystem "ImageAcquisition" do
             data_source "camera"
             add "camera", :as => 'acquisition'
@@ -127,13 +130,18 @@ class TC_RobySpec_System < Test::Unit::TestCase
             stereo = add "system_test::StereoProcessing", :as => 'processing'
             image0 = add "camera", :as => "image0"
             image1 = add "camera", :as => "image1"
-            connect image0.image => stereo.image0
-            connect image1.image => stereo.image1
+            connect image0.image => stereo.leftImage
+            connect image1.image => stereo.rightImage
         end
     end
 
     def test_device_definition
-        device_tests_spec
+        complete_system_model
+        orocos_engine.robot do
+            device "camera", :as => "leftCamera"
+            device "camera", :as => "rightCamera"
+        end
+
         assert(camera_model = Roby.app.orocos_devices['camera'])
 
         robot = orocos_engine.robot
@@ -175,42 +183,61 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def test_device_model_disambiguation
-        device_tests_spec
+        complete_system_model
+        orocos_engine.robot do
+            device "camera", :as => "leftCamera"
+            device "camera", :as => "rightCamera"
+        end
         orocos_engine.add("ImageAcquisition").
             use("camera" => "leftCamera")
         orocos_engine.add("ImageAcquisition").
             use("camera" => "rightCamera")
         orocos_engine.instanciate
 
-        assert_equal(10, plan.size)
+        assert_equal(6, plan.size)
         check_left_right_disambiguated_structure
     end
 
     def test_child_name_direct_disambiguation
-        device_tests_spec
+        complete_system_model
+        orocos_engine.robot do
+            device "camera", :as => "leftCamera"
+            device "camera", :as => "rightCamera"
+        end
         orocos_engine.add("ImageAcquisition").
             use("acquisition" => "leftCamera")
         orocos_engine.add("ImageAcquisition").
             use("acquisition" => "rightCamera")
         orocos_engine.instanciate
 
-        assert_equal(10, plan.size)
+        assert_equal(6, plan.size)
         check_left_right_disambiguated_structure
     end
 
     def test_child_name_indirect_disambiguation
-        device_tests_spec
+        complete_system_model
+        orocos_engine.robot do
+            device "camera", :as => "leftCamera"
+            device "camera", :as => "rightCamera"
+        end
         orocos_engine.add("Stereo").
+            use("image0" => "ImageAcquisition").
+            use("image1" => "ImageAcquisition").
             use("image0.acquisition" => "leftCamera").
             use("image1.acquisition" => "rightCamera")
+
         orocos_engine.instanciate
 
-        assert_equal(11, plan.size)
+        assert_equal(8, plan.size)
         check_stereo_disambiguated_structure
     end
 
     def test_instance_name_direct_disambiguation
-        device_tests_spec
+        complete_system_model
+        orocos_engine.robot do
+            device "camera", :as => 'leftCamera'
+            device 'camera', :as => 'rightCamera'
+        end
         orocos_engine.add("ImageAcquisition", :as => 'leftImage').
             use("acquisition" => "leftCamera")
         orocos_engine.add("ImageAcquisition", :as => 'rightImage').
@@ -220,12 +247,18 @@ class TC_RobySpec_System < Test::Unit::TestCase
             use("image1" => "rightImage")
         orocos_engine.instanciate
 
-        assert_equal(11, plan.size)
+        assert_equal(8, plan.size)
         check_stereo_disambiguated_structure
     end
 
     def test_merge
-        device_tests_spec
+        complete_system_model
+        orocos_engine.robot do
+            device "camera", :as => 'leftCamera'
+            device 'camera', :as => 'rightCamera'
+            device 'imu'
+        end
+
         sys_model.subsystem "Safety" do
             add "imu"
             add "ImageAcquisition", :as => 'image'
@@ -233,20 +266,20 @@ class TC_RobySpec_System < Test::Unit::TestCase
         orocos_engine.add("Stereo").
             use("image0" => :ImageAcquisition).
             use("image1" => "ImageAcquisition").
-            use("image0.acquisition" => "leftCamera").
-            use("image1.acquisition" => "rightCamera")
+            use("image0.camera" => "leftCamera").
+            use("image1.camera" => "rightCamera")
         orocos_engine.add("Safety").
-            use("image.camera" => "leftCamera")
+            use("camera" => "leftCamera")
 
         orocos_engine.instanciate
         # The stereo (7 tasks) is already disambiguated, but the Safety
         # subsystem should have instanciated an ImageAcquisition subsystem
         # linked to the left camera (3 tasks more).
-        assert_equal(16, plan.size)
+        assert_equal(13, plan.size)
 
         orocos_engine.merge
         engine.garbage_collect
-        assert_equal(13, plan.size)
+        assert_equal(10, plan.size)
 
         # Check the stereo substructure
         check_stereo_disambiguated_structure
@@ -272,8 +305,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
         SystemTest::StereoCamera.class_eval do
             driver_for 'stereo'
-            data_source 'camera', :as => 'image0', :slave_of => 'stereo'
-            data_source 'camera', :as => 'image1', :slave_of => 'stereo'
+            data_source 'camera', :as => 'left', :slave_of => 'stereo'
+            data_source 'camera', :as => 'right', :slave_of => 'stereo'
         end
 
         sys_model.subsystem "ImageAcquisition" do
@@ -285,7 +318,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
             device "stereo", :as => 'front_stereo'
         end
         orocos_engine.add("ImageAcquisition").
-            use("camera" => "front_stereo.image0")
+            use("camera" => "front_stereo.left")
 
         orocos_engine.instanciate
 
@@ -312,8 +345,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
             stereo = add "system_test::StereoProcessing", :as => 'processing'
             image0 = add "camera", :as => "image0"
             image1 = add "camera", :as => "image1"
-            connect image0.image => stereo.image0
-            connect image1.image => stereo.image1
+            connect image0.image => stereo.leftImage
+            connect image1.image => stereo.rightImage
         end
 
         sys_model.subsystem "StereoComparison" do
@@ -402,27 +435,9 @@ class TC_RobySpec_System < Test::Unit::TestCase
         assert_equal(1, tasks.size)
     end
 
-    def test_provides
-        sys_model.device_type 'camera'
-        sys_model.device_type 'stereoCamera'
-
-        SystemTest::StereoCamera.class_eval do
-            driver_for 'stereoCamera'
-            subdevice 'leftCamera',  :type => 'camera'
-            subdevice 'rightCamera', :type => 'camera'
-        end
-        Compositions::Stereo.class_eval do
-            data_source "stereoCamera"
-        end
-    end
-
-
-    def test_driver_for_multiple_devices
-        SystemTest::StereoCamera.multiplexed_driver 'joystick', 'sliderbox'
-    end
-
     def test_communication_busses
-        device_tests_spec
+        complete_system_model
+        complete_robot_definition
 
         assert_equal 'can0', orocos_engine.robot.devices['motors'].com_bus
         assert_equal 'can0', orocos_engine.robot.devices['control_devices'].com_bus
