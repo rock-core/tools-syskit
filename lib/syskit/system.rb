@@ -326,8 +326,13 @@ module Orocos
                                 plan.replace_task(target_task, task)
                             end
                         end
-                        merges.delete_if do |task, _|
-                            targets.include?(task)
+                        merges.delete_if do |task, pending_targets|
+                            if targets.include?(task)
+                                true
+                            else
+                                pending_targets.delete_if { |t| targets.include?(t) }
+                                false
+                            end
                         end
                     end
 
