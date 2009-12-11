@@ -106,6 +106,8 @@ module Orocos
                 task_model.each_child_data_source(data_source_name) do |child_name, _|
                     devices["#{name}.#{child_name}"] = task
                 end
+
+                task
             end
         end
 
