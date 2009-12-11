@@ -254,10 +254,13 @@ module Orocos
                     dependent_model = child_model
 
                     # Check if an explicit selection applies
-                    selected_object_name = (selection[child_model.name] || selection[child_name])
-                    if selected_object_name
-                        if !(selected_object = engine.apply_selection(selected_object_name))
-                            raise SpecError, "#{to} is not a task model name, not a device type nor a device name"
+                    selected_object = (selection[child_model.name] || selection[child_name])
+                    if selected_object
+                        if selected_object.respond_to?(:to_str)
+                            selected_object_name = selected_object.to_str
+                            if !(selected_object = engine.apply_selection(selected_object_name))
+                                raise SpecError, "#{to} is not a task model name, not a device type nor a device name"
+                            end
                         end
 
                         # Check that the selection is actually valid
