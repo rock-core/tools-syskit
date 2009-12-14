@@ -233,16 +233,38 @@ module Orocos
                 end
 
                 STDERR.puts "========== Instanciation Results ==============="
-                STDERR.puts "-- Tasks"
-                plan.each_task do |task|
-                    puts "  #{task} #{task.children.map(&:to_s)}"
-                end
-                STDERR.puts "-- Connections"
-                Flows::DataFlow.each_edge do |from, to, info|
-                    STDERR.puts "  #{from} => #{to} (#{info})"
-                end
+                pp self
                 STDERR.puts "================================================"
                 STDERR.puts
+            end
+
+            def pretty_print(pp)
+                pp.text "-- Tasks"
+                pp.nest(2) do
+                    pp.breakable
+                    plan.each_task do |task|
+                        pp.text "#{task}"
+                        pp.nest(4) do
+                            pp.breakable
+                            pp.seplist(task.children.to_a) do |t|
+                                pp.text "#{t}"
+                            end
+                        end
+                        pp.breakable
+                    end
+                end
+
+                pp.breakable
+                pp.text "-- Connections"
+                pp.nest(4) do
+                    pp.breakable
+                    Flows::DataFlow.each_edge do |from, to, info|
+                        pp.text "#{from}"
+                        pp.breakable
+                        pp.text "  => #{to} (#{info})"
+                        pp.breakable
+                    end
+                end
             end
 
             def validate_result(plan)
