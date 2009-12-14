@@ -450,10 +450,12 @@ module Orocos
                         out_connections[ [out_candidates.first.name, com_bus.input_name_for(task.bus_name)] ] = Hash.new
                     end
 
-                    puts in_connections.inspect
-                    puts out_connections.inspect
-                    com_bus.connect_ports(task, in_connections)
-                    task.connect_ports(com_bus, out_connections)
+                    if !in_connections.empty?
+                        com_bus.connect_ports(task, in_connections)
+                    end
+                    if !out_connections.empty?
+                        task.connect_ports(com_bus, out_connections)
+                    end
                 end
                 nil
             end

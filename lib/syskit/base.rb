@@ -266,6 +266,9 @@ module Orocos
 
             # Helper class for #connect_to and #forward_to
             def add_connections(target_task, mappings) # :nodoc:
+                if mappings.empty?
+                    raise ArgumentError, "the connection set is empty"
+                end
                 if child_object?(target_task, Flows::DataFlow)
                     current_mappings = self[target_task, Flows::DataFlow]
                     self[target_task, Flows::DataFlow] = current_mappings.merge(mappings) do |(from, to), old_options, new_options|

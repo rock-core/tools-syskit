@@ -513,6 +513,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
                         ['sliderbox', 'can_in_sliderbox'] => Hash.new).
             to_a
         assert_equal(1, tasks.to_a.size)
+        assert(! tasks.first.child_object?(orocos_engine.robot.devices['can0'], Flows::DataFlow))
     end
 end
 
