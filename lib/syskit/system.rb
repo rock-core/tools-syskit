@@ -231,11 +231,6 @@ module Orocos
                     end
                     plan.add_permanent(task)
                 end
-
-                STDERR.puts "========== Instanciation Results ==============="
-                pp self
-                STDERR.puts "================================================"
-                STDERR.puts
             end
 
             def pretty_print(pp)
@@ -282,9 +277,15 @@ module Orocos
                     instanciate
                     validate_result(trsc)
                     merge
+                    link_to_busses
 
                     trsc.commit_transaction
                 end
+
+                puts "========== Instanciation Results ==============="
+                pp self
+                puts "================================================"
+                puts
 
             ensure
                 @plan = engine_plan
