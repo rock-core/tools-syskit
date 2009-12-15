@@ -364,6 +364,12 @@ module Orocos
                 "#{bus_name}w"
             end
         end
+
+        class Component::TransactionProxy < Roby::Transactions::Task
+            proxy_for Component
+            include DataSource
+        end
+        Flows.apply_on Component::TransactionProxy
     end
 end
 

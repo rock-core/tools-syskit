@@ -488,9 +488,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         assert_equal 'can0', orocos_engine.robot.devices['joystick'].com_bus
         assert_equal 'can0', orocos_engine.robot.devices['sliderbox'].com_bus
 
-        orocos_engine.instanciate
-        orocos_engine.merge
-        orocos_engine.link_to_busses
+        orocos_engine.resolve
         engine.garbage_collect
 
         tasks = plan.find_tasks(SystemTest::MotorController).

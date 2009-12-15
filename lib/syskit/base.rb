@@ -221,12 +221,7 @@ module Orocos
             end
         end
 
-        class Component::TransactionProxy < Roby::Transactions::Task
-            proxy_for Component
-        end
-
         Flows = Roby::RelationSpace(Component)
-        Flows.apply_on Component::TransactionProxy
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false do
             def forward_port(target_task, mappings)
                 if self.child_object?(target_task, Roby::TaskStructure::Dependency)

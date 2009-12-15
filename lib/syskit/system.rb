@@ -375,7 +375,7 @@ module Orocos
                     to_value_set
 
                 candidates.each do |task|
-                    if !(com_bus = robot.devices[task.com_bus])
+                    if !(com_bus = plan[robot.devices[task.com_bus]])
                         raise SpecError, "there is no communication bus named #{task.com_bus}"
                     end
 
