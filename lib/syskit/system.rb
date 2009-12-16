@@ -228,11 +228,6 @@ module Orocos
                     end
                     plan.add_permanent(task)
                 end
-
-                STDERR.puts "========== Instanciation Results ==============="
-                pp self
-                STDERR.puts "================================================"
-                STDERR.puts
             end
 
             def pretty_print(pp)
@@ -286,9 +281,15 @@ module Orocos
                     merge_identical_tasks
 
                     validate_result(trsc)
+                    link_to_busses
 
                     trsc.commit_transaction
                 end
+
+                puts "========== Instanciation Results ==============="
+                pp self
+                puts "================================================"
+                puts
 
             ensure
                 @plan = engine_plan
@@ -402,7 +403,7 @@ module Orocos
                     to_value_set
 
                 candidates.each do |task|
-                    if !(com_bus = robot.devices[task.com_bus])
+                    if !(com_bus = plan[robot.devices[task.com_bus]])
                         raise SpecError, "there is no communication bus named #{task.com_bus}"
                     end
 
