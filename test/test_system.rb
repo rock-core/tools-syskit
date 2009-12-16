@@ -279,13 +279,13 @@ class TC_RobySpec_System < Test::Unit::TestCase
         orocos_engine.add(Compositions::Safety).
             use("camera" => "leftCamera")
 
-        orocos_engine.instanciate
-        # The stereo (7 tasks) is already disambiguated, but the Safety
-        # subsystem should have instanciated an ImageAcquisition subsystem
-        # linked to the left camera (3 tasks more).
-        assert_equal(13, plan.size)
+        # orocos_engine.instanciate
+        # # The stereo (7 tasks) is already disambiguated, but the Safety
+        # # subsystem should have instanciated an ImageAcquisition subsystem
+        # # linked to the left camera (3 tasks more).
+        # assert_equal(13, plan.size)
 
-        orocos_engine.merge
+        orocos_engine.resolve
         engine.garbage_collect
         assert_equal(10, plan.size)
 
@@ -467,8 +467,10 @@ class TC_RobySpec_System < Test::Unit::TestCase
                 device "sliderbox", :as => "sliderbox2"
             end
         end
-        orocos_engine.instanciate
-        assert_equal 7, plan.size
+
+        orocos_engine.resolve
+        engine.garbage_collect
+        assert_equal 5, plan.size
 
         joystick   = orocos_engine.tasks['joystick']
         joystick1  = orocos_engine.tasks['joystick1']
@@ -485,9 +487,6 @@ class TC_RobySpec_System < Test::Unit::TestCase
         assert(!joystick.can_merge?(sliderbox2))
         assert(!joystick1.can_merge?(sliderbox2))
 
-        orocos_engine.merge
-        engine.garbage_collect
-        assert_equal 5, plan.size
     end
 
     def test_communication_busses
@@ -498,9 +497,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         assert_equal 'can0', orocos_engine.robot.devices['joystick'].com_bus
         assert_equal 'can0', orocos_engine.robot.devices['sliderbox'].com_bus
 
-        orocos_engine.instanciate
-        orocos_engine.merge
-        orocos_engine.link_to_busses
+        orocos_engine.resolve
         engine.garbage_collect
 
         tasks = plan.find_tasks(SystemTest::MotorController).

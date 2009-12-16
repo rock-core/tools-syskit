@@ -267,6 +267,11 @@ module Orocos
             def validate_result(plan)
                 still_abstract = plan.find_tasks(Component).
                     abstract.to_a
+
+                still_abstract.delete_if do |p|
+                    p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
+                end
+
                 if !still_abstract.empty?
                     raise Ambiguous, "there are ambiguities left in the plan: #{still_abstract}"
                 end
@@ -277,8 +282,10 @@ module Orocos
                 plan.in_transaction do |trsc|
                     @plan = trsc
                     instanciate
+                    allocate_abstract_tasks
+                    merge_identical_tasks
+
                     validate_result(trsc)
-                    merge
 
                     trsc.commit_transaction
                 end
@@ -287,7 +294,30 @@ module Orocos
                 @plan = engine_plan
             end
 
-            def merge
+            def allocate_abstract_tasks
+                all_tasks = plan.find_tasks(Orocos::RobyPlugin::Component).
+                    to_value_set
+                targets = all_tasks.find_all { |t| t.abstract? }
+
+                STDERR.puts "  -- Task allocation"
+
+                targets.each do |t|
+                    candidates = plan.find_tasks(t.fullfilled_model.first).
+                        not_abstract.
+                        find_all { |candidate| candidate.can_merge?(t) }
+
+                    if candidates.empty?
+                        raise SpecError, "cannot find a concrete task for #{t}"
+                    elsif candidates.size > 1
+                        raise Ambiguous, "there are multiple candidates for #{t}, you must select one with the 'use' statement"
+                    end
+
+                    STDERR.puts "   #{candidates.first} => #{t}"
+                    candidates.first.merge(t)
+                end
+            end
+
+            def merge_identical_tasks
                 # Get all the tasks we need to consider. That's easy,
                 # they all implement the Orocos::RobyPlugin::Component model
                 all_tasks = plan.find_tasks(Orocos::RobyPlugin::Component).
@@ -296,7 +326,6 @@ module Orocos
                 # First pass, we look into all tasks that have no inputs in
                 # +remaining+, check for duplicates and merge the duplicates
                 remaining = all_tasks.dup
-                
 
                 rank = 1
                 old_size = nil
@@ -313,14 +342,15 @@ module Orocos
                         end
                     end.compact
                     remaining -= roots.map { |t, _| t }.to_value_set
-                    puts "  -- Tasks"
-                    puts "   " + roots.map { |t, _| t.to_s }.join("\n   ")
+                    STDERR.puts "  -- Tasks"
+                    STDERR.puts "   " + roots.map { |t, _| t.to_s }.join("\n   ")
 
                     # Create mergeability associations. +merge+ maps a task to
                     # all the tasks it can replace
                     merges = Hash.new { |h, k| h[k] = ValueSet.new }
                     STDERR.puts "  -- Merge candidates"
                     roots.each do |task, task_inputs, task_children|
+                        next if task.abstract?
                         roots.each do |target_task, target_inputs, target_children|
                             next if target_task == task
                             next if !task_children.include_all?(target_children)

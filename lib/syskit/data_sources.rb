@@ -368,6 +368,8 @@ module Orocos
                 each_merged_source(merged_task) do |selection, other_name, self_names, source_type|
                     if self_names.empty?
                         raise SpecError, "trying to merge #{merged_task} into #{self}, but that seems to not be possible"
+                    elsif self_names.size > 1
+                        raise Ambiguous, "merging #{self} and #{merged_task} is ambiguous: the #{self_names.join(", ")} data sources could be used"
                     end
 
                     # "select" one source to use to handle other_name
