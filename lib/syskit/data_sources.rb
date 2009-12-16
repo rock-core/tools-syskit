@@ -1,5 +1,9 @@
 module Orocos
     module RobyPlugin
+        module Interfaces
+        end
+        IF = Interfaces
+
         # Base type for data source models (DataSource, DeviceDriver,
         # ComBusDriver). Methods defined in this class are available on said
         # models (for instance DeviceDriver.new_submodel)

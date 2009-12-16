@@ -112,8 +112,12 @@ module Orocos
                     Orocos::RobyPlugin.send(:remove_const, name)
                 end
 
-                orocos_devices.clear
+                orocos_data_sources.each do |name, model|
+                    Orocos::RobyPlugin::Interfaces.send(:remove_const, name.camelcase(true))
+                end
                 orocos_data_sources.clear
+
+                orocos_devices.clear
 
                 project = Orocos::Generation::Component.new
                 project.name 'roby'

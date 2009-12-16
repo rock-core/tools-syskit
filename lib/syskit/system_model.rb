@@ -53,6 +53,7 @@ module Orocos
                 if block_given?
                     model.interface(&block)
                 end
+                Orocos::RobyPlugin::Interfaces.const_set name.camelcase(true), model
                 data_source_types[name] = model
             end
 
