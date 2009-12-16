@@ -105,14 +105,20 @@ module Orocos
                 source_arguments, arguments = Kernel.filter_options arguments,
                     DATA_SOURCE_ARGUMENTS
 
+                # If true, the source will be marked as 'main', i.e. the port
+                # mapping between the source and the component will match plain
+                # port names (without the source name prefixed/postfixed)
                 main_data_source = !arguments[:as]
 
+                # Get the source name and the source model
                 name = (source_arguments[:as] || type_name).to_str
                 model = source_arguments[:model] || Roby.app.orocos_data_sources[type_name]
                 if !model
                     raise ArgumentError, "there is no data source called #{type_name}"
                 end
 
+                # If a source with the same name exists, verify that the user is
+                # trying to specialize it
                 if has_data_source?(name)
                     parent_type = data_source_type(name)
                     if !(model < parent_type)
@@ -191,6 +197,8 @@ module Orocos
             # is owned by +source_name+ on +target_type+
             #
             # +source_type+ has to be a plain data source (i.e. not a task)
+            #
+            # Raises ArgumentError if no mapping is found
             def self.source_port(source_type, source_name, port_name)
                 source_port = source_type.port(port_name)
                 if main_data_source?(source_name)
