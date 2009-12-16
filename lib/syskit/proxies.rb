@@ -192,11 +192,7 @@ module Orocos
             extend Model
 
             class << self
-                def name
-                    if orogen_spec then orogen_spec.name
-                    else "#<unnamed task model>"
-                    end
-                end
+                attr_reader :name
                 # The Orocos::Generation::StaticDeployment that represents this
                 # task context.
                 attr_reader :orogen_spec
@@ -343,6 +339,7 @@ module Orocos
                 klass = Class.new(supermodel)
                 klass.instance_variable_set :@orogen_spec, task_spec
                 namespace = Orocos::RobyPlugin.orogen_project_module(task_spec.component.name)
+                klass.instance_variable_set :@name, "#{task_spec.component.name.camelcase(true)}::#{task_spec.basename.camelcase(true)}"
                 namespace.const_set(task_spec.basename.camelcase(true), klass)
                 
                 # Define specific events for the extended states (if there is any)
