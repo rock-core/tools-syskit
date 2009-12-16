@@ -17,6 +17,7 @@ module Orocos
                 model = options[:type].new
                 model.include self
                 model.instance_variable_set(:@parent_model, self)
+                model.name = name.to_str
 
                 if options[:interface]
                     iface_spec = Roby.app.get_orocos_task_model(options[:interface]).orogen_spec
@@ -30,21 +31,25 @@ module Orocos
                     end
                     model.instance_variable_set(:@orogen_spec, iface_spec)
                 elsif interface
-                    child_spec = Roby.app.main_orogen_project.
-                        task_context "roby_#{name}".camelcase(true)
+                    child_spec = model.create_orogen_interface
                     child_spec.subclasses interface.name
                     model.instance_variable_set :@orogen_spec, child_spec
                 end
-                model.name = name.to_str
                 model
+            end
+
+            def create_orogen_interface
+                interface = Roby.app.main_orogen_project.
+                    task_context "roby_#{name}".camelcase(true)
+                interface.abstract
+                interface
             end
 
             attr_reader :orogen_spec
 
             def interface(&block)
                 if block_given?
-                    @orogen_spec ||= Roby.app.main_orogen_project.
-                        task_context "roby_#{name}".camelcase(true)
+                    @orogen_spec ||= create_orogen_interface
                     orogen_spec.instance_eval(&block)
                 end
                 orogen_spec
