@@ -127,8 +127,8 @@ module Orocos
                 # trying to specialize it
                 if has_data_source?(name)
                     parent_type = data_source_type(name)
-                    if !(model < parent_type)
-                        raise SpecError, "#{self} already has a data source named #{name}"
+                    if !(model <= parent_type)
+                        raise SpecError, "#{self} has a data source named #{name} of type #{parent_type}, which is not a parent type of #{model}"
                     end
                 end
 
