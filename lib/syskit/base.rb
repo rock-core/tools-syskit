@@ -100,8 +100,14 @@ module Orocos
 
             DATA_SOURCE_ARGUMENTS = { :model => nil, :as => nil, :slave_of => nil }
 
-            def self.data_source(type_name, arguments = Hash.new)
-                type_name = type_name.to_str
+            def self.data_source(source_model, arguments = Hash.new)
+                if source_model.respond_to?(:to_str)
+                    type_name = source_model.to_str
+                else
+                    type_name = source_model.name.gsub /^.+::/, ''
+                    model = source_model
+                end
+
                 source_arguments, arguments = Kernel.filter_options arguments,
                     DATA_SOURCE_ARGUMENTS
 
@@ -116,7 +122,7 @@ module Orocos
                     raise ArgumentError, "there is already a source named '#{name}' defined on '#{name}'"
                 end
 
-                model = source_arguments[:model] || Roby.app.orocos_data_sources[type_name]
+                model ||= source_arguments[:model] || Roby.app.orocos_data_sources[type_name]
                 if !model
                     raise ArgumentError, "there is no data source called #{type_name}"
                 end

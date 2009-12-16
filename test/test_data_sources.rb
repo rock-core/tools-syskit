@@ -124,6 +124,22 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     end
 
 
+    def test_task_data_source_declaration_using_type
+        source_model = sys_model.data_source_type 'image'
+        task_model   = Class.new(TaskContext) do
+            data_source source_model
+        end
+        assert_raises(ArgumentError) { task_model.data_source('image') }
+
+        assert(task_model.has_data_source?('image'))
+        assert(task_model.main_data_source?('image'))
+
+        assert(task_model < source_model)
+        assert_equal(source_model, task_model.data_source_type('image'))
+        assert_equal([["image", source_model]], task_model.each_root_data_source.to_a)
+        assert_equal([:image_name], task_model.arguments.to_a)
+    end
+
     def test_task_data_source_declaration_default_name
         source_model = sys_model.data_source_type 'image'
         task_model   = Class.new(TaskContext) do
@@ -170,11 +186,13 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
     def test_task_data_source_declaration_inheritance
         source_model = sys_model.data_source_type 'image'
+        other_source_model = sys_model.data_source_type 'other'
         parent_model   = Class.new(TaskContext) do
             data_source 'image', :as => 'left_image'
         end
         task_model = Class.new(parent_model)
-        assert_raises(SpecError) { task_model.data_source('image', :as => 'left_image') }
+        assert_raises(SpecError) { task_model.data_source(other_source_model, :as => 'left_image') }
+        task_model.data_source('image', :as => 'left_image')
 
         assert(task_model.has_data_source?('left_image'))
 
@@ -229,10 +247,18 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     end
 
     def test_data_source_find_matching_source
+        Roby.app.load_orogen_project "system_test"
         stereo_model = sys_model.data_source_type 'stereocam'
-        stereo_processing_model = sys_model.data_source_type 'stereoprocessing', :child_of => stereo_model
-        image_model  = sys_model.data_source_type 'image'
-        task_model   = Class.new(TaskContext) do
+        stereo_processing_model =
+            sys_model.data_source_type 'stereoprocessing',
+                :child_of => stereo_model,
+                :interface => SystemTest::StereoCamera
+
+        image_model  = sys_model.data_source_type 'image',
+            :interface => SystemTest::CameraDriver
+
+        task_model   = SystemTest::StereoCamera
+        task_model.class_eval do
             data_source 'stereoprocessing', :as => 'stereo'
             data_source 'image', :as => 'left',  :slave_of => 'stereo'
             data_source 'image', :as => 'right', :slave_of => 'stereo'
