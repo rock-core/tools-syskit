@@ -1,3 +1,4 @@
+require 'roby'
 require 'utilrb/module/include'
 require 'utilrb/symbol/to_str'
 require 'orocos/roby/base'
