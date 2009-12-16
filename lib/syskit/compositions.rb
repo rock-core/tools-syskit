@@ -57,11 +57,13 @@ module Orocos
                 children[name.to_s] = task
             end
 
-            def add(model_name, options = Hash.new)
-                options = Kernel.validate_options options, :as => model_name
-                task = system.get(model_name)
+            def add(model, options = Hash.new)
+                if !model.kind_of?(DataSourceModel) && !(model.kind_of?(Class) && model < Component)
+                    raise ArgumentError, "wrong model type #{model.class} for #{model}"
+                end
+                options = Kernel.validate_options options, :as => model.name.gsub(/.*::/, '')
 
-                add_child(options[:as], task)
+                add_child(options[:as], model)
                 CompositionChild.new(self, options[:as])
             end
 
@@ -231,7 +233,7 @@ module Orocos
 
                 children_tasks = Hash.new
                 children.each do |child_name, child_model|
-                    role = if child_name == child_model.name
+                    role = if child_name == child_model.name.gsub(/.*::/, '')
                                Set.new
                            else [child_name].to_set
                            end
@@ -246,7 +248,7 @@ module Orocos
                         if selected_object.respond_to?(:to_str)
                             selected_object_name = selected_object.to_str
                             if !(selected_object = engine.apply_selection(selected_object_name))
-                                raise SpecError, "#{selected_object_name} is not a task model name, not a device type nor a device name"
+                                raise SpecError, "#{selected_object_name} is not a device name. Compositions and tasks must be given as objects"
                             end
                         end
 
@@ -325,6 +327,11 @@ module Orocos
 
         # Module in which all composition models are registered
         module Compositions
+            def self.each
+                constants.each do |name|
+                    yield(const_get(name))
+                end
+            end
         end
 
         class Composition < Component

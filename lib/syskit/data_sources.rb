@@ -1,8 +1,22 @@
 module Orocos
     module RobyPlugin
         module Interfaces
+            def self.each
+                constants.each do |name|
+                    yield(const_get(name))
+                end
+            end
         end
+        module DeviceDrivers
+            def self.each
+                constants.each do |name|
+                    yield(const_get(name))
+                end
+            end
+        end
+
         IF = Interfaces
+        DD = DeviceDrivers
 
         # Base type for data source models (DataSource, DeviceDriver,
         # ComBusDriver). Methods defined in this class are available on said
@@ -189,7 +203,7 @@ module Orocos
                 @task_model.abstract
                 @task_model.name = "#{name}DataSourceTask"
                 @task_model.extend Model
-                @task_model.data_source name, :model => self
+                @task_model.data_source self
                 @task_model
             end
 
@@ -294,9 +308,9 @@ module Orocos
                 end
                     
 
-                def data_source_name(type_name)
+                def data_source_name(matching_type)
                     candidates = each_data_source.find_all do |name, type|
-                        type.name == type_name
+                        type == matching_type
                     end
                     if candidates.empty?
                         raise ArgumentError, "no source of type '#{type_name}' declared on #{self}"

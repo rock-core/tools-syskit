@@ -8,12 +8,12 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def simple_composition
         sys_model.subsystem "simple" do
-            add 'simple_source::source', :as => 'source'
-            add 'simple_sink::sink', :as => 'sink'
+            add SimpleSource::Source, :as => 'source'
+            add SimpleSink::Sink, :as => 'sink'
 
-            add "echo::Echo"
-            add "echo::Echo", :as => 'echo'
-            add "echo::Echo", :as => :echo
+            add Echo::Echo
+            add Echo::Echo, :as => 'echo'
+            add Echo::Echo, :as => :echo
         end
     end
 
@@ -23,16 +23,15 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert(subsys < Orocos::RobyPlugin::Composition)
         assert_equal "simple", subsys.name
 
-        assert_equal ['echo::Echo', 'echo', 'source', 'sink'].to_set, subsys.children.keys.to_set
-        expected_models = %w{echo::Echo echo::Echo simple_source::source simple_sink::sink}.
-            map { |model_name| sys_model.get(model_name) }
+        assert_equal ['Echo', 'echo', 'source', 'sink'].to_set, subsys.children.keys.to_set
+        expected_models = [Echo::Echo, Echo::Echo, SimpleSource::Source, SimpleSink::Sink]
         assert_equal expected_models.to_set, subsys.children.values.to_set
     end
 
     def test_simple_composition_autoconnection
         subsys = sys_model.subsystem("source_sink") do
-            add "simple_source::source", :as => "source"
-            add "simple_sink::sink", :as => "sink"
+            add SimpleSource::Source, :as => "source"
+            add SimpleSink::Sink, :as => "sink"
             autoconnect
         end
         subsys.compute_autoconnection
@@ -43,24 +42,24 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_simple_composition_ambiguity
         subsys = sys_model.subsystem("source_sink0") do
-            add "simple_source::source", :as => 'source'
-            add "simple_sink::sink", :as => 'sink1'
-            add "simple_sink::sink", :as => 'sink2'
+            add SimpleSource::Source, :as => 'source'
+            add SimpleSink::Sink, :as => 'sink1'
+            add SimpleSink::Sink, :as => 'sink2'
             autoconnect
         end
         subsys.compute_autoconnection
 
         subsys = sys_model.subsystem("source_sink1") do
-            add "echo::Echo", :as => 'echo1'
-            add "echo::Echo", :as => 'echo2'
+            add Echo::Echo, :as => 'echo1'
+            add Echo::Echo, :as => 'echo2'
             autoconnect
         end
         assert_raises(Ambiguous) { subsys.compute_autoconnection }
 
         subsys = sys_model.subsystem("source_sink2") do
-            add "simple_source::source", :as => 'source1'
-            add "simple_source::source", :as => 'source2'
-            add "simple_sink::sink", :as => 'sink1'
+            add SimpleSource::Source, :as => 'source1'
+            add SimpleSource::Source, :as => 'source2'
+            add SimpleSink::Sink, :as => 'sink1'
             autoconnect
         end
         assert_raises(Ambiguous) { subsys.compute_autoconnection }
@@ -69,9 +68,9 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     def test_composition_port_export
         source, sink1, sink2 = nil
         subsys = sys_model.subsystem("source_sink0") do
-            source = add "simple_source::source", :as => 'source'
-            sink1  = add "simple_sink::sink", :as => 'sink1'
-            sink2  = add "simple_sink::sink", :as => 'sink2'
+            source = add SimpleSource::Source, :as => 'source'
+            sink1  = add SimpleSink::Sink, :as => 'sink1'
+            sink2  = add SimpleSink::Sink, :as => 'sink2'
         end
             
         subsys.export sink1.cycle
@@ -88,15 +87,15 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     def test_composition_port_export_instanciation
         source, sink1, sink2 = nil
         subsys = sys_model.subsystem("source_sink0") do
-            source = add "simple_source::source", :as => 'source'
-            sink1  = add "simple_sink::sink", :as => 'sink1'
+            source = add SimpleSource::Source, :as => 'source'
+            sink1  = add SimpleSink::Sink, :as => 'sink1'
         end
             
         subsys.export source.cycle, :as => 'out_cycle'
         subsys.export sink1.cycle, :as => 'in_cycle'
 
         orocos_engine    = Engine.new(plan, sys_model)
-        orocos_engine.add("source_sink0")
+        orocos_engine.add(Compositions::SourceSink0)
         orocos_engine.instanciate
 
         tasks = plan.find_tasks(Compositions::SourceSink0).
@@ -109,9 +108,9 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     def test_composition_explicit_connection
         source, sink1, sink2 = nil
         subsys = sys_model.subsystem("source_sink0") do
-            source = add "simple_source::source", :as => 'source'
-            sink1  = add "simple_sink::sink", :as => 'sink1'
-            sink2  = add "simple_sink::sink", :as => 'sink2'
+            source = add SimpleSource::Source, :as => 'source'
+            sink1  = add SimpleSink::Sink, :as => 'sink1'
+            sink2  = add SimpleSink::Sink, :as => 'sink2'
 
             connect source.cycle => sink1.cycle
             connect source.cycle => sink2.cycle

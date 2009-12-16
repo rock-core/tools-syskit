@@ -61,19 +61,20 @@ module Orocos
                 bus
             end
 
-            def device(device_type, options = Hash.new)
-                device_type = device_type.to_str
+            def device(device_model, options = Hash.new)
+                if device_model.respond_to?(:to_str)
+                    device_model = Orocos::RobyPlugin::DeviceDrivers.const_get(device_model.to_str.camelcase(true))
+                end
+
                 options, device_options = Kernel.filter_options options,
-                    :as => device_type, :model => nil, :expected_model => DeviceDriver
+                    :as => device_model.name.gsub(/.*::/, ''),
+                    :expected_model => DeviceDriver
 
                 name = options[:as].to_str
                 if devices[name]
                     raise SpecError, "device #{name} is already defined"
                 end
 
-                if !(device_model = options[:model] || Roby.app.orocos_devices[device_type])
-                    raise SpecError, "unknown device type '#{device_type}'"
-                end
                 if !(device_model < options[:expected_model])
                     raise SpecError, "device #{device_type} is not a #{options[:expected_model]}"
                 end
@@ -98,7 +99,7 @@ module Orocos
                 end
 
                 task_model = tasks.first
-                data_source_name = task_model.data_source_name(device_type)
+                data_source_name = task_model.data_source_name(device_model)
                 device_arguments = {"#{data_source_name}_name" => name, :com_bus => nil}
                 task = task_model.instanciate(engine, device_arguments.merge(device_options))
                 devices[name] = task
@@ -184,26 +185,22 @@ module Orocos
 
                 name = seed.to_str
                 sel = (Roby.app.orocos_tasks[name] || subsystem(name))
-                if !sel
-                    begin
-                        sel = model.get(name)
-                    rescue ArgumentError
-                    end
-                end
 
-                if !sel && data_source_type = Roby.app.orocos_data_sources[name]
-                    sel = data_source_type.task_model
+                if !sel && model.has_interface?(name)
+                    sel = Interfaces.const_get(name.camelcase(true)).task_model
                 end
-                if !sel && device_type = Roby.app.orocos_devices[name]
-                    sel = device_type.task_model
+                if !sel && model.has_device_driver?(name)
+                    sel = DeviceDrivers.const_get(name.camelcase(true)).task_model
                 end
                 sel
             end
 
-            def add(name, arguments = Hash.new)
+            def add(model, arguments = Hash.new)
+                if !(model.kind_of?(Class) && model < Component)
+                    raise ArgumentError, "wrong model type #{model.class} for #{model}"
+                end
                 arguments, task_arguments = Kernel.filter_options arguments, :as => nil
-                task_model = model.get(name)
-                instance = InstanciatedComponent.new(self, arguments[:as], task_model, task_arguments)
+                instance = InstanciatedComponent.new(self, arguments[:as], model, task_arguments)
                 instances << instance
                 instance
             end
@@ -211,7 +208,7 @@ module Orocos
             def instanciate
                 self.tasks.clear
 
-                model.subsystems.each_value do |composition_model|
+                Orocos::RobyPlugin::Compositions.each do |composition_model|
                     if composition_model.respond_to?(:compute_autoconnection)
                         composition_model.compute_autoconnection
                     end

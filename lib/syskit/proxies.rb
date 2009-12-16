@@ -320,11 +320,15 @@ module Orocos
                 interrupt!
             end
 
-            def self.driver_for(name, arguments = Hash.new)
-                if !(model = Roby.app.orocos_devices[name])
-                    raise ArgumentError, "there is no device type '#{name}'"
+            def self.driver_for(model, arguments = Hash.new)
+                if model.respond_to?(:to_str)
+                    begin
+                        model = Orocos::RobyPlugin::DeviceDrivers.const_get model.to_str.camelcase(true)
+                    rescue NameError
+                        raise ArgumentError, "there is no device model called #{model}"
+                    end
                 end
-                data_source(name, arguments.merge(:model => model))
+                data_source(model, arguments)
             end
 
             # Creates a subclass of TaskContext that represents the given task

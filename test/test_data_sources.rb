@@ -14,9 +14,12 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert_kind_of(DataSourceModel, model)
         assert(model < DataSource)
 
+        assert(sys_model.has_interface?('image'))
+        assert(!sys_model.has_composition?('image'))
+        assert(!sys_model.has_device_driver?('image'))
         assert_equal("image", model.name)
         assert_equal("#<DataSource: image>", model.to_s)
-        assert_same(model, Roby.app.orocos_data_sources["image"])
+        assert_same(model, IF::Image)
     end
 
     def test_data_source_task_model
@@ -29,7 +32,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     def test_data_source_submodel
         parent_model = sys_model.data_source_type("test")
         model = sys_model.data_source_type("image", :child_of => "test")
-        assert_same(model, Roby.app.orocos_data_sources["image"])
+        assert_same(model, IF::Image)
         assert_equal 'image', model.name
         assert_kind_of(DataSourceModel, model)
         assert(model < parent_model)
@@ -87,10 +90,11 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
     def test_device_type
         model = sys_model.device_type("camera")
-        assert_same(model, Roby.app.orocos_devices["camera"])
+        assert(sys_model.has_device_driver?('camera'))
+        assert_same(model, DeviceDrivers::Camera)
         assert_equal("camera", model.name)
         assert_equal("#<DeviceDriver: camera>", model.to_s)
-        assert(data_source = Roby.app.orocos_data_sources["camera"])
+        assert(data_source = IF::Camera)
         assert(data_source != model)
 
         assert(model < data_source)
@@ -101,26 +105,26 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     def test_device_type_reuses_data_source
         source = sys_model.data_source_type("camera")
         model  = sys_model.device_type("camera")
-        assert_same(source, Roby.app.orocos_data_sources['camera'])
+        assert_same(source, IF::Camera)
     end
 
     def test_device_type_disabled_provides
-        sys_model.device_type("camera", :provides => nil)
-        assert(!Roby.app.orocos_data_sources['camera'])
+        sys_model.device_type("camera", :provides => false)
+        assert(!sys_model.has_interface?('camera'))
     end
 
     def test_device_type_explicit_provides_as_object
         source = sys_model.data_source_type("image")
         model  = sys_model.device_type("camera", :provides => source)
         assert(model < source)
-        assert(! Roby.app.orocos_data_sources['camera'])
+        assert(! sys_model.has_interface?('camera'))
     end
 
     def test_device_type_explicit_provides_as_string
         source = sys_model.data_source_type("image")
         model  = sys_model.device_type("camera", :provides => 'image')
         assert(model < source)
-        assert(! Roby.app.orocos_data_sources['camera'])
+        assert(! sys_model.has_interface?('camera'))
     end
 
 
@@ -157,7 +161,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     end
 
     def test_task_data_source_declaration_specific_name
-        source_model = sys_model.data_source_type 'image'
+        source_model       = sys_model.data_source_type 'image'
         task_model   = Class.new(TaskContext) do
             data_source 'image', :as => 'left_image'
         end
@@ -177,7 +181,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         source_model = sys_model.data_source_type 'image'
         other_source = sys_model.data_source_type 'image2'
         task_model   = Class.new(TaskContext) do
-            data_source 'image', :as => 'left_image', :model => other_source
+            data_source other_source, :as => 'left_image'
         end
         assert_same(other_source, task_model.data_source_type('left_image'))
         assert(!(task_model < source_model))
@@ -259,9 +263,9 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
         task_model   = SystemTest::StereoCamera
         task_model.class_eval do
-            data_source 'stereoprocessing', :as => 'stereo'
-            data_source 'image', :as => 'left',  :slave_of => 'stereo'
-            data_source 'image', :as => 'right', :slave_of => 'stereo'
+            data_source IF::Stereoprocessing, :as => 'stereo'
+            data_source IF::Image, :as => 'left',  :slave_of => 'stereo'
+            data_source IF::Image, :as => 'right', :slave_of => 'stereo'
         end
 
         assert_equal "stereo",     task_model.find_matching_source(stereo_model)
@@ -271,9 +275,9 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert_equal "stereo.left", task_model.find_matching_source(image_model, "stereo.left")
 
         # Add fakes to trigger disambiguation by main/non-main
-        task_model.data_source 'image', :as => 'left'
+        task_model.data_source IF::Image, :as => 'left'
         assert_equal "left", task_model.find_matching_source(image_model)
-        task_model.data_source 'image', :as => 'right'
+        task_model.data_source IF::Image, :as => 'right'
         assert_raises(Ambiguous) { task_model.find_matching_source(image_model) }
         assert_equal "left", task_model.find_matching_source(image_model, "left")
         assert_equal "stereo.left", task_model.find_matching_source(image_model, "stereo.left")
@@ -344,7 +348,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         Roby.app.load_orogen_project "system_test"
         stereo_model = sys_model.data_source_type 'stereocam', :interface => SystemTest::StereoCamera
         task_model   = SystemTest::StereoCamera
-        task_model.data_source 'stereocam', :as => 'stereo'
+        task_model.data_source IF::Stereocam, :as => 'stereo'
         task = task_model.new 'stereo_name' => 'front_stereo'
 
         assert_equal("front_stereo", task.selected_data_source('stereo'))
@@ -355,7 +359,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         Roby.app.load_orogen_project "system_test"
         stereo_model = sys_model.data_source_type 'stereocam', :interface => SystemTest::StereoCamera
         assert_raises(SpecError) do
-            SystemTest::CameraDriver.data_source 'stereocam', :as => 'stereo'
+            SystemTest::CameraDriver.data_source IF::Stereocam, :as => 'stereo'
         end
     end
 
@@ -367,13 +371,13 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
             output_port 'disparity', 'camera/Image'
             output_port 'cloud', 'base/PointCloud3D'
         end
-        task_model.data_source 'stereocam', :as => 'stereo'
+        task_model.data_source IF::Stereocam, :as => 'stereo'
 
         plan.add(parent = Roby::Task.new)
         task0 = task_model.new 'stereo_name' => 'front_stereo'
         task1 = task_model.new
-        parent.depends_on task0, :model => Roby.app.orocos_data_sources['stereocam']
-        parent.depends_on task1, :model => Roby.app.orocos_data_sources['stereocam']
+        parent.depends_on task0, :model => IF::Stereocam
+        parent.depends_on task1, :model => IF::Stereocam
 
         assert(task0.can_merge?(task1))
         assert(task1.can_merge?(task0))
@@ -398,8 +402,8 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         camera_model = sys_model.data_source_type 'camera' do
             output_port 'image', 'camera/Image'
         end
-        SystemTest::StereoProcessing.data_source 'stereoprocessing', :as => 'stereo'
-        SystemTest::CameraDriver.data_source 'camera'
+        SystemTest::StereoProcessing.data_source IF::Stereoprocessing, :as => 'stereo'
+        SystemTest::CameraDriver.data_source IF::Camera
 
         plan.add(stereo = SystemTest::StereoProcessing.new)
         assert(!stereo.using_data_source?('stereo'))
@@ -422,22 +426,22 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
         sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
         SystemTest::StereoCamera.class_eval do
-            data_source 'stereo'
-            data_source 'camera', :as => 'left', :slave_of => 'stereo'
-            data_source 'camera', :as => 'right', :slave_of => 'stereo'
+            data_source IF::Stereo
+            data_source IF::Camera, :as => 'left', :slave_of => 'stereo'
+            data_source IF::Camera, :as => 'right', :slave_of => 'stereo'
         end
         stereo_model = SystemTest::StereoCamera
 
         SystemTest::CameraDriver.class_eval do
-            data_source 'camera'
+            data_source IF::Camera
         end
-        camera_model = Roby.app.orocos_data_sources['camera'].task_model
+        camera_model = IF::Camera.task_model
 
         plan.add(parent = Roby::Task.new)
         task0 = stereo_model.new 'stereo_name' => 'front_stereo'
         task1 = camera_model.new 'camera_name' => 'front_stereo.left'
-        parent.depends_on task0, :model => Roby.app.orocos_data_sources['camera']
-        parent.depends_on task1, :model => Roby.app.orocos_data_sources['camera']
+        parent.depends_on task0, :model => IF::Camera
+        parent.depends_on task1, :model => IF::Camera
 
         assert(task0.can_merge?(task1))
         assert(!task1.can_merge?(task0))
@@ -461,8 +465,8 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         plan.add(parent = Roby::Task.new)
         task0 = task_model.new 'stereo_name' => 'front_stereo'
         task1 = task_model.new
-        parent.depends_on task0, :model => Roby.app.orocos_data_sources['stereo']
-        parent.depends_on task1, :model => Roby.app.orocos_data_sources['stereo']
+        parent.depends_on task0, :model => IF::Stereo
+        parent.depends_on task1, :model => IF::Stereo
 
         task0.merge(task1)
         assert_equal({ :stereo_name => "front_stereo" }, task0.arguments)
@@ -470,8 +474,8 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         plan.add(parent = Roby::Task.new)
         task0 = task_model.new 'stereo_name' => 'front_stereo'
         task1 = task_model.new
-        parent.depends_on task0, :model => Roby.app.orocos_data_sources['stereo']
-        parent.depends_on task1, :model => Roby.app.orocos_data_sources['stereo']
+        parent.depends_on task0, :model => IF::Stereo
+        parent.depends_on task1, :model => IF::Stereo
 
         task1.merge(task0)
         assert_equal({ :stereo_name => "front_stereo" }, task1.arguments)

@@ -3,32 +3,30 @@ module Orocos
         class SystemModel
             include CompositionModel
 
-            attribute(:interfaces)    { Hash.new }
-            attribute(:data_source_types)  { Hash.new }
-            attribute(:device_types)  { Hash.new }
-            attribute(:subsystems)    { Hash.new }
             attribute(:configuration) { Hash.new }
 
             def initialize
-                Roby.app.orocos_tasks.each do |name, model|
-                    subsystems[name] = model
-                end
                 @system = self
             end
 
-            def load_all_models
-                subsystems['RTT::TaskContext'] = Orocos::Spec::TaskContext
-                rtt_taskcontext = Orocos::Generation::Component.standard_tasks.
-                    find { |task| task.name == "RTT::TaskContext" }
-                Orocos::Spec::TaskContext.task_model = rtt_taskcontext
+            def has_interface?(name)
+                Orocos::RobyPlugin::Interfaces.const_defined?(name.camelcase(true))
+            end
+            def register_interface(model)
+                Orocos::RobyPlugin::Interfaces.const_set(model.name.camelcase(true), model)
+            end
 
-                Orocos.available_task_models.each do |name, task_lib|
-                    next if subsystems[name]
-
-                    task_lib   = Orocos::Generation.load_task_library(task_lib)
-                    task_model = task_lib.find_task_context(name)
-                    define_task_context_model(task_model)
-                end
+            def has_device_driver?(name)
+                Orocos::RobyPlugin::DeviceDrivers.const_defined?(name.camelcase(true))
+            end
+            def register_device_driver(model)
+                Orocos::RobyPlugin::DeviceDrivers.const_set(model.name.camelcase(true), model)
+            end
+            def has_composition?(name)
+                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(true))
+            end
+            def register_composition(model)
+                Orocos::RobyPlugin::Compositions.const_set(model.name.camelcase(true), model)
             end
 
             def data_source_type(name, options = Hash.new, &block)
@@ -36,86 +34,75 @@ module Orocos
                     :child_of => DataSource,
                     :interface    => nil
 
-                parent_model = options[:child_of]
-
-                if model = Roby.app.orocos_data_sources[name]
-                    model
-                else
-                    if parent_model.respond_to?(:to_str)
-                        if !(parent_model = Roby.app.orocos_data_sources[parent_model.to_str])
-                            raise SpecError, "no data source named #{parent_model}"
-                        end
-                    end
-                    model =
-                        Roby.app.orocos_data_sources[name.to_str] = 
-                        parent_model.new_submodel(name, :interface => options[:interface])
+                const_name = name.camelcase(true)
+                if has_interface?(name)
+                    raise ArgumentError, "there is already a data source named #{name}"
                 end
+
+                parent_model = options[:child_of]
+                if parent_model.respond_to?(:to_str)
+                    parent_model = Orocos::RobyPlugin::Interfaces.const_get(parent_model.camelcase(true))
+                end
+                model = parent_model.new_submodel(name, :interface => options[:interface])
                 if block_given?
                     model.interface(&block)
                 end
-                Orocos::RobyPlugin::Interfaces.const_set name.camelcase(true), model
-                data_source_types[name] = model
+
+                register_interface(model)
+                model.instance_variable_set :@name, name
+                model
             end
 
             def device_type(name, options = Hash.new)
-                options, device_options = Kernel.filter_options options, :provides => false, :interface => nil
+                options, device_options = Kernel.filter_options options,
+                    :provides => nil, :interface => nil
 
-                if !(device_model = Roby.app.orocos_devices[name])
-                    device_model = Roby.app.orocos_devices[name.to_str] = DeviceDriver.new_submodel(name)
+                const_name = name.camelcase(true)
+                if has_device_driver?(name)
+                    raise ArgumentError, "there is already a device type #{name}"
                 end
-                if options[:provides] != false
-                    if options[:provides]
-                        source = options[:provides]
-                        if source.respond_to?(:to_str)
-                            source = Roby.app.orocos_data_sources[source.to_str]
-                            if !source
-                                raise SpecError, "no source is named #{options[:provides]}"
-                            end
-                        end
-                        device_model.include source
+
+                device_model = DeviceDriver.new_submodel(name)
+
+                if provides = options[:provides]
+                    if provides.respond_to?(:to_str)
+                        provides = Orocos::RobyPlugin::Interfaces.const_get(provides.camelcase(true))
                     end
-                else
-                    if !(data_source = Roby.app.orocos_data_sources[name])
+                    device_model.include provides
+                elsif options[:provides].nil?
+                    begin
+                        data_source = Orocos::RobyPlugin::Interfaces.const_get(const_name)
+                    rescue NameError
                         data_source = self.data_source_type(name, :interface => options[:interface])
                     end
                     device_model.include data_source
                 end
 
+                register_device_driver(device_model)
                 device_model
             end
+
             def bus_type(name, options  = Hash.new)
                 name = name.to_str
-                if !(device_model = Roby.app.orocos_devices[name])
-                    Roby.app.orocos_devices[name] = ComBusDriver.new_submodel(name, options)
+
+                if has_device_driver?(name)
+                    raise ArgumentError, "there is already a device driver called #{name}"
                 end
+
+                model = ComBusDriver.new_submodel(name, options)
+                register_device_driver(model)
             end
 
             def subsystem(name, &block)
                 name = name.to_s
-                if subsystems[name]
-                    raise ArgumentError, "subsystem '#{name}' is already defined"
-                elsif Roby.app.orocos_devices[name]
-                    raise ArgumentError, "'#{name}' is already the name of a device type"
+                if has_composition?(name)
+                    raise ArgumentError, "there is already a composition named '#{name}'"
                 end
 
                 new_model = Composition.new_submodel(name, self)
-                subsystems[name] = new_model
-                Roby.app.orocos_compositions[name] = new_model
-                Orocos::RobyPlugin::Compositions.const_set(name.camelcase(true), new_model)
                 new_model.instance_eval(&block)
+                register_composition(new_model)
                 new_model
-            end
-
-            def get(name)
-                if subsystem = subsystems[name] 
-                    subsystem
-                elsif data_source_model = Roby.app.orocos_data_sources[name]
-                    data_source_model
-                elsif device_model = Roby.app.orocos_devices[name]
-                    device_model
-                else
-                    raise ArgumentError, "no subsystem, task or device type matches '#{name}'"
-                end
             end
 
             def configure(task_model, &block)

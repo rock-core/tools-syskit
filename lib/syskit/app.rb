@@ -13,14 +13,6 @@ module Orocos
             # A mapping from deployment name to the corresponding
             # subclass of Orocos::RobyPlugin::Deployment
             attribute(:orocos_deployments) { Hash.new }
-            # A mapping from device type to the corresponding submodel of
-            # DeviceDriver
-            attribute(:orocos_data_sources) { Hash.new }
-            # A mapping from device type to the corresponding submodel of
-            # DeviceDriver
-            attribute(:orocos_devices) { Hash.new }
-            # A mapping from name to the corresponding subclass of Composition
-            attribute(:orocos_compositions) { Hash.new }
 
             attribute(:main_orogen_project) do
                 project = Orocos::Generation::Component.new
@@ -85,11 +77,6 @@ module Orocos
 
             def orocos_clear_models
                 projects = Set.new
-                orocos_compositions.each_value do |model|
-                    task_name    = model.name.camelcase(true)
-                    constant("Orocos::RobyPlugin::Compositions").send(:remove_const, task_name)
-                end
-                orocos_compositions.clear
 
                 orocos_tasks.each_value do |model|
                     if model.orogen_spec
@@ -112,12 +99,11 @@ module Orocos
                     Orocos::RobyPlugin.send(:remove_const, name)
                 end
 
-                orocos_data_sources.each do |name, model|
-                    Orocos::RobyPlugin::Interfaces.send(:remove_const, name.camelcase(true))
+                [Interfaces, Compositions, DeviceDrivers].each do |mod|
+                    mod.constants.each do |const_name|
+                        mod.send(:remove_const, const_name)
+                    end
                 end
-                orocos_data_sources.clear
-
-                orocos_devices.clear
 
                 project = Orocos::Generation::Component.new
                 project.name 'roby'

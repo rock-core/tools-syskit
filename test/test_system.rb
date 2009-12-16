@@ -21,13 +21,13 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
     def test_simple_composition_instanciation
         subsys_model = sys_model.subsystem "simple" do
-            add 'simple_source::source', :as => 'source'
-            add 'simple_sink::sink', :as => 'sink'
+            add SimpleSource::Source, :as => 'source'
+            add SimpleSink::Sink, :as => 'sink'
             autoconnect
 
-            add "echo::Echo"
-            add "echo::Echo", :as => 'echo'
-            add "echo::Echo", :as => :echo
+            add Echo::Echo
+            add Echo::Echo, :as => 'echo'
+            add Echo::Echo, :as => :echo
         end
 
         subsys_model.compute_autoconnection
@@ -81,7 +81,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         driver_task = orocos_engine.robot.devices['frontStereo']
         assert_kind_of stereo_driver, driver_task
 
-        camera_type = Roby.app.orocos_data_sources['camera']
+        camera_type = IF::Camera
         assert_kind_of camera_type, orocos_engine.robot.devices['frontStereo.left']
         assert_kind_of camera_type, orocos_engine.robot.devices['frontStereo.right']
     end
@@ -123,20 +123,25 @@ class TC_RobySpec_System < Test::Unit::TestCase
         controldev.driver_for 'joystick'
 
         sys_model.subsystem "ImageAcquisition" do
-            data_source "camera"
-            add "camera", :as => 'acquisition'
-            filter = add "system_test::CameraFilter"
-            autoconnect
-
+            add IF::Camera, :as => 'acquisition'
+            filter = add SystemTest::CameraFilter
             export filter.out, :as => "image"
+
+            data_source "camera"
+
+            autoconnect
         end
         sys_model.subsystem "Stereo" do
-            data_source 'stereo'
-            stereo = add "system_test::StereoProcessing", :as => 'processing'
-            image0 = add "camera", :as => "image0"
-            image1 = add "camera", :as => "image1"
+            stereo = add SystemTest::StereoProcessing, :as => 'processing'
+            image0 = add IF::Camera, :as => "image0"
+            image1 = add IF::Camera, :as => "image1"
             connect image0.image => stereo.leftImage
             connect image1.image => stereo.rightImage
+
+            export stereo.disparity
+            export stereo.cloud
+
+            data_source 'stereo'
         end
     end
 
@@ -147,15 +152,13 @@ class TC_RobySpec_System < Test::Unit::TestCase
             device "camera", :as => "rightCamera"
         end
 
-        assert(camera_model = Roby.app.orocos_devices['camera'])
-
         robot = orocos_engine.robot
         left  = robot.devices['leftCamera']
         right = robot.devices['rightCamera']
         assert(left != right)
-        assert_kind_of(camera_model, left)
+        assert_kind_of(DeviceDrivers::Camera, left)
         assert_equal('leftCamera', left.camera_name)
-        assert_kind_of(camera_model, right)
+        assert_kind_of(DeviceDrivers::Camera, right)
         assert_equal('rightCamera', right.camera_name)
     end
 
@@ -174,7 +177,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         cameras = plan.find_tasks(SystemTest::CameraDriver).to_a
         cameras.each do |cam|
             acq = cam.parents.first
-            assert_equal(Roby.app.orocos_data_sources['camera'], acq[cam, TaskStructure::Dependency][:model].first)
+            assert_equal(IF::Camera, acq[cam, TaskStructure::Dependency][:model].first)
         end
         return acquisition
     end
@@ -193,9 +196,9 @@ class TC_RobySpec_System < Test::Unit::TestCase
             device "camera", :as => "leftCamera"
             device "camera", :as => "rightCamera"
         end
-        orocos_engine.add("ImageAcquisition").
+        orocos_engine.add(Compositions::ImageAcquisition).
             use("camera" => "leftCamera")
-        orocos_engine.add("ImageAcquisition").
+        orocos_engine.add(Compositions::ImageAcquisition).
             use("camera" => "rightCamera")
         orocos_engine.instanciate
 
@@ -209,9 +212,9 @@ class TC_RobySpec_System < Test::Unit::TestCase
             device "camera", :as => "leftCamera"
             device "camera", :as => "rightCamera"
         end
-        orocos_engine.add("ImageAcquisition").
+        orocos_engine.add(Compositions::ImageAcquisition).
             use("acquisition" => "leftCamera")
-        orocos_engine.add("ImageAcquisition").
+        orocos_engine.add(Compositions::ImageAcquisition).
             use("acquisition" => "rightCamera")
         orocos_engine.instanciate
 
@@ -225,9 +228,9 @@ class TC_RobySpec_System < Test::Unit::TestCase
             device "camera", :as => "leftCamera"
             device "camera", :as => "rightCamera"
         end
-        orocos_engine.add("Stereo").
-            use("image0" => "ImageAcquisition").
-            use("image1" => "ImageAcquisition").
+        orocos_engine.add(Compositions::Stereo).
+            use("image0" => Compositions::ImageAcquisition).
+            use("image1" => Compositions::ImageAcquisition).
             use("image0.acquisition" => "leftCamera").
             use("image1.acquisition" => "rightCamera")
 
@@ -243,11 +246,11 @@ class TC_RobySpec_System < Test::Unit::TestCase
             device "camera", :as => 'leftCamera'
             device 'camera', :as => 'rightCamera'
         end
-        orocos_engine.add("ImageAcquisition", :as => 'leftImage').
+        orocos_engine.add(Compositions::ImageAcquisition, :as => 'leftImage').
             use("acquisition" => "leftCamera")
-        orocos_engine.add("ImageAcquisition", :as => 'rightImage').
+        orocos_engine.add(Compositions::ImageAcquisition, :as => 'rightImage').
             use("acquisition" => "rightCamera")
-        orocos_engine.add("Stereo").
+        orocos_engine.add(Compositions::Stereo).
             use("image0" => "leftImage").
             use("image1" => "rightImage")
         orocos_engine.instanciate
@@ -265,15 +268,15 @@ class TC_RobySpec_System < Test::Unit::TestCase
         end
 
         sys_model.subsystem "Safety" do
-            add "imu"
-            add "ImageAcquisition", :as => 'image'
+            add IF::Imu
+            add Compositions::ImageAcquisition, :as => 'image'
         end
-        orocos_engine.add("Stereo").
-            use("image0" => :ImageAcquisition).
-            use("image1" => "ImageAcquisition").
+        orocos_engine.add(Compositions::Stereo).
+            use("image0" => Compositions::ImageAcquisition).
+            use("image1" => Compositions::ImageAcquisition).
             use("image0.camera" => "leftCamera").
             use("image1.camera" => "rightCamera")
-        orocos_engine.add("Safety").
+        orocos_engine.add(Compositions::Safety).
             use("camera" => "leftCamera")
 
         orocos_engine.instanciate
@@ -315,14 +318,14 @@ class TC_RobySpec_System < Test::Unit::TestCase
         end
 
         sys_model.subsystem "ImageAcquisition" do
-            add "system_test::CameraFilter"
-            add "camera"
+            add SystemTest::CameraFilter
+            add IF::Camera
         end
 
         orocos_engine.robot do
             device "stereo", :as => 'front_stereo'
         end
-        orocos_engine.add("ImageAcquisition").
+        orocos_engine.add(Compositions::ImageAcquisition ).
             use("camera" => "front_stereo.left")
 
         orocos_engine.instanciate
@@ -346,24 +349,28 @@ class TC_RobySpec_System < Test::Unit::TestCase
         SystemTest::CameraDriver.driver_for 'camera'
 
         sys_model.subsystem "Stereo" do
-            data_source 'stereo'
-            stereo = add "system_test::StereoProcessing", :as => 'processing'
-            image0 = add "camera", :as => "image0"
-            image1 = add "camera", :as => "image1"
+            stereo = add SystemTest::StereoProcessing, :as => 'processing'
+            image0 = add IF::Camera, :as => "image0"
+            image1 = add IF::Camera, :as => "image1"
             connect image0.image => stereo.leftImage
             connect image1.image => stereo.rightImage
+            
+            export stereo.disparity
+            export stereo.cloud
+            data_source 'stereo'
         end
 
         sys_model.subsystem "StereoComparison" do
-            add "stereo", :as => "stereo0"
-            add "stereo", :as => "stereo1"
+            add IF::Stereo, :as => "stereo0"
+            add IF::Stereo, :as => "stereo1"
         end
 
         dev_stereo = nil
         orocos_engine.robot do
             dev_stereo       = device 'stereo', :as => 'front_stereo'
         end
-        root_task = orocos_engine.add("StereoComparison")
+        orocos_engine.add Compositions::Stereo
+        root_task = orocos_engine.add(Compositions::StereoComparison)
 
         # Try to instanciate without disambiguation. This should fail miserably
         assert_equal(1, plan.size)
@@ -383,17 +390,20 @@ class TC_RobySpec_System < Test::Unit::TestCase
         SystemTest::CameraDriver.driver_for 'camera'
 
         sys_model.subsystem "Stereo" do
-            data_source 'stereo'
-            stereo = add "system_test::StereoProcessing", :as => 'processing'
-            image0 = add "camera", :as => "image0"
-            image1 = add "camera", :as => "image1"
+            stereo = add SystemTest::StereoProcessing, :as => 'processing'
+            image0 = add IF::Camera, :as => "image0"
+            image1 = add IF::Camera, :as => "image1"
             connect image0.image => stereo.leftImage
             connect image1.image => stereo.rightImage
+
+            export stereo.disparity
+            export stereo.cloud
+            data_source 'stereo'
         end
 
         sys_model.subsystem "StereoComparison" do
-            add "stereo", :as => "stereo0"
-            add "stereo", :as => "stereo1"
+            add IF::Stereo, :as => "stereo0"
+            add IF::Stereo, :as => "stereo1"
         end
 
         dev_stereo = nil
@@ -404,9 +414,9 @@ class TC_RobySpec_System < Test::Unit::TestCase
         # We compare the stereovision engine on the stereocamera with our own
         # algorithm by instanciating the stereocamera directly, and using its
         # cameras to inject into the Stereo composition.
-        root_task = orocos_engine.add("StereoComparison").
+        root_task = orocos_engine.add(Compositions::StereoComparison).
             use('stereo0' => 'front_stereo').
-            use('stereo1' => 'Stereo').
+            use('stereo1' => Compositions::Stereo).
             use('stereo1.image0'  => 'front_stereo.left').
             use('stereo1.image1'  => 'front_stereo.right')
 

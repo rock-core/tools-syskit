@@ -98,18 +98,23 @@ module Orocos
                 task
             end
 
-            DATA_SOURCE_ARGUMENTS = { :model => nil, :as => nil, :slave_of => nil }
+            DATA_SOURCE_ARGUMENTS = { :as => nil, :slave_of => nil }
 
-            def self.data_source(source_model, arguments = Hash.new)
-                if source_model.respond_to?(:to_str)
-                    type_name = source_model.to_str
-                else
-                    type_name = source_model.name.gsub /^.+::/, ''
-                    model = source_model
-                end
-
+            def self.data_source(model, arguments = Hash.new)
                 source_arguments, arguments = Kernel.filter_options arguments,
                     DATA_SOURCE_ARGUMENTS
+
+                if model.respond_to?(:to_str)
+                    begin
+                        model = Orocos::RobyPlugin::Interfaces.const_get model.to_str.camelcase(true)
+                    rescue NameError
+                        raise ArgumentError, "there is no data source type #{model}"
+                    end
+                end
+
+                if !(model < DataSource)
+                    raise ArgumentError, "#{model} is not a data source model"
+                end
 
                 # If true, the source will be marked as 'main', i.e. the port
                 # mapping between the source and the component will match plain
@@ -117,14 +122,9 @@ module Orocos
                 main_data_source = !arguments[:as]
 
                 # Get the source name and the source model
-                name = (source_arguments[:as] || type_name).to_str
+                name = (source_arguments[:as] || model.name.gsub(/^.+::/, '').snakecase).to_str
                 if data_sources[name]
                     raise ArgumentError, "there is already a source named '#{name}' defined on '#{name}'"
-                end
-
-                model ||= source_arguments[:model] || Roby.app.orocos_data_sources[type_name]
-                if !model
-                    raise ArgumentError, "there is no data source called #{type_name}"
                 end
 
                 # Verify that the component interface matches the data source
