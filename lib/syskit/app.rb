@@ -1,3 +1,4 @@
+require 'utilrb/kernel/load_dsl_file'
 module Orocos
     module RobyPlugin
         # This gets mixed in Roby::Application when the orocos plugin is loaded.
@@ -25,6 +26,8 @@ module Orocos
                 project = Orocos::Generation::Component.new
                 project.name 'roby'
             end
+
+            attribute(:orocos_system_model) { SystemModel.new }
 
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
@@ -115,6 +118,11 @@ module Orocos
                 project = Orocos::Generation::Component.new
                 project.name 'roby'
                 @main_orogen_project = project
+                @orocos_system_model = SystemModel.new
+            end
+
+            def load_system_model(file)
+                Kernel.load_dsl_file_eval(file, orocos_system_model, [Orocos::RobyPlugin], false, RuntimeError)
             end
 
             def self.run(app)
