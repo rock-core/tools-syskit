@@ -6,6 +6,8 @@ module Orocos
         class DataSourceModel < Roby::TaskModelTag
             # The name of the model
             attr_accessor :name
+            # The parent model, if any
+            attr_reader :parent_model
 
             # Creates a new DataSourceModel that is a submodel of +self+
             def new_submodel(name, options = Hash.new)
@@ -14,15 +16,39 @@ module Orocos
 
                 model = options[:type].new
                 model.include self
+                model.instance_variable_set(:@parent_model, self)
+
                 if options[:interface]
                     iface_spec = Roby.app.get_orocos_task_model(options[:interface]).orogen_spec
+
+                    # If we also have an interface, verify that the two
+                    # interfaces are compatible
+                    if interface 
+                        if !iface_spec.implements?(interface.name)
+                            raise SpecError, "data source #{name}'s interface, #{options[:interface].name} is not a specialization of #{self.name}'s interface #{self.interface.name}"
+                        end
+                    end
                     model.instance_variable_set(:@orogen_spec, iface_spec)
+                elsif interface
+                    child_spec = Roby.app.main_orogen_project.
+                        task_context "roby_#{name}".camelcase(true)
+                    child_spec.subclasses interface.name
+                    model.instance_variable_set :@orogen_spec, child_spec
                 end
                 model.name = name.to_str
                 model
             end
 
             attr_reader :orogen_spec
+
+            def interface(&block)
+                if block_given?
+                    @orogen_spec ||= Roby.app.main_orogen_project.
+                        task_context "roby_#{name}".camelcase(true)
+                    orogen_spec.instance_eval(&block)
+                end
+                orogen_spec
+            end
 
             # Returns true if a port mapping is needed between the two given
             # data sources. Note that this relation is symmetric.
@@ -252,6 +278,8 @@ module Orocos
                 nil
             end
 
+            # Returns true if at least one port of the given source (designated
+            # by its name) is connected to something.
             def using_data_source?(source_name)
                 source_type = model.data_source_type(source_name)
                 inputs  = source_type.each_input.

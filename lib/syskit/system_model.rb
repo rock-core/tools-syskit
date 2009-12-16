@@ -31,12 +31,12 @@ module Orocos
                 end
             end
 
-            def data_source_type(name, options = Hash.new)
+            def data_source_type(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
-                    :parent_model => DataSource,
+                    :child_of => DataSource,
                     :interface    => nil
 
-                parent_model = options[:parent_model]
+                parent_model = options[:child_of]
 
                 if model = Roby.app.orocos_data_sources[name]
                     model
@@ -46,7 +46,12 @@ module Orocos
                             raise SpecError, "no data source named #{parent_model}"
                         end
                     end
-                    model = Roby.app.orocos_data_sources[name.to_str] = parent_model.new_submodel(name, :interface => options[:interface])
+                    model =
+                        Roby.app.orocos_data_sources[name.to_str] = 
+                        parent_model.new_submodel(name, :interface => options[:interface])
+                end
+                if block_given?
+                    model.interface(&block)
                 end
                 data_source_types[name] = model
             end

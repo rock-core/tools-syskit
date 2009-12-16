@@ -28,10 +28,12 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
     def test_data_source_submodel
         parent_model = sys_model.data_source_type("test")
-        model = sys_model.data_source_type("image", :parent_model => "test")
+        model = sys_model.data_source_type("image", :child_of => "test")
         assert_same(model, Roby.app.orocos_data_sources["image"])
+        assert_equal 'image', model.name
         assert_kind_of(DataSourceModel, model)
         assert(model < parent_model)
+        assert_same parent_model, model.parent_model
     end
 
     def test_data_source_interface_name
@@ -44,6 +46,43 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         Roby.app.load_orogen_project "system_test"
         model = sys_model.data_source_type("camera", :interface => SystemTest::CameraDriver)
         assert_same(SystemTest::CameraDriver.orogen_spec, model.task_model.orogen_spec)
+    end
+
+    def test_data_source_interface_definition
+        Roby.app.load_orogen_project "system_test"
+        model = sys_model.data_source_type("camera") do
+            output_port 'image', 'camera/Image'
+        end
+        assert_equal 'camera', model.name
+        assert(model.interface)
+        assert(model.output_port('image'))
+    end
+
+    def test_data_source_submodel_interface
+        Roby.app.load_orogen_project "system_test"
+        parent_model = sys_model.data_source_type("image", :interface => SystemTest::CameraDriver)
+
+        model = sys_model.data_source_type("imageFilter", :child_of => "image")
+        assert(model.interface)
+        assert_same(parent_model.interface, model.interface.superclass)
+        assert(model.output_port('image'))
+        assert_equal 'imageFilter', model.name
+
+        model.interface do
+            input_port 'image_in', 'camera/Image'
+        end
+        assert(model.input_port('image_in'))
+    end
+
+    def test_data_source_submodel_interface_validation
+        Roby.app.load_orogen_project "system_test"
+        parent_model = sys_model.data_source_type("image") do
+            output_port 'image', 'camera/Image'
+        end
+
+        assert_raises(SpecError) do
+            sys_model.data_source_type("imageFilter", :child_of => "image", :interface => SystemTest::CameraFilter)
+        end
     end
 
     def test_device_type
@@ -191,14 +230,16 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
     def test_data_source_find_matching_source
         stereo_model = sys_model.data_source_type 'stereocam'
+        stereo_processing_model = sys_model.data_source_type 'stereoprocessing', :child_of => stereo_model
         image_model  = sys_model.data_source_type 'image'
         task_model   = Class.new(TaskContext) do
-            data_source 'stereocam', :as => 'stereo'
+            data_source 'stereoprocessing', :as => 'stereo'
             data_source 'image', :as => 'left',  :slave_of => 'stereo'
             data_source 'image', :as => 'right', :slave_of => 'stereo'
         end
 
         assert_equal "stereo",     task_model.find_matching_source(stereo_model)
+        assert_equal "stereo",     task_model.find_matching_source(stereo_processing_model)
         assert_raises(Ambiguous) { task_model.find_matching_source(image_model) }
         assert_equal "stereo.left", task_model.find_matching_source(image_model, "left")
         assert_equal "stereo.left", task_model.find_matching_source(image_model, "stereo.left")
@@ -227,7 +268,10 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         Roby.app.load_orogen_project 'system_test'
         task_model = SystemTest::StereoProcessing
 
-        stereo_model = sys_model.data_source_type 'stereocam', :interface => SystemTest::Stereo
+        stereo_model = sys_model.data_source_type 'stereocam' do
+            output_port 'disparity', 'camera/Image'
+            output_port 'cloud', 'base/PointCloud3D'
+        end
         task_model.data_source 'stereocam', :as => 'stereo'
 
         plan.add(parent = Roby::Task.new)
@@ -247,24 +291,34 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     def test_using_data_source
         Roby.app.load_orogen_project 'system_test'
 
-        stereo_model = sys_model.data_source_type 'stereocam', :interface => SystemTest::StereoProcessing
-        camera_model = sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
-        SystemTest::StereoProcessing.data_source 'stereocam'
+        sys_model.data_source_type 'stereocam' do
+            output_port 'disparity', 'camera/Image'
+            output_port 'cloud', 'base/PointCloud3D'
+        end
+        stereo_model = sys_model.data_source_type 'stereoprocessing',
+            :child_of => 'stereocam' do
+            input_port 'leftImage',  'camera/Image'
+            input_port 'rightImage', 'camera/Image'
+        end
+        camera_model = sys_model.data_source_type 'camera' do
+            output_port 'image', 'camera/Image'
+        end
+        SystemTest::StereoProcessing.data_source 'stereoprocessing', :as => 'stereo'
         SystemTest::CameraDriver.data_source 'camera'
 
         plan.add(stereo = SystemTest::StereoProcessing.new)
-        assert(!stereo.using_data_source?('stereocam'))
+        assert(!stereo.using_data_source?('stereo'))
 
         plan.add(camera = SystemTest::CameraDriver.new)
         camera.connect_ports stereo, ['image', 'leftImage'] => Hash.new
         assert(camera.using_data_source?('camera'))
-        assert(stereo.using_data_source?('stereocam'))
+        assert(stereo.using_data_source?('stereo'))
 
         plan.remove_object(camera)
         plan.add(dem = SystemTest::DemBuilder.new)
-        assert(!stereo.using_data_source?('stereocam'))
+        assert(!stereo.using_data_source?('stereo'))
         stereo.connect_ports dem, ['cloud', 'cloud'] => Hash.new
-        assert(stereo.using_data_source?('stereocam'))
+        assert(stereo.using_data_source?('stereo'))
     end
 
     def test_data_source_merge_data_flow

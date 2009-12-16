@@ -21,6 +21,11 @@ module Orocos
             # A mapping from name to the corresponding subclass of Composition
             attribute(:orocos_compositions) { Hash.new }
 
+            attribute(:main_orogen_project) do
+                project = Orocos::Generation::Component.new
+                project.name 'roby'
+            end
+
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
             def loaded_orogen_project?(name); loaded_orogen_projects.include?(name) end
@@ -29,7 +34,7 @@ module Orocos
             def load_orogen_project(name)
                 return if loaded_orogen_project?(name)
 
-                orogen = Orocos::Generation.load_task_library(name)
+                orogen = main_orogen_project.using_task_library(name)
 		Orocos.registry.merge(orogen.registry)
                 loaded_orogen_projects[name] = orogen
 
@@ -106,6 +111,10 @@ module Orocos
 
                 orocos_devices.clear
                 orocos_data_sources.clear
+
+                project = Orocos::Generation::Component.new
+                project.name 'roby'
+                @main_orogen_project = project
             end
 
             def self.run(app)
