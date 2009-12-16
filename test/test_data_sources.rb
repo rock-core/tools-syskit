@@ -253,15 +253,84 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert_equal "stereo.left", task_model.find_matching_source(image_model, "stereo.left")
     end
 
-    def test_data_source_instance
-        stereo_model = sys_model.data_source_type 'stereocam'
-        task_model   = Class.new(TaskContext) do
-            data_source 'stereocam', :as => 'stereo'
+    def test_data_source_implemented_by
+        Roby.app.load_orogen_project 'system_test'
+        model0 = sys_model.data_source_type 'model0' do
+            output_port 'image', 'camera/Image'
         end
+        assert(model0.implemented_by?(SystemTest::CameraDriver))
+        assert(!model0.implemented_by?(SystemTest::StereoCamera))
+        assert(model0.implemented_by?(SystemTest::StereoCamera, true, 'left'))
+        assert(model0.implemented_by?(SystemTest::StereoCamera, false, 'left'))
+        assert(!model0.implemented_by?(SystemTest::StereoProcessing))
+        assert(!model0.implemented_by?(SystemTest::StereoProcessing, true, 'left'))
+        assert(!model0.implemented_by?(SystemTest::StereoProcessing, false, 'right'))
+
+        model1 = sys_model.data_source_type 'model1' do
+            input_port 'image', 'camera/Image'
+        end
+        assert(!model1.implemented_by?(SystemTest::CameraDriver))
+        assert(!model1.implemented_by?(SystemTest::StereoCamera))
+        assert(!model1.implemented_by?(SystemTest::StereoCamera, true, 'left'))
+        assert(!model1.implemented_by?(SystemTest::StereoCamera, false, 'left'))
+        assert(!model1.implemented_by?(SystemTest::StereoProcessing))
+        assert(model1.implemented_by?(SystemTest::StereoProcessing, true, 'left'))
+        assert(model1.implemented_by?(SystemTest::StereoProcessing, false, 'right'))
+    end
+
+    def test_data_source_guess
+        Roby.app.load_orogen_project 'system_test'
+        model0 = sys_model.data_source_type 'model0' do
+            output_port 'image', 'camera/Image'
+            output_port 'other', 'camera/Image'
+        end
+
+        model1 = sys_model.data_source_type 'model1' do
+            output_port 'image', 'camera/Image'
+        end
+        assert !model0.guess_source_name(model1)
+
+        model1.interface do
+            output_port 'wrong', 'camera/Image'
+        end
+        assert !model0.guess_source_name(model1)
+
+        model1.interface do
+            output_port 'other', 'camera/Image'
+        end
+        assert_equal [''], model0.guess_source_name(model1)
+
+        model1.interface do
+            output_port 'leftImage', 'camera/Image'
+
+            output_port 'imageRight', 'camera/Image'
+            output_port 'otherRight', 'camera/Image'
+        end
+        assert_equal ['', 'right'], model0.guess_source_name(model1)
+
+        model1.interface do
+            output_port 'otherLeft', 'camera/Image'
+        end
+        assert_equal ['', 'left', 'right'], model0.guess_source_name(model1)
+    end
+
+    def test_data_source_instance
+        Roby.app.load_orogen_project "system_test"
+        stereo_model = sys_model.data_source_type 'stereocam', :interface => SystemTest::StereoCamera
+        task_model   = SystemTest::StereoCamera
+        task_model.data_source 'stereocam', :as => 'stereo'
         task = task_model.new 'stereo_name' => 'front_stereo'
 
         assert_equal("front_stereo", task.selected_data_source('stereo'))
         assert_equal(stereo_model, task.data_source_type('front_stereo'))
+    end
+
+    def test_data_source_instance_validation
+        Roby.app.load_orogen_project "system_test"
+        stereo_model = sys_model.data_source_type 'stereocam', :interface => SystemTest::StereoCamera
+        assert_raises(SpecError) do
+            SystemTest::CameraDriver.data_source 'stereocam', :as => 'stereo'
+        end
     end
 
     def test_data_source_can_merge

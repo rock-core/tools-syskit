@@ -117,6 +117,12 @@ module Orocos
                     raise ArgumentError, "there is no data source called #{type_name}"
                 end
 
+                # Verify that the component interface matches the data source
+                # interface
+                if !model.implemented_by?(self, main_data_source, name)
+                    raise SpecError, "#{self} does not implement #{model}"
+                end
+
                 # If a source with the same name exists, verify that the user is
                 # trying to specialize it
                 if has_data_source?(name)

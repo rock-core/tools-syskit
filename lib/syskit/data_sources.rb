@@ -59,6 +59,97 @@ module Orocos
                 orogen_spec
             end
 
+            def each_port_name_candidate(port_name, main_source = false, source_names = nil)
+                if !block_given?
+                    return enum_for(:each_port_name_candidate, port_name, main_source, source_names)
+                end
+
+                if source_names
+                    if main_source
+                        yield(port_name)
+                    end
+                    source_names.each do |source_name|
+                        yield("#{source_name}_#{port_name}".camelcase(false))
+                        yield("#{port_name}_#{source_name}".camelcase(false))
+                    end
+                else
+                    yield(port_name)
+                end
+                self
+            end
+
+            # Try to guess the name under which a data source whose model is
+            # +self+ could be declared on +model+, by following port name rules.
+            #
+            # Returns nil if no match has been found
+            def guess_source_name(model)
+                port_list = lambda do |m|
+                    result = Hash.new { |h, k| h[k] = Array.new }
+                    m.each_output do |source_port|
+                        result[ [true, source_port.type_name] ] << source_port.name
+                    end
+                    m.each_input do |source_port|
+                        result[ [false, source_port.type_name] ] << source_port.name
+                    end
+                    result
+                end
+
+                required_ports  = port_list[self]
+                available_ports = port_list[model]
+
+                candidates = nil
+                required_ports.each do |spec, names|
+                    return if !available_ports.has_key?(spec)
+
+                    available_names = available_ports[spec]
+                    names.each do |required_name|
+                        matches = available_names.map do |n|
+                            if n == required_name then ''
+                            elsif n =~ /^(.+)#{Regexp.quote(required_name).capitalize}$/
+                                $1
+                            elsif n =~ /^#{Regexp.quote(required_name)}(.+)$/
+                                name = $1
+                                name[0, 1] = name[0, 1].downcase
+                                name
+                            end
+                        end.compact
+
+                        if !candidates
+                            candidates = matches
+                        else
+                            candidates.delete_if { |candidate_name| !matches.include?(candidate_name) }
+                        end
+                        return if candidates.empty?
+                    end
+                end
+
+                candidates
+            end
+
+            # Verifies if +model+ has the outputs required by having +self+ as a
+            # data source. +main_source+ says if the match should consider that
+            # the new source would be a main source, and +source_name+ is the
+            # tentative source name.
+            def implemented_by?(model, main_source = false, source_name = nil)
+                return true if !orogen_spec
+
+                each_output do |source_port|
+                    has_eqv = each_port_name_candidate(source_port.name, main_source, source_name).any? do |port_name|
+                        port = model.output_port(port_name)
+                        port && port.type_name == source_port.type_name
+                    end
+                    return false if !has_eqv
+                end
+                each_input do |source_port|
+                    has_eqv = each_port_name_candidate(source_port.name, main_source, source_name).any? do |port_name|
+                        port = model.input_port(port_name)
+                        port && port.type_name == source_port.type_name
+                    end
+                    return false if !has_eqv
+                end
+                true
+            end
+
             # Returns true if a port mapping is needed between the two given
             # data sources. Note that this relation is symmetric.
             #
