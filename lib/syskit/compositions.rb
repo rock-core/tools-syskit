@@ -25,6 +25,10 @@ module Orocos
             attr_reader :child, :port
             def name; port.name end
 
+            def type_name
+                port.type_name
+            end
+
             def initialize(child, port)
                 @child = child
                 @port  = port
