@@ -93,6 +93,10 @@ module Orocos
                 register_device_driver(model)
             end
 
+            def composition(name, &block)
+                subsystem(name, &block)
+            end
+
             def subsystem(name, &block)
                 name = name.to_s
                 if has_composition?(name)
