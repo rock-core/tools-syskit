@@ -129,7 +129,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         task_model   = Class.new(TaskContext) do
             data_source 'image'
         end
-        assert_raises(SpecError) { task_model.data_source('image') }
+        assert_raises(ArgumentError) { task_model.data_source('image') }
 
         assert(task_model.has_data_source?('image'))
         assert(task_model.main_data_source?('image'))
@@ -145,7 +145,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         task_model   = Class.new(TaskContext) do
             data_source 'image', :as => 'left_image'
         end
-        assert_raises(SpecError) { task_model.data_source('image', :as => 'left_image') }
+        assert_raises(ArgumentError) { task_model.data_source('image', :as => 'left_image') }
 
         assert(!task_model.has_data_source?('image'))
         assert(task_model.has_data_source?('left_image'))

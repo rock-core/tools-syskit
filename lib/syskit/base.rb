@@ -112,6 +112,10 @@ module Orocos
 
                 # Get the source name and the source model
                 name = (source_arguments[:as] || type_name).to_str
+                if data_sources[name]
+                    raise ArgumentError, "there is already a source named '#{name}' defined on '#{name}'"
+                end
+
                 model = source_arguments[:model] || Roby.app.orocos_data_sources[type_name]
                 if !model
                     raise ArgumentError, "there is no data source called #{type_name}"
