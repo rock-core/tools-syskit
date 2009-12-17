@@ -112,7 +112,15 @@ module Orocos
             end
 
             def load_system_model(file)
-                Kernel.load_dsl_file_eval(file, orocos_system_model, [Orocos::RobyPlugin], false, RuntimeError)
+                Kernel.load_dsl_file_eval(file, orocos_system_model, [Orocos::RobyPlugin], false) do |const_name|
+                    candidates = [Interfaces, Compositions, DeviceDrivers].find_all do |namespace|
+                        namespace.const_defined?(const_name)
+                    end
+                    if candidates.size > 1 && candidates != [Interfaces, DeviceDrivers]
+                        raise "#{const_name} can refer to multiple models: #{candidates.map { |mod| "#{mod.name}::#{const_name}" }.join(", ")}. Please choose one explicitely"
+                    end
+                    candidates.first.const_get(const_name)
+                end
             end
 
             def self.run(app)
