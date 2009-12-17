@@ -102,7 +102,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def complete_system_model
-        sys_model.bus_type 'can'
+        sys_model.com_bus_type 'can', :message_type => 'can/Message'
         sys_model.device_type 'camera',    :interface => SystemTest::CameraDriver
         sys_model.device_type 'stereo',    :interface => SystemTest::Stereo
         sys_model.device_type 'imu',       :interface => SystemTest::IMU
@@ -111,7 +111,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         sys_model.device_type 'sliderbox', :interface => SystemTest::Sliderbox
 
         @can_bus        = SystemTest::CanBus
-        can_bus.driver_for 'can', :message_type => 'can/Message'
+        can_bus.driver_for 'can'
         @camera_driver  = SystemTest::CameraDriver
         camera_driver.driver_for 'camera'
         @imu_driver     = SystemTest::IMU

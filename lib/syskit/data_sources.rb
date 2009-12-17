@@ -486,16 +486,21 @@ module Orocos
                 "#<ComBusDriver: #{name}>"
             end
 
-            # Module that defines model-level methods for components that are
-            # commmunication busses drivers. See ComBusDriver.
-            module ClassExtension
-                include DeviceDriver::ClassExtension
+            def self.new_submodel(model, options = Hash.new)
+                bus_options, options = Kernel.filter_options options,
+                    :message_type => nil
 
-                # The name of the data type that represents data flowing through
-                # this bus
-                attr_accessor :message_type
+                model = super(model, options)
+                model.class_eval <<-EOD
+                module ModuleExtension
+                    def message_type
+                        \"#{bus_options[:message_type]}\" || (super if defined? super)
+                    end
+                end
+                extend ModuleExtension
+                EOD
+                model
             end
-            extend ClassExtension
 
             # The output port name for the +bus_name+ device attached on this
             # bus

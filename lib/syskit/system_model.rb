@@ -82,7 +82,7 @@ module Orocos
                 device_model
             end
 
-            def bus_type(name, options  = Hash.new)
+            def com_bus_type(name, options  = Hash.new)
                 name = name.to_str
 
                 if has_device_driver?(name)

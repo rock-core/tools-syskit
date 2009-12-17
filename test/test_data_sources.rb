@@ -520,5 +520,16 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
             model.driver_for 'camera'
         end
     end
+
+    def test_com_bus
+        model = sys_model.com_bus_type 'can', :message_type => '/can/Message'
+        assert_equal 'can', model.name
+        assert_equal '/can/Message', model.message_type
+
+        instance_model = Class.new(TaskContext)
+        instance_model.driver_for 'can'
+        instance = instance_model.new
+        assert_equal '/can/Message', instance.model.message_type
+    end
 end
 
