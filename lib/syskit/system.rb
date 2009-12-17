@@ -216,7 +216,6 @@ module Orocos
 
                 robot.devices.each do |name, task|
                     proxy = plan[task]
-                    puts name
                     tasks[name] = proxy
                     plan.add_permanent(proxy)
                 end
