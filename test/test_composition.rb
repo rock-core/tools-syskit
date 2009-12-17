@@ -13,7 +13,6 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
             add Echo::Echo
             add Echo::Echo, :as => 'echo'
-            add Echo::Echo, :as => :echo
         end
     end
 
@@ -23,9 +22,55 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert(subsys < Orocos::RobyPlugin::Composition)
         assert_equal "simple", subsys.name
 
+        assert_raises(ArgumentError) { subsys.add Echo::Echo }
+
         assert_equal ['Echo', 'echo', 'source', 'sink'].to_set, subsys.children.keys.to_set
         expected_models = [Echo::Echo, Echo::Echo, SimpleSource::Source, SimpleSink::Sink]
-        assert_equal expected_models.to_set, subsys.children.values.to_set
+        assert_equal expected_models.map { |m| [m] }.to_set, subsys.children.values.map(&:to_a).to_set
+    end
+
+    def test_simple_composition_instanciation
+        subsys_model = sys_model.subsystem "simple" do
+            add SimpleSource::Source, :as => 'source'
+            add SimpleSink::Sink, :as => 'sink'
+            autoconnect
+
+            add Echo::Echo
+            add Echo::Echo, :as => 'echo'
+        end
+
+        subsys_model.compute_autoconnection
+        assert_equal([ [["source", "sink"], {["cycle", "cycle"] => Hash.new}] ].to_set,
+            subsys_model.connections.to_set)
+
+        orocos_engine    = Engine.new(plan, sys_model)
+        subsys_task = subsys_model.instanciate(orocos_engine)
+        assert_kind_of(subsys_model, subsys_task)
+
+        children = subsys_task.each_child.to_a
+        assert_equal(4, children.size)
+
+        echo1, echo2 = plan.find_tasks(Echo::Echo).to_a
+        assert(echo1)
+        assert(echo2)
+        source = plan.find_tasks(SimpleSource::Source).to_a.first
+        assert(source)
+        sink   = plan.find_tasks(SimpleSink::Sink).to_a.first
+        assert(sink)
+
+        echo_roles = [echo1, echo2].
+            map do |child_task|
+                info = subsys_task[child_task, TaskStructure::Dependency]
+                info[:roles]
+            end
+        assert_equal([['echo'].to_set, [].to_set].to_set, 
+                     echo_roles.to_set)
+
+        assert_equal(['source'].to_set, subsys_task[source, TaskStructure::Dependency][:roles])
+        assert_equal(['sink'].to_set, subsys_task[sink, TaskStructure::Dependency][:roles])
+
+        assert_equal([ [source, sink, {["cycle", "cycle"] => Hash.new}] ].to_set,
+            Flows::DataFlow.enum_for(:each_edge).to_set)
     end
 
     def test_simple_composition_autoconnection
@@ -115,6 +160,119 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             connect source.cycle => sink1.cycle
             connect source.cycle => sink2.cycle
         end
+    end
+
+    def test_constraints
+        model = Class.new(SimpleSource::Source) do
+            def self.name; "Model" end
+        end
+        tag   = Roby::TaskModelTag.new
+        model.include tag
+
+        subsys = sys_model.subsystem("composition") do
+            add SimpleSource::Source
+            constrain SimpleSource::Source,
+                [tag]
+        end
+        assert_equal ['Source'], subsys.children.keys
+        assert_equal([tag], subsys.find_child_constraint('Source'))
+
+        orocos_engine = Engine.new(plan, sys_model)
+        child = orocos_engine.add(Compositions::Composition).
+            use 'Source' => SimpleSource::Source
+
+        assert_raises(SpecError) do
+            orocos_engine.instanciate
+        end
+
+        orocos_engine = Engine.new(plan, sys_model)
+        child = orocos_engine.add(Compositions::Composition).
+            use 'Source' => model
+
+        orocos_engine.instanciate
+    end
+
+    def test_specialization
+        model = Class.new(SimpleSource::Source) do
+            def self.name; "Model" end
+        end
+        tag   = Roby::TaskModelTag.new
+
+        subsys = sys_model.composition("composition") do
+            add SimpleSource::Source
+            
+            specialize SimpleSource::Source, tag do
+                add SimpleSink::Sink
+            end
+        end
+
+        orocos_engine = Engine.new(plan, sys_model)
+        child = orocos_engine.add(Compositions::Composition).
+            use 'Source' => model
+        orocos_engine.instanciate
+        composition = plan.find_tasks(Compositions::Composition).
+            to_a.first
+        assert_same(subsys, composition.model)
+
+        plan.clear
+        model.include tag
+        orocos_engine = Engine.new(plan, sys_model)
+        child = orocos_engine.add(Compositions::Composition).
+            use 'Source' => model
+        orocos_engine.instanciate
+        composition = plan.find_tasks(Compositions::Composition).
+            to_a.first
+        assert(subsys != composition.model)
+        assert(composition.model < subsys)
+    end
+
+    def test_subclassing
+        Roby.app.load_orogen_project 'system_test'
+        tag = sys_model.data_source_type 'image' do
+            output_port 'image', 'camera/Image'
+        end
+        submodel = Class.new(SimpleSource::Source) do
+            def self.orogen_spec; superclass.orogen_spec end
+            def self.name; "SubSource" end
+        end
+        parent = sys_model.composition("parent") do
+            add SimpleSource::Source
+            add SimpleSink::Sink
+            autoconnect
+        end
+        child  = sys_model.composition("child", :child_of => parent)
+        assert(child < parent)
+
+        assert_raises(SpecError) do
+            child.add Class.new(Component), :as => "Sink"
+        end
+
+        # Add another tag
+        child.class_eval do
+            add tag, :as => "Sink"
+            add submodel, :as => 'Source'
+            add SimpleSink::Sink, :as => 'Sink2'
+            autoconnect
+            connect self['Source'].cycle => self['Sink'].cycle, :type => :buffer, :size => 2
+        end
+
+        parent.compute_autoconnection
+        child.compute_autoconnection
+
+        assert_equal 2, parent.each_child.to_a.size
+        assert_equal [SimpleSource::Source], parent.find_child('Source').to_a
+        assert_equal [SimpleSink::Sink], parent.find_child('Sink').to_a
+        assert_equal({["Source", "Sink"] => { ['cycle', 'cycle'] => {}}}, parent.connections)
+
+        assert_equal 3, child.each_child.to_a.size
+        assert_equal [submodel], child.find_child('Source').to_a
+        assert_equal [SimpleSink::Sink, tag].to_value_set, child.find_child('Sink')
+        assert_equal [SimpleSink::Sink].to_value_set, child.find_child('Sink2')
+        expected_connections = {
+            ["Source", "Sink"] => { ['cycle', 'cycle'] => {:type => :buffer, :pull=>false, :lock=>:lock_free, :init=>false, :size => 2} },
+            ["Source", "Sink2"] => { ['cycle', 'cycle'] => {} }
+        }
+        assert_equal(expected_connections, child.connections)
     end
 end
 

@@ -93,18 +93,20 @@ module Orocos
                 register_device_driver(model)
             end
 
-            def composition(name, &block)
-                subsystem(name, &block)
+            def composition(name, options = Hash.new, &block)
+                subsystem(name, options, &block)
             end
 
-            def subsystem(name, &block)
+            def subsystem(name, options = Hash.new, &block)
                 name = name.to_s
                 if has_composition?(name)
                     raise ArgumentError, "there is already a composition named '#{name}'"
                 end
 
-                new_model = Composition.new_submodel(name, self)
-                new_model.instance_eval(&block)
+                options = Kernel.validate_options options, :child_of => Composition
+
+                new_model = options[:child_of].new_submodel(name, self)
+                new_model.instance_eval(&block) if block_given?
                 register_composition(new_model)
                 new_model
             end

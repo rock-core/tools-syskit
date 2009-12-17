@@ -19,50 +19,6 @@ class TC_RobySpec_System < Test::Unit::TestCase
     attr_reader :motors
     attr_reader :controldev
 
-    def test_simple_composition_instanciation
-        subsys_model = sys_model.subsystem "simple" do
-            add SimpleSource::Source, :as => 'source'
-            add SimpleSink::Sink, :as => 'sink'
-            autoconnect
-
-            add Echo::Echo
-            add Echo::Echo, :as => 'echo'
-            add Echo::Echo, :as => :echo
-        end
-
-        subsys_model.compute_autoconnection
-        assert_equal([ [["source", "sink"], {["cycle", "cycle"] => Hash.new}] ].to_set,
-            subsys_model.connections.to_set)
-
-        subsys_task = subsys_model.instanciate(orocos_engine)
-        assert_kind_of(subsys_model, subsys_task)
-
-        children = subsys_task.each_child.to_a
-        assert_equal(4, children.size)
-
-        echo1, echo2 = plan.find_tasks(Echo::Echo).to_a
-        assert(echo1)
-        assert(echo2)
-        source = plan.find_tasks(SimpleSource::Source).to_a.first
-        assert(source)
-        sink   = plan.find_tasks(SimpleSink::Sink).to_a.first
-        assert(sink)
-
-        echo_roles = [echo1, echo2].
-            map do |child_task|
-                info = subsys_task[child_task, TaskStructure::Dependency]
-                info[:roles]
-            end
-        assert_equal([['echo'].to_set, [].to_set].to_set, 
-                     echo_roles.to_set)
-
-        assert_equal(['source'].to_set, subsys_task[source, TaskStructure::Dependency][:roles])
-        assert_equal(['sink'].to_set, subsys_task[sink, TaskStructure::Dependency][:roles])
-
-        assert_equal([ [source, sink, {["cycle", "cycle"] => Hash.new}] ].to_set,
-            Flows::DataFlow.enum_for(:each_edge).to_set)
-    end
-
     def test_robot_device_definition
         sys_model.device_type 'stereo', :interface => SystemTest::Stereo
         sys_model.device_type 'camera', :interface => SystemTest::CameraDriver
