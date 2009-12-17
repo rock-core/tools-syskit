@@ -310,7 +310,7 @@ module Orocos
                     if candidates.empty?
                         raise SpecError, "cannot find a concrete task for #{t}"
                     elsif candidates.size > 1
-                        raise Ambiguous, "there are multiple candidates for #{t}, you must select one with the 'use' statement"
+                        raise Ambiguous, "there are multiple candidates for #{t} (#{candidates.join(", ")}), you must select one with the 'use' statement"
                     end
 
                     STDERR.puts "   #{candidates.first} => #{t}"
