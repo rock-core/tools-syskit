@@ -369,9 +369,9 @@ module Orocos
                         raise SpecError, "cannot select #{child_model} for #{child_name} (#{dependent_model}): #{child_model} is not a specialization of #{dependent_model}"
                     end
 
-                    mismatched_constraints = constraints_for(child_name).find_all { |m| !child_model.fullfills?(m) }
-                    if !mismatched_constraints.empty?
-                        raise SpecError, "selected model #{child_model} does not match the constraints for #{child_name}: it does not implement #{mismatched_constraints.map(&:name).join(", ")}"
+                    constraints = constraints_for(child_name)
+                    if !constraints.empty? && constraints.all? { |m| !child_model.fullfills?(m) }
+                        raise SpecError, "selected model #{child_model} does not match the constraints for #{child_name}: it implements none of #{constraints.map(&:name).join(", ")}"
                     end
 
 
