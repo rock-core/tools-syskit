@@ -110,6 +110,9 @@ module Orocos
                         else child.name.gsub(/.*::/, '')
                         end
 
+                allowed_models.each do |m|
+                    specialize(child, m)
+                end
                 child_constraints[child].concat( allowed_models )
                 self
             end
