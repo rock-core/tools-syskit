@@ -466,6 +466,7 @@ module Orocos
 
             include DataSource
 
+            @name = "DeviceDriver"
             module ModuleExtension
                 def to_s # :nodoc:
                     "#<DeviceDriver: #{name}>"
