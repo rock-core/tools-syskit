@@ -119,10 +119,29 @@ module Orocos
                 # If true, the source will be marked as 'main', i.e. the port
                 # mapping between the source and the component will match plain
                 # port names (without the source name prefixed/postfixed)
-                main_data_source = !arguments[:as]
+                main_data_source = !source_arguments[:as]
+
+                # In case it *is* a main source, check if our parent models
+                # already have a source which we could specialize. In that case,
+                # reuse their name
+                if main_data_source
+                    if respond_to?(:each_main_data_source)
+                        candidates = each_main_data_source.find_all do |source|
+                            !data_sources[source] &&
+                                model <= data_source_type(source)
+                        end
+
+                        if candidates.size > 1
+                            candidates = candidates.map { |name, _| name }
+                            raise Ambiguous, "this definition could overload the following sources: #{candidates.join(", ")}. Select one with the :as option"
+                        end
+                        source_arguments[:as] = candidates.first
+                    end
+                end
+
 
                 # Get the source name and the source model
-                name = (source_arguments[:as] || model.name.gsub(/^.+::/, '').snakecase).to_str
+                name = (source_arguments[:as] || candidates.first || model.name.gsub(/^.+::/, '').snakecase).to_str
                 if data_sources[name]
                     raise ArgumentError, "there is already a source named '#{name}' defined on '#{name}'"
                 end

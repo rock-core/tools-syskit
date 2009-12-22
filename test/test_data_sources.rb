@@ -189,20 +189,26 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     end
 
     def test_task_data_source_declaration_inheritance
-        source_model = sys_model.data_source_type 'image'
-        other_source_model = sys_model.data_source_type 'other'
-        parent_model   = Class.new(TaskContext) do
-            data_source 'image', :as => 'left_image'
+        parent_model = sys_model.data_source_type 'parent'
+        child_model  = sys_model.data_source_type 'child', :child_of => parent_model
+        unrelated_model = sys_model.data_source_type 'unrelated'
+
+        parent_task = Class.new(TaskContext) do
+            data_source 'parent'
+            data_source 'parent', :as => 'specific_name'
         end
-        task_model = Class.new(parent_model)
-        assert_raises(SpecError) { task_model.data_source(other_source_model, :as => 'left_image') }
-        task_model.data_source('image', :as => 'left_image')
+        child_task = Class.new(parent_task)
+        assert_raises(SpecError) { child_task.data_source(unrelated_model, :as => 'specific_name') }
 
-        assert(task_model.has_data_source?('left_image'))
+        child_task.data_source('child')
+        child_task.data_source('child', :as => 'specific_name')
 
-        assert(task_model.fullfills?(source_model))
-        assert_equal(source_model, task_model.data_source_type('left_image'))
-        assert_equal([["left_image", source_model]], task_model.each_root_data_source.to_a)
+        assert_equal [['parent', child_model], ['specific_name', child_model]], child_task.each_data_source.to_a
+
+        assert(parent_task.fullfills?(parent_model))
+        assert(!parent_task.fullfills?(child_model))
+        assert(child_task.fullfills?(parent_model))
+        assert(child_task.fullfills?(child_model))
     end
 
     def test_task_data_source_overriden_by_device_driver
