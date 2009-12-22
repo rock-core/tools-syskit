@@ -387,6 +387,12 @@ module Orocos
                     end
                 end
 
+                # Copy arguments of +merged_task+ that are not yet assigned in
+                # +self+
+                merged_task.arguments.each do |key, value|
+                    arguments[key] ||= value if !arguments.has_key?(key)
+                end
+
                 # Finally, remove +merged_task+ from the data flow graph and use
                 # #replace_task to replace it completely
                 plan.replace_task(merged_task, self)
