@@ -365,7 +365,7 @@ module Orocos
                     end
 
                     # Check that the selected child model is acceptable
-                    if !child_model.fullfills?(*dependent_model)
+                    if !child_model.fullfills?(dependent_model)
                         raise SpecError, "cannot select #{child_model} for #{child_name} (#{dependent_model}): #{child_model} is not a specialization of #{dependent_model}"
                     end
 
