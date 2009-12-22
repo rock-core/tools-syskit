@@ -389,7 +389,6 @@ module Orocos
 
                 # Finally, remove +merged_task+ from the data flow graph and use
                 # #replace_task to replace it completely
-                Flows::DataFlow.remove(merged_task)
                 plan.replace_task(merged_task, self)
                 nil
             end
