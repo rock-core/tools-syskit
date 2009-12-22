@@ -117,6 +117,8 @@ module Orocos
                 self
             end
 
+            Specialization = Struct.new :specialized_children, :composition
+
             def specialize(child_name, child_model, &block)
                 child_name = if child_name.respond_to?(:to_str)
                                  child_name.to_str
@@ -133,24 +135,97 @@ module Orocos
                     raise SpecError, "#{child_model} does not specify a specialization of #{parent_model}"
                 end
 
-                child_composition = new_submodel("Anon#{name}_#{child_name}_#{child_model}", system)
+                submodel_name = "#{name}_#{child_name}_#{child_model.name}"
+                if submodel_name !~ /^Anon/
+                    submodel_name = "Anon#{submodel_name}"
+                end
+                child_composition = system.composition(
+                        submodel_name,
+                        :child_of => self, &block)
                 child_composition.add child_model, :as => child_name
-                child_composition.class_eval(&block)
 
-                # Create a submodel for this specialization
-                specializations << [child_name, child_model, child_composition]
+                # Apply the specialization to the existing ones
+                specializations.each do |spec|
+                    spec.composition.specialize(child_name, child_model, &block)
+                end
+                specializations <<
+                    Specialization.new({ child_name => child_model }, child_composition)
                 self
+            end
+
+            # Returns true if +model1+ is a specialization of +model2+
+            def is_specialized_model(model1, model2)
+                model2.each do |m2|
+                    is_specialized_in_model1 = model1.any? do |m1|
+                        m1 <= m2
+                    end
+                    return if !is_specialized_in_model1
+                end
+                true
+            end
+
+            def find_specializations(selected_models)
+                # Select in our specializations the ones that match the current
+                # selection. To do that, we simply have to find those for which
+                # +selected_models+ is an acceptable selection.
+                candidates = specializations.map { |spec| spec.composition }.
+                    find_all do |child_composition|
+                        # Note that the 'new' models in +child_composition+ are
+                        # all in child_composition.children
+                        child_composition.children.all? do |child_name, child_model|
+                            selected_model = selected_models[child_name]
+                            # new child in +child_composition+, do not count
+                            next(true) if !selected_model
+                            selected_model.first.fullfills?(child_model)
+                        end
+                    end
+
+                # Add them all to +result+
+                candidates = candidates.inject(candidates.dup) do |r, composition|
+                    r.concat(composition.find_specializations(selected_models))
+                end
+
+                # Build the association of +composition+ and the matching models
+                # in +composition+.
+                #
+                # The result is an array of 2-tuples
+                #  [composition_model, children_models]
+                #
+                # where children_models is
+                #  child_name => child_model, child_name => child_model
+                dependent_models = candidates.map do |composition|
+                    models = composition.each_child.
+                        inject(Hash.new) do |h, (child_name, child_model)|
+                            if selected_models.has_key?(child_name)
+                                h[child_name] = child_model
+                            end
+                            h
+                        end
+                    [composition, models]
+                end
+
+                # Find the most specialized compositions by deleting the ones
+                # for which at least one of the children
+                dependent_models.delete_if do |composition, models|
+                    dependent_models.any? do |other_composition, other_models|
+                        next if other_composition == composition
+                        models.each_key.all? do |child_name|
+                            is_specialized_model(other_models[child_name], models[child_name])
+                        end
+                    end
+                end
+
+                dependent_models.map { |c, _| c }
             end
 
             def autoconnect(*names)
                 @autoconnect = if names.empty? 
                                    each_child.map { |n, _| n }
-                               else
-                                   names
+                               else names
                                end
 
-                specialization.each do |_, _, m|
-                    m.autoconnect
+                specializations.each do |spec|
+                    spec.composition.autoconnect
                 end
             end
 
@@ -314,14 +389,14 @@ module Orocos
             # Extracts from +selection+ the specifications that are relevant for
             # +self+, and returns a list of selected models, as
             #
-            #   child_name => [child_model, child_task]
+            #   child_name => [child_model, child_task, port_mappings]
             #
             # where +child_name+ is the name of the child, +child_model+ is the
             # actual selected model and +child_task+ the actual selected task.
             #
             # +child_task+ will be non-nil only if the user specifically
             # selected a task.
-            def filter_selection(engine, selection, connections)
+            def filter_selection(engine, selection)
                 result = Hash.new
                 each_child do |child_name, dependent_model|
                     selected_object = selection[child_name]
@@ -378,6 +453,7 @@ module Orocos
                     # If the model is a plain data source (i.e. not a task
                     # model), we must map this source to a source on the
                     # selected task
+                    port_mappings = Hash.new
                     data_sources  = dependent_model.find_all { |m| m < DataSource && !(m < Roby::Task) }
                     if !data_sources.empty?
                         if selected_object_name
@@ -390,13 +466,17 @@ module Orocos
                         data_sources.each do |data_source_model|
                             target_source_name = child_model.find_matching_source(data_source_model, selection_name)
                             if !child_model.main_data_source?(target_source_name)
-                                port_mappings = DataSourceModel.compute_port_mappings(data_source_model, child_model, target_source_name)
-                                apply_port_mappings(connections, child_name, port_mappings)
+                                mappings = DataSourceModel.compute_port_mappings(data_source_model, child_model, target_source_name)
+                                port_mappings.merge!(mappings) do |key, old, new|
+                                    if old != new
+                                        raise InternalError, "two different port mappings are required"
+                                    end
+                                end
                             end
                         end
                     end
 
-                    result[child_name] = [child_model, child_task]
+                    result[child_name] = [child_model, child_task, port_mappings]
                 end
 
                 result
@@ -404,35 +484,39 @@ module Orocos
 
             def instanciate(engine, arguments = Hash.new)
                 arguments, task_arguments = Model.filter_instanciation_arguments(arguments)
-                selection = arguments[:selection]
+                user_selection = arguments[:selection]
 
                 # First of all, add the task for +self+
                 engine.plan.add(self_task = new(task_arguments))
+
+                # Apply the selection to our children
+                selected_models = filter_selection(engine, user_selection)
+
+                # Find the specializations that apply
+                candidates = find_specializations(selected_models)
+
+                # Now, check if some of our specializations apply to
+                # +selected_models+. If there is one, call #instanciate on it
+                if candidates.size > 1
+                    candidates = candidates.map(&:name).join(", ")
+                    raise Ambiguous, "more than one specialization apply: #{candidates}"
+                elsif !candidates.empty?
+                    return candidates[0].instanciate(engine, arguments)
+                end
 
                 # The set of connections we must create on our children. This is
                 # self.connections on which port mappings rules have been
                 # applied
                 connections = self.connections
 
-                # Apply the selection to our children
-                selected_models = filter_selection(engine, selection, connections)
-
-                # Now, check if some of our specializations apply to
-                # +selected_models+. If there is one, call #instanciate on it
-                candidates = specializations.find_all do |child_name, child_model, composition|
-                    selected_models[child_name][0] <= child_model
-                end
-                if candidates.size > 1
-                    candidates = candidates.map { |_, _, composition| composition.name }
-                    raise Ambiguous, "more than one specialization apply: #{candidates}"
-                elsif !candidates.empty?
-                    return candidates[0][2].instanciate(engine, arguments)
-                end
-
                 # Finally, instanciate the missing tasks and add them to our
                 # children
                 children_tasks = Hash.new
-                selected_models.each do |child_name, (child_model, child_task)|
+                selected_models.each do |child_name, (child_model, child_task, port_mappings)|
+                    if port_mappings
+                        apply_port_mappings(connections, child_name, port_mappings)
+                    end
+
                     role = if child_name == child_model.name.gsub(/.*::/, '')
                                Set.new
                            else [child_name].to_set

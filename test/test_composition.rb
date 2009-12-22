@@ -192,18 +192,93 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         orocos_engine.instanciate
     end
 
+    def test_is_specialized_model
+        model = Class.new(SimpleSource::Source) do
+            def self.name; "Model" end
+        end
+        tag   = Roby::TaskModelTag.new do
+            def self.name; "Tag1" end
+        end
+        tag2  = Roby::TaskModelTag.new do
+            def self.name; "Tag2" end
+        end
+        
+        assert Composition.is_specialized_model([model], [SimpleSource::Source])
+        assert !Composition.is_specialized_model([SimpleSource::Source], [model])
+        assert !Composition.is_specialized_model([model], [SimpleSource::Source, tag])
+        assert Composition.is_specialized_model([model, tag], [SimpleSource::Source])
+        assert Composition.is_specialized_model([model, tag], [SimpleSource::Source, tag])
+        assert !Composition.is_specialized_model([SimpleSource::Source, tag], [model, tag])
+
+        assert !Composition.is_specialized_model([model, tag], [SimpleSource::Source, tag2])
+        model.include tag2
+        assert Composition.is_specialized_model([model, tag], [SimpleSource::Source, tag2])
+    end
+
+    def test_find_specializations
+        source_submodel = Class.new(SimpleSource::Source) do
+            def self.name; "SourceSubmodel" end
+        end
+        sink_submodel = Class.new(SimpleSink::Sink) do
+            def self.name; "SinkSubmodel" end
+        end
+        tag   = Roby::TaskModelTag.new do
+            def self.name; "Tag1" end
+        end
+        tag2  = Roby::TaskModelTag.new do
+            def self.name; "Tag2" end
+        end
+
+        subsys = sys_model.composition("composition") do
+            add SimpleSource::Source
+            add SimpleSink::Sink
+            
+            specialize SimpleSource::Source, tag
+            specialize SimpleSource::Source, tag2
+            specialize SimpleSink::Sink, tag
+            specialize SimpleSink::Sink, tag2
+        end
+
+        assert_equal [],
+            subsys.find_specializations('Source' => [SimpleSource::Source]).map(&:name)
+
+        source_submodel_with_tag = Class.new(source_submodel) do
+            def self.name; "SourceModelWithTag" end
+            include tag
+        end
+        assert_equal ["Anoncomposition_Source_Tag1"],
+            subsys.find_specializations('Source' => [source_submodel_with_tag]).map(&:name)
+
+        source_submodel_with_tag.include tag2
+        assert_equal ["Anoncomposition_Source_Tag1_Source_Tag2"],
+            subsys.find_specializations('Source' => [source_submodel_with_tag]).map(&:name)
+
+        sink_submodel_with_tag = Class.new(sink_submodel) do
+            def self.name; "SinkModelWithTag" end
+            include tag
+        end
+        assert_equal ["Anoncomposition_Source_Tag1_Source_Tag2_Sink_Tag1"],
+            subsys.find_specializations('Source' => [source_submodel_with_tag], 'Sink' => [sink_submodel_with_tag]).map(&:name)
+
+        sink_submodel_with_tag.include tag2
+        assert_equal ["Anoncomposition_Source_Tag1_Source_Tag2_Sink_Tag1_Sink_Tag2"],
+            subsys.find_specializations('Source' => [source_submodel_with_tag], 'Sink' => [sink_submodel_with_tag]).map(&:name)
+    end
+
     def test_specialization
         model = Class.new(SimpleSource::Source) do
             def self.name; "Model" end
         end
-        tag   = Roby::TaskModelTag.new
+        tag1  = Roby::TaskModelTag.new { def self.name; "Tag1" end }
+        tag2  = Roby::TaskModelTag.new { def self.name; "Tag2" end }
 
         subsys = sys_model.composition("composition") do
             add SimpleSource::Source
             
-            specialize SimpleSource::Source, tag do
+            specialize SimpleSource::Source, tag1 do
                 add SimpleSink::Sink
             end
+            specialize SimpleSource::Source, tag2
         end
 
         orocos_engine = Engine.new(plan, sys_model)
@@ -215,10 +290,24 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_same(subsys, composition.model)
 
         plan.clear
-        model.include tag
+        model_with_tag = Class.new(model) do
+            def self.name; "ModelWithTag" end
+            include tag1
+        end
         orocos_engine = Engine.new(plan, sys_model)
         child = orocos_engine.add(Compositions::Composition).
-            use 'Source' => model
+            use 'Source' => model_with_tag
+        orocos_engine.instanciate
+        composition = plan.find_tasks(Compositions::Composition).
+            to_a.first
+        assert(subsys != composition.model)
+        assert(composition.model < subsys)
+
+        plan.clear
+        model_with_tag.include(tag2)
+        orocos_engine = Engine.new(plan, sys_model)
+        child = orocos_engine.add(Compositions::Composition).
+            use 'Source' => model_with_tag
         orocos_engine.instanciate
         composition = plan.find_tasks(Compositions::Composition).
             to_a.first
