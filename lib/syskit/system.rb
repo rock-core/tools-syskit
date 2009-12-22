@@ -81,7 +81,7 @@ module Orocos
                 end
 
                 if !(device_model < options[:expected_model])
-                    raise SpecError, "device #{device_type} is not a #{options[:expected_model]}"
+                    raise SpecError, "#{device_model} is not a #{options[:expected_model].name}"
                 end
 
                 # Since we want to drive a particular device, we actually need a
@@ -100,12 +100,13 @@ module Orocos
                 if tasks.size > 1
                     raise Ambiguous, "#{tasks.map(&:name).join(", ")} can all handle '#{name}', please select one explicitely with the 'using' statement"
                 elsif tasks.empty?
-                    raise SpecError, "no task can handle devices of type '#{device_type}'"
+                    raise SpecError, "no task can handle devices of type '#{device_model}'"
                 end
 
                 task_model = tasks.first
                 data_source_name = task_model.data_source_name(device_model)
                 device_arguments = {"#{data_source_name}_name" => name, :com_bus => nil}
+
                 task = task_model.instanciate(engine, device_arguments.merge(device_options))
                 devices[name] = task
 
