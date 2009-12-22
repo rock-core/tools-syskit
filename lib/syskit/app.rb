@@ -19,7 +19,10 @@ module Orocos
                 project.name 'roby'
             end
 
-            attribute(:orocos_system_model) { SystemModel.new }
+            # The system model object
+            attr_accessor :orocos_system_model
+            # The orocos engine we are using
+            attr_accessor :orocos_engine
 
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
@@ -73,6 +76,9 @@ module Orocos
                 Orocos::RobyPlugin::TaskContext.instance_variable_set :@orogen_spec, rtt_taskmodel
                 Orocos::RobyPlugin.const_set :RTT, Module.new
                 Orocos::RobyPlugin::RTT.const_set :TaskContext, Orocos::RobyPlugin::TaskContext
+
+                Roby.app.orocos_system_model = SystemModel.new
+                Roby.app.orocos_engine = Engine.new(Roby.plan || Roby::Plan.new, Roby.app.orocos_system_model)
             end
 
             def orocos_clear_models
@@ -108,7 +114,6 @@ module Orocos
                 project = Orocos::Generation::Component.new
                 project.name 'roby'
                 @main_orogen_project = project
-                @orocos_system_model = SystemModel.new
             end
 
             def load_system_model(file)
