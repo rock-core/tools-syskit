@@ -321,7 +321,18 @@ module Orocos
                     begin
                         model = Orocos::RobyPlugin::DeviceDrivers.const_get model.to_str.camelcase(true)
                     rescue NameError
-                        raise ArgumentError, "there is no device model called #{model}"
+                        device_arguments, arguments = Kernel.filter_options arguments,
+                            :provides => nil
+
+                        if !device_arguments[:provides]
+                            # Look for an existing data source that match the name.
+                            # If there is none, we will assume that +self+ describes
+                            # the interface of +model+
+                            if !system.has_interface?(model)
+                                device_arguments[:interface] = self
+                            end
+                        end
+                        model = system.device_type model, device_arguments
                     end
                 end
                 data_source(model, arguments)

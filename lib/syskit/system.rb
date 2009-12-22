@@ -64,6 +64,11 @@ module Orocos
             def device(device_model, options = Hash.new)
                 if device_model.respond_to?(:to_str)
                     device_model = Orocos::RobyPlugin::DeviceDrivers.const_get(device_model.to_str.camelcase(true))
+                elsif device_model < DataSource && !(device_model < DeviceDriver)
+                    name = device_model.name
+                    if engine.model.has_device_driver?(name)
+                        device_model = Orocos::RobyPlugin::DeviceDrivers.const_get(name.camelcase(true))
+                    end
                 end
 
                 options, device_options = Kernel.filter_options options,

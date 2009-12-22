@@ -224,6 +224,24 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert_equal([["left_image", driver_model]], task_model.each_root_data_source.to_a)
     end
 
+    def test_task_driver_for_declares_driver
+        image_model = sys_model.data_source_type 'image'
+        model   = Class.new(TaskContext) do
+            def orogen_spec; 'bla' end
+        end
+        model.system = sys_model
+
+        firewire_camera = model.driver_for('FirewireCamera', :provides => image_model, :as => 'left_image')
+
+        assert_same(Orocos::RobyPlugin::DeviceDrivers::FirewireCamera, firewire_camera)
+        assert(firewire_camera < image_model)
+        assert(model < firewire_camera)
+
+        motors_model = model.driver_for('Motors')
+        assert_same(Orocos::RobyPlugin::DeviceDrivers::Motors, motors_model)
+        assert_equal(model.orogen_spec, motors_model.orogen_spec)
+    end
+
     def test_slave_data_source_declaration
         stereo_model = sys_model.data_source_type 'stereocam'
         image_model  = sys_model.data_source_type 'image'
