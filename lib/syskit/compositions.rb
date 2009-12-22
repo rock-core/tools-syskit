@@ -378,13 +378,8 @@ module Orocos
                     # If the model is a plain data source (i.e. not a task
                     # model), we must map this source to a source on the
                     # selected task
-                    if dependent_model.any? { |m| m < DataSource } && !dependent_model.any? { |m| m < Roby::Task }
-                        data_source_model = dependent_model.find_all { |m| m < DataSource }
-                        if data_source_model.size > 1
-                            raise NotImplementedError, "searching for a combination of data sources is not supported yet"
-                        end
-                        data_source_model = data_source_model.first
-
+                    data_sources  = dependent_model.find_all { |m| m < DataSource && !(m < Roby::Task) }
+                    if !data_sources.empty?
                         if selected_object_name
                             _, *selection_name = selected_object_name.split '.'
                             selection_name = if selection_name.empty? then nil
@@ -392,10 +387,12 @@ module Orocos
                                              end
                         end
 
-                        target_source_name = child_model.find_matching_source(data_source_model, selection_name)
-                        if !child_model.main_data_source?(target_source_name)
-                            port_mappings = DataSourceModel.compute_port_mappings(data_source_model, child_model, target_source_name)
-                            apply_port_mappings(connections, child_name, port_mappings)
+                        data_sources.each do |data_source_model|
+                            target_source_name = child_model.find_matching_source(data_source_model, selection_name)
+                            if !child_model.main_data_source?(target_source_name)
+                                port_mappings = DataSourceModel.compute_port_mappings(data_source_model, child_model, target_source_name)
+                                apply_port_mappings(connections, child_name, port_mappings)
+                            end
                         end
                     end
 
