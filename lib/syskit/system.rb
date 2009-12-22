@@ -265,7 +265,7 @@ module Orocos
             end
 
             def validate_result(plan)
-                still_abstract = plan.find_tasks(Component).
+                still_abstract = plan.find_local_tasks(Component).
                     abstract.to_a
 
                 still_abstract.delete_if do |p|
@@ -326,7 +326,7 @@ module Orocos
             def merge_identical_tasks
                 # Get all the tasks we need to consider. That's easy,
                 # they all implement the Orocos::RobyPlugin::Component model
-                all_tasks = plan.find_tasks(Orocos::RobyPlugin::Component).
+                all_tasks = plan.find_local_tasks(Orocos::RobyPlugin::Component).
                     to_value_set
 
                 # First pass, we look into all tasks that have no inputs in
@@ -403,7 +403,7 @@ module Orocos
             end
 
             def link_to_busses
-                candidates = plan.find_tasks(Orocos::RobyPlugin::DeviceDriver).
+                candidates = plan.find_local_tasks(Orocos::RobyPlugin::DeviceDriver).
                     find_all { |t| t.com_bus }.
                     to_value_set
 
