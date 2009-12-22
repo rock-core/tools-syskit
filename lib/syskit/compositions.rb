@@ -301,6 +301,8 @@ module Orocos
 
             def connections
                 result = Hash.new { |h, k| h[k] = Hash.new }
+                # In the following, 'key' is [child_source, child_dest] and
+                # 'mappings' is [port_source, port_sink] => connection_policy
                 each_automatic_connection do |key, mappings|
                     result[key].merge!(mappings)
                 end
