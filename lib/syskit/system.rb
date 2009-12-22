@@ -435,8 +435,8 @@ module Orocos
                     handled    = Hash.new
                     used_ports = Set.new
                     task.model.each_root_data_source do |source_name, _|
-                        in_ports  = in_candidates.find_all  { |p| p.name =~ /#{source_name}/ }
-                        out_ports = out_candidates.find_all { |p| p.name =~ /#{source_name}/ }
+                        in_ports  = in_candidates.find_all  { |p| p.name =~ /#{source_name}/i }
+                        out_ports = out_candidates.find_all { |p| p.name =~ /#{source_name}/i }
                         if in_ports.size > 1
                             raise Ambiguous, "there are multiple options to connect #{com_bus.name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
                         elsif out_ports.size > 1
