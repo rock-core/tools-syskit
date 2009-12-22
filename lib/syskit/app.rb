@@ -38,7 +38,7 @@ module Orocos
 
                 orogen.tasks.each do |task_def|
                     if !orocos_tasks[task_def.name]
-                        orocos_tasks[task_def.name] = Orocos::RobyPlugin::TaskContext.define_from_orogen(task_def)
+                        orocos_tasks[task_def.name] = Orocos::RobyPlugin::TaskContext.define_from_orogen(task_def, orocos_system_model)
                     end
                 end
                 orogen.deployers.each do |deployment_def|

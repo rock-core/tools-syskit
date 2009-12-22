@@ -52,6 +52,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
     def test_task_model_definition
         Roby.app.load_orogen_project "echo"
 
+        assert_equal Roby.app.orocos_system_model, Echo::Echo.system
         assert_kind_of(Orocos::RobyPlugin::Project, Orocos::RobyPlugin::Echo)
         # Should have a task context model
         assert(Orocos::RobyPlugin::Echo::Echo < Orocos::RobyPlugin::TaskContext)

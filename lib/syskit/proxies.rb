@@ -330,16 +330,17 @@ module Orocos
             # Creates a subclass of TaskContext that represents the given task
             # specification. The class is registered as
             # Roby::Orogen::ProjectName::ClassName.
-            def self.define_from_orogen(task_spec)
+            def self.define_from_orogen(task_spec, system = nil)
                 superclass = task_spec.superclass
                 if !(supermodel = Roby.app.orocos_tasks[superclass.name])
-                    supermodel = define_from_orogen(superclass)
+                    supermodel = define_from_orogen(superclass, system)
                 end
 
                 klass = Class.new(supermodel)
                 klass.instance_variable_set :@orogen_spec, task_spec
                 namespace = Orocos::RobyPlugin.orogen_project_module(task_spec.component.name)
                 klass.instance_variable_set :@name, "#{task_spec.component.name.camelcase(true)}::#{task_spec.basename.camelcase(true)}"
+                klass.instance_variable_set :@system, system
                 namespace.const_set(task_spec.basename.camelcase(true), klass)
                 
                 # Define specific events for the extended states (if there is any)
