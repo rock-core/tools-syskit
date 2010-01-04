@@ -3,30 +3,32 @@ require './lib/orocos/version'
 
 begin
     require 'hoe'
-    config = Hoe.spec('orocos.rb') do |p|
-        self.developer("Sylvain Joyeux", "sylvain.joyeux@dfki.de")
+    namespace 'dist' do
+        config = Hoe.spec('orocos.rb') do |p|
+            self.developer("Sylvain Joyeux", "sylvain.joyeux@dfki.de")
 
-        self.summary = 'Controlling Orocos modules from Ruby'
-        self.description = ""
-        self.url = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
-        self.changes = ""
+            self.summary = 'Controlling Orocos modules from Ruby'
+            self.description = ""
+            self.url = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
+            self.changes = ""
 
-        self.extra_deps <<
-            ['utilrb', ">= 1.1"] <<
-            ['rake', ">= 0.8"]
+            self.extra_deps <<
+                ['utilrb', ">= 1.1"] <<
+                ['rake', ">= 0.8"]
 
-        #self.spec.extra_rdoc_files.reject! { |file| file =~ /Make/ }
-        #self.spec.extensions << 'ext/extconf.rb'
-    end
-
-    Rake.clear_tasks(/dist:publish_docs/)
-    Rake.clear_tasks(/dist:(re|clobber_|)docs/)
-    task 'publish_docs' => 'redocs' do
-        if !system('doc/misc/update_github')
-            raise "cannot update the gh-pages branch for GitHub"
+            #self.spec.extra_rdoc_files.reject! { |file| file =~ /Make/ }
+            #self.spec.extensions << 'ext/extconf.rb'
         end
-        if !system('git', 'push', 'github', 'gh-pages')
-            raise "cannot push the documentation"
+
+        Rake.clear_tasks(/dist:publish_docs/)
+        Rake.clear_tasks(/dist:(re|clobber_|)docs/)
+        task 'publish_docs' => 'redocs' do
+            if !system('doc/misc/update_github')
+                raise "cannot update the gh-pages branch for GitHub"
+            end
+            if !system('git', 'push', 'github', 'gh-pages')
+                raise "cannot push the documentation"
+            end
         end
     end
 
