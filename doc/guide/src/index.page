@@ -1,0 +1,23 @@
+---
+title: Introduction
+sort_info: 0
+--- name:content pipeline:tags,markdown,blocks
+
+This library allows you to control Orocos/RTT components from Ruby, i.e. to set
+them up, start/stop and monitor them. It assumes that you have a basic knowledge
+of what the Orocos/RTT is, and about the Orocos/RTT component model. If you do
+not, then you can find information in the documentation of [the oroGen component
+generator](http://doudou.github.com/doudou/orogen) and the [Orocos/RTT
+itself](http://orocos.org/rtt).
+
+While the orocos.rb bindings do *not* require you to use the oroGen code
+generator, some functionality will not be available if you don't. Moreover,
+orocos.rb uses the CORBA interface to the modules, so you need your deployments
+to use CORBA (in oroGen, use the <tt>--corba</tt> option during code
+generation).
+{.warning}
+
+The next page is a step-by-step on the basics of how to start modules, set them
+up, build the communication network and stop everything. Then, the rest of the
+guide will present all the available functionality in more details.
+

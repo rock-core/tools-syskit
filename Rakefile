@@ -19,12 +19,13 @@ begin
         #self.spec.extensions << 'ext/extconf.rb'
     end
 
-    Rake.clear_tasks(/publish_docs/)
+    Rake.clear_tasks(/dist:publish_docs/)
+    Rake.clear_tasks(/dist:(re|clobber_|)docs/)
     task 'publish_docs' => 'redocs' do
-        if !system('./update_github')
+        if !system('doc/misc/update_github')
             raise "cannot update the gh-pages branch for GitHub"
         end
-        if !system('git', 'push', 'github', '+gh-pages')
+        if !system('git', 'push', 'github', 'gh-pages')
             raise "cannot push the documentation"
         end
     end
@@ -100,5 +101,43 @@ task :clean do
     FileUtils.rm_rf "ext/rorocos_ext.so"
     FileUtils.rm_rf "lib/rorocos_ext.so"
     FileUtils.rm_rf "test/working_copy"
+end
+
+do_doc = begin
+             require 'webgen/webgentask'
+             require 'rdoc/task'
+             true
+         rescue LoadError => e
+             STDERR.puts "ERROR: cannot load webgen and/or RDoc, documentation generation disabled"
+             STDERR.puts "ERROR:   #{e.message}"
+         end
+
+if do_doc
+    task 'doc' => 'doc:all'
+    task 'clobber_docs' => 'doc:clobber'
+    task 'redocs' do
+        Rake::Task['clobber_docs'].invoke
+        if !system('rake', 'doc:all')
+            raise "failed to regenerate documentation"
+        end
+    end
+
+    namespace 'doc' do
+        task 'all' => %w{guide api}
+        task 'clobber' => 'clobber_guide'
+        Webgen::WebgenTask.new('guide') do |website|
+            website.clobber_outdir = true
+            website.directory = File.join(Dir.pwd, 'doc', 'guide')
+            website.config_block = lambda do |config|
+                config['output'] = ['Webgen::Output::FileSystem', File.join(Dir.pwd, 'doc', 'html')]
+            end
+        end
+        RDoc::Task.new("api") do |rdoc|
+            rdoc.rdoc_dir = 'doc/html/api'
+            rdoc.title    = "orocos.rb"
+            rdoc.options << '--show-hash'
+            rdoc.rdoc_files.include('lib/**/*.rb')
+        end
+    end
 end
 
