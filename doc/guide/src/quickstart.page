@@ -181,10 +181,16 @@ while true
 end
 {coderay}
 
-The complete script can be found [here](imu.rb). Note that it can safely be
-interrupted with Ctrl+C: we use Orocos.run, and therefore the processes will be
-cleanly killed on interrupt.
+In the above code snippet, <tt>imu.imu_readings</tt> is a {rdoc_class:
+OutputPort} instance and <tt>imu_reader</tt> is a {rdoc_class: OutputReader}
+instance.
 
 A complete description of the manipulation of ports can be found
 [here](ports.html)
+
+We're done !
+------------
+The complete script can be found [here](imu.rb). Note that it can safely be
+interrupted with Ctrl+C: we use Orocos.run, and therefore the processes will be
+cleanly killed on interrupt.
 
