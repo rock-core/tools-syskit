@@ -225,6 +225,7 @@ module Orocos
                     tasks[name] = proxy
                     plan.add_permanent(proxy)
                 end
+                merge_identical_tasks
 
                 instances.each do |instance|
                     task = instance.instanciate(self)
@@ -283,7 +284,9 @@ module Orocos
                     @plan = trsc
                     instanciate
                     allocate_abstract_tasks
+
                     merge_identical_tasks
+                    allocate_abstract_tasks
 
                     validate_result(trsc)
                     link_to_busses
@@ -291,36 +294,231 @@ module Orocos
                     trsc.commit_transaction
                 end
 
-                puts "========== Instanciation Results ==============="
-                pp self
-                puts "================================================"
-                puts
-
             ensure
                 @plan = engine_plan
             end
 
-            def allocate_abstract_tasks
-                all_tasks = plan.find_tasks(Orocos::RobyPlugin::Component).
+            def allocate_abstract_tasks(validate = true)
+                targets = plan.find_local_tasks(Orocos::RobyPlugin::Component).
+                    abstract.
                     to_value_set
-                targets = all_tasks.find_all { |t| t.abstract? }
 
                 STDERR.puts "  -- Task allocation"
 
-                targets.each do |t|
-                    candidates = plan.find_tasks(t.fullfilled_model.first).
-                        not_abstract.
-                        find_all { |candidate| candidate.can_merge?(t) }
+                targets.each do |target|
+                    target_inputs   = target.each_source.to_value_set
+                    target_children = target.each_child(false).to_value_set
 
-                    if candidates.empty?
-                        raise SpecError, "cannot find a concrete task for #{t}"
-                    elsif candidates.size > 1
-                        raise Ambiguous, "there are multiple candidates for #{t} (#{candidates.join(", ")}), you must select one with the 'use' statement"
+                    candidates = plan.find_local_tasks(target.fullfilled_model.first).
+                        not_abstract.
+                        find_all { |candidate| candidate.can_merge?(target) }
+
+                    candidates.delete_if do |candidate_task|
+                        candidates.any? do |t|
+                            if t != candidate_task
+                                comparison = merge_sort_order(t, candidate_task)
+                                comparison && comparison < 0
+                            end
+                        end
                     end
 
-                    STDERR.puts "   #{candidates.first} => #{t}"
-                    candidates.first.merge(t)
+                    if candidates.empty?
+                        raise SpecError, "cannot find a concrete task for #{target}"
+                    elsif candidates.size > 1
+                        raise Ambiguous, "there are multiple candidates for #{target} (#{candidates.join(", ")}), you must select one with the 'use' statement"
+                    end
+
+                    STDERR.puts "   #{candidates.first} => #{target}"
+                    candidates.first.merge(target)
+                    plan.remove_object(target)
                 end
+            end
+
+            MERGE_SORT_TRUTH_TABLE = { [true, true] => nil, [true, false] => -1, [false, true] => 1, [false, false] => nil }
+            # Will return -1 if +t1+ is a better merge candidate than +t2+, 1 on
+            # the contrary and nil if they are not comparable.
+            def merge_sort_order(t1, t2)
+                return if !(t1.model <=> t2.model)
+
+                order = MERGE_SORT_TRUTH_TABLE[ [!t1.abstract?, !t2.abstract?] ]
+                if !order
+                    # no preference on abstraction. Prefer fully
+                    # instanciated
+                    order = MERGE_SORT_TRUTH_TABLE[ [t1.fully_instanciated?, t2.fully_instanciated?] ]
+                end
+
+                order
+            end
+
+            def find_merge_roots(task_set)
+                task_set.map do |t|
+                    inputs = t.parent_objects(Flows::DataFlow).to_value_set
+                    if !inputs.intersects?(task_set)
+                        children = t.children.to_value_set
+                        if !children.intersects?(task_set)
+                            [t, inputs, children]
+                        end
+                    end
+                end.compact
+            end
+
+            def direct_merge_mappings(task_set)
+                result = Array.new
+                # This is simply used to not have to duplicate this complex Hash
+                # definition
+                merge_association = Hash.new { |h, k| h[k] = ValueSet.new }
+
+                task_set.each do |task|
+                    task_inputs   = task.each_source.to_value_set
+                    task_children = task.each_child(false).to_value_set
+
+                    task_set.each do |target_task|
+                        next if target_task == task
+                        # We don't do task allocation as this level.
+                        # Meaning: we merge only abstract tasks together and
+                        # concrete tasks together
+                        next if (target_task.abstract? ^ task.abstract?)
+
+                        # Merge if +task+ has the same child set than +target+
+                        target_inputs   = target_task.each_source.to_value_set
+                        target_children = target_task.each_child(false).to_value_set
+                        next if !task_children.include_all?(target_children)
+
+                        next if !task.can_merge?(target_task)
+
+                        # Now check that the connections are compatible
+                        next if !task_inputs.include_all?(target_inputs)
+                        not_compatible = target_inputs.any? do |input_task|
+                            conn_target = input_task[target_task, Flows::DataFlow]
+                            conn_task   = input_task[task,        Flows::DataFlow]
+                            conn_target.each_key.any? { |k| !conn_task.has_key?(k) }
+                        end
+                        next if not_compatible
+
+                        # Find in +result+ the already merge clusters that
+                        # fit +task+ => +target_task+
+                        #
+                        # I.e. we include the current merge in a cluster if
+                        # +task+ is in the cluster's targets and/or
+                        # +target_task+ is in the keys or the targets
+                        #
+                        # We get all the matching clusters, merge them into
+                        # one cluster and add it back to +result+
+                        matching_clusters = result.
+                            find_all do |mappings|
+                                mappings.has_key?(target_task) ||
+                                    mappings.each_value.find { |m_targets| m_targets.include?(task) || m_targets.include?(target_task) }
+                            end
+
+                        mapping = matching_clusters.inject do |result, merge_mapping|
+                            result.delete(merge_mapping)
+                            result.merge!(merge_mapping)
+                        end
+                        if !(mapping = matching_clusters.first)
+                            mapping = merge_association.dup
+                            result << mapping
+                        end
+                        mapping[task] << target_task
+                        STDERR.puts "   #{task} => #{target_task}"
+                    end
+                end
+                result
+            end
+
+            def filter_direct_merge_mappings(result)
+                # Now, remove the merge specifications that are
+                # redundant/useless.
+                filtered_result = Array.new
+                for mapping in result
+                    mapping = mapping.to_a.sort! do | (t1, target1), (t2, target2) |
+                        merge_sort_order(t1, t2) || (target1.size <=> target2.size)
+                    end
+
+                    while !mapping.empty?
+                        t1, target1 = mapping.shift
+                        filtered_result.push [t1, target1]
+                        mapping = mapping.map do |t2, target2|
+                            target2.delete(t1)
+                            if merge_sort_order(t1, t2) == 0
+                                if target1.include?(t2)
+                                    target2 = target2 - target1
+                                    [t2, target2] if !target2.empty?
+                                else
+                                    common = (target1 & target2)
+                                    if !common.empty?
+                                        raise Ambiguous, "both #{t1} and #{t2} can be selected for #{common.map(&:name).join(", ")}"
+                                    end
+                                end
+                            else
+                                target2 = target2 - target1
+                                [t2, target2] if !target2.empty?
+                            end
+                        end.compact
+                    end
+                end
+                filtered_result.each do |t, targets|
+                    targets.each do |target|
+                        STDERR.puts "   #{target} => #{t}"
+                    end
+                end
+                filtered_result
+            end
+
+            # Find a mapping that allows to merge +cycle+ into +target_cycle+.
+            # Returns nil if there is none.
+            def cycle_merge_mapping(target_cycle, cycle)
+                return if target_cycle.size != cycle.size
+
+                mapping = Hash.new
+                target_cycle.each do |target_task, target_inputs, target_children|
+                    cycle.each do |task, inputs, children|
+                        result = if can_merge?(target_task, target_inputs, target_children, 
+                                            task, inputs, children)
+
+                            return if mapping.has_key?(target_task)
+                            mapping[target_task] = task
+                        end
+                        STDERR.puts "#{target_task} #{task} #{result}"
+                    end
+                end
+                if mapping.keys.size == target_cycle.size
+                    mapping
+                end
+            end
+
+            def apply_merge_mappings(mappings)
+                merged_tasks = ValueSet.new
+                while !mappings.empty?
+                    task, targets = mappings.shift
+                    targets.each do |target_task|
+                        STDERR.puts "   #{target_task} => #{task}"
+                        if task.respond_to?(:merge)
+                            task.merge(target_task)
+                        else
+                            plan.replace_task(target_task, task)
+                        end
+                        merged_tasks << task
+                        plan.remove_object(target_task)
+                    end
+                    mappings.delete_if do |task, pending_targets|
+                        if targets.include?(task)
+                            true
+                        else
+                            pending_targets.delete_if { |t| targets.include?(t) }
+                            false
+                        end
+                    end
+                end
+                merged_tasks
+            end
+
+            def merge_tasks_next_step(task_set)
+                result = ValueSet.new
+                for t in task_set
+                    children = t.each_sink(false).to_value_set
+                    result.merge(children) if children.size > 1
+                end
+                result
             end
 
             def merge_identical_tasks
@@ -329,76 +527,99 @@ module Orocos
                 all_tasks = plan.find_local_tasks(Orocos::RobyPlugin::Component).
                     to_value_set
 
-                # First pass, we look into all tasks that have no inputs in
-                # +remaining+, check for duplicates and merge the duplicates
-                remaining = all_tasks.dup
+                # The first pass of the algorithm looks that the tasks that have
+                # the same inputs, checks if they can be merged and do so if
+                # they can.
+                #
+                # The algorithm is seeded by the tasks that already have the
+                # same inputs and the ones that have no inputs. It then
+                # propagates to the children of the merged tasks and so on.
+                candidates = all_tasks.find_all { |t| t.root?(Flows::DataFlow) }.to_value_set
+                candidates.merge( merge_tasks_next_step(all_tasks) )
 
-                rank = 1
-                old_size = nil
-                while remaining.size != 0 && (old_size != remaining.size)
-                    old_size = remaining.size
-                    rank += 1
+                merged_tasks = ValueSet.new
+                while !candidates.empty?
+                    merged_tasks.clear
+
+                    STDERR.puts candidates.to_s
+                    while !candidates.empty?
+                        STDERR.puts "  -- Raw merge candidates"
+                        merges = direct_merge_mappings(candidates)
+                        STDERR.puts "  -- Filtered merge candidates"
+                        merges = filter_direct_merge_mappings(merges)
+                        STDERR.puts "  -- Applying merges"
+                        candidates = apply_merge_mappings(merges)
+                        STDERR.puts
+                        merged_tasks.merge(candidates)
+
+                        candidates = merge_tasks_next_step(candidates)
+                    end
+
+                    STDERR.puts "  -- Parents"
+                    for t in merged_tasks
+                        parents = t.each_parent_task.to_value_set
+                        candidates.merge(parents) if parents.size > 1
+                    end
+                end
+            end
+
+            # This is attic code, for when we will be able to handle cycles.
+            def merge_cycles # :nodoc:
+                # Second pass. The remaining tasks are or depend on cycles. For
+                # those, we actually extract each of the cycles and merge all at
+                # once the cycles that are identical.
+                while !remaining.empty?
+                    # Extract the leaves in the dependency graph
                     roots = remaining.map do |t|
-                        inputs  = t.parent_objects(Flows::DataFlow).to_value_set
-                        if !inputs.intersects?(remaining)
-                            children = t.children.to_value_set
-                            if !children.intersects?(remaining)
-                                [t, inputs, children]
-                            end
+                        inputs   = t.parent_objects(Flows::DataFlow).to_value_set
+                        children = t.children.to_value_set
+                        if !children.intersects?(remaining)
+                            [t, inputs, children]
                         end
                     end.compact
-                    remaining -= roots.map { |t, _| t }.to_value_set
-                    STDERR.puts "  -- Tasks"
-                    STDERR.puts "   " + roots.map { |t, _| t.to_s }.join("\n   ")
+                    root_set  = roots.map { |t, _| t }.to_value_set
+                    remaining -= root_set
 
-                    # Create mergeability associations. +merge+ maps a task to
-                    # all the tasks it can replace
-                    merges = Hash.new { |h, k| h[k] = ValueSet.new }
-                    STDERR.puts "  -- Merge candidates"
-                    roots.each do |task, task_inputs, task_children|
-                        next if task.abstract?
-                        roots.each do |target_task, target_inputs, target_children|
-                            next if target_task == task
-                            next if !task_children.include_all?(target_children)
-                            next if (task_inputs & target_inputs).size != task_inputs.size
-                            if task.can_merge?(target_task)
-                                merges[task] << target_task
-                                STDERR.puts "   #{task} => #{target_task}"
+                    # Now extract the cycles at that level
+                    all_cycles = Array.new
+                    Flows::DataFlow.generated_subgraphs(root_set, true).
+                        each do |cycle_set|
+                            cycle_set &= root_set
+                            cycle, roots = roots.partition do |task, _|
+                                cycle_set.include?(task)
                             end
+                            all_cycles << cycle
                         end
-                    end
-
-                    # Now, just do the replacement in a greedy manner, i.e. take
-                    # the task that can replace the most other tasks and so on
-                    # ...
-                    merges = merges.to_a.sort_by { |task, targets| targets.size }
-                    while !merges.empty?
-                        task, targets = merges.shift
-                        targets.each do |target_task|
-                            if task.respond_to?(:merge)
-                                task.merge(target_task)
-                            else
-                                plan.replace_task(target_task, task)
-                            end
-                        end
-                        merges.delete_if do |task, pending_targets|
-                            if targets.include?(task)
-                                true
-                            else
-                                pending_targets.delete_if { |t| targets.include?(t) }
-                                false
-                            end
-                        end
-                    end
 
                     STDERR.puts
-                end
+                    STDERR.puts " -- Cycles"
+                    all_cycles.each_with_index do |cycle, i|
+                        cycle.each do |t|
+                            STDERR.puts "  #{i} #{t}"
+                        end
+                    end
 
-                # Second pass. The remaining tasks are cycles. For those, we
-                # actually extract each of the cycles and merge all at once the
-                # cycles that are identical.
-                if !remaining.empty?
-                    raise NotImplementedError
+                    all_cycles.each do |cycle_tasks|
+                        STDERR.puts direct_merge_mappings(cycle_tasks).to_s
+                        # Consider that stuff that is *not* in cycle_tasks is
+                        # common to sub-cycles
+                        raise NotImplementedError
+                    end
+
+                    # Now find matching cycles
+                    while !all_cycles.empty?
+                        cycle = all_cycles.pop
+
+                        all_cycles.delete_if do |other_cycle|
+                            mapping = cycle_merge_mapping(other_cycle, cycle)
+                            next if !mapping
+
+                            mapping.each do |from, to|
+                                from.merge(to)
+                            end
+                            true
+                        end
+                    end
                 end
             end
 

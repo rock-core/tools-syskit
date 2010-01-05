@@ -215,13 +215,39 @@ class TC_RobySpec_System < Test::Unit::TestCase
         check_stereo_disambiguated_structure
     end
 
+    def test_merge_cycles
+        complete_system_model
+        orocos_engine.robot do
+            device 'motors'
+        end
+        sys_model.composition 'Control' do
+            add SystemTest::Control
+            add IF::Motors
+            autoconnect
+        end
+        orocos_engine.add(Compositions::Control).
+            use 'Motors' => 'motors'
+        orocos_engine.add(Compositions::Control).
+            use 'Motors' => 'motors'
+        orocos_engine.resolve
+
+        assert_equal(3, plan.size)
+    end
+
     def test_merge
         complete_system_model
         orocos_engine.robot do
             device "camera", :as => 'leftCamera'
             device 'camera', :as => 'rightCamera'
             device 'imu'
+            device 'motors'
         end
+
+        # Add those two tasks so that two type of tasks of unrelated models are
+        # found at the same level in the merge process. This tests the ordering
+        # capability of the merge process
+        orocos_engine.add(orocos_engine.robot.devices['imu'].model)
+        orocos_engine.add(orocos_engine.robot.devices['motors'].model)
 
         sys_model.subsystem "Safety" do
             add IF::Imu
@@ -235,15 +261,11 @@ class TC_RobySpec_System < Test::Unit::TestCase
         orocos_engine.add(Compositions::Safety).
             use("camera" => "leftCamera")
 
-        # orocos_engine.instanciate
-        # # The stereo (7 tasks) is already disambiguated, but the Safety
-        # # subsystem should have instanciated an ImageAcquisition subsystem
-        # # linked to the left camera (3 tasks more).
-        # assert_equal(13, plan.size)
-
         orocos_engine.resolve
         engine.garbage_collect
-        assert_equal(10, plan.size)
+
+        pp orocos_engine
+        assert_equal(11, plan.size)
 
         # Check the stereo substructure
         check_stereo_disambiguated_structure
@@ -329,6 +351,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         root_task = orocos_engine.add(Compositions::StereoComparison)
 
         # Try to instanciate without disambiguation. This should fail miserably
+        # since there's multiple options for selection in StereoComparison
         assert_equal(1, plan.size)
         assert_raises(Ambiguous) { orocos_engine.resolve }
         assert_equal(1, plan.size)
@@ -411,6 +434,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         orocos_engine.robot do
             device "joystick"
             device "sliderbox"
+            device "imu"
 
             com_bus "can", :as => "can0"
             through "can0" do
@@ -426,7 +450,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
         orocos_engine.resolve
         engine.garbage_collect
-        assert_equal 5, plan.size
+        assert_equal 6, plan.size
 
         joystick   = orocos_engine.tasks['joystick']
         joystick1  = orocos_engine.tasks['joystick1']
