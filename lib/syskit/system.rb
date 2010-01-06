@@ -356,9 +356,6 @@ module Orocos
                 STDERR.puts "  -- Task allocation"
 
                 targets.each do |target|
-                    target_inputs   = target.each_source.to_value_set
-                    target_children = target.each_child(false).to_value_set
-
                     candidates = plan.find_local_tasks(target.fullfilled_model.first).
                         not_abstract.
                         find_all { |candidate| candidate.can_merge?(target) }
