@@ -559,7 +559,7 @@ module Orocos
                         merge!([port.name, output_name] => Hash.new)
                 end
                 output_connections.each do |child_name, mappings|
-                    children_tasks[child_name].forward_port(self_task, mappings)
+                    children_tasks[child_name].forward_ports(self_task, mappings)
                 end
 
                 input_connections = Hash.new { |h, k| h[k] = Hash.new }
@@ -568,7 +568,7 @@ module Orocos
                         merge!([input_name, port.name] => Hash.new)
                 end
                 input_connections.each do |child_name, mappings|
-                    self_task.forward_port(children_tasks[child_name], mappings)
+                    self_task.forward_ports(children_tasks[child_name], mappings)
                 end
 
                 connections.each do |(out_name, in_name), mappings|

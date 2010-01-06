@@ -268,7 +268,7 @@ module Orocos
 
         Flows = Roby::RelationSpace(Component)
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false do
-            def forward_port(target_task, mappings)
+            def forward_ports(target_task, mappings)
                 if self.child_object?(target_task, Roby::TaskStructure::Dependency)
                     mappings.each do |(from, to), options|
                         if !model.input_port(from) && !model.dynamic_input_port?(from)
