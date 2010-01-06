@@ -295,7 +295,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
         task_model   = SystemTest::StereoCamera
         task_model.class_eval do
-            data_source IF::Stereoprocessing, :as => 'stereo'
+            data_source IF::Stereoprocessing, :as => 'stereo', :main => true
             data_source IF::Image, :as => 'left',  :slave_of => 'stereo'
             data_source IF::Image, :as => 'right', :slave_of => 'stereo'
         end
@@ -380,7 +380,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         Roby.app.load_orogen_project "system_test"
         stereo_model = sys_model.data_source_type 'stereocam', :interface => SystemTest::StereoCamera
         task_model   = SystemTest::StereoCamera
-        task_model.data_source IF::Stereocam, :as => 'stereo'
+        task_model.data_source IF::Stereocam, :as => 'stereo', :main => true
         task = task_model.new 'stereo_name' => 'front_stereo'
 
         assert_equal("front_stereo", task.selected_data_source('stereo'))
@@ -403,7 +403,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
             output_port 'disparity', 'camera/Image'
             output_port 'cloud', 'base/PointCloud3D'
         end
-        task_model.data_source IF::Stereocam, :as => 'stereo'
+        task_model.data_source IF::Stereocam, :as => 'stereo', :main => true
 
         plan.add(parent = Roby::Task.new)
         task0 = task_model.new 'stereo_name' => 'front_stereo'
@@ -434,7 +434,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         camera_model = sys_model.data_source_type 'camera' do
             output_port 'image', 'camera/Image'
         end
-        SystemTest::StereoProcessing.data_source IF::Stereoprocessing, :as => 'stereo'
+        SystemTest::StereoProcessing.data_source IF::Stereoprocessing, :as => 'stereo', :main => true
         SystemTest::CameraDriver.data_source IF::Camera
 
         plan.add(stereo = SystemTest::StereoProcessing.new)
