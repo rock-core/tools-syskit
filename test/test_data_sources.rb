@@ -549,14 +549,6 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert_equal(device_model, device_driver.data_source_type('camera'))
     end
 
-    def test_driver_for_unknown_device_type
-        sys_model.data_source_type 'camera'
-        model = Class.new(TaskContext)
-        assert_raises(ArgumentError) do
-            model.driver_for 'camera'
-        end
-    end
-
     def test_com_bus
         model = sys_model.com_bus_type 'can', :message_type => '/can/Message'
         assert_equal 'can', model.name
