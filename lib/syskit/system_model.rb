@@ -64,18 +64,29 @@ module Orocos
 
                 device_model = DeviceDriver.new_submodel(name)
 
-                if provides = options[:provides]
-                    if provides.respond_to?(:to_str)
-                        provides = Orocos::RobyPlugin::Interfaces.const_get(provides.camelcase(true))
+                if parent = options[:provides]
+                    if parent.respond_to?(:to_str)
+                        parent = Orocos::RobyPlugin::Interfaces.const_get(parent.camelcase(true))
                     end
-                    device_model.include provides
+                    if !(parent < DataSource)
+                        raise ArgumentError, "#{parent} is not an interface model"
+                    end
+
                 elsif options[:provides].nil?
                     begin
-                        data_source = Orocos::RobyPlugin::Interfaces.const_get(const_name)
+                        parent = Orocos::RobyPlugin::Interfaces.const_get(const_name)
                     rescue NameError
-                        data_source = self.data_source_type(name, :interface => options[:interface])
+                        parent = self.data_source_type(name, :interface => options[:interface])
                     end
-                    device_model.include data_source
+                end
+
+                if parent
+                    device_model.include parent
+                    if parent_spec = parent.interface
+                        child_spec = device_model.create_orogen_interface
+                        child_spec.subclasses parent_spec.name
+                        device_model.instance_variable_set :@orogen_spec, child_spec
+                    end
                 end
 
                 register_device_driver(device_model)

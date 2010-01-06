@@ -103,8 +103,13 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     end
 
     def test_device_type_reuses_data_source
-        source = sys_model.data_source_type("camera")
+        source = sys_model.data_source_type("camera") do
+            output_port 'test', 'int'
+        end
+
         model  = sys_model.device_type("camera")
+        assert(model < source)
+        assert_equal(source.orogen_spec, model.orogen_spec.superclass)
         assert_same(source, IF::Camera)
     end
 
@@ -114,9 +119,12 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     end
 
     def test_device_type_explicit_provides_as_object
-        source = sys_model.data_source_type("image")
+        source = sys_model.data_source_type("image") do
+            output_port 'test', 'int'
+        end
         model  = sys_model.device_type("camera", :provides => source)
         assert(model < source)
+        assert_equal(source.orogen_spec, model.orogen_spec.superclass)
         assert(! sys_model.has_interface?('camera'))
     end
 
@@ -524,11 +532,15 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     end
 
     def test_driver_for
-        image_model  = sys_model.data_source_type 'image'
-        device_model = sys_model.device_type 'camera', :provides => 'image'
-        device_driver = Class.new(TaskContext) do
-            driver_for 'camera'
+        Roby.app.load_orogen_project "system_test"
+        image_model  = sys_model.data_source_type 'image' do
+            output_port 'image', 'camera/Image'
         end
+        device_model = sys_model.device_type 'camera', :provides => 'image'
+        assert_equal image_model.orogen_spec, device_model.orogen_spec.superclass
+
+        SystemTest::CameraDriver.driver_for 'camera'
+        device_driver = SystemTest::CameraDriver
 
         assert(device_driver.fullfills?(device_model))
         assert(device_driver < image_model)
