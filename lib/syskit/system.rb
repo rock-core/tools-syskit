@@ -425,11 +425,7 @@ module Orocos
             end
 
             def direct_merge_mappings(task_set)
-                result = Array.new
-                # This is simply used to not have to duplicate this complex Hash
-                # definition
-                merge_association = Hash.new { |h, k| h[k] = ValueSet.new }
-
+                merge_graph = BGL::Graph.new
                 task_set.each do |task|
                     task_children = task.each_child(false).to_value_set
 
@@ -439,39 +435,39 @@ module Orocos
                         # Meaning: we merge only abstract tasks together and
                         # concrete tasks together
                         next if (target_task.abstract? ^ task.abstract?)
+                        # We never replace an executable task (i.e. target_task
+                        # cannot be executable)
+                        next if target_task.execution_agent
                         # Merge only if +task+ has the same child set than +target+
                         target_children = target_task.each_child(false).to_value_set
-                        next if !task_children.include_all?(target_children)
+                        if !task_children.include_all?(target_children)
+                            STDERR.puts "#{target_task} => #{task}: children"
+                            STDERR.puts "  1: #{task_children.map(&:name).join(", ")}"
+                            STDERR.puts "  2: #{target_children.map(&:name).join(", ")}"
+                            next
+                        end
                         # Finally, call #can_merge?
-                        next if !task.can_merge?(target_task)
-
-                        # Find in +result+ the already merge clusters that
-                        # fit +task+ => +target_task+
-                        #
-                        # I.e. we include the current merge in a cluster if
-                        # +task+ is in the cluster's targets and/or
-                        # +target_task+ is in the keys or the targets
-                        #
-                        # We get all the matching clusters, merge them into
-                        # one cluster and add it back to +result+
-                        matching_clusters = result.
-                            find_all do |mappings|
-                                mappings.has_key?(target_task) ||
-                                    mappings.each_value.find { |m_targets| m_targets.include?(task) || m_targets.include?(target_task) }
-                            end
-
-                        mapping = matching_clusters.inject do |result, merge_mapping|
-                            result.delete(merge_mapping)
-                            result.merge!(merge_mapping)
+                        if !task.can_merge?(target_task)
+                            STDERR.puts "#{target_task} => #{task}: can_merge"
+                            next
                         end
-                        if !(mapping = matching_clusters.first)
-                            mapping = merge_association.dup
-                            result << mapping
-                        end
-                        mapping[task] << target_task
-                        STDERR.puts "   #{target_task} => #{task}"
+
+                        merge_graph.link(task, target_task, nil)
                     end
                 end
+
+                result = merge_graph.components.map do |cluster|
+                    cluster.map do |task|
+                        targets = task.
+                            enum_child_objects(merge_graph).
+                            to_a
+                        targets.each do |target_task|
+                            STDERR.puts "   #{target_task} => #{task}"
+                        end
+                        [task, targets] if !targets.empty?
+                    end.compact
+                end
+                merge_graph.clear
                 result
             end
 
@@ -480,7 +476,7 @@ module Orocos
                 # redundant/useless.
                 filtered_result = Array.new
                 for mapping in result
-                    mapping = mapping.to_a.sort! do | (t1, target1), (t2, target2) |
+                    mapping.sort! do | (t1, target1), (t2, target2) |
                         merge_sort_order(t1, t2) || (target1.size <=> target2.size)
                     end
 
