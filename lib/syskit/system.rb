@@ -416,7 +416,6 @@ module Orocos
                 merge_association = Hash.new { |h, k| h[k] = ValueSet.new }
 
                 task_set.each do |task|
-                    task_inputs   = task.each_source.to_value_set
                     task_children = task.each_child(false).to_value_set
 
                     task_set.each do |target_task|
@@ -425,12 +424,10 @@ module Orocos
                         # Meaning: we merge only abstract tasks together and
                         # concrete tasks together
                         next if (target_task.abstract? ^ task.abstract?)
-
-                        # Merge if +task+ has the same child set than +target+
-                        target_inputs   = target_task.each_source.to_value_set
+                        # Merge only if +task+ has the same child set than +target+
                         target_children = target_task.each_child(false).to_value_set
                         next if !task_children.include_all?(target_children)
-
+                        # Finally, call #can_merge?
                         next if !task.can_merge?(target_task)
 
                         # Find in +result+ the already merge clusters that
