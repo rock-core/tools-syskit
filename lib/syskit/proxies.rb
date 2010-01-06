@@ -335,6 +335,9 @@ module Orocos
                         model = system.device_type model, device_arguments
                     end
                 end
+                if !(model < DeviceDriver)
+                    raise ArgumentError, "#{model} is not a device driver model"
+                end
                 data_source(model, arguments)
             end
 
