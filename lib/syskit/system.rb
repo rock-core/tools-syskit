@@ -572,8 +572,7 @@ module Orocos
                 # The algorithm is seeded by the tasks that already have the
                 # same inputs and the ones that have no inputs. It then
                 # propagates to the children of the merged tasks and so on.
-                candidates = all_tasks.find_all { |t| t.root?(Flows::DataFlow) }.to_value_set
-                candidates.merge( merge_tasks_next_step(all_tasks) )
+                candidates = all_tasks.dup
 
                 merged_tasks = ValueSet.new
                 while !candidates.empty?

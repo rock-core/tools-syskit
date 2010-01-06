@@ -380,9 +380,10 @@ module Orocos
                 # can do is replace +target_task+ iff +self+ fullfills all tags
                 # that target_task has (without considering target_task itself).
                 models = target_task.model.ancestors
-                models.pop if target_task.abstract?
+                models.shift if target_task.abstract?
                 klass = models.find { |t| t.kind_of?(Class) }
-                models.delete_if { |t| t.kind_of?(Class) }
+                models = models.find_all { |t| t.kind_of?(Roby::TaskModelTag) }
+                models.push(klass) if klass
                 if !fullfills?(models)
                     return false
                 end
