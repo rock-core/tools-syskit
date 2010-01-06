@@ -268,6 +268,10 @@ module Orocos
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false do
             def forward_ports(target_task, mappings)
                 if self.child_object?(target_task, Roby::TaskStructure::Dependency)
+                    if !fullfills?(Composition)
+                        raise ArgumentError, "#{self} is not a composition"
+                    end
+
                     mappings.each do |(from, to), options|
                         if !model.input_port(from) && !model.dynamic_input_port?(from)
                             raise ArgumentError, "#{self} has no input port called #{from}"
@@ -277,6 +281,10 @@ module Orocos
                         end
                     end
                 elsif target_task.child_object?(self, Roby::TaskStructure::Dependency)
+                    if !target_task.fullfills?(Composition)
+                        raise ArgumentError, "#{self} is not a composition"
+                    end
+
                     mappings.each do |(from, to), options|
                         if !model.output_port(from) && !model.dynamic_output_port?(from)
                             raise ArgumentError, "#{self} has no output port called #{from}"
@@ -285,6 +293,8 @@ module Orocos
                             raise ArgumentError, "#{target_task.model} has no output port called #{to}"
                         end
                     end
+                else
+                    raise ArgumentError, "#{target_task} and #{self} are not related in the Dependency relation"
                 end
 
                 add_connections(target_task, mappings)
