@@ -129,6 +129,18 @@ module Orocos
             attr_reader :instances
             # A name => Task mapping of tasks we built so far
             attr_reader :tasks
+            # The set of deployment names we should use
+            attr_reader :deployments
+
+            # Use the deployments defined in the given project
+            def use_deployments_from(project_name)
+                orogen = Roby.app.load_orogen_project(project_name)
+                orogen.deployers.each do |deployment_def|
+                    if deployment_def.install?
+                        deployments << deployment_def.name
+                    end
+                end
+            end
 
             # Describes the robot. Example:
             #
@@ -153,6 +165,7 @@ module Orocos
                 @model     = model
                 @instances = Array.new
                 @tasks     = Hash.new
+                @deployments = ValueSet.new
             end
 
             class InstanciatedComponent
@@ -338,6 +351,10 @@ module Orocos
                     merge_identical_tasks
                     allocate_abstract_tasks
 
+                    STDERR.puts "======== Now merging deployed tasks =========="
+                    instanciate_required_deployments
+                    merge_identical_tasks
+
                     validate_result(trsc)
                     link_to_busses
 
@@ -387,14 +404,9 @@ module Orocos
             def merge_sort_order(t1, t2)
                 return if !(t1.model <=> t2.model)
 
-                order = MERGE_SORT_TRUTH_TABLE[ [!t1.abstract?, !t2.abstract?] ]
-                if !order
-                    # no preference on abstraction. Prefer fully
-                    # instanciated
-                    order = MERGE_SORT_TRUTH_TABLE[ [t1.fully_instanciated?, t2.fully_instanciated?] ]
-                end
-
-                order
+                MERGE_SORT_TRUTH_TABLE[ [t1.execution_agent, t2.execution_agent] ] ||
+                    MERGE_SORT_TRUTH_TABLE[ [!t1.abstract?, !t2.abstract?] ] ||
+                    MERGE_SORT_TRUTH_TABLE[ [t1.fully_instanciated?, t2.fully_instanciated?] ]
             end
 
             def find_merge_roots(task_set)
@@ -745,6 +757,15 @@ module Orocos
                     end
                 end
                 nil
+            end
+            def instanciate_required_deployments
+                deployments.each do |deployment_name|
+                    model = Roby.app.orocos_deployments[deployment_name]
+                    task  = plan.find_tasks(model).to_a.first
+                    task ||= model.new
+                    plan.add(task)
+                    contexts = task.instanciate_all_tasks
+                end
             end
         end
     end

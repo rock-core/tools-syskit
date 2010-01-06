@@ -55,6 +55,12 @@ module Orocos
                 orogen_spec.task_activities
             end
 
+            def instanciate_all_tasks
+                orogen_spec.task_activities.map do |act|
+                    task(act.name)
+                end
+            end
+
             # Returns an task instance that represents the given task in this
             # deployment.
             def task(name)
@@ -65,8 +71,8 @@ module Orocos
 
                 klass = Roby.app.orocos_tasks[activity.context.name]
                 task = klass.new
-                task.orocos_name = activity.name
                 task.executed_by self
+                task.instance_variable_set :@orogen_spec, activity
                 if running?
                     task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
                                        rescue NotFound
@@ -199,27 +205,30 @@ module Orocos
                 # A mapping from state name to event name
                 attr_reader :state_events
             end
-            def orogen_spec; self.class.orogen_spec end
             def state_event(name)
                 self.class.state_events[name]
             end
 
             def ids; arguments[:ids] end
 
-            attr_accessor :orocos_name
             def executable?
-                @orogen_task && super
+                !!@orogen_spec && super
             end
 
             # The Orocos::TaskContext instance that gives us access to the
             # remote task context. Note that it is set only when the task is
             # started.
             attr_accessor :orogen_task
+            # The Orocos::Generation::TaskDeployment instance that describes the
+            # underlying task
+            attr_reader :orogen_spec
+            # The global name of the Orocos task underlying this Roby task
+            def orocos_name; orogen_spec.name end
             # The current state for the orogen task
             attr_reader :orogen_state
             # The last read state
             attr_reader :last_state
-            
+
             # Called at each cycle to update the orogen_state attribute for this
             # task.
             def update_orogen_state # :nodoc:
