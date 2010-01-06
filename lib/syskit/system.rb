@@ -236,6 +236,56 @@ module Orocos
                 end
             end
 
+            def to_dot
+                result = []
+                result << "digraph {"
+                result << "  rankdir=LR"
+                result << "  node [shape=record,height=.1];"
+
+                output_ports = Hash.new { |h, k| h[k] = Set.new }
+                input_ports  = Hash.new { |h, k| h[k] = Set.new }
+                all_tasks = ValueSet.new
+                plan.find_local_tasks(Component).each do |task|
+                    all_tasks << task
+                    task.each_sink do |target_task, connections|
+                        connections.each do |(source_port, sink_port), policy|
+                            output_ports[task] << source_port
+                            input_ports[target_task]  << sink_port
+
+                            result << "  #{task.object_id}:#{source_port} -> #{target_task.object_id}:#{sink_port} [label=\"#{policy}\"];"
+                        end
+                    end
+                end
+
+                all_tasks.each do |task|
+                    task_label = task.to_s.
+                        gsub(/\s+/, '').gsub('=>', ':').
+                        gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n')
+                    inputs  = input_ports[task].to_a.sort
+                    outputs = output_ports[task].to_a.sort
+
+                    label = ""
+                    if !inputs.empty?
+                        label << inputs.map do |name|
+                            "<#{name}> #{name}"
+                        end.join("|")
+                        label << "|"
+                    end
+                    label << "<main> #{task_label}"
+                    if !outputs.empty?
+                        label << "|"
+                        label << outputs.map do |name|
+                            "<#{name}> #{name}"
+                        end.join("|")
+                    end
+
+                    result << "  #{task.object_id} [label=\"#{label}\"];"
+                end
+
+                result << "};"
+                result.join("\n")
+            end
+
             def pretty_print(pp)
                 pp.text "-- Tasks"
                 pp.nest(2) do
