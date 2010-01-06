@@ -363,35 +363,63 @@ module Orocos
                 end
             end
 
-            # Returns true if +self+ can replace +other_task+ in the plan. The
+            # Returns true if +self+ can replace +target_task+ in the plan. The
             # super() call checks graph-declared dependencies (i.e. that all
-            # dependencies that +other_task+ meets are also met by +self+.
+            # dependencies that +target_task+ meets are also met by +self+.
             #
-            # This method checks that +other_task+ and +self+ do not represent
+            # This method checks that +target_task+ and +self+ do not represent
             # two different data sources
-            def can_merge?(other_task)
+            def can_merge?(target_task)
                 return false if !super
 
-                # The orocos bindings are a special case: if +other_task+ is
+                # The orocos bindings are a special case: if +target_task+ is
                 # abstract, it means that it is a proxy task for data
                 # source/device drivers model
                 #
                 # In that particular case, the only thing the automatic merging
-                # can do is replace +other_task+ iff +self+ fullfills all tags
-                # that other_task has (without considering other_task itself).
-                models = other_task.model.ancestors
-                models.pop if other_task.abstract?
+                # can do is replace +target_task+ iff +self+ fullfills all tags
+                # that target_task has (without considering target_task itself).
+                models = target_task.model.ancestors
+                models.pop if target_task.abstract?
                 klass = models.find { |t| t.kind_of?(Class) }
                 models.delete_if { |t| t.kind_of?(Class) }
                 if !fullfills?(models)
                     return false
                 end
 
-                each_merged_source(other_task) do |selection, other_name, self_names, source_type|
+                # Check that for each data source in +target_task+, we can
+                # allocate a corresponding source in +self+
+                each_merged_source(target_task) do |selection, other_name, self_names, source_type|
                     if self_names.empty?
                         return false
                     end
+
+                    # Note: implementing port mapping will require to apply the
+                    # port mappings to the test below as well (i.e. which tests
+                    # that inputs are free/compatible)
+                    if DataSourceModel.needs_port_mapping?(target_task.model, other_name, model, self_names.first)
+                        raise NotImplementedError, "mapping data flow ports is not implemented yet"
+                    end
                 end
+
+                # Now check that the connections are compatible
+                #
+                # We search for connections that use the same input port, and
+                # verify that they are coming from the same output
+                self_inputs = Hash.new
+                each_input_connection do |source_task, source_port, sink_port, policy|
+                    self_inputs[sink_port] = [source_task, source_port, policy]
+                end
+                target_inputs = target_task.each_source.to_value_set
+                target_inputs.each do |input_task|
+                    not_compatible = input_task.each_input_connection.any? do |source_task, source_port, sink_port, policy|
+                        if same_port = self_inputs[sink_port]
+                            same_port[0] != source_task || same_port[1] != source_port
+                        end
+                    end
+                    return false if not_compatible
+                end
+
                 true
             end
 

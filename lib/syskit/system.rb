@@ -433,15 +433,6 @@ module Orocos
 
                         next if !task.can_merge?(target_task)
 
-                        # Now check that the connections are compatible
-                        next if !task_inputs.include_all?(target_inputs)
-                        not_compatible = target_inputs.any? do |input_task|
-                            conn_target = input_task[target_task, Flows::DataFlow]
-                            conn_task   = input_task[task,        Flows::DataFlow]
-                            conn_target.each_key.any? { |k| !conn_task.has_key?(k) }
-                        end
-                        next if not_compatible
-
                         # Find in +result+ the already merge clusters that
                         # fit +task+ => +target_task+
                         #
