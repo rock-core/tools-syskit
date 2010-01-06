@@ -591,7 +591,6 @@ module Orocos
                 while !candidates.empty?
                     merged_tasks.clear
 
-                    STDERR.puts candidates.to_s
                     while !candidates.empty?
                         STDERR.puts "  -- Raw merge candidates"
                         merges = direct_merge_mappings(candidates)
