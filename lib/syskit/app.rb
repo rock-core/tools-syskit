@@ -5,7 +5,10 @@ module Orocos
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
         module Application
-            # The set of loaded orogen projects. See #load_orogen_project.
+            # The set of loaded orogen projects, as a mapping from the project
+            # name to the corresponding TaskLibrary instance
+            #
+            # See #load_orogen_project.
             attribute(:loaded_orogen_projects) { Hash.new }
             # A mapping from task context model name to the corresponding
             # subclass of Orocos::RobyPlugin::TaskContext
@@ -30,7 +33,7 @@ module Orocos
             # Load the given orogen project and defines the associated task
             # models. It also loads the projects this one depends on.
             def load_orogen_project(name)
-                return if loaded_orogen_project?(name)
+                return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
                 orogen = main_orogen_project.using_task_library(name)
 		Orocos.registry.merge(orogen.registry)
@@ -46,6 +49,8 @@ module Orocos
                         orocos_deployments[deployment_def.name] = Orocos::RobyPlugin::Deployment.define_from_orogen(deployment_def)
                     end
                 end
+
+                orogen
             end
 
             def get_orocos_task_model(spec)
