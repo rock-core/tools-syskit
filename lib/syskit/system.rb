@@ -332,15 +332,25 @@ module Orocos
             end
 
             def validate_result(plan)
+                # Check for the presence of abstract tasks
                 still_abstract = plan.find_local_tasks(Component).
-                    abstract.to_a
-
-                still_abstract.delete_if do |p|
-                    p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
-                end
+                    abstract.to_a.
+                    delete_if do |p|
+                        p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
+                    end
 
                 if !still_abstract.empty?
                     raise Ambiguous, "there are ambiguities left in the plan: #{still_abstract}"
+                end
+
+                # Check for the presence of non-deployed tasks
+                not_deployed = plan.find_local_tasks(TaskContext).
+                    find_all { |t| !t.execution_agent }.
+                    delete_if do |p|
+                        p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
+                    end
+                if !not_deployed.empty?
+                    raise Ambiguous, "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
                 end
             end
 
