@@ -150,9 +150,7 @@ module Orocos
 
                 # Verify that the component interface matches the data source
                 # interface
-                if !model.implemented_by?(self, main_data_source, name)
-                    raise SpecError, "#{self} does not implement #{model}"
-                end
+                model.verify_implemented_by(self, main_data_source, name)
 
                 # If a source with the same name exists, verify that the user is
                 # trying to specialize it

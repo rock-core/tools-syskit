@@ -145,28 +145,44 @@ module Orocos
                 candidates
             end
 
-            # Verifies if +model+ has the outputs required by having +self+ as a
+            # Verifies if +model+ has the ports required by having +self+ as a
             # data source. +main_source+ says if the match should consider that
             # the new source would be a main source, and +source_name+ is the
             # tentative source name.
-            def implemented_by?(model, main_source = false, source_name = nil)
-                return true if !orogen_spec
+            #
+            # Raises SpecError if it does not match
+            def verify_implemented_by(model, main_source = false, source_name = nil)
+                # If this data source defines no interface, return right away
+                return if !orogen_spec
 
                 each_output do |source_port|
                     has_eqv = each_port_name_candidate(source_port.name, main_source, source_name).any? do |port_name|
                         port = model.output_port(port_name)
                         port && port.type_name == source_port.type_name
                     end
-                    return false if !has_eqv
+                    if !has_eqv
+                        raise SpecError, "#{model} does not implement #{self}: the #{source_port.name}[#{source_port.type.name}] output port has no equivalent"
+                    end
                 end
                 each_input do |source_port|
                     has_eqv = each_port_name_candidate(source_port.name, main_source, source_name).any? do |port_name|
                         port = model.input_port(port_name)
                         port && port.type_name == source_port.type_name
                     end
-                    return false if !has_eqv
+                    if !has_eqv
+                        raise SpecError, "#{model} does not implement #{self}: the #{source_port.name}[#{source_port.type.name}] output port has no equivalent"
+                    end
                 end
+                nil
+            end
+
+            # Like #verify_implemented_by, but returns true if it matches and
+            # false otherwise
+            def implemented_by?(model, main_source = false, source_name = nil)
+                verify_implemented_by(model, main_source, source_name)
                 true
+            rescue SpecError
+                false
             end
 
             # Returns true if a port mapping is needed between the two given
