@@ -154,6 +154,41 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         }
         assert_equal(expected, complete.connections)
     end
+
+
+    def test_composition_concrete_IO
+        source, sink1, sink2 = nil
+        subsys = sys_model.subsystem("source_sink0") do
+            source = add SimpleSource::Source, :as => 'source'
+            sink1  = add SimpleSink::Sink, :as => 'sink1'
+
+            export source.cycle, :as => 'out_cycle'
+            export sink1.cycle, :as => 'in_cycle'
+        end
+
+        complete = sys_model.subsystem('all') do
+            source_sink = add Compositions::SourceSink0
+            source = add SimpleSource::Source
+            sink   = add SimpleSink::Sink
+
+            connect source.cycle => source_sink.in_cycle
+            connect source_sink.out_cycle => sink.cycle
+        end
+
+        orocos_engine = Engine.new(plan, sys_model)
+        orocos_engine.add(Compositions::All)
+        orocos_engine.instanciate
+
+        source_sink = plan.find_tasks(Compositions::SourceSink0).to_a.first
+        source      = plan.find_tasks(SimpleSource::Source).with_parent(Compositions::All).to_a.first
+        sink        = plan.find_tasks(SimpleSink::Sink).with_parent(Compositions::All).to_a.first
+        deep_source = plan.find_tasks(SimpleSource::Source).with_parent(Compositions::SourceSink0, TaskStructure::Dependency).to_a.first
+        deep_sink   = plan.find_tasks(SimpleSink::Sink).with_parent(Compositions::SourceSink0, TaskStructure::Dependency).to_a.first
+
+        assert_equal [['cycle', 'cycle', deep_sink, {}]], source.each_concrete_output_connection.to_a
+        assert_equal [[deep_source, 'cycle', 'cycle', {}]], sink.each_concrete_input_connection.to_a
+    end
+
     def test_composition_port_export_instanciation
         source, sink1, sink2 = nil
         subsys = sys_model.subsystem("source_sink0") do

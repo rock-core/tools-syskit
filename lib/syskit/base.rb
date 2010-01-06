@@ -331,16 +331,58 @@ module Orocos
             end
 
             # Yields the input connections of this task
-            def each_input_connection
+            def each_input_connection(required_port = nil)
                 if !block_given?
                     return enum_for(:each_input_connection)
                 end
 
                 each_source do |source_task|
                     source_task[self, Flows::DataFlow].each do |(source_port, sink_port), policy|
+                        if required_port 
+                            if sink_port == required_port
+                                yield(source_task, source_port, sink_port, policy)
+                            end
+                        else
+                            yield(source_task, source_port, sink_port, policy)
+                        end
+                    end
+                end
+            end
+
+            def each_concrete_input_connection(required_port = nil, &block)
+                if !block_given?
+                    return enum_for(:each_concrete_input_connection, required_port)
+                end
+
+                each_input_connection(required_port) do |source_task, source_port, sink_port, policy|
+                    # Follow the forwardings while +sink_task+ is a composition
+                    if source_task.kind_of?(Composition)
+                        source_task.each_concrete_input_connection(source_port) do |source_task, source_port, _, policy|
+                            yield(source_task, source_port, sink_port, policy)
+                        end
+                    else
                         yield(source_task, source_port, sink_port, policy)
                     end
                 end
+                self
+            end
+
+            def each_concrete_output_connection(required_port = nil)
+                if !block_given?
+                    return enum_for(:each_concrete_output_connection, required_port)
+                end
+
+                each_output_connection(required_port) do |source_port, sink_port, sink_task, policy|
+                    # Follow the forwardings while +sink_task+ is a composition
+                    if sink_task.kind_of?(Composition)
+                        sink_task.each_concrete_output_connection(sink_port) do |_, sink_port, sink_task, policy|
+                            yield(source_port, sink_port, sink_task, policy)
+                        end
+                    else
+                        yield(source_port, sink_port, sink_task, policy)
+                    end
+                end
+                self
             end
 
             # Yields the output connections going out of this task. If an
