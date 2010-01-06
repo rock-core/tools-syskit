@@ -372,6 +372,21 @@ module Orocos
             def can_merge?(other_task)
                 return false if !super
 
+                # The orocos bindings are a special case: if +other_task+ is
+                # abstract, it means that it is a proxy task for data
+                # source/device drivers model
+                #
+                # In that particular case, the only thing the automatic merging
+                # can do is replace +other_task+ iff +self+ fullfills all tags
+                # that other_task has (without considering other_task itself).
+                models = other_task.model.ancestors
+                models.pop if other_task.abstract?
+                klass = models.find { |t| t.kind_of?(Class) }
+                models.delete_if { |t| t.kind_of?(Class) }
+                if !fullfills?(models)
+                    return false
+                end
+
                 each_merged_source(other_task) do |selection, other_name, self_names, source_type|
                     if self_names.empty?
                         return false
