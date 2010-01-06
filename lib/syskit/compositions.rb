@@ -364,7 +364,9 @@ module Orocos
                         options[a] = b
                     end
                 end
-                options = Kernel.validate_options options, Orocos::Port::CONNECTION_POLICY_OPTIONS
+                if !options.empty?
+                    options = Kernel.validate_options options, Orocos::Port::CONNECTION_POLICY_OPTIONS
+                end
                 mappings.each do |out_p, in_p|
                     explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.name, in_p.name] ] = options
                 end
