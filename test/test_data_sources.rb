@@ -403,14 +403,19 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
             output_port 'disparity', 'camera/Image'
             output_port 'cloud', 'base/PointCloud3D'
         end
+        dummy_task_model = stereo_model.task_model
         task_model.data_source IF::Stereocam, :as => 'stereo', :main => true
 
         plan.add(parent = Roby::Task.new)
         task0 = task_model.new 'stereo_name' => 'front_stereo'
         task1 = task_model.new
+        dummy_task = dummy_task_model.new
         parent.depends_on task0, :model => IF::Stereocam
         parent.depends_on task1, :model => IF::Stereocam
+        parent.depends_on dummy_task, :model => IF::Stereocam
 
+        assert(task0.can_merge?(dummy_task))
+        assert(task1.can_merge?(dummy_task))
         assert(task0.can_merge?(task1))
         assert(task1.can_merge?(task0))
 
