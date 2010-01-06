@@ -319,6 +319,40 @@ module Orocos
                     add_sink(target_task, mappings)
                 end
             end
+
+            # Yields the input connections of this task
+            def each_input_connection
+                if !block_given?
+                    return enum_for(:each_input_connection)
+                end
+
+                each_source do |source_task|
+                    source_task[self, Flows::DataFlow].each do |(source_port, sink_port), policy|
+                        yield(source_task, source_port, sink_port, policy)
+                    end
+                end
+            end
+
+            # Yields the output connections going out of this task. If an
+            # argument is given, only connections going out of this particular
+            # port are yield.
+            def each_output_connection(required_port = nil)
+                if !block_given?
+                    return enum_for(:each_output_connection, required_port)
+                end
+
+                each_sink do |sink_task, connections|
+                    connections.each do |(source_port, sink_port), policy|
+                        if required_port
+                            if required_port == source_port
+                                yield(source_port, sink_port, sink_task, policy)
+                            end
+                        else
+                            yield(source_port, sink_port, sink_task, policy)
+                        end
+                    end
+                end
+            end
         end
     end
 end
