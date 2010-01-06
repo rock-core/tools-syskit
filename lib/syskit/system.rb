@@ -378,7 +378,7 @@ module Orocos
                         raise Ambiguous, "there are multiple candidates for #{target} (#{candidates.join(", ")}), you must select one with the 'use' statement"
                     end
 
-                    STDERR.puts "   #{candidates.first} => #{target}"
+                    STDERR.puts "   #{target} => #{candidates.first}"
                     candidates.first.merge(target)
                     plan.remove_object(target)
                 end
@@ -469,7 +469,7 @@ module Orocos
                             result << mapping
                         end
                         mapping[task] << target_task
-                        STDERR.puts "   #{task} => #{target_task}"
+                        STDERR.puts "   #{target_task} => #{task}"
                     end
                 end
                 result
