@@ -11,7 +11,7 @@ module Orocos
                 if args.empty?
                     composition.find_child(child_name).each do |m|
                         if port = m.port(name)
-                            return CompositionChildPort.new(self, port)
+                            return CompositionChildPort.new(self, port, name.to_str)
                         end
                     end
                 end
@@ -26,21 +26,34 @@ module Orocos
         end
 
         class CompositionChildPort
-            attr_reader :child, :port
-            def name; port.name end
+            # The child object this port is part of
+            attr_reader :child
+            # The port object that describes the actual port
+            attr_reader :port
+            # The actual port name. Can be different from port.name
+            # in case of port exports (in compositions) and port aliasing
+            attr_reader :port_name
 
+            # The port name
+            #
+            # See #port_name
+            def name; port_name end
+
+            # The port's type name
             def type_name
                 port.type_name
             end
 
-            def initialize(child, port)
+            def initialize(child, port, port_name)
                 @child = child
                 @port  = port
+                @port_name = port_name
             end
 
             def ==(other)
                 other.child == child &&
-                    other.port == port
+                    other.port == port &&
+                    other.port_name = port_name
             end
         end
 
@@ -353,7 +366,7 @@ module Orocos
                 end
                 options = Kernel.validate_options options, Orocos::Port::CONNECTION_POLICY_OPTIONS
                 mappings.each do |out_p, in_p|
-                    explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.port.name, in_p.port.name] ] = options
+                    explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.name, in_p.name] ] = options
                 end
             end
 

@@ -129,6 +129,31 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_equal(sink2.cycle, subsys.cycle2)
     end
 
+    def test_composition_connections
+        subsys = sys_model.subsystem("source_sink0") do
+            source = add SimpleSource::Source, :as => 'source'
+            sink   = add SimpleSink::Sink, :as => 'sink1'
+
+            export source.cycle, :as => 'out_cycle'
+            export sink.cycle, :as => 'in_cycle'
+        end
+
+        source_sink, source, sink = nil
+        complete = sys_model.subsystem('all') do
+            source_sink = add Compositions::SourceSink0
+            source = add SimpleSource::Source
+            sink   = add SimpleSink::Sink
+
+            connect source.cycle => source_sink.in_cycle
+            connect source_sink.out_cycle => sink.cycle
+        end
+
+        expected = {
+            ['Source', 'source_sink0'] => { ['cycle', 'in_cycle'] => {} },
+            ['source_sink0', 'Sink'] => { ['out_cycle', 'cycle'] => {} }
+        }
+        assert_equal(expected, complete.connections)
+    end
     def test_composition_port_export_instanciation
         source, sink1, sink2 = nil
         subsys = sys_model.subsystem("source_sink0") do
