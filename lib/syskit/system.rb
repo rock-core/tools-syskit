@@ -271,6 +271,12 @@ module Orocos
                     task_label = task.to_s.
                         gsub(/\s+/, '').gsub('=>', ':').
                         gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n')
+                    if task.execution_agent
+                        task_label << "[E]"
+                    elsif task.abstract?
+                        task_label << "[A]"
+                    end
+
                     inputs  = input_ports[task].to_a.sort
                     outputs = output_ports[task].to_a.sort
 
