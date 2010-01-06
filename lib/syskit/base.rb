@@ -98,7 +98,7 @@ module Orocos
                 task
             end
 
-            DATA_SOURCE_ARGUMENTS = { :as => nil, :slave_of => nil }
+            DATA_SOURCE_ARGUMENTS = { :as => nil, :slave_of => nil, :main => nil }
 
             def self.data_source(model, arguments = Hash.new)
                 source_arguments, arguments = Kernel.filter_options arguments,
@@ -119,12 +119,15 @@ module Orocos
                 # If true, the source will be marked as 'main', i.e. the port
                 # mapping between the source and the component will match plain
                 # port names (without the source name prefixed/postfixed)
-                main_data_source = !source_arguments[:as]
+                main_data_source = if source_arguments.has_key?(:main)
+                                       source_arguments[:main]
+                                   else !source_arguments[:as]
+                                   end
 
                 # In case it *is* a main source, check if our parent models
                 # already have a source which we could specialize. In that case,
                 # reuse their name
-                if main_data_source
+                if !source_arguments[:as]
                     if respond_to?(:each_main_data_source)
                         candidates = each_main_data_source.find_all do |source|
                             !data_sources[source] &&
@@ -139,9 +142,8 @@ module Orocos
                     end
                 end
 
-
                 # Get the source name and the source model
-                name = (source_arguments[:as] || candidates.first || model.name.gsub(/^.+::/, '').snakecase).to_str
+                name = (source_arguments[:as] || model.name.gsub(/^.+::/, '').snakecase).to_str
                 if data_sources[name]
                     raise ArgumentError, "there is already a source named '#{name}' defined on '#{name}'"
                 end
