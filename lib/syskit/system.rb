@@ -107,14 +107,8 @@ module Orocos
                 data_source_name = task_model.data_source_name(device_model)
                 device_arguments = {"#{data_source_name}_name" => name, :com_bus => nil}
 
-                task = task_model.instanciate(engine, device_arguments.merge(device_options))
-                devices[name] = task
-
-                task_model.each_child_data_source(data_source_name) do |child_name, _|
-                    devices["#{name}.#{child_name}"] = task
-                end
-
-                task
+                devices[name] = [task_model, data_source_name, device_arguments.merge(device_options)]
+                task_model
             end
         end
 
@@ -233,10 +227,13 @@ module Orocos
                     end
                 end
 
-                robot.devices.each do |name, task|
-                    proxy = plan[task]
-                    tasks[name] = proxy
-                    plan.add_permanent(proxy)
+                robot.devices.each do |name, (task_model, data_source_name, arguments)|
+                    task = task_model.instanciate(self, arguments)
+
+                    tasks[name] = task
+                    task_model.each_child_data_source(data_source_name) do |child_name, _|
+                        tasks["#{name}.#{child_name}"] = task
+                    end
                 end
                 merge_identical_tasks
 
@@ -674,7 +671,7 @@ module Orocos
                     to_value_set
 
                 candidates.each do |task|
-                    if !(com_bus = plan[robot.devices[task.com_bus]])
+                    if !(com_bus = tasks[task.com_bus])
                         raise SpecError, "there is no communication bus named #{task.com_bus}"
                     end
 
