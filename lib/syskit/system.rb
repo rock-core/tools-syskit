@@ -510,17 +510,9 @@ module Orocos
                         next if target_task.execution_agent
                         # Merge only if +task+ has the same child set than +target+
                         target_children = target_task.each_child(false).to_value_set
-                        if !task_children.include_all?(target_children)
-                            STDERR.puts "#{target_task} => #{task}: children"
-                            STDERR.puts "  1: #{task_children.map(&:name).join(", ")}"
-                            STDERR.puts "  2: #{target_children.map(&:name).join(", ")}"
-                            next
-                        end
+                        next if !task_children.include_all?(target_children)
                         # Finally, call #can_merge?
-                        if !task.can_merge?(target_task)
-                            STDERR.puts "#{target_task} => #{task}: can_merge"
-                            next
-                        end
+                        next if !task.can_merge?(target_task)
 
                         merge_graph.link(task, target_task, nil)
                     end
