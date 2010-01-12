@@ -112,10 +112,10 @@ class TC_RobySpec_System < Test::Unit::TestCase
         left  = robot.devices['leftCamera']
         right = robot.devices['rightCamera']
         assert(left != right)
-        assert_kind_of(DeviceDrivers::Camera, left)
-        assert_equal('leftCamera', left.camera_name)
-        assert_kind_of(DeviceDrivers::Camera, right)
-        assert_equal('rightCamera', right.camera_name)
+        assert_kind_of(DeviceDrivers::Camera, left.task_class)
+        assert_equal('leftCamera', left.task_arguments["camera_name"])
+        assert_kind_of(DeviceDrivers::Camera, right.task_class)
+        assert_equal('rightCamera', right.task_arguments["camera_name"])
     end
 
     def check_left_right_disambiguated_structure
@@ -481,26 +481,26 @@ class TC_RobySpec_System < Test::Unit::TestCase
         engine.garbage_collect
 
         tasks = plan.find_tasks(SystemTest::MotorController).
-            with_child(orocos_engine.robot.devices['can0']).to_a
+            with_child(orocos_engine.tasks['can0'].instance).to_a
         assert_equal(1, tasks.to_a.size)
 
         tasks = plan.find_tasks(SystemTest::MotorController).
-            with_child(orocos_engine.robot.devices['can0'], Flows::DataFlow, ['can_out', 'motorsw'] => Hash.new).
-            with_parent(orocos_engine.robot.devices['can0'], Flows::DataFlow, ['motors', 'can_in'] => Hash.new).
+            with_child(orocos_engine.tasks['can0'], Flows::DataFlow, ['can_out', 'motorsw'] => Hash.new).
+            with_parent(orocos_engine.tasks['can0'], Flows::DataFlow, ['motors', 'can_in'] => Hash.new).
             to_a
         assert_equal(1, tasks.to_a.size)
 
         tasks = plan.find_tasks(SystemTest::ControlDevices).
-            with_child(orocos_engine.robot.devices['can0']).to_a
+            with_child(orocos_engine.tasks['can0']).to_a
         assert_equal(1, tasks.to_a.size)
 
         tasks = plan.find_tasks(SystemTest::ControlDevices).
-            with_parent(orocos_engine.robot.devices['can0'], Flows::DataFlow,
+            with_parent(orocos_engine.tasks['can0'], Flows::DataFlow,
                         ['joystick', 'can_in_joystick'] => Hash.new,
                         ['sliderbox', 'can_in_sliderbox'] => Hash.new).
             to_a
         assert_equal(1, tasks.to_a.size)
-        assert(! tasks.first.child_object?(orocos_engine.robot.devices['can0'], Flows::DataFlow))
+        assert(! tasks.first.child_object?(orocos_engine.tasks['can0'], Flows::DataFlow))
     end
 end
 

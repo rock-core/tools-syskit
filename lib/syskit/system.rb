@@ -1,5 +1,41 @@
 module Orocos
     module RobyPlugin
+        class DeviceInstance
+            # The device name
+            attr_reader :name
+            # The device model, as a subclass of DeviceDriver
+            attr_reader :device_model
+
+            # The selected task model that allows to drive this device
+            attr_reader :task_model
+            # The source in +task_model+ for this device
+            attr_reader :task_source_name
+            # The task arguments
+            attr_reader :task_arguments
+
+            # The device period in seconds
+            attr_reader :period
+            # How many data samples are required to represent one message from
+            # this device
+            attr_reader :sample_size
+
+            def com_bus; @task_arguments[:com_bus] end
+
+            KNOWN_PARAMETERS = { :period => nil, :sample_size => nil }
+            def initialize(name, device_model, options,
+                           task_model, task_source_name, task_arguments)
+                @name, @device_model, @task_model, @task_source_name, @task_arguments =
+                    name, device_model, task_model, task_source_name, task_arguments
+
+                @period = options[:period]
+                @sample_size = options[:sample_size]
+            end
+
+            def instanciate(engine)
+                task_model.instanciate(engine, task_arguments)
+            end
+        end
+
         # This class represents a communication bus on the robot, i.e. a device
         # that multiplexes and demultiplexes I/O for device modules
         class CommunicationBus
@@ -74,6 +110,8 @@ module Orocos
                 options, device_options = Kernel.filter_options options,
                     :as => device_model.name.gsub(/.*::/, ''),
                     :expected_model => DeviceDriver
+                device_options, task_arguments = Kernel.filter_options device_options,
+                    DeviceInstance::KNOWN_PARAMETERS
 
                 name = options[:as].to_str
                 if devices[name]
@@ -104,10 +142,14 @@ module Orocos
                 end
 
                 task_model = tasks.first
-                data_source_name = task_model.data_source_name(device_model)
-                device_arguments = {"#{data_source_name}_name" => name, :com_bus => nil}
+                task_source_name = task_model.data_source_name(device_model)
+                task_arguments = {"#{task_source_name}_name" => name, :com_bus => nil}.
+                    merge(task_arguments)
 
-                devices[name] = [task_model, data_source_name, device_arguments.merge(device_options)]
+                devices[name] = DeviceInstance.new(
+                    name, device_model, device_options,
+                    task_model, task_source_name, task_arguments)
+
                 task_model
             end
         end
@@ -227,13 +269,13 @@ module Orocos
                     end
                 end
 
-                robot.devices.each do |name, (task_model, data_source_name, arguments)|
-                    task = task_model.instanciate(self, arguments)
-
+                robot.devices.each do |name, device_instance|
+                    task = device_instance.instanciate(self)
                     tasks[name] = task
-                    task_model.each_child_data_source(data_source_name) do |child_name, _|
-                        tasks["#{name}.#{child_name}"] = task
-                    end
+                    device_instance.task_model.
+                        each_child_data_source(device_instance.task_source_name) do |child_name, _|
+                            tasks["#{name}.#{child_name}"] = task
+                        end
                 end
                 merge_identical_tasks
 
@@ -709,7 +751,11 @@ module Orocos
                     out_connections = Hash.new
                     handled    = Hash.new
                     used_ports = Set.new
-                    task.model.each_root_data_source do |source_name, _|
+                    task.model.each_root_data_source do |source_name, source_model|
+                        next if !(source_model < DeviceDriver)
+                        device_spec = robot.devices[task.arguments["#{source_name}_name"]]
+                        next if !device_spec || !device_spec.com_bus
+
                         in_ports  = in_candidates.find_all  { |p| p.name =~ /#{source_name}/i }
                         out_ports = out_candidates.find_all { |p| p.name =~ /#{source_name}/i }
                         if in_ports.size > 1
