@@ -240,10 +240,6 @@ module Orocos
             end
 
             # Returns the task that is currently handling the given device
-            def subsystem(name)
-                tasks[name]
-            end
-
             def apply_selection(seed)
                 if seed.kind_of?(Class) && seed < Component
                     return seed
