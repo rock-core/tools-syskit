@@ -177,13 +177,12 @@ module Orocos
 
                     data_sources["#{parent_source}.#{name}"] = model
                 else
-                    argument "#{name}_name"
                     data_sources[name] = model
                     if main_data_source
                         main_data_sources << name
                     end
                 end
-                model
+                return name, model
             end
 
 

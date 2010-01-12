@@ -347,7 +347,8 @@ module Orocos
                 if !(model < DeviceDriver)
                     raise ArgumentError, "#{model} is not a device driver model"
                 end
-                data_source(model, arguments)
+                data_source_name, _ = data_source(model, arguments)
+                argument "#{data_source_name}_name"
             end
 
             # Creates a subclass of TaskContext that represents the given task
