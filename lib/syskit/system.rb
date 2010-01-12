@@ -210,6 +210,8 @@ module Orocos
                 attr_reader :model
                 attr_reader :arguments
                 attr_reader :using_spec
+                attr_reader :task
+
                 def initialize(engine, name, model, arguments)
                     @engine    = engine
                     @name      = name
@@ -224,7 +226,15 @@ module Orocos
                 end
 
                 def instanciate(engine)
-                    model.instanciate(engine, arguments.merge(:selection => using_spec))
+                    selection = using_spec.dup
+                    selection.each_key do |key|
+                        value = selection[key]
+                        if value.kind_of?(InstanciatedComponent)
+                            selection[key] = value.task
+                        end
+                    end
+
+                    @task = model.instanciate(engine, arguments.merge(:selection => selection))
                 end
             end
 
