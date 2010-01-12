@@ -89,12 +89,16 @@ module Orocos
         class Component < ::Roby::Task
             extend ComponentModel
 
+            # The Robot instance we are running on
+            attr_accessor :robot
+
             inherited_enumerable(:main_data_source, :main_data_sources) { Set.new }
             inherited_enumerable(:data_source, :data_sources, :map => true) { Hash.new }
 
             def self.instanciate(engine, arguments = Hash.new)
                 _, task_arguments = Model.filter_instanciation_arguments(arguments)
                 engine.plan.add(task = new(task_arguments))
+                task.robot = engine.robot
                 task
             end
 

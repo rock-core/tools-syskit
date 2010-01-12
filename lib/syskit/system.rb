@@ -818,6 +818,7 @@ module Orocos
                     model = Roby.app.orocos_deployments[deployment_name]
                     task  = plan.find_tasks(model).to_a.first
                     task ||= model.new
+                    task.robot = robot
                     plan.add(task)
                     contexts = task.instanciate_all_tasks
                 end

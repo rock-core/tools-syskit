@@ -512,6 +512,7 @@ module Orocos
 
                 # First of all, add the task for +self+
                 engine.plan.add(self_task = new(task_arguments))
+                self_task.robot = engine.robot
 
                 # Apply the selection to our children
                 selected_models = filter_selection(engine, user_selection)

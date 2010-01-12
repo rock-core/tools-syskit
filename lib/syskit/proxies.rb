@@ -33,6 +33,8 @@ module Orocos
         # Once it gets instanciated, the associated task contexts can be
         # accessed with #task(name)
         class Deployment < ::Roby::Task
+            attr_accessor :robot
+
             class << self
                 # The Orocos::Generation::StaticDeployment that represents this
                 # deployment.
@@ -71,6 +73,7 @@ module Orocos
 
                 klass = Roby.app.orocos_tasks[activity.context.name]
                 task = klass.new
+                task.robot = robot
                 task.executed_by self
                 task.instance_variable_set :@orogen_spec, activity
                 if running?
