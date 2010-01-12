@@ -202,6 +202,7 @@ module Orocos
                 @instances = Array.new
                 @tasks     = Hash.new
                 @deployments = ValueSet.new
+                @main_selection = Hash.new
             end
 
             class InstanciatedComponent
@@ -226,7 +227,7 @@ module Orocos
                 end
 
                 def instanciate(engine)
-                    selection = using_spec.dup
+                    selection = engine.main_selection.merge(using_spec)
                     selection.each_key do |key|
                         value = selection[key]
                         if value.kind_of?(InstanciatedComponent)
@@ -258,6 +259,13 @@ module Orocos
                     sel = DeviceDrivers.const_get(name.camelcase(true)).task_model
                 end
                 sel
+            end
+
+            attr_reader :main_selection
+            def use(mappings)
+                mappings.each do |model, definition|
+                    main_selection[model] = definition
+                end
             end
 
             def add(model, arguments = Hash.new)
