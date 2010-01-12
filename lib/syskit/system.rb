@@ -828,13 +828,20 @@ module Orocos
 
                     if !in_connections.empty?
                         com_bus.connect_ports(task, in_connections)
+                        in_connections.each_key do |_, sink_port|
+                            task.input_port_model(sink_port).needs_reliable_connection
+                        end
                     end
                     if !out_connections.empty?
                         task.connect_ports(com_bus, out_connections)
+                        out_connections.each_key do |_, sink_port|
+                            com_bus.input_port_model(sink_port).needs_reliable_connection
+                        end
                     end
                 end
                 nil
             end
+
             def instanciate_required_deployments
                 deployments.each do |deployment_name|
                     model = Roby.app.orocos_deployments[deployment_name]
