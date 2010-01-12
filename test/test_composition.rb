@@ -189,6 +189,54 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_equal [[deep_source, 'cycle', 'cycle', {}]], sink.each_concrete_input_connection.to_a
     end
 
+    def test_indirect_composition_selection
+        model = Class.new(SimpleSource::Source) do
+            def self.name; "Model" end
+        end
+        tag1  = Roby::TaskModelTag.new do
+            def self.name; "Tag1" end
+        end
+        tag2  = Roby::TaskModelTag.new do
+            def self.name; "Tag2" end
+        end
+        spec1, spec2 = nil
+        subsys = sys_model.subsystem("source_sink0") do
+            include tag1
+
+            source = add SimpleSource::Source, :as => 'source'
+            spec1 = specialize 'source', tag1
+            spec2 = specialize 'source', tag2
+            sink1  = add SimpleSink::Sink, :as => 'sink1'
+        end
+
+        test = sys_model.subsystem('test') do
+            add tag1, :as => 'child'
+        end
+
+        orocos_engine    = Engine.new(plan, sys_model)
+
+        selection = test.find_selected_compositions(orocos_engine, "child", Hash.new)
+        assert_equal [], selection
+
+        selection = test.find_selected_compositions(orocos_engine, "child",
+                "child.not_a_child" => SimpleSource::Source)
+        assert_equal [], selection
+
+        selection = test.find_selected_compositions(orocos_engine, "child",
+                "child.source" => SimpleSource::Source)
+        assert_equal [subsys], selection
+
+        model.include tag1
+        selection = test.find_selected_compositions(orocos_engine, "child",
+                "child.source" => model)
+        assert_equal [spec1].to_set, selection.to_set
+
+        model.include tag2
+        selection = test.find_selected_compositions(orocos_engine, "child",
+                "child.source" => model)
+        assert_equal [spec1.specializations.first.composition].to_set, selection.to_set
+    end
+
     def test_composition_port_export_instanciation
         source, sink1, sink2 = nil
         subsys = sys_model.subsystem("source_sink0") do

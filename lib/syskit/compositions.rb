@@ -184,6 +184,45 @@ module Orocos
                 true
             end
 
+            # Returns the composition models from model_set that are the most
+            # specialized in the context of +selected_children+.
+            def find_most_specialized_compositions(model_set, selected_children)
+                # Build the association of +composition+ and the matching models
+                # in +composition+.
+                #
+                # The result is an array of 2-tuples
+                #  [composition_model, children_models]
+                #
+                # where children_models is
+                #  child_name => child_model, child_name => child_model
+                dependent_models = model_set.map do |composition|
+                    models = composition.each_child.
+                        inject(Hash.new) do |h, (child_name, child_model)|
+                            if selected_children.has_key?(child_name)
+                                h[child_name] = child_model
+                            end
+                            h
+                        end
+                    [composition, models]
+                end
+
+                # Find the most specialized compositions by deleting the ones
+                # for which at least one of the children
+                dependent_models.delete_if do |composition, models|
+                    dependent_models.any? do |other_composition, other_models|
+                        next if other_composition == composition
+                        models.each_key.all? do |child_name|
+                            is_specialized_model(other_models[child_name], models[child_name])
+                        end
+                    end
+                end
+
+                dependent_models.map { |c, _| c }
+            end
+
+            # Returns the set of specializations of +self+ that apply to
+            # +selected_models+. Only the most specialized compositions are
+            # returned.
             def find_specializations(selected_models)
                 # Select in our specializations the ones that match the current
                 # selection. To do that, we simply have to find those for which
@@ -205,37 +244,7 @@ module Orocos
                     r.concat(composition.find_specializations(selected_models))
                 end
 
-                # Build the association of +composition+ and the matching models
-                # in +composition+.
-                #
-                # The result is an array of 2-tuples
-                #  [composition_model, children_models]
-                #
-                # where children_models is
-                #  child_name => child_model, child_name => child_model
-                dependent_models = candidates.map do |composition|
-                    models = composition.each_child.
-                        inject(Hash.new) do |h, (child_name, child_model)|
-                            if selected_models.has_key?(child_name)
-                                h[child_name] = child_model
-                            end
-                            h
-                        end
-                    [composition, models]
-                end
-
-                # Find the most specialized compositions by deleting the ones
-                # for which at least one of the children
-                dependent_models.delete_if do |composition, models|
-                    dependent_models.any? do |other_composition, other_models|
-                        next if other_composition == composition
-                        models.each_key.all? do |child_name|
-                            is_specialized_model(other_models[child_name], models[child_name])
-                        end
-                    end
-                end
-
-                dependent_models.map { |c, _| c }
+                find_most_specialized_compositions(candidates, selected_models)
             end
 
             def autoconnect(*names)
@@ -410,6 +419,193 @@ module Orocos
                 result
             end
 
+            # In the explicit selection phase, try to find a composition that
+            # matches +selection+ for +child_name+
+            def find_selected_compositions(engine, child_name, selection)
+                subselection = Hash.new
+                selection_children = Array.new
+                selection.each do |name, model|
+                    if name =~ /^#{child_name}\.(.+)/ 
+                        name = $1
+                        selection_children << name.gsub(/\..*/, '')
+                    end
+                    subselection[name] = model
+                end
+
+                # No indirect composition selection exist
+                if subselection == selection
+                    return Array.new
+                end
+
+                # Find all compositions that can be used for +child_name+ and
+                # for which +subselection+ is a valid selection
+                candidates = engine.model.each_composition.find_all do |composition_model|
+                    if !acceptable_selection?(child_name, composition_model)
+                        next 
+                    end
+                    if !selection_children.all? { |n| composition_model.has_child?(n) }
+                        next
+                    end
+
+                    begin
+                        composition_model.filter_selection(engine, subselection)
+                    rescue SpecError
+                    end
+                end
+
+                # Now select the most specialized models
+                find_most_specialized_compositions(candidates, subselection)
+            end
+            
+            # call-seq:
+            #   find_selected_model_and_task(engine, child_name, selection) => selected_object_name, child_model, child_task
+            #
+            # Finds a possible child model for +child_name+. +selection+ is an
+            # explicit selection hash of the form
+            #
+            #   selection_hint => [task_name|task_model|task_instance]
+            #
+            # selection_hint::
+            #   the selection hint can either be a child name, a child model or
+            #   a child model name, with this order of precedence. The child
+            #   name can be recursively specified as child1.child2.child3, to
+            #   avoid broad selection. Moreover, it is possible to indirectly
+            #   select a composition by using the child1.child2 => model syntax.
+            #
+            # selected_object::
+            #   if given by name, it can either be a device name, or the name
+            #   given to a task instance in Engine#add. Otherwise, it can either
+            #   be a task model (as a class object) or a task instance (as a
+            #   Component instance).
+            #
+            def find_selected_model_and_task(engine, child_name, selection)
+                dependent_model = find_child(child_name)
+
+                # First, simply check for the child's name
+                selected_object = selection[child_name]
+
+                # Now, check that if there is an explicit selection for a
+                # child's child (i.e. starting with child_name.). In that
+                # case, search for a matching composition
+                if !selected_object
+                    matching_compositions = find_selected_compositions(engine, child_name, selection)
+                    if matching_compositions.size > 1
+                        raise Ambiguous, "the following compositions match for #{child_name}: #{matching_compositions.map(&:to_s).join(", ")}"
+                    end
+                    selected_object = matching_compositions.first
+                end
+
+                # Second, look into the child model
+                if !selected_object
+                    candidates = dependent_model.map do |m|
+                        selection[m] || selection[m.name]
+                    end
+                    if candidates.size > 1
+                        raise Ambiguous, "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
+                    end
+                    selected_object = candidates.first
+                end
+
+                if !selected_object
+                    if dependent_model.size > 1
+                        raise Ambiguous, "#{child_name} has to be selected explicitely"
+                    end
+
+                    # no explicit selection, just add the default one
+                    selected_object = dependent_model.first
+                end
+
+                # The selection can either be a device name, a model or a
+                # task instance.
+                if selected_object.respond_to?(:to_str)
+                    selected_object_name = selected_object.to_str
+                    if !(selected_object = engine.tasks[selected_object_name])
+                        raise SpecError, "#{selected_object_name} is not a device name. Compositions and tasks must be given as objects"
+                    end
+                end
+
+                if selected_object.kind_of?(Component)
+                    child_task  = selected_object # selected an instance explicitely
+                    child_model = child_task.model
+                elsif selected_object.kind_of?(DataSourceModel)
+                    child_model = selected_object.task_model
+                elsif selected_object < Component
+                    child_model = selected_object
+                else
+                    raise SpecError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
+                end
+
+                return selected_object_name, child_model, child_task
+            end
+
+            # Verifies that +selected_model+ is an acceptable selection for
+            # +child_name+ on +self+. Raises SpecError if it is not the case,
+            # and ArgumentError if the specified child is not a child of this
+            # composition.
+            #
+            # See also #acceptable_selection?
+            def verify_acceptable_selection(child_name, selected_model)
+                dependent_model = find_child(child_name)
+                if !dependent_model
+                    raise ArgumentError, "#{child_name} is not the name of a child of #{self}"
+                end
+
+                if !selected_model.fullfills?(dependent_model)
+                    raise SpecError, "cannot select #{selected_model} for #{child_name} (#{dependent_model}): [#{selected_model}] is not a specialization of [#{dependent_model.to_a.join(", ")}]"
+                end
+
+                constraints = constraints_for(child_name)
+                if !constraints.empty? && constraints.all? { |m| !selected_model.fullfills?(m) }
+                    raise SpecError, "selected model #{selected_model} does not match the constraints for #{child_name}: it implements none of #{constraints.map(&:name).join(", ")}"
+                end
+            end
+
+            # Returns true if +selected_child+ is an acceptable selection for
+            # +child_name+ on +self+
+            #
+            # See also #verify_acceptable_selection
+            def acceptable_selection?(child_name, selected_child)
+                verify_acceptable_selection(child_name, selected_child)
+                true
+            rescue SpecError
+                false
+            end
+
+            # Computes the port mappings required to apply the data sources in
+            # +data_sources+ to a task of +child_model+. +selected_object_name+
+            # is the selected object (as a string) given by the caller at
+            # instanciation time. It can be of the form
+            # <task_name>.<source_name>, in which case it is used to perform the
+            # selection
+            #
+            # The returned port mapping hash is of the form
+            #
+            #   source_port_name => child_port_name
+            #
+            def compute_port_mapping_for_selection(selected_object_name, child_model, data_sources)
+                port_mappings = Hash.new
+
+                if selected_object_name
+                    _, *selection_name = selected_object_name.split '.'
+                    selection_name = if selection_name.empty? then nil
+                                     else selection_name.join(".")
+                                     end
+                end
+
+                data_sources.each do |data_source_model|
+                    target_source_name = child_model.find_matching_source(data_source_model, selection_name)
+                    if !child_model.main_data_source?(target_source_name)
+                        mappings = DataSourceModel.compute_port_mappings(data_source_model, child_model, target_source_name)
+                        port_mappings.merge!(mappings) do |key, old, new|
+                            if old != new
+                                raise InternalError, "two different port mappings are required"
+                            end
+                        end
+                    end
+                end
+                port_mappings
+            end
+
             # Extracts from +selection+ the specifications that are relevant for
             # +self+, and returns a list of selected models, as
             #
@@ -423,84 +619,20 @@ module Orocos
             def filter_selection(engine, selection)
                 result = Hash.new
                 each_child do |child_name, dependent_model|
-                    selected_object = selection[child_name]
-                    if !selected_object
-                        candidates = dependent_model.map do |m|
-                            selection[m] || selection[m.name]
-                        end
-                        if candidates.size > 1
-                            raise Ambiguous, "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
-                        end
-                        selected_object ||= candidates.first
-                    end
-                    if !selected_object
-                        if dependent_model.size > 1
-                            raise Ambiguous, "#{child_name} has to be selected explicitely"
-                        end
-
-                        # no explicit selection, just add the default one
-                        result[child_name] = [dependent_model.first, nil]
-                        next 
-                    end
-
-                    # The selection can either be a device name, a model or a
-                    # task instance.
-                    if selected_object.respond_to?(:to_str)
-                        selected_object_name = selected_object.to_str
-                        if !(selected_object = engine.tasks[selected_object_name])
-                            raise SpecError, "#{selected_object_name} is not a device name. Compositions and tasks must be given as objects"
-                        end
-                    end
-
-                    if selected_object.kind_of?(Component)
-                        child_task  = selected_object # selected an instance explicitely
-                        child_model = child_task.model
-                    elsif selected_object.kind_of?(DataSourceModel)
-                        child_model = selected_object.task_model
-                    elsif selected_object < Component
-                        child_model = selected_object
-                    else
-                        raise ArgumentError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
-                    end
-
-                    # Check that the selected child model is acceptable
-                    if !child_model.fullfills?(dependent_model)
-                        raise SpecError, "cannot select #{child_model} for #{child_name} (#{dependent_model}): #{child_model} is not a specialization of #{dependent_model}"
-                    end
-
-                    constraints = constraints_for(child_name)
-                    if !constraints.empty? && constraints.all? { |m| !child_model.fullfills?(m) }
-                        raise SpecError, "selected model #{child_model} does not match the constraints for #{child_name}: it implements none of #{constraints.map(&:name).join(", ")}"
-                    end
-
+                    selected_object_name, child_model, child_task =
+                        find_selected_model_and_task(engine, child_name, selection)
+                    verify_acceptable_selection(child_name, child_model)
 
                     # If the model is a plain data source (i.e. not a task
                     # model), we must map this source to a source on the
                     # selected task
-                    port_mappings = Hash.new
                     data_sources  = dependent_model.find_all { |m| m < DataSource && !(m < Roby::Task) }
                     if !data_sources.empty?
-                        if selected_object_name
-                            _, *selection_name = selected_object_name.split '.'
-                            selection_name = if selection_name.empty? then nil
-                                             else selection_name.join(".")
-                                             end
-                        end
-
-                        data_sources.each do |data_source_model|
-                            target_source_name = child_model.find_matching_source(data_source_model, selection_name)
-                            if !child_model.main_data_source?(target_source_name)
-                                mappings = DataSourceModel.compute_port_mappings(data_source_model, child_model, target_source_name)
-                                port_mappings.merge!(mappings) do |key, old, new|
-                                    if old != new
-                                        raise InternalError, "two different port mappings are required"
-                                    end
-                                end
-                            end
-                        end
+                        port_mappings = compute_port_mapping_for_selection(selected_object_name, child_model, data_sources)
                     end
 
-                    result[child_name] = [child_model, child_task, port_mappings]
+                    STDERR.puts " selected #{child_task || child_model} (#{port_mappings}) for #{child_name}"
+                    result[child_name] = [child_model, child_task, port_mappings || Hash.new]
                 end
 
                 result
