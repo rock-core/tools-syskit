@@ -20,7 +20,7 @@ module Orocos
                     end
                 end
 
-                raise NoMethodError, "child #{child_name} of #{composition} has no port named #{name}", caller(1)
+                raise NoMethodError, "child #{child_name}[#{composition.find_child(child_name).to_a.join(", ")}] of #{composition} has no port named #{name}", caller(1)
             end
 
             def ==(other)
