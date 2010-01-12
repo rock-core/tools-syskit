@@ -605,6 +605,12 @@ module Orocos
                         else
                             plan.replace_task(target_task, task)
                         end
+                        tasks.each_key do |n|
+                            if tasks[n] == target_task
+                                tasks[n] = task
+                            end
+                        end
+
                         merged_tasks << task
                         plan.remove_object(target_task)
                     end
