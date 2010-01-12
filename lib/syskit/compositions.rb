@@ -154,16 +154,23 @@ module Orocos
                 end
                 child_composition = system.composition(
                         submodel_name,
-                        :child_of => self, &block)
-                child_composition.add child_model, :as => child_name
+                        :child_of => self) do
+                    add child_model, :as => child_name
+                end
+                
+                specializations <<
+                    Specialization.new({ child_name => child_model }, child_composition)
+                if block_given?
+                    child_composition.instance_eval(&block)
+                end
 
                 # Apply the specialization to the existing ones
                 specializations.each do |spec|
-                    spec.composition.specialize(child_name, child_model, &block)
+                    if spec.composition != child_composition
+                        spec.composition.specialize(child_name, child_model, &block)
+                    end
                 end
-                specializations <<
-                    Specialization.new({ child_name => child_model }, child_composition)
-                self
+                child_composition
             end
 
             # Returns true if +model1+ is a specialization of +model2+

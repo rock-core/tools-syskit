@@ -332,14 +332,24 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         tag1  = Roby::TaskModelTag.new { def self.name; "Tag1" end }
         tag2  = Roby::TaskModelTag.new { def self.name; "Tag2" end }
 
+        specialized_source_model = nil
         subsys = sys_model.composition("composition") do
             add SimpleSource::Source
             
             specialize SimpleSource::Source, tag1 do
+                specialized_source_model = self['Source']
                 add SimpleSink::Sink
             end
             specialize SimpleSource::Source, tag2
         end
+
+        assert_equal([SimpleSource::Source, tag1].to_set, specialized_source_model.model.to_set)
+
+        assert_equal [SimpleSource::Source].to_value_set, subsys.children['Source']
+        specialized_children = subsys.specializations.map { |s| s.composition.children['Source'] }
+        assert_equal 2, specialized_children.size
+        assert specialized_children.find { |c| c == [SimpleSource::Source, tag1].to_value_set }
+        assert specialized_children.find { |c| c == [SimpleSource::Source, tag2].to_value_set }
 
         orocos_engine = Engine.new(plan, sys_model)
         child = orocos_engine.add(Compositions::Composition).
