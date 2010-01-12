@@ -141,7 +141,7 @@ module Orocos
 
                 # Make sure we actually specialize ...
                 if !has_child?(child_name)
-                    raise SpecError, "there is not child called #{child_name}"
+                    raise SpecError, "there is no child called #{child_name} in #{self}"
                 end
                 parent_model = find_child(child_name)
                 if parent_model.any? { |m| m <= child_model }
