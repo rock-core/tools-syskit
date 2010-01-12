@@ -799,31 +799,33 @@ module Orocos
                         end
                     end
 
-                    # Remove handled ports from in_candidates and
-                    # out_candidates, and check if there is a generic
-                    # input/output port in the component
-                    in_candidates.delete_if  { |p| used_ports.include?(p.name) }
-                    out_candidates.delete_if { |p| used_ports.include?(p.name) }
+                    # if there are some unconnected data sources, search for
+                    # generic ports (input and/or output) on the task, and link
+                    # to it.
+                    if handled.values.any? { |v| v == [false, false] }
+                        in_candidates.delete_if  { |p| used_ports.include?(p.name) }
+                        out_candidates.delete_if { |p| used_ports.include?(p.name) }
 
-                    if in_candidates.size > 1
-                        raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
-                    elsif in_candidates.size == 1
-                        # One generic input port
-                        if !task.bus_name
-                            raise SpecError, "#{task} has one generic input port '#{in_candidates.first.name}' but no bus name"
+                        if in_candidates.size > 1
+                            raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                        elsif in_candidates.size == 1
+                            # One generic input port
+                            if !task.bus_name
+                                raise SpecError, "#{task} has one generic input port '#{in_candidates.first.name}' but no bus name"
+                            end
+                            in_connections[ [com_bus.output_name_for(task.bus_name), in_candidates.first.name] ] = Hash.new
+
                         end
-                        in_connections[ [com_bus.output_name_for(task.bus_name), in_candidates.first.name] ] = Hash.new
 
-                    end
-
-                    if out_candidates.size > 1
-                        raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
-                    elsif out_candidates.size == 1
-                        # One generic output port
-                        if !task.bus_name
-                            raise SpecError, "#{task} has one generic output port '#{out_candidates.first.name} but no bus name"
+                        if out_candidates.size > 1
+                            raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                        elsif out_candidates.size == 1
+                            # One generic output port
+                            if !task.bus_name
+                                raise SpecError, "#{task} has one generic output port '#{out_candidates.first.name} but no bus name"
+                            end
+                            out_connections[ [out_candidates.first.name, com_bus.input_name_for(task.bus_name)] ] = Hash.new
                         end
-                        out_connections[ [out_candidates.first.name, com_bus.input_name_for(task.bus_name)] ] = Hash.new
                     end
 
                     if !in_connections.empty?
