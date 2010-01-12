@@ -460,7 +460,7 @@ module Orocos
                     end
 
                     if candidates.empty?
-                        raise SpecError, "cannot find a concrete task for #{target}"
+                        raise SpecError, "cannot find a concrete task for #{target} in #{target.parents.map(&:to_s).join(", ")}"
                     elsif candidates.size > 1
                         raise Ambiguous, "there are multiple candidates for #{target} (#{candidates.join(", ")}), you must select one with the 'use' statement"
                     end
