@@ -100,6 +100,10 @@ module Orocos
 
             DATA_SOURCE_ARGUMENTS = { :as => nil, :slave_of => nil, :main => nil }
 
+            def self.provides(*args)
+                data_source(*args)
+            end
+
             def self.data_source(model, arguments = Hash.new)
                 source_arguments, arguments = Kernel.filter_options arguments,
                     DATA_SOURCE_ARGUMENTS

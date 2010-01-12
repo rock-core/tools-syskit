@@ -35,6 +35,10 @@ module Orocos
                     each(&block)
             end
 
+            def interface(*args, &block)
+                data_source_type(*args, &block)
+            end
+
             def data_source_type(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
                     :child_of => DataSource,
