@@ -415,7 +415,6 @@ module Orocos
                 plan.in_transaction do |trsc|
                     @plan = trsc
                     instanciate
-                    allocate_abstract_tasks
 
                     merge_identical_tasks
                     allocate_abstract_tasks
@@ -425,6 +424,7 @@ module Orocos
                     merge_identical_tasks
 
                     validate_result(trsc)
+
                     link_to_busses
 
                     trsc.commit_transaction
