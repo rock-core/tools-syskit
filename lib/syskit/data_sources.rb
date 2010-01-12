@@ -195,7 +195,15 @@ module Orocos
             end
 
             # Computes the port mapping from a plain data source to the given
-            # data source on the target
+            # data source on the target. +source+ is the interface model and
+            # +target+ the task model we want to select a source on.
+            #
+            # The returned hash is of the form
+            #
+            #   source_port_name => target_port_name
+            #
+            # where +source_port_name+ is the data source port and
+            # +target_port_name+ is the actual port on +target+
             def self.compute_port_mappings(source, target, target_name)
                 if source < Roby::Task
                     raise InternalError, "#{source} should have been a plain data source, but it is a task model"
