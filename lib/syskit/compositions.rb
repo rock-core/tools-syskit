@@ -53,7 +53,7 @@ module Orocos
             def ==(other)
                 other.child == child &&
                     other.port == port &&
-                    other.port_name = port_name
+                    other.port_name == port_name
             end
         end
 
