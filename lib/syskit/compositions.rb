@@ -7,6 +7,10 @@ module Orocos
                 @child_name  = child_name
             end
 
+            def model
+                composition.children[child_name]
+            end
+
             def method_missing(name, *args)
                 if args.empty?
                     composition.find_child(child_name).each do |m|
