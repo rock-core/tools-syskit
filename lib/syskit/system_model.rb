@@ -28,6 +28,12 @@ module Orocos
             def register_composition(model)
                 Orocos::RobyPlugin::Compositions.const_set(model.name.camelcase(true), model)
             end
+            def each_composition(&block)
+                Orocos::RobyPlugin::Compositions.constants.
+                    map { |name| Orocos::RobyPlugin::Compositions.const_get(name) }.
+                    find_all { |model| model.kind_of?(Class) && model < Composition }.
+                    each(&block)
+            end
 
             def data_source_type(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
