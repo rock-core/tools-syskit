@@ -529,6 +529,40 @@ module Orocos
                 end
             end
 
+            def initial_ports_dynamics
+                result = Hash.new
+                if defined? super
+                    result.merge(super)
+                end
+
+                triggering_devices = model.each_root_data_source.
+                    find_all { |_, model| model < DeviceDriver }.
+                    map { |source_name, _| robot.devices[arguments["#{source_name}_name"]] }
+
+                if orogen_spec.activity_type != 'FileDescriptorActivity'
+                    triggering_devices.delete_if { |m| !m.com_bus }
+                end
+
+                triggering_devices.each do |device_instance|
+                    period = device_instance.period
+                    next if !period
+
+                    update_minimal_period(period)
+
+                    source_model, source_name = device_instance.device_model,
+                        device_instance.task_source_name
+
+                    source_model.each_output do |port|
+                        port_name = model.source_port(source_model, source_name, port.name)
+                        port = model.port(port_name)
+                        result[port_name] ||= PortDynamics.new(nil, 1)
+                        result[port_name].period = [result[port_name].period, period * port.period].compact.min
+                    end
+                end
+
+                result
+            end
+
             include DataSource
 
             @name = "DeviceDriver"
@@ -571,6 +605,25 @@ module Orocos
                 extend ModuleExtension
                 EOD
                 model
+            end
+
+            def initial_ports_dynamics
+                result = Hash.new
+                if defined? super
+                    result = super
+                end
+
+                each_concrete_output_connection do |source_port, sink_port, sink_task|
+                    devices = sink_task.model.each_root_data_source.
+                        find_all { |_, model| model < DeviceDriver }.
+                        map { |source_name, _| robot.devices[sink_task.arguments["#{source_name}_name"]] }.
+                        compact.find_all { |device| device.com_bus }
+
+                    result[source_port] = PortDynamics.new(devices.map(&:period).compact.min,
+                                                           devices.map(&:sample_size).compact.inject(&:+))
+                end
+
+                result
             end
 
             # The output port name for the +bus_name+ device attached on this

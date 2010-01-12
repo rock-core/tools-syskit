@@ -1,5 +1,15 @@
 module Orocos
     module RobyPlugin
+        class PortDynamics
+            attr_accessor :period
+            attr_accessor :sample_size
+
+            def initialize(period = nil, sample_size = nil)
+                @period = period
+                @sample_size = sample_size
+            end
+        end
+
         class DeviceInstance
             # The device name
             attr_reader :name
@@ -835,6 +845,105 @@ module Orocos
                     contexts = task.instanciate_all_tasks
                 end
             end
+
+            # Compute the minimal update periods for each of the components that
+            # are deployed
+            def port_periods
+                deployed_tasks = plan.find_local_tasks(TaskContext).
+                    find_all { |t| t.execution_agent }
+                
+                # Get the periods from the activities themselves directly (i.e.
+                # not taking into account the port-driven behaviour)
+                result = Hash.new
+                deployed_tasks.each do |task|
+                    result[task] = task.initial_ports_dynamics
+                end
+
+                remaining = deployed_tasks.dup
+                while !remaining.empty?
+                    did_something = false
+                    remaining.delete_if do |task|
+                        old_size = result[task].size
+
+                        finished = task.propagate_ports_dynamics(result)
+                        if finished || result[task].size != old_size
+                            did_something = true
+                        end
+                        finished
+                    end
+                    if !did_something
+                        STDERR.puts "WARN: cannot compute port periods for:"
+                        remaining.each do |task|
+                            port_names = task.model.each_input.map(&:name) + task.model.each_output.map(&:name)
+                            port_names.delete_if { |port_name| result[task].has_key?(port_name) }
+
+                            STDERR.puts "    #{task}: #{port_names.join(", ")}"
+                        end
+                        break
+                    end
+                end
+
+                result
+            end
+
+            def compute_connection_policies
+                port_periods = self.port_periods
+
+                all_tasks = plan.find_local_tasks(Component).
+                    to_value_set
+
+                all_tasks.each do |source_task|
+                    source_task.each_concrete_output_connection do |source_port_name, sink_port_name, sink_task, policy|
+                        # Check if the policy is already set
+                        next if !policy.empty?
+
+                        source_port = source_task.output_port_model(source_port_name)
+                        sink_port   = sink_task.input_port_model(sink_port_name)
+                        if !source_port
+                            raise InternalError, "#{source_port_name} is not a port of #{source_task.model}"
+                        elsif !sink_port
+                            raise InternalError, "#{sink_port_name} is not a port of #{sink_task.model}"
+                        end
+
+                        if sink_port.required_connection_type == :data || !sink_port.needs_reliable_connection?
+                            policy[:type] = :data
+                            next
+                        end
+
+                        # Compute the buffer size
+                        input_dynamics = port_periods[source_task][source_port.name]
+                        if !input_dynamics || !input_dynamics.period
+                            raise SpecError, "period information for port #{source_task}:#{source_port.name} cannot be computed"
+                        end
+
+                        reading_latency = if sink_task.model.triggered_by?(sink_port)
+                                              sink_task.trigger_latency
+                                          else
+                                              [sink_task.minimal_period, sink_task.trigger_latency].max
+                                          end
+
+                        STDERR.puts "#{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name} [#{input_dynamics.period} => #{reading_latency}]"
+                        policy[:type] = :buffer
+
+                        latency_cycles = (reading_latency / input_dynamics.period).ceil
+
+                        size = latency_cycles * (input_dynamics.sample_size || source_port.sample_size)
+                        STDERR.puts "  #{latency_cycles} #{input_dynamics.sample_size} #{size}"
+                        if burst_size = source_port.burst_size
+                            burst_period = source_port.burst_period
+                            STDERR.puts "   burst: #{burst_size} every #{burst_period}"
+                            if burst_period == 0
+                                size = [1 + burst_size, size].max
+                            else
+                                size += (Float(latency_cycles) / burst_period).ceil * burst_size
+                            end
+                        end
+
+                        policy[:size] = size
+                    end
+                end
+            end
+
         end
     end
 end

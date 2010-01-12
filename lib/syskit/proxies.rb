@@ -218,6 +218,89 @@ module Orocos
                 !!@orogen_spec && super
             end
 
+            attr_reader :minimal_period
+
+            def self.triggered_by?(port)
+                orogen_spec.event_ports.find { |p| p.name == port.name }
+            end
+
+            def trigger_latency
+                orogen_spec.expected_trigger_latency
+            end
+
+            def update_minimal_period(period)
+                if !@minimal_period || @minimal_period > period
+                    @minimal_period = period
+                end
+            end
+
+            # Computes the minimal update period from the activity alone. If it
+            # is not possible (not enough information, or port-driven task for
+            # instance), return nil
+            def initial_ports_dynamics
+                result = Hash.new
+                if defined? super
+                    result.merge(super)
+                end
+
+                if orogen_spec.activity_type == 'PeriodicActivity'
+                    update_minimal_period(orogen_spec.period)
+                end
+
+                result
+            end
+
+            def propagate_ports_dynamics(result)
+                STDERR.puts "propagating #{self}"
+                handled_inputs = Set.new
+                each_concrete_input_connection do |from_task, from_port, to_port, _|
+                    next if !orogen_spec.context.event_ports.find { |p| p.name == to_port }
+                    if result[self][to_port] && result[self][to_port].period
+                        handled_inputs << to_port
+                        next
+                    end
+
+                    STDERR.puts "  #{from_task}:#{from_port} => #{to_port}"
+                    if result.has_key?(from_task) && (dynamics = result[from_task][from_port]) && dynamics.period
+                        result[self][to_port] ||= PortDynamics.new
+                        result[self][to_port].period = dynamics.period
+                        handled_inputs << to_port
+                        update_minimal_period(dynamics.period)
+                    end
+                end
+
+                model.each_output do |port|
+                    port_model = orogen_spec.context.port(port.name)
+
+                    next if port_model.triggered_on_update?
+                    periods = port_model.port_triggers.map do |trigger_port|
+                        result[self][trigger_port.name]
+                    end.compact.map(&:period).compact
+                    if periods.size == port_model.port_triggers.size
+                        result[self][port.name] ||= PortDynamics.new
+                        result[self][port.name].period = periods.min * port.period
+                    end
+                end
+
+                if handled_inputs.size == orogen_spec.context.event_ports.size
+                    model.each_output do |port|
+                        port_model = orogen_spec.context.port(port.name)
+                        if port_model.triggered_on_update?
+                            result[self][port.name] ||= PortDynamics.new
+                            result[self][port.name].period = minimal_period * port.period
+                        end
+                    end
+
+                    STDERR.puts to_s if !minimal_period
+                    true
+                else
+                    remaining = orogen_spec.context.each_port.map(&:name).to_set
+                    remaining -= result[self].keys.to_set
+                    STDERR.puts("cannot find period information for " + remaining.to_a.join(", "))
+                    false
+                end
+            end
+
             # The Orocos::TaskContext instance that gives us access to the
             # remote task context. Note that it is set only when the task is
             # started.
