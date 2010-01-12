@@ -102,6 +102,51 @@ module Orocos
                 task
             end
 
+            attribute(:instanciated_dynamic_outputs) { Hash.new }
+            attribute(:instanciated_dynamic_inputs) { Hash.new }
+
+            def output_port_model(name)
+                if model = orogen_spec.context.each_output_port.find { |p| p.name == name }
+                    model
+                else instanciated_dynamic_outputs[name]
+                end
+            end
+
+            def input_port_model(name)
+                if model = orogen_spec.context.each_input_port.find { |p| p.name == name }
+                    model
+                else instanciated_dynamic_inputs[name]
+                end
+            end
+
+            def instanciate_dynamic_input(name, type = nil)
+                if port = instanciated_dynamic_inputs[name]
+                    port
+                end
+
+                candidates = orogen_spec.context.find_dynamic_input_ports(name, type)
+                if candidates.size > 1
+                    raise Ambiguous, "I don't know what to use for dynamic port instanciation"
+                end
+
+                port = candidates.first.instanciate(name)
+                instanciated_dynamic_inputs[name] = port
+            end
+
+            def instanciate_dynamic_output(name, type = nil)
+                if port = instanciated_dynamic_outputs[name]
+                    port
+                end
+
+                candidates = orogen_spec.context.find_dynamic_output_ports(name, type)
+                if candidates.size > 1
+                    raise Ambiguous, "I don't know what to use for dynamic port instanciation"
+                end
+
+                port = candidates.first.instanciate(name)
+                instanciated_dynamic_outputs[name] = port
+            end
+
             DATA_SOURCE_ARGUMENTS = { :as => nil, :slave_of => nil, :main => nil }
 
             def self.provides(*args)
@@ -273,6 +318,43 @@ module Orocos
 
         Flows = Roby::RelationSpace(Component)
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false do
+            def ensure_has_output_port(name)
+                if !model.output_port(name)
+                    if model.dynamic_output_port?(name)
+                        instanciate_dynamic_output(name)
+                    else
+                        raise ArgumentError, "#{self} has no output port called #{name}"
+                    end
+                end
+            end
+            def ensure_has_input_port(name)
+                if !model.input_port(name)
+                    if model.dynamic_input_port?(name)
+                        instanciate_dynamic_input(name)
+                    else
+                        raise ArgumentError, "#{self} has no input port called #{name}"
+                    end
+                end
+            end
+
+            # Forward an input port of a composition to one of its children, or
+            # an output port of a composition's child to its parent composition.
+            #
+            # +mappings+ is a hash of the form
+            #
+            #   source_port_name => sink_port_name
+            #
+            # If the +self+ composition is the parent of +target_task+, then
+            # source_port_name must be an input port of +self+ and
+            # sink_port_name an input port of +target_task+.
+            #
+            # If +self+ is a child of the +target_task+ composition, then
+            # source_port_name must be an output port of +self+ and
+            # sink_port_name an output port of +target_task+.
+            #
+            # Raises ArgumentError if one of the specified ports do not exist,
+            # or if +target_task+ and +self+ are not related in the Dependency
+            # relation.
             def forward_ports(target_task, mappings)
                 if self.child_object?(target_task, Roby::TaskStructure::Dependency)
                     if !fullfills?(Composition)
@@ -280,25 +362,18 @@ module Orocos
                     end
 
                     mappings.each do |(from, to), options|
-                        if !model.input_port(from) && !model.dynamic_input_port?(from)
-                            raise ArgumentError, "#{self} has no input port called #{from}"
-                        end
-                        if !target_task.model.input_port(to) && !target_task.model.dynamic_input_port?(to)
-                            raise ArgumentError, "#{target_task.model} has no input port called #{to}"
-                        end
+                        ensure_has_input_port(from)
+                        target_task.ensure_has_input_port(to)
                     end
+
                 elsif target_task.child_object?(self, Roby::TaskStructure::Dependency)
                     if !target_task.fullfills?(Composition)
                         raise ArgumentError, "#{self} is not a composition"
                     end
 
                     mappings.each do |(from, to), options|
-                        if !model.output_port(from) && !model.dynamic_output_port?(from)
-                            raise ArgumentError, "#{self} has no output port called #{from}"
-                        end
-                        if !target_task.model.output_port(to) && !target_task.model.dynamic_output_port?(to)
-                            raise ArgumentError, "#{target_task.model} has no output port called #{to}"
-                        end
+                        ensure_has_output_port(from)
+                        target_task.ensure_has_output_port(to)
                     end
                 else
                     raise ArgumentError, "#{target_task} and #{self} are not related in the Dependency relation"
@@ -307,19 +382,27 @@ module Orocos
                 add_connections(target_task, mappings)
             end
 
+            # Connect a set of ports between +self+ and +target_task+.
+            #
+            # +mappings+ describes the connections. It is a hash of the form
+            #   
+            #   [source_port_name, sink_port_name] => connection_policy
+            #
+            # where source_port_name is a port of +self+ and sink_port_name a
+            # port of +target_task+
+            #
+            # Raises ArgumentError if one of the ports do not exist.
             def connect_ports(target_task, mappings)
                 mappings.each do |(out_port, in_port), options|
-                    if !model.output_port(out_port) && !model.dynamic_output_port?(out_port)
-                        raise ArgumentError, "#{self} has no output port called #{out_port}"
-                    end
-                    if !target_task.model.input_port(in_port) && !target_task.model.dynamic_input_port?(in_port)
-                        raise ArgumentError, "#{target_task.model} has no input port called #{in_port}"
-                    end
+                    ensure_has_output_port(out_port)
+                    target_task.ensure_has_input_port(in_port)
                 end
+
+                STDERR.puts "connecting #{self} => #{target_task} (#{mappings})"
                 add_connections(target_task, mappings)
             end
 
-            # Helper class for #connect_to and #forward_to
+            # Helper class for #connect_ports and #forward
             def add_connections(target_task, mappings) # :nodoc:
                 if mappings.empty?
                     raise ArgumentError, "the connection set is empty"
@@ -411,6 +494,7 @@ module Orocos
                         end
                     end
                 end
+                self
             end
         end
     end
