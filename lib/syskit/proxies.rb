@@ -341,7 +341,7 @@ module Orocos
                 update_orogen_state
 
                 if orogen_state != :PRE_OPERATIONAL && orogen_state != :STOPPED
-                    raise "wrong state"
+                    raise InternalError, "wrong state in start event: got #{orogen_state}, expected either STOPPED or PRE_OPERATIONAL"
                 end
 
                 if orogen_state == :PRE_OPERATIONAL
