@@ -322,7 +322,7 @@ module Orocos
         end
 
         Flows = Roby::RelationSpace(Component)
-        Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false do
+        Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false, :weak => true do
             def ensure_has_output_port(name)
                 if !model.output_port(name)
                     if model.dynamic_output_port?(name)
