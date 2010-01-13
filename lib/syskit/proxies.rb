@@ -175,7 +175,7 @@ module Orocos
                 end
 
                 if t.starting?
-                    if t.orogen_state == :STOPPED && t.orogen_spec.needs_configuration?
+                    if t.orogen_state == :STOPPED && t.orogen_spec.context.needs_configuration?
                         t.orogen_task.start
                     end
                     if t.orogen_state != :STOPPED && t.orogen_state != :PRE_OPERATIONAL
@@ -333,7 +333,7 @@ module Orocos
                     raise "TaskContext tasks must be supported by a Deployment task"
                 end
 
-                if orogen_spec.extended_state_support?
+                if orogen_spec.context.extended_state_support?
                     @state_reader = orogen_task.state_reader
                 end
 
