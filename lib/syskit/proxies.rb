@@ -93,7 +93,7 @@ module Orocos
             # running.
             event :start do
                 @orogen_deployment = ::Orocos::Process.new(self.class.deployment_name)
-                orogen_deployment.spawn(File.join(Roby.app.log_dir, "%m-%p.txt"))
+                orogen_deployment.spawn(:output => File.join(Roby.app.log_dir, "%m-%p.txt"))
                 emit :start
             end
 
