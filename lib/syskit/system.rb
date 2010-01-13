@@ -454,6 +454,7 @@ module Orocos
                     validate_result(trsc)
 
                     link_to_busses
+                    compute_connection_policies
 
                     trsc.commit_transaction
                 end
