@@ -23,6 +23,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         assert_any_event(task.stop_event) do
             task.stop!
         end
+        assert !task.orogen_deployment.alive?
     end
 
     def test_deployment_crash_handling
