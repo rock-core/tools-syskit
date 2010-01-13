@@ -165,6 +165,9 @@ module Orocos
         end
 
         class Engine
+            extend Logger::Forward
+            extend Logger::Hierarchy
+
             # The plan we are working on
             attr_reader :plan
             # The model we are taking our tasks from
@@ -429,7 +432,7 @@ module Orocos
                     merge_identical_tasks
                     allocate_abstract_tasks
 
-                    STDERR.puts "======== Now merging deployed tasks =========="
+                    Engine.debug "======== Now merging deployed tasks =========="
                     instanciate_required_deployments
                     merge_identical_tasks
 
@@ -449,7 +452,7 @@ module Orocos
                     abstract.
                     to_value_set
 
-                STDERR.puts "  -- Task allocation"
+                Engine.debug "  -- Task allocation"
 
                 targets.each do |target|
                     candidates = plan.find_local_tasks(target.fullfilled_model.first).
@@ -471,7 +474,7 @@ module Orocos
                         raise Ambiguous, "there are multiple candidates for #{target} (#{candidates.join(", ")}), you must select one with the 'use' statement"
                     end
 
-                    STDERR.puts "   #{target} => #{candidates.first}"
+                    Engine.debug { "   #{target} => #{candidates.first}" }
                     candidates.first.merge(target)
                     plan.remove_object(target)
                 end
@@ -529,8 +532,12 @@ module Orocos
                         targets = task.
                             enum_child_objects(merge_graph).
                             to_a
-                        targets.each do |target_task|
-                            STDERR.puts "   #{target_task} => #{task}"
+
+                        Engine.debug do
+                            targets.each do |target_task|
+                                Engine.debug "   #{target_task} => #{task}"
+                            end
+                            break
                         end
                         [task, targets] if !targets.empty?
                     end.compact
@@ -570,10 +577,14 @@ module Orocos
                         end.compact
                     end
                 end
-                filtered_result.each do |t, targets|
-                    targets.each do |target|
-                        STDERR.puts "   #{target} => #{t}"
+
+                Engine.debug do
+                    filtered_result.map do |t, targets|
+                        targets.map do |target|
+                            Engine.debug "   #{target} => #{t}"
+                        end
                     end
+                    break
                 end
                 filtered_result
             end
@@ -592,7 +603,7 @@ module Orocos
                             return if mapping.has_key?(target_task)
                             mapping[target_task] = task
                         end
-                        STDERR.puts "#{target_task} #{task} #{result}"
+                        Engine.debug { "#{target_task} #{task} #{result}" }
                     end
                 end
                 if mapping.keys.size == target_cycle.size
@@ -605,7 +616,7 @@ module Orocos
                 while !mappings.empty?
                     task, targets = mappings.shift
                     targets.each do |target_task|
-                        STDERR.puts "   #{target_task} => #{task}"
+                        Engine.debug { "   #{target_task} => #{task}" }
                         if task.respond_to?(:merge)
                             task.merge(target_task)
                         else
@@ -661,19 +672,19 @@ module Orocos
                     merged_tasks.clear
 
                     while !candidates.empty?
-                        STDERR.puts "  -- Raw merge candidates"
+                        Engine.debug "  -- Raw merge candidates"
                         merges = direct_merge_mappings(candidates)
-                        STDERR.puts "  -- Filtered merge candidates"
+                        Engine.debug "  -- Filtered merge candidates"
                         merges = filter_direct_merge_mappings(merges)
-                        STDERR.puts "  -- Applying merges"
+                        Engine.debug "  -- Applying merges"
                         candidates = apply_merge_mappings(merges)
-                        STDERR.puts
+                        Engine.debug
                         merged_tasks.merge(candidates)
 
                         candidates = merge_tasks_next_step(candidates)
                     end
 
-                    STDERR.puts "  -- Parents"
+                    Engine.debug "  -- Parents"
                     for t in merged_tasks
                         parents = t.each_parent_task.to_value_set
                         candidates.merge(parents) if parents.size > 1
@@ -709,16 +720,18 @@ module Orocos
                             all_cycles << cycle
                         end
 
-                    STDERR.puts
-                    STDERR.puts " -- Cycles"
-                    all_cycles.each_with_index do |cycle, i|
-                        cycle.each do |t|
-                            STDERR.puts "  #{i} #{t}"
+                    Engine.debug
+                    Engine.debug " -- Cycles"
+                    Engine.debug do
+                        all_cycles.each_with_index do |cycle, i|
+                            cycle.each do |t|
+                                Engine.debug "  #{i} #{t}"
+                            end
                         end
+                        nil
                     end
 
                     all_cycles.each do |cycle_tasks|
-                        STDERR.puts direct_merge_mappings(cycle_tasks).to_s
                         # Consider that stuff that is *not* in cycle_tasks is
                         # common to sub-cycles
                         raise NotImplementedError
@@ -881,12 +894,12 @@ module Orocos
                         finished
                     end
                     if !did_something
-                        STDERR.puts "WARN: cannot compute port periods for:"
+                        Engine.warn "WARN: cannot compute port periods for:"
                         remaining.each do |task|
                             port_names = task.model.each_input.map(&:name) + task.model.each_output.map(&:name)
                             port_names.delete_if { |port_name| result[task].has_key?(port_name) }
 
-                            STDERR.puts "    #{task}: #{port_names.join(", ")}"
+                            Engine.warn "    #{task}: #{port_names.join(", ")}"
                         end
                         break
                     end
@@ -931,16 +944,16 @@ module Orocos
                                               [sink_task.minimal_period, sink_task.trigger_latency].max
                                           end
 
-                        STDERR.puts "#{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name} [#{input_dynamics.period} => #{reading_latency}]"
+                        Engine.debug { "#{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name} [#{input_dynamics.period} => #{reading_latency}]" }
                         policy[:type] = :buffer
 
                         latency_cycles = (reading_latency / input_dynamics.period).ceil
 
                         size = latency_cycles * (input_dynamics.sample_size || source_port.sample_size)
-                        STDERR.puts "  #{latency_cycles} #{input_dynamics.sample_size} #{size}"
+                        Engine.debug { "  #{latency_cycles} #{input_dynamics.sample_size} #{size}" }
                         if burst_size = source_port.burst_size
                             burst_period = source_port.burst_period
-                            STDERR.puts "   burst: #{burst_size} every #{burst_period}"
+                            Engine.debug { "   burst: #{burst_size} every #{burst_period}" }
                             if burst_period == 0
                                 size = [1 + burst_size, size].max
                             else

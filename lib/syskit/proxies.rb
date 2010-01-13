@@ -79,7 +79,7 @@ module Orocos
                 if running?
                     task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
                                        rescue NotFound
-                                           STDERR.puts "WARN: #{task.orocos_name} cannot be found"
+                                           Engine.warn "#{task.orocos_name} cannot be found"
                                        end
                 end
                 task
@@ -103,7 +103,7 @@ module Orocos
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
                                        rescue NotFound
-                                           STDERR.puts "WARN: #{task.orocos_name} cannot be found"
+                                           Engine.warn "#{task.orocos_name} cannot be found"
                                        end
                 end
             end
@@ -251,7 +251,6 @@ module Orocos
             end
 
             def propagate_ports_dynamics(result)
-                STDERR.puts "propagating #{self}"
                 handled_inputs = Set.new
                 each_concrete_input_connection do |from_task, from_port, to_port, _|
                     next if !orogen_spec.context.event_ports.find { |p| p.name == to_port }
@@ -260,7 +259,6 @@ module Orocos
                         next
                     end
 
-                    STDERR.puts "  #{from_task}:#{from_port} => #{to_port}"
                     if result.has_key?(from_task) && (dynamics = result[from_task][from_port]) && dynamics.period
                         result[self][to_port] ||= PortDynamics.new
                         result[self][to_port].period = dynamics.period
@@ -291,12 +289,11 @@ module Orocos
                         end
                     end
 
-                    STDERR.puts to_s if !minimal_period
                     true
                 else
                     remaining = orogen_spec.context.each_port.map(&:name).to_set
                     remaining -= result[self].keys.to_set
-                    STDERR.puts("cannot find period information for " + remaining.to_a.join(", "))
+                    Engine.warn { "cannot find period information for " + remaining.to_a.join(", ") }
                     false
                 end
             end

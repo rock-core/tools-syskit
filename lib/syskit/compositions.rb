@@ -635,7 +635,7 @@ module Orocos
                         port_mappings = compute_port_mapping_for_selection(selected_object_name, child_model, data_sources)
                     end
 
-                    STDERR.puts " selected #{child_task || child_model} (#{port_mappings}) for #{child_name}"
+                    Engine.debug { " selected #{child_task || child_model} (#{port_mappings}) for #{child_name}" }
                     result[child_name] = [child_model, child_task, port_mappings || Hash.new]
                 end
 

@@ -1,3 +1,5 @@
+require 'logger'
+require 'utilrb/logger'
 module Orocos
     # Roby is a plan management component, i.e. a supervision framework that is
     # based on the concept of plans.
@@ -6,6 +8,9 @@ module Orocos
     # Orocos task contexts and deployment processes in Roby, and a model-based
     # system configuration environment.
     module RobyPlugin
+        extend Logger::Forward
+        extend Logger::Hierarchy
+
         class InternalError < RuntimeError; end
         class ConfigError < RuntimeError; end
         class SpecError < RuntimeError; end
@@ -398,7 +403,6 @@ module Orocos
                     target_task.ensure_has_input_port(in_port)
                 end
 
-                STDERR.puts "connecting #{self} => #{target_task} (#{mappings})"
                 add_connections(target_task, mappings)
             end
 
