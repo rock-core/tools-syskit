@@ -750,6 +750,8 @@ module Orocos
         class Composition < Component
             extend CompositionModel
 
+            terminates
+
             inherited_enumerable(:child, :children, :map => true) { Hash.new }
             inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
             class << self
