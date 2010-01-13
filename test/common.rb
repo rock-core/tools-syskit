@@ -43,7 +43,7 @@ module RobyPluginCommonTest
         save_collection Roby.app.orocos_tasks
         save_collection Roby.app.orocos_deployments
 
-        Orocos::RobyPlugin::Application.setup
+        Orocos::RobyPlugin::Application.setup(Roby.app)
         if self.class.needed_orogen_projects.empty? && !self.class.needs_no_orogen_projects?
             Roby.app.orogen_load_all
         else

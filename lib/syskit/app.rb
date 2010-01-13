@@ -26,6 +26,13 @@ module Orocos
             attr_accessor :orocos_system_model
             # The orocos engine we are using
             attr_accessor :orocos_engine
+            # If true, we will not load the component-specific code in
+            # tasks/orocos/
+            attr_predicate :orocos_load_component_extensions, true
+
+            def self.load(app, options)
+                app.orocos_load_component_extensions = true
+            end
 
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
@@ -39,7 +46,11 @@ module Orocos
 		Orocos.registry.merge(orogen.registry)
                 loaded_orogen_projects[name] = orogen
 
-                orogen.tasks.each do |task_def|
+                orogen.used_task_libraries.each do |lib|
+                    load_orogen_project(lib.name)
+                end
+
+                orogen.self_tasks.each do |task_def|
                     if !orocos_tasks[task_def.name]
                         orocos_tasks[task_def.name] = Orocos::RobyPlugin::TaskContext.define_from_orogen(task_def, orocos_system_model)
                     end
@@ -47,6 +58,16 @@ module Orocos
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install? && !orocos_deployments[deployment_def.name]
                         orocos_deployments[deployment_def.name] = Orocos::RobyPlugin::Deployment.define_from_orogen(deployment_def)
+                    end
+                end
+
+                # If we are loading under Roby, get the plugins for the orogen
+                # project
+                if orocos_load_component_extensions?
+                    file = File.join('tasks', 'orocos', "#{name}.rb")
+                    if File.exists?(file)
+                        RobyPlugin.debug "loading #{file}"
+                        load_system_model(file)
                     end
                 end
 
@@ -72,9 +93,12 @@ module Orocos
                 end
             end
 
-            def self.setup
-                Roby.app.orocos_clear_models
-                Roby.app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext
+            # Called by Roby::Application on setup
+            def self.setup(app)
+                Orocos.load
+
+                app.orocos_clear_models
+                app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext
 
                 rtt_taskmodel = Orocos::Generation::Component.standard_tasks.
                     find { |m| m.name == "RTT::TaskContext" }
@@ -82,8 +106,32 @@ module Orocos
                 Orocos::RobyPlugin.const_set :RTT, Module.new
                 Orocos::RobyPlugin::RTT.const_set :TaskContext, Orocos::RobyPlugin::TaskContext
 
-                Roby.app.orocos_system_model = SystemModel.new
-                Roby.app.orocos_engine = Engine.new(Roby.plan || Roby::Plan.new, Roby.app.orocos_system_model)
+                app.orocos_system_model = SystemModel.new
+                app.orocos_engine = Engine.new(Roby.plan || Roby::Plan.new, app.orocos_system_model)
+            end
+
+            def self.require_models(app)
+                # Load the interface and task models
+                %w{interfaces compositions}.each do |category|
+                    all_files = app.list_dir(APP_DIR, "tasks", "orocos", category).to_a +
+                        app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'orocos', category).to_a
+                    all_files.each do |path|
+                        app.load_system_model(path)
+                    end
+                end
+
+                project_names = app.loaded_orogen_projects.keys
+                task_models = (app.list_dir(APP_DIR, "tasks", "orocos").to_a +
+                    app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'orocos').to_a)
+                task_models.each do |path|
+                    if project_names.include?(File.basename(path, ".rb"))
+                        app.load_system_model(path)
+                    end
+                end
+            end
+
+            def use_deployments_from(*args)
+                orocos_engine.use_deployments_from(*args)
             end
 
             def orocos_clear_models
@@ -148,9 +196,30 @@ module Orocos
                 end
             end
 
+	    def apply_orocos_deployment(name)
+		if file = robotfile('config', 'ROBOT', 'deployments', "#{name}.rb")
+		    load_system_definition(file)
+		elsif File.file?(file = File.join('config', 'deployments', "#{name}.rb"))
+		    load_system_definition(file)
+		else
+		    raise ArgumentError, "cannot find a deployment named '#{name}'"
+		end
+		orocos_engine.resolve
+	    end
+
             def self.run(app)
-                Orocos.initialize
-                Roby.each_cycle(&Orocos.update)
+                # Change to the log dir so that the IOR file created by the
+                # CORBA bindings ends up there
+                Dir.chdir(Roby.app.log_dir) do
+                    Orocos.initialize
+                end
+                Roby.each_cycle(&Orocos::RobyPlugin.method(:update))
+                yield
+
+            ensure
+                remaining = Orocos.each_process.to_a
+                RobyPlugin.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
+                Orocos::Process.kill(remaining)
             end
         end
     end

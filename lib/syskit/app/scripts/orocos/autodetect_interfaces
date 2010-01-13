@@ -1,0 +1,68 @@
+#! /usr/bin/env ruby
+APP_DIR = File.expand_path(File.join('..', '..'), File.dirname(__FILE__))
+
+require 'roby/standalone'
+require 'orocos'
+require 'orocos/roby'
+require 'orocos/roby/app'
+
+Roby.app.using 'orocos'
+
+if ARGV[0] == "--all"
+    Roby.app.orocos_load_component_extensions = false
+end
+Roby.app.setup
+Roby.app.orogen_load_all
+
+layout = Hash.new { |h, k| h[k] = Array.new }
+
+tasks = Roby.app.orocos_tasks.map { |_, m| m }.to_value_set
+while !tasks.empty?
+    result = Array.new
+
+    task = tasks.find do |t| 
+        !tasks.any? { |m| t < m }
+    end
+    tasks.delete(task)
+
+    Orocos::RobyPlugin::Interfaces.each do |source_model|
+        next if task < source_model # already set
+        next if !(matches = source_model.guess_source_name(task))
+
+        # Remove useless entries in +result+
+        matches.each do |interface_name|
+            if task.has_data_source?(interface_name) && task.data_source_type(interface_name) == source_model
+                next
+            end
+            result.delete_if { |m, n| source_model < m && n == interface_name }
+
+            result << [source_model, interface_name]
+        end
+
+    end
+
+    if !result.empty?
+        result.each do |source_model, interface_name|
+            task_name = task.name.gsub(/^Orocos::RobyPlugin::/, '')
+            mod_name, task_name  = task_name.split '::'
+            if interface_name == ''
+                task.provides source_model
+                layout[mod_name] << "#{task_name}.interface #{source_model.name}"
+            else
+                task.provides source_model, :as => interface_name
+                layout[mod_name] << "#{task_name}.interface #{source_model.name}, :as => #{interface_name}"
+            end
+        end
+    end
+    result.clear
+end
+
+layout.keys.sort.each do |mod_name|
+    puts "module #{mod_name}"
+    layout[mod_name].each do |decl|
+        puts "    #{decl}"
+    end
+    puts "end"
+    puts
+end
+
