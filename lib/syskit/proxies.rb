@@ -451,21 +451,18 @@ module Orocos
                 namespace.const_set(task_spec.basename.camelcase(true), klass)
                 
                 # Define specific events for the extended states (if there is any)
-                if task_spec.extended_state_support?
-                    state_events = { :FATAL_ERROR => :fatal_error, :RUNTIME_ERROR => :runtime_error }
-                    task_spec.states.each do |name, type|
-                        event_name = name.snakecase.downcase
-                        klass.event event_name
-                        if type == :error || type == :fatal
-                            klass.forward event_name => :failed
-                        end
-
-                        state_events[name.to_sym] = event_name
+                state_events = { :FATAL_ERROR => :fatal_error, :RUNTIME_ERROR => :runtime_error }
+                task_spec.states.each do |name, type|
+                    event_name = name.snakecase.downcase
+                    klass.event event_name
+                    if type == :error || type == :fatal
+                        klass.forward event_name => :failed
                     end
 
-                    klass.instance_variable_set :@state_events, state_events
+                    state_events[name.to_sym] = event_name
                 end
 
+                klass.instance_variable_set :@state_events, state_events
                 klass
             end
         end
