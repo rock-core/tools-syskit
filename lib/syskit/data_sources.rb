@@ -615,10 +615,9 @@ module Orocos
                 model
             end
 
-            def initial_ports_dynamics
-                result = Hash.new
-                if defined? super
-                    result = super
+            def each_connected_device(&block)
+                if !block_given?
+                    return enum_for(:each_connected_device)
                 end
 
                 each_concrete_output_connection do |source_port, sink_port, sink_task|
@@ -627,8 +626,19 @@ module Orocos
                         map { |source_name, _| robot.devices[sink_task.arguments["#{source_name}_name"]] }.
                         compact.find_all { |device| device.com_bus }
 
-                    result[source_port] = PortDynamics.new(devices.map(&:period).compact.min,
-                                                           devices.map(&:sample_size).compact.inject(&:+))
+                    yield(source_port, devices)
+                end
+            end
+
+            def initial_ports_dynamics
+                result = Hash.new
+                if defined? super
+                    result = super
+                end
+
+                each_connected_device do |port, devices|
+                    result[port] = PortDynamics.new(devices.map(&:period).compact.min,
+                                                    devices.map(&:sample_size).compact.inject(&:+))
                 end
 
                 result
