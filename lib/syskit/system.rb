@@ -28,21 +28,36 @@ module Orocos
             # How many data samples are required to represent one message from
             # this device
             attr_reader :sample_size
+            # The device ID. It is dependent on the method of communication to
+            # the device. For a serial line, it would be the device file
+            # (/dev/ttyS0). For CAN, it would be the device ID and mask.
+            attr_reader :device_id
 
             def com_bus; @task_arguments[:com_bus] end
 
-            KNOWN_PARAMETERS = { :period => nil, :sample_size => nil }
+            KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
             def initialize(name, device_model, options,
                            task_model, task_source_name, task_arguments)
                 @name, @device_model, @task_model, @task_source_name, @task_arguments =
                     name, device_model, task_model, task_source_name, task_arguments
 
-                @period = options[:period]
+                @period      = options[:period]
                 @sample_size = options[:sample_size]
+                @device_id   = options[:device_id]
             end
 
             def instanciate(engine)
                 task_model.instanciate(engine, task_arguments)
+            end
+
+            dsl_attribute(:period) { |v| Float(v) }
+            dsl_attribute(:sample_size) { |v| Integer(v) }
+            dsl_attribute(:device_id) do |*values|
+                if values.size > 1
+                    values
+                else
+                    values.first
+                end
             end
         end
 
@@ -160,7 +175,7 @@ module Orocos
                     name, device_model, device_options,
                     task_model, task_source_name, task_arguments)
 
-                task_model
+                devices[name]
             end
         end
 
