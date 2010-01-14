@@ -944,7 +944,7 @@ module Orocos
                         end
 
                         if sink_port.required_connection_type == :data || !sink_port.needs_reliable_connection?
-                            policy[:type] = :data
+                            policy.merge! Port.validate_policy(:type => :data)
                             next
                         end
 
@@ -978,6 +978,7 @@ module Orocos
                         end
 
                         policy[:size] = size
+                        policy.merge! Port.validate_policy(policy)
                     end
                 end
             end
