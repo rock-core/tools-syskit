@@ -170,5 +170,31 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         assert(!SystemTest::CanBus.dynamic_input_port?('motors'))
         assert(SystemTest::CanBus.dynamic_input_port?('motorsw'))
     end
+
+    def test_update_connection_policy
+        old_policy = { :type => :data, :init => true }
+        new_policy = { :type => :data, :init => true }
+        assert_equal(Orocos::Port.validate_policy(old_policy), Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+
+        old_policy = { :type => :data, :init => true }
+        new_policy = { :type => :data, :init => true, :pull => true }
+        assert_equal(nil, Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+
+        old_policy = { :type => :data, :init => true }
+        new_policy = { :type => :data, :init => false }
+        assert_equal(nil, Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+
+        old_policy = { :type => :data }
+        new_policy = { :type => :data, :init => false }
+        assert_equal(Orocos::Port.validate_policy(old_policy), Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+
+        old_policy = { :type => :buffer, :size => 2 }
+        new_policy = { :type => :buffer, :size => 1 }
+        assert_equal(Orocos::Port.validate_policy(old_policy), Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+
+        old_policy = { :type => :buffer, :size => 1 }
+        new_policy = { :type => :buffer, :size => 2 }
+        assert_equal(Orocos::Port.validate_policy(new_policy), Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+    end
 end
 

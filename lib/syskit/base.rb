@@ -500,6 +500,34 @@ module Orocos
                 end
                 self
             end
+
+        end
+
+        module Flows
+            def DataFlow.update_connection_policy(old, new)
+                old = Port.validate_policy(old)
+                new = Port.validate_policy(new)
+                return if old[:type] != new[:type]
+                type = old[:type]
+
+                if type == :buffer
+                    if new.size != old.size
+                        return
+                    end
+
+                    old.merge(new) do |key, old_value, new_value|
+                        if key == :size
+                            [old_value, new_value].max
+                        elsif old_value != new_value
+                            return
+                        else
+                            old_value
+                        end
+                    end
+                elsif old == new.slice(*old.keys)
+                    new
+                end
+            end
         end
     end
 end
