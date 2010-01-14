@@ -209,7 +209,7 @@ module Orocos
                 attr_reader :state_events
             end
             def state_event(name)
-                self.class.state_events[name]
+                model.state_events[name]
             end
 
             def ids; arguments[:ids] end
