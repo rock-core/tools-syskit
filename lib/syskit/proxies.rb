@@ -212,7 +212,6 @@ module Orocos
                 model.state_events[name]
             end
 
-            def ids; arguments[:ids] end
 
             def executable?
                 !!@orogen_spec && super
