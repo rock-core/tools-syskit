@@ -932,7 +932,7 @@ module Orocos
 
                 all_tasks.each do |source_task|
                     source_task.each_concrete_output_connection do |source_port_name, sink_port_name, sink_task, policy|
-                        # Check if the policy is already set
+                        # Don't do anything if the policy has already been set
                         next if !policy.empty?
 
                         source_port = source_task.output_port_model(source_port_name)
