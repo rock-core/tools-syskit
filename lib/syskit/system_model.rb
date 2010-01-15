@@ -83,29 +83,45 @@ module Orocos
 
                 device_model = DeviceDriver.new_submodel(name)
 
-                if parent = options[:provides]
-                    if parent.respond_to?(:to_str)
-                        parent = Orocos::RobyPlugin::Interfaces.const_get(parent.camelcase(true))
+                if parents = options[:provides]
+                    parents = [*parents].map do |parent|
+                        if parent.respond_to?(:to_str)
+                            Orocos::RobyPlugin::Interfaces.const_get(parent.camelcase(true))
+                        else
+                            parent
+                        end
                     end
-                    if !(parent < DataSource)
-                        raise ArgumentError, "#{parent} is not an interface model"
+                    parents.delete_if do |parent|
+                        parents.any? { |p| p < parent }
+                    end
+
+                    bad_models = parents.find_all { |p| !(p < DataSource) }
+                    if !bad_models.empty?
+                        raise ArgumentError, "#{bad_models.map(&:name).join(", ")} are not interface models"
                     end
 
                 elsif options[:provides].nil?
                     begin
-                        parent = Orocos::RobyPlugin::Interfaces.const_get(const_name)
+                        parents = [Orocos::RobyPlugin::Interfaces.const_get(const_name)]
                     rescue NameError
-                        parent = self.data_source_type(name, :interface => options[:interface])
+                        parents = [self.data_source_type(name, :interface => options[:interface])]
                     end
                 end
 
-                if parent
-                    device_model.include parent
-                    if parent_spec = parent.interface
-                        child_spec = device_model.create_orogen_interface
-                        child_spec.subclasses parent_spec.name
-                        device_model.instance_variable_set :@orogen_spec, child_spec
+                if parents
+                    parents.each { |p| device_model.include(p) }
+
+                    interfaces = parents.find_all { |p| p.interface }
+                    child_spec = device_model.create_orogen_interface
+                    if !interfaces.empty?
+                        first_interface = interfaces.shift
+                        child_spec.subclasses first_interface.interface.name
+                        interfaces.each do |p|
+                            child_spec.implements p.interface.name
+                            child_spec.merge_ports_from(p.interface)
+                        end
                     end
+                    device_model.instance_variable_set :@orogen_spec, child_spec
                 end
 
                 register_device_driver(device_model)
