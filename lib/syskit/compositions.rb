@@ -343,12 +343,10 @@ module Orocos
                             same_name = out_ports.find_all { |_, out_port_name| out_port_name == in_port_name }
                             if same_name.size == 1
                                 out_ports = same_name
+                            else
+                                out_port_names = out_ports.map { |child_name, port_name| "#{child_name}.#{port_name}" }
+                                raise Ambiguous, "multiple output candidates in #{name} for #{in_child_name}.#{in_port_name} (of type #{typename}): #{out_port_names.join(", ")}"
                             end
-                        end
-
-                        if out_ports.size > 1
-                            out_port_names = out_ports.map { |child_name, port_name| "#{child_name}.#{port_name}" }
-                            raise Ambiguous, "multiple output candidates in #{name} for #{in_child_name}.#{in_port_name} (of type #{typename}): #{out_port_names.join(", ")}"
                         end
 
                         out_port = out_ports.first
