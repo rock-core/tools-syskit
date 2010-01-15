@@ -33,8 +33,11 @@ if remaining.size != 1
     exit(1)
 end
 
-Roby.app.setup
-Roby.app.apply_orocos_deployment(remaining.first)
+Roby.filter_backtrace do
+    Roby.app.setup
+    Roby.app.apply_orocos_deployment(remaining.first)
+end
+
 case output_type
 when "txt"
     pp Roby.app.orocos_engine

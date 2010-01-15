@@ -11,8 +11,11 @@ Roby.app.using 'orocos'
 if ARGV[0] == "--all"
     Roby.app.orocos_load_component_extensions = false
 end
-Roby.app.setup
-Roby.app.orogen_load_all
+
+Roby.filter_backtrace do
+    Roby.app.setup
+    Roby.app.orogen_load_all
+end
 
 layout = Hash.new { |h, k| h[k] = Array.new }
 
