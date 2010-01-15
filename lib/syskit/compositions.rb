@@ -356,6 +356,16 @@ module Orocos
                     end
                 end
 
+                RobyPlugin.debug do
+                    RobyPlugin.debug "Automatic connections in #{self}"
+                    result.each do |(out_child, in_child), connections|
+                        connections.each do |(out_port, in_port), policy|
+                            RobyPlugin.debug "    #{out_child}:#{out_port} => #{in_child}:#{in_port} (#{policy})"
+                        end
+                    end
+                    break
+                end
+
                 self.automatic_connections = result
             end
 

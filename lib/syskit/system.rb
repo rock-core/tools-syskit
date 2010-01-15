@@ -923,7 +923,7 @@ module Orocos
                         finished
                     end
                     if !did_something
-                        Engine.warn "WARN: cannot compute port periods for:"
+                        Engine.warn "cannot compute port periods for:"
                         remaining.each do |task|
                             port_names = task.model.each_input.map(&:name) + task.model.each_output.map(&:name)
                             port_names.delete_if { |port_name| result[task].has_key?(port_name) }
@@ -943,6 +943,7 @@ module Orocos
                 all_tasks = plan.find_local_tasks(Component).
                     to_value_set
 
+                Engine.debug "computing connections"
                 all_tasks.each do |source_task|
                     source_task.each_concrete_output_connection do |source_port_name, sink_port_name, sink_task, policy|
                         # Don't do anything if the policy has already been set
@@ -973,22 +974,24 @@ module Orocos
                                               [sink_task.minimal_period, sink_task.trigger_latency].max
                                           end
 
-                        Engine.debug { "#{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name} [#{input_dynamics.period} => #{reading_latency}]" }
+                        Engine.debug { "   #{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name}" }
+                        Engine.debug { "     input_period:#{input_dynamics.period} => reading_latency:#{reading_latency}" }
                         policy[:type] = :buffer
 
                         latency_cycles = (reading_latency / input_dynamics.period).ceil
 
                         size = latency_cycles * (input_dynamics.sample_size || source_port.sample_size)
-                        Engine.debug { "  #{latency_cycles} #{input_dynamics.sample_size} #{size}" }
                         if burst_size = source_port.burst_size
                             burst_period = source_port.burst_period
-                            Engine.debug { "   burst: #{burst_size} every #{burst_period}" }
+                            Engine.debug { "     burst: #{burst_size} every #{burst_period}" }
                             if burst_period == 0
                                 size = [1 + burst_size, size].max
                             else
                                 size += (Float(latency_cycles) / burst_period).ceil * burst_size
                             end
                         end
+
+                        Engine.debug { "     latency:#{latency_cycles} cycles, sample_size:#{input_dynamics.sample_size}, buffer_size:#{size}" }
 
                         policy[:size] = size
                         policy.merge! Port.validate_policy(policy)
