@@ -262,9 +262,26 @@ module Orocos
                 end
             end
 
-            def compute_autoconnection
+            def reset_autoconnection
+                self.automatic_connections = nil
+                if superclass.respond_to?(:reset_autoconnection)
+                    superclass.reset_autoconnection
+                end
+            end
+
+            def compute_autoconnection(force = false)
+                if superclass.respond_to?(:compute_autoconnection)
+                    superclass.compute_autoconnection(force)
+                end
+
                 if @autoconnect && !@autoconnect.empty?
-                    do_autoconnect(@autoconnect)
+                    if force || !automatic_connections
+                        do_autoconnect(@autoconnect)
+                    else
+                        self.automatic_connections = Hash.new
+                    end
+                else
+                    self.automatic_connections = Hash.new
                 end
             end
 
@@ -344,6 +361,9 @@ module Orocos
 
             def connections
                 result = Hash.new { |h, k| h[k] = Hash.new }
+
+                compute_autoconnection
+
                 # In the following, 'key' is [child_source, child_dest] and
                 # 'mappings' is [port_source, port_sink] => connection_policy
                 each_automatic_connection do |key, mappings|

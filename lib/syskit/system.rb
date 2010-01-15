@@ -306,9 +306,7 @@ module Orocos
                 self.tasks.clear
 
                 Orocos::RobyPlugin::Compositions.each do |composition_model|
-                    if composition_model.respond_to?(:compute_autoconnection)
-                        composition_model.compute_autoconnection
-                    end
+                    composition_model.reset_autoconnection
                 end
 
                 robot.devices.each do |name, device_instance|
