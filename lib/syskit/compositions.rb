@@ -328,6 +328,12 @@ module Orocos
                 # Now create the connections
                 child_inputs.each do |typename, in_ports|
                     in_ports.each do |in_child_name, in_port_name|
+                        # Ignore this port if there is an explicit inbound connection that involves it
+                        has_explicit_connection = each_explicit_connection.any? do |(child_source, child_dest), mappings|
+                            child_source == in_child_name && mappings.keys.include? { |p, _| p == in_port_name }
+                        end
+                        next if has_explicit_connection
+
                         # Now remove the potential connections to the same child
                         out_ports = child_outputs[typename]
                         out_ports.delete_if do |out_child_name, out_port_name|
