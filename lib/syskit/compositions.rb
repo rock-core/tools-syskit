@@ -861,7 +861,8 @@ module Orocos
         module Compositions
             def self.each
                 constants.each do |name|
-                    yield(const_get(name))
+                    value = const_get(name)
+                    yield(value) if value < RobyPlugin::Composition
                 end
             end
         end
