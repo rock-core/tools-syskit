@@ -337,14 +337,28 @@ module Orocos
                 output_ports = Hash.new { |h, k| h[k] = Set.new }
                 input_ports  = Hash.new { |h, k| h[k] = Set.new }
                 all_tasks = ValueSet.new
-                plan.find_local_tasks(Component).each do |task|
-                    all_tasks << task
-                    task.each_sink do |target_task, connections|
-                        connections.each do |(source_port, sink_port), policy|
-                            output_ports[task] << source_port
-                            input_ports[target_task]  << sink_port
+                plan.find_local_tasks(Component).each do |source_task|
+                    all_tasks << source_task
+                    if !source_task.kind_of?(Composition)
+                        source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
+                            output_ports[source_task] << source_port
+                            input_ports[sink_task]    << sink_port
 
-                            result << "  #{task.object_id}:#{source_port} -> #{target_task.object_id}:#{sink_port} [label=\"#{policy}\"];"
+                            policy_s = if policy.empty? then ""
+                                       elsif policy[:type] == :data then 'data'
+                                       else "buffer:#{policy[:size]}"
+                                       end
+
+                            result << "  #{source_task.object_id}:#{source_port} -> #{sink_task.object_id}:#{sink_port} [label=\"#{policy_s}\"];"
+                        end
+                    end
+                    source_task.each_sink do |sink_task, connections|
+                        next if !sink_task.kind_of?(Composition) && !source_task.kind_of?(Composition)
+                        connections.each do |(source_port, sink_port), _|
+                            output_ports[source_task] << source_port
+                            input_ports[sink_task]    << sink_port
+
+                            result << "  #{source_task.object_id}:#{source_port} -> #{sink_task.object_id}:#{sink_port} [style=dashed];"
                         end
                     end
                 end
@@ -353,11 +367,12 @@ module Orocos
                     task_label = task.to_s.
                         gsub(/\s+/, '').gsub('=>', ':').
                         gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n')
-                    if task.execution_agent
-                        task_label << "[E]"
-                    elsif task.abstract?
-                        task_label << "[A]"
-                    end
+                    task_flags = []
+                    task_flags << "D" if task.execution_agent
+                    task_flags << "E" if task.executable?
+                    task_flags << "A" if task.abstract?
+                    task_flags << "C" if task.kind_of?(Composition)
+                    task_label << "[#{task_flags.join(",")}]"
 
                     inputs  = input_ports[task].to_a.sort
                     outputs = output_ports[task].to_a.sort
