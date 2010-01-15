@@ -941,7 +941,7 @@ module Orocos
             def compute_connection_policies
                 port_periods = self.port_periods
 
-                all_tasks = plan.find_local_tasks(Component).
+                all_tasks = plan.find_local_tasks(TaskContext).
                     to_value_set
 
                 Engine.debug "computing connections"
