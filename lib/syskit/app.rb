@@ -5,6 +5,29 @@ module Orocos
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
         module Application
+            def self.resolve_constants(const_name, context, namespaces)
+                candidates = ([context] + namespaces).
+                    compact.
+                    find_all do |namespace|
+                        namespace.const_defined?(const_name)
+                    end
+
+                if candidates.size > 1 && candidates.first != context
+                    raise "#{const_name} can refer to multiple models: #{candidates.map { |mod| "#{mod.name}::#{const_name}" }.join(", ")}. Please choose one explicitely"
+                elsif candidates.empty?
+                    raise NameError, "uninitialized constant #{const_name}", caller(3)
+                end
+                candidates.first.const_get(const_name)
+            end
+
+            module RobotExtension
+                def devices(&block)
+                    Kernel.eval_dsl_block(block, Roby.app.orocos_engine.robot, [DeviceDrivers], false) do |const_name, context|
+                        Application.resolve_constants(const_name, context || DeviceDrivers, [DeviceDrivers])
+                    end
+                end
+            end
+
             # The set of loaded orogen projects, as a mapping from the project
             # name to the corresponding TaskLibrary instance
             #
@@ -32,6 +55,8 @@ module Orocos
 
             def self.load(app, options)
                 app.orocos_load_component_extensions = true
+
+                ::Robot.extend Application::RobotExtension
             end
 
             # Returns true if the given orogen project has already been loaded
@@ -67,7 +92,7 @@ module Orocos
                     file = File.join('tasks', 'orocos', "#{name}.rb")
                     if File.exists?(file)
                         RobyPlugin.debug "loading #{file}"
-                        load_system_model(file)
+                        Application.load_task_extension(file, self)
                     end
                 end
 
@@ -125,7 +150,7 @@ module Orocos
                     app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'orocos').to_a)
                 task_models.each do |path|
                     if project_names.include?(File.basename(path, ".rb"))
-                        app.load_system_model(path)
+                        load_task_extension(path, app)
                     end
                 end
             end
@@ -169,30 +194,24 @@ module Orocos
                 @main_orogen_project = project
             end
 
-            def resolve_constants(const_name, context)
-                candidates = [context, Interfaces, Compositions, DeviceDrivers].
-                    compact.
-                    find_all do |namespace|
-                        namespace.const_defined?(const_name)
-                    end
-
-                if candidates.size > 1 && candidates.first != context && candidates != [Interfaces, DeviceDrivers]
-                    raise "#{const_name} can refer to multiple models: #{candidates.map { |mod| "#{mod.name}::#{const_name}" }.join(", ")}. Please choose one explicitely"
-                elsif candidates.empty?
-                    raise NameError, "uninitialized constant #{const_name}", caller(3)
+            def self.load_task_extension(file, app)
+                Kernel.eval_dsl_file(file, Roby.app.orocos_system_model, [], false) do |const_name, context|
+                    namespaces = [Orocos::RobyPlugin, DeviceDrivers, Interfaces, Compositions]
+                    Application.resolve_constants(const_name, context || Orocos::RobyPlugin, namespaces)
                 end
-                candidates.first.const_get(const_name)
             end
 
             def load_system_model(file)
-                Kernel.load_dsl_file_eval(file, orocos_system_model, [Orocos::RobyPlugin], false) do |const_name, context|
-                    resolve_constants(const_name, context)
+                Kernel.eval_dsl_file(file, orocos_system_model, [], false) do |const_name, context|
+                    namespaces = [Interfaces, Compositions, DeviceDrivers, Orocos::RobyPlugin]
+                    Application.resolve_constants(const_name, context, namespaces)
                 end
             end
 
             def load_system_definition(file)
-                Kernel.load_dsl_file_eval(file, orocos_engine, [Orocos::RobyPlugin], false) do |const_name, context|
-                    resolve_constants(const_name, context)
+                Kernel.eval_dsl_file(file, orocos_engine, [], false) do |const_name, context|
+                    namespaces = [Interfaces, Compositions, DeviceDrivers]
+                    Application.resolve_constants(const_name, context || Orocos::RobyPlugin, namespaces)
                 end
             end
 
