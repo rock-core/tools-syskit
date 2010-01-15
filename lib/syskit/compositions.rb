@@ -268,19 +268,26 @@ module Orocos
                 end
             end
 
-            # Automatically compute the connections that can be done in the
-            # limits of this composition, and returns the set.
+            # Automatically compute connections between the childrens listed in
+            # children_names. The connections are first determined by port
+            # direction and type, and then disambiguated by port name. An input
+            # port will never be connected by this method to more than one
+            # output.
             #
-            # Connections are determined by port direction and type name.
+            # If an input port is involved in an explicit connection, it will
+            # be ignored.
             #
-            # It raises AmbiguousConnections if autoconnection does not know
-            # what to do.
+            # It raises Ambiguous if there is more than one candidate for an
+            # input port.
             def do_autoconnect(children_names)
                 result = Hash.new { |h, k| h[k] = Hash.new }
+
+                # First, gather per-type available inputs and outputs. Both
+                # hashes are:
+                #
+                #   port_type_name => [[child_name, child_port_name], ...]
                 child_inputs  = Hash.new { |h, k| h[k] = Array.new }
                 child_outputs = Hash.new { |h, k| h[k] = Array.new }
-
-                # Gather all child input and outputs
                 children_names.each do |name|
                     dependent_models = find_child(name)
                     seen = Set.new
@@ -301,16 +308,19 @@ module Orocos
                     end
                 end
 
-                # Make sure there is only one input for one output, and add the
-                # connections
+                # Now create the connections
                 child_inputs.each do |typename, in_ports|
                     in_ports.each do |in_child_name, in_port_name|
+                        # Now remove the potential connections to the same child
                         out_ports = child_outputs[typename]
                         out_ports.delete_if do |out_child_name, out_port_name|
                             out_child_name == in_child_name
                         end
                         next if out_ports.empty?
 
+                        # If it is ambiguous, check first if there is only one
+                        # candidate that has the same name. If there is one,
+                        # pick it. Otherwise, raise an Ambiguous exception
                         if out_ports.size > 1
                             # Check for port name
                             same_name = out_ports.find_all { |_, out_port_name| out_port_name == in_port_name }
@@ -345,6 +355,19 @@ module Orocos
                 result
             end
 
+            # Export the given port to the boundary of the composition (it
+            # becomes a composition port). By default, the composition port has
+            # the same name than the exported port. This name can be overriden
+            # by the :as option
+            #
+            # Example usage:
+            #    
+            #    composition 'Test' do
+            #       source = add 'Source'
+            #       export source.output
+            #       export source.output, :as => 'output2'
+            #    end
+            #
             def export(port, options = Hash.new)
                 options = Kernel.validate_options options, :as => port.name
                 name = options[:as].to_str
@@ -362,21 +385,60 @@ module Orocos
                 end
             end
 
-            def port(name)
-                name = name.to_str
-                output_port(name) || input_port(name)
-            end
-
-            def output_port(name); find_output(name) end
-            def input_port(name); find_input(name) end
-            def dynamic_input_port?(name); false end
-            def dynamic_output_port?(name); false end
-
+            # Returns true if +port_model+, which has to be a child's port, is
+            # exported in this composition
+            #
+            # See #export
+            #
+            # Example usage:
+            #
+            #   child = Compositions::Test['Source']
+            #   Compositions::Test.exported_port?(child.output)
             def exported_port?(port_model)
                 each_output.find { |_, p| port_model == p } ||
                     each_input.find { |_, p| port_model == p }
             end
 
+            # Returns the port named 'name' in this composition
+            #
+            # See #export to create ports on a composition
+            def port(name)
+                name = name.to_str
+                output_port(name) || input_port(name)
+            end
+
+            # Returns the composition's output port named 'name'
+            #
+            # See #port, and #export to create ports on a composition
+            def output_port(name); find_output(name) end
+
+            # Returns the composition's input port named 'name'
+            #
+            # See #port, and #export to create ports on a composition
+            def input_port(name); find_input(name) end
+
+            # Returns true if +name+ is a valid dynamic input port.
+            #
+            # On a composition, it always returns false. This method is defined
+            # for consistency for the other kinds of Component objects.
+            def dynamic_input_port?(name); false end
+
+            # Returns true if +name+ is a valid dynamic output port.
+            #
+            # On a composition, it always returns false. This method is defined
+            # for consistency for the other kinds of Component objects.
+            def dynamic_output_port?(name); false end
+
+            # Explicitly create the given connections between children of this
+            # composition.
+            #
+            # Example:
+            #   composition 'Test' do
+            #       source = add 'Source'
+            #       sink   = add 'Sink'
+            #       connect source.output => sink.input, :type => :buffer
+            #
+            # See #autoconnect for automatic connection handling
             def connect(mappings)
                 options = Hash.new
                 mappings.delete_if do |a, b|
@@ -392,7 +454,7 @@ module Orocos
                 end
             end
 
-            def apply_port_mappings(connections, child_name, port_mappings)
+            def apply_port_mappings(connections, child_name, port_mappings) # :nodoc:
                 connections.each do |(out_name, in_name), mappings|
                     mapped_connections = Hash.new
 
@@ -425,7 +487,7 @@ module Orocos
 
             # In the explicit selection phase, try to find a composition that
             # matches +selection+ for +child_name+
-            def find_selected_compositions(engine, child_name, selection)
+            def find_selected_compositions(engine, child_name, selection) # :nodoc:
                 subselection = Hash.new
                 selection_children = Array.new
                 selection.each do |name, model|
@@ -482,7 +544,7 @@ module Orocos
             #   be a task model (as a class object) or a task instance (as a
             #   Component instance).
             #
-            def find_selected_model_and_task(engine, child_name, selection)
+            def find_selected_model_and_task(engine, child_name, selection) # :nodoc:
                 dependent_model = find_child(child_name)
 
                 # First, simply check for the child's name
@@ -548,7 +610,7 @@ module Orocos
             # composition.
             #
             # See also #acceptable_selection?
-            def verify_acceptable_selection(child_name, selected_model)
+            def verify_acceptable_selection(child_name, selected_model) # :nodoc:
                 dependent_model = find_child(child_name)
                 if !dependent_model
                     raise ArgumentError, "#{child_name} is not the name of a child of #{self}"
@@ -568,7 +630,7 @@ module Orocos
             # +child_name+ on +self+
             #
             # See also #verify_acceptable_selection
-            def acceptable_selection?(child_name, selected_child)
+            def acceptable_selection?(child_name, selected_child) # :nodoc:
                 verify_acceptable_selection(child_name, selected_child)
                 true
             rescue SpecError
@@ -586,7 +648,7 @@ module Orocos
             #
             #   source_port_name => child_port_name
             #
-            def compute_port_mapping_for_selection(selected_object_name, child_model, data_sources)
+            def compute_port_mapping_for_selection(selected_object_name, child_model, data_sources) # :nodoc:
                 port_mappings = Hash.new
 
                 if selected_object_name
@@ -620,7 +682,7 @@ module Orocos
             #
             # +child_task+ will be non-nil only if the user specifically
             # selected a task.
-            def filter_selection(engine, selection)
+            def filter_selection(engine, selection) # :nodoc:
                 result = Hash.new
                 each_child do |child_name, dependent_model|
                     selected_object_name, child_model, child_task =
@@ -642,6 +704,33 @@ module Orocos
                 result
             end
 
+            # Returns a Composition task with instanciated children. If
+            # specializations have been specified on this composition, the
+            # return task will be of the most specialized model that matches the
+            # selection. See #specialize for more information.
+            #
+            # The :selection argument, if set, specifies explicit selections for
+            # the composition's children. In its generality, the argument is a
+            # hash which maps a child selector to a selected model.
+            #
+            # The selected model can be:
+            # * a task, device driver or interface model
+            # * a device name
+            # * a task name as given to Engine#add
+            #
+            # In any case, the selected model must be compatible with the
+            # child's definition and the additional constraints that have been
+            # specified on it (see #constrain).
+            #
+            # The child selector can be (by order of precedence)
+            # * a child name
+            # * a child_name.child_of_child_name construct. In that case, the
+            #   engine will search for a composition that can be used in place
+            #   of +child_name+, and has a +child_name_of_child+ child that
+            #   matches the selection.
+            # * a child model or model name, in which case it will match the
+            #   children of +self+ whose definition matches the given model.
+            #
             def instanciate(engine, arguments = Hash.new)
                 arguments, task_arguments = Model.filter_instanciation_arguments(arguments)
                 user_selection = arguments[:selection]
