@@ -52,6 +52,8 @@ module Orocos
                     child_spec = model.create_orogen_interface
                     child_spec.subclasses interface.name
                     model.instance_variable_set :@orogen_spec, child_spec
+                else
+                    model.instance_variable_set :@orogen_spec, model.create_orogen_interface
                 end
                 model
             end
