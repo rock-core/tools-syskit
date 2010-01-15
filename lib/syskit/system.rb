@@ -468,6 +468,7 @@ module Orocos
 
                     link_to_busses
                     compute_connection_policies
+                    trsc.static_garbage_collect
 
                     trsc.commit_transaction
                 end
