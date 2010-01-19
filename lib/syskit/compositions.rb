@@ -137,6 +137,13 @@ module Orocos
             Specialization = Struct.new :specialized_children, :composition
 
             def specialize(child_name, child_model, &block)
+                if child_name.kind_of?(Module)
+                    candidates = each_child.find_all { |name, model| model.include?(child_name) }
+                    if candidates.size == 1
+                        child_name = candidates[0][0]
+                    end
+                end
+
                 child_name = if child_name.respond_to?(:to_str)
                                  child_name.to_str
                              else
