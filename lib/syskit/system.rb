@@ -465,10 +465,10 @@ module Orocos
                     merge_identical_tasks
 
                     validate_result(trsc)
-
                     link_to_busses
-                    compute_connection_policies
+
                     trsc.static_garbage_collect
+                    compute_connection_policies
 
                     trsc.commit_transaction
                 end
