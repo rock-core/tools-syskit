@@ -948,7 +948,11 @@ module Orocos
                 all_tasks.each do |source_task|
                     source_task.each_concrete_output_connection do |source_port_name, sink_port_name, sink_task, policy|
                         # Don't do anything if the policy has already been set
-                        next if !policy.empty?
+                        if !policy.empty?
+                            Engine.debug " #{source_task}:#{source_port_name} => #{sink_task}:#{sink_port_name} already connected with #{policy}"
+                            next
+                        end
+
 
                         source_port = source_task.output_port_model(source_port_name)
                         sink_port   = sink_task.input_port_model(sink_port_name)
@@ -957,9 +961,11 @@ module Orocos
                         elsif !sink_port
                             raise InternalError, "#{sink_port_name} is not a port of #{sink_task.model}"
                         end
+                        Engine.debug { "   #{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name}" }
 
                         if sink_port.required_connection_type == :data || !sink_port.needs_reliable_connection?
                             policy.merge! Port.validate_policy(:type => :data)
+                            Engine.debug { "     result: #{policy}" }
                             next
                         end
 
@@ -975,7 +981,6 @@ module Orocos
                                               [sink_task.minimal_period, sink_task.trigger_latency].max
                                           end
 
-                        Engine.debug { "   #{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name}" }
                         Engine.debug { "     input_period:#{input_dynamics.period} => reading_latency:#{reading_latency}" }
                         policy[:type] = :buffer
 
@@ -996,6 +1001,7 @@ module Orocos
 
                         policy[:size] = size
                         policy.merge! Port.validate_policy(policy)
+                        Engine.debug { "     result: #{policy}" }
                     end
                 end
             end
