@@ -522,10 +522,11 @@ module Orocos
             # In the explicit selection phase, try to find a composition that
             # matches +selection+ for +child_name+
             def find_selected_compositions(engine, child_name, selection) # :nodoc:
-                subselection = Hash.new
+                subselection = selection.dup
                 selection_children = Array.new
                 selection.each do |name, model|
                     if name =~ /^#{child_name}\.(.+)/ 
+                        subselection.delete(name)
                         name = $1
                         selection_children << name.gsub(/\..*/, '')
                     end
