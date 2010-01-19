@@ -38,6 +38,9 @@ module Orocos
             def import_types_from(*names)
                 Roby.app.main_orogen_project.import_types_from(*names)
             end
+            def load_system_model(name)
+                Roby.app.load_system_model(name)
+            end
             def using_task_library(*names)
                 names.each do |n|
                     Roby.app.load_orogen_project(n)
