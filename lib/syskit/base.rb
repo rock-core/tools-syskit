@@ -451,7 +451,13 @@ module Orocos
                 each_input_connection(required_port) do |source_task, source_port, sink_port, policy|
                     # Follow the forwardings while +sink_task+ is a composition
                     if source_task.kind_of?(Composition)
-                        source_task.each_concrete_input_connection(source_port) do |source_task, source_port, _, policy|
+                        source_task.each_concrete_input_connection(source_port) do |source_task, source_port, _, connection_policy|
+                            begin
+                                policy = Flows::DataFlow.update_connection_policy(policy, connection_policy)
+                            rescue ArgumentError => e
+                                raise SpecError, "incompatible policies in input chain for #{self}:#{sink_port}: #{e.message}"
+                            end
+
                             yield(source_task, source_port, sink_port, policy)
                         end
                     else
@@ -469,7 +475,12 @@ module Orocos
                 each_output_connection(required_port) do |source_port, sink_port, sink_task, policy|
                     # Follow the forwardings while +sink_task+ is a composition
                     if sink_task.kind_of?(Composition)
-                        sink_task.each_concrete_output_connection(sink_port) do |_, sink_port, sink_task, policy|
+                        sink_task.each_concrete_output_connection(sink_port) do |_, sink_port, sink_task, connection_policy|
+                            begin
+                                policy = Flows::DataFlow.update_connection_policy(policy, connection_policy)
+                            rescue ArgumentError => e
+                                raise SpecError, "incompatible policies in output chain for #{self}:#{source_port}: #{e.message}"
+                            end
                             yield(source_port, sink_port, sink_task, policy)
                         end
                     else
@@ -505,21 +516,29 @@ module Orocos
 
         module Flows
             def DataFlow.update_connection_policy(old, new)
+                if old.empty?
+                    return new
+                elsif new.empty?
+                    return old
+                end
+
                 old = Port.validate_policy(old)
                 new = Port.validate_policy(new)
-                return if old[:type] != new[:type]
+                if old[:type] != new[:type]
+                    raise ArgumentError, "connection types mismatch: #{old[:type]} != #{new[:type]}"
+                end
                 type = old[:type]
 
                 if type == :buffer
                     if new.size != old.size
-                        return
+                        raise ArgumentError, "connection policy mismatch: #{old} != #{new}"
                     end
 
                     old.merge(new) do |key, old_value, new_value|
                         if key == :size
                             [old_value, new_value].max
                         elsif old_value != new_value
-                            return
+                            raise ArgumentError, "connection policy mismatch for #{key}: #{old_value} != #{new_value}"
                         else
                             old_value
                         end
