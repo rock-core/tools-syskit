@@ -202,6 +202,9 @@ module Orocos
             end
 
             def load_system_model(file)
+                if !File.exists?(file) && File.exists?("#{file}.rb")
+                    file = "#{file}.rb"
+                end
                 Kernel.eval_dsl_file(file, orocos_system_model, [], false) do |const_name, context|
                     namespaces = [Interfaces, Compositions, DeviceDrivers, Orocos::RobyPlugin]
                     Application.resolve_constants(const_name, context, namespaces)
