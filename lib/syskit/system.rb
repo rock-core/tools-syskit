@@ -346,7 +346,8 @@ module Orocos
 
                             policy_s = if policy.empty? then ""
                                        elsif policy[:type] == :data then 'data'
-                                       else "buffer:#{policy[:size]}"
+                                       elsif policy[:type] == :buffer then  "buffer:#{policy[:size]}"
+                                       else policy.to_s
                                        end
 
                             result << "  #{source_task.object_id}:#{source_port} -> #{sink_task.object_id}:#{sink_port} [label=\"#{policy_s}\"];"
