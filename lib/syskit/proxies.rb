@@ -479,10 +479,6 @@ module Orocos
             # event will be emitted when the it has successfully been
             # configured and started.
             event :start do
-                if !(deployment = execution_agent)
-                    raise "TaskContext tasks must be supported by a Deployment task"
-                end
-
                 # We're not running yet, so we have to read the state ourselves.
                 state = read_current_state
 
