@@ -109,12 +109,20 @@ module Orocos
             end
 
             poll do
+                if started?
+                    if !orogen_deployment.running?
+                        if !ready?
+                            emit :failed
+                        else emit :stop
+                        end
+                        return
+                    end
+                end
+
                 if !ready?
                     if orogen_deployment.wait_running(0)
                         emit :ready
                     end
-                elsif !orogen_deployment.running?
-                    emit :failed
                 end
             end
 

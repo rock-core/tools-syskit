@@ -37,7 +37,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 	    task.start!
 	end
 
-        assert_any_event(task.failed_event) do
+        assert_any_event(task.stop_event) do
             task.orogen_deployment.kill(true, 'ABRT')
         end
     end
