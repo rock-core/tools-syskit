@@ -21,9 +21,17 @@ module Orocos
             end
 
             module RobotExtension
+                def each_device(&block)
+                    Roby.app.orocos_engine.robot.devices.each_value(&block)
+                end
+
                 def devices(&block)
-                    Kernel.eval_dsl_block(block, Roby.app.orocos_engine.robot, [DeviceDrivers], false) do |const_name, context|
-                        Application.resolve_constants(const_name, context || DeviceDrivers, [DeviceDrivers])
+                    if block
+                        Kernel.eval_dsl_block(block, Roby.app.orocos_engine.robot, [DeviceDrivers], false) do |const_name, context|
+                            Application.resolve_constants(const_name, context || DeviceDrivers, [DeviceDrivers])
+                        end
+                    else
+                        each_device
                     end
                 end
             end
