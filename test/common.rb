@@ -58,11 +58,11 @@ module RobyPluginCommonTest
         Roby.app.orocos_clear_models
         ::Orocos.instance_variable_set :@registry, Typelib::Registry.new
         ::Orocos::CORBA.instance_variable_set :@loaded_toolkits, []
-        ENV['PKG_CONFIG_PATH'] = @old_pkg_config
-
-        FileUtils.rm_rf Roby.app.log_dir
 
         super
+
+        FileUtils.rm_rf Roby.app.log_dir
+        ENV['PKG_CONFIG_PATH'] = @old_pkg_config
     end
 end
 
