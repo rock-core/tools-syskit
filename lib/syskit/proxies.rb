@@ -231,70 +231,16 @@ module Orocos
             end
 
             def initialize(arguments = Hash.new)
-                @current_input  = Hash.new { |h, k| h[k] = Array.new }
-                @current_output = Hash.new { |h, k| h[k] = Array.new }
 
                 super
             end
 
-            attr_reader :current_input
-            attr_reader :current_output
-
-            def update_current_connections(old, new)
-                old.delete_if do |self_port, old_connections|
-                    if !new.has_key?(self_port)
-                        orogen_task.port(self_port).disconnect_all
-                        next(true)
-                    end
-
-                    old_connections.delete_if do |old_task, old_port, old_policy|
-                        found_equivalent_connection = nil
-                        new[self_port].delete_if do |new_task, new_port, new_policy|
-                            if old_task == new_task && old_port == new_port &&
-                                old_policy == Flows::DataFlow.update_connection_policy(old_policy, new_policy)
-                                found_equivalent_connection = true
-                            end
-                        end
-
-                        if !found_equivalent_connection
-                            orogen_task.port(self_port).disconnect_from(new_task.orogen_task.port(old_port))
-                            true
-                        end
-                    end
-                    connections.empty?
-                end
-            end
-
-            def create_new_connections(new)
-                new.each do |self_port, connections|
-                    self_port = orogen_task.port(self_port)
-                    connections.each do |other_task, other_port, policy|
-                        other_port = other_task.orogen_task.port(other_port)
-                        if other_port.respond_to?(:connect_to)
-                            other_port.connect_to(self_port)
-                            current_input[self_port] << [other_task, other_port, policy]
-                        else
-                            self_port.connect_to(other_port)
-                            current_output[self_port] << [other_task, other_port, policy]
-                        end
                     end
                 end
             end
 
-            def apply_connection_changes
-                new_input = Hash.new { |h, k| h[k] = Array.new }
-                each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    new_input[sink_port] << [source_task, source_port, policy]
-                end
-                new_output = Hash.new { |h, k| h[k] = Array.new }
-                each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                    new_output[source_port] << [sink_task, sink_port, policy]
-                end
 
-                update_current_connections(current_input,  new_input)
-                update_current_connections(current_output, new_output)
-                create_new_connections(new_input)
-                create_new_connections(new_output)
+                end
             end
 
             def executable?

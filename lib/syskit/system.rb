@@ -1007,6 +1007,110 @@ module Orocos
                 end
             end
 
+            def update_current_connections(task, old, new)
+                old.delete_if do |self_port, old_connections|
+                    if !new.has_key?(self_port)
+                        task.orogen_task.port(self_port).disconnect_all
+                        next(true)
+                    end
+
+                    old_connections.delete_if do |old_task, old_port, old_policy|
+                        found_equivalent_connection = nil
+                        new[self_port].delete_if do |new_task, new_port, new_policy|
+                            if old_task == new_task && old_port == new_port &&
+                                old_policy == Flows::DataFlow.update_connection_policy(old_policy, new_policy)
+                                found_equivalent_connection = true
+                            end
+                        end
+
+                        if !found_equivalent_connection
+                            orogen_task.port(self_port).disconnect_from(new_task.orogen_task.port(old_port))
+                            true
+                        end
+                    end
+                    connections.empty?
+                end
+            end
+
+            def create_new_connections(new)
+                new.each do |self_port, connections|
+                    self_port = orogen_task.port(self_port)
+                    connections.each do |other_task, other_port, policy|
+                        STDERR.puts other_task
+                        other_port = other_task.orogen_task.port(other_port)
+                        if other_port.respond_to?(:connect_to)
+                            other_port.connect_to(self_port)
+                            current_input[self_port] << [other_task, other_port, policy]
+                        else
+                            self_port.connect_to(other_port)
+                            current_output[self_port] << [other_task, other_port, policy]
+                        end
+                    end
+                end
+            end
+
+            def registered_connection?(source_task, source_port, sink_task, sink_port)
+                return if !source_task.child_object?(sink_task, Flows::ActualDataFlow)
+                mappings = source_task[sink_task, Flows::ActualDataFlow]
+                mappings.has_key?([source_port, sink_port])
+            end
+
+            def compute_connection_update(new, removed, source_task, source_port, sink_task, sink_port, policy)
+                do_add = true
+                if registered_connection?(source_task, source_port, sink_task, sink_port)
+                    old_policy = source_task[sink_task, Flows::ActualDataFlow][[source_port, sink_port]]
+                    needs_reconnection = begin
+                                             old_policy != Flows::DataFlow.update_connection_policy(old_policy, policy)
+                                         rescue ArgumentError
+                                         end
+                    if needs_reconnection
+                        removed[[source_task, task]] << [source_port, sink_port]
+                    else
+                        do_add = false
+                    end
+                end
+
+                if do_add
+                    current_policy = new[[source_task, sink_task]][[source_port, sink_port]]
+                    if current_policy
+                        new[[source_task, sink_task]][[source_port, sink_port]] =
+                            Flows::DataFlow.update_connection_policy(current_policy. policy)
+                    else
+                        new[[source_task, sink_task]][[source_port, sink_port]] = policy
+                    end
+                end
+            end
+
+            def apply_connection_changes(task)
+                new_connections     = Hash.new { |h, k| h[k] = Hash.new }
+                removed_connections = Hash.new { |h, k| h[k] = Array.new }
+
+                task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
+                    next if !source_task.executable?
+                    compute_connection_update(new_connections, removed_connections,
+                                              source_task, source_port, task, sink_port, policy)
+                end
+                task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
+                    next if !sink_task.executable?
+                    compute_connection_update(new_connections, removed_connections,
+                                              task, source_port, sink_task, sink_port, policy)
+                end
+
+                removed_connections.each do |(from_task, to_task), mappings|
+                    mappings.each do |from_port, to_port|
+                        Engine.info { "disconnecting #{from_task}:#{from_port} => #{to_task}:#{to_port}" }
+                        from_task.orogen_task.port(from_port).disconnect_from(to_task.orogen_task.port(to_port))
+                        Flows.remove_connections(from_task, to_task, [[from_port, to_port]], Flows::ActualDataFlow)
+                    end
+                end
+                new_connections.each do |(from_task, to_task), mappings|
+                    mappings.each do |(from_port, to_port), policy|
+                        Engine.info { "connecting #{from_task}:#{from_port} => #{to_task}:#{to_port} with policy #{policy}" }
+                        from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port))
+                        Flows.add_connections(from_task, to_task, { [from_port, to_port] => policy }, Flows::ActualDataFlow)
+                    end
+                end
+            end
         end
     end
 end

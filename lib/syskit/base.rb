@@ -322,6 +322,34 @@ module Orocos
         end
 
         Flows = Roby::RelationSpace(Component)
+        Flows.relation :ActualDataFlow, :child_name => :actual_sink, :parent_name => :actual_source, :dag => false, :weak => true
+
+        def Flows.add_connections(source_task, sink_task, mappings, relation) # :nodoc:
+            if mappings.empty?
+                raise ArgumentError, "the connection set is empty"
+            end
+            if source_task.child_object?(sink_task, relation)
+                current_mappings = source_task[sink_task, relation]
+                source_task[sink_task, relation] = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
+                    if old_options != new_options
+                        raise Roby::ModelViolation, "cannot override connection setup with #connect_to"
+                    end
+                    old_options
+                end
+            else
+                source_task.add_child_object(sink_task, relation, mappings)
+            end
+        end
+        def Flows.remove_connections(source_task, sink_task, mappings, relation)
+            current_mappings = source_task[sink_task, relation]
+            mappings.each do |source_port, sink_port|
+                current_mappings.delete([source_port, sink_port])
+            end
+            if current_mappings.empty?
+                source_task.remove_child_object(sink_task, relation)
+            end
+        end
+
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false, :weak => true do
             def ensure_has_output_port(name)
                 if !model.output_port(name)
@@ -384,7 +412,7 @@ module Orocos
                     raise ArgumentError, "#{target_task} and #{self} are not related in the Dependency relation"
                 end
 
-                add_connections(target_task, mappings)
+                Flows.add_connections(self, target_task, mappings, Flows::DataFlow)
             end
 
             # Connect a set of ports between +self+ and +target_task+.
@@ -403,25 +431,7 @@ module Orocos
                     target_task.ensure_has_input_port(in_port)
                 end
 
-                add_connections(target_task, mappings)
-            end
-
-            # Helper class for #connect_ports and #forward
-            def add_connections(target_task, mappings) # :nodoc:
-                if mappings.empty?
-                    raise ArgumentError, "the connection set is empty"
-                end
-                if child_object?(target_task, Flows::DataFlow)
-                    current_mappings = self[target_task, Flows::DataFlow]
-                    self[target_task, Flows::DataFlow] = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
-                        if old_options != new_options
-                            raise Roby::ModelViolation, "cannot override connection setup with #connect_to"
-                        end
-                        old_options
-                    end
-                else
-                    add_sink(target_task, mappings)
-                end
+                Flows.add_connections(self, target_task, mappings, Flows::DataFlow)
             end
 
             # Yields the input connections of this task
