@@ -528,6 +528,40 @@ module Orocos
         module DeviceDriver
             argument "com_bus"
 
+            module ClassExtension
+                def each_device(&block)
+                    each_root_data_source.
+                        find_all { |_, model| model < DeviceDriver }.
+                        each(&block)
+                end
+            end
+
+            def robot_device(subname = nil)
+                devices = model.each_device.to_a
+                if !subname
+                    if devices.empty?
+                        raise ArgumentError, "#{self} does not handle any device"
+                    elsif devices.size > 1
+                        raise ArgumentError, "#{self} handles more than one device, you must specify one explicitely"
+                    end
+                else
+                    devices = devices.find_all { |name, _| name == subname }
+                    if devices.empty?
+                        raise ArgumentError, "there is no device called #{subname} on #{self}"
+                    end
+                end
+                interface_name, device_model = *devices.first
+
+                device_name = arguments["#{interface_name}_name"]
+                return if !device_name
+
+                description = ::Robot.devices.find { |d| d.name == device_name }
+                if !description
+                    raise ArgumentError, "there is no device called #{device_name} (selected for #{interface_name} on #{self})"
+                end
+                description
+            end
+
             def bus_name
                 if arguments[:bus_name]
                     arguments[:bus_name]
