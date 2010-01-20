@@ -50,6 +50,39 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         plan.add(task)
     end
 
+    def test_task_executable_flag
+        Roby.app.load_orogen_project "states"
+
+        engine.run
+
+        deployment = Orocos::RobyPlugin::Deployments::States.new
+        task       = deployment.task 'states_Task'
+
+        assert !task.executable?
+        task_exec_flag1, task_exec_flag2, task_exec_flag3 = nil
+
+        deployment.on :start do
+            task_exec_flag1 = task.executable?
+        end
+        deployment.on :ready do
+            task_exec_flag2 = task.executable?
+        end
+        task.singleton_class.class_eval do
+            define_method :configure do
+                task_exec_flag3 = executable?
+            end
+        end
+
+        assert_any_event(deployment.ready_event) do
+            plan.add_permanent(task)
+            deployment.start!
+	end
+
+        assert !task_exec_flag1
+        assert !task_exec_flag2
+        assert !task_exec_flag3
+    end
+
     def test_task_model_definition
         Roby.app.load_orogen_project "echo"
 

@@ -182,22 +182,27 @@ module Orocos
         # updates the running TaskContext tasks.
         def self.update(plan) # :nodoc:
             if !(query = plan.instance_variable_get :@orocos_update_query)
-                query = plan.find_tasks(Orocos::RobyPlugin::TaskContext)
+                query = plan.find_tasks(Orocos::RobyPlugin::TaskContext).
+                    not_finished.not_failed
                 plan.instance_variable_set :@orocos_update_query, query
             end
 
             query.reset
             for t in query
-                if t.running? || t.starting?
-                    t.update_orogen_state
+                next if !t.orogen_task
+
+                if !t.is_setup?
+                    t.setup
                 end
 
-                if t.starting?
-                    if t.orogen_state == :STOPPED && t.orogen_spec.context.needs_configuration?
-                        t.orogen_task.start
+                while t.update_orogen_state
+                    if t.starting?
+                        if t.orogen_state != :STOPPED && t.orogen_state != :PRE_OPERATIONAL
+                            t.emit :start
+                        end
                     end
-                    if t.orogen_state != :STOPPED && t.orogen_state != :PRE_OPERATIONAL
-                        t.emit :start
+                    if t.running?
+                        t.handle_state_changes
                     end
                 end
             end
@@ -207,9 +212,7 @@ module Orocos
         # component.
         #
         # Subclasses of TaskContext represent these components in Roby plans,
-        # and allow to control them.
-        #
-        # TaskContext instances may be associated with a Deployment task, that
+        # an TaskContext instances may be associated with a Deployment task, that
         # represent the underlying deployment process. The link between a task
         # context and its deployment is usually represented by an executed_by
         # relation.
@@ -231,20 +234,25 @@ module Orocos
             end
 
             def initialize(arguments = Hash.new)
-
                 super
-            end
 
+                start = event(:start)
+                def start.calling(context)
+                    super if defined? super
+                    if task.executable?(false) && !task.is_setup?
+                        task.setup
                     end
                 end
             end
 
-
+            def executable?(with_setup = true)
+                if !@orogen_spec || !@orogen_task
+                    false
+                elsif with_setup && !is_setup?
+                    false
+                else
+                    super()
                 end
-            end
-
-            def executable?
-                !!@orogen_spec && super
             end
 
             attr_reader :minimal_period
@@ -341,15 +349,74 @@ module Orocos
             # The last read state
             attr_reader :last_state
 
+            def read_current_state
+                while update_orogen_state
+                end
+                @orogen_state
+            end
+
             # Called at each cycle to update the orogen_state attribute for this
             # task.
             def update_orogen_state # :nodoc:
-                if @state_reader && v = @state_reader.read
-                    @orogen_state = v
+                if orogen_spec.context.extended_state_support?
+                    @state_reader ||= orogen_task.state_reader(:type => :buffer, :size => 10)
+                end
+
+                if @state_reader
+                    if !orogen_task.port('state').connected?
+                        raise InternalError, "the state reader has been disconnected"
+                    end
+                    if v = @state_reader.read
+                        @orogen_state = v
+                    end
                 else
-                    @orogen_state = orogen_task.state
+                    new_state = orogen_task.state
+                    if new_state != @orogen_state
+                        @orogen_state = new_state
+                    end
                 end
             end
+
+            def setup
+                if @doing_setup || @did_setup
+                    raise InternalError, "#setup called repeatedly"
+                elsif !orogen_task
+                    raise InternalError, "#setup called but there is no orogen_task"
+                end
+                ::Robot.info "setting up #{self}"
+                state = read_current_state
+
+                if respond_to?(:configure)
+                    configure
+                end
+                if state == :PRE_OPERATIONAL
+                    orogen_task.configure
+                end
+                @did_setup = true
+            rescue Exception => e
+                event(:start).emit_failed(e)
+            end
+
+            def is_setup?
+                if @did_setup
+                    true
+                elsif needs_setup? then false
+                else @did_setup = true
+                end
+            end
+
+            def needs_setup?
+                if respond_to?(:configure)
+                    true
+                elsif orogen_spec.context.needs_configuration?
+                    if !orogen_task
+                        true
+                    else
+                        !orogen_state || orogen_state == :PRE_OPERATIONAL
+                    end
+                end
+            end
+
 
             ##
             # :method: start!
@@ -362,19 +429,11 @@ module Orocos
                     raise "TaskContext tasks must be supported by a Deployment task"
                 end
 
-                if orogen_spec.context.extended_state_support?
-                    @state_reader = orogen_task.state_reader
-                end
-
                 # We're not running yet, so we have to read the state ourselves.
-                update_orogen_state
+                state = read_current_state
 
-                if orogen_state != :PRE_OPERATIONAL && orogen_state != :STOPPED
-                    raise InternalError, "wrong state in start event: got #{orogen_state}, expected either STOPPED or PRE_OPERATIONAL"
-                end
-
-                if respond_to?(:configure)
-                    configure
+                if state != :STOPPED
+                    raise InternalError, "wrong state in start event: got #{state}, expected STOPPED"
                 end
 
                 # At this point, we should have already created all the dynamic
@@ -390,25 +449,12 @@ module Orocos
                     end
                 end
 
-                # Update the task's connections
-                apply_connection_changes
-                
                 # Call configure or start, depending on the current state
-                if orogen_state == :PRE_OPERATIONAL
-                    RobyPlugin.debug { "configuring #{to_s}" }
-                    orogen_task.configure
-                else
-                    RobyPlugin.debug { "starting #{to_s}" }
-                    orogen_task.start
-                end
+                RobyPlugin.info { "starting #{to_s}" }
+                # Update the task's connections before we start it
+                Roby.app.orocos_engine.apply_connection_changes(self)
+                orogen_task.start
                 @last_state = nil
-            end
-
-            poll do
-                if @last_state != orogen_state
-                    handle_state_changes
-                end
-                @last_state = orogen_state
             end
 
             # Handle a state transition by emitting the relevant events
