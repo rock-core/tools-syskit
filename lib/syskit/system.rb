@@ -1049,23 +1049,6 @@ module Orocos
                 end
             end
 
-            def create_new_connections(new)
-                new.each do |self_port, connections|
-                    self_port = orogen_task.port(self_port)
-                    connections.each do |other_task, other_port, policy|
-                        STDERR.puts other_task
-                        other_port = other_task.orogen_task.port(other_port)
-                        if other_port.respond_to?(:connect_to)
-                            other_port.connect_to(self_port)
-                            current_input[self_port] << [other_task, other_port, policy]
-                        else
-                            self_port.connect_to(other_port)
-                            current_output[self_port] << [other_task, other_port, policy]
-                        end
-                    end
-                end
-            end
-
             def registered_connection?(source_task, source_port, sink_task, sink_port)
                 return if !source_task.child_object?(sink_task, Flows::ActualDataFlow)
                 mappings = source_task[sink_task, Flows::ActualDataFlow]
