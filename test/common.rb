@@ -29,6 +29,7 @@ module RobyPluginCommonTest
 
     attr_reader :sys_model
     def setup
+        @old_loglevel = Orocos.logger.level
         super
 
         @update_handler = engine.each_cycle(&Orocos::RobyPlugin.method(:update))
@@ -61,8 +62,10 @@ module RobyPluginCommonTest
 
         super
 
+    ensure
         FileUtils.rm_rf Roby.app.log_dir
         ENV['PKG_CONFIG_PATH'] = @old_pkg_config
+        Orocos.logger.level = @old_loglevel if @old_loglevel
     end
 end
 
