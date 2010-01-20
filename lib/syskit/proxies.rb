@@ -132,7 +132,7 @@ module Orocos
             # Stops all tasks that are running on top of this deployment, and
             # kill the deployment
             event :stop do
-                to_be_killed = each_executed_task.find_all { |task| task.running? }
+                to_be_killed = each_executed_task.find_all(&:running?)
                 if to_be_killed.empty?
                     orogen_deployment.kill(false)
                     return
