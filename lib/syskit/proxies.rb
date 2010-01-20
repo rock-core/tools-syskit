@@ -410,6 +410,13 @@ module Orocos
                         @orogen_state = new_state
                     end
                 end
+
+            rescue Orocos::CORBA::ComError => e
+                if running?
+                    emit :aborted, e
+                elsif pending? || starting?
+                    emit_failed :start, e
+                end
             end
 
             def setup
@@ -546,6 +553,11 @@ module Orocos
             event :fatal_error
             forward :fatal_error => :failed
 
+            on :aborted do
+                @orogen_task = nil
+            end
+
+
             ##
             # :method: stop!
             #
@@ -554,6 +566,7 @@ module Orocos
                 interrupt!
             end
             on :stop do
+                ::Robot.info "stopped #{orocos_name}"
                 if @state_reader
                     @state_reader.disconnect
                 end
