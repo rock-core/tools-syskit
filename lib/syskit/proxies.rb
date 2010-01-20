@@ -102,6 +102,8 @@ module Orocos
             # Event emitted when the deployment is up and running
             event :ready
             on :ready do
+                orogen_deployment.log_all_ports
+
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
                                        rescue NotFound
