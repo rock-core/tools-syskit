@@ -1098,14 +1098,23 @@ module Orocos
 
                 removed_connections.each do |(from_task, to_task), mappings|
                     mappings.each do |from_port, to_port|
-                        Engine.info { "disconnecting #{from_task}:#{from_port} => #{to_task}:#{to_port}" }
+                        Engine.info do
+                            Engine.info "disconnecting #{from_task}:#{from_port}"
+                            Engine.info "     => #{to_task}:#{to_port}"
+                            break
+                        end
                         from_task.orogen_task.port(from_port).disconnect_from(to_task.orogen_task.port(to_port))
                         Flows.remove_connections(from_task, to_task, [[from_port, to_port]], Flows::ActualDataFlow)
                     end
                 end
                 new_connections.each do |(from_task, to_task), mappings|
                     mappings.each do |(from_port, to_port), policy|
-                        Engine.info { "connecting #{from_task}:#{from_port} => #{to_task}:#{to_port} with policy #{policy}" }
+                        Engine.info do
+                            Engine.info "connecting #{from_task}:#{from_port}"
+                            Engine.info "     => #{to_task}:#{to_port}"
+                            Engine.info "     with policy #{policy}"
+                            break
+                        end
                         from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port))
                         Flows.add_connections(from_task, to_task, { [from_port, to_port] => policy }, Flows::ActualDataFlow)
                     end
