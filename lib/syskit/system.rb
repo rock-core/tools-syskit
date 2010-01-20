@@ -240,6 +240,7 @@ module Orocos
                 attr_reader :arguments
                 attr_reader :using_spec
                 attr_reader :task
+                attr_predicate :mission, true
 
                 def initialize(engine, name, model, arguments)
                     @engine    = engine
@@ -292,6 +293,12 @@ module Orocos
                 end
             end
 
+            def add_mission(*args)
+                instance = add(*args)
+                instance.mission = true
+                instance
+            end
+
             def add(model, arguments = Hash.new)
                 if !(model.kind_of?(Class) && model < Component)
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
@@ -324,7 +331,11 @@ module Orocos
                     if name = instance.name
                         tasks[name] = task
                     end
-                    plan.add_permanent(task)
+                    if instance.mission?
+                        plan.add_mission(task)
+                    else
+                        plan.add_permanent(task)
+                    end
                 end
             end
 
