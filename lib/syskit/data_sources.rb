@@ -688,7 +688,7 @@ module Orocos
 
             # The input port name for the +bus_name+ device attached on this bus
             def input_name_for(bus_name)
-                "#{bus_name}w"
+                "w#{bus_name}"
             end
         end
 
