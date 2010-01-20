@@ -1115,7 +1115,7 @@ module Orocos
                             Engine.info "     with policy #{policy}"
                             break
                         end
-                        from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port))
+                        from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port), policy)
                         Flows.add_connections(from_task, to_task, { [from_port, to_port] => policy }, Flows::ActualDataFlow)
                     end
                 end
