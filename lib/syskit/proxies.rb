@@ -76,7 +76,7 @@ module Orocos
                 task = klass.new
                 task.robot = robot
                 task.executed_by self
-                task.instance_variable_set :@orogen_spec, activity
+                task.orogen_spec = activity
                 if running?
                     task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
                                        rescue NotFound
@@ -165,6 +165,9 @@ module Orocos
             end
 
             on :stop do
+                orogen_spec.task_activities.each do |act|
+                    TaskContext.configured.delete(name)
+                end
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orogen_task = nil
                 end
@@ -234,7 +237,12 @@ module Orocos
                 attr_reader :orogen_spec
                 # A mapping from state name to event name
                 attr_reader :state_events
+                # A name => boolean mapping that says if the task named 'name'
+                # is configured
+                def configured; @@configured end
             end
+            @@configured = Hash.new
+
             def state_event(name)
                 model.state_events[name]
             end
@@ -245,10 +253,25 @@ module Orocos
                 start = event(:start)
                 def start.calling(context)
                     super if defined? super
+
+                    if !task.orogen_task
+                        task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
+                                           rescue NotFound
+                                               Engine.warn "#{task.orocos_name} cannot be found"
+                                           end
+                    end
+
                     if task.executable?(false) && !task.is_setup?
                         task.setup
                     end
                 end
+            end
+
+            def create_fresh_copy
+                new_task = super
+                new_task.orogen_task = orogen_task
+                new_task.orogen_spec = orogen_spec
+                new_task
             end
 
             def executable?(with_setup = true)
@@ -353,7 +376,7 @@ module Orocos
             attr_accessor :orogen_task
             # The Orocos::Generation::TaskDeployment instance that describes the
             # underlying task
-            attr_reader :orogen_spec
+            attr_accessor :orogen_spec
             # The global name of the Orocos task underlying this Roby task
             def orocos_name; orogen_spec.name end
             # The current state for the orogen task
@@ -390,11 +413,18 @@ module Orocos
             end
 
             def setup
-                if @doing_setup || @did_setup
-                    raise InternalError, "#setup called repeatedly"
-                elsif !orogen_task
+                if TaskContext.configured[orocos_name]
+                    if !is_setup?
+                        TaskContext.configured.delete(orocos_name)
+                    else
+                        raise InternalError, "#{orocos_name} is already configured"
+                    end
+                end
+
+                if !orogen_task
                     raise InternalError, "#setup called but there is no orogen_task"
                 end
+
                 ::Robot.info "setting up #{self}"
                 state = read_current_state
 
@@ -404,31 +434,36 @@ module Orocos
                 if state == :PRE_OPERATIONAL
                     orogen_task.configure
                 end
-                @did_setup = true
+                TaskContext.configured[orocos_name] = true
+
             rescue Exception => e
                 event(:start).emit_failed(e)
             end
 
-            def is_setup?
-                if @did_setup
-                    true
-                elsif needs_setup? then false
-                else @did_setup = true
-                end
-            end
-
-            def needs_setup?
-                if respond_to?(:configure)
-                    true
-                elsif orogen_spec.context.needs_configuration?
+            def check_is_setup
+                if orogen_spec.context.needs_configuration?
                     if !orogen_task
-                        true
+                        return false
                     else
-                        !orogen_state || orogen_state == :PRE_OPERATIONAL
+                        state = read_current_state
+                        if !state
+                            return false
+                        elsif state == :PRE_OPERATIONAL
+                            return false
+                        end
                     end
                 end
+
+                if respond_to?(:configure)
+                    return TaskContext.configured[orocos_name]
+                else
+                    true
+                end
             end
 
+            def is_setup?
+                @is_setup ||= check_is_setup
+            end
 
             ##
             # :method: start!
