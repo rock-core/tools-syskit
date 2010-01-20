@@ -120,6 +120,7 @@ module Orocos
 
             # Called by Roby::Application on setup
             def self.setup(app)
+                Orocos.disable_sigchld_handler = true
                 Orocos.load
 
                 app.orocos_clear_models

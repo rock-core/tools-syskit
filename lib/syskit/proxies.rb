@@ -1,5 +1,6 @@
 require 'orocos'
 require 'utilrb/module/define_or_reuse'
+require 'roby/external_process_task'
 
 module Orocos
     module RobyPlugin
@@ -94,6 +95,7 @@ module Orocos
             event :start do
                 @orogen_deployment = ::Orocos::Process.new(self.class.deployment_name)
                 orogen_deployment.spawn(:output => File.join(Roby.app.log_dir, "%m-%p.txt"))
+                Roby::ExternalProcessTask.processes[orogen_deployment.pid] = orogen_deployment
                 emit :start
             end
 
@@ -148,6 +150,14 @@ module Orocos
                 terminal.on { orogen_deployment.kill(false) }
                 # The stop event will get emitted after the process has been
                 # killed. See the polling block.
+            end
+
+            # This gets called by Roby's SIGCHLD handler to announce that the
+            # process died. +result+ is the corresponding Process::Status
+            # object.
+            def dead!(result)
+                Roby::ExternalProcessTask.processes.delete(orogen_deployment.pid)
+                orogen_deployment.dead!(result)
             end
 
             on :stop do
