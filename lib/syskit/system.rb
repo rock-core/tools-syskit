@@ -138,7 +138,7 @@ module Orocos
                 device_options, task_arguments = Kernel.filter_options device_options,
                     DeviceInstance::KNOWN_PARAMETERS
 
-                name = options[:as].to_str
+                name = options[:as].to_str.snakecase
                 if devices[name]
                     raise SpecError, "device #{name} is already defined"
                 end
