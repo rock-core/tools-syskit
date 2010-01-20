@@ -506,6 +506,11 @@ module Orocos
             event :stop do
                 interrupt!
             end
+            on :stop do
+                if @state_reader
+                    @state_reader.disconnect
+                end
+            end
 
             def self.driver_for(model, arguments = Hash.new)
                 if model.respond_to?(:to_str)
