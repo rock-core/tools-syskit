@@ -177,8 +177,6 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
             assert_any_event(task.event(state)) do
                 task.orogen_task.send(method)
             end
-
-            sleep 1
         end
     end
 
