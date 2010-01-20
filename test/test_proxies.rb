@@ -37,6 +37,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 	    task.start!
 	end
 
+        Orocos.logger.level = Logger::FATAL
         assert_any_event(task.stop_event) do
             task.orogen_deployment.kill(true, 'ABRT')
         end
@@ -55,6 +56,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
         engine.run
 
+        ::Robot.logger.level = Logger::WARN
         deployment = Orocos::RobyPlugin::Deployments::States.new
         task       = deployment.task 'states_Task'
 
@@ -164,6 +166,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         deployment = Orocos::RobyPlugin::Deployments::States.new
         plan.add_permanent(deployment)
 
+        ::Robot.logger.level = Logger::WARN
         means_of_termination.each do |method, state|
             task = deployment.task 'states_Task'
             assert_any_event(task.start_event) do
@@ -182,6 +185,8 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
     def test_task_fatal_error
         Roby.app.load_orogen_project "states"
 	engine.run
+
+        ::Robot.logger.level = Logger::WARN
 
         deployment = Orocos::RobyPlugin::Deployments::States.new
         task       = deployment.task 'states_Task'
