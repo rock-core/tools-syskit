@@ -975,10 +975,16 @@ module Orocos
                         end
                         Engine.debug { "   #{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name}" }
 
-                        if sink_port.required_connection_type == :data || !sink_port.needs_reliable_connection?
-                            policy.merge! Port.validate_policy(:type => :data)
-                            Engine.debug { "     result: #{policy}" }
-                            next
+                        if !sink_port.needs_reliable_connection?
+                            if sink_port.required_connection_type == :data
+                                policy.merge! Port.validate_policy(:type => :data)
+                                Engine.debug { "     result: #{policy}" }
+                                next
+                            elsif sink_port.required_connection_type == :buffer
+                                policy.merge! Port.validate_policy(:type => :buffer, :size => 1)
+                                Engine.debug { "     result: #{policy}" }
+                                next
+                            end
                         end
 
                         # Compute the buffer size
