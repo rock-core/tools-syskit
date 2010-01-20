@@ -1055,6 +1055,20 @@ module Orocos
                 mappings.has_key?([source_port, sink_port])
             end
 
+            def all_inputs_connected?(task)
+                new     = Hash.new { |h, k| h[k] = Hash.new }
+                removed = Hash.new { |h, k| h[k] = Array.new }
+                task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
+                    compute_connection_update(new, removed,
+                                              source_task, source_port, task, sink_port, policy)
+                    if !new.empty? || !removed.empty?
+                        return false
+                    end
+                end
+                true
+            end
+
+
             def compute_connection_update(new, removed, source_task, source_port, sink_task, sink_port, policy)
                 do_add = true
                 if registered_connection?(source_task, source_port, sink_task, sink_port)
@@ -1086,12 +1100,12 @@ module Orocos
                 removed_connections = Hash.new { |h, k| h[k] = Array.new }
 
                 task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    next if !source_task.executable?
+                    next if !source_task.executable?(false) || !source_task.is_setup?
                     compute_connection_update(new_connections, removed_connections,
                                               source_task, source_port, task, sink_port, policy)
                 end
                 task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                    next if !sink_task.executable?
+                    next if !sink_task.executable?(false) || !sink_task.is_setup?
                     compute_connection_update(new_connections, removed_connections,
                                               task, source_port, sink_task, sink_port, policy)
                 end

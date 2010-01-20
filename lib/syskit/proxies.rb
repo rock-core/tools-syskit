@@ -197,6 +197,8 @@ module Orocos
 
                 if !t.is_setup?
                     t.setup
+                elsif t.executable?(false)
+                    Roby.app.orocos_engine.apply_connection_changes(t)
                 end
 
                 while t.update_orogen_state
@@ -252,10 +254,16 @@ module Orocos
             def executable?(with_setup = true)
                 if !@orogen_spec || !@orogen_task
                     false
-                elsif with_setup && !is_setup?
+                elsif !super()
                     false
+                elsif with_setup
+                    if !is_setup?
+                        false
+                    else
+                        Roby.app.orocos_engine.all_inputs_connected?(self)
+                    end
                 else
-                    super()
+                    true
                 end
             end
 
