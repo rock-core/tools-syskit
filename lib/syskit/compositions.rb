@@ -532,6 +532,7 @@ module Orocos
                 subselection = selection.dup
                 selection_children = Array.new
                 selection.each do |name, model|
+                    next if !name.respond_to?(:to_str)
                     if name =~ /^#{child_name}\.(.+)/ 
                         subselection.delete(name)
                         name = $1
