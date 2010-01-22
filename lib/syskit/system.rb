@@ -916,7 +916,16 @@ module Orocos
                     task ||= model.new
                     task.robot = robot
                     plan.add(task)
-                    contexts = task.instanciate_all_tasks
+
+                    # Now also import the deployment's 
+                    current_contexts = task.each_executed_task.
+                        map(&:orocos_name).to_set
+
+                    new_activities = (task.orogen_spec.task_activities.
+                        map(&:name).to_set - current_contexts)
+                    new_activities.each do |act_name|
+                        plan[task.task(act_name)]
+                    end
                 end
             end
 
