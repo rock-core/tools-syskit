@@ -356,7 +356,8 @@ module Orocos
 
                 output_ports = Hash.new { |h, k| h[k] = Set.new }
                 input_ports  = Hash.new { |h, k| h[k] = Set.new }
-                all_tasks = ValueSet.new
+                all_tasks = plan.find_local_tasks(Deployment).to_value_set
+
                 plan.find_local_tasks(Component).each do |source_task|
                     all_tasks << source_task
                     if !source_task.kind_of?(Composition)
