@@ -381,22 +381,7 @@ module Orocos
             # two different data sources
             def can_merge?(target_task)
                 return false if !super
-
-                # The orocos bindings are a special case: if +target_task+ is
-                # abstract, it means that it is a proxy task for data
-                # source/device drivers model
-                #
-                # In that particular case, the only thing the automatic merging
-                # can do is replace +target_task+ iff +self+ fullfills all tags
-                # that target_task has (without considering target_task itself).
-                models = target_task.model.ancestors
-                models.shift if target_task.abstract?
-                klass = models.find { |t| t.kind_of?(Class) }
-                models = models.find_all { |t| t.kind_of?(Roby::TaskModelTag) }
-                models.push(klass) if klass
-                if !fullfills?(models)
-                    return false
-                end
+                return if !target_task.kind_of?(DataSource)
 
                 # Check that for each data source in +target_task+, we can
                 # allocate a corresponding source in +self+
@@ -411,24 +396,6 @@ module Orocos
                     if DataSourceModel.needs_port_mapping?(target_task.model, other_name, model, self_names.first)
                         raise NotImplementedError, "mapping data flow ports is not implemented yet"
                     end
-                end
-
-                # Now check that the connections are compatible
-                #
-                # We search for connections that use the same input port, and
-                # verify that they are coming from the same output
-                self_inputs = Hash.new
-                each_input_connection do |source_task, source_port, sink_port, policy|
-                    self_inputs[sink_port] = [source_task, source_port, policy]
-                end
-                target_inputs = target_task.each_source.to_value_set
-                target_inputs.each do |input_task|
-                    not_compatible = input_task.each_input_connection.any? do |source_task, source_port, sink_port, policy|
-                        if same_port = self_inputs[sink_port]
-                            same_port[0] != source_task || same_port[1] != source_port
-                        end
-                    end
-                    return false if not_compatible
                 end
 
                 true
@@ -462,16 +429,7 @@ module Orocos
                     end
                 end
 
-                # Copy arguments of +merged_task+ that are not yet assigned in
-                # +self+
-                merged_task.arguments.each do |key, value|
-                    arguments[key] ||= value if !arguments.has_key?(key)
-                end
-
-                # Finally, remove +merged_task+ from the data flow graph and use
-                # #replace_task to replace it completely
-                plan.replace_task(merged_task, self)
-                nil
+                super
             end
 
             # Returns true if at least one port of the given source (designated
