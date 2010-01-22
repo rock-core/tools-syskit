@@ -22,6 +22,8 @@ module Orocos
             attr_reader :task_source_name
             # The task arguments
             attr_reader :task_arguments
+            # The actual task
+            attr_accessor :task
 
             # The device period in seconds
             attr_reader :period
@@ -317,8 +319,15 @@ module Orocos
                 end
 
                 robot.devices.each do |name, device_instance|
-                    task = device_instance.instanciate(self)
+                    task =
+                        if device_instance.task && device_instance.task.plan
+                            device_instance.task
+                        else
+                            device_instance.instanciate(self)
+                        end
+                        
                     tasks[name] = task
+                    device_instance.task = task
                     device_instance.task_model.
                         each_child_data_source(device_instance.task_source_name) do |child_name, _|
                             tasks["#{name}.#{child_name}"] = task
