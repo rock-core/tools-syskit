@@ -333,6 +333,10 @@ module Orocos
                             tasks["#{name}.#{child_name}"] = task
                         end
                 end
+
+                # Merge once here: the idea is that some of the drivers can
+                # be shared among devices, something that is not taken into
+                # account by driver instanciation
                 merge_identical_tasks
 
                 instances.each do |instance|
@@ -479,19 +483,22 @@ module Orocos
                     @plan = trsc
                     instanciate
 
-                    merge_identical_tasks
                     allocate_abstract_tasks
+                    link_to_busses
+                    merge_identical_tasks
 
-                    Engine.debug "======== Now merging deployed tasks =========="
+                    # Now import tasks that are already in the plan,
+                    # instanciate missing deployments and merge again
+                    trsc.find_tasks(Component).to_a
                     instanciate_required_deployments
                     merge_identical_tasks
 
+                    # Finally, we should now only have deployed tasks. Verify it
+                    # and compute the connection policies
                     validate_result(trsc)
-                    link_to_busses
-
-                    trsc.static_garbage_collect
                     compute_connection_policies
 
+                    trsc.static_garbage_collect
                     trsc.commit_transaction
                 end
 
