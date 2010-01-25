@@ -547,7 +547,8 @@ module Orocos
 
                 MERGE_SORT_TRUTH_TABLE[ [t1.execution_agent, t2.execution_agent] ] ||
                     MERGE_SORT_TRUTH_TABLE[ [!t1.abstract?, !t2.abstract?] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [t1.fully_instanciated?, t2.fully_instanciated?] ]
+                    MERGE_SORT_TRUTH_TABLE[ [t1.fully_instanciated?, t2.fully_instanciated?] ] ||
+                    MERGE_SORT_TRUTH_TABLE[ [t1.respond_to?(:__getobj__), t2.respond_to?(:__getobj__)] ]
             end
 
             def find_merge_roots(task_set)
