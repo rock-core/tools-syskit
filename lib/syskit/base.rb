@@ -390,8 +390,10 @@ module Orocos
             if source_task.child_object?(sink_task, relation)
                 current_mappings = source_task[sink_task, relation]
                 source_task[sink_task, relation] = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
-                    if old_options != new_options
-                        raise Roby::ModelViolation, "cannot override connection setup with #connect_to"
+                    if old_options.empty? then new_options
+                    elsif new_options.empty? then old_options
+                    elsif old_options != new_options
+                        raise Roby::ModelViolation, "cannot override connection setup with #connect_to (#{old_options} != #{new_options})"
                     end
                     old_options
                 end
@@ -584,6 +586,12 @@ module Orocos
         end
 
         module Flows
+            def DataFlow.merge_info(source, sink, current_mappings, additional_mappings)
+                current_mappings.merge(additional_mappings) do |(from, to), old_options, new_options|
+                    update_connection_policy(old_options, new_options)
+                end
+            end
+
             def DataFlow.update_connection_policy(old, new)
                 if old.empty?
                     return new
