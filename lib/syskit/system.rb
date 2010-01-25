@@ -943,6 +943,8 @@ module Orocos
             # Compute the minimal update periods for each of the components that
             # are deployed
             def port_periods
+                # We only act on deployed tasks, as we need to know how the
+                # tasks are triggered (what activity / priority / ...)
                 deployed_tasks = plan.find_local_tasks(TaskContext).
                     find_all { |t| t.execution_agent }
                 
