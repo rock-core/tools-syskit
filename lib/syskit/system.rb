@@ -575,7 +575,7 @@ module Orocos
                         # Meaning: we merge only abstract tasks together and
                         # concrete tasks together
                         next if (target_task.abstract? ^ task.abstract?)
-                        # We never replace an executable task (i.e. target_task
+                        # We never replace a deployed task (i.e. target_task
                         # cannot be executable)
                         next if target_task.execution_agent
                         # Merge only if +task+ has the same child set than +target+
