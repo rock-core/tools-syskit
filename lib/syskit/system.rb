@@ -565,7 +565,9 @@ module Orocos
             def direct_merge_mappings(task_set)
                 merge_graph = BGL::Graph.new
                 task_set.each do |task|
-                    task_children = task.each_child(false).to_value_set
+                    if task.kind_of?(Composition)
+                        task_children = task.each_child(false).to_value_set
+                    end
 
                     task_set.each do |target_task|
                         next if target_task == task
@@ -577,8 +579,10 @@ module Orocos
                         # cannot be executable)
                         next if target_task.execution_agent
                         # Merge only if +task+ has the same child set than +target+
-                        target_children = target_task.each_child(false).to_value_set
-                        next if !task_children.include_all?(target_children)
+                        if task.kind_of?(Composition)
+                            target_children = target_task.each_child(false).to_value_set
+                            next if !task_children.include_all?(target_children)
+                        end
                         # Finally, call #can_merge?
                         next if !task.can_merge?(target_task)
 
