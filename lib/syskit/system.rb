@@ -712,6 +712,7 @@ module Orocos
                 for t in task_set
                     children = t.each_sink(false).to_value_set
                     result.merge(children) if children.size > 1
+                    result.merge(t.each_parent_task.to_value_set.delete_if { |parent_task| !parent_task.kind_of?(Composition) })
                 end
                 result
             end
