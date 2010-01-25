@@ -324,6 +324,12 @@ module Orocos
                     arguments[key] ||= value if !arguments.has_key?(key)
                 end
 
+                # Instanciate missing dynamic ports
+                self.instanciated_dynamic_outputs =
+                    merged_task.instanciated_dynamic_outputs.merge(instanciated_dynamic_outputs)
+                self.instanciated_dynamic_inputs =
+                    merged_task.instanciated_dynamic_inputs.merge(instanciated_dynamic_inputs)
+
                 # Finally, remove +merged_task+ from the data flow graph and use
                 # #replace_task to replace it completely
                 plan.replace_task(merged_task, self)
