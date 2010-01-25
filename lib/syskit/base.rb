@@ -301,12 +301,12 @@ module Orocos
                 # We search for connections that use the same input port, and
                 # verify that they are coming from the same output
                 self_inputs = Hash.new
-                each_input_connection do |source_task, source_port, sink_port, policy|
+                each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     self_inputs[sink_port] = [source_task, source_port, policy]
                 end
                 target_inputs = target_task.each_source.to_value_set
                 target_inputs.each do |input_task|
-                    not_compatible = input_task.each_input_connection.any? do |source_task, source_port, sink_port, policy|
+                    not_compatible = input_task.each_concrete_input_connection.any? do |source_task, source_port, sink_port, policy|
                         if same_port = self_inputs[sink_port]
                             same_port[0] != source_task || same_port[1] != source_port
                         end
