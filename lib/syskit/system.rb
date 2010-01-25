@@ -931,7 +931,7 @@ module Orocos
                     plan.add(task)
 
                     # Now also import the deployment's 
-                    current_contexts = task.each_executed_task.
+                    current_contexts = task.merged_relations(:each_executed_task, true).
                         map(&:orocos_name).to_set
 
                     new_activities = (task.orogen_spec.task_activities.
