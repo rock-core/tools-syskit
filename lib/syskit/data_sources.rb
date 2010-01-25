@@ -417,7 +417,9 @@ module Orocos
                     # "select" one source to use to handle other_name
                     target_name = self_names.pop
                     # set the argument
-                    arguments["#{target_name}_name"] = selection
+                    if arguments["#{target_name}_name"] != selection
+                        arguments["#{target_name}_name"] = selection
+                    end
 
                     # What we also need to do is map port names from the ports
                     # in +merged_task+ into the ports in +self+
