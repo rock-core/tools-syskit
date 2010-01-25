@@ -572,6 +572,7 @@ module Orocos
 
                     task_set.each do |target_task|
                         next if target_task == task
+
                         # We don't do task allocation as this level.
                         # Meaning: we merge only abstract tasks together and
                         # concrete tasks together
@@ -580,7 +581,7 @@ module Orocos
                         # cannot be executable)
                         next if target_task.execution_agent
                         # Merge only if +task+ has the same child set than +target+
-                        if task.kind_of?(Composition)
+                        if task.kind_of?(Composition) && target_task.kind_of?(Composition)
                             target_children = target_task.each_child(false).to_value_set
                             next if !task_children.include_all?(target_children)
                         end
