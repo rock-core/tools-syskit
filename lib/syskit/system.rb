@@ -737,11 +737,11 @@ module Orocos
                     merged_tasks.clear
 
                     while !candidates.empty?
-                        Engine.debug "  -- Raw merge candidates"
+                        Engine.debug "  -- Raw merge candidates (a => b merges 'a' into 'b')"
                         merges = direct_merge_mappings(candidates)
-                        Engine.debug "  -- Filtered merge candidates"
+                        Engine.debug "  -- Filtered merge candidates (a => b merges 'a' into 'b')"
                         merges = filter_direct_merge_mappings(merges)
-                        Engine.debug "  -- Applying merges"
+                        Engine.debug "  -- Applying merges (a => b merges 'a' into 'b') "
                         candidates = apply_merge_mappings(merges)
                         Engine.debug
                         merged_tasks.merge(candidates)
