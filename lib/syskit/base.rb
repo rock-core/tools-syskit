@@ -111,15 +111,15 @@ module Orocos
             attribute(:instanciated_dynamic_inputs) { Hash.new }
 
             def output_port_model(name)
-                if model = orogen_spec.context.each_output_port.find { |p| p.name == name }
-                    model
+                if port_model = model.orogen_spec.each_output_port.find { |p| p.name == name }
+                    port_model
                 else instanciated_dynamic_outputs[name]
                 end
             end
 
             def input_port_model(name)
-                if model = orogen_spec.context.each_input_port.find { |p| p.name == name }
-                    model
+                if port_model = model.orogen_spec.each_input_port.find { |p| p.name == name }
+                    port_model
                 else instanciated_dynamic_inputs[name]
                 end
             end
@@ -129,7 +129,7 @@ module Orocos
                     port
                 end
 
-                candidates = orogen_spec.context.find_dynamic_input_ports(name, type)
+                candidates = model.orogen_spec.find_dynamic_input_ports(name, type)
                 if candidates.size > 1
                     raise Ambiguous, "I don't know what to use for dynamic port instanciation"
                 end
@@ -143,7 +143,7 @@ module Orocos
                     port
                 end
 
-                candidates = orogen_spec.context.find_dynamic_output_ports(name, type)
+                candidates = model.orogen_spec.find_dynamic_output_ports(name, type)
                 if candidates.size > 1
                     raise Ambiguous, "I don't know what to use for dynamic port instanciation"
                 end
