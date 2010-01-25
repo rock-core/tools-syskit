@@ -312,6 +312,34 @@ module Orocos
                 instance
             end
 
+            def remove(task)
+                if task.kind_of?(InstanciatedComponent)
+                    removed_instances, @instances = instances.partition { |t| t == task }
+                elsif task.kind_of?(Roby::Task)
+                    removed_instances, @instances = instances.partition { |t| t.task == task }
+                    if removed_instances.empty?
+                        raise ArgumentError, "#{task} has not been added through Engine#add"
+                    end
+                elsif task.respond_to?(:to_str)
+                    removed_instances, @instances = instances.partition { |t| t.name == task.to_str }
+                    if removed_instances.empty?
+                        raise ArgumentError, "no task called #{task} has been instanciated through Engine#add"
+                    end
+                elsif task < Roby::Task || task < Roby::TaskModelTag
+                    removed_instances, @instances = instances.partition { |t| t.model <= task }
+                    if removed_instances.empty?
+                        raise ArgumentError, "no task matching #{task} have been instanciated through Engine#add"
+                    end
+                end
+
+                removed_instances.each do |instance|
+                    if instance.task
+                        plan.unmark_mission(instance.task)
+                        plan.unmark_permanent(instance.task)
+                    end
+                end
+            end
+
             def instanciate
                 self.tasks.clear
 
