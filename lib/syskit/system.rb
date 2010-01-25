@@ -1,3 +1,4 @@
+require 'tempfile'
 module Orocos
     module RobyPlugin
         class PortDynamics
@@ -348,6 +349,17 @@ module Orocos
                         plan.add_mission(task)
                     else
                         plan.add_permanent(task)
+                    end
+                end
+            end
+
+            def to_svg(filename)
+                Tempfile.open('roby_orocos_deployment') do |io|
+                    io.write Roby.app.orocos_engine.to_dot
+                    io.flush
+
+                    File.open(filename, 'w') do |output_io|
+                        output_io.puts(`dot -Tsvg #{io.path}`)
                     end
                 end
             end
