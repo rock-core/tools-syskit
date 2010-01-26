@@ -481,7 +481,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         parent.depends_on task0, :model => IF::Camera
         parent.depends_on task1, :model => IF::Camera
 
-        assert(task0.can_merge?(task1))
+        assert_raises(NotImplementedError) { assert(task0.can_merge?(task1)) }
         assert(!task1.can_merge?(task0))
         # Complex merge of data flow is actually not implemented. Make sure we
         # won't do anything stupid and clearly tell that to the user.
