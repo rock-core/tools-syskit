@@ -600,6 +600,8 @@ module Orocos
                 end
                 data_source_name, _ = data_source(model, arguments)
                 argument "#{data_source_name}_name"
+
+                model
             end
 
             # Creates a subclass of TaskContext that represents the given task
