@@ -56,6 +56,9 @@ module RobyPluginCommonTest
 
         @sys_model = Orocos::RobyPlugin::SystemModel.new
         @orocos_engine = Roby.app.orocos_engine
+        project = Orocos::Generation::Component.new
+        project.name 'roby'
+        Roby.app.instance_variable_set :@main_orogen_project, project
     end
     def teardown
         Roby.app.orocos_clear_models
