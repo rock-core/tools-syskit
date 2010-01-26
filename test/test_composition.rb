@@ -67,7 +67,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
                 info = subsys_task[child_task, TaskStructure::Dependency]
                 info[:roles]
             end
-        assert_equal([['echo'].to_set, [].to_set].to_set, 
+        assert_equal([['echo'].to_set, ['Echo'].to_set].to_set, 
                      echo_roles.to_set)
 
         assert_equal(['source'].to_set, subsys_task[source, TaskStructure::Dependency][:roles])

@@ -820,10 +820,7 @@ module Orocos
                         apply_port_mappings(connections, child_name, port_mappings)
                     end
 
-                    role = if child_name == child_model.name.gsub(/.*::/, '')
-                               Set.new
-                           else [child_name].to_set
-                           end
+                    role = [child_name].to_set
 
                     if !child_task
                         # Filter out arguments: check if some of the mappings
