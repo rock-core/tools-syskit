@@ -60,7 +60,15 @@ module RobyPluginCommonTest
         ::Orocos.instance_variable_set :@registry, Typelib::Registry.new
         ::Orocos::CORBA.instance_variable_set :@loaded_toolkits, []
 
+        deployments = plan.find_tasks(Deployment).running.to_a
+
         super
+
+        deployments.each do |task|
+            if task.orogen_deployment.alive?
+                task.orogen_deployment.kill
+            end
+        end
 
     ensure
         FileUtils.rm_rf Roby.app.log_dir
