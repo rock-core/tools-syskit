@@ -378,6 +378,19 @@ module Orocos
                 end
             end
 
+            def input_port(name)
+                if !orogen_task
+                    raise ArgumentError, "#input_port called but we have no task handler yet"
+                end
+                orogen_task.input_port(name)
+            end
+
+            def output_port(name)
+                if !orogen_task
+                    raise ArgumentError, "#output_port called but we have no task handler yet"
+                end
+                orogen_task.output_port(name)
+            end
             # The Orocos::TaskContext instance that gives us access to the
             # remote task context. Note that it is set only when the task is
             # started.

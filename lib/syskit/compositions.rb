@@ -13,9 +13,11 @@ module Orocos
 
             def method_missing(name, *args)
                 if args.empty?
-                    composition.find_child(child_name).each do |m|
-                        if port = m.port(name)
-                            return CompositionChildPort.new(self, port, name.to_str)
+                    composition.find_child(child_name).each do |child_model|
+                        if port = child_model.output_port(name)
+                            return CompositionChildOutputPort.new(self, port, name.to_str)
+                        elsif port = child_model.input_port(name)
+                            return CompositionChildInputPort.new(self, port, name.to_str)
                         end
                     end
                 end
@@ -60,6 +62,9 @@ module Orocos
                     other.port_name == port_name
             end
         end
+
+        class CompositionChildOutputPort < CompositionChildPort; end
+        class CompositionChildInputPort < CompositionChildPort; end
 
         module CompositionModel
             include Model
@@ -414,11 +419,11 @@ module Orocos
                     raise SpecError, "there is already a port named #{name} on #{self}"
                 end
 
-                case port.port
-                when Generation::OutputPort
-                    outputs[name] = port
-                when Generation::InputPort
+                case port
+                when CompositionChildInputPort
                     inputs[name] = port
+                when CompositionChildOutputPort
+                    outputs[name] = port
                 else
                     raise TypeError, "invalid port #{port.port} of type #{port.port.class}"
                 end
@@ -449,12 +454,12 @@ module Orocos
             # Returns the composition's output port named 'name'
             #
             # See #port, and #export to create ports on a composition
-            def output_port(name); find_output(name) end
+            def output_port(name); find_output(name.to_str) end
 
             # Returns the composition's input port named 'name'
             #
             # See #port, and #export to create ports on a composition
-            def input_port(name); find_input(name) end
+            def input_port(name); find_input(name.to_str) end
 
             # Returns true if +name+ is a valid dynamic input port.
             #
@@ -906,6 +911,41 @@ module Orocos
             inherited_enumerable(:output, :outputs, :map => true)  { Hash.new }
             # Inputs imported from this composition
             inherited_enumerable(:input, :inputs, :map => true)  { Hash.new }
+
+            # Returns the OutputPort object that has the given name on this
+            # composition
+            def output_port(name)
+                if !(port = model.find_output(name))
+                    raise ArgumentError, "no output port named '#{name}' on '#{self}'"
+                end
+
+                resolve_port(port)
+            end
+
+            # Returns the OutputPort object that has the given name on this
+            # composition
+            def input_port(name)
+                if !(port = model.find_input(name))
+                    raise ArgumentError, "no input port named '#{name}' on '#{self}'"
+                end
+
+                resolve_port(port)
+            end
+
+            def resolve_port(exported_port)
+                role = exported_port.child.child_name
+                task, _ = each_child.find { |task, options| options[:roles].include?(role) }
+                if !task
+                    raise InternalError, "#{role} is referenced to as a child of #{self}, but no child task has this role"
+                end
+
+                port_name = exported_port.port_name
+                if exported_port.kind_of?(CompositionChildInputPort)
+                    task.input_port(port_name)
+                else
+                    task.output_port(port_name)
+                end
+            end
 
             def added_child_object(child, relations, info)
                 super

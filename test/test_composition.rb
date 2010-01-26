@@ -2,6 +2,7 @@ BASE_DIR = File.expand_path( '../..', File.dirname(__FILE__))
 APP_DIR = File.join(BASE_DIR, "test")
 $LOAD_PATH.unshift BASE_DIR
 require 'test/roby/common'
+require 'flexmock'
 
 class TC_RobySpec_Composition < Test::Unit::TestCase
     include RobyPluginCommonTest
@@ -173,6 +174,8 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             export source.cycle, :as => 'out_cycle'
             export sink1.cycle, :as => 'in_cycle'
         end
+        assert subsys.output_port('out_cycle')
+        assert subsys.input_port('in_cycle')
 
         complete = sys_model.subsystem('all') do
             source_sink = add Compositions::SourceSink0
@@ -181,20 +184,40 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
             connect source.cycle => source_sink.in_cycle
             connect source_sink.out_cycle => sink.cycle
+
+            export source_sink.out_cycle, :as => 'out'
+            export source_sink.in_cycle, :as => 'in'
         end
 
         orocos_engine = Engine.new(plan, sys_model)
-        orocos_engine.add(Compositions::All)
+        composition = orocos_engine.add(Compositions::All)
         orocos_engine.instanciate
 
+        composition = composition.task
         source_sink = plan.find_tasks(Compositions::SourceSink0).to_a.first
         source      = plan.find_tasks(SimpleSource::Source).with_parent(Compositions::All).to_a.first
         sink        = plan.find_tasks(SimpleSink::Sink).with_parent(Compositions::All).to_a.first
         deep_source = plan.find_tasks(SimpleSource::Source).with_parent(Compositions::SourceSink0, TaskStructure::Dependency).to_a.first
         deep_sink   = plan.find_tasks(SimpleSink::Sink).with_parent(Compositions::SourceSink0, TaskStructure::Dependency).to_a.first
 
+        assert(source_sink)
+        assert(source)
+        assert(sink)
+        assert(deep_source)
+        assert(deep_sink)
+
         assert_equal [['cycle', 'cycle', deep_sink, {}]], source.each_concrete_output_connection.to_a
         assert_equal [[deep_source, 'cycle', 'cycle', {}]], sink.each_concrete_input_connection.to_a
+
+        FlexMock.use(deep_source) do |mock|
+            mock.should_receive(:output_port).and_return(10).once
+            assert_equal 10, composition.output_port('out')
+        end
+
+        FlexMock.use(deep_sink) do |mock|
+            mock.should_receive(:input_port).and_return(10).once
+            assert_equal 10, composition.input_port('in')
+        end
     end
 
     def test_indirect_composition_selection
