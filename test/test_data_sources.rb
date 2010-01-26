@@ -237,9 +237,10 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
     def test_task_driver_for_declares_driver
         image_model = sys_model.data_source_type 'image'
-        model   = Class.new(TaskContext) do
-            def orogen_spec; 'bla' end
-        end
+
+        fake_spec = Roby.app.main_orogen_project.task_context 'FakeSpec'
+        model   = Class.new(TaskContext)
+        model.instance_variable_set(:@orogen_spec, fake_spec)
         model.system = sys_model
 
         firewire_camera = model.driver_for('FirewireCamera', :provides => image_model, :as => 'left_image')
@@ -250,7 +251,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
         motors_model = model.driver_for('Motors')
         assert_same(Orocos::RobyPlugin::DeviceDrivers::Motors, motors_model)
-        assert_equal(model.orogen_spec, motors_model.orogen_spec)
+        assert_equal(model.orogen_spec, motors_model.orogen_spec.superclass)
     end
 
     def test_slave_data_source_declaration
@@ -281,11 +282,11 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
     def test_data_source_find_matching_source
         Roby.app.load_orogen_project "system_test"
-        stereo_model = sys_model.data_source_type 'stereocam'
+        stereo_model = sys_model.data_source_type 'stereocam',
+                :interface => SystemTest::StereoCamera
         stereo_processing_model =
             sys_model.data_source_type 'stereoprocessing',
-                :child_of => stereo_model,
-                :interface => SystemTest::StereoCamera
+                :child_of => stereo_model
 
         image_model  = sys_model.data_source_type 'image',
             :interface => SystemTest::CameraDriver
