@@ -84,7 +84,7 @@ module Orocos
                     raise ArgumentError, "there is already a device type #{name}"
                 end
 
-                device_model = DeviceDriver.new_submodel(name)
+                device_model = DeviceDriver.new_submodel(name, :interface => false)
 
                 if parents = options[:provides]
                     parents = [*parents].map do |parent|

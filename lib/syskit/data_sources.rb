@@ -37,23 +37,25 @@ module Orocos
                 model.instance_variable_set(:@parent_model, self)
                 model.name = name.to_str
 
-                if options[:interface]
-                    iface_spec = Roby.app.get_orocos_task_model(options[:interface]).orogen_spec
+                if options[:interface] != false
+                    if options[:interface]
+                        iface_spec = Roby.app.get_orocos_task_model(options[:interface]).orogen_spec
 
-                    # If we also have an interface, verify that the two
-                    # interfaces are compatible
-                    if interface 
-                        if !iface_spec.implements?(interface.name)
-                            raise SpecError, "data source #{name}'s interface, #{options[:interface].name} is not a specialization of #{self.name}'s interface #{self.interface.name}"
+                        # If we also have an interface, verify that the two
+                        # interfaces are compatible
+                        if interface 
+                            if !iface_spec.implements?(interface.name)
+                                raise SpecError, "data source #{name}'s interface, #{options[:interface].name} is not a specialization of #{self.name}'s interface #{self.interface.name}"
+                            end
                         end
+                        model.instance_variable_set(:@orogen_spec, iface_spec)
+                    elsif interface
+                        child_spec = model.create_orogen_interface
+                        child_spec.subclasses interface.name
+                        model.instance_variable_set :@orogen_spec, child_spec
+                    else
+                        model.instance_variable_set :@orogen_spec, model.create_orogen_interface
                     end
-                    model.instance_variable_set(:@orogen_spec, iface_spec)
-                elsif interface
-                    child_spec = model.create_orogen_interface
-                    child_spec.subclasses interface.name
-                    model.instance_variable_set :@orogen_spec, child_spec
-                else
-                    model.instance_variable_set :@orogen_spec, model.create_orogen_interface
                 end
                 model
             end
