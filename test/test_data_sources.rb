@@ -255,10 +255,12 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
     end
 
     def test_slave_data_source_declaration
+        sys_model = self.sys_model
         stereo_model = sys_model.data_source_type 'stereocam'
         image_model  = sys_model.data_source_type 'image'
         task_model   = Class.new(TaskContext) do
-            data_source 'stereocam', :as => 'stereo'
+            @system = sys_model
+            driver_for 'stereocam', :as => 'stereo'
             data_source 'image', :as => 'left_image', :slave_of => 'stereo'
             data_source 'image', :as => 'right_image', :slave_of => 'stereo'
         end
@@ -270,14 +272,15 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert_equal(image_model, task_model.data_source_type('stereo.right_image'))
         assert_equal([["left_image", image_model], ["right_image", image_model]].to_set, task_model.each_child_data_source('stereo').to_set)
 
+        stereo_driver_model = Orocos::RobyPlugin::DeviceDrivers::Stereocam
         expected = [
-            ["stereo", stereo_model],
+            ["stereo", stereo_driver_model],
             ["stereo.left_image", image_model],
             ["stereo.right_image", image_model]
         ]
         assert_equal(expected.to_set, task_model.each_data_source.to_set)
-        assert_equal([["stereo", stereo_model]], task_model.each_root_data_source.to_a)
-        assert_equal([:stereo_name], task_model.arguments.to_a)
+        assert_equal([["stereo", stereo_driver_model]], task_model.each_root_data_source.to_a)
+        assert_equal([:stereo_name, :com_bus], task_model.arguments.to_a)
     end
 
     def test_data_source_find_matching_source
@@ -402,7 +405,7 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
             output_port 'cloud', 'base/PointCloud3D'
         end
         dummy_task_model = stereo_model.task_model
-        task_model.data_source IF::Stereocam, :as => 'stereo', :main => true
+        task_model.driver_for 'Stereocam', :as => 'stereo', :main => true
 
         plan.add(parent = Roby::Task.new)
         task0 = task_model.new 'stereo_name' => 'front_stereo'
