@@ -912,6 +912,15 @@ module Orocos
             # Inputs imported from this composition
             inherited_enumerable(:input, :inputs, :map => true)  { Hash.new }
 
+            def executable?(with_setup = false)
+                each_child do |child_task, _|
+                    if child_task.kind_of?(Component) && !child_task.executable?(with_setup)
+                        return false
+                    end
+                end
+                super
+            end
+
             # Returns the OutputPort object that has the given name on this
             # composition
             def output_port(name)
@@ -947,10 +956,37 @@ module Orocos
                 end
             end
 
+            def actual_connections
+                result = Array.new
+                model.each_output do |_, exported_output|
+                    real_port = resolve_port(exported_output)
+
+                    real_port.task.each_actual_source do |source_task|
+                        source_task[real_port.task, ActualFlows::DataFlow].each do |(source_port, sink_port), policy|
+                            if sink_port == exported_port.port_name
+                                result << [source_task, source_port, real_port.task, sink_port, policy]
+                            end
+                        end
+                    end
+                end
+
+                model.each_input do |_, exported_input|
+                    real_port = resolve_port(exported_input)
+                    real_port.task.each_actual_sink do |sink_task|
+                        real_port.task[sink_task, ActualFlows::DataFlow].each do |(source_port, sink_port), policy|
+                            if source_port == exported_port.port_name
+                                result << [real_port.task, source_port, sink_task, sink_port, policy]
+                            end
+                        end
+                    end
+                end
+                result
+            end
+
             def added_child_object(child, relations, info)
                 super
                 if relations.include?(Flows::DataFlow)
-                    each_child do |child_task|
+                    each_child do |child_task, _|
                         Flows::DataFlow.modified_tasks << child_task
                     end
                 end
@@ -959,7 +995,7 @@ module Orocos
             def removed_child_object(child, relations)
                 super
                 if relations.include?(Flows::DataFlow)
-                    each_child do |child_task|
+                    each_child do |child_task, _|
                         Flows::DataFlow.modified_tasks << child_task
                     end
                 end

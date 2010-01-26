@@ -292,6 +292,21 @@ module Orocos
                 model
             end
 
+            def executable?(with_setup = true)
+                if !super()
+                    return false
+                end
+
+                if with_setup && !is_setup?
+                    return false
+                end
+
+                if pending?
+                    return Roby.app.orocos_engine.all_inputs_connected?(self)
+                end
+                true
+            end
+
             def can_merge?(target_task)
                 return false if !super
 
@@ -357,21 +372,6 @@ module Orocos
                 else
                     super
                 end
-            end
-
-            def actual_connections
-                result = Array.new
-                orogen_task.each_actual_source do |source_task|
-                    source_task[orogen_task, ActualFlows::DataFlow].each do |(source_port, sink_port), policy|
-                        result << [source_task, source_port, orogen_task, sink_port]
-                    end
-                end
-                orogen_task.each_actual_sink do |sink_task, mappings|
-                    mappings.each do |(source_port, sink_port), policy|
-                        result << [orogen_task, source_port, sink_task, sink_port]
-                    end
-                end
-                result
             end
 
             # Map the given port name of +source_type+ into the port that
@@ -537,7 +537,7 @@ module Orocos
                     raise ArgumentError, "#{target_task} and #{self} are not related in the Dependency relation"
                 end
 
-                Flows.add_connections(self, target_task, mappings, Flows::DataFlow)
+                RobyPlugin.add_connections(self, target_task, mappings, Flows::DataFlow)
             end
 
             # Connect a set of ports between +self+ and +target_task+.
@@ -556,7 +556,7 @@ module Orocos
                     target_task.ensure_has_input_port(in_port)
                 end
 
-                Flows.add_connections(self, target_task, mappings, Flows::DataFlow)
+                RobyPlugin.add_connections(self, target_task, mappings, Flows::DataFlow)
             end
 
             # Yields the input connections of this task
