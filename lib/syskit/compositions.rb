@@ -911,6 +911,25 @@ module Orocos
             inherited_enumerable(:output, :outputs, :map => true)  { Hash.new }
             # Inputs imported from this composition
             inherited_enumerable(:input, :inputs, :map => true)  { Hash.new }
+
+            def added_child_object(child, relations, info)
+                super
+                if relations.include?(Flows::DataFlow)
+                    each_child do |child_task|
+                        Flows::DataFlow.modified_tasks << child_task
+                    end
+                end
+            end
+
+            def removed_child_object(child, relations)
+                super
+                if relations.include?(Flows::DataFlow)
+                    each_child do |child_task|
+                        Flows::DataFlow.modified_tasks << child_task
+                    end
+                end
+            end
+
         end
     end
 end

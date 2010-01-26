@@ -43,6 +43,8 @@ module Orocos
             end
             def orogen_spec; self.class.orogen_spec end
 
+            attr_reader :task_handles
+
             # The underlying Orocos::Process instance
             attr_reader :orogen_deployment
 
@@ -77,11 +79,8 @@ module Orocos
                 task.robot = robot
                 task.executed_by self
                 task.orogen_spec = activity
-                if running?
-                    task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
-                                       rescue NotFound
-                                           Engine.warn "#{task.orocos_name} cannot be found"
-                                       end
+                if ready?
+                    task.orogen_task = task_handles[name]
                 end
                 task
             end
@@ -103,16 +102,6 @@ module Orocos
 
             # Event emitted when the deployment is up and running
             event :ready
-            on :ready do
-                orogen_deployment.log_all_ports
-
-                each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                    task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
-                                       rescue NotFound
-                                           Engine.warn "#{task.orocos_name} cannot be found"
-                                       end
-                end
-            end
 
             poll do
                 if started?
@@ -127,6 +116,18 @@ module Orocos
 
                 if !ready?
                     if orogen_deployment.wait_running(0)
+                        orogen_deployment.log_all_ports
+
+                        @task_handles = Hash.new
+                        orogen_spec.task_activities.each do |activity|
+                            task_handles[activity.name] = 
+                                ::Orocos::TaskContext.get(activity.name)
+                        end
+
+                        each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
+                            task.orogen_task = task_handles[task.orocos_name]
+                        end
+
                         emit :ready
                     end
                 end
@@ -168,6 +169,10 @@ module Orocos
                 orogen_spec.task_activities.each do |act|
                     TaskContext.configured.delete(name)
                 end
+                task_handles.each_value do |task|
+                    ActualFlows::DataFlow.remove(task)
+                end
+
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orogen_task = nil
                 end
@@ -200,8 +205,6 @@ module Orocos
 
                 if !t.is_setup?
                     t.setup
-                elsif t.executable?(false)
-                    Roby.app.orocos_engine.apply_connection_changes(t)
                 end
 
                 while t.update_orogen_state
@@ -214,6 +217,10 @@ module Orocos
                         t.handle_state_changes
                     end
                 end
+            end
+
+            Flows::DataFlow.modified_tasks.delete_if do |task|
+                Roby.app.orocos_engine.apply_connection_changes(task)
             end
         end
 
@@ -255,10 +262,9 @@ module Orocos
                     super if defined? super
 
                     if !task.orogen_task
-                        task.orogen_task = begin ::Orocos::TaskContext.get(task.orocos_name)
-                                           rescue NotFound
-                                               Engine.warn "#{task.orocos_name} cannot be found"
-                                           end
+                        if task.execution_agent
+                            task.orogen_task = execution_agent.task_handles[task.orocos_name]
+                        end
                     end
 
                     if task.executable?(false) && !task.is_setup?
@@ -276,17 +282,19 @@ module Orocos
 
             def executable?(with_setup = true)
                 if !@orogen_spec || !@orogen_task
-                    false
+                    return false
                 elsif !super()
-                    false
-                elsif with_setup
-                    if !is_setup?
-                        false
-                    else
-                        Roby.app.orocos_engine.all_inputs_connected?(self)
-                    end
+                    return false
                 else
-                    true
+                    if with_setup && !is_setup?
+                        return false
+                    end
+
+                    if pending?
+                        return Roby.app.orocos_engine.all_inputs_connected?(self)
+                    else
+                        true
+                    end
                 end
             end
 

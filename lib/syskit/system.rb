@@ -1110,7 +1110,7 @@ module Orocos
                         found_equivalent_connection = nil
                         new[self_port].delete_if do |new_task, new_port, new_policy|
                             if old_task == new_task && old_port == new_port &&
-                                old_policy == Flows::DataFlow.update_connection_policy(old_policy, new_policy)
+                                old_policy == RobyPlugin.update_connection_policy(old_policy, new_policy)
                                 found_equivalent_connection = true
                             end
                         end
@@ -1125,76 +1125,93 @@ module Orocos
             end
 
             def registered_connection?(source_task, source_port, sink_task, sink_port)
-                return if !source_task.child_object?(sink_task, Flows::ActualDataFlow)
-                mappings = source_task[sink_task, Flows::ActualDataFlow]
+                return if !source_task.orogen_task.child_object?(sink_task.orogen_task, ActualFlows::DataFlow)
+                mappings = source_task.orogen_task[sink_task.orogen_task, ActualFlows::DataFlow]
                 mappings.has_key?([source_port, sink_port])
             end
 
             def all_inputs_connected?(task)
                 new     = Hash.new { |h, k| h[k] = Hash.new }
-                removed = Hash.new { |h, k| h[k] = Array.new }
-                task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    compute_connection_update(new, removed,
-                                              source_task, source_port, task, sink_port, policy)
-                    if !new.empty? || !removed.empty?
-                        return false
-                    end
+                desired_connections = task.each_concrete_input_connection.to_a
+                desired_connections.map! do |conn|
+                    conn.insert(2, task)
                 end
-                true
+
+                actual_connections  = task.actual_connections.
+                    find_all { |source_task, _| source_task != task.orogen_task }
+                compute_connection_update(actual_connections, desired_connections, new)
+                (actual_connections.empty? && new.empty?)
             end
 
-
-            def compute_connection_update(new, removed, source_task, source_port, sink_task, sink_port, policy)
-                do_add = true
-                if registered_connection?(source_task, source_port, sink_task, sink_port)
-                    old_policy = source_task[sink_task, Flows::ActualDataFlow][[source_port, sink_port]]
-                    needs_reconnection = begin
-                                             old_policy != Flows::DataFlow.update_connection_policy(old_policy, policy)
-                                         rescue ArgumentError
-                                         end
-                    if needs_reconnection
-                        removed[[source_task, task]] << [source_port, sink_port]
-                    else
-                        do_add = false
+            def compute_connection_update(actual_connections, desired_connections, new_connections)
+                desired_connections.each do |source_task, source_port, sink_task, sink_port, policy|
+                    actual_connection = actual_connections.find do |conn|
+                        conn[1] == source_port && conn[3] == sink_port &&
+                        conn[0] == source_task.orogen_task && conn[2] == sink_task.orogen_task
                     end
-                end
 
-                if do_add
-                    current_policy = new[[source_task, sink_task]][[source_port, sink_port]]
-                    if current_policy
-                        new[[source_task, sink_task]][[source_port, sink_port]] =
-                            Flows::DataFlow.update_connection_policy(current_policy. policy)
-                    else
-                        new[[source_task, sink_task]][[source_port, sink_port]] = policy
+                    do_add    = true
+                    if actual_connection
+                        # The connection already exists, add only if a reconnection is required
+                        old_policy = source_task.orogen_task[sink_task.orogen_task, ActualFlows::DataFlow][[source_port, sink_port]]
+                        do_add = begin
+                                     old_policy != RobyPlugin.update_connection_policy(old_policy, policy)
+                                 rescue ArgumentError
+                                     true
+                                 end
+                    end
+
+                    if do_add
+                        current_policy = new_connections[[source_task, sink_task]][[source_port, sink_port]]
+                        if current_policy
+                            new_connections[[source_task, sink_task]][[source_port, sink_port]] =
+                                RobyPlugin.update_connection_policy(current_policy. policy)
+                        else
+                            new_connections[[source_task, sink_task]][[source_port, sink_port]] = policy
+                        end
+                    elsif actual_connection
+                        actual_connections.delete(actual_connection)
                     end
                 end
             end
 
             def apply_connection_changes(task)
-                new_connections     = Hash.new { |h, k| h[k] = Hash.new }
-                removed_connections = Hash.new { |h, k| h[k] = Array.new }
+                return if !task.executable?(false) || !task.is_setup?
 
+                new_connections     = Hash.new { |h, k| h[k] = Hash.new }
+
+                did_all = true
+
+                desired_connections = Array.new
                 task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    next if !source_task.executable?(false) || !source_task.is_setup?
-                    compute_connection_update(new_connections, removed_connections,
-                                              source_task, source_port, task, sink_port, policy)
+                    if !source_task.executable?(false) || !source_task.is_setup?
+                        did_all = false
+                        next
+                    end
+                    desired_connections << [source_task, source_port, task, sink_port, policy]
                 end
                 task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                    next if !sink_task.executable?(false) || !sink_task.is_setup?
-                    compute_connection_update(new_connections, removed_connections,
-                                              task, source_port, sink_task, sink_port, policy)
+                    if !sink_task.executable?(false) || !sink_task.is_setup?
+                        did_all = false
+                        next
+                    end
+                    desired_connections << [task, source_port, sink_task, sink_port, policy]
                 end
 
-                removed_connections.each do |(from_task, to_task), mappings|
-                    mappings.each do |from_port, to_port|
-                        Engine.info do
-                            Engine.info "disconnecting #{from_task}:#{from_port}"
-                            Engine.info "     => #{to_task}:#{to_port}"
-                            break
-                        end
-                        from_task.orogen_task.port(from_port).disconnect_from(to_task.orogen_task.port(to_port))
-                        Flows.remove_connections(from_task, to_task, [[from_port, to_port]], Flows::ActualDataFlow)
+                actual_connections = task.actual_connections
+                compute_connection_update(actual_connections, desired_connections, new_connections)
+
+                actual_connections.each do |source_task, source_port, sink_task, sink_port, _|
+                    Engine.info do
+                        Engine.info "disconnecting #{source_task}:#{source_port}"
+                        Engine.info "     => #{sink_task}:#{sink_port}"
+                        break
                     end
+                    if !source_task.port(source_port).disconnect_from(sink_task.port(sink_port))
+                        raise InternalError, "failed to disconnect #{source_task}:#{source_port} from #{sink_task}:#{sink_port}"
+                    end
+                    RobyPlugin.remove_connections(source_task, sink_task,
+                                                  [[source_port, sink_port]], ActualFlows::DataFlow)
                 end
                 new_connections.each do |(from_task, to_task), mappings|
                     mappings.each do |(from_port, to_port), policy|
@@ -1205,9 +1222,12 @@ module Orocos
                             break
                         end
                         from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port), policy)
-                        Flows.add_connections(from_task, to_task, { [from_port, to_port] => policy }, Flows::ActualDataFlow)
+                        RobyPlugin.add_connections(from_task.orogen_task, to_task.orogen_task,
+                                                   { [from_port, to_port] => policy }, ActualFlows::DataFlow)
                     end
                 end
+
+                did_all
             end
         end
     end

@@ -23,6 +23,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         assert_any_event(task.stop_event) do
             task.stop!
         end
+        assert !task.failed?
         assert !task.orogen_deployment.alive?
     end
 
@@ -39,7 +40,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
         Orocos.logger.level = Logger::FATAL
         assert_any_event(task.stop_event) do
-            task.orogen_deployment.kill(true, 'ABRT')
+            task.orogen_deployment.kill(false, 'ABRT')
         end
     end
 
@@ -199,6 +200,60 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         assert(task.failed?)
     end
 
+    def test_connects_after_configuration_before_startup
+        Roby.app.load_orogen_project "system_test"
+
+        plan.add(deployment = Orocos::RobyPlugin::Deployments::System.new)
+        system_test = Orocos::RobyPlugin::SystemTest
+        plan.add_permanent(control = deployment.task('control'))
+        plan.add_permanent(motors  = deployment.task('motor_controller'))
+        control.add_sink(motors, { ['cmd_out', 'command'] => Hash.new })
+
+        was_executable, was_connected = nil
+        motors.singleton_class.class_eval do
+            define_method :configure do
+                was_executable = executable?
+                was_connected  = Roby.app.orocos_engine.registered_connection?(control, 'cmd_out', motors, 'command')
+            end
+        end
+
+	engine.run
+        assert_event_emission(control.start_event & motors.start_event) do
+            control.signals :start, motors, :start
+            control.start!
+        end
+        assert_event_emission(motors.start_event) { motors.start! }
+        assert(!was_executable)
+        assert(!was_connected)
+        assert(control.orogen_task.port('cmd_out').connected?)
+        assert(motors.orogen_task.port('command').connected?)
+    end
+
+    def test_connection_change
+        Roby.app.load_orogen_project "system_test"
+        Orocos::RobyPlugin::Engine.logger.level = Logger::INFO
+
+        plan.add_permanent(deployment = Orocos::RobyPlugin::Deployments::System.new)
+        system_test = Orocos::RobyPlugin::SystemTest
+        plan.add_permanent(control = deployment.task('control'))
+        plan.add_permanent(motors  = deployment.task('motor_controller'))
+        control.add_sink(motors, { ['cmd_out', 'command'] => Hash.new })
+
+        engine.run
+
+        assert_event_emission(control.start_event) { control.start! }
+        assert_event_emission(motors.start_event)  { motors.start! }
+
+        assert(control.orogen_task.port('cmd_out').connected?)
+        assert(motors.orogen_task.port('command').connected?)
+        plan.execute do
+            control.remove_sink(motors)
+        end
+        engine.wait_one_cycle
+        assert(!motors.orogen_task.port('command').connected?)
+        assert(!control.orogen_task.port('cmd_out').connected?)
+    end
+
     def test_dynamic_ports
         Roby.app.load_orogen_project 'system_test'
 
@@ -210,27 +265,27 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
     def test_update_connection_policy
         old_policy = { :type => :data, :init => true }
         new_policy = { :type => :data, :init => true }
-        assert_equal(Orocos::Port.validate_policy(old_policy), Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+        assert_equal(Orocos::Port.validate_policy(old_policy), Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
 
         old_policy = { :type => :data, :init => true }
         new_policy = { :type => :data, :init => true, :pull => true }
-        assert_equal(nil, Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+        assert_equal(nil, Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
 
         old_policy = { :type => :data, :init => true }
         new_policy = { :type => :data, :init => false }
-        assert_equal(nil, Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+        assert_equal(nil, Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
 
         old_policy = { :type => :data }
         new_policy = { :type => :data, :init => false }
-        assert_equal(Orocos::Port.validate_policy(old_policy), Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+        assert_equal(Orocos::Port.validate_policy(old_policy), Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
 
         old_policy = { :type => :buffer, :size => 2 }
         new_policy = { :type => :buffer, :size => 1 }
-        assert_equal(Orocos::Port.validate_policy(old_policy), Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+        assert_equal(Orocos::Port.validate_policy(old_policy), Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
 
         old_policy = { :type => :buffer, :size => 1 }
         new_policy = { :type => :buffer, :size => 2 }
-        assert_equal(Orocos::Port.validate_policy(new_policy), Flows::DataFlow.update_connection_policy(old_policy, new_policy))
+        assert_equal(Orocos::Port.validate_policy(new_policy), Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
     end
 end
 

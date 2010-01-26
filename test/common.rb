@@ -28,6 +28,7 @@ module RobyPluginCommonTest
     end
 
     attr_reader :sys_model
+    attr_reader :orocos_engine
     def setup
         @old_loglevel = Orocos.logger.level
         super
@@ -54,6 +55,7 @@ module RobyPluginCommonTest
         end
 
         @sys_model = Orocos::RobyPlugin::SystemModel.new
+        @orocos_engine = Roby.app.orocos_engine
     end
     def teardown
         Roby.app.orocos_clear_models

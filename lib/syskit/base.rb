@@ -152,6 +152,21 @@ module Orocos
                 instanciated_dynamic_outputs[name] = port
             end
 
+            def added_child_object(child, relations, info)
+                super if defined? super
+                if relations.include?(Flows::DataFlow)
+                    Flows::DataFlow.modified_tasks << child
+                end
+            end
+
+            def removed_child_object(child, relations)
+                super if defined? super
+                if relations.include?(Flows::DataFlow)
+                    Flows::DataFlow.modified_tasks << child
+                end
+            end
+
+
             DATA_SOURCE_ARGUMENTS = { :as => nil, :slave_of => nil, :main => nil }
 
             def self.provides(*args)
@@ -344,6 +359,21 @@ module Orocos
                 end
             end
 
+            def actual_connections
+                result = Array.new
+                orogen_task.each_actual_source do |source_task|
+                    source_task[orogen_task, ActualFlows::DataFlow].each do |(source_port, sink_port), policy|
+                        result << [source_task, source_port, orogen_task, sink_port]
+                    end
+                end
+                orogen_task.each_actual_sink do |sink_task, mappings|
+                    mappings.each do |(source_port, sink_port), policy|
+                        result << [orogen_task, source_port, sink_task, sink_port]
+                    end
+                end
+                result
+            end
+
             # Map the given port name of +source_type+ into the port that
             # is owned by +source_name+ on +target_type+
             #
@@ -380,10 +410,11 @@ module Orocos
             end
         end
 
-        Flows = Roby::RelationSpace(Component)
-        Flows.relation :ActualDataFlow, :child_name => :actual_sink, :parent_name => :actual_source, :dag => false, :weak => true
+        ActualFlows = Roby::RelationSpace(Orocos::TaskContext)
+        ActualFlows.relation :DataFlow, :child_name => :actual_sink, :parent_name => :actual_source, :dag => false, :weak => true
 
-        def Flows.add_connections(source_task, sink_task, mappings, relation) # :nodoc:
+        Flows = Roby::RelationSpace(Component)
+        def self.add_connections(source_task, sink_task, mappings, relation) # :nodoc:
             if mappings.empty?
                 raise ArgumentError, "the connection set is empty"
             end
@@ -401,13 +432,46 @@ module Orocos
                 source_task.add_child_object(sink_task, relation, mappings)
             end
         end
-        def Flows.remove_connections(source_task, sink_task, mappings, relation)
+        def self.remove_connections(source_task, sink_task, mappings, relation)
             current_mappings = source_task[sink_task, relation]
             mappings.each do |source_port, sink_port|
                 current_mappings.delete([source_port, sink_port])
             end
             if current_mappings.empty?
                 source_task.remove_child_object(sink_task, relation)
+            end
+        end
+
+        def self.update_connection_policy(old, new)
+            if old.empty?
+                return new
+            elsif new.empty?
+                return old
+            end
+
+            old = Port.validate_policy(old)
+            new = Port.validate_policy(new)
+            if old[:type] != new[:type]
+                raise ArgumentError, "connection types mismatch: #{old[:type]} != #{new[:type]}"
+            end
+            type = old[:type]
+
+            if type == :buffer
+                if new.size != old.size
+                    raise ArgumentError, "connection policy mismatch: #{old} != #{new}"
+                end
+
+                old.merge(new) do |key, old_value, new_value|
+                    if key == :size
+                        [old_value, new_value].max
+                    elsif old_value != new_value
+                        raise ArgumentError, "connection policy mismatch for #{key}: #{old_value} != #{new_value}"
+                    else
+                        old_value
+                    end
+                end
+            elsif old == new.slice(*old.keys)
+                new
             end
         end
 
@@ -524,7 +588,7 @@ module Orocos
                     if source_task.kind_of?(Composition)
                         source_task.each_concrete_input_connection(source_port) do |source_task, source_port, _, connection_policy|
                             begin
-                                policy = Flows::DataFlow.update_connection_policy(policy, connection_policy)
+                                policy = RobyPlugin.update_connection_policy(policy, connection_policy)
                             rescue ArgumentError => e
                                 raise SpecError, "incompatible policies in input chain for #{self}:#{sink_port}: #{e.message}"
                             end
@@ -548,7 +612,7 @@ module Orocos
                     if sink_task.kind_of?(Composition)
                         sink_task.each_concrete_output_connection(sink_port) do |_, sink_port, sink_task, connection_policy|
                             begin
-                                policy = Flows::DataFlow.update_connection_policy(policy, connection_policy)
+                                policy = RobyPlugin.update_connection_policy(policy, connection_policy)
                             rescue ArgumentError => e
                                 raise SpecError, "incompatible policies in output chain for #{self}:#{source_port}: #{e.message}"
                             end
@@ -586,42 +650,13 @@ module Orocos
         end
 
         module Flows
-            def DataFlow.merge_info(source, sink, current_mappings, additional_mappings)
-                current_mappings.merge(additional_mappings) do |(from, to), old_options, new_options|
-                    update_connection_policy(old_options, new_options)
-                end
+            def DataFlow.modified_tasks
+                @modified_tasks ||= ValueSet.new
             end
 
-            def DataFlow.update_connection_policy(old, new)
-                if old.empty?
-                    return new
-                elsif new.empty?
-                    return old
-                end
-
-                old = Port.validate_policy(old)
-                new = Port.validate_policy(new)
-                if old[:type] != new[:type]
-                    raise ArgumentError, "connection types mismatch: #{old[:type]} != #{new[:type]}"
-                end
-                type = old[:type]
-
-                if type == :buffer
-                    if new.size != old.size
-                        raise ArgumentError, "connection policy mismatch: #{old} != #{new}"
-                    end
-
-                    old.merge(new) do |key, old_value, new_value|
-                        if key == :size
-                            [old_value, new_value].max
-                        elsif old_value != new_value
-                            raise ArgumentError, "connection policy mismatch for #{key}: #{old_value} != #{new_value}"
-                        else
-                            old_value
-                        end
-                    end
-                elsif old == new.slice(*old.keys)
-                    new
+            def DataFlow.merge_info(source, sink, current_mappings, additional_mappings)
+                current_mappings.merge(additional_mappings) do |(from, to), old_options, new_options|
+                    RobyPlugin.update_connection_policy(old_options, new_options)
                 end
             end
         end
