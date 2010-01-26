@@ -149,7 +149,6 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert(task_model < source_model)
         assert_equal(source_model, task_model.data_source_type('image'))
         assert_equal([["image", source_model]], task_model.each_root_data_source.to_a)
-        assert_equal([:image_name], task_model.arguments.to_a)
     end
 
     def test_task_data_source_declaration_default_name
@@ -165,7 +164,6 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert(task_model < source_model)
         assert_equal(source_model, task_model.data_source_type('image'))
         assert_equal([["image", source_model]], task_model.each_root_data_source.to_a)
-        assert_equal([:image_name], task_model.arguments.to_a)
     end
 
     def test_task_data_source_declaration_specific_name
@@ -182,7 +180,6 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
         assert(task_model.fullfills?(source_model))
         assert_equal(source_model, task_model.data_source_type('left_image'))
         assert_equal([["left_image", source_model]], task_model.each_root_data_source.to_a)
-        assert_equal([:left_image_name], task_model.arguments.to_a)
     end
 
     def test_task_data_source_specific_model
