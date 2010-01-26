@@ -6,7 +6,10 @@ require 'test/roby/common'
 class TC_RobySpec_Composition < Test::Unit::TestCase
     include RobyPluginCommonTest
 
+    needs_orogen_projects 'simple_source', 'simple_sink'
+
     def simple_composition
+        Roby.app.load_orogen_project "echo"
         sys_model.subsystem "simple" do
             add SimpleSource::Source, :as => 'source'
             add SimpleSink::Sink, :as => 'sink'
@@ -30,6 +33,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     end
 
     def test_simple_composition_instanciation
+        Roby.app.load_orogen_project "echo"
         subsys_model = sys_model.subsystem "simple" do
             add SimpleSource::Source, :as => 'source'
             add SimpleSink::Sink, :as => 'sink'
@@ -86,6 +90,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     end
 
     def test_simple_composition_ambiguity
+        Roby.app.load_orogen_project 'echo'
         subsys = sys_model.subsystem("source_sink0") do
             add SimpleSource::Source, :as => 'source'
             add SimpleSink::Sink, :as => 'sink1'
@@ -157,6 +162,9 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
 
     def test_composition_concrete_IO
+        Roby.app.load_orogen_project 'simple_source'
+        Roby.app.load_orogen_project 'simple_sink'
+
         source, sink1, sink2 = nil
         subsys = sys_model.subsystem("source_sink0") do
             source = add SimpleSource::Source, :as => 'source'
