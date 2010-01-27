@@ -292,17 +292,28 @@ module Orocos
                 model
             end
 
+            def check_is_setup
+                true
+            end
+
+            def is_setup?
+                @is_setup ||= check_is_setup
+            end
+
+
             def executable?(with_setup = true)
                 if !super()
                     return false
                 end
 
-                if with_setup && !is_setup?
-                    return false
-                end
+                if with_setup
+                    if !is_setup?
+                        return false
+                    end
 
-                if pending?
-                    return Roby.app.orocos_engine.all_inputs_connected?(self)
+                    if pending?
+                        return Roby.app.orocos_engine.all_inputs_connected?(self)
+                    end
                 end
                 true
             end

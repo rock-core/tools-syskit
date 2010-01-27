@@ -499,10 +499,6 @@ module Orocos
                 end
             end
 
-            def is_setup?
-                @is_setup ||= check_is_setup
-            end
-
             ##
             # :method: start!
             #
