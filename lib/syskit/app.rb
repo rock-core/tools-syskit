@@ -65,6 +65,17 @@ module Orocos
                 app.orocos_load_component_extensions = true
 
                 ::Robot.extend Application::RobotExtension
+                mod = Module.new do
+                    def self.method_missing(m, *args, &block)
+                        Roby.app.orocos_engine.robot.send(m, *args, &block)
+                    end
+
+                    def self.const_missing(const_name)
+                        Application.resolve_constants(const_name, DeviceDrivers, [DeviceDrivers])
+                    end
+                end
+                ::Robot.const_set 'Devices', mod
+
             end
 
             # Returns true if the given orogen project has already been loaded
@@ -145,6 +156,10 @@ module Orocos
             end
 
             def self.require_models(app)
+                Orocos.const_set('Interfaces',    Orocos::RobyPlugin::Interfaces)
+                Orocos.const_set('DeviceDrivers', Orocos::RobyPlugin::DeviceDrivers)
+                Orocos.const_set('Compositions',  Orocos::RobyPlugin::Compositions)
+
                 # Load the interface and task models
                 %w{interfaces compositions}.each do |category|
                     all_files = app.list_dir(APP_DIR, "tasks", "orocos", category).to_a +
