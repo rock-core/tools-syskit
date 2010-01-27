@@ -96,7 +96,8 @@ module Orocos
                 RobyPlugin.info { "starting deployment #{model.deployment_name}" }
 
                 @orogen_deployment = ::Orocos::Process.new(model.deployment_name)
-                orogen_deployment.spawn(:output => File.join(Roby.app.log_dir, "%m-%p.txt"))
+                orogen_deployment.spawn(:output => File.join(Roby.app.log_dir, "%m-%p.txt"),
+                                        :working_directory => Roby.app.log_dir)
                 Roby::ExternalProcessTask.processes[orogen_deployment.pid] = self
                 emit :start
             end
