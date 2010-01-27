@@ -153,6 +153,10 @@ module Orocos
 
                 app.orocos_system_model = SystemModel.new
                 app.orocos_engine = Engine.new(Roby.plan || Roby::Plan.new, app.orocos_system_model)
+                Orocos.singleton_class.class_eval do
+                    attr_reader :engine
+                end
+                Orocos.instance_variable_set :@engine, app.orocos_engine
             end
 
             def self.require_models(app)
