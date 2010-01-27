@@ -924,20 +924,28 @@ module Orocos
             # Returns the OutputPort object that has the given name on this
             # composition
             def output_port(name)
+                real_task, real_port = resolve_output_port(name)
+                real_task.output_port(real_port)
+            end
+
+            def resolve_output_port(name)
                 if !(port = model.find_output(name))
                     raise ArgumentError, "no output port named '#{name}' on '#{self}'"
                 end
-
                 resolve_port(port)
             end
 
             # Returns the OutputPort object that has the given name on this
             # composition
             def input_port(name)
-                if !(port = model.find_input(name))
+                real_task, real_port = resolve_input_port(name)
+                real_task.input_port(real_port)
+            end
+
+            def resolve_input_port(name)
+                if !(port = model.find_input(name.to_str))
                     raise ArgumentError, "no input port named '#{name}' on '#{self}'"
                 end
-
                 resolve_port(port)
             end
 
@@ -949,10 +957,14 @@ module Orocos
                 end
 
                 port_name = exported_port.port_name
-                if exported_port.kind_of?(CompositionChildInputPort)
-                    task.input_port(port_name)
+                if task.kind_of?(Composition)
+                    if exported_port.kind_of?(CompositionChildOutputPort)
+                        return task.resolve_output_port(port_name)
+                    else
+                        return task.resolve_input_port(port_name)
+                    end
                 else
-                    task.output_port(port_name)
+                    return task, port_name
                 end
             end
 
@@ -983,21 +995,31 @@ module Orocos
                 result
             end
 
-            def added_child_object(child, relations, info)
-                super
-                if relations.include?(Flows::DataFlow)
-                    each_child do |child_task, _|
-                        Flows::DataFlow.modified_tasks << child_task
+            def dataflow_change_handler(child, mappings)
+                if child.kind_of?(TaskContext)
+                    Flows::DataFlow.modified_tasks << child
+                else
+                    mappings ||= self[child, Flows::DataFlow]
+                    mappings.each_key do |source_port, sink_port|
+                        real_task, _ = resolve_output_port(source_port)
+                        Flows::DataFlow.modified_tasks << real_task
                     end
                 end
             end
 
-            def removed_child_object(child, relations)
+            def added_child_object(child, relations, mappings)
                 super
+
                 if relations.include?(Flows::DataFlow)
-                    each_child do |child_task, _|
-                        Flows::DataFlow.modified_tasks << child_task
-                    end
+                    dataflow_change_handler(child, mappings)
+                end
+            end
+
+            def removing_child_object(child, relations)
+                super
+
+                if relations.include?(Flows::DataFlow)
+                    dataflow_change_handler(child, nil)
                 end
             end
 

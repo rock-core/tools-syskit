@@ -152,21 +152,6 @@ module Orocos
                 instanciated_dynamic_outputs[name] = port
             end
 
-            def added_child_object(child, relations, info)
-                super if defined? super
-                if relations.include?(Flows::DataFlow)
-                    Flows::DataFlow.modified_tasks << child
-                end
-            end
-
-            def removed_child_object(child, relations)
-                super if defined? super
-                if relations.include?(Flows::DataFlow)
-                    Flows::DataFlow.modified_tasks << child
-                end
-            end
-
-
             DATA_SOURCE_ARGUMENTS = { :as => nil, :slave_of => nil, :main => nil }
 
             def self.provides(*args)

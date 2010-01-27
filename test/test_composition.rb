@@ -211,11 +211,13 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
         FlexMock.use(deep_source) do |mock|
             mock.should_receive(:output_port).and_return(10).once
+            assert_equal [deep_source, 'cycle'], composition.resolve_port(composition.model.find_output('out'))
             assert_equal 10, composition.output_port('out')
         end
 
         FlexMock.use(deep_sink) do |mock|
             mock.should_receive(:input_port).and_return(10).once
+            assert_equal [deep_sink, 'cycle'], composition.resolve_port(composition.model.find_input('in'))
             assert_equal 10, composition.input_port('in')
         end
     end

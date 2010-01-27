@@ -293,6 +293,21 @@ module Orocos
                 if !super
                     return false
                 end
+                true
+            end
+
+            def added_child_object(child, relations, info)
+                super if defined? super
+                if relations.include?(Flows::DataFlow)
+                    Flows::DataFlow.modified_tasks << self
+                end
+            end
+
+            def removed_child_object(child, relations)
+                super if defined? super
+                if relations.include?(Flows::DataFlow)
+                    Flows::DataFlow.modified_tasks << self
+                end
             end
 
             attr_reader :minimal_period
