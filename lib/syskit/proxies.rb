@@ -171,8 +171,12 @@ module Orocos
                 orogen_spec.task_activities.each do |act|
                     TaskContext.configured.delete(name)
                 end
-                task_handles.each_value do |task|
-                    ActualFlows::DataFlow.remove(task)
+                if task_handles
+                    # task_handles is only initialized when ready is reached ...
+                    # so can be nil here
+                    task_handles.each_value do |task|
+                        ActualFlows::DataFlow.remove(task)
+                    end
                 end
 
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
