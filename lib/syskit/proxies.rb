@@ -450,7 +450,7 @@ module Orocos
                 if running?
                     emit :aborted, e
                 elsif pending? || starting?
-                    emit_failed :start, e
+                    event(:start).emit_failed e
                 end
             end
 
