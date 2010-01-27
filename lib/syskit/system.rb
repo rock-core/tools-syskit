@@ -227,6 +227,8 @@ module Orocos
                 @robot
             end
 
+            attr_predicate :modified
+
             def initialize(plan, model)
                 @plan      = plan
                 @model     = model
@@ -234,6 +236,7 @@ module Orocos
                 @tasks     = Hash.new
                 @deployments = ValueSet.new
                 @main_selection = Hash.new
+                @modified  = false
             end
 
             class InstanciatedComponent
@@ -308,6 +311,7 @@ module Orocos
                 end
                 arguments, task_arguments = Kernel.filter_options arguments, :as => nil
                 instance = InstanciatedComponent.new(self, arguments[:as], model, task_arguments)
+                @modified = true
                 instances << instance
                 instance
             end
@@ -332,6 +336,7 @@ module Orocos
                     end
                 end
 
+                @modified = true
                 removed_instances.each do |instance|
                     if instance.task
                         plan.unmark_mission(instance.task)
@@ -540,6 +545,7 @@ module Orocos
 
                     trsc.static_garbage_collect
                     trsc.commit_transaction
+                    @modified = false
                 end
 
             ensure

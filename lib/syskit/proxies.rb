@@ -199,6 +199,10 @@ module Orocos
         # This method is called at the beginning of each execution cycle, and
         # updates the running TaskContext tasks.
         def self.update(plan) # :nodoc:
+            if Roby.app.orocos_engine.modified?
+                Roby.app.orocos_engine.resolve
+            end
+
             if !(query = plan.instance_variable_get :@orocos_update_query)
                 query = plan.find_tasks(Orocos::RobyPlugin::TaskContext).
                     not_finished.not_failed
