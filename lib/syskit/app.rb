@@ -156,6 +156,7 @@ module Orocos
             end
 
             def self.require_models(app)
+                Orocos.const_set('Deployments',    Orocos::RobyPlugin::Deployments)
                 Orocos.const_set('Interfaces',    Orocos::RobyPlugin::Interfaces)
                 Orocos.const_set('DeviceDrivers', Orocos::RobyPlugin::DeviceDrivers)
                 Orocos.const_set('Compositions',  Orocos::RobyPlugin::Compositions)
