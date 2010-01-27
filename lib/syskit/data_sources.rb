@@ -543,7 +543,13 @@ module Orocos
 
                 triggering_devices = model.each_root_data_source.
                     find_all { |_, model| model < DeviceDriver }.
-                    map { |source_name, _| robot.devices[arguments["#{source_name}_name"]] }
+                    map do |source_name, _|
+                        device = robot.devices[arguments["#{source_name}_name"]]
+                        if !device
+                            RobyPlugin::Engine.warn "no device associated with #{source_name} (#{arguments["#{source_name}_name"]})"
+                        end
+                        device
+                    end.compact
 
                 if orogen_spec.activity_type != 'FileDescriptorActivity'
                     triggering_devices.delete_if { |m| !m.com_bus }
