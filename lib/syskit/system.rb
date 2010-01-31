@@ -193,7 +193,13 @@ module Orocos
             # The robot on which the software is running
             attr_reader :robot
             # The instances we are supposed to build
+            #
+            # See #add and #remove
             attr_reader :instances
+            # Prepared InstanciatedComponent instances.
+            #
+            # See #define
+            attr_reader :defines
             # A name => Task mapping of tasks we built so far
             attr_reader :tasks
             # The set of deployment names we should use
@@ -227,6 +233,8 @@ module Orocos
                 @robot
             end
 
+            attr_predicate :modified
+
             def initialize(plan, model)
                 @plan      = plan
                 @model     = model
@@ -234,6 +242,8 @@ module Orocos
                 @tasks     = Hash.new
                 @deployments = ValueSet.new
                 @main_selection = Hash.new
+                @defines   = Hash.new
+                @modified  = false
                 @merging_candidates_queries = Hash.new
                 @composition_specializations = Hash.new do |h, k|
                     h[k] = Hash.new { |a, b| a[b] = Hash.new }
@@ -306,12 +316,28 @@ module Orocos
                 instance
             end
 
-            def add(model, arguments = Hash.new)
+            def create_instanciated_component(model, arguments = Hash.new)
                 if !(model.kind_of?(Class) && model < Component)
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
                 end
                 arguments, task_arguments = Kernel.filter_options arguments, :as => nil
                 instance = InstanciatedComponent.new(self, arguments[:as], model, task_arguments)
+            end
+
+            def define(name, model, arguments = Hash.new)
+                defines[name] = create_instanciated_component(model, arguments)
+            end
+
+            def add(model, arguments = Hash.new)
+                if model.respond_to?(:to_str)
+                    if !(instance = defines[model.to_str])
+                        raise ArgumentError, "#{model} is not a valid instance definition added with #define"
+                    end
+                    instance = instance.dup
+                else
+                    instance = create_instanciated_component(model, arguments)
+                end
+                @modified = true
                 instances << instance
                 instance
             end
@@ -336,6 +362,7 @@ module Orocos
                     end
                 end
 
+                @modified = true
                 removed_instances.each do |instance|
                     if instance.task
                         plan.unmark_mission(instance.task)
@@ -571,6 +598,7 @@ module Orocos
 
                     trsc.static_garbage_collect
                     trsc.commit_transaction
+                    @modified = false
                 end
 
             ensure

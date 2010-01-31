@@ -152,21 +152,6 @@ module Orocos
                 instanciated_dynamic_outputs[name] = port
             end
 
-            def added_child_object(child, relations, info)
-                super if defined? super
-                if relations.include?(Flows::DataFlow)
-                    Flows::DataFlow.modified_tasks << child
-                end
-            end
-
-            def removed_child_object(child, relations)
-                super if defined? super
-                if relations.include?(Flows::DataFlow)
-                    Flows::DataFlow.modified_tasks << child
-                end
-            end
-
-
             DATA_SOURCE_ARGUMENTS = { :as => nil, :slave_of => nil, :main => nil }
 
             def self.provides(*args)
@@ -292,17 +277,28 @@ module Orocos
                 model
             end
 
+            def check_is_setup
+                true
+            end
+
+            def is_setup?
+                @is_setup ||= check_is_setup
+            end
+
+
             def executable?(with_setup = true)
                 if !super()
                     return false
                 end
 
-                if with_setup && !is_setup?
-                    return false
-                end
+                if with_setup
+                    if !is_setup?
+                        return false
+                    end
 
-                if pending?
-                    return Roby.app.orocos_engine.all_inputs_connected?(self)
+                    if pending?
+                        return Roby.app.orocos_engine.all_inputs_connected?(self)
+                    end
                 end
                 true
             end
@@ -490,6 +486,7 @@ module Orocos
                     end
                 end
             end
+
             def ensure_has_input_port(name)
                 if !model.input_port(name)
                     if model.dynamic_input_port?(name)
@@ -499,6 +496,12 @@ module Orocos
                     end
                 end
             end
+
+            def clear_relations
+                Flows::DataFlow.remove(self)
+                super
+            end
+
 
             # Forward an input port of a composition to one of its children, or
             # an output port of a composition's child to its parent composition.

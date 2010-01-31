@@ -153,9 +153,14 @@ module Orocos
 
                 app.orocos_system_model = SystemModel.new
                 app.orocos_engine = Engine.new(Roby.plan || Roby::Plan.new, app.orocos_system_model)
+                Orocos.singleton_class.class_eval do
+                    attr_reader :engine
+                end
+                Orocos.instance_variable_set :@engine, app.orocos_engine
             end
 
             def self.require_models(app)
+                Orocos.const_set('Deployments',    Orocos::RobyPlugin::Deployments)
                 Orocos.const_set('Interfaces',    Orocos::RobyPlugin::Interfaces)
                 Orocos.const_set('DeviceDrivers', Orocos::RobyPlugin::DeviceDrivers)
                 Orocos.const_set('Compositions',  Orocos::RobyPlugin::Compositions)
@@ -176,6 +181,19 @@ module Orocos
                     if project_names.include?(File.basename(path, ".rb"))
                         load_task_extension(path, app)
                     end
+                end
+
+                Orocos.const_set(:RTT, Orocos::RobyPlugin::RTT)
+                projects = Set.new
+                orocos_tasks.each_value do |model|
+                    if model.orogen_spec
+                        projects << model.orogen_spec.component.name.camelcase(true)
+                    end
+                end
+
+                projects.each do |name|
+                    name = name.camelcase(true)
+                    Orocos.const_set(name, Orocos::RobyPlugin.const_get(name))
                 end
             end
 
@@ -205,6 +223,9 @@ module Orocos
                 projects.each do |name|
                     name = name.camelcase(true)
                     Orocos::RobyPlugin.send(:remove_const, name)
+                    if Orocos.const_defined?(name)
+                        Orocos.send(:remove_const, name)
+                    end
                 end
 
                 [Interfaces, Compositions, DeviceDrivers].each do |mod|

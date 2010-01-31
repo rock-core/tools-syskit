@@ -25,7 +25,6 @@ module Orocos
             Orocos::RobyPlugin.define_or_reuse(const_name) do
                 mod = Project.new
                 mod.instance_variable_set :@orogen_spec, ::Roby.app.loaded_orogen_projects[name]
-                Orocos.const_set(const_name, mod)
                 mod
             end
         end
@@ -92,7 +91,7 @@ module Orocos
             # Starts the process and emits the start event immediately. The
             # :ready event will be emitted when the deployment is up and
             # running.
-            event :start do
+            event :start do |context|
                 RobyPlugin.info { "starting deployment #{model.deployment_name}" }
 
                 @orogen_deployment = ::Orocos::Process.new(model.deployment_name)
@@ -140,7 +139,7 @@ module Orocos
             #
             # Stops all tasks that are running on top of this deployment, and
             # kill the deployment
-            event :stop do
+            event :stop do |context|
                 to_be_killed = each_executed_task.find_all(&:running?)
                 if to_be_killed.empty?
                     orogen_deployment.kill(false)
@@ -167,12 +166,16 @@ module Orocos
                 orogen_deployment.dead!(result)
             end
 
-            on :stop do
+            on :stop do |event|
                 orogen_spec.task_activities.each do |act|
                     TaskContext.configured.delete(name)
                 end
-                task_handles.each_value do |task|
-                    ActualFlows::DataFlow.remove(task)
+                if task_handles
+                    # task_handles is only initialized when ready is reached ...
+                    # so can be nil here
+                    task_handles.each_value do |task|
+                        ActualFlows::DataFlow.remove(task)
+                    end
                 end
 
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
@@ -195,6 +198,10 @@ module Orocos
         # This method is called at the beginning of each execution cycle, and
         # updates the running TaskContext tasks.
         def self.update(plan) # :nodoc:
+            if Roby.app.orocos_engine.modified?
+                Roby.app.orocos_engine.resolve
+            end
+
             if !(query = plan.instance_variable_get :@orocos_update_query)
                 query = plan.find_tasks(Orocos::RobyPlugin::TaskContext).
                     not_finished.not_failed
@@ -288,6 +295,21 @@ module Orocos
                 end
                 if !super
                     return false
+                end
+                true
+            end
+
+            def added_child_object(child, relations, info)
+                super if defined? super
+                if relations.include?(Flows::DataFlow)
+                    Flows::DataFlow.modified_tasks << self
+                end
+            end
+
+            def removed_child_object(child, relations)
+                super if defined? super
+                if relations.include?(Flows::DataFlow)
+                    Flows::DataFlow.modified_tasks << self
                 end
             end
 
@@ -446,7 +468,7 @@ module Orocos
                 if running?
                     emit :aborted, e
                 elsif pending? || starting?
-                    emit_failed :start, e
+                    event(:start).emit_failed e
                 end
             end
 
@@ -499,17 +521,13 @@ module Orocos
                 end
             end
 
-            def is_setup?
-                @is_setup ||= check_is_setup
-            end
-
             ##
             # :method: start!
             #
             # Optionally configures and then start the component. The start
             # event will be emitted when the it has successfully been
             # configured and started.
-            event :start do
+            event :start do |context|
                 # We're not running yet, so we have to read the state ourselves.
                 state = read_current_state
 
@@ -569,7 +587,7 @@ module Orocos
             # :method: interrupt!
             #
             # Interrupts the execution of this task context
-            event :interrupt do
+            event :interrupt do |context|
                 orogen_task.stop
             end
             forward :interrupt => :failed
@@ -580,7 +598,7 @@ module Orocos
             event :fatal_error
             forward :fatal_error => :failed
 
-            on :aborted do
+            on :aborted do |event|
                 @orogen_task = nil
             end
 
@@ -589,10 +607,10 @@ module Orocos
             # :method: stop!
             #
             # Interrupts the execution of this task context
-            event :stop do
+            event :stop do |context|
                 interrupt!
             end
-            on :stop do
+            on :stop do |event|
                 ::Robot.info "stopped #{orocos_name}"
                 if @state_reader
                     @state_reader.disconnect

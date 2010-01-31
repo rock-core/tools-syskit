@@ -82,19 +82,17 @@ module Orocos
                 orogen_spec
             end
 
-            def each_port_name_candidate(port_name, main_source = false, source_names = nil)
+            def each_port_name_candidate(port_name, main_source = false, source_name = nil)
                 if !block_given?
-                    return enum_for(:each_port_name_candidate, port_name, main_source, source_names)
+                    return enum_for(:each_port_name_candidate, port_name, main_source, source_name)
                 end
 
-                if source_names
+                if source_name
                     if main_source
                         yield(port_name)
                     end
-                    source_names.each do |source_name|
-                        yield("#{source_name}_#{port_name}".camelcase(false))
-                        yield("#{port_name}_#{source_name}".camelcase(false))
-                    end
+                    yield("#{source_name}_#{port_name}".camelcase(false))
+                    yield("#{port_name}_#{source_name}".camelcase(false))
                 else
                     yield(port_name)
                 end
@@ -543,7 +541,13 @@ module Orocos
 
                 triggering_devices = model.each_root_data_source.
                     find_all { |_, model| model < DeviceDriver }.
-                    map { |source_name, _| robot.devices[arguments["#{source_name}_name"]] }
+                    map do |source_name, _|
+                        device = robot.devices[arguments["#{source_name}_name"]]
+                        if !device
+                            RobyPlugin::Engine.warn "no device associated with #{source_name} (#{arguments["#{source_name}_name"]})"
+                        end
+                        device
+                    end.compact
 
                 if orogen_spec.activity_type != 'FileDescriptorActivity'
                     triggering_devices.delete_if { |m| !m.com_bus }

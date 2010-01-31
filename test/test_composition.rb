@@ -74,8 +74,8 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_equal(['source'].to_set, subsys_task[source, TaskStructure::Dependency][:roles])
         assert_equal(['sink'].to_set, subsys_task[sink, TaskStructure::Dependency][:roles])
 
-        assert_equal([ [source, sink, {["cycle", "cycle"] => Hash.new}] ].to_set,
-            Flows::DataFlow.enum_for(:each_edge).to_set)
+        assert_equal([ [source, sink, {["cycle", "cycle"] => Hash.new}] ],
+            Flows::DataFlow.enum_for(:each_edge).to_a)
     end
 
     def test_simple_composition_autoconnection
@@ -211,11 +211,13 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
         FlexMock.use(deep_source) do |mock|
             mock.should_receive(:output_port).and_return(10).once
+            assert_equal [deep_source, 'cycle'], composition.resolve_port(composition.model.find_output('out'))
             assert_equal 10, composition.output_port('out')
         end
 
         FlexMock.use(deep_sink) do |mock|
             mock.should_receive(:input_port).and_return(10).once
+            assert_equal [deep_sink, 'cycle'], composition.resolve_port(composition.model.find_input('in'))
             assert_equal 10, composition.input_port('in')
         end
     end
@@ -305,7 +307,9 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         model = Class.new(SimpleSource::Source) do
             def self.name; "Model" end
         end
-        tag   = Roby::TaskModelTag.new
+        tag   = Roby::TaskModelTag.new do
+            def self.name; "Tag" end
+        end
         model.include tag
 
         subsys = sys_model.subsystem("composition") do
@@ -481,18 +485,20 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         child  = sys_model.composition("child", :child_of => parent)
         assert(child < parent)
 
+        bad_model = Class.new(Component) do
+            def self.name; "BadModel" end
+        end
         assert_raises(SpecError) do
-            child.add Class.new(Component), :as => "Sink"
+            child.add bad_model, :as => "Sink"
         end
 
         # Add another tag
-        child.class_eval do
-            add tag, :as => "Sink"
-            add submodel, :as => 'Source'
-            add SimpleSink::Sink, :as => 'Sink2'
-            autoconnect
-            connect self['Source'].cycle => self['Sink'].cycle, :type => :buffer, :size => 2
-        end
+        child.add tag, :as => "Sink"
+        child.add submodel, :as => 'Source'
+        child.add SimpleSink::Sink, :as => 'Sink2'
+        child.autoconnect
+        child.connect child['Source'].cycle => child['Sink'].cycle,
+            :type => :buffer, :size => 2
 
         parent.compute_autoconnection
         child.compute_autoconnection

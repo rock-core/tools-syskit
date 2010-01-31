@@ -295,11 +295,9 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
             :interface => SystemTest::CameraDriver
 
         task_model   = SystemTest::StereoCamera
-        task_model.class_eval do
-            data_source IF::Stereoprocessing, :as => 'stereo', :main => true
-            data_source IF::Image, :as => 'left',  :slave_of => 'stereo'
-            data_source IF::Image, :as => 'right', :slave_of => 'stereo'
-        end
+        task_model.data_source Interfaces::Stereoprocessing, :as => 'stereo', :main => true
+        task_model.data_source IF::Image, :as => 'left',  :slave_of => 'stereo'
+        task_model.data_source IF::Image, :as => 'right', :slave_of => 'stereo'
 
         assert_equal "stereo",     task_model.find_matching_source(stereo_model)
         assert_equal "stereo",     task_model.find_matching_source(stereo_processing_model)
@@ -463,16 +461,12 @@ class TC_RobySpec_DataSourceModels < Test::Unit::TestCase
 
         sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
         sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
-        SystemTest::StereoCamera.class_eval do
-            data_source IF::Stereo
-            data_source IF::Camera, :as => 'left', :slave_of => 'stereo'
-            data_source IF::Camera, :as => 'right', :slave_of => 'stereo'
-        end
+        SystemTest::StereoCamera.data_source IF::Stereo
+        SystemTest::StereoCamera.data_source IF::Camera, :as => 'left', :slave_of => 'stereo'
+        SystemTest::StereoCamera.data_source IF::Camera, :as => 'right', :slave_of => 'stereo'
         stereo_model = SystemTest::StereoCamera
 
-        SystemTest::CameraDriver.class_eval do
-            data_source IF::Camera
-        end
+        SystemTest::CameraDriver.data_source IF::Camera
         camera_model = IF::Camera.task_model
 
         plan.add(parent = Roby::Task.new)

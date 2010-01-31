@@ -64,10 +64,10 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         assert !task.executable?
         task_exec_flag1, task_exec_flag2, task_exec_flag3 = nil
 
-        deployment.on :start do
+        deployment.on :start do |event|
             task_exec_flag1 = task.executable?
         end
-        deployment.on :ready do
+        deployment.on :ready do |event|
             task_exec_flag2 = task.executable?
         end
         task.singleton_class.class_eval do
