@@ -9,21 +9,34 @@ module Orocos
                 @system = self
             end
 
+            if method(:const_defined?).arity == 1 # probably Ruby 1.8
+            def has_interface?(name)
+                Orocos::RobyPlugin::Interfaces.const_defined?(name.camelcase(true))
+            end
+            def has_device_driver?(name)
+                Orocos::RobyPlugin::DeviceDrivers.const_defined?(name.camelcase(true))
+            end
+            def has_composition?(name)
+                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(true))
+            end
+            else
             def has_interface?(name)
                 Orocos::RobyPlugin::Interfaces.const_defined?(name.camelcase(true), false)
             end
+            def has_device_driver?(name)
+                Orocos::RobyPlugin::DeviceDrivers.const_defined?(name.camelcase(true), false)
+            end
+            def has_composition?(name)
+                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(true), false)
+            end
+            end
+
             def register_interface(model)
                 Orocos::RobyPlugin::Interfaces.const_set(model.name.camelcase(true), model)
             end
 
-            def has_device_driver?(name)
-                Orocos::RobyPlugin::DeviceDrivers.const_defined?(name.camelcase(true), false)
-            end
             def register_device_driver(model)
                 Orocos::RobyPlugin::DeviceDrivers.const_set(model.name.camelcase(true), model)
-            end
-            def has_composition?(name)
-                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(true), false)
             end
             def register_composition(model)
                 Orocos::RobyPlugin::Compositions.const_set(model.name.camelcase(true), model)
