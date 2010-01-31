@@ -929,7 +929,7 @@ module Orocos
             end
 
             def resolve_output_port(name)
-                if !(port = model.find_output(name))
+                if !(port = model.output_port(name))
                     raise ArgumentError, "no output port named '#{name}' on '#{self}'"
                 end
                 resolve_port(port)
@@ -943,7 +943,7 @@ module Orocos
             end
 
             def resolve_input_port(name)
-                if !(port = model.find_input(name.to_str))
+                if !(port = model.input_port(name.to_str))
                     raise ArgumentError, "no input port named '#{name}' on '#{self}'"
                 end
                 resolve_port(port)
