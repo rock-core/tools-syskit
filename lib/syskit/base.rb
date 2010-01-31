@@ -481,6 +481,7 @@ module Orocos
                     end
                 end
             end
+
             def ensure_has_input_port(name)
                 if !model.input_port(name)
                     if model.dynamic_input_port?(name)
@@ -490,6 +491,12 @@ module Orocos
                     end
                 end
             end
+
+            def clear_relations
+                Flows::DataFlow.remove(self)
+                super
+            end
+
 
             # Forward an input port of a composition to one of its children, or
             # an output port of a composition's child to its parent composition.

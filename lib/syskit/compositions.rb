@@ -953,7 +953,7 @@ module Orocos
                 role = exported_port.child.child_name
                 task, _ = each_child.find { |task, options| options[:roles].include?(role) }
                 if !task
-                    raise InternalError, "#{role} is referenced to as a child of #{self}, but no child task has this role"
+                    return
                 end
 
                 port_name = exported_port.port_name
@@ -998,11 +998,22 @@ module Orocos
             def dataflow_change_handler(child, mappings)
                 if child.kind_of?(TaskContext)
                     Flows::DataFlow.modified_tasks << child
+                elsif child_object?(child, Roby::TaskStructure::Dependency)
+                    mappings ||= self[child, Flows::DataFlow]
+                    mappings.each_key do |source_port, sink_port|
+                        real_task, _ = resolve_input_port(source_port)
+                        if real_task # can be nil if the child has been removed
+                            Flows::DataFlow.modified_tasks << real_task
+                        end
+                    end
+
                 else
                     mappings ||= self[child, Flows::DataFlow]
                     mappings.each_key do |source_port, sink_port|
                         real_task, _ = resolve_output_port(source_port)
-                        Flows::DataFlow.modified_tasks << real_task
+                        if real_task # can be nil if the child has been removed
+                            Flows::DataFlow.modified_tasks << real_task
+                        end
                     end
                 end
             end
