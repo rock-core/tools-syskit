@@ -25,7 +25,6 @@ module Orocos
             Orocos::RobyPlugin.define_or_reuse(const_name) do
                 mod = Project.new
                 mod.instance_variable_set :@orogen_spec, ::Roby.app.loaded_orogen_projects[name]
-                Orocos.const_set(const_name, mod)
                 mod
             end
         end

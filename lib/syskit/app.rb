@@ -182,6 +182,19 @@ module Orocos
                         load_task_extension(path, app)
                     end
                 end
+
+                Orocos.const_set(:RTT, Orocos::RobyPlugin::RTT)
+                projects = Set.new
+                orocos_tasks.each_value do |model|
+                    if model.orogen_spec
+                        projects << model.orogen_spec.component.name.camelcase(true)
+                    end
+                end
+
+                projects.each do |name|
+                    name = name.camelcase(true)
+                    Orocos.const_set(name, Orocos::RobyPlugin.const_get(name))
+                end
             end
 
             def use_deployments_from(*args)
@@ -210,6 +223,9 @@ module Orocos
                 projects.each do |name|
                     name = name.camelcase(true)
                     Orocos::RobyPlugin.send(:remove_const, name)
+                    if Orocos.const_defined?(name)
+                        Orocos.send(:remove_const, name)
+                    end
                 end
 
                 [Interfaces, Compositions, DeviceDrivers].each do |mod|
