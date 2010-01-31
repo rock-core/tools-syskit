@@ -235,6 +235,9 @@ module Orocos
                 @deployments = ValueSet.new
                 @main_selection = Hash.new
                 @merging_candidates_queries = Hash.new
+                @composition_specializations = Hash.new do |h, k|
+                    h[k] = Hash.new { |a, b| a[b] = Hash.new }
+                end
             end
 
             class InstanciatedComponent
@@ -515,6 +518,24 @@ module Orocos
                     end
                 if !not_deployed.empty?
                     raise Ambiguous, "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
+                end
+            end
+
+            attr_reader :composition_specializations
+
+            def composition_child_is_specialized(child_name, c0, c1)
+                result = composition_specializations[child_name][c0][c1]
+                if result.nil?
+                    models0 = c0.find_child(child_name)
+                    models1 = c1.find_child(child_name)
+                    flag = Composition.is_specialized_model?(models0, models1)
+                    composition_specializations[child_name][c0][c1] = flag
+                    if flag
+                        composition_specializations[child_name][c1][c0] = false
+                    end
+                    flag
+                else
+                    result
                 end
             end
 

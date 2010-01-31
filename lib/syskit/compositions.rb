@@ -190,56 +190,39 @@ module Orocos
             end
 
             # Returns true if +model1+ is a specialization of +model2+
-            def is_specialized_model(model1, model2)
+            def is_specialized_model?(model1, model2)
                 model2.each do |m2|
                     is_specialized_in_model1 = model1.any? do |m1|
                         m1 <= m2
                     end
-                    return if !is_specialized_in_model1
+                    return(false) if !is_specialized_in_model1
                 end
                 true
             end
 
             # Returns the composition models from model_set that are the most
             # specialized in the context of +selected_children+.
-            def find_most_specialized_compositions(model_set, selected_children)
-                # Build the association of +composition+ and the matching models
-                # in +composition+.
-                #
-                # The result is an array of 2-tuples
-                #  [composition_model, children_models]
-                #
-                # where children_models is
-                #  child_name => child_model, child_name => child_model
-                dependent_models = model_set.map do |composition|
-                    models = composition.each_child.
-                        inject(Hash.new) do |h, (child_name, child_model)|
-                            if selected_children.has_key?(child_name)
-                                h[child_name] = child_model
-                            end
-                            h
-                        end
-                    [composition, models]
-                end
+            def find_most_specialized_compositions(engine, model_set, selected_children)
+                children_names = selected_children.keys
 
-                # Find the most specialized compositions by deleting the ones
-                # for which at least one of the children
-                dependent_models.delete_if do |composition, models|
-                    dependent_models.any? do |other_composition, other_models|
-                        next if other_composition == composition
-                        models.each_key.all? do |child_name|
-                            is_specialized_model(other_models[child_name], models[child_name])
+                result = model_set.dup
+                result.delete_if do |composition|
+                    result.any? do |other_composition|
+                        next if composition == other_composition
+
+                        children_names.all? do |child_name|
+                            engine.composition_child_is_specialized(child_name, other_composition, composition)
                         end
                     end
                 end
 
-                dependent_models.map { |c, _| c }
+                result
             end
 
             # Returns the set of specializations of +self+ that apply to
             # +selected_models+. Only the most specialized compositions are
             # returned.
-            def find_specializations(selected_models)
+            def find_specializations(engine, selected_models)
                 # Select in our specializations the ones that match the current
                 # selection. To do that, we simply have to find those for which
                 # +selected_models+ is an acceptable selection.
@@ -257,10 +240,10 @@ module Orocos
 
                 # Add them all to +result+
                 candidates = candidates.inject(candidates.dup) do |r, composition|
-                    r.concat(composition.find_specializations(selected_models))
+                    r.concat(composition.find_specializations(engine, selected_models))
                 end
 
-                find_most_specialized_compositions(candidates, selected_models)
+                find_most_specialized_compositions(engine, candidates, selected_models)
             end
 
             def autoconnect(*names)
@@ -572,7 +555,7 @@ module Orocos
                 end
 
                 # Now select the most specialized models
-                find_most_specialized_compositions(candidates, subselection)
+                find_most_specialized_compositions(engine, candidates, subselection)
             end
             
             # call-seq:
