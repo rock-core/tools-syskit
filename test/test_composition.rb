@@ -74,8 +74,8 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_equal(['source'].to_set, subsys_task[source, TaskStructure::Dependency][:roles])
         assert_equal(['sink'].to_set, subsys_task[sink, TaskStructure::Dependency][:roles])
 
-        assert_equal([ [source, sink, {["cycle", "cycle"] => Hash.new}] ].to_set,
-            Flows::DataFlow.enum_for(:each_edge).to_set)
+        assert_equal([ [source, sink, {["cycle", "cycle"] => Hash.new}] ],
+            Flows::DataFlow.enum_for(:each_edge).to_a)
     end
 
     def test_simple_composition_autoconnection
