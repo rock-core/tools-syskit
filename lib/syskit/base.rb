@@ -307,6 +307,15 @@ module Orocos
                 true
             end
 
+            def user_required_model
+                models = model.ancestors
+                models.shift if abstract?
+                klass  = models.find { |t| t.kind_of?(Class) }
+                models = models.find_all { |t| t.kind_of?(Roby::TaskModelTag) }
+                models.push(klass) if klass
+                models
+            end
+
             def can_merge?(target_task)
                 return false if !super
 
@@ -317,11 +326,7 @@ module Orocos
                 # In that particular case, the only thing the automatic merging
                 # can do is replace +target_task+ iff +self+ fullfills all tags
                 # that target_task has (without considering target_task itself).
-                models = target_task.model.ancestors
-                models.shift if target_task.abstract?
-                klass = models.find { |t| t.kind_of?(Class) }
-                models = models.find_all { |t| t.kind_of?(Roby::TaskModelTag) }
-                models.push(klass) if klass
+                models = user_required_model
                 if !fullfills?(models)
                     return false
                 end

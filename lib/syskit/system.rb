@@ -234,6 +234,7 @@ module Orocos
                 @tasks     = Hash.new
                 @deployments = ValueSet.new
                 @main_selection = Hash.new
+                @merging_candidates_queries = Hash.new
             end
 
             class InstanciatedComponent
@@ -605,12 +606,21 @@ module Orocos
 
             def direct_merge_mappings(task_set)
                 merge_graph = BGL::Graph.new
-                task_set.each do |task|
+                for task in task_set
+                    query = @merging_candidates_queries[task.model]
+                    if !query
+                        required_model = task.user_required_model
+                        query = @merging_candidates_queries[task.model] = plan.find_tasks(required_model)
+                    end
+                    query.reset
+                    candidates = query.to_value_set & task_set
+                    next if candidates.empty?
+
                     if task.kind_of?(Composition)
                         task_children = task.each_child(false).to_value_set
                     end
 
-                    task_set.each do |target_task|
+                    for target_task in candidates
                         next if target_task == task
 
                         # We don't do task allocation as this level.
