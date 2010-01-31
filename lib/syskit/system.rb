@@ -539,10 +539,19 @@ module Orocos
                 end
             end
 
+            def prepare
+                model.each_composition do |composition|
+                    composition.update_all_children
+                end
+            end
+
             def resolve
+                prepare
+
                 engine_plan = @plan
                 plan.in_transaction do |trsc|
                     @plan = trsc
+
                     instanciate
 
                     allocate_abstract_tasks

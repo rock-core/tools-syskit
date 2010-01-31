@@ -537,10 +537,11 @@ module Orocos
                 # Find all compositions that can be used for +child_name+ and
                 # for which +subselection+ is a valid selection
                 candidates = engine.model.each_composition.find_all do |composition_model|
-                    if !selection_children.all? { |n| composition_model.has_child?(n) }
+                    if !selection_children.all? { |n| composition_model.all_children.has_key?(n) }
                         #RobyPlugin.debug { "#{composition_model} does not have children called #{selection_children.join(", ")}" }
                         next
                     end
+
                     valid = catch :invalid_selection do
                         verify_acceptable_selection(child_name, composition_model, false)
                         true
@@ -740,6 +741,16 @@ module Orocos
                 end
 
                 result
+            end
+
+            attr_reader :all_children
+
+            def update_all_children
+                @all_children = Hash.new
+                each_child do |name, model|
+                    @all_children[name] = model
+                end
+                all_children
             end
 
             # Returns a Composition task with instanciated children. If
