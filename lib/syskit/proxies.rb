@@ -92,7 +92,7 @@ module Orocos
             # Starts the process and emits the start event immediately. The
             # :ready event will be emitted when the deployment is up and
             # running.
-            event :start do
+            event :start do |context|
                 RobyPlugin.info { "starting deployment #{model.deployment_name}" }
 
                 @orogen_deployment = ::Orocos::Process.new(model.deployment_name)
@@ -140,7 +140,7 @@ module Orocos
             #
             # Stops all tasks that are running on top of this deployment, and
             # kill the deployment
-            event :stop do
+            event :stop do |context|
                 to_be_killed = each_executed_task.find_all(&:running?)
                 if to_be_killed.empty?
                     orogen_deployment.kill(false)
@@ -167,7 +167,7 @@ module Orocos
                 orogen_deployment.dead!(result)
             end
 
-            on :stop do
+            on :stop do |event|
                 orogen_spec.task_activities.each do |act|
                     TaskContext.configured.delete(name)
                 end
@@ -528,7 +528,7 @@ module Orocos
             # Optionally configures and then start the component. The start
             # event will be emitted when the it has successfully been
             # configured and started.
-            event :start do
+            event :start do |context|
                 # We're not running yet, so we have to read the state ourselves.
                 state = read_current_state
 
@@ -588,7 +588,7 @@ module Orocos
             # :method: interrupt!
             #
             # Interrupts the execution of this task context
-            event :interrupt do
+            event :interrupt do |context|
                 orogen_task.stop
             end
             forward :interrupt => :failed
@@ -599,7 +599,7 @@ module Orocos
             event :fatal_error
             forward :fatal_error => :failed
 
-            on :aborted do
+            on :aborted do |event|
                 @orogen_task = nil
             end
 
@@ -608,10 +608,10 @@ module Orocos
             # :method: stop!
             #
             # Interrupts the execution of this task context
-            event :stop do
+            event :stop do |context|
                 interrupt!
             end
-            on :stop do
+            on :stop do |event|
                 ::Robot.info "stopped #{orocos_name}"
                 if @state_reader
                     @state_reader.disconnect
