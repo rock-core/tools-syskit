@@ -8,7 +8,7 @@ module Orocos
             end
 
             def model
-                composition.children[child_name]
+                composition.find_child(child_name)
             end
 
             def method_missing(name, *args)
@@ -247,7 +247,7 @@ module Orocos
                     find_all do |child_composition|
                         # Note that the 'new' models in +child_composition+ are
                         # all in child_composition.children
-                        child_composition.children.all? do |child_name, child_model|
+                        child_composition.each_child.all? do |child_name, child_model|
                             selected_model = selected_models[child_name]
                             # new child in +child_composition+, do not count
                             next(true) if !selected_model
