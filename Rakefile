@@ -55,7 +55,8 @@ namespace :setup do
         FileUtils.mkdir_p builddir
         orocos_target = ENV['OROCOS_TARGET'] || 'gnulinux'
         Dir.chdir(builddir) do
-            if !system("cmake", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=#{orocos_target}", "-DCMAKE_BUILD_TYPE=Debug", "..")
+            ruby = RbConfig::CONFIG['RUBY_INSTALL_NAME']
+            if !system("cmake", "-DRUBY_PROGRAM_NAME=#{ruby}", "-DCMAKE_INSTALL_PREFIX=#{prefix}", "-DOROCOS_TARGET=#{orocos_target}", "-DCMAKE_BUILD_TYPE=Debug", "..")
                 raise "unable to configure the extension using CMake"
             end
 
