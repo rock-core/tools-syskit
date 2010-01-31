@@ -554,25 +554,21 @@ module Orocos
                 # Find all compositions that can be used for +child_name+ and
                 # for which +subselection+ is a valid selection
                 candidates = engine.model.each_composition.find_all do |composition_model|
-                    begin
-                        verify_acceptable_selection(child_name, composition_model)
-                    rescue SpecError => e
-                        #RobyPlugin.debug { "#{composition_model} is not an acceptable selection for #{child_name}: #{e.message}" }
-                        next 
-                    end
                     if !selection_children.all? { |n| composition_model.has_child?(n) }
                         #RobyPlugin.debug { "#{composition_model} does not have children called #{selection_children.join(", ")}" }
                         next
                     end
-
-                    begin
-                        composition_model.filter_selection(engine, subselection)
-                        #RobyPlugin.debug { "#{composition_model} is a candidate for #{child_name}" }
+                    valid = catch :invalid_selection do
+                        verify_acceptable_selection(child_name, composition_model, false)
                         true
-                    rescue SpecError => e
-                        #RobyPlugin.debug { "#{composition_model} cannot be instanciated with #{subselection}: #{e.message}" }
-                        false
                     end
+                    next if !valid
+
+                    valid = catch :invalid_selection do
+                        composition_model.filter_selection(engine, subselection, false)
+                        true
+                    end
+                    valid
                 end
 
                 # Now select the most specialized models
@@ -666,19 +662,21 @@ module Orocos
             # composition.
             #
             # See also #acceptable_selection?
-            def verify_acceptable_selection(child_name, selected_model) # :nodoc:
+            def verify_acceptable_selection(child_name, selected_model, user_call = true) # :nodoc:
                 dependent_model = find_child(child_name)
                 if !dependent_model
                     raise ArgumentError, "#{child_name} is not the name of a child of #{self}"
                 end
 
                 if !selected_model.fullfills?(dependent_model)
-                    raise SpecError, "cannot select #{selected_model} for #{child_name} (#{dependent_model}): [#{selected_model}] is not a specialization of [#{dependent_model.to_a.join(", ")}]"
+                    throw :invalid_selection if !user_call
+                    raise SpecError, !user_call || "cannot select #{selected_model} for #{child_name} (#{dependent_model}): [#{selected_model}] is not a specialization of [#{dependent_model.to_a.join(", ")}]"
                 end
 
                 constraints = constraints_for(child_name)
                 if !constraints.empty? && constraints.all? { |m| !selected_model.fullfills?(m) }
-                    raise SpecError, "selected model #{selected_model} does not match the constraints for #{child_name}: it implements none of #{constraints.map(&:name).join(", ")}"
+                    throw :invalid_selection if !user_call
+                    raise SpecError, !user_call || "selected model #{selected_model} does not match the constraints for #{child_name}: it implements none of #{constraints.map(&:name).join(", ")}"
                 end
             end
 
@@ -687,10 +685,11 @@ module Orocos
             #
             # See also #verify_acceptable_selection
             def acceptable_selection?(child_name, selected_child) # :nodoc:
-                verify_acceptable_selection(child_name, selected_child)
-                true
-            rescue SpecError
-                false
+                catch :invalid_selection do
+                    verify_acceptable_selection(child_name, selected_child, false)
+                    return true
+                end
+                return false
             end
 
             # Computes the port mappings required to apply the data sources in
@@ -738,12 +737,12 @@ module Orocos
             #
             # +child_task+ will be non-nil only if the user specifically
             # selected a task.
-            def filter_selection(engine, selection) # :nodoc:
+            def filter_selection(engine, selection, user_call = true) # :nodoc:
                 result = Hash.new
                 each_child do |child_name, dependent_model|
                     selected_object_name, child_model, child_task =
                         find_selected_model_and_task(engine, child_name, selection)
-                    verify_acceptable_selection(child_name, child_model)
+                    verify_acceptable_selection(child_name, child_model, user_call)
 
                     # If the model is a plain data source (i.e. not a task
                     # model), we must map this source to a source on the
@@ -799,7 +798,7 @@ module Orocos
                 selected_models = filter_selection(engine, user_selection)
 
                 # Find the specializations that apply
-                candidates = find_specializations(selected_models)
+                candidates = find_specializations(engine, selected_models)
 
                 # Now, check if some of our specializations apply to
                 # +selected_models+. If there is one, call #instanciate on it
