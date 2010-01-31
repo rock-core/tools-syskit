@@ -776,14 +776,17 @@ module Orocos
                         merged_tasks << task
                         plan.remove_object(target_task)
                     end
-                    mappings.delete_if do |task, pending_targets|
-                        if targets.include?(task)
-                            true
-                        else
-                            pending_targets.delete_if { |t| targets.include?(t) }
-                            false
+
+                    new_mappings = Hash.new
+                    mappings.each do |task, pending_targets|
+                        if !targets.include?(task)
+                            pending_targets = pending_targets - targets
+                            if !pending_targets.empty?
+                                new_mappings[task] = pending_targets
+                            end
                         end
                     end
+                    mappings = new_mappings
                 end
                 merged_tasks
             end
