@@ -185,7 +185,7 @@ module Orocos
 
                 Orocos.const_set(:RTT, Orocos::RobyPlugin::RTT)
                 projects = Set.new
-                orocos_tasks.each_value do |model|
+                app.orocos_tasks.each_value do |model|
                     if model.orogen_spec
                         projects << model.orogen_spec.component.name.camelcase(true)
                     end
