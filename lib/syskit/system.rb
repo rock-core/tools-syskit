@@ -79,7 +79,7 @@ module Orocos
             end
 
             def through(&block)
-                instance_eval(&block)
+                with_module(*RobyPlugin.constant_search_path, &block)
             end
 
             # Used by the #through call to override com_bus specification.
@@ -228,7 +228,7 @@ module Orocos
                     @robot = new_model
                 end
                 if block_given?
-                    @robot.instance_eval(&block)
+                    @robot.with_module(*RobyPlugin.constant_search_path, &block)
                 end
                 @robot
             end

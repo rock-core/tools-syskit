@@ -168,7 +168,9 @@ module Orocos
                 options = Kernel.validate_options options, :child_of => Composition
 
                 new_model = options[:child_of].new_submodel(name, self)
-                new_model.instance_eval(&block) if block_given?
+                if block_given?
+                    new_model.with_module(*RobyPlugin.constant_search_path, &block)
+                end
                 register_composition(new_model)
                 new_model
             end

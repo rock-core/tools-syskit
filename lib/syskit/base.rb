@@ -16,6 +16,10 @@ module Orocos
         class SpecError < RuntimeError; end
         class Ambiguous < SpecError; end
 
+        def self.constant_search_path
+            [Orocos::RobyPlugin::Interfaces, Orocos::RobyPlugin::DeviceDrivers, Orocos::RobyPlugin::Compositions, Orocos::RobyPlugin]
+        end
+
         # Generic module included in all classes that are used as models
         module Model
             # The SystemModel instance this model is attached to

@@ -177,7 +177,7 @@ module Orocos
                 specializations <<
                     Specialization.new({ child_name => child_model }, child_composition)
                 if block_given?
-                    child_composition.instance_eval(&block)
+                    child_composition.with_module(*RobyPlugin.constant_search_path, &block)
                 end
 
                 # Apply the specialization to the existing ones

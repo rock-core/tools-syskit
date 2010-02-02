@@ -240,18 +240,18 @@ module Orocos
             end
 
             def self.load_task_extension(file, app)
-                Kernel.eval_dsl_file(file, Roby.app.orocos_system_model, [Orocos::RobyPlugin, DeviceDrivers, Interfaces, Compositions], false)
+                Kernel.eval_dsl_file(file, Roby.app.orocos_system_model, RobyPlugin.constant_search_path, false)
             end
 
             def load_system_model(file)
                 if !File.exists?(file) && File.exists?("#{file}.rb")
                     file = "#{file}.rb"
                 end
-                Kernel.eval_dsl_file(file, orocos_system_model, [Interfaces, Compositions, DeviceDrivers, Orocos::RobyPlugin], false)
+                Kernel.eval_dsl_file(file, orocos_system_model, RobyPlugin.constant_search_path, false)
             end
 
             def load_system_definition(file)
-                Kernel.eval_dsl_file(file, orocos_engine, [Orocos::RobyPlugin, Interfaces, Compositions, DeviceDrivers], false)
+                Kernel.eval_dsl_file(file, orocos_engine, RobyPlugin.constant_search_path, false)
             end
 
 	    def apply_orocos_deployment(name)
