@@ -570,6 +570,7 @@ module Orocos
                 model.each_composition do |composition|
                     composition.update_all_children
                 end
+                @merging_candidates_queries.clear
             end
 
             def resolve
