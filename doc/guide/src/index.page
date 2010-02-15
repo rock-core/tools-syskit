@@ -7,7 +7,7 @@ This library allows you to control Orocos/RTT components from Ruby, i.e. to set
 them up, start/stop and monitor them. It assumes that you have a basic knowledge
 of what the Orocos/RTT is, and about the Orocos/RTT component model. If you do
 not, then you can find information in the documentation of [the oroGen component
-generator](http://doudou.github.com/doudou/orogen) and the [Orocos/RTT
+generator](http://doudou.github.com/orogen) and the [Orocos/RTT
 itself](http://orocos.org/rtt).
 
 While the orocos.rb bindings do *not* require you to use the oroGen code
