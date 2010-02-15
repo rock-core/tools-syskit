@@ -20,4 +20,5 @@ if test -n "$commit"; then
 fi
 
 git reset -q HEAD
+git push github +gh-pages
 
