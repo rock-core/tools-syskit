@@ -27,7 +27,7 @@ module Orocos
 
                 def devices(&block)
                     if block
-                        Kernel.eval_dsl_block(block, Roby.app.orocos_engine.robot, [DeviceDrivers], false) do |const_name, context|
+                        Kernel.load_dsl_block(block, Roby.app.orocos_engine.robot, [DeviceDrivers], false) do |const_name, context|
                             Application.resolve_constants(const_name, context || DeviceDrivers, [DeviceDrivers])
                         end
                     else
@@ -244,7 +244,7 @@ module Orocos
                     RobyPlugin::Interfaces,
                     RobyPlugin::DeviceDrivers,
                     RobyPlugin::Compositions]
-                Kernel.eval_dsl_file(file, Roby.app.orocos_system_model, search_path, false)
+                Kernel.load_dsl_file(file, Roby.app.orocos_system_model, search_path, false)
             end
 
             def load_system_model(file)
@@ -255,7 +255,7 @@ module Orocos
                     RobyPlugin::Interfaces,
                     RobyPlugin::DeviceDrivers,
                     RobyPlugin::Compositions]
-                Kernel.eval_dsl_file(file, orocos_system_model, search_path, false)
+                Kernel.load_dsl_file(file, orocos_system_model, search_path, false)
             end
 
             def load_system_definition(file)
@@ -263,7 +263,7 @@ module Orocos
                     RobyPlugin::Interfaces,
                     RobyPlugin::DeviceDrivers,
                     RobyPlugin::Compositions]
-                Kernel.eval_dsl_file(file, orocos_engine, search_path, false)
+                Kernel.load_dsl_file(file, orocos_engine, search_path, false)
             end
 
 	    def apply_orocos_deployment(name)
