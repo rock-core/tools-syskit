@@ -14,8 +14,8 @@ parser = OptionParser.new do |opt|
         name, type = name.split(',')
         Roby.app.robot(name, type||name)
     end
-    opt.on('--output=TYPE[:file]', String, 'in what format to output the result (can be: txt, dot or svg), defaults to txt') do |output_type|
-        output_type, output_file = output_type.split(':')
+    opt.on('--output=TYPE[:file]', String, 'in what format to output the result (can be: txt, dot or svg), defaults to txt') do |arg|
+        output_type, output_file = arg.split(':')
         output_type = output_type.downcase
         if output_type != 'txt' && !output_file
             STDERR.puts "you must specify an output file for the dot and svg outputs"
