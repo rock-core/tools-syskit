@@ -126,15 +126,15 @@ module Orocos
                 CompositionChild.new(self, options[:as])
             end
 
+            # Requires the specified child to be of the given models. It is
+            # mainly used in an abstract compostion definition to force the user
+            # to select a specific child model.
             def constrain(child, allowed_models)
                 child = if child.respond_to?(:to_str)
                             child.to_str
                         else child.name.gsub(/.*::/, '')
                         end
 
-                allowed_models.each do |m|
-                    specialize(child, m)
-                end
                 child_constraints[child].concat( allowed_models )
                 self
             end
