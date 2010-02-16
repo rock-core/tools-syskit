@@ -638,13 +638,11 @@ module Orocos
                         name = $1
                         selection_children << name.gsub(/\..*/, '')
                     end
-                    #RobyPlugin.debug { "indirect selection: #{child_name}.#{name} => #{model}" }
                     subselection[name] = model
                 end
 
                 # No indirect composition selection exist
                 if subselection == selection
-                    #RobyPlugin.debug "no indirect composition selection for #{child_name}"
                     return Array.new
                 end
 
@@ -652,7 +650,6 @@ module Orocos
                 # for which +subselection+ is a valid selection
                 candidates = engine.model.each_composition.find_all do |composition_model|
                     if !selection_children.all? { |n| composition_model.all_children.has_key?(n) }
-                        #RobyPlugin.debug { "#{composition_model} does not have children called #{selection_children.join(", ")}" }
                         next
                     end
 
