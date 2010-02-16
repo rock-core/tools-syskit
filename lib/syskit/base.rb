@@ -50,7 +50,37 @@ module Orocos
 
         end
 
+        # Value returned by ComponentModel#as(model). It is used only in the
+        # context of model instanciation
+        class FacetedModelSelection < BasicObject
+            attr_reader :model
+            attr_reader :selected_facet
+
+            def respond_to?(name)
+                if name == :selected_facet
+                    true
+                else
+                    super
+                end
+            end
+
+            def initialize(model, facet)
+                @model = model
+                @selected_facet = facet
+            end
+
+            def method_missing(*args, &block)
+                model.send(*args, &block)
+            end
+        end
+
+        # Module that defines all model-level methods for Component. All these
+        # methods are available as Component class methods
         module ComponentModel
+            def as(model)
+                FacetedModelSelection.new(self, model)
+            end
+
             def port(name)
                 name = name.to_str
                 output_port(name) || input_port(name)

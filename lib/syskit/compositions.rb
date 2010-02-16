@@ -141,7 +141,12 @@ module Orocos
 
             Specialization = Struct.new :specialized_children, :composition
 
-            def specialize(child_name, child_model, &block)
+            def specialize(child_name, child_model, options = Hash.new, &block)
+                options = Kernel.validate_options options, :not => []
+                if !options[:not].respond_to?(:to_ary)
+                    options[:not] = [options[:not]]
+                end
+
                 if child_name.kind_of?(Module)
                     candidates = each_child.find_all { |name, model| model.include?(child_name) }
                     if candidates.size == 1
@@ -182,11 +187,54 @@ module Orocos
 
                 # Apply the specialization to the existing ones
                 specializations.each do |spec|
-                    if spec.composition != child_composition
-                        spec.composition.specialize(child_name, child_model, &block)
+                    next if spec.composition == child_composition
+
+                    # If the user required some exclusions in the specialization
+                    # chain, filter them out
+                    if !options[:not].empty?
+                        if child_specialization = spec.specialized_children[child_name]
+                            if options[:not].any? { |model| child_specialization.fullfills?(model) }
+                                next
+                            end
+                        end
+                        spec.composition.specialize(child_name, child_model, options, &block)
                     end
                 end
                 child_composition
+            end
+
+            # Declares a preferred specialization in case two specializations
+            # match that are not related to each other.
+            #
+            # In the following case:
+            #
+            #  composition 'ManualDriving' do
+            #    specialize 'Control', SimpleController, :not => FourWheelController do
+            #    end
+            #    specialize 'Control', FourWheelController, :not => SimpleController do
+            #    end
+            #  end
+            #
+            # If a Control model is selected that fullfills both
+            # SimpleController and FourWheelController, then there is an
+            # ambiguity as both specializations apply and one cannot be
+            # preferred w.r.t. the other.
+            #
+            # By using
+            #   default_specialization 'Control' => SimpleController
+            #
+            # the first one will be preferred by default. The second one can
+            # then be selected at instanciation time with
+            #
+            #   add 'ManualDriving',
+            #       'Control' => controller_model.as(FourWheelController)
+            def default_specialization(child, child_model)
+                child = if child.respond_to?(:to_str)
+                            child.to_str
+                        else child.name.gsub(/.*::/, '')
+                        end
+
+                default_specializations[child] = child_model
             end
 
             # Returns true if +model1+ is a specialization of +model2+
@@ -232,6 +280,9 @@ module Orocos
                         # all in child_composition.children
                         child_composition.each_child.all? do |child_name, child_model|
                             selected_model = selected_models[child_name]
+                            if selected_model.respond_to?(:selected_facets)
+                                selected_model = selected_model.selected_facets
+                            end
                             # new child in +child_composition+, do not count
                             next(true) if !selected_model
                             selected_model.first.fullfills?(child_model)
@@ -243,7 +294,41 @@ module Orocos
                     r.concat(composition.find_specializations(engine, selected_models))
                 end
 
-                find_most_specialized_compositions(engine, candidates, selected_models)
+                result = find_most_specialized_compositions(engine, candidates, selected_models)
+                # Don't bother doing more if there is no ambiguity left
+                if result.size < 2
+                    return result
+                end
+
+                # The result is ambiguous, filter it out based on the default
+                # specialization definition
+                all_filtered_results = Hash.new
+                each_default_specialization do |child_name, child_model|
+                    if selected_child_model = selected_models[child_name] && selected_child_model.respond_to?(:selected_facets)
+                        child_model = selected_child_model.selected_facets
+                    end
+
+                    filtered_results = []
+                    result.find_all do |model|
+                        if child_model = model.find_child(child_name)
+                            if child_model.fullfills?(child_model)
+                                filtered_results << model
+                            end
+                        end
+                    end
+                    if !filtered_results.empty?
+                        all_filtered_results[child_name] = filtered_results
+                    end
+                end
+
+                # Check if the default specialization leads to something
+                # meaningful
+                filtered_out = all_filtered_results.values.inject(&:&)
+                if filtered_out && !filtered_out.empty?
+                    return filtered_out
+                else
+                    return result
+                end
             end
 
             def autoconnect(*names)
@@ -556,7 +641,29 @@ module Orocos
                 end
 
                 # Now select the most specialized models
-                find_most_specialized_compositions(engine, candidates, subselection)
+                result = find_most_specialized_compositions(engine, candidates, subselection)
+                # Don't bother going further if there is no ambiguity
+                if result.size < 2
+                    return result
+                end
+
+                # First of all, check if we can disambiguate by using the
+                # selection facets (see FacetedModelSelection and
+                # ComponentModel#as)
+                subselection.each do |child_name, selected_child_model|
+                    next if !selected_child_model.respond_to?(:selected_facet)
+                    result.delete_if do |model|
+                        (child_model = model.find_child(child_name).to_a) &&
+                            !child_model.any? { |m| m.fullfills?(selected_child_model.selected_facet) }
+                    end
+                end
+
+                default_model = find_default_specialization(child_name)
+                if default_model && default_selection = result.find { |model| model.fullfills?(default_model) }
+                    return [default_selection]
+                else
+                    return result
+                end
             end
             
             # call-seq:
@@ -890,6 +997,7 @@ module Orocos
 
             inherited_enumerable(:child, :children, :map => true) { Hash.new }
             inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
+            inherited_enumerable(:default_specialization, :default_specializations, :map => true) { Hash.new }
             class << self
                 attribute(:specializations) { Array.new }
             end
