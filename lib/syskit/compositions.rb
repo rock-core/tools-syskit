@@ -139,8 +139,36 @@ module Orocos
                 self
             end
 
+            # Internal representation of specializations
             Specialization = Struct.new :specialized_children, :composition
 
+            # Create a child of this composition model in which +child_name+ is
+            # constrained to implement the +child_model+ interface. If a block
+            # is given, it is used to set up the new composition.
+            #
+            # At instanciation time, this child will be preferentially selected
+            # in place of the parent model in case the selected child is
+            # actually of the given model. If two specializations match and are
+            # not related to each other (i.e. there is not one that is less
+            # abstract than the other), then an error is raised. This ambiguity
+            # can be solved by declaring a default specialization with
+            # #default_specialization.
+            #
+            # If it is known that a specialization is in conflict with another,
+            # the :not option can be used. For instance, in the following code,
+            # only two specialization will exist: the one in which the Control
+            # child is a SimpleController and the one in which it is a
+            # FourWheelController.
+            #
+            #   specialize 'Control', SimpleController, :not => FourWheelController do
+            #   end
+            #   specialize 'Control', FourWheelController, :not => SimpleController do
+            #   end
+            #
+            # If the :not option had not been used, three specializations would
+            # have been added: the same two than above, and the one case where
+            # 'Control' fullfills both the SimpleController and
+            # FourWheelController interfaces.
             def specialize(child_name, child_model, options = Hash.new, &block)
                 options = Kernel.validate_options options, :not => []
                 if !options[:not].respond_to?(:to_ary)
@@ -254,6 +282,8 @@ module Orocos
                 children_names = selected_children.keys
 
                 result = model_set.dup
+
+                # First, remove models based on the abstraction hierarchy
                 result.delete_if do |composition|
                     result.any? do |other_composition|
                         next if composition == other_composition
@@ -263,7 +293,6 @@ module Orocos
                         end
                     end
                 end
-
                 result
             end
 
