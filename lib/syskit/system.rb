@@ -676,7 +676,7 @@ module Orocos
                     next if candidates.empty?
 
                     if task.kind_of?(Composition)
-                        task_children = task.each_child(false).to_value_set
+                        task_children = task.merged_relations(:each_child, true, false).to_value_set
                     end
 
                     for target_task in candidates
@@ -691,7 +691,7 @@ module Orocos
                         next if target_task.execution_agent
                         # Merge only if +task+ has the same child set than +target+
                         if task.kind_of?(Composition) && target_task.kind_of?(Composition)
-                            target_children = target_task.each_child(false).to_value_set
+                            target_children = target_task.merged_relations(:each_child, true, false).to_value_set
                             next if !task_children.include_all?(target_children)
                         end
                         # Finally, call #can_merge?
