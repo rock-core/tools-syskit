@@ -256,8 +256,9 @@ module Orocos
                 attr_reader :model
                 attr_reader :arguments
                 attr_reader :using_spec
-                attr_reader :task
+                attr_accessor :task
                 attr_predicate :mission, true
+                attr_accessor :replaces
 
                 def initialize(engine, name, model, arguments)
                     @engine    = engine
@@ -340,6 +341,15 @@ module Orocos
                 @modified = true
                 instances << instance
                 instance
+            end
+
+            def replace(current_task, new_task)
+                task = add(new_task)
+                task.replaces = current_task
+
+                instances.delete_if do |instance|
+                    instance.task == current_task
+                end
             end
 
             def remove(task)
@@ -586,9 +596,28 @@ module Orocos
                     link_to_busses
                     merge_identical_tasks
 
-                    # Now import tasks that are already in the plan,
-                    # instanciate missing deployments and merge again
+                    # Now import tasks that are already in the plan and merge
+                    # them. We unmark the tasks that should be replaced and run
+                    # a GC pass to disconnect them to everything that is around
+                    # them.
+                    #
+                    # NOTE: the GC pass HAS TO be done before
+                    # instanciate_required_deployments, as new deployment
+                    # instances would be removed by it
                     trsc.find_tasks(Component).to_a
+                    instances.each do |instance|
+                        if replaced_task = instance.replaces
+                            replaced_task = trsc[replaced_task]
+                            trsc.unmark_mission(replaced_task)
+                            trsc.unmark_permanent(replaced_task)
+                        end
+                    end
+                    trsc.static_garbage_collect do |task|
+                        if !tasks.values.find { |t| t == task }
+                            Engine.debug { "clearing the relations of #{task}" }
+                            task.clear_relations
+                        end
+                    end
                     instanciate_required_deployments
                     merge_identical_tasks
 
@@ -788,6 +817,7 @@ module Orocos
             end
 
             def apply_merge_mappings(mappings)
+                final_merge_mappings = Hash.new
                 merged_tasks = ValueSet.new
                 while !mappings.empty?
                     task, targets = mappings.shift
@@ -798,15 +828,8 @@ module Orocos
                         else
                             plan.replace_task(target_task, task)
                         end
-                        tasks.each_key do |n|
-                            if tasks[n] == target_task
-                                if robot.devices[n]
-                                    robot.devices[n].task = task
-                                end
-                                tasks[n] = task
-                            end
-                        end
 
+                        final_merge_mappings[target_task] = task
                         merged_tasks << task
                         plan.remove_object(target_task)
                     end
@@ -822,6 +845,21 @@ module Orocos
                     end
                     mappings = new_mappings
                 end
+
+                tasks.each_key do |n|
+                    if task = final_merge_mappings[tasks[n]]
+                        tasks[n] = task
+                        if robot.devices[n]
+                            robot.devices[n].task = task
+                        end
+                    end
+                end
+                instances.each do |i|
+                    if task = final_merge_mappings[i.task]
+                        i.task = task
+                    end
+                end
+
                 merged_tasks
             end
 
