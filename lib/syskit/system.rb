@@ -798,6 +798,9 @@ module Orocos
                         end
                         tasks.each_key do |n|
                             if tasks[n] == target_task
+                                if robot.devices[n]
+                                    robot.devices[n].task = task
+                                end
                                 tasks[n] = task
                             end
                         end
