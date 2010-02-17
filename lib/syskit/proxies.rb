@@ -228,8 +228,60 @@ module Orocos
                 end
             end
 
-            Flows::DataFlow.modified_tasks.delete_if do |task|
-                Roby.app.orocos_engine.apply_connection_changes(task)
+            tasks = Flows::DataFlow.modified_tasks
+            if !tasks.empty?
+                tasks = tasks.dup
+                if Flows::DataFlow.pending_changes
+                    tasks.merge(Flows::DataFlow.pending_changes.first)
+                end
+
+                Engine.info do
+                    Engine.info "computing data flow update from modified tasks"
+                    for t in tasks
+                        Engine.info "  #{t}"
+                    end
+                    break
+                end
+
+                new, removed = Roby.app.orocos_engine.compute_connection_changes(tasks)
+                if new
+                    Engine.info do
+                        Engine.info "  new connections:"
+                        new.each do |(from_task, to_task), mappings|
+                            Engine.info "    #{from_task} =>"
+                            Engine.info "       #{to_task}"
+                            mappings.each do |(from_port, to_port), policy|
+                                Engine.info "      #{from_port}:#{to_port} #{policy}"
+                            end
+                        end
+                        Engine.info "  removed connections:"
+                        new.each do |(from_task, to_task), mappings|
+                            Engine.info "    #{from_task} =>"
+                            Engine.info "       #{to_task}"
+                            mappings.each do |from_port, to_port|
+                                Engine.info "      #{from_port}:#{to_port}"
+                            end
+                        end
+                            
+                        break
+                    end
+
+                    Flows::DataFlow.pending_changes = [tasks, new, removed]
+                    Flows::DataFlow.modified_tasks.clear
+                else
+                    Engine.info "cannot compute changes, keeping the tasks queued"
+                end
+            end
+
+            if Flows::DataFlow.pending_changes
+                Engine.info "applying pending changes from the data flow graph"
+                _, new, removed = Flows::DataFlow.pending_changes
+                if Roby.app.orocos_engine.apply_connection_changes(new, removed)
+                    Engine.info "successfully applied pending changes"
+                    Flows::DataFlow.pending_changes = nil
+                else
+                    Engine.info "failed to apply pending changes"
+                end
             end
         end
 
@@ -410,13 +462,13 @@ module Orocos
 
             def actual_connections
                 result = Array.new
-                orogen_task.each_actual_source do |source_task|
-                    source_task[orogen_task, ActualFlows::DataFlow].each do |(source_port, sink_port), policy|
+                orogen_task.each_parent_vertex(ActualDataFlow) do |source_task|
+                    source_task[orogen_task, ActualDataFlow].each do |(source_port, sink_port), policy|
                         result << [source_task, source_port, orogen_task, sink_port]
                     end
                 end
-                orogen_task.each_actual_sink do |sink_task, mappings|
-                    mappings.each do |(source_port, sink_port), policy|
+                orogen_task.each_child_vertex(ActualDataFlow) do |sink_task|
+                    orogen_task[sink_task, ActualDataFlow].each do |(source_port, sink_port), policy|
                         result << [orogen_task, source_port, sink_task, sink_port]
                     end
                 end
@@ -550,8 +602,6 @@ module Orocos
 
                 # Call configure or start, depending on the current state
                 RobyPlugin.info { "starting #{to_s}" }
-                # Update the task's connections before we start it
-                Roby.app.orocos_engine.apply_connection_changes(self)
                 orogen_task.start
                 @last_state = nil
             end
@@ -677,6 +727,9 @@ module Orocos
                 klass
             end
         end
+
+        RequiredDataFlow = ConnectionGraph.new
+        Orocos::RobyPlugin::TaskContext.include BGL::Vertex
     end
 end
 

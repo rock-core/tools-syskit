@@ -1196,96 +1196,190 @@ module Orocos
                 end
             end
 
-            def registered_connection?(source_task, source_port, sink_task, sink_port)
-                return if !source_task.orogen_task.child_object?(sink_task.orogen_task, ActualFlows::DataFlow)
-                mappings = source_task.orogen_task[sink_task.orogen_task, ActualFlows::DataFlow]
-                mappings.has_key?([source_port, sink_port])
-            end
-
-            def all_inputs_connected?(task)
-                new     = Hash.new { |h, k| h[k] = Hash.new }
-                desired_connections = task.each_concrete_input_connection.to_a
-                desired_connections.map! do |conn|
-                    conn.insert(2, task)
-                end
-
-                actual_connections  = task.actual_connections.
-                    find_all { |source_task, _| source_task != task.orogen_task }
-                compute_connection_update(actual_connections, desired_connections, new)
-                (actual_connections.empty? && new.empty?)
-            end
-
-            def compute_connection_update(actual_connections, desired_connections, new_connections)
-                desired_connections.each do |source_task, source_port, sink_task, sink_port, policy|
-                    actual_connection = actual_connections.find do |conn|
-                        conn[1] == source_port && conn[3] == sink_port &&
-                        conn[0] == source_task.orogen_task && conn[2] == sink_task.orogen_task
-                    end
-
-                    do_add    = true
-                    if actual_connection
-                        # The connection already exists, add only if a reconnection is required
-                        old_policy = source_task.orogen_task[sink_task.orogen_task, ActualFlows::DataFlow][[source_port, sink_port]]
-                        do_add = begin
-                                     old_policy != RobyPlugin.update_connection_policy(old_policy, policy)
-                                 rescue ArgumentError
-                                     true
-                                 end
-                    end
-
-                    if do_add
-                        current_policy = new_connections[[source_task, sink_task]][[source_port, sink_port]]
-                        if current_policy
-                            new_connections[[source_task, sink_task]][[source_port, sink_port]] =
-                                RobyPlugin.update_connection_policy(current_policy. policy)
-                        else
-                            new_connections[[source_task, sink_task]][[source_port, sink_port]] = policy
-                        end
-                    elsif actual_connection
-                        actual_connections.delete(actual_connection)
-                    end
-                end
-            end
-
-            def apply_connection_changes(task)
-                return if !task.executable?(false) || !task.is_setup?
-
-                new_connections     = Hash.new { |h, k| h[k] = Hash.new }
-
-                did_all = true
-
-                desired_connections = Array.new
+            # Returns true if all the declared connections to the inputs of +task+ have been applied.
+            # A given module won't be started until it is the case.
+            #
+            # If the +only_static+ flag is set to true, only ports that require
+            # static connections will be considered
+            def all_inputs_connected?(task, only_static)
                 task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    if !source_task.executable?(false) || !source_task.is_setup?
-                        did_all = false
+                    if only_static && !task.input_port_model(sink_port).static?
                         next
                     end
-                    desired_connections << [source_task, source_port, task, sink_port, policy]
+
+                    return false if !ActualDataFlow.linked?(source_task.orogen_task, task.orogen_task)
+                    mappings = source_task.orogen_task[task.orogen_task, ActualDataFlow]
+                    return false if !mappings.has_key?([source_port, sink_port])
                 end
-                task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                    if !sink_task.executable?(false) || !sink_task.is_setup?
-                        did_all = false
-                        next
-                    end
-                    desired_connections << [task, source_port, sink_task, sink_port, policy]
+                true
+            end
+
+            # Updates an intermediate graph (RobyPlugin::RequiredDataFlow) where
+            # we store the concrete connections. We don't try to be smart:
+            # remove all tasks that have to be updated and add their connections
+            # again
+            def update_required_dataflow_graph(tasks)
+                seen = ValueSet.new
+
+                # Remove first all tasks. Otherwise, removing some tasks will
+                # also remove the new edges we just added
+                for t in tasks
+                    RequiredDataFlow.remove(t)
                 end
 
-                actual_connections = task.actual_connections
-                compute_connection_update(actual_connections, desired_connections, new_connections)
-
-                actual_connections.each do |source_task, source_port, sink_task, sink_port, _|
-                    Engine.info do
-                        Engine.info "disconnecting #{source_task}:#{source_port}"
-                        Engine.info "     => #{sink_task}:#{sink_port}"
-                        break
+                # Create the new connections
+                for t in tasks
+                    t.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
+                        next if seen.include?(source_task)
+                        RequiredDataFlow.add_connections(source_task, t, [source_port, sink_port] => policy)
                     end
-                    if !source_task.port(source_port).disconnect_from(sink_task.port(sink_port))
-                        raise InternalError, "failed to disconnect #{source_task}:#{source_port} from #{sink_task}:#{sink_port}"
+                    t.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
+                        next if seen.include?(sink_task)
+                        RequiredDataFlow.add_connections(t, sink_task, [source_port, sink_port] => policy)
                     end
-                    RobyPlugin.remove_connections(source_task, sink_task,
-                                                  [[source_port, sink_port]], ActualFlows::DataFlow)
+                    seen << t
                 end
-                new_connections.each do |(from_task, to_task), mappings|
+            end
+
+            # Computes the connection changes that are required to make the
+            # required connections (declared in the DataFlow relation) match the
+            # actual ones (on the underlying modules)
+            #
+            # It returns nil if the change can't be computed because the Roby
+            # tasks are not tied to an underlying RTT task context.
+            #
+            # Returns [new, removed] where
+            #
+            #   new = { [from_task, to_task] => { [from_port, to_port] => policy, ... }, ... }
+            #
+            # in which +from_task+ and +to_task+ are instances of
+            # Orocos::RobyPlugin::TaskContext (i.e. Roby tasks), +from_port+ and
+            # +to_port+ are the port names (i.e. strings) and policy the policy
+            # hash that Orocos::OutputPort#connect_to expects.
+            #
+            #   removed = { [from_task, to_task] => { [from_port, to_port], ... }, ... }
+            #
+            # in which +from_task+ and +to_task+ are instances of
+            # Orocos::TaskContext (i.e. the underlying RTT tasks). +from_port+ and
+            # +to_port+ are the names of the ports that have to be disconnected
+            # (i.e. strings)
+            def compute_connection_changes(tasks)
+                return if tasks.any? { |t| !t.orogen_task }
+
+                update_required_dataflow_graph(tasks)
+                new_edges, removed_edges, updated_edges =
+                    RequiredDataFlow.difference(ActualDataFlow, tasks, &:orogen_task)
+
+                new = Hash.new
+                new_edges.each do |source_task, sink_task|
+                    new[[source_task, sink_task]] = source_task[sink_task, RequiredDataFlow]
+                end
+
+                removed = Hash.new
+                removed_edges.each do |source_task, sink_task|
+                    removed[[source_task, sink_task]] = source_task[sink_task, ActualDataFlow].keys.to_set
+                end
+
+                # We have to work on +updated+. The graphs are between tasks,
+                # not between ports because of how ports are handled on both the
+                # orocos.rb and Roby sides. So we must convert the updated
+                # mappings into add/remove pairs. Moreover, to update a
+                # connection policy we need to disconnect and reconnect anyway.
+                #
+                # Note that it is fine from a performance point of view, as in
+                # most cases one removes all connections from two components to
+                # recreate other ones between other components
+                updated_edges.each do |source_task, sink_task|
+                    new_mapping = source_task[sink_task, RequiredDataFlow]
+                    old_mapping = source_task.orogen_task[sink_task.orogen_task, ActualDataFlow]
+
+                    new_connections     = Hash.new
+                    removed_connections = Set.new
+                    new_mapping.each do |ports, new_policy|
+                        if old_policy = old_mapping[ports]
+                            if old_policy != new_policy
+                                new_connections[ports] = policy
+                                removed_connections << ports
+                            end
+                        else
+                            new_connections[ports] = policy
+                        end
+                    end
+
+                    if !new_connections.empty?
+                        new[[source_task, sink_task]] = new_connections
+                    end
+                    if !removed_connections.empty?
+                        removed[[source_task, sink_task]].merge(removed_connection)
+                    end
+                end
+
+                return new, removed
+            end
+
+            # Returns true if the specified mappins can be applied in the
+            # current state of the tasks
+            def valid_connection_change?(source_task, sink_task, mappings)
+                # Check that we don't try to change static connections on
+                # running tasks
+                mappings.all? do |source_port, sink_port|
+                    (!source_task.output_port_model(source_port).static? || !source_task.running?) &&
+                        (!sink_task.input_port_model(sink_port).static? || !sink_task.running?)
+                end
+            end
+
+            # Apply all connection changes on the system. The principle is to
+            # use a transaction-based approach: i.e. either we apply everything
+            # or nothing.
+            #
+            # See #compute_connection_changes for the format of +new+ and
+            # +removed+
+            #
+            # Returns a false value if it could not apply the changes and a true
+            # value otherwise.
+            def apply_connection_changes(new, removed)
+                # Don't do anything if some of the connection changes are
+                # between static ports and the relevant tasks are running
+                #
+                # Moreover, we check that the tasks are ready to be connected.
+                # We do it only for the new set, as the removed connections are
+                # obviously between tasks that can be connected ;-)
+                new.each do |(source, sink), mappings|
+                    if !sink.executable?(false) || !sink.is_setup? ||
+                        !source.executable?(false) || !source.is_setup?
+                        return
+                    end
+
+                    if !valid_connection_change?(source, sink, mappings.keys)
+                        Engine.info { "not applying connection changes: #{source} => #{sink} (#{mappings}) is not a valid addition right now" }
+                        return
+                    end
+                end
+                removed.each do |(source, sink), mappings|
+                    if !valid_connection_change?(source, sink, mappings)
+                        Engine.info { "not applying connection changes: #{source} => #{sink} (#{mappings}) is not a valid removal right now" }
+                        return
+                    end
+                end
+
+                # Remove connections first
+                removed.each do |(source_task, sink_task), mappings|
+                    mappings.each do |source_port, sink_port|
+                        Engine.info do
+                            Engine.info "disconnecting #{source_task}:#{source_port}"
+                            Engine.info "     => #{sink_task}:#{sink_port}"
+                            break
+                        end
+                        if !source_task.port(source_port).disconnect_from(sink_task.port(sink_port))
+                            raise InternalError, "failed to disconnect #{source_task}:#{source_port} from #{sink_task}:#{sink_port}"
+                        end
+                        ActualDataFlow.remove_connections(source_task, sink_task,
+                                          [[source_port, sink_port]])
+                    end
+                end
+
+                # And create the new ones
+                new.each do |(from_task, to_task), mappings|
                     mappings.each do |(from_port, to_port), policy|
                         Engine.info do
                             Engine.info "connecting #{from_task}:#{from_port}"
@@ -1294,12 +1388,12 @@ module Orocos
                             break
                         end
                         from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port), policy)
-                        RobyPlugin.add_connections(from_task.orogen_task, to_task.orogen_task,
-                                                   { [from_port, to_port] => policy }, ActualFlows::DataFlow)
+                        ActualDataFlow.add_connections(from_task.orogen_task, to_task.orogen_task,
+                                                   [from_port, to_port] => policy)
                     end
                 end
 
-                did_all
+                true
             end
         end
     end

@@ -3,9 +3,18 @@ APP_DIR = File.join(BASE_DIR, "test")
 
 $LOAD_PATH.unshift BASE_DIR
 require 'test/roby/common'
+require 'roby/schedulers/basic'
 
 class TC_RobyPlugin_Proxies < Test::Unit::TestCase
     include RobyPluginCommonTest
+
+    def setup
+        super
+        @orocos_update = engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
+    end
+    def teardown
+        super
+    end
 
     needs_no_orogen_projects
 
@@ -201,32 +210,42 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
     end
 
     def test_connects_after_configuration_before_startup
+        Roby.app.filter_backtraces = false
         Roby.app.load_orogen_project "system_test"
 
         plan.add(deployment = Orocos::RobyPlugin::Deployments::System.new)
-        system_test = Orocos::RobyPlugin::SystemTest
         plan.add_permanent(control = deployment.task('control'))
         plan.add_permanent(motors  = deployment.task('motor_controller'))
         control.add_sink(motors, { ['cmd_out', 'command'] => Hash.new })
 
-        was_executable, was_connected = nil
+        configure_called = false
+        was_executable, was_connected = true
         motors.singleton_class.class_eval do
             define_method :configure do
+                configure_called = true
                 was_executable = executable?
                 was_connected  = Roby.app.orocos_engine.registered_connection?(control, 'cmd_out', motors, 'command')
             end
         end
 
-	engine.run
+        Orocos::RobyPlugin::Engine.logger.level = Logger::INFO
+
+        motors.executable  = false
+        control.executable = false
+        engine.scheduler = Roby::Schedulers::Basic.new(true, plan)
+        engine.run
         assert_event_emission(control.start_event & motors.start_event) do
-            control.signals :start, motors, :start
-            control.start!
+            control.start_event.on { |_| STDERR.puts "control started" }
+            motors.start_event.on  { |_| STDERR.puts "motors started" }
+            motors.executable  = true
+            control.executable = true
         end
-        assert_event_emission(motors.start_event) { motors.start! }
-        assert(!was_executable)
-        assert(!was_connected)
-        assert(control.orogen_task.port('cmd_out').connected?)
-        assert(motors.orogen_task.port('command').connected?)
+
+        assert(configure_called, "the task's #configure method has not been called")
+        assert(!was_executable, "the task was executable in #configure")
+        assert(!was_connected, "the task was already connected in #configure")
+        assert(control.orogen_task.port('cmd_out').connected?, 'control output port is not connected')
+        assert(motors.orogen_task.port('command').connected?, "motors input port is not connected, executable? returns #{motors.executable?} and all_inputs_connected? #{Roby.app.orocos_engine.all_inputs_connected?(motors, false)}")
     end
 
     def test_connection_change
