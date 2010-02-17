@@ -597,7 +597,9 @@ module Orocos
                     validate_result(trsc)
                     compute_connection_policies
 
-                    trsc.static_garbage_collect
+                    trsc.static_garbage_collect do |obj|
+                        trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)
+                    end
                     trsc.commit_transaction
                     @modified = false
                 end
