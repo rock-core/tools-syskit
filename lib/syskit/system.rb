@@ -692,7 +692,7 @@ module Orocos
                         # Merge only if +task+ has the same child set than +target+
                         if task.kind_of?(Composition) && target_task.kind_of?(Composition)
                             target_children = target_task.merged_relations(:each_child, true, false).to_value_set
-                            next if !task_children.include_all?(target_children)
+                            next if task_children != target_children
                         end
                         # Finally, call #can_merge?
                         next if !task.can_merge?(target_task)
