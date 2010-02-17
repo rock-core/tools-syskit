@@ -367,6 +367,9 @@ module Orocos
                 # verify that they are coming from the same output
                 self_inputs = Hash.new
                 each_concrete_input_connection do |source_task, source_port, sink_port, policy|
+                    if self_inputs.has_key?(sink_port)
+                        raise InternalError, "multiple connections to the same input: #{self}:#{sink_port} is connected from #{source_task}:#{source_port} and #{self_inputs[sink_port]}"
+                    end
                     self_inputs[sink_port] = [source_task, source_port, policy]
                 end
                 target_inputs = target_task.each_source.to_value_set
