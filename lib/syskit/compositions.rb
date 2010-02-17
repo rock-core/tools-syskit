@@ -225,8 +225,9 @@ module Orocos
                                 next
                             end
                         end
-                        spec.composition.specialize(child_name, child_model, options, &block)
                     end
+
+                    spec.composition.specialize(child_name, child_model, options, &block)
                 end
                 child_composition
             end
@@ -340,7 +341,7 @@ module Orocos
                     filtered_results = []
                     result.find_all do |model|
                         if child_model = model.find_child(child_name)
-                            if child_model.fullfills?(child_model)
+                            if model.fullfills?(child_model)
                                 filtered_results << model
                             end
                         end
@@ -685,11 +686,13 @@ module Orocos
                 end
 
                 default_model = find_default_specialization(child_name)
-                if default_model && default_selection = result.find { |model| model.fullfills?(default_model) }
-                    return [default_selection]
-                else
-                    return result
+                if default_model
+                    default_selection = result.find_all { |model| model.fullfills?(default_model) }
+                    if !default_selection.empty?
+                        return default_selection
+                    end
                 end
+                result
             end
             
             # call-seq:
