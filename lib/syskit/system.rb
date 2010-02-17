@@ -386,7 +386,7 @@ module Orocos
                             device_instance.instanciate(self)
                         end
                         
-                    tasks[name] = task
+                    tasks[name] = plan[task]
                     device_instance.task = task
                     device_instance.task_model.
                         each_child_data_source(device_instance.task_source_name) do |child_name, _|
