@@ -372,14 +372,15 @@ module Orocos
                     end
                     self_inputs[sink_port] = [source_task, source_port, policy]
                 end
-                target_inputs = target_task.each_source.to_value_set
-                target_inputs.each do |input_task|
-                    not_compatible = input_task.each_concrete_input_connection.any? do |source_task, source_port, sink_port, policy|
-                        if same_port = self_inputs[sink_port]
-                            same_port[0] != source_task || same_port[1] != source_port
+                target_task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
+                    if conn = self_inputs[sink_port]
+                        same_source = (conn[0] == source_task && conn[1] == source_port)
+                        if !same_source
+                            return false
+                        elsif !policy.empty? && (RobyPlugin.update_connection_policy(conn[2], policy) != policy)
+                            return false
                         end
                     end
-                    return false if not_compatible
                 end
 
                 true
