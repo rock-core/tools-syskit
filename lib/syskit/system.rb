@@ -669,7 +669,7 @@ module Orocos
                     query = @merging_candidates_queries[task.model]
                     if !query
                         required_model = task.user_required_model
-                        query = @merging_candidates_queries[task.model] = plan.find_tasks(required_model)
+                        query = @merging_candidates_queries[task.model] = plan.find_local_tasks(required_model)
                     end
                     query.reset
                     candidates = query.to_value_set & task_set
