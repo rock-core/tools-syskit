@@ -168,7 +168,7 @@ module Orocos
 
             on :stop do |event|
                 orogen_spec.task_activities.each do |act|
-                    TaskContext.configured.delete(name)
+                    TaskContext.configured.delete(act.name)
                 end
                 if task_handles
                     # task_handles is only initialized when ready is reached ...
