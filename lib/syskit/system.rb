@@ -351,9 +351,12 @@ module Orocos
                 task = add(new_task)
                 task.replaces = current_task
 
-                instances.delete_if do |instance|
-                    instance.task == current_task
+                if current_task
+                    instances.delete_if do |instance|
+                        instance.task == current_task
+                    end
                 end
+                task
             end
 
             def remove(task)
