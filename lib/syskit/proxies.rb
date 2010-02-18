@@ -229,21 +229,23 @@ module Orocos
             end
 
             tasks = Flows::DataFlow.modified_tasks
+            tasks.delete_if { |t| !t.plan || t.transaction_proxy? }
             if !tasks.empty?
-                tasks = tasks.dup
+                main_tasks, proxy_tasks = tasks.partition { |t| t.plan.executable? }
+                main_tasks = main_tasks.to_value_set
                 if Flows::DataFlow.pending_changes
-                    tasks.merge(Flows::DataFlow.pending_changes.first)
+                    main_tasks.merge(Flows::DataFlow.pending_changes.first)
                 end
 
                 Engine.info do
                     Engine.info "computing data flow update from modified tasks"
-                    for t in tasks
+                    for t in main_tasks
                         Engine.info "  #{t}"
                     end
                     break
                 end
 
-                new, removed = Roby.app.orocos_engine.compute_connection_changes(tasks)
+                new, removed = Roby.app.orocos_engine.compute_connection_changes(main_tasks)
                 if new
                     Engine.info do
                         Engine.info "  new connections:"
@@ -266,8 +268,9 @@ module Orocos
                         break
                     end
 
-                    Flows::DataFlow.pending_changes = [tasks, new, removed]
+                    Flows::DataFlow.pending_changes = [main_tasks, new, removed]
                     Flows::DataFlow.modified_tasks.clear
+                    Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_value_set)
                 else
                     Engine.info "cannot compute changes, keeping the tasks queued"
                 end
@@ -353,14 +356,14 @@ module Orocos
 
             def added_child_object(child, relations, info)
                 super if defined? super
-                if relations.include?(Flows::DataFlow)
+                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
                     Flows::DataFlow.modified_tasks << self
                 end
             end
 
             def removed_child_object(child, relations)
                 super if defined? super
-                if relations.include?(Flows::DataFlow)
+                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
                     Flows::DataFlow.modified_tasks << self
                 end
             end

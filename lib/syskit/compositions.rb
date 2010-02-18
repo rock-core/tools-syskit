@@ -1161,7 +1161,7 @@ module Orocos
                     mappings ||= self[child, Flows::DataFlow]
                     mappings.each_key do |source_port, sink_port|
                         real_task, _ = resolve_input_port(source_port)
-                        if real_task # can be nil if the child has been removed
+                        if real_task && !real_task.transaction_proxy? # can be nil if the child has been removed
                             Flows::DataFlow.modified_tasks << real_task
                         end
                     end
@@ -1170,7 +1170,7 @@ module Orocos
                     mappings ||= self[child, Flows::DataFlow]
                     mappings.each_key do |source_port, sink_port|
                         real_task, _ = resolve_output_port(source_port)
-                        if real_task # can be nil if the child has been removed
+                        if real_task && !real_task.transaction_proxy? # can be nil if the child has been removed
                             Flows::DataFlow.modified_tasks << real_task
                         end
                     end
