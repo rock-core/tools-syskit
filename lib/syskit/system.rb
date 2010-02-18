@@ -1240,31 +1240,6 @@ module Orocos
                 end
             end
 
-            def update_current_connections(task, old, new)
-                old.delete_if do |self_port, old_connections|
-                    if !new.has_key?(self_port)
-                        task.orogen_task.port(self_port).disconnect_all
-                        next(true)
-                    end
-
-                    old_connections.delete_if do |old_task, old_port, old_policy|
-                        found_equivalent_connection = nil
-                        new[self_port].delete_if do |new_task, new_port, new_policy|
-                            if old_task == new_task && old_port == new_port &&
-                                old_policy == RobyPlugin.update_connection_policy(old_policy, new_policy)
-                                found_equivalent_connection = true
-                            end
-                        end
-
-                        if !found_equivalent_connection
-                            orogen_task.port(self_port).disconnect_from(new_task.orogen_task.port(old_port))
-                            true
-                        end
-                    end
-                    connections.empty?
-                end
-            end
-
             # Returns true if all the declared connections to the inputs of +task+ have been applied.
             # A given module won't be started until it is the case.
             #
