@@ -390,7 +390,7 @@ module Orocos
 
                 robot.devices.each do |name, device_instance|
                     task =
-                        if device_instance.task && device_instance.task.plan
+                        if device_instance.task && device_instance.task.plan == plan.real_plan
                             device_instance.task
                         else
                             device_instance.instanciate(self)
