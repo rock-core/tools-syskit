@@ -174,7 +174,8 @@ module Orocos
                     # task_handles is only initialized when ready is reached ...
                     # so can be nil here
                     task_handles.each_value do |task|
-                        ActualFlows::DataFlow.remove(task)
+                        ActualDataFlow.remove(task)
+                        RequiredDataFlow.remove(task)
                     end
                 end
 
