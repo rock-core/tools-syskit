@@ -344,6 +344,10 @@ module Orocos
             end
 
             def replace(current_task, new_task)
+                if current_task.respond_to?(:task)
+                    current_task = current_task.task
+                end
+
                 task = add(new_task)
                 task.replaces = current_task
 
