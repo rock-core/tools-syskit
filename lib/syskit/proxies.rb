@@ -212,10 +212,7 @@ module Orocos
             query.reset
             for t in query
                 next if !t.orogen_task
-
-                if !t.is_setup?
-                    t.setup
-                end
+                t.setup if !t.is_setup?
 
                 while t.update_orogen_state
                     if t.starting?
