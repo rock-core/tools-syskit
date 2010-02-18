@@ -67,7 +67,7 @@ module Orocos
         # This class represents a communication bus on the robot, i.e. a device
         # that multiplexes and demultiplexes I/O for device modules
         class CommunicationBus
-            # The Robot object we are part of
+            # The RobotDefinition object we are part of
             attr_reader :robot
             # The bus name
             attr_reader :name
@@ -94,7 +94,7 @@ module Orocos
             end
         end
 
-        class Robot
+        class RobotDefinition
             def initialize(engine)
                 @engine     = engine
                 @com_busses = Hash.new
@@ -224,7 +224,7 @@ module Orocos
             #
             def robot(&block)
                 if !@robot
-                    new_model = Robot.new(self)
+                    new_model = RobotDefinition.new(self)
                     @robot = new_model
                 end
                 if block_given?
