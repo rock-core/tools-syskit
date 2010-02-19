@@ -560,11 +560,28 @@ module Orocos
 
             attr_reader :composition_specializations
 
+            # Returns if the child of +c1+ called +child_name+ has either the
+            # same model than +c0+, or is a specialization of the model of +c0+
+            #
+            # If +c1+ has +child_name+ but c0 has not, returns true as well
+            #
+            # If +c0+ has +child_name+ but not +c1+, return false
+            #
+            # If neither have a child called +child_name+, returns true.
             def composition_child_is_specialized(child_name, c0, c1)
                 result = composition_specializations[child_name][c0][c1]
                 if result.nil?
                     models0 = c0.find_child(child_name)
                     models1 = c1.find_child(child_name)
+                    if !models0 && !models1
+                        return true
+                    end
+                    if !models0
+                        return true
+                    elsif !models1
+                        return false
+                    end
+
                     flag = Composition.is_specialized_model?(models0, models1)
                     composition_specializations[child_name][c0][c1] = flag
                     if flag

@@ -266,7 +266,8 @@ module Orocos
                 default_specializations[child] = child_model
             end
 
-            # Returns true if +model1+ is a specialization of +model2+
+            # Returns true if +model1+ is either the same model or a
+            # specialization of +model2+
             def is_specialized_model?(model1, model2)
                 model2.each do |m2|
                     is_specialized_in_model1 = model1.any? do |m1|
