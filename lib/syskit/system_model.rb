@@ -191,7 +191,7 @@ module Orocos
                 pp.text "Subsystems"
                 pp.nest(2) do
                     pp.breakable
-                    subsystems.sort_by { |name, sys| name }.
+                    compositions.sort_by { |name, sys| name }.
                         each do |name, sys|
                         inheritance[sys.superclass.name] << sys.name
                         pp.text "#{name}: "
