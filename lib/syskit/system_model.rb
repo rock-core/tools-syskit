@@ -219,8 +219,6 @@ module Orocos
                 end
             end
 
-            #--
-            # Note: this method HAS TO BE the last in the file
             def load(file)
                 load_dsl_file(file, binding, true, Exception)
                 self
