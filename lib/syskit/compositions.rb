@@ -129,11 +129,23 @@ module Orocos
             # Requires the specified child to be of the given models. It is
             # mainly used in an abstract compostion definition to force the user
             # to select a specific child model.
-            def constrain(child, allowed_models)
+            def constrain(child, allowed_models, options = Hash.new)
+                options = Kernel.validate_options options, :exclusive => false
+
                 child = if child.respond_to?(:to_str)
                             child.to_str
                         else child.name.gsub(/.*::/, '')
                         end
+
+                allowed_models.each do |model|
+                    if options[:exclusive]
+                        exclusions = allowed_models.dup
+                        exclusions.delete(model)
+                        specialize(child, model, :not => exclusions)
+                    else
+                        specialize(child, model)
+                    end
+                end
 
                 child_constraints[child].concat( allowed_models )
                 self
@@ -188,6 +200,11 @@ module Orocos
                                  child_name.name.gsub(/^.*::/, '')
                              end
 
+                if block && (specialization = specializations.find { |m| m.specialized_children[child_name] == child_model })
+                    apply_specialization_block(child_name, child_model, block)
+                    return specialization.composition
+                end
+
                 # Make sure we actually specialize ...
                 if !has_child?(child_name)
                     raise SpecError, "there is no child called #{child_name} in #{self}"
@@ -209,9 +226,6 @@ module Orocos
                 
                 specializations <<
                     Specialization.new({ child_name => child_model }, child_composition)
-                if block_given?
-                    child_composition.with_module(*RobyPlugin.constant_search_path, &block)
-                end
 
                 # Apply the specialization to the existing ones
                 specializations.each do |spec|
@@ -227,9 +241,23 @@ module Orocos
                         end
                     end
 
-                    spec.composition.specialize(child_name, child_model, options, &block)
+                    spec.composition.specialize(child_name, child_model, options)
+                end
+
+                if block
+                    apply_specialization_block(child_name, child_model, block)
                 end
                 child_composition
+            end
+
+            def apply_specialization_block(child_name, child_model, block)
+                specializations.each do |spec|
+                    if spec.specialized_children[child_name] == child_model
+                        spec.composition.with_module(*RobyPlugin.constant_search_path, &block)
+                    else
+                        spec.composition.apply_specialization_block(child_name, child_model, block)
+                    end
+                end
             end
 
             # Declares a preferred specialization in case two specializations
