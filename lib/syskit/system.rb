@@ -583,7 +583,7 @@ module Orocos
                 @merging_candidates_queries.clear
             end
 
-            def resolve
+            def resolve(compute_policies = true)
                 prepare
 
                 engine_plan = @plan
@@ -624,7 +624,9 @@ module Orocos
                     # Finally, we should now only have deployed tasks. Verify it
                     # and compute the connection policies
                     validate_result(trsc)
-                    compute_connection_policies
+                    if compute_policies
+                        compute_connection_policies
+                    end
 
                     trsc.static_garbage_collect do |obj|
                         trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)

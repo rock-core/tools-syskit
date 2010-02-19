@@ -264,7 +264,7 @@ module Orocos
                 Kernel.load_dsl_file(file, orocos_engine, search_path, false)
             end
 
-	    def apply_orocos_deployment(name)
+	    def apply_orocos_deployment(name, compute_policies = true)
 		if file = robotfile('config', 'ROBOT', 'deployments', "#{name}.rb")
 		    load_system_definition(file)
 		elsif File.file?(file = File.join('config', 'deployments', "#{name}.rb"))
@@ -272,7 +272,7 @@ module Orocos
 		else
 		    raise ArgumentError, "cannot find a deployment named '#{name}'"
 		end
-		orocos_engine.resolve
+		orocos_engine.resolve(compute_policies)
 	    end
 
             def self.run(app)
