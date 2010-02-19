@@ -225,6 +225,61 @@ module Orocos
                 load_dsl_file(file, binding, true, Exception)
                 self
             end
+
+            def to_dot
+                io = []
+                io << "digraph {"
+                io << "  node [shape=record,height=.1];"
+                each_composition do |model|
+                    id = model.object_id
+
+                    inputs  = Hash.new { |h, k| h[k] = Array.new }
+                    outputs  = Hash.new { |h, k| h[k] = Array.new }
+                    model.connections.each do |(source, sink), mappings|
+                        mappings.each do |(source_port, sink_port), policy|
+                            outputs[source] << source_port
+                            inputs[sink] << sink_port
+                            io << "C#{id}#{source}:#{source_port} -> C#{id}#{sink}:#{sink_port};"
+                        end
+                    end
+
+                    io << "subgraph cluster_#{id} {"
+                    io << "  rankdir=LR;"
+                    io << "  C#{id} [label = \"#{model.name}\"];"
+                    model.each_child do |child_name, child_model|
+                        child_model = [child_model] if !child_model.respond_to?(:each)
+
+                        label = "{"
+                        task_label = child_model.map { |m| m.name }.join(',')
+                        if !inputs[child_name].empty?
+                            label << inputs[child_name].map do |port_name|
+                                "<#{port_name}> #{port_name}"
+                            end.join("|")
+                            label << "|"
+                        end
+                        label << "<main> #{task_label}"
+                        if !outputs[child_name].empty?
+                            label << "|"
+                            label << outputs[child_name].map do |port_name|
+                                "<#{port_name}> #{port_name}"
+                            end.join("|")
+                        end
+                        label << "}"
+
+                        io << "  C#{id}#{child_name} [label=\"#{label}\"];"
+                        #io << "  C#{id} -> C#{id}#{child_name}"
+                    end
+                    io << "}"
+
+                    model.specializations.each do |specialized_model|
+                        specialized_id = specialized_model.composition.object_id
+                        io << "C#{id} -> C#{specialized_id} [lhead=cluster_#{id} ltail=cluster_#{specialized_id}];"
+                    end
+
+                end
+                io << "}"
+                io.join("\n")
+            end
         end
     end
 end
