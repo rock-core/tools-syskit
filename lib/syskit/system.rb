@@ -1290,6 +1290,11 @@ module Orocos
                         next
                     end
 
+                    # Our source may not be initialized at all
+                    if !source_task.orogen_task
+                        return false
+                    end
+
                     return false if !ActualDataFlow.linked?(source_task.orogen_task, task.orogen_task)
                     mappings = source_task.orogen_task[task.orogen_task, ActualDataFlow]
                     return false if !mappings.has_key?([source_port, sink_port])
