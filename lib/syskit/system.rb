@@ -386,7 +386,7 @@ module Orocos
                     if removed_instances.empty?
                         raise ArgumentError, "no task called #{task} has been instanciated through Engine#add"
                     end
-                elsif task < Roby::Task || task < Roby::TaskModelTag
+                elsif task < Roby::Task || task.kind_of?(Roby::TaskModelTag)
                     removed_instances, @instances = instances.partition { |t| t.model <= task }
                     if removed_instances.empty?
                         raise ArgumentError, "no task matching #{task} have been instanciated through Engine#add"

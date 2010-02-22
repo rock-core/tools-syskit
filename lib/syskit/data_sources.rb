@@ -515,7 +515,7 @@ module Orocos
                 device_name = arguments["#{interface_name}_name"]
                 return if !device_name
 
-                description = ::Robot.devices.find { |d| d.name == device_name }
+                description = robot.devices[device_name]
                 if !description
                     raise ArgumentError, "there is no device called #{device_name} (selected for #{interface_name} on #{self})"
                 end
