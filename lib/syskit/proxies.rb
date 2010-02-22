@@ -266,7 +266,12 @@ module Orocos
                         break
                     end
 
-                    Flows::DataFlow.pending_changes = [main_tasks, new, removed]
+                    pending_replacement =
+                        if Flows::DataFlow.pending_changes
+                            Flows::DataFlow.pending_changes[3]
+                        end
+
+                    Flows::DataFlow.pending_changes = [main_tasks, new, removed, pending_replacement]
                     Flows::DataFlow.modified_tasks.clear
                     Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_value_set)
                 else
@@ -275,13 +280,31 @@ module Orocos
             end
 
             if Flows::DataFlow.pending_changes
-                Engine.info "applying pending changes from the data flow graph"
-                _, new, removed = Flows::DataFlow.pending_changes
-                if Roby.app.orocos_engine.apply_connection_changes(new, removed)
-                    Engine.info "successfully applied pending changes"
-                    Flows::DataFlow.pending_changes = nil
+                _, new, removed, pending_replacement = Flows::DataFlow.pending_changes
+                if pending_replacement && !pending_replacement.happened? && !pending_replacement.unreachable?
+                    Engine.info "waiting for replaced tasks to stop"
                 else
-                    Engine.info "failed to apply pending changes"
+                    if pending_replacement
+                        Engine.info "successfully started replaced tasks, now applying pending changes"
+                        pending_replacement.clear_vertex
+                        plan.unmark_permanent(pending_replacement)
+                    end
+
+                    pending_replacement = catch :cancelled do
+                        Engine.info "applying pending changes from the data flow graph"
+                        Roby.app.orocos_engine.apply_connection_changes(new, removed)
+                        Flows::DataFlow.pending_changes = nil
+                    end
+
+                    if !Flows::DataFlow.pending_changes
+                        Engine.info "successfully applied pending changes"
+                    elsif pending_replacement
+                        Engine.info "waiting for replaced tasks to stop"
+                        plan.add_permanent(pending_replacement)
+                        Flows::DataFlow.pending_changes[3] = pending_replacement
+                    else
+                        Engine.info "failed to apply pending changes"
+                    end
                 end
             end
         end

@@ -1400,15 +1400,26 @@ module Orocos
                 return new, removed
             end
 
-            # Returns true if the specified mappins can be applied in the
-            # current state of the tasks
-            def valid_connection_change?(source_task, sink_task, mappings)
-                # Check that we don't try to change static connections on
-                # running tasks
-                mappings.all? do |source_port, sink_port|
-                    (!source_task.output_port_model(source_port).static? || !source_task.running?) &&
-                        (!sink_task.input_port_model(sink_port).static? || !sink_task.running?)
+            def update_restart_set(set, source_task, sink_task, mappings)
+                if !set.include?(source_task)
+                    needs_restart = mappings.any? do |source_port, sink_port|
+                        source_task.output_port_model(source_port).static? && source_task.running?
+                    end
+                    if needs_restart
+                        set << source_task
+                    end
                 end
+
+                if !set.include?(sink_task)
+                    needs_restart =  mappings.any? do |source_port, sink_port|
+                        sink_task.input_port_model(sink_port).static? && sink_task.running?
+                    end
+
+                    if needs_restart
+                        set << sink_task
+                    end
+                end
+                set
             end
 
             # Apply all connection changes on the system. The principle is to
@@ -1421,6 +1432,8 @@ module Orocos
             # Returns a false value if it could not apply the changes and a true
             # value otherwise.
             def apply_connection_changes(new, removed)
+                restart_tasks = ValueSet.new
+
                 # Don't do anything if some of the connection changes are
                 # between static ports and the relevant tasks are running
                 #
@@ -1430,19 +1443,41 @@ module Orocos
                 new.each do |(source, sink), mappings|
                     if !sink.executable?(false) || !sink.is_setup? ||
                         !source.executable?(false) || !source.is_setup?
-                        return
+                        throw :cancelled
                     end
 
-                    if !valid_connection_change?(source, sink, mappings.keys)
-                        Engine.info { "not applying connection changes: #{source} => #{sink} (#{mappings}) is not a valid addition right now" }
-                        return
+                    update_restart_set(restart_tasks, source, sink, mappings.keys)
+                end
+
+                restart_task_proxies = ValueSet.new
+                removed.each do |(source, sink), mappings|
+                    update_restart_set(restart_task_proxies, source, sink, mappings)
+                end
+                restart_task_proxies.each do |corba_handle|
+                    klass = Roby.app.orocos_tasks[corba_handle.model.name]
+                    task = plan.find_tasks(klass).running.
+                        find { |t| t.orocos_name == corba_handle.name }
+
+                    if task
+                        restart_tasks << task
                     end
                 end
-                removed.each do |(source, sink), mappings|
-                    if !valid_connection_change?(source, sink, mappings)
-                        Engine.info { "not applying connection changes: #{source} => #{sink} (#{mappings}) is not a valid removal right now" }
-                        return
+
+                if !restart_tasks.empty?
+                    new_tasks = Array.new
+                    all_stopped = Roby::AndGenerator.new
+
+                    restart_tasks.each do |task|
+                        Engine.info { "restarting #{task}" }
+                        replacement = plan.recreate(task)
+                        Engine.info { "  replaced by #{replacement}" }
+                        new_tasks << replacement
+                        all_stopped << task.stop_event
                     end
+                    new_tasks.each do |new_task|
+                        all_stopped.add_causal_link new_task.start_event
+                    end
+                    throw :cancelled, all_stopped
                 end
 
                 # Remove connections first
