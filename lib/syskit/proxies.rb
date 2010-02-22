@@ -248,16 +248,16 @@ module Orocos
                     Engine.info do
                         Engine.info "  new connections:"
                         new.each do |(from_task, to_task), mappings|
-                            Engine.info "    #{from_task} =>"
-                            Engine.info "       #{to_task}"
+                            Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
+                            Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
                             mappings.each do |(from_port, to_port), policy|
                                 Engine.info "      #{from_port}:#{to_port} #{policy}"
                             end
                         end
                         Engine.info "  removed connections:"
-                        new.each do |(from_task, to_task), mappings|
-                            Engine.info "    #{from_task} =>"
-                            Engine.info "       #{to_task}"
+                        removed.each do |(from_task, to_task), mappings|
+                            Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
+                            Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
                             mappings.each do |from_port, to_port|
                                 Engine.info "      #{from_port}:#{to_port}"
                             end
