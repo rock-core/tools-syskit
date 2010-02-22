@@ -625,7 +625,7 @@ module Orocos
                 end
 
                 # Call configure or start, depending on the current state
-                RobyPlugin.info { "starting #{to_s}" }
+                ::Robot.info "starting #{to_s}"
                 orogen_task.start
                 @last_state = nil
             end
@@ -685,7 +685,7 @@ module Orocos
                 interrupt!
             end
             on :stop do |event|
-                ::Robot.info "stopped #{orocos_name}"
+                ::Robot.info "stopped #{self}"
                 if @state_reader
                     @state_reader.disconnect
                 end
