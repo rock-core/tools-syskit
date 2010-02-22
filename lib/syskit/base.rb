@@ -131,6 +131,12 @@ module Orocos
             # The Robot instance we are running on
             attr_accessor :robot
 
+            def create_fresh_copy
+                new_task = super
+                new_task.robot = robot
+                new_task
+            end
+
             inherited_enumerable(:main_data_source, :main_data_sources) { Set.new }
             inherited_enumerable(:data_source, :data_sources, :map => true) { Hash.new }
 
