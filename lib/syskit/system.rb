@@ -568,12 +568,20 @@ module Orocos
                     raise Ambiguous, "there are ambiguities left in the plan: #{still_abstract}"
                 end
 
+                # Check that all device instances are proper tasks (not proxies)
+                robot.devices.each do |name, instance|
+                    if instance.task.transaction_proxy?
+                        raise InternalError, "some transaction proxies are stored in instance.task"
+                    end
+                end
+
                 # Check for the presence of non-deployed tasks
                 not_deployed = plan.find_local_tasks(TaskContext).
                     find_all { |t| !t.execution_agent }.
                     delete_if do |p|
                         p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
                     end
+
                 if !not_deployed.empty?
                     raise Ambiguous, "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
                 end
@@ -658,6 +666,22 @@ module Orocos
                     end
                     instanciate_required_deployments
                     merge_identical_tasks
+
+                    # the tasks[] and devices mappings are updated during the
+                    # merge. We replace the proxies by the corresponding tasks
+                    # when applicable
+                    robot.devices.each_key do |name|
+                        device_task = robot.devices[name].task
+                        if device_task.plan == trsc && device_task.transaction_proxy?
+                            robot.devices[name].task = device_task.__getobj__
+                        end
+                    end
+                    tasks.each_key do |name|
+                        instance_task = robot.devices[name].task
+                        if instance_task.plan == trsc && instance_task.transaction_proxy?
+                            tasks[name].task = instance_task.__getobj__
+                        end
+                    end
 
                     # Finally, we should now only have deployed tasks. Verify it
                     # and compute the connection policies
