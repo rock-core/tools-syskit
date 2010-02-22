@@ -35,6 +35,10 @@ module Orocos
             # the device. For a serial line, it would be the device file
             # (/dev/ttyS0). For CAN, it would be the device ID and mask.
             attr_reader :device_id
+            # Generic property map. The values are set with #set and can be
+            # retrieved by calling "self.property_name". The possible values are
+            # specific to the type of device
+            attr_reader :properties
 
             def com_bus; @task_arguments[:com_bus] end
 
@@ -47,10 +51,20 @@ module Orocos
                 @period      = options[:period]
                 @sample_size = options[:sample_size]
                 @device_id   = options[:device_id]
+                @properties  = Hash.new
             end
 
             def instanciate(engine)
                 task_model.instanciate(engine, task_arguments)
+            end
+
+            def set(name, *values)
+                if values.size == 1
+                    properties[name.to_str] = values.first
+                else
+                    properties[name.to_str] = values
+                end
+                self
             end
 
             dsl_attribute(:period) { |v| Float(v) }
