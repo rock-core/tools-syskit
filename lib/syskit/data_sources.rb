@@ -67,7 +67,7 @@ module Orocos
                 end
 
                 interface = Roby.app.main_orogen_project.
-                    task_context(basename)
+                    external_task_context(basename)
                 interface.abstract
                 interface
             end
