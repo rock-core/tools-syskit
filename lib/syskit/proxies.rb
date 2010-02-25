@@ -451,7 +451,7 @@ module Orocos
                     end
                 end
 
-                if handled_inputs.size == orogen_spec.context.event_ports.size
+                if minimal_period && (handled_inputs.size == orogen_spec.context.event_ports.size)
                     model.each_output do |port|
                         port_model = orogen_spec.context.port(port.name)
                         if port_model.triggered_on_update?
