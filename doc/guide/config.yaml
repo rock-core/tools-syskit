@@ -15,9 +15,6 @@
 # The available configuration options can be listed using the `webgen config`
 # command, for example: `webgen config sourcehandler` will list all options starting
 # with sourcehandler.
-default_processing_pipeline:
-    Page: tags,maruku,blocks
-
 default_meta_info:
     Webgen::SourceHandler::Page:
         in_menu: true
@@ -31,3 +28,7 @@ tag.coderay.lang: ruby
 
 rdoclinks.base_url: /api
 rdoclinks.base_module: Orocos
+
+patterns:
+  Copy:
+    add: [**/*.rb]

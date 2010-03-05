@@ -52,7 +52,7 @@ them (add_default_logger adds a base::Logger component in the deployment). To
 use these deployments, one would do:
 
 {coderay:: ruby}
-Orocos.spawn 'lowlevel', 'imu', 'gps', 'hokuyo', 'state_estimator' do
+Orocos.run 'lowlevel', 'imu', 'gps', 'hokuyo', 'state_estimator' do
   # Here goes the supervision code
 end
 {coderay}
@@ -67,7 +67,7 @@ handle on the imu::XsensTask task that is declared in the imu deployment. You
 achieve this by using the task name:
 
 {coderay:: ruby}
-Orocos.spawn 'lowlevel', 'imu', 'gps', 'hokuyo', 'state_estimator' do
+Orocos.run 'lowlevel', 'imu', 'gps', 'hokuyo', 'state_estimator' do
   imu = TaskContext.get 'imu'
   # From this point on, the 'imu' variable represents the XsensTask task
   # context, and can be used to manipulate it.
@@ -116,7 +116,7 @@ Then, the configuration transition is done by calling #configure. Our script now
 looks like:
 
 {coderay:: ruby}
-Orocos.spawn 'lowlevel', 'imu', 'gps', 'hokuyo', 'state_estimator' do
+Orocos.run 'lowlevel', 'imu', 'gps', 'hokuyo', 'state_estimator' do
   imu = TaskContext.get 'imu'
 
   imu.port = '/dev/ttyS1'
@@ -128,7 +128,7 @@ end
 It can then be started with TaskContext#start:
 
 {coderay:: ruby}
-Orocos.spawn 'lowlevel', 'imu', 'gps', 'hokuyo', 'state_estimator' do
+Orocos.run 'lowlevel', 'imu', 'gps', 'hokuyo', 'state_estimator' do
   imu = TaskContext.get 'imu'
 
   imu.port = '/dev/ttyS1'

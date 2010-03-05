@@ -61,6 +61,6 @@ end
 {coderay}
 
 Orocos.run can also redirect the process outputs to files, and run them in
-valgrind. See the [documentation of the documentation Orocos
-module](api/Orocos.html) for more information.
+valgrind. See the {rdoc_class: {name: Orocos, base_module: '', text:
+"documentation of the Orocos moduule"}} for more information.
 

@@ -1,0 +1,124 @@
+---
+title: Data connections
+sort_info: 150
+---
+
+Port access
+-----------
+
+Getting a port from a task is as easy as
+
+{coderay:: ruby}
+port_object = my_task.port_name
+{coderay}
+
+The returned port object is either an {rdoc_class: InputPort} or an {rdoc_class:
+OutputPort}, based on the port type.
+
+Creating connections
+--------------------
+
+A connection is always created from an output port to an input port:
+
+{coderay:: ruby}
+output_port.connect_to input_port
+{coderay}
+
+By default, the created connection is a data connection. To change that, one can
+use the :type option
+
+{coderay:: ruby}
+output_port.connect_to input_port, :type => :buffer, :size => 10
+{coderay}
+
+The following constraints apply:
+
+ * both ports must have the same type
+ * an input port can be part of only one connection
+
+If any of these constraints are not met, a ConnectionFailed exception is
+raised.
+
+Disconnecting
+-------------
+
+
+There are three different ways to disconnect ports
+
+ 1. one can specify a specific connection to remove:
+{coderay:: ruby}
+output_port.disconnect_from input_port
+{coderay}
+
+ 2. one can disconnect the input port from its connection
+{coderay:: ruby}
+input_port.disconnect_all
+{coderay}
+
+ 3. one can disconnect the output port from all its connections
+{coderay:: ruby}
+output_port.disconnect_all
+{coderay}
+
+Note that it is fine to use the first method even though the process hosting the
+input port is dead (e.g. has crashed or cannot be contacted). If it is the
+output port that is dead, then one should use the third method.
+
+Reading outputs or writing inputs
+---------------------------------
+
+One can read outputs and write inputs from the Ruby scripts. To achieve this,
+one gets a {rdoc_class: OutputReader} or a {rdoc_class: InputWriter} object
+(respectively) with:
+
+{coderay:: ruby}
+writer = input_port.writer
+reader = output_port.reader
+{coderay}
+
+By default, these port access objects will use a data policy for their
+connection to the port. To specify a buffer policy, simply do
+
+{coderay:: ruby}
+writer = input_port.writer :type => :buffer, :size => 10
+reader = output_port.reader :type => :buffer, :size => 10
+{coderay}
+
+Then, the data can be read with
+
+{coderay:: ruby}
+sample = reader.read
+{coderay}
+
+the returned value will be nil if there is no data available, and the
+corresponding Typelib::Type object otherwise. This object  allows to manipulate
+the C++ data structure as if it was a normal Ruby object. For instance, a data
+sample looking like
+
+{coderay:: cpp}
+struct LaserReadings
+{
+    std::string name;
+    base::Time time;
+    std::vector<double> readings;
+};
+{coderay}
+
+One can do
+
+{coderay:: ruby}
+sample.name # returns a Ruby string
+sample.time # returns a Typelib object that has .seconds and .microseconds methods
+sample.readings # returns an Enumerable of floating-point values
+{coderay}
+
+and written with
+
+{coderay:: ruby}
+sample = writer.new_sample
+sample.name = "MyReading"
+sample.time.seconds = Time.now.tv_sec
+sample.time.microseconds = Time.now.tv_usec
+output_port.write(sample)
+{coderay}
+
