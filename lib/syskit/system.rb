@@ -395,7 +395,7 @@ module Orocos
 
                 @modified = true
                 removed_instances.each do |instance|
-                    if instance.task
+                    if instance.task && instance.task.plan
                         plan.unmark_mission(instance.task)
                         plan.unmark_permanent(instance.task)
                     end
