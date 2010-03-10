@@ -1495,17 +1495,13 @@ module Orocos
                         end
 
                         begin
-                            if !source_task.port(source_port).disconnect_from(sink_task.port(sink_port, false))
-                                raise InternalError, "failed to disconnect #{source_task}:#{source_port} from #{sink_task}:#{sink_port}"
-                            end
+                            source_task.port(source_port).disconnect_from(sink_task.port(sink_port, false))
 
                         rescue CORBA::ComError => e
                             Engine.warn "CORBA error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
                             Engine.warn "trying by disconnecting the output port"
                             begin
-                                if !sink_task.port(sink_port, true).disconnect_all
-                                    raise InternalError, "failed to disconnect #{source_task}:#{source_port} from #{sink_task}:#{sink_port}"
-                                end
+                                sink_task.port(sink_port, true).disconnect_all
                             rescue CORBA::ComError => e
                                 Engine.warn "this fails again with #{e.message}. We assume that both sides are dead and that therefore the disconnection is effective"
                             end
