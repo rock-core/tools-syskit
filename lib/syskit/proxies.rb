@@ -608,7 +608,11 @@ module Orocos
                 state = read_current_state
 
                 if state != :STOPPED
-                    raise InternalError, "wrong state in start event: got #{state}, expected STOPPED"
+                    if orogen_task.fatal_error_state?(orogen_state)
+                        orogen_task.reset_error
+                    else
+                        raise InternalError, "wrong state in start event: got #{state}, expected STOPPED"
+                    end
                 end
 
                 # At this point, we should have already created all the dynamic
@@ -662,7 +666,15 @@ module Orocos
             #
             # Interrupts the execution of this task context
             event :interrupt do |context|
-                orogen_task.stop
+                begin
+                    orogen_task.stop
+                rescue Orocos::StateTransitionFailed
+                    if state = read_current_state && orogen_task.fatal_error_state?(state)
+                        # Nothing to do, the poll block will finalize the task
+                    else
+                        raise
+                    end
+                end
             end
             forward :interrupt => :failed
 
