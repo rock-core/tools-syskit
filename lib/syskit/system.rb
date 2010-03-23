@@ -262,6 +262,8 @@ module Orocos
                 @composition_specializations = Hash.new do |h, k|
                     h[k] = Hash.new { |a, b| a[b] = Hash.new }
                 end
+
+                @dot_index = 0
             end
 
             class InstanciatedComponent
@@ -634,6 +636,7 @@ module Orocos
 
                 engine_plan = @plan
                 plan.in_transaction do |trsc|
+                    begin
                     @plan = trsc
 
                     instanciate
@@ -695,6 +698,18 @@ module Orocos
                     end
                     trsc.commit_transaction
                     @modified = false
+
+                    rescue
+                        Engine.fatal "Engine#resolve failed"
+                        output_path = File.join(Roby.app.log_dir, "orocos-engine-plan-#{@dot_index}.dot")
+                        @dot_index += 1
+                        Engine.fatal "the generated plan is saved into #{output_path}"
+                        File.open(output_path, 'w') do |io|
+                            io.write to_dot
+                        end
+                        Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
+                        raise
+                    end
                 end
 
             ensure
