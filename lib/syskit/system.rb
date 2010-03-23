@@ -413,7 +413,7 @@ module Orocos
 
                 robot.devices.each do |name, device_instance|
                     task =
-                        if device_instance.task && device_instance.task.plan == plan.real_plan
+                        if device_instance.task && device_instance.task.plan == plan.real_plan && !device_instance.task.finished?
                             device_instance.task
                         else
                             device_instance.instanciate(self)
@@ -653,7 +653,13 @@ module Orocos
                     # NOTE: the GC pass HAS TO be done before
                     # instanciate_required_deployments, as new deployment
                     # instances would be removed by it
-                    trsc.find_tasks(Component).to_a
+                    all_tasks = trsc.find_tasks(Component).to_a
+                    all_tasks.each do |t|
+                        if t.finished?
+                            t.clear_relations
+                        end
+                    end
+
                     instances.each do |instance|
                         if replaced_task = instance.replaces
                             replaced_task = trsc[replaced_task]
