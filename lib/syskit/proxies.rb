@@ -675,7 +675,6 @@ module Orocos
             forward :interrupt => :failed
 
             event :runtime_error
-            forward :runtime_error => :failed
 
             event :fatal_error
             forward :fatal_error => :failed
