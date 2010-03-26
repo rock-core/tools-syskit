@@ -215,11 +215,6 @@ module Orocos
                 t.setup if !t.is_setup?
 
                 while t.update_orogen_state
-                    if t.starting?
-                        if t.orogen_state != :STOPPED && t.orogen_state != :PRE_OPERATIONAL
-                            t.emit :start
-                        end
-                    end
                     if t.running?
                         t.handle_state_changes
                     end
@@ -631,6 +626,7 @@ module Orocos
                 # Call configure or start, depending on the current state
                 ::Robot.info "starting #{to_s}"
                 orogen_task.start
+                emit :start
                 @last_state = nil
             end
 
