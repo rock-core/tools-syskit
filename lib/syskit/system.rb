@@ -613,6 +613,11 @@ module Orocos
                         return false
                     end
 
+                    # models0 and models1 are CompositionChildDefinition
+                    # instances, we need model sets
+                    models0 = models0.models
+                    models1 = models1.models
+
                     flag = Composition.is_specialized_model?(models0, models1)
                     composition_specializations[child_name][c0][c1] = flag
                     if flag

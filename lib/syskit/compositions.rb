@@ -1,5 +1,15 @@
 module Orocos
     module RobyPlugin
+        class CompositionChildDefinition
+            attr_accessor :models
+            attr_accessor :dependency_options
+
+            def initialize(models = ValueSet.new, dependency_options = Hash.new)
+                @models = models
+                @dependency_options = dependency_options
+            end
+        end
+
         class CompositionChild
             attr_reader :composition, :child_name
             def initialize(composition, child_name)
@@ -8,12 +18,12 @@ module Orocos
             end
 
             def model
-                composition.find_child(child_name)
+                composition.find_child(child_name).models
             end
 
             def method_missing(name, *args)
                 if args.empty?
-                    composition.find_child(child_name).each do |child_model|
+                    composition.find_child(child_name).models.each do |child_model|
                         if port = child_model.output_port(name)
                             return CompositionChildOutputPort.new(self, port, name.to_str)
                         elsif port = child_model.input_port(name)
@@ -22,7 +32,7 @@ module Orocos
                     end
                 end
 
-                raise NoMethodError, "child #{child_name}[#{composition.find_child(child_name).to_a.join(", ")}] of #{composition} has no port named #{name}", caller(1)
+                raise NoMethodError, "child #{child_name}[#{composition.find_child(child_name).models.to_a.join(", ")}] of #{composition} has no port named #{name}", caller(1)
             end
 
             def ==(other)
@@ -85,7 +95,7 @@ module Orocos
                 end
             end
 
-            def add_child(name, child_model)
+            def add_child(name, child_model, dependency_options)
                 if !child_model.respond_to?(:to_ary)
                     child_model = [child_model]
                 end
@@ -101,9 +111,9 @@ module Orocos
                 end
                 child_task_model = child_task_model.first
 
-                parent_model = find_child(name) || Array.new
+                parent_model = find_child(name) || CompositionChildDefinition.new
                 if child_task_model
-                    parent_task_model = parent_model.find { |m| m < Component }
+                    parent_task_model = parent_model.models.find { |m| m < Component }
                     if parent_task_model && !(child_task_model <= parent_task_model)
                         raise SpecError, "trying to overload #{parent_model} with #{child_model}"
                     end
@@ -112,17 +122,19 @@ module Orocos
                 # Delete from +parent_model+ everything that is already included
                 # in +child_model+
                 result = parent_model.dup
-                result.delete_if { |parent_m| child_model.any? { |child_m| child_m <= parent_m } }
-                children[name] = result.to_value_set | child_model.to_value_set
+                result.models.delete_if { |parent_m| child_model.any? { |child_m| child_m <= parent_m } }
+                result.models |= child_model.to_value_set
+                result.dependency_options = result.dependency_options.merge(dependency_options)
+                children[name] = result
             end
 
             def add(model, options = Hash.new)
                 if !model.kind_of?(Roby::TaskModelTag) && !(model.kind_of?(Class) && model < Component)
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
                 end
-                options = Kernel.validate_options options, :as => model.name.gsub(/.*::/, '')
+                options, dependency_options = Kernel.filter_options options, :as => model.name.gsub(/.*::/, '')
 
-                add_child(options[:as], model)
+                add_child(options[:as], model, dependency_options)
                 CompositionChild.new(self, options[:as])
             end
 
@@ -188,7 +200,7 @@ module Orocos
                 end
 
                 if child_name.kind_of?(Module)
-                    candidates = each_child.find_all { |name, model| model.include?(child_name) }
+                    candidates = each_child.find_all { |name, child_definition| child_definition.models.include?(child_name) }
                     if candidates.size == 1
                         child_name = candidates[0][0]
                     end
@@ -210,7 +222,7 @@ module Orocos
                     raise SpecError, "there is no child called #{child_name} in #{self}"
                 end
                 parent_model = find_child(child_name)
-                if parent_model.any? { |m| m <= child_model }
+                if parent_model.models.any? { |m| m <= child_model }
                     raise SpecError, "#{child_model} does not specify a specialization of #{parent_model}"
                 end
 
@@ -337,14 +349,14 @@ module Orocos
                     find_all do |child_composition|
                         # Note that the 'new' models in +child_composition+ are
                         # all in child_composition.children
-                        child_composition.each_child.all? do |child_name, child_model|
+                        child_composition.each_child.all? do |child_name, child_definition|
                             selected_model = selected_models[child_name]
                             if selected_model.respond_to?(:selected_facets)
                                 selected_model = selected_model.selected_facets
                             end
                             # new child in +child_composition+, do not count
                             next(true) if !selected_model
-                            selected_model.first.fullfills?(child_model)
+                            selected_model.first.fullfills?(child_definition.models)
                         end
                     end
 
@@ -370,7 +382,7 @@ module Orocos
                     filtered_results = []
                     result.find_all do |model|
                         if child_model = model.find_child(child_name)
-                            if model.fullfills?(child_model)
+                            if model.fullfills?(child_model.models)
                                 filtered_results << model
                             end
                         end
@@ -443,7 +455,7 @@ module Orocos
                 child_inputs  = Hash.new { |h, k| h[k] = Array.new }
                 child_outputs = Hash.new { |h, k| h[k] = Array.new }
                 children_names.each do |name|
-                    dependent_models = find_child(name)
+                    dependent_models = find_child(name).models
                     seen = Set.new
                     dependent_models.each do |sys|
                         sys.each_input do |in_port|
@@ -709,7 +721,7 @@ module Orocos
                 subselection.each do |child_name, selected_child_model|
                     next if !selected_child_model.respond_to?(:selected_facet)
                     result.delete_if do |model|
-                        (child_model = model.find_child(child_name).to_a) &&
+                        (child_model = model.find_child(child_name).models.to_a) &&
                             !child_model.any? { |m| m.fullfills?(selected_child_model.selected_facet) }
                     end
                 end
@@ -746,7 +758,7 @@ module Orocos
             #   Component instance).
             #
             def find_selected_model_and_task(engine, child_name, selection) # :nodoc:
-                dependent_model = find_child(child_name)
+                dependent_model = find_child(child_name).models
 
                 # First, simply check for the child's name
                 selected_object = selection[child_name]
@@ -812,7 +824,7 @@ module Orocos
             #
             # See also #acceptable_selection?
             def verify_acceptable_selection(child_name, selected_model, user_call = true) # :nodoc:
-                dependent_model = find_child(child_name)
+                dependent_model = find_child(child_name).models
                 if !dependent_model
                     raise ArgumentError, "#{child_name} is not the name of a child of #{self}"
                 end
@@ -888,7 +900,8 @@ module Orocos
             # selected a task.
             def filter_selection(engine, selection, user_call = true) # :nodoc:
                 result = Hash.new
-                each_child do |child_name, dependent_model|
+                each_child do |child_name, child_definition|
+                    dependent_model = child_definition.models
                     selected_object_name, child_model, child_task =
                         find_selected_model_and_task(engine, child_name, selection)
                     verify_acceptable_selection(child_name, child_model, user_call)
@@ -1000,16 +1013,25 @@ module Orocos
                     end
 
                     children_tasks[child_name] = child_task
-                    dependent_models    = find_child(child_name).to_a
+                    dependent_models    = find_child(child_name).models.to_a
                     dependent_arguments = dependent_models.inject(Hash.new) do |result, m|
                         result.merge(m.meaningful_arguments(child_task.arguments))
                     end
                     if dependent_models.size == 1
                         dependent_models = dependent_models.first
                     end
-                    self_task.depends_on(child_task,
-                            :model => [dependent_models, dependent_arguments],
-                            :roles => role)
+
+                    dependency_options = find_child(child_name).dependency_options
+                    dependency_options = { :model => [dependent_models, dependent_arguments], :roles => role }.
+                        merge(dependency_options)
+
+                    Engine.info do
+                        Engine.info "adding dependency #{self_task}"
+                        Engine.info "    => #{child_task}"
+                        Engine.info "   options; #{dependency_options}"
+                        break
+                    end
+                    self_task.depends_on(child_task, dependency_options)
                 end
 
                 output_connections = Hash.new { |h, k| h[k] = Hash.new }
