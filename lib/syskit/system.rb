@@ -11,191 +11,6 @@ module Orocos
             end
         end
 
-        class DeviceInstance
-            # The device name
-            attr_reader :name
-            # The device model, as a subclass of DeviceDriver
-            attr_reader :device_model
-
-            # The selected task model that allows to drive this device
-            attr_reader :task_model
-            # The source in +task_model+ for this device
-            attr_reader :task_source_name
-            # The task arguments
-            attr_reader :task_arguments
-            # The actual task
-            attr_accessor :task
-
-            # The device period in seconds
-            attr_reader :period
-            # How many data samples are required to represent one message from
-            # this device
-            attr_reader :sample_size
-            # The device ID. It is dependent on the method of communication to
-            # the device. For a serial line, it would be the device file
-            # (/dev/ttyS0). For CAN, it would be the device ID and mask.
-            attr_reader :device_id
-            # Generic property map. The values are set with #set and can be
-            # retrieved by calling "self.property_name". The possible values are
-            # specific to the type of device
-            attr_reader :properties
-
-            def com_bus; @task_arguments[:com_bus] end
-
-            KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
-            def initialize(name, device_model, options,
-                           task_model, task_source_name, task_arguments)
-                @name, @device_model, @task_model, @task_source_name, @task_arguments =
-                    name, device_model, task_model, task_source_name, task_arguments
-
-                @period      = options[:period]
-                @sample_size = options[:sample_size]
-                @device_id   = options[:device_id]
-                @properties  = Hash.new
-            end
-
-            def instanciate(engine)
-                task_model.instanciate(engine, task_arguments)
-            end
-
-            def set(name, *values)
-                if values.size == 1
-                    properties[name.to_str] = values.first
-                else
-                    properties[name.to_str] = values
-                end
-                self
-            end
-
-            dsl_attribute(:period) { |v| Float(v) }
-            dsl_attribute(:sample_size) { |v| Integer(v) }
-            dsl_attribute(:device_id) do |*values|
-                if values.size > 1
-                    values
-                else
-                    values.first
-                end
-            end
-        end
-
-        # This class represents a communication bus on the robot, i.e. a device
-        # that multiplexes and demultiplexes I/O for device modules
-        class CommunicationBus
-            # The RobotDefinition object we are part of
-            attr_reader :robot
-            # The bus name
-            attr_reader :name
-
-            def initialize(robot, name, options = Hash.new)
-                @robot = robot
-                @name  = name
-                @options = options
-            end
-
-            def through(&block)
-                with_module(*RobyPlugin.constant_search_path, &block)
-            end
-
-            # Used by the #through call to override com_bus specification.
-            def device(type_name, options = Hash.new)
-                # Check that we do have the configuration data for that device,
-                # and declare it as being passing through us.
-                if options[:com_bus] || options['com_bus']
-                    raise SpecError, "cannot use the 'com_bus' option in a through block"
-                end
-                options[:com_bus] = self.name
-                robot.device(type_name, options)
-            end
-        end
-
-        class RobotDefinition
-            def initialize(engine)
-                @engine     = engine
-                @com_busses = Hash.new
-                @devices    = Hash.new
-            end
-
-            # The underlying engine
-            attr_reader :engine
-            # The available communication busses
-            attr_reader :com_busses
-            # The devices that are available on this robot
-            attr_reader :devices
-
-            def com_bus(type_name, options = Hash.new)
-                bus_options, _ = Kernel.filter_options options, :as => type_name
-                name = bus_options[:as].to_str
-                com_busses[name] = CommunicationBus.new(self, name, options)
-
-                device(type_name, options)
-            end
-
-            def through(com_bus, &block)
-                bus = com_busses[com_bus]
-                if !bus
-                    raise SpecError, "communication bus #{com_bus} does not exist"
-                end
-                bus.through(&block)
-                bus
-            end
-
-            def device(device_model, options = Hash.new)
-                if device_model.respond_to?(:to_str)
-                    device_model = Orocos::RobyPlugin::DeviceDrivers.const_get(device_model.to_str.camelcase(true))
-                elsif device_model < DataSource && !(device_model < DeviceDriver)
-                    name = device_model.name
-                    if engine.model.has_device_driver?(name)
-                        device_model = Orocos::RobyPlugin::DeviceDrivers.const_get(name.camelcase(true))
-                    end
-                end
-
-                options, device_options = Kernel.filter_options options,
-                    :as => device_model.name.gsub(/.*::/, ''),
-                    :expected_model => DeviceDriver
-                device_options, task_arguments = Kernel.filter_options device_options,
-                    DeviceInstance::KNOWN_PARAMETERS
-
-                name = options[:as].to_str.snakecase
-                if devices[name]
-                    raise SpecError, "device #{name} is already defined"
-                end
-
-                if !(device_model < options[:expected_model])
-                    raise SpecError, "#{device_model} is not a #{options[:expected_model].name}"
-                end
-
-                # Since we want to drive a particular device, we actually need a
-                # concrete task model. So, search for one.
-                #
-                # Get all task models that implement this device
-                tasks = Roby.app.orocos_tasks.
-                    find_all { |_, t| t.fullfills?(device_model) }.
-                    map { |_, t| t }
-
-                # Now, get the most abstract ones
-                tasks.delete_if do |model|
-                    tasks.any? { |t| model < t }
-                end
-
-                if tasks.size > 1
-                    raise Ambiguous, "#{tasks.map(&:name).join(", ")} can all handle '#{name}', please select one explicitely with the 'using' statement"
-                elsif tasks.empty?
-                    raise SpecError, "no task can handle devices of type '#{device_model}'"
-                end
-
-                task_model = tasks.first
-                task_source_name = task_model.data_source_name(device_model)
-                task_arguments = {"#{task_source_name}_name" => name, :com_bus => nil}.
-                    merge(task_arguments)
-
-                devices[name] = DeviceInstance.new(
-                    name, device_model, device_options,
-                    task_model, task_source_name, task_arguments)
-
-                devices[name]
-            end
-        end
-
         class Engine
             extend Logger::Forward
             extend Logger::Hierarchy
@@ -411,20 +226,20 @@ module Orocos
                     composition_model.reset_autoconnection
                 end
 
-                robot.devices.each do |name, device_instance|
+                robot.each_master_device do |name, device_instance|
                     task =
                         if device_instance.task && device_instance.task.plan == plan.real_plan && !device_instance.task.finished?
                             device_instance.task
                         else
                             device_instance.instanciate(self)
                         end
-                        
+
                     tasks[name] = plan[task]
                     device_instance.task = task
-                    device_instance.task_model.
-                        each_child_data_source(device_instance.task_source_name) do |child_name, _|
-                            tasks["#{name}.#{child_name}"] = task
-                        end
+                end
+
+                robot.each_slave_device do |name, device_instance|
+                    tasks[name] = device_instance.master_device.task
                 end
 
                 # Merge once here: the idea is that some of the drivers can
@@ -558,7 +373,7 @@ module Orocos
                 end
             end
 
-            def validate_result(plan)
+            def validate_result(plan, options = Hash.new)
                 # Check for the presence of abstract tasks
                 still_abstract = plan.find_local_tasks(Component).
                     abstract.to_a.
@@ -577,15 +392,17 @@ module Orocos
                     end
                 end
 
-                # Check for the presence of non-deployed tasks
-                not_deployed = plan.find_local_tasks(TaskContext).
-                    find_all { |t| !t.execution_agent }.
-                    delete_if do |p|
-                        p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
-                    end
+                if options[:compute_deployments]
+                    # Check for the presence of non-deployed tasks
+                    not_deployed = plan.find_local_tasks(TaskContext).
+                        find_all { |t| !t.execution_agent }.
+                        delete_if do |p|
+                            p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
+                        end
 
-                if !not_deployed.empty?
-                    raise Ambiguous, "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
+                    if !not_deployed.empty?
+                        raise Ambiguous, "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
+                    end
                 end
             end
 
@@ -639,7 +456,23 @@ module Orocos
                 @merging_candidates_queries.clear
             end
 
-            def resolve(compute_policies = true)
+            def resolve(options = Hash.new)
+                if options == true
+                    options = { :compute_policies => true }
+                end
+                options = Kernel.validate_options options,
+                    :compute_policies    => true,
+                    :compute_deployments => true,
+                    :garbage_collect => true,
+                    :export_plan_on_error => true
+
+                # It makes no sense to compute the policies if we are not
+                # computing the deployments, as policy computation needs
+                # deployment information
+                if !options[:compute_deployments]
+                    options[:compute_policies] = false
+                end
+
                 prepare
 
                 engine_plan = @plan
@@ -702,26 +535,30 @@ module Orocos
 
                     # Finally, we should now only have deployed tasks. Verify it
                     # and compute the connection policies
-                    validate_result(trsc)
-                    if compute_policies
+                    validate_result(trsc, options)
+                    if options[:compute_policies]
                         compute_connection_policies
                     end
 
-                    trsc.static_garbage_collect do |obj|
-                        trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)
+                    if options[:garbage_collect]
+                        trsc.static_garbage_collect do |obj|
+                            trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)
+                        end
                     end
                     trsc.commit_transaction
                     @modified = false
 
                     rescue
-                        Engine.fatal "Engine#resolve failed"
-                        output_path = File.join(Roby.app.log_dir, "orocos-engine-plan-#{@dot_index}.dot")
-                        @dot_index += 1
-                        Engine.fatal "the generated plan is saved into #{output_path}"
-                        File.open(output_path, 'w') do |io|
-                            io.write to_dot
+                        if options[:export_plan_on_error]
+                            Engine.fatal "Engine#resolve failed"
+                            output_path = File.join(Roby.app.log_dir, "orocos-engine-plan-#{@dot_index}.dot")
+                            @dot_index += 1
+                            Engine.fatal "the generated plan is saved into #{output_path}"
+                            File.open(output_path, 'w') do |io|
+                                io.write to_dot
+                            end
+                            Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
                         end
-                        Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
                         raise
                     end
                 end

@@ -6,21 +6,16 @@ require 'test/roby/common'
 class TC_RobySpec_System < Test::Unit::TestCase
     include RobyPluginCommonTest
 
-    attr_reader :orocos_engine
-    def setup
-        super
-
-        @orocos_engine    = Engine.new(plan, sys_model)
-    end
-
     attr_reader :can_bus
     attr_reader :imu_driver
     attr_reader :camera_driver
     attr_reader :motors
     attr_reader :controldev
 
+    needs_orogen_projects 'system_test'
+
     def test_robot_device_definition
-        sys_model.device_type 'stereo', :interface => SystemTest::Stereo
+        stereo_device_model = sys_model.device_type 'stereo', :interface => SystemTest::Stereo
         sys_model.device_type 'camera', :interface => SystemTest::CameraDriver
         stereo_model = SystemTest::Stereo
         stereo_model.data_source 'stereo'
@@ -35,11 +30,14 @@ class TC_RobySpec_System < Test::Unit::TestCase
         end
         
         driver_task = orocos_engine.robot.devices['frontStereo']
-        assert_kind_of stereo_driver, driver_task
+        assert_equal(stereo_device_model, driver_task.device_model)
+        assert_equal(stereo_driver, driver_task.task_model)
 
         camera_type = IF::Camera
-        assert_kind_of camera_type, orocos_engine.robot.devices['frontStereo.left']
-        assert_kind_of camera_type, orocos_engine.robot.devices['frontStereo.right']
+        assert_equal camera_type,
+            orocos_engine.robot.devices['frontStereo.left'].data_service_model
+        assert_equal camera_type,
+            orocos_engine.robot.devices['frontStereo.right'].data_service_model
     end
 
     def complete_robot_definition
@@ -112,9 +110,9 @@ class TC_RobySpec_System < Test::Unit::TestCase
         left  = robot.devices['leftCamera']
         right = robot.devices['rightCamera']
         assert(left != right)
-        assert_kind_of(DeviceDrivers::Camera, left.task_class)
+        assert(left.task_model < DeviceDrivers::Camera)
         assert_equal('leftCamera', left.task_arguments["camera_name"])
-        assert_kind_of(DeviceDrivers::Camera, right.task_class)
+        assert(right.task_model < DeviceDrivers::Camera)
         assert_equal('rightCamera', right.task_arguments["camera_name"])
     end
 
@@ -246,8 +244,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
         # Add those two tasks so that two type of tasks of unrelated models are
         # found at the same level in the merge process. This tests the ordering
         # capability of the merge process
-        orocos_engine.add(orocos_engine.robot.devices['imu'].model)
-        orocos_engine.add(orocos_engine.robot.devices['motors'].model)
+        orocos_engine.add(orocos_engine.robot.devices['imu'].task_model)
+        orocos_engine.add(orocos_engine.robot.devices['motors'].task_model)
 
         sys_model.subsystem "Safety" do
             add IF::Imu
@@ -261,10 +259,9 @@ class TC_RobySpec_System < Test::Unit::TestCase
         orocos_engine.add(Compositions::Safety).
             use("camera" => "leftCamera")
 
-        orocos_engine.resolve
+        orocos_engine.resolve(:compute_deployments => false)
         engine.garbage_collect
 
-        pp orocos_engine
         assert_equal(11, plan.size)
 
         # Check the stereo substructure
@@ -352,20 +349,18 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
         # Try to instanciate without disambiguation. This should fail miserably
         # since there's multiple options for selection in StereoComparison
-        assert_equal(1, plan.size)
-        assert_raises(Ambiguous) { orocos_engine.resolve }
-        assert_equal(1, plan.size)
+        assert_equal(0, plan.size)
+        assert_raises(Ambiguous) { orocos_engine.resolve(:export_plan_on_error => false) }
+        assert_equal(0, plan.size)
     end
 
     def test_port_mapping_at_instanciation_time
         sys_model.device_type 'stereo', :interface => SystemTest::Stereo
         sys_model.device_type 'camera', :interface => SystemTest::CameraDriver
 
-        SystemTest::StereoCamera.class_eval do
-            driver_for 'stereo'
-            data_source 'camera', :as => 'left', :slave_of => 'stereo'
-            data_source 'camera', :as => 'right', :slave_of => 'stereo'
-        end
+        SystemTest::StereoCamera.driver_for 'stereo'
+        SystemTest::StereoCamera.data_source 'camera', :as => 'left', :slave_of => 'stereo'
+        SystemTest::StereoCamera.data_source 'camera', :as => 'right', :slave_of => 'stereo'
         SystemTest::CameraDriver.driver_for 'camera'
 
         sys_model.subsystem "Stereo" do
@@ -387,7 +382,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
         dev_stereo = nil
         orocos_engine.robot do
-            dev_stereo       = device 'stereo', :as => 'front_stereo'
+            dev_stereo = device 'stereo', :as => 'front_stereo'
         end
 
         # We compare the stereovision engine on the stereocamera with our own
@@ -400,7 +395,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
             use('stereo1.image1'  => 'front_stereo.right')
 
         # Add disambiguation information and reinstanciate
-        orocos_engine.resolve
+        orocos_engine.resolve(:compute_deployments => false)
 
         # A stereocamera, a stereoprocessing, a Stereo composition
         # and a StereoComparison composition => 4 tasks
@@ -419,10 +414,12 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
         # Check the data flow
         expected_connections = {
-            ['rightImage', 'rightImage'] => {:type => :data, :lock => :lock_free, :pull => false, :init => false},
-            ['leftImage', 'leftImage']   => {:type => :data, :lock => :lock_free, :pull => false, :init => false}
+            ['rightImage', 'rightImage'] => Hash.new,
+            ['leftImage', 'leftImage']   => Hash.new
         }
 
+        stereo_camera = orocos_engine.robot.devices['front_stereo'].task
+        stereo_processing = plan.find_tasks(SystemTest::StereoProcessing).to_a.first
         tasks = plan.find_tasks(SystemTest::StereoCamera).
             with_child( SystemTest::StereoProcessing, Flows::DataFlow, expected_connections ).
             to_a
@@ -448,8 +445,10 @@ class TC_RobySpec_System < Test::Unit::TestCase
             end
         end
 
-        orocos_engine.resolve
-        engine.garbage_collect
+        orocos_engine.resolve(
+            :compute_deployments => false,
+            :compute_policies => false,
+            :garbage_collect => false)
         assert_equal 6, plan.size
 
         joystick   = orocos_engine.tasks['joystick']
@@ -477,15 +476,15 @@ class TC_RobySpec_System < Test::Unit::TestCase
         assert_equal 'can0', orocos_engine.robot.devices['joystick'].com_bus
         assert_equal 'can0', orocos_engine.robot.devices['sliderbox'].com_bus
 
-        orocos_engine.resolve
-        engine.garbage_collect
+        orocos_engine.resolve(:compute_deployments => false, :garbage_collect => false)
+        #engine.garbage_collect
 
         tasks = plan.find_tasks(SystemTest::MotorController).
-            with_child(orocos_engine.tasks['can0'].instance).to_a
+            with_child(orocos_engine.tasks['can0']).to_a
         assert_equal(1, tasks.to_a.size)
 
         tasks = plan.find_tasks(SystemTest::MotorController).
-            with_child(orocos_engine.tasks['can0'], Flows::DataFlow, ['can_out', 'motorsw'] => Hash.new).
+            with_child(orocos_engine.tasks['can0'], Flows::DataFlow, ['can_out', 'wmotors'] => Hash.new).
             with_parent(orocos_engine.tasks['can0'], Flows::DataFlow, ['motors', 'can_in'] => Hash.new).
             to_a
         assert_equal(1, tasks.to_a.size)

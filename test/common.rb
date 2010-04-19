@@ -29,6 +29,7 @@ module RobyPluginCommonTest
 
     attr_reader :sys_model
     attr_reader :orocos_engine
+
     def setup
         @old_loglevel = Orocos.logger.level
         super
@@ -45,6 +46,10 @@ module RobyPluginCommonTest
         save_collection Roby.app.orocos_tasks
         save_collection Roby.app.orocos_deployments
 
+        project = Orocos::Generation::Component.new
+        project.name 'roby'
+        Roby.app.instance_variable_set :@main_orogen_project, project
+
         Orocos::RobyPlugin::Application.setup(Roby.app)
         if self.class.needed_orogen_projects.empty? && !self.class.needs_no_orogen_projects?
             Roby.app.orogen_load_all
@@ -56,10 +61,8 @@ module RobyPluginCommonTest
 
         @sys_model = Orocos::RobyPlugin::SystemModel.new
         @orocos_engine = Engine.new(plan, sys_model)
-        project = Orocos::Generation::Component.new
-        project.name 'roby'
-        Roby.app.instance_variable_set :@main_orogen_project, project
     end
+
     def teardown
         Roby.app.orocos_clear_models
         ::Orocos.instance_variable_set :@registry, Typelib::Registry.new
