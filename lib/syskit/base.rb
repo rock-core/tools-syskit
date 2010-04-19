@@ -110,6 +110,10 @@ module Orocos
                 @selected_facet = facet
             end
 
+            def to_s
+                "#{model}.as(#{selected_facet})"
+            end
+
             def method_missing(*args, &block) # :nodoc:
                 model.send(*args, &block)
             end
