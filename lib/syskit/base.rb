@@ -18,13 +18,26 @@ module Orocos
         class SpecError < RuntimeError; end
         class Ambiguous < SpecError; end
 
+        # Returns an array of modules. It is used as the search path for DSL
+        # parsing.
+        #
+        # I.e. when someone uses a ClassName in a DSL, this constant will be
+        # searched following the order of modules returned by this method.
         def self.constant_search_path
             [Orocos::RobyPlugin::Interfaces, Orocos::RobyPlugin::DeviceDrivers, Orocos::RobyPlugin::Compositions, Orocos::RobyPlugin]
         end
 
-        # Generic module included in all classes that are used as models
+        # Generic module included in all classes that are used as models.
+        #
+        # The Roby plugin uses, as Roby does, Ruby classes as model objects. To
+        # ease code reading, the model-level functionality (i.e. singleton
+        # classes) are stored in separate modules whose name finishes with Model
+        #
+        # For instance, the singleton methods of Component are defined on
+        # ComponentModel, Composition on CompositionModel and so on.
         module Model
-            # The SystemModel instance this model is attached to
+            # All models are defined in the context of a SystemModel instance.
+            # This is this instance
             attr_accessor :system
 
             def to_s # :nodoc:
@@ -53,12 +66,38 @@ module Orocos
         end
 
         # Value returned by ComponentModel#as(model). It is used only in the
-        # context of model instanciation
+        # context of model instanciation.
+        #
+        # It is used to represent that a given model should be narrowed down to
+        # a given specific model, and is used during composition instanciation
+        # to limit the search scope.
+        #
+        # For instance, if a task model is defined with
+        #
+        #   class OrocosTask
+        #       provides Service
+        #       provides Service1
+        #   end
+        #
+        # then
+        #   
+        #   add MyComposition, 
+        #       "task" => OrocosTask
+        #
+        # will consider both data services for specialization purposes, whereas
+        #
+        #   add MyComposition, 
+        #       "task" => OrocosTask.as(Service)
+        #
+        # will only consider specializations that apply on Service instances
+        # (i.e. ignore Service1)
         class FacetedModelSelection < BasicObject
+            # The underlying model
             attr_reader :model
+            # The model that has been selected
             attr_reader :selected_facet
 
-            def respond_to?(name)
+            def respond_to?(name) # :nodoc:
                 if name == :selected_facet
                     true
                 else
@@ -71,31 +110,135 @@ module Orocos
                 @selected_facet = facet
             end
 
-            def method_missing(*args, &block)
+            def method_missing(*args, &block) # :nodoc:
                 model.send(*args, &block)
             end
         end
 
-        # Module that defines all model-level methods for Component. All these
-        # methods are available as Component class methods
+        # Definition of model-level methods for the Component models. See the
+        # documentation of Model for an explanation of this.
         module ComponentModel
+            ##
+            # :method: each_main_data_source { |source_name| ... }
+            #
+            # Enumerates the name of all the main data sources that are provided
+            # by this component model. Unlike #main_data_sources, it enumerates
+            # both the sources added at this level of the model hierarchy and
+            # the ones that are provided by the model's parents.
+            #
+            # See also #provides
+            #--
+            # This is defined on Component using inherited_enumerable
+
+            ## :attr_reader:main_data_sources
+            #
+            # The names of the main data sources that are provided by this
+            # particular component model. This only includes new sources that
+            # have been added at this level of the component hierarchy, not the
+            # ones that have already been added to the model parents.
+            #
+            # See also #provides
+            #--
+            # This is defined on Component using inherited_enumerable
+
+            ##
+            # :method: each_data_source { |name, source| ... }
+            #
+            # Enumerates all the data sources that are provided by this
+            # component model, as pairs of source name and DataSource instances.
+            # Unlike #data_sources, it enumerates both the sources added at
+            # this level of the model hierarchy and the ones that are provided
+            # by the model's parents.
+            #
+            # See also #provides
+            #--
+            # This is defined on Component using inherited_enumerable
+
+            ##
+            # :method: find_data_source(name)
+            #
+            # Returns the DataSource instance that has the given name, or nil if
+            # there is none.
+            #
+            # See also #provides
+            #--
+            # This is defined on Component using inherited_enumerable
+
+            ## :attr_reader:data_sources
+            #
+            # The data sources that are provided by this particular component
+            # model, as a hash mapping the source name to the corresponding
+            # DataSource instance. This only includes new sources that have been
+            # added at this level of the component hierarchy, not the ones that
+            # have already been added to the model parents.
+            #
+            # See also #provides
+            #--
+            # This is defined on Component using inherited_enumerable
+
+            # During instanciation, the data services that this component
+            # provides are used to specialize the compositions and/or for data
+            # source selection.
+            #
+            # It is sometimes beneficial to narrow the possible selections,
+            # because one wants some specializations to be explicitely selected.
+            # This is what this method does.
+            #
+            # For instance, if a task model is defined with
+            #
+            #   class OrocosTask
+            #       provides Service
+            #       provides Service1
+            #   end
+            #
+            # then
+            #   
+            #   add MyComposition, 
+            #       "task" => OrocosTask
+            #
+            # will consider both data services for specialization purposes, whereas
+            #
+            #   add MyComposition, 
+            #       "task" => OrocosTask.as(Service)
+            #
+            # will only consider specializations that apply on Service instances
+            # (i.e. ignore Service1)
             def as(model)
                 FacetedModelSelection.new(self, model)
             end
 
+            # Returns the port object that maps to the given name, or nil if it
+            # does not exist.
             def port(name)
                 name = name.to_str
                 output_port(name) || input_port(name)
             end
 
+            # Returns the output port with the given name, or nil if it does not
+            # exist.
+            def output_port(name)
+                name = name.to_str
+                each_output.find { |p| p.name == name }
+            end
+
+            # Returns the input port with the given name, or nil if it does not
+            # exist.
+            def input_port(name)
+                name = name.to_str
+                each_input.find { |p| p.name == name }
+            end
+
+            # Enumerates this component's output ports
             def each_output(&block)
                 orogen_spec.each_output_port(&block)
             end
 
+            # Enumerates this component's input ports
             def each_input(&block)
                 orogen_spec.each_input_port(&block)
             end
 
+            # Enumerates all of this component's ports
             def each_port(&block)
                 if block_given?
                     each_input(&block)
@@ -106,27 +249,66 @@ module Orocos
                 end
             end
 
+            # True if +name+ could be a dynamic output port name.
+            #
+            # Dynamic output ports are declared on the task models using the
+            # #dynamic_output_port statement, e.g.:
+            #
+            #   data_service do
+            #       dynamic_output_port /name_pattern\w+/, "/std/string"
+            #   end
+            #
+            # One can then match if a given string (+name+) matches one of the
+            # dynamic output port declarations using this predicate.
             def dynamic_output_port?(name)
                 orogen_spec.dynamic_output_port?(name)
             end
 
+            # True if +name+ could be a dynamic input port name.
+            #
+            # Dynamic input ports are declared on the task models using the
+            # #dynamic_input_port statement, e.g.:
+            #
+            #   data_service do
+            #       dynamic_input_port /name_pattern\w+/, "/std/string"
+            #   end
+            #
+            # One can then match if a given string (+name+) matches one of the
+            # dynamic input port declarations using this predicate.
             def dynamic_input_port?(name)
                 orogen_spec.dynamic_input_port?(name)
             end
 
-            def output_port(name)
-                name = name.to_str
-                each_output.find { |p| p.name == name }
-            end
-
-            def input_port(name)
-                name = name.to_str
-                each_input.find { |p| p.name == name }
+            # Generic instanciation of a component. 
+            #
+            # It creates a new task from the component model using
+            # Component.new, adds it to the engine's plan and returns it.
+            def instanciate(engine, arguments = Hash.new)
+                _, task_arguments = Model.filter_instanciation_arguments(arguments)
+                engine.plan.add(task = new(task_arguments))
+                task.robot = engine.robot
+                task
             end
         end
 
         # Base class for models that represent components (TaskContext,
         # Composition)
+        #
+        # The model-level methods (a.k.a. singleton methods) are defined on
+        # ComponentModel). See the documentation of Model for an explanation of
+        # this.
+        #
+        # Components may be data source providers. Two types of data sources exist:
+        # * main sources are root data services that can be provided
+        # independently
+        # * slave sources are data services that depend on a main one. For
+        # instance, an ImageProvider source of a StereoCamera task would be
+        # slave of the main PointCloudProvider source.
+        #
+        # Data services are referred to by name. In the case of a main service,
+        # its name is the name used during the declaration. In the case of slave
+        # services, it is main_data_service_name.slave_name. I.e. the name of
+        # the slave service depends on the selected 
         class Component < ::Roby::Task
             extend ComponentModel
 
@@ -139,19 +321,18 @@ module Orocos
                 new_task
             end
 
+            # This is documented on ComponentModel
             inherited_enumerable(:main_data_source, :main_data_sources) { Set.new }
+            # This is documented on ComponentModel
             inherited_enumerable(:data_source, :data_sources, :map => true) { Hash.new }
-
-            def self.instanciate(engine, arguments = Hash.new)
-                _, task_arguments = Model.filter_instanciation_arguments(arguments)
-                engine.plan.add(task = new(task_arguments))
-                task.robot = engine.robot
-                task
-            end
 
             attribute(:instanciated_dynamic_outputs) { Hash.new }
             attribute(:instanciated_dynamic_inputs) { Hash.new }
 
+            # Returns the output port model for the given name, or nil if the
+            # model has no port named like this.
+            #
+            # It may return an instanciated dynamic port
             def output_port_model(name)
                 if port_model = model.orogen_spec.each_output_port.find { |p| p.name == name }
                     port_model
@@ -159,6 +340,10 @@ module Orocos
                 end
             end
 
+            # Returns the input port model for the given name, or nil if the
+            # model has no port named like this.
+            #
+            # It may return an instanciated dynamic port
             def input_port_model(name)
                 if port_model = model.orogen_spec.each_input_port.find { |p| p.name == name }
                     port_model
@@ -166,6 +351,8 @@ module Orocos
                 end
             end
 
+            # Instanciate a dynamic port, i.e. request a dynamic port to be
+            # available at runtime on this component instance.
             def instanciate_dynamic_input(name, type = nil)
                 if port = instanciated_dynamic_inputs[name]
                     port
@@ -180,6 +367,8 @@ module Orocos
                 instanciated_dynamic_inputs[name] = port
             end
 
+            # Instanciate a dynamic port, i.e. request a dynamic port to be
+            # available at runtime on this component instance.
             def instanciate_dynamic_output(name, type = nil)
                 if port = instanciated_dynamic_outputs[name]
                     port
