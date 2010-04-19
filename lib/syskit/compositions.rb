@@ -166,6 +166,32 @@ module Orocos
                 end
             end
 
+            # Returns true if this composition model is a model created by
+            # specializing another one on +child_name+ with +child_model+
+            #
+            # For instance:
+            #
+            #   composition 'Compo' do
+            #       add Source
+            #       add Sink
+            #
+            #       submodel = specialize Sink, Logger
+            #
+            #       submodel.specialized_on?('Sink', Logger) # => true
+            #       submodel.specialized_on?('Sink', Test) # => false
+            #       submodel.specialized_on?('Source', Logger) # => false
+            #   end
+            def specialized_on?(child_name, child_model)
+                parent = superclass
+                return if parent == Composition
+
+                spec_model = parent.specializations.find { |s| s.composition == self }
+                return if !spec_model
+
+                spec_model.specialized_children[child_name] == child_model ||
+                    parent.specialized_on?(child_name, child_model)
+            end
+
             # Internal helper to add a child to the composition
             #
             # Raises ArgumentError if +name+ is already used by a child
@@ -381,33 +407,86 @@ module Orocos
                 default_specializations[child] = child_model
             end
 
-            # Returns true if +model1+ is either the same model or a
-            # specialization of +model2+
-            def is_specialized_model?(model1, model2)
-                model2.each do |m2|
-                    is_specialized_in_model1 = model1.any? do |m1|
-                        m1 <= m2
+            # Computes if +test_model+ is either equivalent or a specialization
+            # of +base_model+
+            #
+            # Returns 0 if test_model and base_model represent the same overall
+            # type, 1 if test_model is a specialization of base_model and nil if
+            # they are not ordered.
+            def compare_model_sets(base_model, test_model)
+                equivalent_models = true
+
+                # First, check if +test_model+ has a specialization and/or
+                # equality on each models present in +base_model+
+                specialized_models = ValueSet.new
+                equal_models       = ValueSet.new
+                base_model.each do |base_m|
+                    has_specialized = false
+                    has_equal       = false
+                    test_model.each do |test_m|
+                        if test_m < base_m
+                            has_specialized = true
+                            specialized_models << test_m
+                        elsif test_m == base_m
+                            has_equal = true
+                            equal_models << test_m
+                        end
                     end
-                    return(false) if !is_specialized_in_model1
+
+                    if !has_specialized && !has_equal
+                        # No relationship whatsoever
+                        return
+                    end
                 end
-                true
+
+                specialized_models -= equal_models
+                equivalent_models = specialized_models.empty?
+
+                if !equivalent_models || (specialized_models.size + equal_models.size) < test_model.size
+                    1
+                elsif equivalent_models
+                    0
+                end
             end
 
             # Returns the composition models from model_set that are the most
-            # specialized in the context of +selected_children+.
-            def find_most_specialized_compositions(engine, model_set, selected_children)
-                children_names = selected_children.keys
+            # specialized in the context the children listed in +children_names+
+            #
+            # I.e. if two models A and B have the same set of children, it will
+            # remove A iff
+            #
+            # * all children of A that are listed in +children_names+ are also
+            #   in B,
+            # * for all children listed in +children_names+, the models required
+            #   by B are either equivalent or specializations of the corresponding
+            #   requirements in A
+            # * there is at least one of those children that is specialized in
+            #   +B+
+            # 
+            def find_most_specialized_compositions(engine, model_set, children_names)
+                return model_set if children_names.empty?
 
                 result = model_set.dup
 
-                # First, remove models based on the abstraction hierarchy
+                # Remove +composition+ if there is a specialized model in
+                # +result+
                 result.delete_if do |composition|
                     result.any? do |other_composition|
                         next if composition == other_composition
 
-                        children_names.all? do |child_name|
-                            engine.composition_child_is_specialized(child_name, other_composition, composition)
+                        is_specialized = false
+                        children_names.each do |child_name|
+                            comparison = engine.compare_composition_child(
+                                child_name, composition, other_composition)
+                            if !comparison
+                                is_specialized = false
+                                break
+                            elsif comparison == 1
+                                is_specialized = true
+                            end
                         end
+
+                        is_specialized
                     end
                 end
                 result
@@ -445,50 +524,95 @@ module Orocos
                 # Select in our specializations the ones that match the current
                 # selection. To do that, we simply have to find those for which
                 # +selected_models+ is an acceptable selection.
+                #
+                # We push in +queue+ the compositions whose specializations
+                # should be recursively discovered
+                queue = []
                 candidates = specializations.map { |spec| spec.composition }.
                     find_all do |child_composition|
                         # Note that the 'new' models in +child_composition+ are
                         # all in child_composition.children
-                        child_composition.each_child.all? do |child_name, child_model|
+                        recurse = true
+                        valid   = false
+                        child_composition.each_child do |child_name, child_model|
                             selected_model = selected_models[child_name]
-                            if selected_model.respond_to?(:selected_facets)
-                                selected_model = selected_model.selected_facets
+                            # no explicit selection for this child, ignore
+                            next if !selected_model
+
+                            selected_model = selected_model.first
+
+                            # Look first at ourselves. If the component submodel
+                            # is not an improvement on this particular child,
+                            # do not select it
+                            our_child_model = find_child(child_name)
+                            comparison_with_ourselves = compare_model_sets(our_child_model, child_model)
+                            comparison_with_selection = compare_model_sets(child_model, [selected_model])
+                            if !comparison_with_selection
+                                recurse = false
+                                valid = false
+                                break
+                            elsif comparison_with_selection == 1 && comparison_with_ourselves == 1
+                                valid = true
                             end
-                            # new child in +child_composition+, do not count
-                            next(true) if !selected_model
-                            selected_model.first.fullfills?(child_model)
                         end
+
+                        queue << child_composition if recurse
+                        valid
                     end
 
-                # Add them all to +result+
-                candidates = candidates.inject(candidates.dup) do |r, composition|
-                    r.concat(composition.find_specializations(engine, selected_models))
+                # Recursively apply to find the specializations of
+                # specializations
+                queue.each do |composition|
+                    candidates.concat(composition.
+                          find_specializations(engine, selected_models))
                 end
 
-                result = find_most_specialized_compositions(engine, candidates, selected_models)
+                result = find_most_specialized_compositions(
+                    engine, candidates, selected_models.keys)
+
                 # Don't bother doing more if there is no ambiguity left
                 if result.size < 2
                     return result
                 end
 
-                # The result is ambiguous, filter it out based on the default
-                # specialization definition
                 all_filtered_results = Hash.new
-                each_default_specialization do |child_name, child_model|
-                    if selected_child_model = selected_models[child_name] && selected_child_model.respond_to?(:selected_facets)
-                        child_model = selected_child_model.selected_facets
+
+                # First, filter on the facets. If the user provides a facet, it
+                # means we should prefer the required specialization.
+                selected_models.each do |child_name, selected_child_model|
+                    selected_child_model = selected_child_model.first
+                    next if !selected_child_model.respond_to?(:selected_facet)
+
+                    selected_facet = selected_child_model.selected_facet
+
+                    preferred_models = result.find_all do |composition_model|
+                        composition_model.specialized_on?(child_name, selected_facet)
                     end
 
-                    filtered_results = []
-                    result.find_all do |model|
-                        if child_model = model.find_child(child_name)
-                            if model.fullfills?(child_model)
-                                filtered_results << model
-                            end
-                        end
+                    if !preferred_models.empty?
+                        all_filtered_results[child_name] = preferred_models.to_value_set
                     end
-                    if !filtered_results.empty?
-                        all_filtered_results[child_name] = filtered_results
+                end
+
+                if !all_filtered_results.empty?
+                    filtered_out = all_filtered_results.values.inject(&:&)
+                    if filtered_out.size == 1
+                        return filtered_out.to_a
+                    elsif filtered_out.empty?
+                        raise Ambiguous, "inconsistent use of faceted selection"
+                    end
+                    result = filtered_out
+                end
+
+                # We now look at default specializations. Compositions that have
+                # certain specializations are preferred over other.
+                each_default_specialization do |child_name, default_child_model|
+                    preferred_models = result.find_all do |composition_model|
+                        composition_model.specialized_on?(child_name, default_child_model)
+                    end
+
+                    if !preferred_models.empty?
+                        all_filtered_results[child_name] = preferred_models.to_value_set
                     end
                 end
 
@@ -496,7 +620,7 @@ module Orocos
                 # meaningful
                 filtered_out = all_filtered_results.values.inject(&:&)
                 if filtered_out && !filtered_out.empty?
-                    return filtered_out
+                    return filtered_out.to_a
                 else
                     return result
                 end
@@ -860,7 +984,7 @@ module Orocos
                 end
 
                 # Now select the most specialized models
-                result = find_most_specialized_compositions(engine, candidates, subselection)
+                result = find_most_specialized_compositions(engine, candidates, subselection.keys)
                 # Don't bother going further if there is no ambiguity
                 if result.size < 2
                     return result
@@ -1302,7 +1426,7 @@ module Orocos
             # Internal implementation of #output_port and #input_port
             def resolve_port(exported_port) # :nodoc:
                 role = exported_port.child.child_name
-                task, _ = each_child.find { |task, options| options[:roles].include?(role) }
+                task = child_from_role(role)
                 if !task
                     return
                 end

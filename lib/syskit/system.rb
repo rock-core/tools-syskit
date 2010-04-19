@@ -591,37 +591,45 @@ module Orocos
 
             attr_reader :composition_specializations
 
-            # Returns if the child of +c1+ called +child_name+ has either the
-            # same model than +c0+, or is a specialization of the model of +c0+
+            # Computes if the child called "child_name" is specialized in
+            # +test_model+, compared to the definition in +base_model+.
             #
-            # If +c1+ has +child_name+ but c0 has not, returns true as well
+            # If both compositions have a child called child_name, then returns
+            # 1 if the declared model is specialized in test_model, 0 if they
+            # are equivalent and false in all other cases.
             #
-            # If +c0+ has +child_name+ but not +c1+, return false
+            # If +test_model+ has +child_name+ but +base_model+ has not, returns
+            # 1
             #
-            # If neither have a child called +child_name+, returns true.
-            def composition_child_is_specialized(child_name, c0, c1)
-                result = composition_specializations[child_name][c0][c1]
-                if result.nil?
-                    models0 = c0.find_child(child_name)
-                    models1 = c1.find_child(child_name)
-                    if !models0 && !models1
-                        return true
-                    end
-                    if !models0
-                        return true
-                    elsif !models1
-                        return false
-                    end
+            # If +base_model+ has +child_name+ but not +test_model+, returns
+            # false
+            #
+            # If neither have a child called +child_name+, returns 0
+            def compare_composition_child(child_name, base_model, test_model)
+                cache = composition_specializations[child_name][base_model]
 
-                    flag = Composition.is_specialized_model?(models0, models1)
-                    composition_specializations[child_name][c0][c1] = flag
-                    if flag
-                        composition_specializations[child_name][c1][c0] = false
-                    end
-                    flag
-                else
-                    result
+                if cache.has_key?(test_model)
+                    return cache[test_model]
                 end
+
+                base_child = base_model.find_child(child_name)
+                test_child = test_model.find_child(child_name)
+                if !base_child && !test_child
+                    return cache[test_model] = 0
+                elsif !base_child
+                    return cache[test_model] = 1
+                elsif !test_child
+                    return cache[test_model] = false
+                end
+
+                flag = Composition.compare_model_sets(base_child, test_child)
+                cache[test_model] = flag
+                if flag == 0
+                    cache[test_model] = 0
+                elsif flag == 1
+                    composition_specializations[child_name][test_model][base_model] = false
+                end
+                flag
             end
 
             def prepare
