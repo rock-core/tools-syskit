@@ -55,7 +55,7 @@ module RobyPluginCommonTest
         end
 
         @sys_model = Orocos::RobyPlugin::SystemModel.new
-        @orocos_engine = Roby.app.orocos_engine
+        @orocos_engine = Engine.new(plan, sys_model)
         project = Orocos::Generation::Component.new
         project.name 'roby'
         Roby.app.instance_variable_set :@main_orogen_project, project
