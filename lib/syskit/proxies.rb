@@ -503,10 +503,11 @@ module Orocos
             attr_accessor :orogen_spec
             # The global name of the Orocos task underlying this Roby task
             def orocos_name; orogen_spec.name end
-            # The current state for the orogen task
+            # The current state for the orogen task. It is a symbol that
+            # represents the state name (i.e. :RUNTIME_ERROR, :RUNNING, ...)
             attr_reader :orogen_state
-            # The last read state
-            attr_reader :last_state
+            # The last state before we went to orogen_state
+            attr_reader :last_orogen_state
 
             def read_current_state
                 while update_orogen_state
@@ -526,11 +527,13 @@ module Orocos
                         raise InternalError, "the state reader has been disconnected"
                     end
                     if v = @state_reader.read
+                        @last_orogen_state = orogen_state
                         @orogen_state = v
                     end
                 else
                     new_state = orogen_task.state
                     if new_state != @orogen_state
+                        @last_orogen_state = orogen_state
                         @orogen_state = new_state
                     end
                 end
@@ -625,21 +628,19 @@ module Orocos
 
                 # Call configure or start, depending on the current state
                 ::Robot.info "starting #{to_s}"
+                @last_orogen_state = nil
                 orogen_task.start
                 emit :start
-                @last_state = nil
             end
 
             # Handle a state transition by emitting the relevant events
             def handle_state_changes # :nodoc:
-                if orogen_task.error_state?(orogen_state)
+                if orogen_task.fatal_error_state?(orogen_state)
                     @stopping_because_of_error = true
                     @stopping_origin = orogen_state
-                    if orogen_task.fatal_error_state?(orogen_state)
-                        orogen_task.reset_error
-                    else
-                        orogen_task.stop
-                    end
+                    orogen_task.reset_error
+                elsif orogen_state == :RUNNING && last_orogen_state && orogen_task.error_state?(last_orogen_state)
+                    emit :running
                 elsif orogen_state == :STOPPED
                     if @stopping_because_of_error
                         if event = state_event(@stopping_origin)
@@ -674,6 +675,11 @@ module Orocos
             end
             forward :interrupt => :failed
 
+            # Emitted when the component recovers from a runtime error state
+            event :running
+
+            # Emitted when the component goes into one of the runtime error
+            # states
             event :runtime_error
 
             event :fatal_error
@@ -682,7 +688,6 @@ module Orocos
             on :aborted do |event|
                 @orogen_task = nil
             end
-
 
             ##
             # :method: stop!
