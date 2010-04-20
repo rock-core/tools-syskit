@@ -752,7 +752,7 @@ module Orocos
                 task_spec.states.each do |name, type|
                     event_name = name.snakecase.downcase
                     klass.event event_name
-                    if type == :error || type == :fatal
+                    if type == :fatal
                         klass.forward event_name => :failed
                     end
 
