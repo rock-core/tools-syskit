@@ -118,8 +118,8 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         assert_same(output, Echo::Echo.output)
         assert_equal('output', output.name)
 
-        assert_equal(['input', 'input_struct'].to_set, Echo::Echo.each_input.map(&:name).to_set)
-        assert_equal(['output', 'state'].to_set, Echo::Echo.each_output.map(&:name).to_set)
+        assert_equal(['input', 'input_struct', 'input_opaque'].to_set, Echo::Echo.each_input.map(&:name).to_set)
+        assert_equal(['output', 'output_opaque', 'state', 'ondemand'].to_set, Echo::Echo.each_output.map(&:name).to_set)
     end
 
     def test_task_model_inheritance
@@ -164,12 +164,38 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
     def test_task_runtime_error
         Roby.app.load_orogen_project "states"
+
+        runtime_errors = [
+            [:do_runtime_error,  :runtime_error],
+            [:do_custom_error ,  :custom_error]]
+
+        deployment = Orocos::RobyPlugin::Deployments::States.new
+        plan.add_permanent(deployment)
+
+        ::Robot.logger.level = Logger::WARN
 	engine.run
+
+        task = deployment.task 'states_Task'
+        assert_any_event(task.start_event) do
+            plan.add_permanent(task)
+            task.start!
+        end
+
+        runtime_errors.each do |method, state|
+            assert_any_event(task.event(state)) do
+                task.orogen_task.send(method)
+            end
+            assert_any_event(task.event(:running)) do
+                task.orogen_task.do_recover
+            end
+        end
+    end
+
+    def test_task_termination
+        Roby.app.load_orogen_project "states"
 
         means_of_termination = [
             [:stop            ,  :success],
-            [:do_runtime_error,  :runtime_error],
-            [:do_custom_error ,  :custom_error],
             [:do_fatal_error  ,  :fatal_error],
             [:do_custom_fatal ,  :custom_fatal] ]
 
@@ -177,36 +203,25 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         plan.add_permanent(deployment)
 
         ::Robot.logger.level = Logger::WARN
+	engine.run
+
         means_of_termination.each do |method, state|
             task = deployment.task 'states_Task'
             assert_any_event(task.start_event) do
                 plan.add_permanent(task)
                 task.start!
             end
-
             assert_any_event(task.event(state)) do
                 task.orogen_task.send(method)
             end
+            engine.execute do
+                if state == :success
+                    assert(task.success?)
+                else
+                    assert(task.failed?)
+                end
+            end
         end
-    end
-
-    def test_task_fatal_error
-        Roby.app.load_orogen_project "states"
-	engine.run
-
-        ::Robot.logger.level = Logger::WARN
-
-        deployment = Orocos::RobyPlugin::Deployments::States.new
-        task       = deployment.task 'states_Task'
-        assert_any_event(task.start_event) do
-            plan.add_permanent(task)
-            task.start!
-	end
-
-        assert_any_event(task.fatal_error_event) do
-            task.orogen_task.do_fatal_error
-        end
-        assert(task.failed?)
     end
 
     def test_connects_after_configuration_before_startup
@@ -224,7 +239,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
             define_method :configure do
                 configure_called = true
                 was_executable = executable?
-                was_connected  = Roby.app.orocos_engine.registered_connection?(control, 'cmd_out', motors, 'command')
+                was_connected  = Orocos::RobyPlugin::ActualDataFlow.linked?(control.orogen_task, motors.orogen_task)
             end
         end
 
@@ -235,8 +250,6 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         engine.scheduler = Roby::Schedulers::Basic.new(true, plan)
         engine.run
         assert_event_emission(control.start_event & motors.start_event) do
-            control.start_event.on { |_| STDERR.puts "control started" }
-            motors.start_event.on  { |_| STDERR.puts "motors started" }
             motors.executable  = true
             control.executable = true
         end
@@ -245,7 +258,8 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         assert(!was_executable, "the task was executable in #configure")
         assert(!was_connected, "the task was already connected in #configure")
         assert(control.orogen_task.port('cmd_out').connected?, 'control output port is not connected')
-        assert(motors.orogen_task.port('command').connected?, "motors input port is not connected, executable? returns #{motors.executable?} and all_inputs_connected? #{Roby.app.orocos_engine.all_inputs_connected?(motors, false)}")
+        assert(motors.orogen_task.port('command').connected?,
+            "motors input port is not connected, executable? returns #{motors.executable?} and all_inputs_connected? #{Roby.app.orocos_engine.all_inputs_connected?(motors, false)}")
     end
 
     def test_connection_change
@@ -278,7 +292,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
         assert(SystemTest::CanBus.dynamic_output_port?('motors'))
         assert(!SystemTest::CanBus.dynamic_input_port?('motors'))
-        assert(SystemTest::CanBus.dynamic_input_port?('motorsw'))
+        assert(SystemTest::CanBus.dynamic_input_port?('wmotors'))
     end
 
     def test_update_connection_policy
