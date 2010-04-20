@@ -1,5 +1,6 @@
 module Orocos
     module RobyPlugin
+        # Used to define composition children.
         class CompositionChildDefinition
             attr_accessor :models
             attr_accessor :dependency_options
@@ -8,20 +9,42 @@ module Orocos
                 @models = models
                 @dependency_options = dependency_options
             end
+
+            def initialize_copy(old)
+                @models = old.models.dup
+                @dependency_options = old.dependency_options.dup
+            end
         end
 
+        # Represents a placeholder in a composition
+        #
+        # Compostion#add returns an instance of CompostionChild to represent the
+        # non-instanciated composition child. It is mainly meant to be used to
+        # access port definitions:
+        #
+        #   source = add Source
+        #   sink   = add Sink
+        #   source.port.connect_to sink.port
+        #
         class CompositionChild
-            attr_reader :composition, :child_name
+            # The composition this child is defined on
+            attr_reader :composition
+            # The child name
+            attr_reader :child_name
+
             def initialize(composition, child_name)
                 @composition = composition
                 @child_name  = child_name
             end
 
+            # Returns the required model for this compostion child
             def model
                 composition.find_child(child_name).models
             end
 
-            def method_missing(name, *args)
+            # Returns a CompositionChildPort instance if +name+ is a valid port
+            # name
+            def method_missing(name, *args) # :nodoc:
                 if args.empty?
                     composition.find_child(child_name).models.each do |child_model|
                         if port = child_model.output_port(name)
@@ -35,12 +58,21 @@ module Orocos
                 raise NoMethodError, "child #{child_name}[#{composition.find_child(child_name).models.to_a.join(", ")}] of #{composition} has no port named #{name}", caller(1)
             end
 
-            def ==(other)
+            def ==(other) # :nodoc:
                 other.composition == composition &&
                     other.child_name == child_name
             end
         end
 
+        # Represents a port for a composition child, at the model level. It is
+        # the value returned by CompositionChildPort.port_name, and can be used
+        # to set up the data flow at the composition model level:
+        #
+        #   source = add Source
+        #   sink   = add Sink
+        #   source.port.connect_to sink.port
+        #   # source.port and sink.port are both CompositionChildPort instances
+        #
         class CompositionChildPort
             # The child object this port is part of
             attr_reader :child
@@ -66,21 +98,30 @@ module Orocos
                 @port_name = port_name
             end
 
-            def ==(other)
+            def ==(other) # :nodoc:
                 other.child == child &&
                     other.port == port &&
                     other.port_name == port_name
             end
         end
 
+        # Specialization of CompositionChildPort for output ports
         class CompositionChildOutputPort < CompositionChildPort; end
-        class CompositionChildInputPort < CompositionChildPort; end
+        # Specialization of CompositionChildPort for input ports
+        class CompositionChildInputPort  < CompositionChildPort; end
 
+        # Model-level instances and attributes for compositions
+        #
+        # See the documentation of Model for an explanation of the *Model
+        # modules.
         module CompositionModel
             include Model
 
+            # The composition model name
             attr_accessor :name
 
+            # Creates a submodel of this model, in the frame of the given
+            # SystemModel instance.
             def new_submodel(name, system)
                 klass = super()
                 klass.name = name
@@ -88,6 +129,52 @@ module Orocos
                 klass
             end
 
+
+            #--
+            # Documentation of the inherited_enumerable attributes defined on
+            # Composition
+            #++
+
+            ##
+            # :method: each_child { |child_name, child_models| ... }
+            # 
+            # Yields all children defined on this composition. +child_models+ is
+            # a ValueSet of task classes (subclasses of Roby::Task) and/or task
+            # tags (instances of Roby::TaskModelTag)
+
+            ##
+            # :method: find_child(child_name) 
+            #
+            # Returns the model requirements for the given child. The return
+            # value is a ValueSet of task classes (subclasses of Roby::Task)
+            # and/or task tags (instances of Roby::TaskModelTag)
+
+            ##
+            # :method: each_input { |export_name, port| ... }
+            #
+            # Yields the input ports that are exported by this composition.
+            # +export_name+ is the name of the composition's port and +port+ the
+            # CompositionChildPort object that represents the port that is being
+            # exported.
+
+            ##
+            # :method: each_output { |export_name, port| ... }
+            #
+            # Yields the output ports that are exported by this composition.
+            # +export_name+ is the name of the composition's port and +port+ the
+            # CompositionChildPort object that represents the port that is being
+            # exported.
+
+            ##
+            # :attr: specializations
+            #
+            # The set of specializations defined at this level of the model
+            # hierarchy, as an array of Specialization instances. See
+            # #specialize for more details
+            attribute(:specializations) { Array.new }
+
+            # Returns the CompositionChild object that represents the given
+            # child, or nil if it does not exist.
             def [](name)
                 name = name.to_str 
                 if find_child(name)
@@ -95,6 +182,36 @@ module Orocos
                 end
             end
 
+            # Returns true if this composition model is a model created by
+            # specializing another one on +child_name+ with +child_model+
+            #
+            # For instance:
+            #
+            #   composition 'Compo' do
+            #       add Source
+            #       add Sink
+            #
+            #       submodel = specialize Sink, Logger
+            #
+            #       submodel.specialized_on?('Sink', Logger) # => true
+            #       submodel.specialized_on?('Sink', Test) # => false
+            #       submodel.specialized_on?('Source', Logger) # => false
+            #   end
+            def specialized_on?(child_name, child_model)
+                parent = superclass
+                return if parent == Composition
+
+                spec_model = parent.specializations.find { |s| s.composition == self }
+                return if !spec_model
+
+                spec_model.specialized_children[child_name] == child_model ||
+                    parent.specialized_on?(child_name, child_model)
+            end
+
+            # Internal helper to add a child to the composition
+            #
+            # Raises ArgumentError if +name+ is already used by a child
+            # definition at this level of the model hierarchy:
             def add_child(name, child_model, dependency_options)
                 if !child_model.respond_to?(:to_ary)
                     child_model = [child_model]
@@ -262,7 +379,9 @@ module Orocos
                 child_composition
             end
 
-            def apply_specialization_block(child_name, child_model, block)
+            # Helper method used by #specialize to recursively apply definition
+            # of new specializations.
+            def apply_specialization_block(child_name, child_model, block) # :nodoc:
                 specializations.each do |spec|
                     if spec.specialized_children[child_name] == child_model
                         spec.composition.with_module(*RobyPlugin.constant_search_path, &block)
@@ -306,89 +425,212 @@ module Orocos
                 default_specializations[child] = child_model
             end
 
-            # Returns true if +model1+ is either the same model or a
-            # specialization of +model2+
-            def is_specialized_model?(model1, model2)
-                model2.each do |m2|
-                    is_specialized_in_model1 = model1.any? do |m1|
-                        m1 <= m2
+            # Computes if +test_model+ is either equivalent or a specialization
+            # of +base_model+
+            #
+            # Returns 0 if test_model and base_model represent the same overall
+            # type, 1 if test_model is a specialization of base_model and nil if
+            # they are not ordered.
+            def compare_model_sets(base_model, test_model)
+                equivalent_models = true
+
+                # First, check if +test_model+ has a specialization and/or
+                # equality on each models present in +base_model+
+                specialized_models = ValueSet.new
+                equal_models       = ValueSet.new
+                base_model.each do |base_m|
+                    has_specialized = false
+                    has_equal       = false
+                    test_model.each do |test_m|
+                        if test_m < base_m
+                            has_specialized = true
+                            specialized_models << test_m
+                        elsif test_m == base_m
+                            has_equal = true
+                            equal_models << test_m
+                        end
                     end
-                    return(false) if !is_specialized_in_model1
+
+                    if !has_specialized && !has_equal
+                        # No relationship whatsoever
+                        return
+                    end
                 end
-                true
+
+                specialized_models -= equal_models
+                equivalent_models = specialized_models.empty?
+
+                if !equivalent_models || (specialized_models.size + equal_models.size) < test_model.size
+                    1
+                elsif equivalent_models
+                    0
+                end
             end
 
             # Returns the composition models from model_set that are the most
-            # specialized in the context of +selected_children+.
-            def find_most_specialized_compositions(engine, model_set, selected_children)
-                children_names = selected_children.keys
+            # specialized in the context the children listed in +children_names+
+            #
+            # I.e. if two models A and B have the same set of children, it will
+            # remove A iff
+            #
+            # * all children of A that are listed in +children_names+ are also
+            #   in B,
+            # * for all children listed in +children_names+, the models required
+            #   by B are either equivalent or specializations of the corresponding
+            #   requirements in A
+            # * there is at least one of those children that is specialized in
+            #   +B+
+            # 
+            def find_most_specialized_compositions(engine, model_set, children_names)
+                return model_set if children_names.empty?
 
                 result = model_set.dup
 
-                # First, remove models based on the abstraction hierarchy
+                # Remove +composition+ if there is a specialized model in
+                # +result+
                 result.delete_if do |composition|
                     result.any? do |other_composition|
                         next if composition == other_composition
 
-                        children_names.all? do |child_name|
-                            engine.composition_child_is_specialized(child_name, other_composition, composition)
+                        is_specialized = false
+                        children_names.each do |child_name|
+                            comparison = engine.compare_composition_child(
+                                child_name, composition, other_composition)
+                            if !comparison
+                                is_specialized = false
+                                break
+                            elsif comparison == 1
+                                is_specialized = true
+                            end
                         end
+
+                        is_specialized
                     end
                 end
                 result
             end
 
-            # Returns the set of specializations of +self+ that apply to
-            # +selected_models+. Only the most specialized compositions are
-            # returned.
+            # Returns the set of specializations of +self+ that can use the
+            # models selected in +selected_models+. It filters out ambiguous
+            # solutions by:
+            # * returning the most specialized compositions, for the children
+            #   that are listed in +selected_models+.<br/>
+            #   <i>Example: we have a composition A with a child A.camera and a
+            #   specialization B for which B.camera has to be a FirewireCamera
+            #   model. B is also specialized into C for StereoCamera models. If
+            #   +selected_models+ explicitely selects a FirewireCamera which is
+            #   not a StereoCamera, find_specializations will return B. If it is
+            #   a StereoCamera, then C is returned even though B would
+            #   apply.</i><br/>
+            # * returning the least specialized compositions for the children
+            #   that are <b>not</b> listed in +selected_models+.<br/>
+            #   <i>Example: let's assume that, in addition to a camera, the
+            #   composition also includes an image processing module and have
+            #   specializations for it. If +specialized_models+ does <b>not</b>
+            #   explicitely select for an image processing component, only [B,
+            #   C] will be returned even though all specializations on the image
+            #   processing are valid (since selected_models does not specify
+            #   anything).
+            #
+            # If there are ambiguities, it will prefer the specializations
+            # specified by facet selection and/or default specializations. See
+            # #default_specialization for more information.
+            #
+            # This is applied recursively, i.e. will search in
+            # specializations-of-specializations
             def find_specializations(engine, selected_models)
                 # Select in our specializations the ones that match the current
                 # selection. To do that, we simply have to find those for which
                 # +selected_models+ is an acceptable selection.
+                #
+                # We push in +queue+ the compositions whose specializations
+                # should be recursively discovered
+                queue = []
                 candidates = specializations.map { |spec| spec.composition }.
                     find_all do |child_composition|
                         # Note that the 'new' models in +child_composition+ are
                         # all in child_composition.children
-                        child_composition.each_child.all? do |child_name, child_definition|
+                        recurse = true
+                        valid   = false
+                        child_composition.each_child do |child_name, child_definition|
                             selected_model = selected_models[child_name]
-                            if selected_model.respond_to?(:selected_facets)
-                                selected_model = selected_model.selected_facets
+                            # no explicit selection for this child, ignore
+                            next if !selected_model
+
+                            selected_model = selected_model.first
+
+                            # Look first at ourselves. If the component submodel
+                            # is not an improvement on this particular child,
+                            # do not select it
+                            our_child_model = find_child(child_name).models
+                            comparison_with_ourselves = compare_model_sets(our_child_model, child_definition.models)
+                            comparison_with_selection = compare_model_sets(child_definition.models, [selected_model])
+                            if !comparison_with_selection
+                                recurse = false
+                                valid = false
+                                break
+                            elsif comparison_with_selection == 1 && comparison_with_ourselves == 1
+                                valid = true
                             end
-                            # new child in +child_composition+, do not count
-                            next(true) if !selected_model
-                            selected_model.first.fullfills?(child_definition.models)
                         end
+
+                        queue << child_composition if recurse
+                        valid
                     end
 
-                # Add them all to +result+
-                candidates = candidates.inject(candidates.dup) do |r, composition|
-                    r.concat(composition.find_specializations(engine, selected_models))
+                # Recursively apply to find the specializations of
+                # specializations
+                queue.each do |composition|
+                    candidates.concat(composition.
+                          find_specializations(engine, selected_models))
                 end
 
-                result = find_most_specialized_compositions(engine, candidates, selected_models)
+                result = find_most_specialized_compositions(
+                    engine, candidates, selected_models.keys)
+
                 # Don't bother doing more if there is no ambiguity left
                 if result.size < 2
                     return result
                 end
 
-                # The result is ambiguous, filter it out based on the default
-                # specialization definition
                 all_filtered_results = Hash.new
-                each_default_specialization do |child_name, child_model|
-                    if selected_child_model = selected_models[child_name] && selected_child_model.respond_to?(:selected_facets)
-                        child_model = selected_child_model.selected_facets
+
+                # First, filter on the facets. If the user provides a facet, it
+                # means we should prefer the required specialization.
+                selected_models.each do |child_name, selected_child_model|
+                    selected_child_model = selected_child_model.first
+                    next if !selected_child_model.respond_to?(:selected_facet)
+
+                    selected_facet = selected_child_model.selected_facet
+
+                    preferred_models = result.find_all do |composition_model|
+                        composition_model.specialized_on?(child_name, selected_facet)
                     end
 
-                    filtered_results = []
-                    result.find_all do |model|
-                        if child_model = model.find_child(child_name)
-                            if model.fullfills?(child_model.models)
-                                filtered_results << model
-                            end
-                        end
+                    if !preferred_models.empty?
+                        all_filtered_results[child_name] = preferred_models.to_value_set
                     end
-                    if !filtered_results.empty?
-                        all_filtered_results[child_name] = filtered_results
+                end
+
+                if !all_filtered_results.empty?
+                    filtered_out = all_filtered_results.values.inject(&:&)
+                    if filtered_out.size == 1
+                        return filtered_out.to_a
+                    elsif filtered_out.empty?
+                        raise Ambiguous, "inconsistent use of faceted selection"
+                    end
+                    result = filtered_out
+                end
+
+                # We now look at default specializations. Compositions that have
+                # certain specializations are preferred over other.
+                each_default_specialization do |child_name, default_child_model|
+                    preferred_models = result.find_all do |composition_model|
+                        composition_model.specialized_on?(child_name, default_child_model)
+                    end
+
+                    if !preferred_models.empty?
+                        all_filtered_results[child_name] = preferred_models.to_value_set
                     end
                 end
 
@@ -396,12 +638,31 @@ module Orocos
                 # meaningful
                 filtered_out = all_filtered_results.values.inject(&:&)
                 if filtered_out && !filtered_out.empty?
-                    return filtered_out
+                    return filtered_out.to_a
                 else
                     return result
                 end
             end
 
+            # call-seq:
+            #   autoconnect
+            #   autoconnect 'child1', 'child2'
+            #
+            # In the first form, declares that all children added so far should
+            # be automatically connected. In the second form, only the listed
+            # children will.
+            #
+            # Note that ports for which an explicit connection is specified
+            # (using #connect) are ignored.
+            #
+            # Autoconnection matches inputs and outputs of the listed children
+            # to find out matching connections.
+            # 1. port types are matched, i.e. inputs and outputs of the same
+            #    type are candidates for autoconnection.
+            # 2. if multiple connections are possible between two components,
+            #    then a name filter is used: i.e. a connection will be created
+            #    only for ports that have the same name.
+            #
             def autoconnect(*names)
                 @autoconnect = if names.empty? 
                                    each_child.map { |n, _| n }
@@ -413,6 +674,9 @@ module Orocos
                 end
             end
 
+            # The result of #compute_autoconnection is cached. This method
+            # resets the value so that the next call to #compute_autoconnection
+            # does trigger a recompute
             def reset_autoconnection
                 self.automatic_connections = nil
                 if superclass.respond_to?(:reset_autoconnection)
@@ -420,6 +684,7 @@ module Orocos
                 end
             end
 
+            # Computes the connections specified by #autoconnect
             def compute_autoconnection(force = false)
                 if superclass.respond_to?(:compute_autoconnection)
                     superclass.compute_autoconnection(force)
@@ -522,6 +787,17 @@ module Orocos
                 self.automatic_connections = result
             end
 
+            # Returns the set of connections that should be created during the
+            # instanciation of this composition model.
+            #
+            # The returned value is a mapping:
+            #
+            #   [source_name, sink_name] =>
+            #       {
+            #           [source_port_name0, sink_port_name1] => connection_policy,
+            #           [source_port_name0, sink_port_name1] => connection_policy
+            #       }
+            #       
             def connections
                 result = Hash.new { |h, k| h[k] = Hash.new }
 
@@ -543,12 +819,22 @@ module Orocos
             # the same name than the exported port. This name can be overriden
             # by the :as option
             #
-            # Example usage:
+            # For example, if one does:
             #    
             #    composition 'Test' do
             #       source = add 'Source'
             #       export source.output
             #       export source.output, :as => 'output2'
+            #    end
+            #
+            # Then the resulting composition gets 'output' and 'output2' output
+            # ports that can further be used in other connections (or
+            # autoconnections):
+            #    
+            #    composition 'Global' do
+            #       test = add 'Test'
+            #       c = add 'Component'
+            #       connect test.output2 => c.input
             #    end
             #
             def export(port, options = Hash.new)
@@ -620,8 +906,10 @@ module Orocos
             #       source = add 'Source'
             #       sink   = add 'Sink'
             #       connect source.output => sink.input, :type => :buffer
+            #   end
             #
-            # See #autoconnect for automatic connection handling
+            # Explicit connections always have precedence on automatic
+            # connections. See #autoconnect for automatic connection handling
             def connect(mappings)
                 options = Hash.new
                 mappings.delete_if do |a, b|
@@ -660,6 +948,11 @@ module Orocos
                 connections
             end
 
+            # Returns the set of constraints that exist for the given child.
+            # I.e. the set of types that, at instanciation time, the chosen
+            # child must provide.
+            #
+            # See #constrain
             def constraints_for(child_name)
                 result = ValueSet.new
                 each_child_constraint(child_name, false) do |constraint_set|
@@ -709,7 +1002,7 @@ module Orocos
                 end
 
                 # Now select the most specialized models
-                result = find_most_specialized_compositions(engine, candidates, subselection)
+                result = find_most_specialized_compositions(engine, candidates, subselection.keys)
                 # Don't bother going further if there is no ambiguity
                 if result.size < 2
                     return result
@@ -921,8 +1214,14 @@ module Orocos
                 result
             end
 
+            # Cached set of all the children definitions for this composition
+            # model. This is updated by #update_all_children
+            #
+            # It can be used to limit the impact of using #find_child, which
+            # requires a traversal of the model ancestry.
             attr_reader :all_children
 
+            # Updates the #all_children hash
             def update_all_children
                 @all_children = Hash.new
                 each_child do |name, model|
@@ -1060,7 +1359,7 @@ module Orocos
             end
         end
 
-        # Module in which all composition models are registered
+        # Namespace for all defined composition models
         module Compositions
             def self.each
                 constants.each do |name|
@@ -1070,6 +1369,11 @@ module Orocos
             end
         end
 
+        # Compositions, i.e. grouping of components and/or other compositions
+        # that perform a given function.
+        #
+        # Compositions are used to regroup components and/or other compositions
+        # in functional groups.
         class Composition < Component
             extend CompositionModel
 
@@ -1078,9 +1382,6 @@ module Orocos
             inherited_enumerable(:child, :children, :map => true) { Hash.new }
             inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
             inherited_enumerable(:default_specialization, :default_specializations, :map => true) { Hash.new }
-            class << self
-                attribute(:specializations) { Array.new }
-            end
 
             # The set of connections specified by the user for this composition
             inherited_enumerable(:explicit_connection, :explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
@@ -1093,7 +1394,7 @@ module Orocos
             # Inputs imported from this composition
             inherited_enumerable(:input, :inputs, :map => true)  { Hash.new }
 
-            def executable?(with_setup = false)
+            def executable?(with_setup = false) # :nodoc:
                 each_child do |child_task, _|
                     if child_task.kind_of?(Component) && !child_task.executable?(with_setup)
                         return false
@@ -1102,37 +1403,58 @@ module Orocos
                 super
             end
 
-            # Returns the OutputPort object that has the given name on this
-            # composition
+            # Returns the actual port that is currently used to provide data to
+            # an exported output, or returns nil if there is currently none.
+            #
+            # This is used to discover which actual component is currently
+            # providing a port on the composition. In other words, when one does
+            #
+            #   composition 'Test' do
+            #       src = add Source
+            #       export src.output
+            #   end
+            #
+            # then, once the composition is instanciated,
+            # test_task.output_port('output') will return src_task.output where
+            # src_task is the actual component used for the Source child. If, at
+            # the time of the call, no such component is present, then
+            # output_port will return nil.
+            #
+            # See also #input_port
             def output_port(name)
                 real_task, real_port = resolve_output_port(name)
                 real_task.output_port(real_port)
             end
 
-            def resolve_output_port(name)
+            # Helper method for #output_port and #resolve_port
+            def resolve_output_port(name) # :nodoc:
                 if !(port = model.output_port(name))
                     raise ArgumentError, "no output port named '#{name}' on '#{self}'"
                 end
                 resolve_port(port)
             end
 
-            # Returns the OutputPort object that has the given name on this
-            # composition
+            # Returns the actual port that is currently used to get data from
+            # an exported input, or returns nil if there is currently none.
+            #
+            # See #output_port for details.
             def input_port(name)
                 real_task, real_port = resolve_input_port(name)
                 real_task.input_port(real_port)
             end
 
-            def resolve_input_port(name)
+            # Helper method for #output_port and #resolve_port
+            def resolve_input_port(name) # :nodoc:
                 if !(port = model.input_port(name.to_str))
                     raise ArgumentError, "no input port named '#{name}' on '#{self}'"
                 end
                 resolve_port(port)
             end
 
-            def resolve_port(exported_port)
+            # Internal implementation of #output_port and #input_port
+            def resolve_port(exported_port) # :nodoc:
                 role = exported_port.child.child_name
-                task, _ = each_child.find { |task, options| options[:roles].include?(role) }
+                task = child_from_role(role)
                 if !task
                     return
                 end
@@ -1176,7 +1498,8 @@ module Orocos
                 result
             end
 
-            def dataflow_change_handler(child, mappings)
+            # Helper for #added_child_object and #removing_child_object
+            def dataflow_change_handler(child, mappings) # :nodoc:
                 if child.kind_of?(TaskContext)
                     Flows::DataFlow.modified_tasks << child
                 elsif child_object?(child, Roby::TaskStructure::Dependency)
@@ -1199,6 +1522,10 @@ module Orocos
                 end
             end
 
+            # Called when a new child is added to this composition.
+            #
+            # It updates Flows::DataFlow.modified_tasks so that the engine can
+            # update the underlying task's connections
             def added_child_object(child, relations, mappings)
                 super
 
@@ -1207,6 +1534,10 @@ module Orocos
                 end
             end
 
+            # Called when a child is removed from this composition.
+            #
+            # It updates Flows::DataFlow.modified_tasks so that the engine can
+            # update the underlying task's connections
             def removing_child_object(child, relations)
                 super
 
