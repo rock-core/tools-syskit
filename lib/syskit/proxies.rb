@@ -775,7 +775,9 @@ module Orocos
                     event_name = name.snakecase.downcase
                     klass.event event_name
                     if type == :fatal
-                        klass.forward event_name => :failed
+                        klass.forward event_name => :fatal_error
+                    elsif type == :error
+                        klass.forward event_name => :runtime_error
                     end
 
                     state_events[name.to_sym] = event_name
