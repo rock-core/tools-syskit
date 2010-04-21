@@ -148,12 +148,12 @@ module Orocos
 
                 # Add an intermediate event that will fire when the intermediate
                 # tasks have been stopped
-                terminal = AndGenerator.new
+                terminal = Roby::AndGenerator.new
                 to_be_killed.each do |task|
                     task.stop!
                     terminal << task.stop_event
                 end
-                terminal.on { orogen_deployment.kill(false) }
+                terminal.on { |event| orogen_deployment.kill(false) }
                 # The stop event will get emitted after the process has been
                 # killed. See the polling block.
             end
