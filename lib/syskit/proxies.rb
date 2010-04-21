@@ -173,7 +173,29 @@ module Orocos
                 if task_handles
                     # task_handles is only initialized when ready is reached ...
                     # so can be nil here
-                    task_handles.each_value do |task|
+                    all_tasks = task_handles.values.to_value_set
+                    all_tasks.each do |task|
+                        task.each_parent_vertex(ActualDataFlow) do |parent_task|
+                            mappings = parent_task[task, ActualDataFlow]
+                            mappings.each do |(source_port, sink_port), policy|
+                                if policy[:pull] # we have to disconnect explicitely
+                                    begin parent_task.port(source_port).disconnect_from(task.port(sink_port, false))
+                                    rescue Exception => e
+                                        Orocos::RobyPlugin.warn "error while disconnecting #{parent_task}:#{source_port} from #{task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
+                                    end
+                                end
+                            end
+                        end
+                        task.each_child_vertex(ActualDataFlow) do |child_task|
+                            mappings = task[child_task, ActualDataFlow]
+                            mappings.each do |(source_port, sink_port), policy|
+                                begin child_task.port(sink_port).disconnect_all
+                                rescue Exception => e
+                                    Orocos::RobyPlugin.warn "error while disconnecting #{task}:#{source_port} from #{child_task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
+                                end
+                            end
+                        end
+
                         ActualDataFlow.remove(task)
                         RequiredDataFlow.remove(task)
                     end
