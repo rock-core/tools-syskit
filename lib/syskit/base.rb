@@ -65,6 +65,11 @@ module Orocos
 
         end
 
+        # For 1.8 compatibility
+        if !defined?(BasicObject)
+            BasicObject = Object
+        end
+
         # Value returned by ComponentModel#as(model). It is used only in the
         # context of model instanciation.
         #
