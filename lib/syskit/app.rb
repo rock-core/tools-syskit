@@ -108,7 +108,6 @@ module Orocos
                 if orocos_load_component_extensions?
                     file = File.join('tasks', 'orocos', "#{name}.rb")
                     if File.exists?(file)
-                        RobyPlugin.debug "loading #{file}"
                         Application.load_task_extension(file, self)
                     end
                 end
@@ -246,18 +245,23 @@ module Orocos
                     RobyPlugin::Interfaces,
                     RobyPlugin::DeviceDrivers,
                     RobyPlugin::Compositions]
-                Kernel.load_dsl_file(file, Roby.app.orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                    RobyPlugin.info "loaded #{file}"
+                end
             end
 
             def load_system_model(file)
                 if !File.exists?(file) && File.exists?("#{file}.rb")
                     file = "#{file}.rb"
                 end
+
                 search_path = [RobyPlugin,
                     RobyPlugin::Interfaces,
                     RobyPlugin::DeviceDrivers,
                     RobyPlugin::Compositions]
-                Kernel.load_dsl_file(file, orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                if Kernel.load_dsl_file(file, orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                    RobyPlugin.info "loaded #{file}"
+                end
             end
 
             def load_system_definition(file)
@@ -265,7 +269,10 @@ module Orocos
                     RobyPlugin::Interfaces,
                     RobyPlugin::DeviceDrivers,
                     RobyPlugin::Compositions]
-                Kernel.load_dsl_file(file, orocos_engine, search_path, false)
+
+                if Kernel.load_dsl_file(file, orocos_engine, search_path, false)
+                    RobyPlugin.info "loaded #{file}"
+                end
             end
 
 	    def apply_orocos_deployment(name, compute_policies = true)
