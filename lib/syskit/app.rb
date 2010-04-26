@@ -191,7 +191,11 @@ module Orocos
 
                 projects.each do |name|
                     name = name.camelcase(true)
-                    Orocos.const_set(name, Orocos::RobyPlugin.const_get(name))
+
+                    # The RTT is already handled above
+                    if name !~ /RTT/
+                        Orocos.const_set(name, Orocos::RobyPlugin.const_get(name))
+                    end
                 end
             end
 
