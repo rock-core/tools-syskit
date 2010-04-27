@@ -21,7 +21,7 @@ if !robot_name.empty?
     Roby.app.robot(robot_name.first)
 end
 
-Orocos::RobyPlugin.logger.level = Logger::DEBUG
+Orocos::RobyPlugin.logger.level = Logger::INFO
 Roby.filter_backtrace do
     Roby.app.setup
 end
