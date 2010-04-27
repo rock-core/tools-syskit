@@ -186,26 +186,25 @@ module Orocos
 
             def pretty_print(pp)
                 inheritance = Hash.new { |h, k| h[k] = Set.new }
-                inheritance["Orocos::Spec::Subsystem"] << "Orocos::Spec::Composition"
+                inheritance["Orocos::RobyPlugin::Component"] << "Orocos::RobyPlugin::Composition"
 
-                pp.text "Subsystems"
+                pp.text "Compositions"; pp.breakable
+                pp.text "------------"; pp.breakable
                 pp.nest(2) do
                     pp.breakable
-                    compositions.sort_by { |name, sys| name }.
-                        each do |name, sys|
-                        inheritance[sys.superclass.name] << sys.name
-                        pp.text "#{name}: "
-                        pp.nest(2) do
+                    each_composition.sort_by(&:name).
+                        each do |composition_model|
+                            superclass = composition_model.parent_model
+                            inheritance[superclass.name] << composition_model.name
+                            composition_model.pretty_print(pp)
                             pp.breakable
-                            sys.pretty_print(pp)
-                        end
-                        pp.breakable
                         end
                 end
 
                 pp.breakable
-                pp.text "Models"
-                queue = [[0, "Orocos::Spec::Subsystem"]]
+                pp.text "Models"; pp.breakable
+                pp.text "------"; pp.breakable
+                queue = [[0, "Orocos::RobyPlugin::Component"]]
 
                 while !queue.empty?
                     indentation, model = queue.pop
@@ -213,8 +212,8 @@ module Orocos
                     pp.text "#{" " * indentation}#{model}"
 
                     children = inheritance[model].
-                    sort.reverse.
-                    map { |m| [indentation + 2, m] }
+                        sort.reverse.
+                        map { |m| [indentation + 2, m] }
                     queue.concat children
                 end
             end
@@ -224,56 +223,65 @@ module Orocos
                 self
             end
 
+            def composition_to_dot(io, model)
+                id = model.object_id
+
+                inputs  = Hash.new { |h, k| h[k] = Array.new }
+                outputs  = Hash.new { |h, k| h[k] = Array.new }
+                model.connections.each do |(source, sink), mappings|
+                    mappings.each do |(source_port, sink_port), policy|
+                        outputs[source] << source_port
+                        inputs[sink] << sink_port
+                        io << "C#{id}#{source}:#{source_port} -> C#{id}#{sink}:#{sink_port};"
+                    end
+                end
+
+                io << "subgraph cluster_#{id} {"
+                # io << "  label=\"#{model.name}\";"
+                # io << "  C#{id} [style=invisible];"
+                model.each_child do |child_name, child_definition|
+                    child_model = child_definition.models
+
+                    label = "{"
+                    task_label = child_model.map { |m| m.name }.join(',')
+                    if !inputs[child_name].empty?
+                        label << inputs[child_name].map do |port_name|
+                            "<#{port_name}> #{port_name}"
+                        end.join("|")
+                        label << "|"
+                    end
+                    label << "<main> #{task_label}"
+                    if !outputs[child_name].empty?
+                        label << "|"
+                        label << outputs[child_name].map do |port_name|
+                            "<#{port_name}> #{port_name}"
+                        end.join("|")
+                    end
+                    label << "}"
+
+                    io << "  C#{id}#{child_name} [label=\"#{label}\"];"
+                    #io << "  C#{id} -> C#{id}#{child_name}"
+                end
+                io << "}"
+
+                model.specializations.each do |specialized_model|
+                    specialized_id = specialized_model.composition.object_id
+                    # io << "C#{id} -> C#{specialized_id} [ltail=cluster_#{id} lhead=cluster_#{specialized_id} weight=2];"
+
+                    composition_to_dot(io, specialized_model.composition)
+                end
+            end
+
             def to_dot
                 io = []
-                io << "digraph {"
-                io << "  node [shape=record,height=.1];"
-                each_composition do |model|
-                    id = model.object_id
+                io << "digraph {\n"
+                io << "  node [shape=record,height=.1];\n"
+                io << "  compound=true;\n"
+                io << "  rankdir=TB;"
 
-                    inputs  = Hash.new { |h, k| h[k] = Array.new }
-                    outputs  = Hash.new { |h, k| h[k] = Array.new }
-                    model.connections.each do |(source, sink), mappings|
-                        mappings.each do |(source_port, sink_port), policy|
-                            outputs[source] << source_port
-                            inputs[sink] << sink_port
-                            io << "C#{id}#{source}:#{source_port} -> C#{id}#{sink}:#{sink_port};"
-                        end
-                    end
-
-                    io << "subgraph cluster_#{id} {"
-                    io << "  rankdir=LR;"
-                    io << "  C#{id} [label = \"#{model.name}\"];"
-                    model.each_child do |child_name, child_model|
-                        child_model = [child_model] if !child_model.respond_to?(:each)
-
-                        label = "{"
-                        task_label = child_model.map { |m| m.name }.join(',')
-                        if !inputs[child_name].empty?
-                            label << inputs[child_name].map do |port_name|
-                                "<#{port_name}> #{port_name}"
-                            end.join("|")
-                            label << "|"
-                        end
-                        label << "<main> #{task_label}"
-                        if !outputs[child_name].empty?
-                            label << "|"
-                            label << outputs[child_name].map do |port_name|
-                                "<#{port_name}> #{port_name}"
-                            end.join("|")
-                        end
-                        label << "}"
-
-                        io << "  C#{id}#{child_name} [label=\"#{label}\"];"
-                        #io << "  C#{id} -> C#{id}#{child_name}"
-                    end
-                    io << "}"
-
-                    model.specializations.each do |specialized_model|
-                        specialized_id = specialized_model.composition.object_id
-                        io << "C#{id} -> C#{specialized_id} [lhead=cluster_#{id} ltail=cluster_#{specialized_id}];"
-                    end
-
+                models = each_composition.to_a
+                models.each do |m|
+                    composition_to_dot(io, m)
                 end
                 io << "}"
                 io.join("\n")
