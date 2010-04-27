@@ -110,6 +110,89 @@ module Orocos
         # Specialization of CompositionChildPort for input ports
         class CompositionChildInputPort  < CompositionChildPort; end
 
+        module CompositionSpecializationModel
+            def is_specialization?; true end
+
+            def self_specialization
+                result = Hash.new
+                parent_model.specializations.find { |s| s.composition == self }.
+                    specialized_children.each do |child_name, child_model|
+                        result[child_name] = [child_model].to_value_set
+                    end
+                result
+            end
+
+            def all_specializations
+                superclass = parent_model
+                if superclass.is_specialization?
+                    superclass.all_specializations.
+                        merge(self_specialization) do |child_name, old_models, new_models|
+                            old_models | new_models
+                        end
+                else
+                    self_specialization
+                end
+            end
+
+            def name
+                specializations = all_specializations.map do |child_name, child_models|
+                    "#{child_name}.is_a?(#{child_models.map(&:name).join(",")})"
+                end
+
+                root = ancestors.find { |k| k.kind_of?(Class) && !k.is_specialization? }
+                "#{root.name}/#{specializations}"
+            end
+
+            # Returns true if this composition model is a model created by
+            # specializing another one on +child_name+ with +child_model+
+            #
+            # For instance:
+            #
+            #   composition 'Compo' do
+            #       add Source
+            #       add Sink
+            #
+            #       submodel = specialize Sink, Logger
+            #
+            #       submodel.specialized_on?('Sink', Logger) # => true
+            #       submodel.specialized_on?('Sink', Test) # => false
+            #       submodel.specialized_on?('Source', Logger) # => false
+            #   end
+            def specialized_on?(child_name, child_model)
+                parent = parent_model
+                return if parent == Composition
+
+                spec_model = parent.specializations.find { |s| s.composition == self }
+                return if !spec_model
+
+                spec_model.specialized_children[child_name] == child_model ||
+                    parent.specialized_on?(child_name, child_model)
+            end
+
+            # Overloaded from CompositionModel
+            def pretty_print_specializations(pp) # :nodoc:
+                data_sources = each_data_source.to_a
+                parent = parent_model
+                data_sources.delete_if do |name, model|
+                    parent.find_data_source(name) == model
+                end
+
+                if !data_sources.empty?
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.text "Data Services:"
+                        pp.nest(2) do
+                            data_sources.each do |name, model|
+                                pp.breakable
+                                pp.text "#{name}: #{model.name}"
+                            end
+                        end
+                    end
+                end
+                super
+            end
+        end
+
         # Model-level instances and attributes for compositions
         #
         # See the documentation of Model for an explanation of the *Model
@@ -129,6 +212,13 @@ module Orocos
                 klass
             end
 
+            def parent_model
+                parent = superclass
+                while !parent.kind_of?(Class)
+                    parent = parent.superclass
+                end
+                parent
+            end
 
             #--
             # Documentation of the inherited_enumerable attributes defined on
@@ -180,32 +270,6 @@ module Orocos
                 if find_child(name)
                     CompositionChild.new(self, name)
                 end
-            end
-
-            # Returns true if this composition model is a model created by
-            # specializing another one on +child_name+ with +child_model+
-            #
-            # For instance:
-            #
-            #   composition 'Compo' do
-            #       add Source
-            #       add Sink
-            #
-            #       submodel = specialize Sink, Logger
-            #
-            #       submodel.specialized_on?('Sink', Logger) # => true
-            #       submodel.specialized_on?('Sink', Test) # => false
-            #       submodel.specialized_on?('Source', Logger) # => false
-            #   end
-            def specialized_on?(child_name, child_model)
-                parent = superclass
-                return if parent == Composition
-
-                spec_model = parent.specializations.find { |s| s.composition == self }
-                return if !spec_model
-
-                spec_model.specialized_children[child_name] == child_model ||
-                    parent.specialized_on?(child_name, child_model)
             end
 
             # Internal helper to add a child to the composition
@@ -349,9 +413,11 @@ module Orocos
                 end
                 child_composition = system.composition(
                         submodel_name,
-                        :child_of => self) do
+                        :child_of => self,
+                        :register => false) do
                     add child_model, :as => child_name
                 end
+                child_composition.extend CompositionSpecializationModel
                 
                 specializations <<
                     Specialization.new({ child_name => child_model }, child_composition)
@@ -377,6 +443,55 @@ module Orocos
                     apply_specialization_block(child_name, child_model, block)
                 end
                 child_composition
+            end
+
+            # Returns true if this composition model is a specialized version of
+            # its superclass, and false otherwise
+            def is_specialization?; false end
+
+            # See CompositionSpecializationModel#specialized_on?
+            def specialized_on?(child_name, child_model); false end
+            
+            def pretty_print(pp)
+                pp.text "#{name}:"
+                data_sources = each_data_source.to_a
+                if !data_sources.empty?
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.text "Data services:"
+                        pp.nest(2) do
+                            data_sources.sort_by(&:first).
+                                each do |name, model|
+                                    pp.breakable
+                                    pp.text "#{name}: #{model.name}"
+                                end
+                        end
+                    end
+                end
+                if !specializations.empty?
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.text "Specializations:"
+                        pretty_print_specializations(pp)
+                    end
+                end
+            end
+
+            def pretty_print_specializations(pp)
+                pp.nest(2) do
+                    specializations.each do |submodel|
+                        pp.breakable
+                        submodel = submodel.composition
+                        specializations =
+                            submodel.all_specializations.
+                            map do |child_name, child_models|
+                                "#{child_name}.is_a?(#{child_models.map(&:name).join(",")})"
+                            end
+
+                        pp.text specializations.join(";")
+                        submodel.pretty_print_specializations(pp)
+                    end
+                end
             end
 
             # Helper method used by #specialize to recursively apply definition
@@ -1376,6 +1491,8 @@ module Orocos
         # in functional groups.
         class Composition < Component
             extend CompositionModel
+
+            @name = "Orocos::RobyPlugin::Composition"
 
             terminates
 

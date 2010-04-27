@@ -161,17 +161,19 @@ module Orocos
 
             def subsystem(name, options = Hash.new, &block)
                 name = name.to_s
-                if has_composition?(name)
+                options = Kernel.validate_options options, :child_of => Composition, :register => true
+
+                if options[:register] && has_composition?(name)
                     raise ArgumentError, "there is already a composition named '#{name}'"
                 end
-
-                options = Kernel.validate_options options, :child_of => Composition
 
                 new_model = options[:child_of].new_submodel(name, self)
                 if block_given?
                     new_model.with_module(*RobyPlugin.constant_search_path, &block)
                 end
-                register_composition(new_model)
+                if options[:register]
+                    register_composition(new_model)
+                end
                 new_model
             end
 
