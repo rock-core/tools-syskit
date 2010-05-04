@@ -292,13 +292,17 @@ module Orocos
                 Dir.chdir(Roby.app.log_dir) do
                     Orocos.initialize
                 end
-                Roby.each_cycle(&Orocos::RobyPlugin.method(:update))
+                handler_id = Roby.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
                 yield
 
             ensure
                 remaining = Orocos.each_process.to_a
                 RobyPlugin.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
                 Orocos::Process.kill(remaining)
+
+                if handler_id
+                    Roby.remove_propagation_handler(handler_id)
+                end
             end
         end
     end
