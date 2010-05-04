@@ -34,7 +34,13 @@ module Orocos
             # The set of deployment names we should use
             attr_reader :deployments
 
-            # Use the deployments defined in the given project
+            # Use the given deployment
+            def use_deployment(name)
+                deployments << name
+                self
+            end
+
+            # Use all the deployments defined in the given project
             def use_deployments_from(project_name)
                 orogen = Roby.app.load_orogen_project(project_name)
                 orogen.deployers.each do |deployment_def|
@@ -42,6 +48,7 @@ module Orocos
                         deployments << deployment_def.name
                     end
                 end
+                self
             end
 
             # Describes the robot. Example:
