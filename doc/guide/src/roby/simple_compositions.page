@@ -12,5 +12,5 @@ What you will learn about is:
  * how to make the Roby plugin load your oroGen components models, and where
    these models are available
  * how to define compositions
- * how to require that Roby starts a composition
+ * how Roby handles the compositions at runtime
 
