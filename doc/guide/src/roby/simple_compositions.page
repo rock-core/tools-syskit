@@ -1,0 +1,16 @@
+---
+title: A Simple Composition
+sort_info: 0
+--- name:content pipeline:tags,markdown,blocks
+
+In the world of component-based development, putting components together to form
+a network is called a _composition_. What this page will be about is creating
+a simple composition.
+
+What you will learn about is:
+
+ * how to make the Roby plugin load your oroGen components models, and where
+   these models are available
+ * how to define compositions
+ * how to require that Roby starts a composition
+

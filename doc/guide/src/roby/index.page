@@ -1,0 +1,20 @@
+---
+title: The Roby plugin
+sort_info: 0
+--- name:content pipeline:tags,markdown,blocks
+
+Roby is a plan management / supervision system. This plugin allows to manage
+Orocos component networks in Roby, thus leveraging its supervision
+capabilities. See [the Roby user's guide](http://doudou.github.com/roby) for
+details.
+
+In practice, what does this plugin offers ?
+
+ * have a model-based component deployment. Deploying medium-sized networks of
+   components (> 10) is often hard to do right. It is even harder to be sure
+   that modifications to the component interfaces will not break the
+   deployments.
+ * have a model-based adaptation of the component network. While it is hard to
+   deploy medium-sized component networks, it is even harder to modify the
+   networks while still being sure that you don't break anything.
+
