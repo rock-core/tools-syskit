@@ -160,7 +160,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         assert task.has_event?(:custom_fatal)
         assert task.event(:custom_fatal).terminal?
         assert task.has_event?(:custom_error)
-        assert task.event(:custom_error).terminal?
+        assert !task.event(:custom_error).terminal?
     end
 
     def test_task_runtime_error
