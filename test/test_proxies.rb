@@ -50,7 +50,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
         Orocos.logger.level = Logger::FATAL
         assert_any_event(task.stop_event) do
-            task.orogen_deployment.kill(false, 'ABRT')
+            task.orogen_deployment.kill(false)
         end
     end
 
