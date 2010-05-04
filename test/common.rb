@@ -5,6 +5,7 @@ require 'roby/test/testcase'
 require 'roby/test/tasks/simple_task'
 require 'orocos/roby/app'
 require 'orocos/roby'
+require 'orocos/process_server'
 
 module RobyPluginCommonTest
     include Orocos::RobyPlugin
