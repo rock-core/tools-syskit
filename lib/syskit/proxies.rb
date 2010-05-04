@@ -1,9 +1,13 @@
 require 'orocos'
 require 'utilrb/module/define_or_reuse'
-require 'roby/tasks/external_process'
 
 module Orocos
     module RobyPlugin
+        class << self
+            attr_reader :process_servers
+        end
+        @process_servers = Hash.new
+
         Generation = ::Orocos::Generation
         module Deployments
         end
@@ -40,13 +44,20 @@ module Orocos
                 # The Orocos::Generation::StaticDeployment that represents this
                 # deployment.
                 attr_reader :orogen_spec
+
+                def all_deployments; @@all_deployments end
             end
+            @@all_deployments = Hash.new
+
             def orogen_spec; self.class.orogen_spec end
 
             attr_reader :task_handles
 
             # The underlying Orocos::Process instance
             attr_reader :orogen_deployment
+
+            event :signaled
+            forward :signaled => :failed
 
             # Returns the name of this particular deployment instance
             def self.deployment_name
@@ -94,43 +105,45 @@ module Orocos
             event :start do |context|
                 RobyPlugin.info { "starting deployment #{model.deployment_name}" }
 
-                @orogen_deployment = ::Orocos::Process.new(model.deployment_name)
-                orogen_deployment.spawn(:output => File.join(Roby.app.log_dir, "%m-%p.txt"),
-                                        :working_directory => Roby.app.log_dir)
-                Roby::Tasks::ExternalProcess.processes[orogen_deployment.pid] = self
+                host = self.arguments['on'] || 'localhost'
+                @orogen_deployment = Orocos::RobyPlugin.process_servers[host].start(model.deployment_name)
+                Deployment.all_deployments[@orogen_deployment] = self
                 emit :start
+            end
+
+            def dead!(result)
+                orogen_deployment.dead!
+                if !result
+                    emit :failed
+                elsif result.success?
+                    emit :success
+                elsif result.signaled?
+                    emit :signaled, result
+                else
+                    emit :failed, result
+                end
             end
 
             # Event emitted when the deployment is up and running
             event :ready
 
             poll do
-                if started?
-                    if !orogen_deployment.running?
-                        if !ready?
-                            emit :failed
-                        else emit :stop
-                        end
-                        return
+                next if ready?
+
+                if orogen_deployment.wait_running(0)
+                    Orocos::Process.log_all_ports(orogen_deployment)
+
+                    @task_handles = Hash.new
+                    orogen_spec.task_activities.each do |activity|
+                        task_handles[activity.name] = 
+                            ::Orocos::TaskContext.get(activity.name)
                     end
-                end
 
-                if !ready?
-                    if orogen_deployment.wait_running(0)
-                        orogen_deployment.log_all_ports
-
-                        @task_handles = Hash.new
-                        orogen_spec.task_activities.each do |activity|
-                            task_handles[activity.name] = 
-                                ::Orocos::TaskContext.get(activity.name)
-                        end
-
-                        each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                            task.orogen_task = task_handles[task.orocos_name]
-                        end
-
-                        emit :ready
+                    each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
+                        task.orogen_task = task_handles[task.orocos_name]
                     end
+
+                    emit :ready
                 end
             end
 
@@ -158,15 +171,8 @@ module Orocos
                 # killed. See the polling block.
             end
 
-            # This gets called by Roby's SIGCHLD handler to announce that the
-            # process died. +result+ is the corresponding Process::Status
-            # object.
-            def dead!(result)
-                Roby::ExternalProcessTask.processes.delete(orogen_deployment.pid)
-                orogen_deployment.dead!(result)
-            end
-
             on :stop do |event|
+                Deployment.all_deployments.delete(orogen_deployment)
                 orogen_spec.task_activities.each do |act|
                     TaskContext.configured.delete(act.name)
                 end
@@ -223,6 +229,14 @@ module Orocos
         def self.update(plan) # :nodoc:
             if Roby.app.orocos_engine.modified?
                 Roby.app.orocos_engine.resolve
+            end
+
+            for name, server in Orocos::RobyPlugin.process_servers
+                if dead_deployments = server.wait_termination(0)
+                    dead_deployments.each do |p, exit_status|
+                        Deployment.all_deployments[p].dead!(exit_status)
+                    end
+                end
             end
 
             if !(query = plan.instance_variable_get :@orocos_update_query)

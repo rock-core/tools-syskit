@@ -40,11 +40,14 @@ module RobyPluginCommonTest
         @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
         ENV['PKG_CONFIG_PATH'] = File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')
 
+        Orocos.disable_sigchld_handler = true
         ::Orocos.initialize
+        @process_server_pid = Orocos::RobyPlugin::Application.start_local_process_server
         Roby.app.extend Orocos::RobyPlugin::Application
         save_collection Roby.app.loaded_orogen_projects
         save_collection Roby.app.orocos_tasks
         save_collection Roby.app.orocos_deployments
+        save_collection Orocos::RobyPlugin.process_servers
 
         project = Orocos::Generation::Component.new
         project.name 'roby'
@@ -79,6 +82,12 @@ module RobyPluginCommonTest
         end
 
     ensure
+        if @process_server_pid
+            begin Process.kill('INT', @process_server_pid)
+            rescue Errno::ESRCH
+            end
+        end
+
         FileUtils.rm_rf Roby.app.log_dir
         ENV['PKG_CONFIG_PATH'] = @old_pkg_config
         Orocos.logger.level = @old_loglevel if @old_loglevel

@@ -286,13 +286,40 @@ module Orocos
 		orocos_engine.resolve(compute_policies)
 	    end
 
+            def self.start_local_process_server(
+                    options = Orocos::ProcessServer::DEFAULT_OPTIONS,
+                    port = Orocos::ProcessServer::DEFAULT_PORT)
+
+                @server_pid = fork do
+                    Orocos.logger.level = Logger::DEBUG
+                    Orocos::ProcessServer.run(options, port)
+                end
+                # Wait for the server to be ready
+                client = nil
+                while !client
+                    client =
+                        begin Orocos::ProcessClient.new
+                        rescue Errno::ECONNREFUSED
+                        end
+                end
+
+                Orocos::RobyPlugin.process_servers['localhost'] = client
+                @server_pid
+            end
+
+            def self.stop_local_process_server
+                Process.kill(@server_pid)
+            end
+
             def self.run(app)
                 # Change to the log dir so that the IOR file created by the
                 # CORBA bindings ends up there
                 Dir.chdir(Roby.app.log_dir) do
                     Orocos.initialize
+                    start_local_process_server
                 end
                 handler_id = Roby.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
+
                 yield
 
             ensure
@@ -303,12 +330,21 @@ module Orocos
                 if handler_id
                     Roby.remove_propagation_handler(handler_id)
                 end
+
+                Orocos::RobyPlugin.process_servers.each_value do |client|
+                    client.disconnect
+                end
+                Orocos::RobyPlugin.process_servers.clear
+                if @server_pid
+                    stop_local_process_server
+                end
             end
         end
     end
 
     Roby::Application.register_plugin('orocos', Orocos::RobyPlugin::Application) do
         require 'orocos/roby'
+        require 'orocos/process_server'
     end
 end
 
