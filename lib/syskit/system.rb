@@ -69,7 +69,7 @@ module Orocos
                 @model     = model
                 @instances = Array.new
                 @tasks     = Hash.new
-                @deployments = ValueSet.new
+                @deployments = Set.new
                 @main_selection = Hash.new
                 @defines   = Hash.new
                 @modified  = false
