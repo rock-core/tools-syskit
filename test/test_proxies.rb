@@ -176,7 +176,12 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         ::Robot.logger.level = Logger::WARN
 	engine.run
 
-        task = deployment.task 'states_Task'
+        task = nil
+        engine.execute do
+            task = deployment.task 'states_Task'
+            plan.add_permanent(task)
+        end
+
         assert_any_event(task.start_event) do
             plan.add_permanent(task)
             task.start!
