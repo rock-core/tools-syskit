@@ -7,7 +7,7 @@ require 'flexmock'
 class TC_RobySpec_Composition < Test::Unit::TestCase
     include RobyPluginCommonTest
 
-    needs_orogen_projects 'simple_source', 'simple_sink'
+    needs_orogen_projects 'simple_source', 'simple_sink', 'system_test'
 
     def teardown
         super
@@ -16,7 +16,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def simple_composition
         Roby.app.load_orogen_project "echo"
-        sys_model.subsystem "simple" do
+        sys_model.composition "simple" do
             add SimpleSource::Source, :as => 'source'
             add SimpleSink::Sink, :as => 'sink'
 
@@ -70,7 +70,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_export
         source, sink1, sink2 = nil
-        subsys = sys_model.subsystem("source_sink0") do
+        subsys = sys_model.composition("source_sink0") do
             source = add SimpleSource::Source, :as => 'source'
             sink1  = add SimpleSink::Sink, :as => 'sink1'
             sink2  = add SimpleSink::Sink, :as => 'sink2'
@@ -89,7 +89,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_compute_autoconnection
         Roby.app.load_orogen_project "echo"
-        subsys_model = sys_model.subsystem "simple" do
+        subsys_model = sys_model.composition "simple" do
             add SimpleSource::Source, :as => 'source'
             add SimpleSink::Sink, :as => 'sink'
             autoconnect
@@ -105,7 +105,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_compute_autoconnection_ambiguities
         Roby.app.load_orogen_project 'echo'
-        subsys = sys_model.subsystem("source_sink0") do
+        subsys = sys_model.composition("source_sink0") do
             add SimpleSource::Source, :as => 'source'
             add SimpleSink::Sink, :as => 'sink1'
             add SimpleSink::Sink, :as => 'sink2'
@@ -113,14 +113,14 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
         subsys.compute_autoconnection
 
-        subsys = sys_model.subsystem("source_sink1") do
+        subsys = sys_model.composition("source_sink1") do
             add Echo::Echo, :as => 'echo1'
             add Echo::Echo, :as => 'echo2'
             autoconnect
         end
         assert_raises(Ambiguous) { subsys.compute_autoconnection }
 
-        subsys = sys_model.subsystem("source_sink2") do
+        subsys = sys_model.composition("source_sink2") do
             add SimpleSource::Source, :as => 'source1'
             add SimpleSource::Source, :as => 'source2'
             add SimpleSink::Sink, :as => 'sink1'
@@ -132,7 +132,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     def test_connect_overrides_autoconnect
         Roby.app.load_orogen_project "echo"
         explicit_policy = { :type => :buffer, :size => 10 }
-        subsys_model = sys_model.subsystem "simple" do
+        subsys_model = sys_model.composition "simple" do
             source = add SimpleSource::Source, :as => 'source'
             sink   = add SimpleSink::Sink, :as => 'sink'
             autoconnect
@@ -152,7 +152,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_connect
         Roby.app.load_orogen_project "echo"
-        subsys_model = sys_model.subsystem "simple" do
+        subsys_model = sys_model.composition "simple" do
             source = add SimpleSource::Source, :as => 'source'
             sink   = add SimpleSink::Sink, :as => 'sink'
             connect source.cycle => sink.cycle, :type => :buffer
@@ -179,7 +179,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     end
 
     def test_connect_exported_ports
-        subsys = sys_model.subsystem("source_sink0") do
+        subsys = sys_model.composition("source_sink0") do
             source = add SimpleSource::Source, :as => 'source'
             sink   = add SimpleSink::Sink, :as => 'sink1'
 
@@ -188,7 +188,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
 
         source_sink, source, sink = nil
-        complete = sys_model.subsystem('all') do
+        complete = sys_model.composition('all') do
             source_sink = add Compositions::SourceSink0
             source = add SimpleSource::Source
             sink   = add SimpleSink::Sink
@@ -207,7 +207,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_instanciate_connections
         Roby.app.load_orogen_project "echo"
-        subsys_model = sys_model.subsystem "simple" do
+        subsys_model = sys_model.composition "simple" do
             add SimpleSource::Source, :as => 'source'
             add SimpleSink::Sink, :as => 'sink'
             autoconnect
@@ -243,16 +243,21 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             def self.name; "Tag2" end
         end
         spec1, spec2 = nil
-        subsys = sys_model.subsystem("source_sink0") do
+        subsys = sys_model.composition("source_sink0") do
             include tag1
 
-            source = add SimpleSource::Source, :as => 'source'
-            spec1 = specialize 'source', tag1
-            spec2 = specialize 'source', tag2
-            sink1  = add SimpleSink::Sink, :as => 'sink1'
+            add SimpleSource::Source, :as => 'source'
+            add SimpleSink::Sink, :as => 'sink1'
         end
 
-        test = sys_model.subsystem('test') do
+        spec1 = sys_model.composition("source_sink1", :child_of => subsys) do
+            add tag1, :as => 'source'
+        end
+        spec2 = sys_model.composition("source_sink2", :child_of => spec1) do
+            add tag2, :as => 'source'
+        end
+
+        test = sys_model.composition('test') do
             add tag1, :as => 'child'
         end
 
@@ -279,12 +284,12 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         model.include tag2
         selection = test.find_selected_compositions(
             orocos_engine, "child", "child.source" => model)
-        assert_equal [spec1.specializations.first.composition].to_set, selection.to_set
+        assert_equal [spec2].to_set, selection.to_set
     end
 
     def test_instanciate_exported_ports
         source, sink1, sink2 = nil
-        subsys = sys_model.subsystem("source_sink0") do
+        subsys = sys_model.composition("source_sink0") do
             source = add SimpleSource::Source, :as => 'source'
             sink1  = add SimpleSink::Sink, :as => 'sink1'
         end
@@ -304,7 +309,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_constrain
         tag   = Roby::TaskModelTag.new { def self.name; "Tag" end }
-        subsys = sys_model.subsystem("composition") do
+        subsys = sys_model.composition("composition") do
             add SimpleSource::Source
             constrain SimpleSource::Source, [tag]
         end
@@ -694,7 +699,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         Roby.app.load_orogen_project 'simple_sink'
 
         source, sink1, sink2 = nil
-        subsys = sys_model.subsystem("source_sink0") do
+        subsys = sys_model.composition("source_sink0") do
             source = add SimpleSource::Source, :as => 'source'
             sink1  = add SimpleSink::Sink, :as => 'sink1'
 
@@ -704,7 +709,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert subsys.output_port('out_cycle')
         assert subsys.input_port('in_cycle')
 
-        complete = sys_model.subsystem('all') do
+        complete = sys_model.composition('all') do
             source_sink = add Compositions::SourceSink0
             source = add SimpleSource::Source
             sink   = add SimpleSink::Sink
@@ -747,6 +752,26 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             assert_equal [deep_sink, 'cycle'], composition.resolve_port(composition.model.find_input('in'))
             assert_equal 10, composition.input_port('in')
         end
+    end
+
+    def test_compute_port_mappings
+        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+
+        camera_service = sys_model.get_data_service_type 'camera'
+
+        SystemTest::StereoCamera.driver_for 'stereo'
+        SystemTest::StereoCamera.data_service 'camera', :as => 'left', :slave_of => 'stereo'
+        SystemTest::StereoCamera.data_service 'camera', :as => 'right', :slave_of => 'stereo'
+
+        sys_model.composition "Stereo" do
+            stereo = add SystemTest::StereoProcessing, :as => 'processing'
+            image0 = add DataServices::Camera, :as => "image0"
+            image1 = add DataServices::Camera, :as => "image1"
+        end
+
+        assert_equal({ 'image' => 'leftImage' }, sys_model.compute_port_mapping_for_selection(
+            'stereo.left', SystemTest::StereoCamera, [camera_service]))
     end
 end
 

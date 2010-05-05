@@ -10,33 +10,33 @@ module Orocos
             end
 
             if method(:const_defined?).arity == 1 # probably Ruby 1.8
-            def has_interface?(name)
-                Orocos::RobyPlugin::Interfaces.const_defined?(name.camelcase(true))
+            def has_data_service?(name)
+                Orocos::RobyPlugin::DataServices.const_defined?(name.camelcase(true))
             end
-            def has_device_driver?(name)
-                Orocos::RobyPlugin::DeviceDrivers.const_defined?(name.camelcase(true))
+            def has_data_source?(name)
+                Orocos::RobyPlugin::DataSources.const_defined?(name.camelcase(true))
             end
             def has_composition?(name)
                 Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(true))
             end
             else
-            def has_interface?(name)
-                Orocos::RobyPlugin::Interfaces.const_defined?(name.camelcase(true), false)
+            def has_data_service?(name)
+                Orocos::RobyPlugin::DataServices.const_defined?(name.camelcase(true), false)
             end
-            def has_device_driver?(name)
-                Orocos::RobyPlugin::DeviceDrivers.const_defined?(name.camelcase(true), false)
+            def has_data_source?(name)
+                Orocos::RobyPlugin::DataSources.const_defined?(name.camelcase(true), false)
             end
             def has_composition?(name)
                 Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(true), false)
             end
             end
 
-            def register_interface(model)
-                Orocos::RobyPlugin::Interfaces.const_set(model.name.camelcase(true), model)
+            def register_data_service(model)
+                Orocos::RobyPlugin::DataServices.const_set(model.name.camelcase(true), model)
             end
 
-            def register_device_driver(model)
-                Orocos::RobyPlugin::DeviceDrivers.const_set(model.name.camelcase(true), model)
+            def register_data_source(model)
+                Orocos::RobyPlugin::DataSources.const_set(model.name.camelcase(true), model)
             end
             def register_composition(model)
                 Orocos::RobyPlugin::Compositions.const_set(model.name.camelcase(true), model)
@@ -60,49 +60,53 @@ module Orocos
                 end
             end
 
-            def interface(*args, &block)
-                data_source_type(*args, &block)
+            def get_data_source_type(name)
+                Orocos::RobyPlugin::DataSources.const_get(name.camelcase(true))
             end
 
-            def data_source_type(name, options = Hash.new, &block)
+            def get_data_service_type(name)
+                Orocos::RobyPlugin::DataServices.const_get(name.camelcase(true))
+            end
+
+            def data_service_type(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
-                    :child_of => DataSource,
+                    :child_of => DataService,
                     :interface    => nil
 
                 const_name = name.camelcase(true)
-                if has_interface?(name)
+                if has_data_service?(name)
                     raise ArgumentError, "there is already a data source named #{name}"
                 end
 
                 parent_model = options[:child_of]
                 if parent_model.respond_to?(:to_str)
-                    parent_model = Orocos::RobyPlugin::Interfaces.const_get(parent_model.camelcase(true))
+                    parent_model = Orocos::RobyPlugin::DataServices.const_get(parent_model.camelcase(true))
                 end
                 model = parent_model.new_submodel(name, :interface => options[:interface])
                 if block_given?
                     model.interface(&block)
                 end
 
-                register_interface(model)
+                register_data_service(model)
                 model.instance_variable_set :@name, name
                 model
             end
 
-            def device_type(name, options = Hash.new)
+            def data_source_type(name, options = Hash.new)
                 options, device_options = Kernel.filter_options options,
                     :provides => nil, :interface => nil
 
                 const_name = name.camelcase(true)
-                if has_device_driver?(name)
+                if has_data_source?(name)
                     raise ArgumentError, "there is already a device type #{name}"
                 end
 
-                device_model = DeviceDriver.new_submodel(name, :interface => false)
+                source_model = DataSource.new_submodel(name, :interface => false)
 
                 if parents = options[:provides]
                     parents = [*parents].map do |parent|
                         if parent.respond_to?(:to_str)
-                            Orocos::RobyPlugin::Interfaces.const_get(parent.camelcase(true))
+                            Orocos::RobyPlugin::DataServices.const_get(parent.camelcase(true))
                         else
                             parent
                         end
@@ -111,24 +115,24 @@ module Orocos
                         parents.any? { |p| p < parent }
                     end
 
-                    bad_models = parents.find_all { |p| !(p < DataSource) }
+                    bad_models = parents.find_all { |p| !(p < DataService) }
                     if !bad_models.empty?
                         raise ArgumentError, "#{bad_models.map(&:name).join(", ")} are not interface models"
                     end
 
                 elsif options[:provides].nil?
                     begin
-                        parents = [Orocos::RobyPlugin::Interfaces.const_get(const_name)]
+                        parents = [Orocos::RobyPlugin::DataServices.const_get(const_name)]
                     rescue NameError
-                        parents = [self.data_source_type(name, :interface => options[:interface])]
+                        parents = [self.data_service_type(name, :interface => options[:interface])]
                     end
                 end
 
                 if parents
-                    parents.each { |p| device_model.include(p) }
+                    parents.each { |p| source_model.include(p) }
 
                     interfaces = parents.find_all { |p| p.interface }
-                    child_spec = device_model.create_orogen_interface
+                    child_spec = source_model.create_orogen_interface
                     if !interfaces.empty?
                         first_interface = interfaces.shift
                         child_spec.subclasses first_interface.interface.name
@@ -137,22 +141,22 @@ module Orocos
                             child_spec.merge_ports_from(p.interface)
                         end
                     end
-                    device_model.instance_variable_set :@orogen_spec, child_spec
+                    source_model.instance_variable_set :@orogen_spec, child_spec
                 end
 
-                register_device_driver(device_model)
-                device_model
+                register_data_source(source_model)
+                source_model
             end
 
             def com_bus_type(name, options  = Hash.new)
                 name = name.to_str
 
-                if has_device_driver?(name)
+                if has_data_source?(name)
                     raise ArgumentError, "there is already a device driver called #{name}"
                 end
 
                 model = ComBusDriver.new_submodel(name, options)
-                register_device_driver(model)
+                register_data_source(model)
             end
 
             # Create a new composition model with the given name

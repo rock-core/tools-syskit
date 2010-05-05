@@ -27,7 +27,7 @@ module Orocos
 
                 def devices(&block)
                     if block
-                        Kernel.dsl_exec(Roby.app.orocos_engine.robot, [DeviceDrivers], !Roby.app.filter_backtraces?, &block)
+                        Kernel.dsl_exec(Roby.app.orocos_engine.robot, [DataSources], !Roby.app.filter_backtraces?, &block)
                     else
                         each_device
                     end
@@ -69,7 +69,7 @@ module Orocos
                     end
 
                     def self.const_missing(const_name)
-                        Application.resolve_constants(const_name, DeviceDrivers, [DeviceDrivers])
+                        Application.resolve_constants(const_name, DataSources, [DataSources])
                     end
                 end
                 ::Robot.const_set 'Devices', mod
@@ -157,13 +157,13 @@ module Orocos
             end
 
             def self.require_models(app)
-                Orocos.const_set('Deployments',    Orocos::RobyPlugin::Deployments)
-                Orocos.const_set('Interfaces',    Orocos::RobyPlugin::Interfaces)
-                Orocos.const_set('DeviceDrivers', Orocos::RobyPlugin::DeviceDrivers)
-                Orocos.const_set('Compositions',  Orocos::RobyPlugin::Compositions)
+                Orocos.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
+                Orocos.const_set('DataServices', Orocos::RobyPlugin::DataServices)
+                Orocos.const_set('DataSources',  Orocos::RobyPlugin::DataSources)
+                Orocos.const_set('Compositions', Orocos::RobyPlugin::Compositions)
 
-                # Load the interface and task models
-                %w{interfaces compositions}.each do |category|
+                # Load the data services and task models
+                %w{data_services compositions}.each do |category|
                     all_files = app.list_dir(APP_DIR, "tasks", "orocos", category).to_a +
                         app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'orocos', category).to_a
                     all_files.each do |path|
@@ -229,7 +229,7 @@ module Orocos
                     end
                 end
 
-                [Interfaces, Compositions, DeviceDrivers].each do |mod|
+                [DataServices, Compositions, DataSources].each do |mod|
                     mod.constants.each do |const_name|
                         mod.send(:remove_const, const_name)
                     end
@@ -242,8 +242,8 @@ module Orocos
 
             def self.load_task_extension(file, app)
                 search_path = [RobyPlugin,
-                    RobyPlugin::Interfaces,
-                    RobyPlugin::DeviceDrivers,
+                    RobyPlugin::DataServices,
+                    RobyPlugin::DataSources,
                     RobyPlugin::Compositions]
                 if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, search_path, !Roby.app.filter_backtraces?)
                     RobyPlugin.info "loaded #{file}"
@@ -256,8 +256,8 @@ module Orocos
                 end
 
                 search_path = [RobyPlugin,
-                    RobyPlugin::Interfaces,
-                    RobyPlugin::DeviceDrivers,
+                    RobyPlugin::DataServices,
+                    RobyPlugin::DataSources,
                     RobyPlugin::Compositions]
                 if Kernel.load_dsl_file(file, orocos_system_model, search_path, !Roby.app.filter_backtraces?)
                     RobyPlugin.info "loaded #{file}"
@@ -266,8 +266,8 @@ module Orocos
 
             def load_system_definition(file)
                 search_path = [RobyPlugin,
-                    RobyPlugin::Interfaces,
-                    RobyPlugin::DeviceDrivers,
+                    RobyPlugin::DataServices,
+                    RobyPlugin::DataSources,
                     RobyPlugin::Compositions]
 
                 if Kernel.load_dsl_file(file, orocos_engine, search_path, false)

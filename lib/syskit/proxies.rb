@@ -727,7 +727,7 @@ module Orocos
             def self.driver_for(model, arguments = Hash.new)
                 if model.respond_to?(:to_str)
                     begin
-                        model = Orocos::RobyPlugin::DeviceDrivers.const_get model.to_str.camelcase(true)
+                        model = Orocos::RobyPlugin::DataSources.const_get model.to_str.camelcase(true)
                     rescue NameError
                         device_arguments, arguments = Kernel.filter_options arguments,
                             :provides => nil
@@ -736,18 +736,18 @@ module Orocos
                             # Look for an existing data source that match the name.
                             # If there is none, we will assume that +self+ describes
                             # the interface of +model+
-                            if !system.has_interface?(model)
+                            if !system.has_data_service?(model)
                                 device_arguments[:interface] = self
                             end
                         end
-                        model = system.device_type model, device_arguments
+                        model = system.data_source_type model, device_arguments
                     end
                 end
-                if !(model < DeviceDriver)
+                if !(model < DataSource)
                     raise ArgumentError, "#{model} is not a device driver model"
                 end
-                data_source_name, _ = data_source(model, arguments)
-                argument "#{data_source_name}_name"
+                data_service_name, _ = data_service(model, arguments)
+                argument "#{data_service_name}_name"
 
                 model
             end

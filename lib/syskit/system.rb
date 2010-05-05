@@ -133,11 +133,11 @@ module Orocos
                 name = seed.to_str
                 sel = (Roby.app.orocos_tasks[name] || subsystem(name))
 
-                if !sel && model.has_interface?(name)
-                    sel = Interfaces.const_get(name.camelcase(true)).task_model
+                if !sel && model.has_data_service?(name)
+                    sel = DataServices.const_get(name.camelcase(true)).task_model
                 end
-                if !sel && model.has_device_driver?(name)
-                    sel = DeviceDrivers.const_get(name.camelcase(true)).task_model
+                if !sel && model.has_data_source?(name)
+                    sel = DataSources.const_get(name.camelcase(true)).task_model
                 end
                 sel
             end
@@ -915,7 +915,7 @@ module Orocos
             end
 
             def link_to_busses
-                candidates = plan.find_local_tasks(Orocos::RobyPlugin::DeviceDriver).
+                candidates = plan.find_local_tasks(Orocos::RobyPlugin::DataSource).
                     find_all { |t| t.com_bus }.
                     to_value_set
 
@@ -946,8 +946,8 @@ module Orocos
                     out_connections = Hash.new
                     handled    = Hash.new
                     used_ports = Set.new
-                    task.model.each_root_data_source do |source_name, source_model|
-                        next if !(source_model < DeviceDriver)
+                    task.model.each_root_data_service do |source_name, source_model|
+                        next if !(source_model < DataSource)
                         device_spec = robot.devices[task.arguments["#{source_name}_name"]]
                         next if !device_spec || !device_spec.com_bus
 

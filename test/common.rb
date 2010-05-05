@@ -31,6 +31,10 @@ module RobyPluginCommonTest
     attr_reader :sys_model
     attr_reader :orocos_engine
 
+    def start_process_server
+        @process_server_pid = Orocos::RobyPlugin::Application.start_local_process_server
+    end
+
     def setup
         @old_loglevel = Orocos.logger.level
         super
@@ -43,7 +47,6 @@ module RobyPluginCommonTest
 
         Orocos.disable_sigchld_handler = true
         ::Orocos.initialize
-        @process_server_pid = Orocos::RobyPlugin::Application.start_local_process_server
         Roby.app.extend Orocos::RobyPlugin::Application
         save_collection Roby.app.loaded_orogen_projects
         save_collection Roby.app.orocos_tasks

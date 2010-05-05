@@ -10,7 +10,7 @@ module Orocos
         class MasterDeviceInstance
             # The device name
             attr_reader :name
-            # The device model, as a subclass of DeviceDriver
+            # The device model, as a subclass of DataSource
             attr_reader :device_model
 
             # The selected task model that allows to drive this device
@@ -192,25 +192,25 @@ module Orocos
             #   end
             #
             # the newly declared device type can then be accessed as a
-            # constant with DeviceDrivers::Hokuyo or as a name:
+            # constant with DataSources::Hokuyo or as a name:
             #
             #   robot.device 'hokuyo'
-            #   robot.device DeviceDrivers::Hokuyo
+            #   robot.device DataSources::Hokuyo
             #
             # Returns the MasterDeviceInstance object that describes this device
             def device(device_model, options = Hash.new)
                 if device_model.respond_to?(:to_str)
-                    device_model = Orocos::RobyPlugin::DeviceDrivers.const_get(device_model.to_str.camelcase(true))
-                elsif device_model < DataSource && !(device_model < DeviceDriver)
+                    device_model = Orocos::RobyPlugin::DataSources.const_get(device_model.to_str.camelcase(true))
+                elsif device_model < DataService && !(device_model < DataSource)
                     name = device_model.name
-                    if engine.model.has_device_driver?(name)
-                        device_model = Orocos::RobyPlugin::DeviceDrivers.const_get(name.camelcase(true))
+                    if engine.model.has_data_source?(name)
+                        device_model = Orocos::RobyPlugin::DataSources.const_get(name.camelcase(true))
                     end
                 end
 
                 options, device_options = Kernel.filter_options options,
                     :as => device_model.name.gsub(/.*::/, '').snakecase,
-                    :expected_model => DeviceDriver
+                    :expected_model => DataSource
                 device_options, task_arguments = Kernel.filter_options device_options,
                     MasterDeviceInstance::KNOWN_PARAMETERS
 
@@ -243,7 +243,7 @@ module Orocos
                 end
 
                 task_model = tasks.first
-                task_source_name = task_model.data_source_name(device_model)
+                task_source_name = task_model.data_service_name(device_model)
                 root_task_arguments = {"#{task_source_name}_name" => name, :com_bus => nil}.
                     merge(task_arguments)
 
@@ -251,7 +251,7 @@ module Orocos
                     name, device_model, device_options,
                     task_model, task_source_name, root_task_arguments)
 
-                task_model.each_child_data_source(task_source_name) do |child_name, child_model|
+                task_model.each_child_data_service(task_source_name) do |child_name, child_model|
                     devices["#{name}.#{child_name}"] = SlaveDeviceInstance.new(devices[name], child_name, child_model)
                 end
 

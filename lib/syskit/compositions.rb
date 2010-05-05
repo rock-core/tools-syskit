@@ -220,18 +220,18 @@ module Orocos
 
             # Overloaded from CompositionModel
             def pretty_print_specializations(pp) # :nodoc:
-                data_sources = each_data_source.to_a
+                data_services = each_data_service.to_a
                 parent = parent_model
-                data_sources.delete_if do |name, model|
-                    parent.find_data_source(name) == model
+                data_services.delete_if do |name, model|
+                    parent.find_data_service(name) == model
                 end
 
-                if !data_sources.empty?
+                if !data_services.empty?
                     pp.nest(2) do
                         pp.breakable
                         pp.text "Data Services:"
                         pp.nest(2) do
-                            data_sources.each do |name, model|
+                            data_services.each do |name, model|
                                 pp.breakable
                                 pp.text "#{name}: #{model.name}"
                             end
@@ -497,7 +497,7 @@ module Orocos
             # If the :not option had not been used, three specializations would
             # have been added: the same two than above, and the one case where
             # 'Control' fullfills both the SimpleController and
-            # FourWheelController interfaces.
+            # FourWheelController data services.
             def specialize(child_name, child_model, options = Hash.new, &block)
                 options = Kernel.validate_options options, :not => []
                 if !options[:not].respond_to?(:to_ary)
@@ -578,13 +578,13 @@ module Orocos
             
             def pretty_print(pp) # :nodoc:
                 pp.text "#{name}:"
-                data_sources = each_data_source.to_a
-                if !data_sources.empty?
+                data_services = each_data_service.to_a
+                if !data_services.empty?
                     pp.nest(2) do
                         pp.breakable
                         pp.text "Data services:"
                         pp.nest(2) do
-                            data_sources.sort_by(&:first).
+                            data_services.sort_by(&:first).
                                 each do |name, model|
                                     pp.breakable
                                     pp.text "#{name}: #{model.name}"
@@ -1338,7 +1338,7 @@ module Orocos
                 if selected_object.kind_of?(Component)
                     child_task  = selected_object # selected an instance explicitely
                     child_model = child_task.model
-                elsif selected_object.kind_of?(DataSourceModel)
+                elsif selected_object.kind_of?(DataServiceModel)
                     child_model = selected_object.task_model
                 elsif selected_object < Component
                     child_model = selected_object
@@ -1385,18 +1385,18 @@ module Orocos
                 return false
             end
 
-            # Computes the port mappings required to apply the data sources in
-            # +data_sources+ to a task of +child_model+. +selected_object_name+
-            # is the selected object (as a string) given by the caller at
-            # instanciation time. It can be of the form
-            # <task_name>.<source_name>, in which case it is used to perform the
-            # selection
+            # Computes the port mappings required so that a task of
+            # +child_model+ can be used to fullfill the services listed in
+            # +data_services+. If +selected_object_name+ is non-nil, it is the the selected object (as
+            # a string) given by the caller at instanciation time. It can be of
+            # the form <task_name>.<source_name>, in which case it is used to
+            # perform the selection
             #
             # The returned port mapping hash is of the form
             #
             #   source_port_name => child_port_name
             #
-            def compute_port_mapping_for_selection(selected_object_name, child_model, data_sources) # :nodoc:
+            def compute_port_mapping_for_selection(selected_object_name, child_model, data_services) # :nodoc:
                 port_mappings = Hash.new
 
                 if selected_object_name
@@ -1406,10 +1406,10 @@ module Orocos
                                      end
                 end
 
-                data_sources.each do |data_source_model|
-                    target_source_name = child_model.find_matching_source(data_source_model, selection_name)
-                    if !child_model.main_data_source?(target_source_name)
-                        mappings = DataSourceModel.compute_port_mappings(data_source_model, child_model, target_source_name)
+                data_services.each do |data_service_model|
+                    target_source_name = child_model.find_matching_service(data_service_model, selection_name)
+                    if !child_model.main_data_service?(target_source_name)
+                        mappings = DataServiceModel.compute_port_mappings(data_service_model, child_model, target_source_name)
                         port_mappings.merge!(mappings) do |key, old, new|
                             if old != new
                                 raise InternalError, "two different port mappings are required"
@@ -1438,15 +1438,18 @@ module Orocos
                         find_selected_model_and_task(engine, child_name, selection)
                     verify_acceptable_selection(child_name, child_model, user_call)
 
-                    # If the model is a plain data source (i.e. not a task
-                    # model), we must map this source to a source on the
+                    # If the model is a plain data service (i.e. not a task
+                    # model), we must map this service to a service on the
                     # selected task
-                    data_sources  = dependent_model.find_all { |m| m < DataSource && !(m < Roby::Task) }
-                    if !data_sources.empty?
-                        port_mappings = compute_port_mapping_for_selection(selected_object_name, child_model, data_sources)
+                    data_services  = dependent_model.find_all { |m| m < DataService && !(m < Roby::Task) }
+                    if !data_services.empty?
+                        port_mappings =
+                            compute_port_mapping_for_selection(selected_object_name, child_model, data_services)
                     end
 
-                    Engine.debug { " selected #{child_task || child_model} (#{port_mappings}) for #{child_name}" }
+                    Engine.debug do
+                        " selected #{child_task || child_model} (#{port_mappings}) for #{child_name} (#{dependent_model.map(&:to_s).join(",")}) [#{data_services.empty?}]"
+                    end
                     result[child_name] = [child_model, child_task, port_mappings || Hash.new]
                 end
 
@@ -1479,7 +1482,7 @@ module Orocos
             # hash which maps a child selector to a selected model.
             #
             # The selected model can be:
-            # * a task, device driver or interface model
+            # * a task, a data service or a data source
             # * a device name
             # * a task name as given to Engine#add
             #
@@ -1528,7 +1531,8 @@ module Orocos
                 # children
                 children_tasks = Hash.new
                 selected_models.each do |child_name, (child_model, child_task, port_mappings)|
-                    if port_mappings
+                    if port_mappings && !port_mappings.empty?
+                        Orocos.debug { "applying port mappings for #{child_name}: #{port_mappings.inspect}" }
                         apply_port_mappings(connections, child_name, port_mappings)
                     end
 
