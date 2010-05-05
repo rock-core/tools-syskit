@@ -1727,33 +1727,6 @@ module Orocos
                 end
             end
 
-            def actual_connections
-                result = Array.new
-                model.each_output do |_, exported_output|
-                    real_port = resolve_port(exported_output)
-
-                    real_port.task.each_parent_vertex(ActualDataFlow) do |source_task|
-                        source_task[real_port.task, ActualDataFlow].each do |(source_port, sink_port), policy|
-                            if sink_port == exported_port.port_name
-                                result << [source_task, source_port, real_port.task, sink_port, policy]
-                            end
-                        end
-                    end
-                end
-
-                model.each_input do |_, exported_input|
-                    real_port = resolve_port(exported_input)
-                    real_port.task.each_child_vertex(ActualDataFlow) do |sink_task|
-                        real_port.task[sink_task, ActualDataFlow].each do |(source_port, sink_port), policy|
-                            if source_port == exported_port.port_name
-                                result << [real_port.task, source_port, sink_task, sink_port, policy]
-                            end
-                        end
-                    end
-                end
-                result
-            end
-
             # Helper for #added_child_object and #removing_child_object
             #
             # It adds the task to Flows::DataFlow.modified_tasks whenever the

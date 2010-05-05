@@ -515,21 +515,6 @@ module Orocos
             end
 
 
-            def actual_connections
-                result = Array.new
-                orogen_task.each_parent_vertex(ActualDataFlow) do |source_task|
-                    source_task[orogen_task, ActualDataFlow].each do |(source_port, sink_port), policy|
-                        result << [source_task, source_port, orogen_task, sink_port]
-                    end
-                end
-                orogen_task.each_child_vertex(ActualDataFlow) do |sink_task|
-                    orogen_task[sink_task, ActualDataFlow].each do |(source_port, sink_port), policy|
-                        result << [orogen_task, source_port, sink_task, sink_port]
-                    end
-                end
-                result
-            end
-
             # The Orocos::TaskContext instance that gives us access to the
             # remote task context. Note that it is set only when the task is
             # started.
