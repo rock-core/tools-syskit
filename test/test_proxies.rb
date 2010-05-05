@@ -238,6 +238,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         plan.add(deployment = Orocos::RobyPlugin::Deployments::System.new)
         plan.add_permanent(control = deployment.task('control'))
         plan.add_permanent(motors  = deployment.task('motor_controller'))
+        plan.add_permanent(started_ev = (motors.start_event & control.start_event))
         control.add_sink(motors, { ['cmd_out', 'command'] => Hash.new })
 
         configure_called = false
@@ -256,7 +257,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         control.executable = false
         engine.scheduler = Roby::Schedulers::Basic.new(true, plan)
         engine.run
-        assert_event_emission(control.start_event & motors.start_event) do
+        assert_event_emission(started_ev) do
             motors.executable  = true
             control.executable = true
         end
