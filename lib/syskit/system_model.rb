@@ -155,11 +155,8 @@ module Orocos
                 register_device_driver(model)
             end
 
+            # Create a new composition model with the given name
             def composition(name, options = Hash.new, &block)
-                subsystem(name, options, &block)
-            end
-
-            def subsystem(name, options = Hash.new, &block)
                 name = name.to_s
                 options = Kernel.validate_options options, :child_of => Composition, :register => true
 
