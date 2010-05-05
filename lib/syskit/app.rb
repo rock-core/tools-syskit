@@ -304,11 +304,30 @@ module Orocos
                 end
 
                 Orocos::RobyPlugin.process_servers['localhost'] = client
-                @server_pid
+                client
             end
 
             def self.stop_local_process_server
-                Process.kill(@server_pid)
+                return if !@server_pid
+
+                client = Orocos::RobyPlugin.process_servers['localhost']
+                if client
+                    begin
+                        client.quit_and_join
+                        return
+                    rescue Exception => e
+                        Orocos::RobyPlugin.warn "failed to quit the process server nicely, using #kill"
+                    end
+                end
+
+                if @server_pid
+                    ::Process.kill('KILL', @server_pid)
+                    begin
+                        ::Process.waitpid(@server_pid)
+                        @server_pid = nil
+                    rescue Errno::ESRCH
+                    end
+                end
             end
 
             def self.run(app)
@@ -331,13 +350,12 @@ module Orocos
                     Roby.remove_propagation_handler(handler_id)
                 end
 
+                # Stop the local process server if we started it ourselves
+                stop_local_process_server
                 Orocos::RobyPlugin.process_servers.each_value do |client|
                     client.disconnect
                 end
                 Orocos::RobyPlugin.process_servers.clear
-                if @server_pid
-                    stop_local_process_server
-                end
             end
         end
     end

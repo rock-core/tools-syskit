@@ -31,10 +31,6 @@ module RobyPluginCommonTest
     attr_reader :sys_model
     attr_reader :orocos_engine
 
-    def start_process_server
-        @process_server_pid = Orocos::RobyPlugin::Application.start_local_process_server
-    end
-
     def setup
         @old_loglevel = Orocos.logger.level
         super
@@ -86,11 +82,7 @@ module RobyPluginCommonTest
         end
 
     ensure
-        if @process_server_pid
-            begin Process.kill('INT', @process_server_pid)
-            rescue Errno::ESRCH
-            end
-        end
+        Orocos::RobyPlugin::Application.stop_local_process_server
 
         FileUtils.rm_rf Roby.app.log_dir
         ENV['PKG_CONFIG_PATH'] = @old_pkg_config

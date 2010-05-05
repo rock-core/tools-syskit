@@ -10,7 +10,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
     def setup
         super
-        start_process_server
+        Orocos::RobyPlugin::Application.start_local_process_server
         @orocos_update = engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
     end
     def teardown
