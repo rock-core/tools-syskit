@@ -1,7 +1,11 @@
 module Orocos
     module RobyPlugin
-        # Used to define composition children.
+        # Used by Composition to define its children. Values returned by
+        # Composition#find_child(name) are instances of that class.
         class CompositionChildDefinition
+            # The set of models that this child should fullfill. It is a
+            # ValueSet which contains at most one Component model and any number
+            # of data service models 
             attr_accessor :models
             attr_accessor :dependency_options
 
@@ -26,6 +30,7 @@ module Orocos
         #   sink   = add Sink
         #   source.port.connect_to sink.port
         #
+        # CompositionModel#[] also returns instances from that class.
         class CompositionChild
             # The composition this child is defined on
             attr_reader :composition
@@ -110,9 +115,30 @@ module Orocos
         # Specialization of CompositionChildPort for input ports
         class CompositionChildInputPort  < CompositionChildPort; end
 
+        # Additional methods that are mixed in composition specialization
+        # models. I.e. composition models created by Composition#specialize
         module CompositionSpecializationModel
             def is_specialization?; true end
 
+            # Returns a name to model_set mapping of the specializations that
+            # have been applied to get to this model from its direct parent.
+            #
+            # I.e. if one does
+            #
+            #   first_specialization = composition.specialize 'child' => model
+            #   second_specialization =
+            #       first_specialization.specialize 'other_child' => other_model
+            #
+            # then first_specialization.self_specialization will return
+            #
+            #   { 'child' => #<ValueSet: model> }
+            #
+            # and second_specialization.self_specialization will return
+            #
+            #   { 'other_child' => #<ValueSet: other_model> }
+            #
+            # See all_specializations to get all the specializations that go
+            # from the root composition to this composition
             def self_specialization
                 result = Hash.new
                 parent_model.specializations.find { |s| s.composition == self }.
@@ -122,6 +148,25 @@ module Orocos
                 result
             end
 
+            # Returns a name to model_set mapping of the specializations that
+            # have been applied to get to this model from the root composition.
+            #
+            # I.e. if one does
+            #
+            #   first_specialization = composition.specialize 'child' => model
+            #   second_specialization =
+            #       first_specialization.specialize 'other_child' => other_model
+            #
+            # then first_specialization.self_specialization will return
+            #
+            #   { 'child' => #<ValueSet: model> }
+            #
+            # and second_specialization.self_specialization will return
+            #
+            #   { 'child' => #<ValueSet: model>,
+            #   'other_child' => #<ValueSet: other_model> }
+            #
+            # See also self_specialization
             def all_specializations
                 superclass = parent_model
                 if superclass.is_specialization?
@@ -134,6 +179,10 @@ module Orocos
                 end
             end
 
+            # Returns the model name
+            #
+            # This is formatted as
+            # root_model/child_name.is_a?(specialized_list),other_child.is_a?(...)
             def name
                 specializations = all_specializations.map do |child_name, child_models|
                     "#{child_name}.is_a?(#{child_models.map(&:name).join(",")})"
@@ -212,6 +261,7 @@ module Orocos
                 klass
             end
 
+            # Returns the composition model that is parent to this one
             def parent_model
                 parent = superclass
                 while !parent.kind_of?(Class)
@@ -309,6 +359,60 @@ module Orocos
                 children[name] = result
             end
 
+            # Add an element in this composition.
+            #
+            # This method adds a new element from the given component or data
+            # service model. Raises ArgumentError if +model+ is of neither type.
+            #
+            # If an 'as' option is provided, this name will be used as the child
+            # name. Otherwise, the basename of 'model' is used as the child
+            # name. It will raise SpecError if the name is already used in this
+            # composition.
+            #
+            # Returns the child definition as a CompositionChild instance. This
+            # instance can also be accessed with Composition.[]
+            #
+            # For instance
+            #   
+            #   orientation_provider = data_service 'Orientation'
+            #   # This child will be naned 'Orientation'
+            #   composition.add orientation_provider
+            #   # This child will be named 'imu'
+            #   composition.add orientation_provider, :as => 'imu'
+            #   composition['Orientation'] # => CompositionChild representing
+            #                              # the first element
+            #   composition['imu'] # => CompositionChild representing the second
+            #                      # element
+            #
+            # == Subclassing
+            #
+            # If the composition model is a subclass of another composition
+            # model, then +add+ can be used to override a child definition. In
+            # if it the case, if +model+ is a component model, then it has to be
+            # a subclass of any component model that has been used in the parent
+            # composition. Otherwise, #add raises SpecError
+            #
+            # For instance,
+            #
+            #   raw_imu_readings = data_service "RawImuReadings"
+            #   submodel = composition.new_submodel 'Foo'
+            #   # This is fine as +raw_imu_readings+ and +orientation_provider+
+            #   # can be combined. +submodel+ will require 'imu' to provide both
+            #   # a RawImuReadings data service and a Orientation data service.
+            #   submodel.add submodel, :as => 'imu' 
+            #
+            # Now, let's assume that 'imu' was declared as
+            #
+            #   composition.add XsensImu::Task, :as => 'imu'
+            #
+            # where XsensImu::Task is an actual component that drives IMUs from
+            # the Xsens company. Then,
+            #
+            #   submodel.add DfkiImu::Task, :as => 'imu'
+            #
+            # would be invalid as the 'imu' child cannot be both an XsensImu and
+            # DfkiImu task. In this case, you would need to define a common data
+            # service that is provided by both components.
             def add(model, options = Hash.new)
                 if !model.kind_of?(Roby::TaskModelTag) && !(model.kind_of?(Class) && model < Component)
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
@@ -322,6 +426,26 @@ module Orocos
             # Requires the specified child to be of the given models. It is
             # mainly used in an abstract compostion definition to force the user
             # to select a specific child model.
+            #
+            # For instance, in
+            #
+            #   orientation_provider = data_service 'Orientation'
+            #   composition.add orientation_provider, :as => 'imu'
+            #   composition.constrain 'imu',
+            #       [CompensatedSensors, RawSensors]
+            #
+            # Then the actual component selected for the composition's 'imu'
+            # child would have to provide the Orientation data service *and*
+            # either the CompensatedSensors and RawSensors (or both).
+            #
+            # If both can't be selected, use the :exclusive option, as:
+            #
+            #   composition.constrain 'imu',
+            #       [CompensatedSensors, RawSensors],
+            #       :exclusive => true
+            #
+            # This creates specializations for the allowed combinations. See
+            # #specialize for more informations on specializations
             def constrain(child, allowed_models, options = Hash.new)
                 options = Kernel.validate_options options, :exclusive => false
 
@@ -452,7 +576,7 @@ module Orocos
             # See CompositionSpecializationModel#specialized_on?
             def specialized_on?(child_name, child_model); false end
             
-            def pretty_print(pp)
+            def pretty_print(pp) # :nodoc:
                 pp.text "#{name}:"
                 data_sources = each_data_source.to_a
                 if !data_sources.empty?
@@ -477,7 +601,7 @@ module Orocos
                 end
             end
 
-            def pretty_print_specializations(pp)
+            def pretty_print_specializations(pp) # :nodoc:
                 pp.nest(2) do
                     specializations.each do |submodel|
                         pp.breakable
@@ -1476,6 +1600,7 @@ module Orocos
 
         # Namespace for all defined composition models
         module Compositions
+            # Yields the composition models that have been defined so far.
             def self.each
                 constants.each do |name|
                     value = const_get(name)
@@ -1489,6 +1614,8 @@ module Orocos
         #
         # Compositions are used to regroup components and/or other compositions
         # in functional groups.
+        #
+        # See the CompositionModel for class-level methods
         class Composition < Component
             extend CompositionModel
 
@@ -1511,6 +1638,9 @@ module Orocos
             # Inputs imported from this composition
             inherited_enumerable(:input, :inputs, :map => true)  { Hash.new }
 
+            # Overriden from Roby::Task
+            #
+            # will return false if any of the children is not executable.
             def executable?(with_setup = false) # :nodoc:
                 each_child do |child_task, _|
                     if child_task.kind_of?(Component) && !child_task.executable?(with_setup)
@@ -1561,6 +1691,8 @@ module Orocos
             end
 
             # Helper method for #output_port and #resolve_port
+            #
+            # It returns a component instance and a port name.
             def resolve_input_port(name) # :nodoc:
                 if !(port = model.input_port(name.to_str))
                     raise ArgumentError, "no input port named '#{name}' on '#{self}'"
@@ -1569,6 +1701,13 @@ module Orocos
             end
 
             # Internal implementation of #output_port and #input_port
+            #
+            # It returns the [component instance, port name] pair which
+            # describes the port which is connected to +exported_port+, where
+            # +exported_port+ is a port of this composition.
+            #
+            # In other words, it returns the port that is used to produce data
+            # for the exported port +exported_port+.
             def resolve_port(exported_port) # :nodoc:
                 role = exported_port.child.child_name
                 task = child_from_role(role)
@@ -1616,6 +1755,10 @@ module Orocos
             end
 
             # Helper for #added_child_object and #removing_child_object
+            #
+            # It adds the task to Flows::DataFlow.modified_tasks whenever the
+            # DataFlow relations is changed in a way that could require changing
+            # the underlying Orocos components connections.
             def dataflow_change_handler(child, mappings) # :nodoc:
                 if child.kind_of?(TaskContext)
                     Flows::DataFlow.modified_tasks << child
@@ -1643,7 +1786,7 @@ module Orocos
             #
             # It updates Flows::DataFlow.modified_tasks so that the engine can
             # update the underlying task's connections
-            def added_child_object(child, relations, mappings)
+            def added_child_object(child, relations, mappings) # :nodoc:
                 super
 
                 if relations.include?(Flows::DataFlow)
@@ -1655,7 +1798,7 @@ module Orocos
             #
             # It updates Flows::DataFlow.modified_tasks so that the engine can
             # update the underlying task's connections
-            def removing_child_object(child, relations)
+            def removing_child_object(child, relations) # :nodoc:
                 super
 
                 if relations.include?(Flows::DataFlow)
