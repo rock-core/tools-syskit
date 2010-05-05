@@ -3,3 +3,7 @@
 
 /triggering:
     sort_info: 200
+
+/roby:
+    sort_info: 300
+
