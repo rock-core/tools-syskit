@@ -338,7 +338,7 @@ module Orocos
                     Orocos.initialize
                     start_local_process_server
                 end
-                handler_id = Roby.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
+                handler_id = Roby.engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
 
                 yield
 
@@ -348,7 +348,7 @@ module Orocos
                 Orocos::Process.kill(remaining)
 
                 if handler_id
-                    Roby.remove_propagation_handler(handler_id)
+                    Roby.engine.remove_propagation_handler(handler_id)
                 end
 
                 # Stop the local process server if we started it ourselves
