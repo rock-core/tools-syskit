@@ -359,7 +359,7 @@ module Orocos
                 if child_task_model
                     parent_task_model = parent_model.models.find { |m| m < Component }
                     if parent_task_model && !(child_task_model <= parent_task_model)
-                        raise SpecError, "trying to overload #{parent_model} with #{child_model}"
+                        raise SpecError, "trying to overload #{parent_model.models} with #{child_model}"
                     end
                 end
 
