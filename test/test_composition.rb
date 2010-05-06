@@ -529,28 +529,35 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
              spec_tag12.composition.children['Source'].models)
     end
 
-    def test_model_find_exact_specialization
+    def test_model_find_specialization_exact
         tag  = Roby::TaskModelTag.new { def self.name; "Tag1" end }
         model0 = Class.new(SimpleSource::Source) do
             def self.name; "Model0" end
             include tag
         end
+        submodel0 = Class.new(model0)
         model1 = Class.new(SimpleSource::Source) do
             def self.name; "Model1" end
             include tag
         end
 
-        specialization = nil
+        spec0, spec0_submodel = nil
         subsys = sys_model.composition("composition") do
             add tag, :as => 'child'
             
-            specialization = specialize 'child', model0
+            spec0 = specialize 'child', model0 do
+                spec0_submodel = specialize "child", submodel0
+            end
         end
 
         assert_equal [], subsys.find_specializations(orocos_engine,
                 'child' => [model1])
-        assert_equal [specialization], subsys.find_specializations(orocos_engine,
+        assert_equal [spec0], subsys.find_specializations(orocos_engine,
                 'child' => [model0])
+        assert_equal [spec0_submodel], subsys.find_specializations(orocos_engine,
+                'child' => [submodel0])
+    end
+
     def test_specialize_with_incompatible_models
         tag  = Roby::TaskModelTag.new { def self.name; "Tag1" end }
         model0 = Class.new(SimpleSource::Source) do
