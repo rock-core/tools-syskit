@@ -170,7 +170,7 @@ module Orocos
                     next if ready?
 
                     if orogen_deployment.wait_running(0)
-                        Orocos::Process.log_all_ports(orogen_deployment)
+                        Orocos::Process.log_all_ports(orogen_deployment, :log_dir => Roby.app.log_dir)
 
                         @task_handles = Hash.new
                         orogen_spec.task_activities.each do |activity|
