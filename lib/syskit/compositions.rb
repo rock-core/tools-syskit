@@ -540,9 +540,7 @@ module Orocos
                     raise SpecError, "there is no child called #{child_name} in #{self}"
                 end
                 parent_model = find_child(child_name)
-                if parent_model.models.any? { |m| m <= child_model }
-                    raise SpecError, "#{child_model} does not specify a specialization of #{parent_model}"
-                end
+                verify_acceptable_specialization(child_name, child_model, false)
 
                 submodel_name = "#{name}_#{child_name}_#{child_model.name}"
                 if submodel_name !~ /^Anon/
@@ -573,13 +571,35 @@ module Orocos
                         end
                     end
 
-                    spec.composition.specialize(child_name, child_model, options)
+                    # Don't try to cross-specialize if the specialization is not
+                    # valid.
+                    valid = catch :invalid_selection do
+                        spec.composition.verify_acceptable_specialization(child_name, child_model, false)
+                    end
+                    if valid
+                        spec.composition.specialize(child_name, child_model, options)
+                    end
                 end
 
                 if block
                     apply_specialization_block(child_name, child_model, block)
                 end
                 child_composition
+            end
+
+            def verify_acceptable_specialization(child_name, child_model, user_call = true)
+                parent_models = find_child(child_name).models
+                if parent_models.any? { |m| m <= child_model }
+                    throw :invalid_selection if !user_call
+                    raise SpecError, "#{child_model} does not specify a specialization of #{parent_models}"
+                end
+                if child_model < Component && parent_class = parent_models.find { |m| m < Component }
+                    if !(child_model < parent_class)
+                        throw :invalid_selection if !user_call
+                        raise SpecError, "#{child_model} is not a subclass of #{parent_class}, cannot specialize #{child_name} with it"
+                    end
+                end
+                true
             end
 
             # Returns true if this composition model is a specialized version of

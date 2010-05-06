@@ -551,6 +551,29 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
                 'child' => [model1])
         assert_equal [specialization], subsys.find_specializations(orocos_engine,
                 'child' => [model0])
+    def test_specialize_with_incompatible_models
+        tag  = Roby::TaskModelTag.new { def self.name; "Tag1" end }
+        model0 = Class.new(SimpleSource::Source) do
+            def self.name; "Model0" end
+            include tag
+        end
+        model1 = Class.new(SimpleSource::Source) do
+            def self.name; "Model1" end
+            include tag
+        end
+
+        spec0, spec1 = nil
+        subsys = sys_model.composition("composition") do
+            add tag, :as => 'child'
+            
+            spec0 = specialize 'child', model0
+            spec1 = specialize 'child', model1
+        end
+
+        # There should be no cross-specializations since model0 and model1 are
+        # incompatible
+        assert spec0.specializations.empty?
+        assert spec1.specializations.empty?
     end
 
     def test_instanciate_specializations
