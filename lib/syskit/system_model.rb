@@ -42,10 +42,17 @@ module Orocos
                 Orocos::RobyPlugin::Compositions.const_set(model.name.camelcase(true), model)
             end
             def each_composition(&block)
+                if !block_given?
+                    return enum_for(:each_composition)
+                end
+
                 Orocos::RobyPlugin::Compositions.constants.
                     map { |name| Orocos::RobyPlugin::Compositions.const_get(name) }.
                     find_all { |model| model.kind_of?(Class) && model < Composition }.
-                    each(&block)
+                    each do |model|
+                        yield(model)
+                        model.each_specialization(&block)
+                    end
             end
 
             def import_types_from(*names)

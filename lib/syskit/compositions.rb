@@ -270,6 +270,19 @@ module Orocos
                 parent
             end
 
+            def each_specialization(recursive = true, &block)
+                if !block_given?
+                    return enum_for(:each_specialization, recursive)
+                end
+
+                specializations.each do |spec|
+                    yield(spec.composition)
+                    if recursive
+                        spec.composition.each_specialization(&block)
+                    end
+                end
+            end
+
             #--
             # Documentation of the inherited_enumerable attributes defined on
             # Composition
