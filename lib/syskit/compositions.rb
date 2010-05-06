@@ -821,7 +821,7 @@ module Orocos
                                 recurse = false
                                 valid = false
                                 break
-                            elsif comparison_with_selection == 1 && comparison_with_ourselves == 1
+                            elsif comparison_with_selection && comparison_with_ourselves == 1
                                 valid = true
                             end
                         end
