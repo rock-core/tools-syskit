@@ -233,10 +233,14 @@ module Orocos
                 Roby.app.orocos_engine.resolve
             end
 
+            all_dead_deployments = ValueSet.new
             for name, server in Orocos::RobyPlugin.process_servers
                 if dead_deployments = server.wait_termination(0)
                     dead_deployments.each do |p, exit_status|
-                        Deployment.all_deployments[p].dead!(exit_status)
+                        Orocos::RobyPlugin.warn "#{p.name} died on #{name}"
+                        d = Deployment.all_deployments[p]
+                        all_dead_deployments << d
+                        d.dead!(exit_status)
                     end
                 end
             end
@@ -260,7 +264,7 @@ module Orocos
             end
 
             tasks = Flows::DataFlow.modified_tasks
-            tasks.delete_if { |t| !t.plan || t.transaction_proxy? }
+            tasks.delete_if { |t| !t.plan || all_dead_deployments.include?(t.execution_agent) || t.transaction_proxy? }
             if !tasks.empty?
                 main_tasks, proxy_tasks = tasks.partition { |t| t.plan.executable? }
                 main_tasks = main_tasks.to_value_set
