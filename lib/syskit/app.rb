@@ -291,7 +291,8 @@ module Orocos
                     port = Orocos::ProcessServer::DEFAULT_PORT)
 
                 @server_pid = fork do
-                    Orocos.logger.level = Logger::DEBUG
+                    Orocos.logger.level = ::Logger::DEBUG
+                    ::Process.setpgrp
                     Orocos::ProcessServer.run(options, port)
                 end
                 # Wait for the server to be ready
