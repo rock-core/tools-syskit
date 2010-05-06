@@ -501,7 +501,7 @@ module Orocos
                 else
                     remaining = orogen_spec.context.each_port.map(&:name).to_set
                     remaining -= result[self].keys.to_set
-                    Engine.warn { "cannot find period information for " + remaining.to_a.join(", ") }
+                    Engine.info { "cannot find period information for " + remaining.to_a.join(", ") }
                     false
                 end
             end
