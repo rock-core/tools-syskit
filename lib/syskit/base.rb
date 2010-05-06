@@ -394,6 +394,7 @@ module Orocos
 
             DATA_SERVICE_ARGUMENTS = { :as => nil, :slave_of => nil, :main => nil }
 
+            # Alias for data_service
             def self.provides(*args)
                 data_service(*args)
             end
