@@ -837,6 +837,14 @@ module Orocos
                           find_specializations(engine, selected_models))
                 end
 
+                Orocos::RobyPlugin.debug do
+                    Orocos::RobyPlugin.debug "found #{candidates.size} specializations for #{name} against #{selected_models}"
+                    candidates.each do |c|
+                        Orocos::RobyPlugin.debug c.name
+                    end
+                    break
+                end
+
                 result = find_most_specialized_compositions(
                     engine, candidates, selected_models.keys)
 
