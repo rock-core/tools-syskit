@@ -112,7 +112,6 @@ module Orocos
             end
 
             def dead!(result)
-                orogen_deployment.dead!
                 if !result
                     emit :failed
                 elsif result.success?
@@ -122,56 +121,7 @@ module Orocos
                 else
                     emit :failed, result
                 end
-            end
 
-            # Event emitted when the deployment is up and running
-            event :ready
-
-            poll do
-                next if ready?
-
-                if orogen_deployment.wait_running(0)
-                    Orocos::Process.log_all_ports(orogen_deployment)
-
-                    @task_handles = Hash.new
-                    orogen_spec.task_activities.each do |activity|
-                        task_handles[activity.name] = 
-                            ::Orocos::TaskContext.get(activity.name)
-                    end
-
-                    each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                        task.orogen_task = task_handles[task.orocos_name]
-                    end
-
-                    emit :ready
-                end
-            end
-
-            ##
-            # method: stop!
-            #
-            # Stops all tasks that are running on top of this deployment, and
-            # kill the deployment
-            event :stop do |context|
-                to_be_killed = each_executed_task.find_all(&:running?)
-                if to_be_killed.empty?
-                    orogen_deployment.kill(false)
-                    return
-                end
-
-                # Add an intermediate event that will fire when the intermediate
-                # tasks have been stopped
-                terminal = Roby::AndGenerator.new
-                to_be_killed.each do |task|
-                    task.stop!
-                    terminal << task.stop_event
-                end
-                terminal.on { |event| orogen_deployment.kill(false) }
-                # The stop event will get emitted after the process has been
-                # killed. See the polling block.
-            end
-
-            on :stop do |event|
                 Deployment.all_deployments.delete(orogen_deployment)
                 orogen_spec.task_activities.each do |act|
                     TaskContext.configured.delete(act.name)
@@ -210,6 +160,58 @@ module Orocos
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orogen_task = nil
                 end
+            end
+
+            # Event emitted when the deployment is up and running
+            event :ready
+
+            poll do
+                begin
+                    next if ready?
+
+                    if orogen_deployment.wait_running(0)
+                        # Orocos::Process.log_all_ports(orogen_deployment)
+
+                        @task_handles = Hash.new
+                        orogen_spec.task_activities.each do |activity|
+                            task_handles[activity.name] = 
+                                ::Orocos::TaskContext.get(activity.name)
+                        end
+
+                        each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
+                            task.orogen_task = task_handles[task.orocos_name]
+                        end
+
+                        emit :ready
+                    end
+                rescue Exception => e
+                    STDERR.puts e.message
+                    raise
+                end
+            end
+
+            ##
+            # method: stop!
+            #
+            # Stops all tasks that are running on top of this deployment, and
+            # kill the deployment
+            event :stop do |context|
+                to_be_killed = each_executed_task.find_all(&:running?)
+                if to_be_killed.empty?
+                    orogen_deployment.kill(false)
+                    return
+                end
+
+                # Add an intermediate event that will fire when the intermediate
+                # tasks have been stopped
+                terminal = Roby::AndGenerator.new
+                to_be_killed.each do |task|
+                    task.stop!
+                    terminal << task.stop_event
+                end
+                terminal.on { |event| orogen_deployment.kill(false) }
+                # The stop event will get emitted after the process has been
+                # killed. See the polling block.
             end
 
             # Creates a subclass of Deployment that represents the deployment
