@@ -136,6 +136,12 @@ module Orocos
 
             # Called by Roby::Application on setup
             def self.setup(app)
+                if !Roby.respond_to?(:orocos_engine)
+                    def Roby.orocos_engine
+                        Roby.app.orocos_engine
+                    end
+                end
+
                 Orocos.disable_sigchld_handler = true
                 Orocos.load
 
