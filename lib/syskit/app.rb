@@ -256,6 +256,8 @@ module Orocos
                 end
             end
 
+            # Load a part of the system model, i.e. composition and/or data
+            # services
             def load_system_model(file)
                 if !File.exists?(file) && File.exists?("#{file}.rb")
                     file = "#{file}.rb"
@@ -270,6 +272,8 @@ module Orocos
                 end
             end
 
+            # Load a part of the system definition, i.e. the robot description
+            # files
             def load_system_definition(file)
                 search_path = [RobyPlugin,
                     RobyPlugin::DataServices,
