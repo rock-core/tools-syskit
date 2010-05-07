@@ -164,16 +164,16 @@ module Orocos
 
                 # Load the data services and task models
                 %w{data_services compositions}.each do |category|
-                    all_files = app.list_dir(APP_DIR, "tasks", "orocos", category).to_a +
-                        app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'orocos', category).to_a
+                    all_files = app.list_dir(APP_DIR, "tasks", category).to_a +
+                        app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', category).to_a
                     all_files.each do |path|
                         app.load_system_model(path)
                     end
                 end
 
                 project_names = app.loaded_orogen_projects.keys
-                task_models = (app.list_dir(APP_DIR, "tasks", "orocos").to_a +
-                    app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'orocos').to_a)
+                task_models = (app.list_dir(APP_DIR, "tasks", 'components').to_a +
+                    app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'components').to_a)
                 task_models.each do |path|
                     if project_names.include?(File.basename(path, ".rb"))
                         load_task_extension(path, app)
