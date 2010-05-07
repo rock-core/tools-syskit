@@ -293,7 +293,7 @@ module Orocos
 		else
 		    raise ArgumentError, "cannot find a deployment named '#{name}'"
 		end
-		orocos_engine.resolve(compute_policies)
+		orocos_engine.resolve(:compute_policies => compute_policies)
 	    end
 
             def self.start_local_process_server(
