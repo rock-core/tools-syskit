@@ -36,8 +36,8 @@ To avoid this  situation, Orocos.initialize reports the following error:
 
   ArgumentError: pkg-config --list-all returns an error. Run it in a console and install packages that are reported.
 
-So, just do that. You will have to find what package contains the
-<package_name>.pc file (for instance by searching on packages.debian.org or
+So, just do that. You will have to find what package contains the package_name.pc
+file (for instance by searching on packages.debian.org or
 packages.ubuntu.com). In the example above, one would search the libdrm.pc file,
 and find out that it is provided by the libdrm-dev package. You then have to
 install it with:

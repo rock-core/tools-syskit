@@ -249,6 +249,7 @@ text-align:center;
 }
 
 .block{
+display: inline-block;
 padding:20px;
 background:#eee;
 color:#222;
@@ -321,5 +322,9 @@ Released through OSWD.org */
     margin-left: 1em;
     margin-top: -.6em;
     margin-bottom: .5em;
+}
+.floating-image {
+    margin-right: 1em;
+    float: left;
 }
 

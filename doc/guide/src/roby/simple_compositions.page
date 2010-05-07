@@ -1,7 +1,7 @@
 ---
 title: A Simple Composition
 sort_info: 0
---- name:content pipeline:tags,markdown,blocks
+---
 
 In the world of component-based development, putting components together to form
 a network is called a _composition_. What this page will be about is creating
@@ -16,10 +16,10 @@ Defining compositions
 ---------------------
 
 When the Roby plugins are loaded, all files contained in
-<tt>tasks/orocos/compositions</tt> are loaded at setup time, and are supposed to
+<tt>tasks/compositions</tt> are loaded at setup time, and are supposed to
 contain the composition definitions.
 
-Edit tasks/orocos/compositions/ptu_stabilization.rb and add
+Edit tasks/compositions/ptu_stabilization.rb and add
 
 {coderay:: ruby}
 using_task_library 'xsens_imu'
@@ -49,10 +49,78 @@ will connect those.
 One consistent behaviour of the Orocos/Roby plugin is that, whenever an
 "automatic" thing happens (here, autoconnection), if ambiguities exist (for
 instance, multiple outputs match a single input), the model code will raise an
-error. Ambiguities need to be solved manually.
+error. Ambiguities need to be solved manually. We will learn how to solve them
+later in this guide
 {: .warning}
 
-Graphically, it looks like this:
+Composition models can be tested by using scripts/orocos/system_model:
 
-TODO: add composition representation
+scripts/orocos/load_models -o png
+{: .commandline}
+
+You can read the generated SVG file using for instance inkscape. It looks like
+this:
+
+![simple_composition](simple_composition.png)
+{: .floating-image}
+
+**We can therefore see that**:
+
+ * the IMU task is giving orientation information to the PitchServoing task
+ * the PitchServoing task then sends the computed command to the servo driver
+
+*Exactly what we wanted !*
+
+Note: load_models support other output types, including svg. Replace 'png' by
+'svg' above if you want to edit the output. Run the script without arguments for
+more help.
+{: .block}
+
+Deployment
+----------
+
+As already mentioned, one important part of the Orocos/RTT development is to
+_deploy_ things: i.e. take abstract components and tell the system how they
+should run in practice (what type of thread, what priority) and how they should
+be triggered. This is absolutely not specific to the Roby plugin. We will, for
+instance, assume that the tasks we require are deployed in one oroGen project
+with:
+
+{coderay:: ruby}
+name :sys_deployment
+
+using_task_library "xsens_imu"
+using_task_library "pitch_servoing"
+using_task_library "dynamixel"
+
+deployment "xsens_imu" do
+    task "xsens_imu", "xsens_imu::Task"
+end
+
+deployment "pitch_servoing" do
+    task "control", "pitch_servoing::Task"
+end
+
+deployment "dynamixel" do
+    task "servo", "dynamixel::Task"
+end
+{coderay}
+
+To tell the plugin that you want to use this deployment at runtime, you will
+need to add the following line to controllers/tut_ptu_servoing.rb:
+
+{coderay:: ruby}
+Roby.orocos_engine.use_deployments_from "sys_deployment"
+{coderay}
+
+and test the association between the abstract compositions and the deployment with
+
+scripts/orocos/instanciate -r tut_ptu_servoing controllers/tut_ptu_servoing.rb
+{: .commandline}
+
+**Note**: giving controllers/tut_ptu_servoing.rb directly to
+scripts/orocos/instanciate is only possible because that controller file
+contains only deployment-specific things. In practice, you would need to put the
+deployment in a separate file and give that file to the instanciate script
+{: .warning}
 

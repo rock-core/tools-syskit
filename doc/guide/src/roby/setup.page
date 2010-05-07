@@ -5,20 +5,25 @@ sort_info: 0
 
 Setting up a Roby controller
 ----------------------------
+
  1. make the Orocos/Roby plugin available to Roby by updating the
     ROBY_PLUGIN_PATH environment variable
 
-      ROBY_PLUGIN_PATH=/path/to/orocos-rb/lib/orocos/roby:$ROBY_PLUGIN_PATH
+    ROBY_PLUGIN_PATH=/path/to/orocos-rb/lib/orocos/roby:$ROBY_PLUGIN_PATH
+    {: .commandline}
 
  2. create a new Roby controller (if you don't have one already). Create a new
     directory, cd into it and do
 
-      roby init -m orocos
+    roby init -p orocos
+    {: .commandline}
 
  3. finally, enable the Orocos plugin for the controller. Edit config/init.rb
     and add
 
-      Roby.app.using 'orocos'
+{coderay:: ruby}
+Roby.app.using 'orocos'
+{coderay}
 
 The role of task contexts and deployments
 -----------------------------------------
