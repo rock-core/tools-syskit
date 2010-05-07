@@ -286,7 +286,9 @@ module Orocos
             end
 
 	    def apply_orocos_deployment(name, compute_policies = true)
-		if file = robotfile('config', 'ROBOT', 'deployments', "#{name}.rb")
+                if File.file?(name)
+                    load_system_definition(name)
+		elsif file = robotfile('config', 'ROBOT', 'deployments', "#{name}.rb")
 		    load_system_definition(file)
 		elsif File.file?(file = File.join('config', 'deployments', "#{name}.rb"))
 		    load_system_definition(file)
