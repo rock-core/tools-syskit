@@ -50,18 +50,19 @@ end
 
 output_type = 'txt'
 output_file = nil
+robot_name, robot_type = nil
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD
-Usage: scripts/orocos/system_model [options] robot_name
+Usage: scripts/orocos/system_model [options]
 Loads the models listed by robot_name, and outputs their model structure
     EOD
-    opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, 'in what format to output the result (can be: txt, dot or svg), defaults to txt') do |output_arg|
+    opt.on('-r NAME', '--robot=NAME[,TYPE]', String, 'the robot from which we should load model files') do |name|
+        robot_name, robot_type = name.split(',')
+        Roby.app.robot(robot_name, robot_type||robot_name)
+    end
+    opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, 'in what format to output the result (can be: txt, dot, png or svg), defaults to txt') do |output_arg|
         output_type, output_file = output_arg.split(':')
         output_type = output_type.downcase
-        if output_type != 'txt' && !output_file
-            STDERR.puts "you must specify an output file for the dot and svg outputs"
-            exit(1)
-        end
     end
     opt.on_tail('-h', '--help', 'this help message') do
 	STDERR.puts opt
@@ -70,10 +71,28 @@ Loads the models listed by robot_name, and outputs their model structure
 end
 remaining = parser.parse(ARGV)
 
+# Generate a default name if the output file name has not been given
+if output_type != 'txt' && !output_file
+    output_file =
+        if robot_name || robot_type
+            "#{robot_name || robot_type}.#{output_type}"
+        else
+            "system_model.#{output_type}"
+        end
+end
+
 # Load the models
 Orocos::RobyPlugin.logger.level = Logger::INFO
+Roby.app.using "orocos"
 Roby.filter_backtrace do
     Roby.app.setup
+end
+
+# Load additional files from the command line
+ARGV.each do |file|
+    if File.file?(file)
+        Roby.app.load_system_model file
+    end
 end
 
 # Now output them
@@ -92,6 +111,15 @@ when "qt"
         layout = `dot -Tdot #{io.path}`
     end
     produce_qt_layout(Roby.app.orocos_system_model, layout)
+when "png"
+    Tempfile.open('roby_orocos_system_model') do |io|
+        io.write Roby.app.orocos_system_model.to_dot
+        io.flush
+
+        File.open(output_file, 'w') do |output_io|
+            output_io.puts(`dot -Tpng #{io.path}`)
+        end
+    end
 when "svg"
     Tempfile.open('roby_orocos_system_model') do |io|
         io.write Roby.app.orocos_system_model.to_dot
@@ -101,5 +129,8 @@ when "svg"
             output_io.puts(`dot -Tsvg #{io.path}`)
         end
     end
+end
+if output_file
+    STDERR.puts "exported result to #{output_file}"
 end
 
