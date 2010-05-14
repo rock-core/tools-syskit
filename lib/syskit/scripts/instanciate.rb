@@ -53,7 +53,7 @@ if output_type != 'txt' && !output_file
         if robot_name || robot_type
             "#{robot_name || robot_type}"
         else
-            "instanciate"
+            File.basename(deployment_file, File.extname(deployment_file))
         end
 end
 hierarchy_file = "#{output_file}-hierarchy.#{output_type}"
