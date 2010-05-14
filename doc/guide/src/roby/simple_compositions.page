@@ -61,7 +61,7 @@ scripts/orocos/load_models -o png
 You can read the generated SVG file using for instance inkscape. It looks like
 this:
 
-![simple_composition](simple_composition.png)
+![Model of a simple composition](simple_composition.png)
 {: .floating-image}
 
 **We can therefore see that**:
@@ -87,7 +87,7 @@ instance, assume that the tasks we require are deployed in one oroGen project
 with:
 
 {coderay:: ruby}
-name :sys_deployment
+name 'sys_deployment'
 
 using_task_library "xsens_imu"
 using_task_library "pitch_servoing"
@@ -106,21 +106,90 @@ deployment "dynamixel" do
 end
 {coderay}
 
-To tell the plugin that you want to use this deployment at runtime, you will
-need to add the following line to controllers/tut_ptu_servoing.rb:
+Let's test the deployed component network. Create a tut.rb file with
 
 {coderay:: ruby}
-Roby.orocos_engine.use_deployments_from "sys_deployment"
+use_deployments_from "sys_deployment"
+add PTUStabilization
 {coderay}
 
-and test the association between the abstract compositions and the deployment with
+and test it association between the abstract compositions and the deployment with
 
-scripts/orocos/instanciate -r tut_ptu_servoing controllers/tut_ptu_servoing.rb
+scripts/orocos/instanciate -o svg tut.rb
 {: .commandline}
 
-**Note**: giving controllers/tut_ptu_servoing.rb directly to
-scripts/orocos/instanciate is only possible because that controller file
-contains only deployment-specific things. In practice, you would need to put the
-deployment in a separate file and give that file to the instanciate script
-{: .warning}
+This command generates two graphs. We are first interested in the _dataflow_
+graph (tut-dataflow.png), which represents the components, their deployments and
+the data flow between their ports:
+
+![Data flow of the instanciated simple composition](simple_composition_instanciate.png)
+
+We see the three deployments that the sys_deployment orogen project defines, the
+actual RTT task contexts, and in what deployment each task context runs.
+Moreover, the flow between the component's ports is also depicted, along with
+the chosen data flow policy, which is there 'data' (more on that later).
+
+What the Roby plugin also does is generate the dependency structure that Roby
+needs to __supervise__ this network. If you look at the hierarchy file:
+
+![Hierarchy structure of the instanciated simple composition](simple_composition_instanciate_hierarchy.png)
+
+You see that there are two layers of tasks:
+
+ * the first link, between the PTUStabilization composition and the tasks
+   represent the dependency between the composition's service (stabilizing the
+   PTU) and each of the subtask's roles (attitude reading, control, driving a
+   servo). In Roby, this is represented as a [Dependency
+   relation](http://doudou.github.com/roby/relations/dependency.html)
+ * the second layer of links (in blue) represent that, in order for the tasks to
+   run, one needs first the deployments to be started. This is represented in
+   Roby through the execution agent relation.
+
+Last steps to run the network
+----------------------------
+
+There is one more step that is needed to actually run that network: one will
+need to configure the components. I.e. tell the xsens driver what device file
+should be used, the baud rates, ...
+
+To do that, one has to define a configure method on Roby's task's models. I.e.
+on the XsensImu::Task Ruby class that represents the underlying RTT task
+context. In this method, one has access to the Roby plan and tasks (obviously),
+and also to the Ruby representation of the running RTT task context through the
+orogen_task attribute.
+
+This configure method is called whenever the component needs to be started,
+before the task context's configure method itself is called.
+
+Edit tut.rb and add
+
+{coderay:: ruby}
+# Roby-level representation of the XsensImu::Task RTT task contexts
+class XsensImu::Task
+  def configure
+    orogen_task.port = "/dev/ttyS0"
+  end
+end
+
+# Roby-level representation of the Dynamixel::Task RTT task contexts
+class Dynamixel::Task
+  def configure
+    orogen_task.device = "/dev/ttyS1"
+  end
+end
+{coderay}
+
+**Do not forget to replace /dev/ttyS0 and /dev/ttyS1 above by the actual port
+name on the machine you are using !!!**
+
+These blocks can be tested for typos or type error (for instance, using a
+property that does not exist) with
+
+scripts/orocos/instanciate --configure tut.rb
+{: .commandline}
+
+And, finally, you can run the network with
+
+scripts/orocos/instanciate --run tut.rb
+{: .commandline}
 
