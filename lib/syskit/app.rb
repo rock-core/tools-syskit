@@ -106,7 +106,7 @@ module Orocos
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
                 if orocos_load_component_extensions?
-                    file = File.join('tasks', 'orocos', "#{name}.rb")
+                    file = File.join('tasks', 'components', "#{name}.rb")
                     if File.exists?(file)
                         Application.load_task_extension(file, self)
                     end
@@ -259,16 +259,22 @@ module Orocos
             # Load a part of the system model, i.e. composition and/or data
             # services
             def load_system_model(file)
-                if !File.exists?(file) && File.exists?("#{file}.rb")
-                    file = "#{file}.rb"
+                candidates = [file, File.join("tasks", file)]
+                candidates = candidates.concat(candidates.map { |p| "#{p}.rb" })
+                path = candidates.find do |path|
+                    File.exists?(path)
+                end
+
+                if !path
+                    raise ArgumentError, "there is no system model file called #{file}"
                 end
 
                 search_path = [RobyPlugin,
                     RobyPlugin::DataServices,
                     RobyPlugin::DataSources,
                     RobyPlugin::Compositions]
-                if Kernel.load_dsl_file(file, orocos_system_model, search_path, !Roby.app.filter_backtraces?)
-                    RobyPlugin.info "loaded #{file}"
+                if Kernel.load_dsl_file(path, orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                    RobyPlugin.info "loaded #{path}"
                 end
             end
 
