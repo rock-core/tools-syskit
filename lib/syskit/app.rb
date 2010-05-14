@@ -312,7 +312,12 @@ module Orocos
                     port = Orocos::ProcessServer::DEFAULT_PORT)
 
                 @server_pid = fork do
-                    Orocos.logger.level = ::Logger::DEBUG
+                    logfile = File.expand_path("local_process_server.txt", Roby.app.log_dir)
+                    new_logger = ::Logger.new(File.open(logfile, 'w'))
+                    new_logger.level = ::Logger::DEBUG
+                    new_logger.formatter = Roby.logger.formatter
+                    new_logger.progname = "ProcessServer(localhost)"
+                    Orocos.logger = new_logger
                     ::Process.setpgrp
                     Orocos::ProcessServer.run(options, port)
                 end
