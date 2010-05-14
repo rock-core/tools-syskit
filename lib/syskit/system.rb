@@ -307,14 +307,15 @@ module Orocos
                     all_tasks << task
                     task.each_executed_task do |component|
                         all_tasks << component
-                        result << "  #{component.object_id} -> #{task.object_id};"
+                        result << "  #{component.object_id} -> #{task.object_id} [color=\"blue\"];"
                     end
                 end
 
                 all_tasks.each do |task|
                     task_label = task.to_s.
                         gsub(/\s+/, '').gsub('=>', ':').
-                        gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n')
+                        gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n').
+                        gsub(/Orocos::RobyPlugin::/, '')
                     result << "  #{task.object_id} [label=\"#{task_label}\"];"
                 end
 
