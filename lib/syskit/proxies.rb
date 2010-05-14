@@ -254,7 +254,9 @@ module Orocos
             query.reset
             for t in query
                 next if !t.orogen_task
-                t.setup if !t.is_setup?
+                if !t.is_setup? && Roby.app.orocos_auto_configure?
+                    t.setup 
+                end
 
                 while t.update_orogen_state
                     if t.running?

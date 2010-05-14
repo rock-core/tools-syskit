@@ -5,6 +5,8 @@ module Orocos
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
         module Application
+            attr_predicate :orocos_auto_configure?, true
+
             def self.resolve_constants(const_name, context, namespaces)
                 candidates = ([context] + namespaces).
                     compact.
@@ -142,6 +144,7 @@ module Orocos
                     end
                 end
 
+                app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
                 Orocos.load
 
