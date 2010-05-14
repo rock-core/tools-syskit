@@ -337,18 +337,8 @@ module Orocos
             def self.stop_local_process_server
                 return if !@server_pid
 
-                client = Orocos::RobyPlugin.process_servers['localhost']
-                if client
-                    begin
-                        client.quit_and_join
-                        return
-                    rescue Exception => e
-                        Orocos::RobyPlugin.warn "failed to quit the process server nicely, using #kill"
-                    end
-                end
-
                 if @server_pid
-                    ::Process.kill('KILL', @server_pid)
+                    ::Process.kill('INT', @server_pid)
                     begin
                         ::Process.waitpid(@server_pid)
                         @server_pid = nil
