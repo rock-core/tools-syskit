@@ -2,10 +2,11 @@ require 'tempfile'
 module Orocos
     module RobyPlugin
         attr_reader :current_color
-        COLOR_PALETTE = %w{'black' #800000 #008000 #000080 #C05800 #6633FF #CDBE70 #CD8162 #A2B5CD}
+        #COLOR_PALETTE = %w{'#000000' #800000 #008000 #000080 #C05800 #6633FF #CDBE70 #CD8162 #A2B5CD}
+        COLOR_PALETTE = %w{#FF9955 #FF0000 #bb9c21 #37c637 #62816e #2A7FFF #AA00D4 #D40055 #0000FF}.reverse
         def self.allocate_color
-            @current_color = (current_color + 1) % COLORS.size
-            COLOR_PALETTE[current_color]
+            @current_color = (@current_color + 1) % COLOR_PALETTE.size
+            COLOR_PALETTE[@current_color]
         end
         @current_color = 0
 
@@ -363,14 +364,23 @@ module Orocos
                 # Allocate one color for each task. The ideal would be to do a
                 # graph coloring so that two related tasks don't get the same
                 # color, but that's TODO
-                all_tasks.each do |task|
+                task_colors = Hash.new
+                used_deployments = all_tasks.map(&:execution_agent).to_value_set
+                used_deployments.each do |task|
                     task_colors[task] = RobyPlugin.allocate_color
                 end
 
                 all_tasks.each do |task|
+                    task_dot_attributes = []
+
                     task_label = task.to_s.
                         gsub(/\s+/, '').gsub('=>', ':').
-                        gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '<BR/>')
+                        gsub(/\[\]|\{\}/, '').gsub(/[{},]/, '<BR/>').
+                        gsub(/Orocos::RobyPlugin::/, '')
+                    if task_label =~ /^(.*)\/(\[.*\])(:0x.)*/
+                        task_label = "#{$1}#{$3}"
+                        sublabel = " <BR/> #{$2}"
+                    end
                     task_flags = []
                     task_flags << "E" if task.executable?
                     task_flags << "A" if task.abstract?
@@ -378,38 +388,51 @@ module Orocos
                     if !task_flags.empty?
                         task_label << "[#{task_flags.join(",")}]"
                     end
-                    if task.kind_of?(Deployment)
-                        task_label << "<BR/>[Process name: #{task.model.deployment_name}]"
+                    task_label = "<B>#{task_label}</B>"
+                    if sublabel
+                        task_label << sublabel
                     end
-                    task_label << "<BR/>[Deployed in:#{task.execution_agent.model.deployment_name}]" if task.execution_agent
+                    if task.kind_of?(Deployment)
+                        if task_colors[task]
+                            task_dot_attributes << "color=\"#{task_colors[task]}\""
+                            task_label = "<FONT COLOR=\"#{task_colors[task]}\">#{task_label}</FONT>"
+                        end
+                        task_label << " <BR/> [Process name: #{task.model.deployment_name}]"
+                    end
+                    if agent = task.execution_agent
+                        task_label << " <BR/> <FONT COLOR=\"#{task_colors[agent]}\">[Deployed in: #{agent.model.deployment_name}]</FONT>"
+                    end
+
                     parent_compositions = task.each_parent_task.
                         find_all { |c| c.kind_of?(Composition) }
                     if !parent_compositions.empty?
                         parent_compositions = parent_compositions.map do |parent_task|
                             parent_task.to_s.gsub(/\s+/, '').gsub('=>', ':').
-                                gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n')
+                                gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n').
+                                gsub(/\/\[.*\]:/, ':')
                         end
-                        task_label << "<BR/>[Included in:#{parent_compositions.join("\\n")}]"
+                        task_label << " <BR/> [Included in:#{parent_compositions.join("\\n")}]"
                     end
 
                     inputs  = input_ports[task].to_a.sort
                     outputs = output_ports[task].to_a.sort
 
-                    label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
+                    label = "  <TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n"
                     if !inputs.empty?
                         label << inputs.map do |name|
-                            "<TR><TD PORT=\"#{name}\">#{name}</TD></TR>"
+                            "    <TR><TD PORT=\"#{name}\">#{name} </TD></TR>\n"
                         end.join("")
                     end
-                    label << "<TR><TD PORT=\"main\">#{task_label}</TD></TR>"
+                    label << "    <TR><TD PORT=\"main\">#{task_label} </TD></TR>\n"
                     if !outputs.empty?
                         label << outputs.map do |name|
-                            "<TR><TD PORT=\"#{name}\">#{name}</TD></TR>"
+                            "    <TR><TD PORT=\"#{name}\">#{name} </TD></TR>\n"
                         end.join("")
                     end
-                    label << "</TABLE>"
+                    label << "  </TABLE>"
 
-                    result << "  #{task.object_id} [label=<#{label}>];"
+                    task_dot_attributes << "label=< #{label} >"
+                    result << "  #{task.object_id} [#{task_dot_attributes.join(",")}];"
                 end
 
                 result << "};"
