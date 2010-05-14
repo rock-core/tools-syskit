@@ -2,8 +2,7 @@ require 'tempfile'
 module Orocos
     module RobyPlugin
         attr_reader :current_color
-        #COLOR_PALETTE = %w{'#000000' #800000 #008000 #000080 #C05800 #6633FF #CDBE70 #CD8162 #A2B5CD}
-        COLOR_PALETTE = %w{#FF9955 #FF0000 #bb9c21 #37c637 #62816e #2A7FFF #AA00D4 #D40055 #0000FF}.reverse
+        COLOR_PALETTE = %w{#FF9955 #FF0000 #bb9c21 #37c637 #62816e #2A7FFF #AA00D4 #D40055 #0000FF}
         def self.allocate_color
             @current_color = (@current_color + 1) % COLOR_PALETTE.size
             COLOR_PALETTE[@current_color]
