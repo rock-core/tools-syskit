@@ -36,6 +36,7 @@ if remaining.size != 1
     exit(1)
 end
 
+Roby.app.filter_backtraces = !debug
 Roby.filter_backtrace do
     Roby.app.setup
     if debug
