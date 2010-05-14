@@ -360,8 +360,10 @@ module Orocos
 
             ensure
                 remaining = Orocos.each_process.to_a
-                RobyPlugin.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
-                Orocos::Process.kill(remaining)
+                if !remaining.empty?
+                    RobyPlugin.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
+                    Orocos::Process.kill(remaining)
+                end
 
                 if handler_id
                     Roby.engine.remove_propagation_handler(handler_id)
