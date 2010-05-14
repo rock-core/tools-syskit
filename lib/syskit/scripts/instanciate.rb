@@ -19,6 +19,9 @@ parser = OptionParser.new do |opt|
     opt.on('--configure', "start the deployments and run the task's #configure method") do
         mode = :configure
     end
+    opt.on('--run', 'run the specified deployment') do
+        mode = :run
+    end
     opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, 'in what format to output the result (can be: txt, dot, png or svg), defaults to txt') do |output_arg|
         output_type, output_file = output_arg.split(':')
         output_type = output_type.downcase
@@ -118,6 +121,12 @@ Roby.filter_backtrace do
             end
         end
         exit 0
+    elsif mode == :run
+        Roby.app.run do
+            Roby.app.apply_orocos_deployment(deployment_file)
+            tasks = Roby.plan.find_tasks(Orocos::Component).to_value_set
+            tasks.each { |t| Roby.plan.add_mission(t) }
+        end
     end
 end
 
