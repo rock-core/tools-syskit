@@ -323,6 +323,10 @@ module Orocos
                 result.join("\n")
             end
 
+            def to_dot
+                to_dot_dataflow
+            end
+
             def to_dot_dataflow
                 result = []
                 result << "digraph {"
