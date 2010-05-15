@@ -124,6 +124,10 @@ Roby.filter_backtrace do
     elsif mode == :run
         Roby.app.run do
             Roby.app.apply_orocos_deployment(deployment_file)
+            if !Roby.engine.scheduler
+                require 'roby/schedulers/basic'
+                Roby.engine.scheduler = Roby::Schedulers::Basic.new
+            end
             tasks = Roby.plan.find_tasks(Orocos::Component).to_value_set
             tasks.each { |t| Roby.plan.add_mission(t) }
         end
