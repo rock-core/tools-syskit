@@ -79,8 +79,17 @@ configuration. For instance, in <tt>config/init.rb</tt>, after the call to
 <tt>Roby.app.using 'orocos'</tt>, one would do
 
 {coderay:: ruby}
-  Roby.app.use_deployment "xsens_imu"
-  Roby.app.use_deployment "left_camera"
+Roby.app.use_deployment "xsens_imu"
+Roby.app.use_deployment "left_camera"
+{coderay}
+
+Where "xsens_imu" and "left_camera" are the names given to oroGen's
+<tt>deployment</tt> statement, e.g.:
+
+{coderay:: ruby}
+deployment "xsens_imu" do
+  task "xsens_imu", "xsens_imu::Task"
+end
 {coderay}
 
 Alternatively, a preferred way is to *never* define system-wide deployments in
@@ -90,9 +99,10 @@ robots would have different deployment requirements.
 
 Instead, a better practice is to create a single oroGen project in which all the
 system's deployments (for instance deployment/asguard for our DFKI asguard
-robot). Then, all the deployments from this project can be imported at once with
+robot). Then, all the deployments from this single oroGen project can be
+imported at once with
 
 {coderay:: ruby}
-  Roby.app.use_deployments_from "asguard"
+Roby.app.use_deployments_from "asguard"
 {coderay}
 
