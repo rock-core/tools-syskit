@@ -15,11 +15,16 @@ What you will learn about is:
 Defining compositions
 ---------------------
 
-When the Roby plugins are loaded, all files contained in
-<tt>tasks/compositions</tt> are loaded at setup time, and are supposed to
-contain the composition definitions.
+What we do here is tie together three components. The first component is an IMU
+driver, which can handle an Xsens IMU (from the xsens_imu oroGen project). The
+second component is a servo driver which can handle dynamixel servos (from the
+dynamixel oroGen project). Finally, a control component will take the IMU values
+and drive the servo so that the servo platine remains at a given global pitch.
+This component is defined in the attitude_servoing oroGen project.
 
-Edit tasks/compositions/ptu_stabilization.rb and add
+We will put this composition definition where Roby expects, it. That is to say,
+in <tt>tasks/compositions</tt>. Edit tasks/compositions/ptu_stabilization.rb and
+add
 
 {coderay:: ruby}
 using_task_library 'xsens_imu'
@@ -33,18 +38,31 @@ composition 'PTUStabilization' do
 end
 {coderay}
 
+The first using_task_library statements requires the loading of the oroGen
+project which define the task contexts. This is needed so that Orocos/Roby knows
+about the task contexts we want to use.
+
+Compositions are then defines by
+
+{coderay:: ruby}
+composition _composition_name_ do
+  composition definition statements
+end
+{coderay}
+
 The first three <tt>add</tt> statements declare what the composition is made of:
-they say that the composition is made of three separate components. One
-XsensImu::Task (which will provide the orientation), the Dynamixel::Task (which
-commands the tilt axis) and the control component AttitudeServoing::Task.
+one XsensImu::Task (which will provide the orientation), one Dynamixel::Task
+(which commands the tilt axis) and one AttitudeServoing::Task to do the control.
 
-The first using_task_library statements explicitely load the oroGen projects
-that this composition requires.
-
-What the "autoconnect" statement says, then, is that the ports of these three
+Then, the "autoconnect" statement declares that the ports of these three
 components should be automatically connected. What will happen is that the Roby
-plugin will looks for inputs and outputs that have the same name and type, and
-will connect those.
+plugin will looks for inputs and outputs that have the same type, and will
+connect those __if possible__:
+
+ * it will only connect outputs to inputs (obviously)
+ * it will not create multiple connections to the same input port
+ * if there is multiple possible matches between inputs and outputs of two
+   components, port pairs of the same name will be searched for.
 
 One consistent behaviour of the Orocos/Roby plugin is that, whenever an
 "automatic" thing happens (here, autoconnection), if ambiguities exist (for
@@ -55,11 +73,10 @@ later in this guide
 
 Composition models can be tested by using scripts/orocos/system_model:
 
-scripts/orocos/load_models -o png
+scripts/orocos/system_model -o png
 {: .commandline}
 
-You can read the generated SVG file using for instance inkscape. It looks like
-this:
+The generated image looks like this:
 
 ![Model of a simple composition](simple_composition.png)
 {: .floating-image}
@@ -71,9 +88,11 @@ this:
 
 *Exactly what we wanted !*
 
-Note: load_models support other output types, including svg. Replace 'png' by
-'svg' above if you want to edit the output. Run the script without arguments for
-more help.
+**Note**: load_models support other output types, including svg. Replace 'png'
+by 'svg' above if you want to edit the output. Run the script with the --help
+option for a complete list. Moreover, the <tt>scripts/orocos/load_models</tt>
+can be used to verify that all orocos-related models load fine, thus catching
+most typo errors.
 {: .block}
 
 Deployment
@@ -82,9 +101,10 @@ Deployment
 As already mentioned, one important part of the Orocos/RTT development is to
 _deploy_ things: i.e. take abstract components and tell the system how they
 should run in practice (what type of thread, what priority) and how they should
-be triggered. This is absolutely not specific to the Roby plugin. We will, for
-instance, assume that the tasks we require are deployed in one oroGen project
-with:
+be triggered. This is absolutely not specific to the Roby plugin.
+
+We will, for instance, assume that the tasks we require are deployed in one
+oroGen project with:
 
 {coderay:: ruby}
 name 'sys_deployment'
@@ -164,14 +184,14 @@ before the task context's configure method itself is called.
 Edit tut.rb and add
 
 {coderay:: ruby}
-# Roby-level representation of the XsensImu::Task RTT task contexts
+# Roby-level representation of the XsensImu::Task RTT task context
 class XsensImu::Task
   def configure
     orogen_task.port = "/dev/ttyS0"
   end
 end
 
-# Roby-level representation of the Dynamixel::Task RTT task contexts
+# Roby-level representation of the Dynamixel::Task RTT task context
 class Dynamixel::Task
   def configure
     orogen_task.device = "/dev/ttyS1"
@@ -185,11 +205,20 @@ name on the machine you are using !!!**
 These blocks can be tested for typos or type error (for instance, using a
 property that does not exist) with
 
-scripts/orocos/instanciate --configure tut.rb
+scripts/orocos/configure tut.rb
 {: .commandline}
+
+Which will (hopefully) display
+
+<pre>
+354013:37:43.806 (Robot) all deployments are up and running
+354013:37:43.806 (Robot) calling Dynamixel::Task#configure on Dynamixel::Task:0x2ce5cb8{}[], deployed in dynamixel
+354013:37:43.807 (Robot) calling XsensImu::Task#configure on XsensImu::Task:0x2d3e2f0{}[], deployed in xsens_imu
+354013:37:43.808 (Robot) the #configure method worked on all tasks
+</pre>
 
 And, finally, you can run the network with
 
-scripts/orocos/instanciate --run tut.rb
+scripts/orocos/run tut.rb
 {: .commandline}
 
