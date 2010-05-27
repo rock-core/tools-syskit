@@ -143,4 +143,3 @@ if do_doc
     end
 end
 
-task :default => "setup"
