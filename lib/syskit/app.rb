@@ -27,7 +27,7 @@ module Orocos
 
                 def devices(&block)
                     if block
-                        Kernel.dsl_exec(Roby.app.orocos_engine.robot, [DeviceDrivers], !Roby.app.filter_backtraces?, &block)
+                        Kernel.dsl_exec(Roby.app.orocos_engine.robot, [DataSources], !Roby.app.filter_backtraces?, &block)
                     else
                         each_device
                     end
@@ -69,7 +69,7 @@ module Orocos
                     end
 
                     def self.const_missing(const_name)
-                        Application.resolve_constants(const_name, DeviceDrivers, [DeviceDrivers])
+                        Application.resolve_constants(const_name, DataSources, [DataSources])
                     end
                 end
                 ::Robot.const_set 'Devices', mod
@@ -108,7 +108,6 @@ module Orocos
                 if orocos_load_component_extensions?
                     file = File.join('tasks', 'orocos', "#{name}.rb")
                     if File.exists?(file)
-                        RobyPlugin.debug "loading #{file}"
                         Application.load_task_extension(file, self)
                     end
                 end
@@ -158,13 +157,13 @@ module Orocos
             end
 
             def self.require_models(app)
-                Orocos.const_set('Deployments',    Orocos::RobyPlugin::Deployments)
-                Orocos.const_set('Interfaces',    Orocos::RobyPlugin::Interfaces)
-                Orocos.const_set('DeviceDrivers', Orocos::RobyPlugin::DeviceDrivers)
-                Orocos.const_set('Compositions',  Orocos::RobyPlugin::Compositions)
+                Orocos.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
+                Orocos.const_set('DataServices', Orocos::RobyPlugin::DataServices)
+                Orocos.const_set('DataSources',  Orocos::RobyPlugin::DataSources)
+                Orocos.const_set('Compositions', Orocos::RobyPlugin::Compositions)
 
-                # Load the interface and task models
-                %w{interfaces compositions}.each do |category|
+                # Load the data services and task models
+                %w{data_services compositions}.each do |category|
                     all_files = app.list_dir(APP_DIR, "tasks", "orocos", category).to_a +
                         app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'orocos', category).to_a
                     all_files.each do |path|
@@ -191,7 +190,11 @@ module Orocos
 
                 projects.each do |name|
                     name = name.camelcase(true)
-                    Orocos.const_set(name, Orocos::RobyPlugin.const_get(name))
+
+                    # The RTT is already handled above
+                    if name !~ /RTT/
+                        Orocos.const_set(name, Orocos::RobyPlugin.const_get(name))
+                    end
                 end
             end
 
@@ -226,7 +229,7 @@ module Orocos
                     end
                 end
 
-                [Interfaces, Compositions, DeviceDrivers].each do |mod|
+                [DataServices, Compositions, DataSources].each do |mod|
                     mod.constants.each do |const_name|
                         mod.send(:remove_const, const_name)
                     end
@@ -239,29 +242,37 @@ module Orocos
 
             def self.load_task_extension(file, app)
                 search_path = [RobyPlugin,
-                    RobyPlugin::Interfaces,
-                    RobyPlugin::DeviceDrivers,
+                    RobyPlugin::DataServices,
+                    RobyPlugin::DataSources,
                     RobyPlugin::Compositions]
-                Kernel.load_dsl_file(file, Roby.app.orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                    RobyPlugin.info "loaded #{file}"
+                end
             end
 
             def load_system_model(file)
                 if !File.exists?(file) && File.exists?("#{file}.rb")
                     file = "#{file}.rb"
                 end
+
                 search_path = [RobyPlugin,
-                    RobyPlugin::Interfaces,
-                    RobyPlugin::DeviceDrivers,
+                    RobyPlugin::DataServices,
+                    RobyPlugin::DataSources,
                     RobyPlugin::Compositions]
-                Kernel.load_dsl_file(file, orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                if Kernel.load_dsl_file(file, orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                    RobyPlugin.info "loaded #{file}"
+                end
             end
 
             def load_system_definition(file)
                 search_path = [RobyPlugin,
-                    RobyPlugin::Interfaces,
-                    RobyPlugin::DeviceDrivers,
+                    RobyPlugin::DataServices,
+                    RobyPlugin::DataSources,
                     RobyPlugin::Compositions]
-                Kernel.load_dsl_file(file, orocos_engine, search_path, false)
+
+                if Kernel.load_dsl_file(file, orocos_engine, search_path, false)
+                    RobyPlugin.info "loaded #{file}"
+                end
             end
 
 	    def apply_orocos_deployment(name, compute_policies = true)
@@ -275,25 +286,84 @@ module Orocos
 		orocos_engine.resolve(compute_policies)
 	    end
 
+            def self.start_local_process_server(
+                    options = Orocos::ProcessServer::DEFAULT_OPTIONS,
+                    port = Orocos::ProcessServer::DEFAULT_PORT)
+
+                @server_pid = fork do
+                    Orocos.logger.level = ::Logger::DEBUG
+                    ::Process.setpgrp
+                    Orocos::ProcessServer.run(options, port)
+                end
+                # Wait for the server to be ready
+                client = nil
+                while !client
+                    client =
+                        begin Orocos::ProcessClient.new
+                        rescue Errno::ECONNREFUSED
+                        end
+                end
+
+                Orocos::RobyPlugin.process_servers['localhost'] = client
+                client
+            end
+
+            def self.stop_local_process_server
+                return if !@server_pid
+
+                client = Orocos::RobyPlugin.process_servers['localhost']
+                if client
+                    begin
+                        client.quit_and_join
+                        return
+                    rescue Exception => e
+                        Orocos::RobyPlugin.warn "failed to quit the process server nicely, using #kill"
+                    end
+                end
+
+                if @server_pid
+                    ::Process.kill('KILL', @server_pid)
+                    begin
+                        ::Process.waitpid(@server_pid)
+                        @server_pid = nil
+                    rescue Errno::ESRCH
+                    end
+                end
+            end
+
             def self.run(app)
                 # Change to the log dir so that the IOR file created by the
                 # CORBA bindings ends up there
                 Dir.chdir(Roby.app.log_dir) do
                     Orocos.initialize
+                    start_local_process_server
                 end
-                Roby.each_cycle(&Orocos::RobyPlugin.method(:update))
+                handler_id = Roby.engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
+
                 yield
 
             ensure
                 remaining = Orocos.each_process.to_a
                 RobyPlugin.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
                 Orocos::Process.kill(remaining)
+
+                if handler_id
+                    Roby.engine.remove_propagation_handler(handler_id)
+                end
+
+                # Stop the local process server if we started it ourselves
+                stop_local_process_server
+                Orocos::RobyPlugin.process_servers.each_value do |client|
+                    client.disconnect
+                end
+                Orocos::RobyPlugin.process_servers.clear
             end
         end
     end
 
     Roby::Application.register_plugin('orocos', Orocos::RobyPlugin::Application) do
         require 'orocos/roby'
+        require 'orocos/process_server'
     end
 end
 

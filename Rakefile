@@ -32,9 +32,10 @@ begin
 rescue LoadError
     STDERR.puts "cannot load the Hoe gem. Distribution is disabled"
 rescue Exception => e
-    STDERR.puts "cannot load the Hoe gem, or Hoe fails. Distribution is disabled"
-    STDERR.puts "error message is: #{e.message}"
-    STDERR.puts "  #{e.backtrace.join("\n  ")}"
+    if e.message !~ /\.rubyforge/
+        STDERR.puts "cannot load the Hoe gem, or Hoe fails. Distribution is disabled"
+        STDERR.puts "error message is: #{e.message}"
+    end
 end
 
 def build_orogen(name)
@@ -45,6 +46,8 @@ def build_orogen(name)
 
     Orocos::Test.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir
 end
+
+task :default => "setup:ext"
 
 namespace :setup do
     desc "builds Orocos.rb C extension"

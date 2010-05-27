@@ -1,9 +1,13 @@
 require 'orocos'
 require 'utilrb/module/define_or_reuse'
-require 'roby/external_process_task'
 
 module Orocos
     module RobyPlugin
+        class << self
+            attr_reader :process_servers
+        end
+        @process_servers = Hash.new
+
         Generation = ::Orocos::Generation
         module Deployments
         end
@@ -40,13 +44,20 @@ module Orocos
                 # The Orocos::Generation::StaticDeployment that represents this
                 # deployment.
                 attr_reader :orogen_spec
+
+                def all_deployments; @@all_deployments end
             end
+            @@all_deployments = Hash.new
+
             def orogen_spec; self.class.orogen_spec end
 
             attr_reader :task_handles
 
             # The underlying Orocos::Process instance
             attr_reader :orogen_deployment
+
+            event :signaled
+            forward :signaled => :failed
 
             # Returns the name of this particular deployment instance
             def self.deployment_name
@@ -94,30 +105,72 @@ module Orocos
             event :start do |context|
                 RobyPlugin.info { "starting deployment #{model.deployment_name}" }
 
-                @orogen_deployment = ::Orocos::Process.new(model.deployment_name)
-                orogen_deployment.spawn(:output => File.join(Roby.app.log_dir, "%m-%p.txt"),
-                                        :working_directory => Roby.app.log_dir)
-                Roby::ExternalProcessTask.processes[orogen_deployment.pid] = self
+                host = self.arguments['on'] || 'localhost'
+                @orogen_deployment = Orocos::RobyPlugin.process_servers[host].start(model.deployment_name)
+                Deployment.all_deployments[@orogen_deployment] = self
                 emit :start
+            end
+
+            def dead!(result)
+                if !result
+                    emit :failed
+                elsif result.success?
+                    emit :success
+                elsif result.signaled?
+                    emit :signaled, result
+                else
+                    emit :failed, result
+                end
+
+                Deployment.all_deployments.delete(orogen_deployment)
+                orogen_spec.task_activities.each do |act|
+                    TaskContext.configured.delete(act.name)
+                end
+                if task_handles
+                    # task_handles is only initialized when ready is reached ...
+                    # so can be nil here
+                    all_tasks = task_handles.values.to_value_set
+                    all_tasks.each do |task|
+                        task.each_parent_vertex(ActualDataFlow) do |parent_task|
+                            mappings = parent_task[task, ActualDataFlow]
+                            mappings.each do |(source_port, sink_port), policy|
+                                if policy[:pull] # we have to disconnect explicitely
+                                    begin parent_task.port(source_port).disconnect_from(task.port(sink_port, false))
+                                    rescue Exception => e
+                                        Orocos::RobyPlugin.warn "error while disconnecting #{parent_task}:#{source_port} from #{task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
+                                    end
+                                end
+                            end
+                        end
+                        task.each_child_vertex(ActualDataFlow) do |child_task|
+                            mappings = task[child_task, ActualDataFlow]
+                            mappings.each do |(source_port, sink_port), policy|
+                                begin child_task.port(sink_port).disconnect_all
+                                rescue Exception => e
+                                    Orocos::RobyPlugin.warn "error while disconnecting #{task}:#{source_port} from #{child_task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
+                                end
+                            end
+                        end
+
+                        ActualDataFlow.remove(task)
+                        RequiredDataFlow.remove(task)
+                    end
+                end
+
+                each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
+                    task.orogen_task = nil
+                end
             end
 
             # Event emitted when the deployment is up and running
             event :ready
 
             poll do
-                if started?
-                    if !orogen_deployment.running?
-                        if !ready?
-                            emit :failed
-                        else emit :stop
-                        end
-                        return
-                    end
-                end
+                begin
+                    next if ready?
 
-                if !ready?
                     if orogen_deployment.wait_running(0)
-                        orogen_deployment.log_all_ports
+                        Orocos::Process.log_all_ports(orogen_deployment, :log_dir => Roby.app.log_dir)
 
                         @task_handles = Hash.new
                         orogen_spec.task_activities.each do |activity|
@@ -131,6 +184,9 @@ module Orocos
 
                         emit :ready
                     end
+                rescue Exception => e
+                    STDERR.puts e.message
+                    raise
                 end
             end
 
@@ -148,40 +204,14 @@ module Orocos
 
                 # Add an intermediate event that will fire when the intermediate
                 # tasks have been stopped
-                terminal = AndGenerator.new
+                terminal = Roby::AndGenerator.new
                 to_be_killed.each do |task|
                     task.stop!
                     terminal << task.stop_event
                 end
-                terminal.on { orogen_deployment.kill(false) }
+                terminal.on { |event| orogen_deployment.kill(false) }
                 # The stop event will get emitted after the process has been
                 # killed. See the polling block.
-            end
-
-            # This gets called by Roby's SIGCHLD handler to announce that the
-            # process died. +result+ is the corresponding Process::Status
-            # object.
-            def dead!(result)
-                Roby::ExternalProcessTask.processes.delete(orogen_deployment.pid)
-                orogen_deployment.dead!(result)
-            end
-
-            on :stop do |event|
-                orogen_spec.task_activities.each do |act|
-                    TaskContext.configured.delete(act.name)
-                end
-                if task_handles
-                    # task_handles is only initialized when ready is reached ...
-                    # so can be nil here
-                    task_handles.each_value do |task|
-                        ActualDataFlow.remove(task)
-                        RequiredDataFlow.remove(task)
-                    end
-                end
-
-                each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                    task.orogen_task = nil
-                end
             end
 
             # Creates a subclass of Deployment that represents the deployment
@@ -203,6 +233,18 @@ module Orocos
                 Roby.app.orocos_engine.resolve
             end
 
+            all_dead_deployments = ValueSet.new
+            for name, server in Orocos::RobyPlugin.process_servers
+                if dead_deployments = server.wait_termination(0)
+                    dead_deployments.each do |p, exit_status|
+                        Orocos::RobyPlugin.warn "#{p.name} died on #{name}"
+                        d = Deployment.all_deployments[p]
+                        all_dead_deployments << d
+                        d.dead!(exit_status)
+                    end
+                end
+            end
+
             if !(query = plan.instance_variable_get :@orocos_update_query)
                 query = plan.find_tasks(Orocos::RobyPlugin::TaskContext).
                     not_finished.not_failed
@@ -215,11 +257,6 @@ module Orocos
                 t.setup if !t.is_setup?
 
                 while t.update_orogen_state
-                    if t.starting?
-                        if t.orogen_state != :STOPPED && t.orogen_state != :PRE_OPERATIONAL
-                            t.emit :start
-                        end
-                    end
                     if t.running?
                         t.handle_state_changes
                     end
@@ -227,7 +264,7 @@ module Orocos
             end
 
             tasks = Flows::DataFlow.modified_tasks
-            tasks.delete_if { |t| !t.plan || t.transaction_proxy? }
+            tasks.delete_if { |t| !t.plan || all_dead_deployments.include?(t.execution_agent) || t.transaction_proxy? }
             if !tasks.empty?
                 main_tasks, proxy_tasks = tasks.partition { |t| t.plan.executable? }
                 main_tasks = main_tasks.to_value_set
@@ -464,7 +501,7 @@ module Orocos
                 else
                     remaining = orogen_spec.context.each_port.map(&:name).to_set
                     remaining -= result[self].keys.to_set
-                    Engine.warn { "cannot find period information for " + remaining.to_a.join(", ") }
+                    Engine.info { "cannot find period information for " + remaining.to_a.join(", ") }
                     false
                 end
             end
@@ -484,21 +521,6 @@ module Orocos
             end
 
 
-            def actual_connections
-                result = Array.new
-                orogen_task.each_parent_vertex(ActualDataFlow) do |source_task|
-                    source_task[orogen_task, ActualDataFlow].each do |(source_port, sink_port), policy|
-                        result << [source_task, source_port, orogen_task, sink_port]
-                    end
-                end
-                orogen_task.each_child_vertex(ActualDataFlow) do |sink_task|
-                    orogen_task[sink_task, ActualDataFlow].each do |(source_port, sink_port), policy|
-                        result << [orogen_task, source_port, sink_task, sink_port]
-                    end
-                end
-                result
-            end
-
             # The Orocos::TaskContext instance that gives us access to the
             # remote task context. Note that it is set only when the task is
             # started.
@@ -508,10 +530,11 @@ module Orocos
             attr_accessor :orogen_spec
             # The global name of the Orocos task underlying this Roby task
             def orocos_name; orogen_spec.name end
-            # The current state for the orogen task
+            # The current state for the orogen task. It is a symbol that
+            # represents the state name (i.e. :RUNTIME_ERROR, :RUNNING, ...)
             attr_reader :orogen_state
-            # The last read state
-            attr_reader :last_state
+            # The last state before we went to orogen_state
+            attr_reader :last_orogen_state
 
             def read_current_state
                 while update_orogen_state
@@ -531,11 +554,13 @@ module Orocos
                         raise InternalError, "the state reader has been disconnected"
                     end
                     if v = @state_reader.read
+                        @last_orogen_state = orogen_state
                         @orogen_state = v
                     end
                 else
                     new_state = orogen_task.state
                     if new_state != @orogen_state
+                        @last_orogen_state = orogen_state
                         @orogen_state = new_state
                     end
                 end
@@ -630,20 +655,19 @@ module Orocos
 
                 # Call configure or start, depending on the current state
                 ::Robot.info "starting #{to_s}"
+                @last_orogen_state = nil
                 orogen_task.start
-                @last_state = nil
+                emit :start
             end
 
             # Handle a state transition by emitting the relevant events
             def handle_state_changes # :nodoc:
-                if orogen_task.error_state?(orogen_state)
+                if orogen_task.fatal_error_state?(orogen_state)
                     @stopping_because_of_error = true
                     @stopping_origin = orogen_state
-                    if orogen_task.fatal_error_state?(orogen_state)
-                        orogen_task.reset_error
-                    else
-                        orogen_task.stop
-                    end
+                    orogen_task.reset_error
+                elsif orogen_state == :RUNNING && last_orogen_state && orogen_task.error_state?(last_orogen_state)
+                    emit :running
                 elsif orogen_state == :STOPPED
                     if @stopping_because_of_error
                         if event = state_event(@stopping_origin)
@@ -668,6 +692,9 @@ module Orocos
             event :interrupt do |context|
                 begin
                     orogen_task.stop
+                rescue Orocos::CORBA::ComError
+                    # We actually aborted
+                    emit :aborted
                 rescue Orocos::StateTransitionFailed
                     if state = read_current_state && orogen_task.fatal_error_state?(state)
                         # Nothing to do, the poll block will finalize the task
@@ -678,8 +705,12 @@ module Orocos
             end
             forward :interrupt => :failed
 
+            # Emitted when the component recovers from a runtime error state
+            event :running
+
+            # Emitted when the component goes into one of the runtime error
+            # states
             event :runtime_error
-            forward :runtime_error => :failed
 
             event :fatal_error
             forward :fatal_error => :failed
@@ -687,7 +718,6 @@ module Orocos
             on :aborted do |event|
                 @orogen_task = nil
             end
-
 
             ##
             # :method: stop!
@@ -706,7 +736,7 @@ module Orocos
             def self.driver_for(model, arguments = Hash.new)
                 if model.respond_to?(:to_str)
                     begin
-                        model = Orocos::RobyPlugin::DeviceDrivers.const_get model.to_str.camelcase(true)
+                        model = Orocos::RobyPlugin::DataSources.const_get model.to_str.camelcase(true)
                     rescue NameError
                         device_arguments, arguments = Kernel.filter_options arguments,
                             :provides => nil
@@ -715,18 +745,18 @@ module Orocos
                             # Look for an existing data source that match the name.
                             # If there is none, we will assume that +self+ describes
                             # the interface of +model+
-                            if !system.has_interface?(model)
+                            if !system.has_data_service?(model)
                                 device_arguments[:interface] = self
                             end
                         end
-                        model = system.device_type model, device_arguments
+                        model = system.data_source_type model, device_arguments
                     end
                 end
-                if !(model < DeviceDriver)
+                if !(model < DataSource)
                     raise ArgumentError, "#{model} is not a device driver model"
                 end
-                data_source_name, _ = data_source(model, arguments)
-                argument "#{data_source_name}_name"
+                data_service_name, _ = data_service(model, arguments)
+                argument "#{data_service_name}_name"
 
                 model
             end
@@ -752,8 +782,10 @@ module Orocos
                 task_spec.states.each do |name, type|
                     event_name = name.snakecase.downcase
                     klass.event event_name
-                    if type == :error || type == :fatal
-                        klass.forward event_name => :failed
+                    if type == :fatal
+                        klass.forward event_name => :fatal_error
+                    elsif type == :error
+                        klass.forward event_name => :runtime_error
                     end
 
                     state_events[name.to_sym] = event_name

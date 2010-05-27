@@ -1,0 +1,58 @@
+---
+title: A Simple Composition
+sort_info: 0
+--- name:content pipeline:tags,markdown,blocks
+
+In the world of component-based development, putting components together to form
+a network is called a _composition_. What this page will be about is creating
+a simple composition.
+
+What you will learn about is:
+
+ * how to define compositions
+ * how Roby handles the compositions at runtime
+
+Defining compositions
+---------------------
+
+When the Roby plugins are loaded, all files contained in
+<tt>tasks/orocos/compositions</tt> are loaded at setup time, and are supposed to
+contain the composition definitions.
+
+Edit tasks/orocos/compositions/ptu_stabilization.rb and add
+
+{coderay:: ruby}
+using_task_library 'xsens_imu'
+using_task_library 'attitude_servoing'
+using_task_library 'dynamixel'
+composition 'PTUStabilization' do
+  add XsensImu::Task
+  add AttitudeServoing::Task
+  add Dynamixel::Task
+  autoconnect
+end
+{coderay}
+
+The first three <tt>add</tt> statements declare what the composition is made of:
+they say that the composition is made of three separate components. One
+XsensImu::Task (which will provide the orientation), the Dynamixel::Task (which
+commands the tilt axis) and the control component AttitudeServoing::Task.
+
+The first using_task_library statements explicitely load the oroGen projects
+that this composition requires.
+
+What the "autoconnect" statement says, then, is that the ports of these three
+components should be automatically connected. What will happen is that the Roby
+plugin will looks for inputs and outputs that have the same name and type, and
+will connect those.
+
+One consistent behaviour of the Orocos/Roby plugin is that, whenever an
+"automatic" thing happens (here, autoconnection), if ambiguities exist (for
+instance, multiple outputs match a single input), the model code will raise an
+error. Ambiguities need to be solved manually.
+{: .warning}
+
+Graphically, it looks like this:
+
+TODO: add composition representation
+

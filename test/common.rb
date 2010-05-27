@@ -5,6 +5,7 @@ require 'roby/test/testcase'
 require 'roby/test/tasks/simple_task'
 require 'orocos/roby/app'
 require 'orocos/roby'
+require 'orocos/process_server'
 
 module RobyPluginCommonTest
     include Orocos::RobyPlugin
@@ -29,6 +30,7 @@ module RobyPluginCommonTest
 
     attr_reader :sys_model
     attr_reader :orocos_engine
+
     def setup
         @old_loglevel = Orocos.logger.level
         super
@@ -39,11 +41,17 @@ module RobyPluginCommonTest
         @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
         ENV['PKG_CONFIG_PATH'] = File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')
 
+        Orocos.disable_sigchld_handler = true
         ::Orocos.initialize
         Roby.app.extend Orocos::RobyPlugin::Application
         save_collection Roby.app.loaded_orogen_projects
         save_collection Roby.app.orocos_tasks
         save_collection Roby.app.orocos_deployments
+        save_collection Orocos::RobyPlugin.process_servers
+
+        project = Orocos::Generation::Component.new
+        project.name 'roby'
+        Roby.app.instance_variable_set :@main_orogen_project, project
 
         Orocos::RobyPlugin::Application.setup(Roby.app)
         if self.class.needed_orogen_projects.empty? && !self.class.needs_no_orogen_projects?
@@ -55,11 +63,9 @@ module RobyPluginCommonTest
         end
 
         @sys_model = Orocos::RobyPlugin::SystemModel.new
-        @orocos_engine = Roby.app.orocos_engine
-        project = Orocos::Generation::Component.new
-        project.name 'roby'
-        Roby.app.instance_variable_set :@main_orogen_project, project
+        @orocos_engine = Engine.new(plan, sys_model)
     end
+
     def teardown
         Roby.app.orocos_clear_models
         ::Orocos.instance_variable_set :@registry, Typelib::Registry.new
@@ -76,6 +82,8 @@ module RobyPluginCommonTest
         end
 
     ensure
+        Orocos::RobyPlugin::Application.stop_local_process_server
+
         FileUtils.rm_rf Roby.app.log_dir
         ENV['PKG_CONFIG_PATH'] = @old_pkg_config
         Orocos.logger.level = @old_loglevel if @old_loglevel
