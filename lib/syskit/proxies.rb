@@ -692,6 +692,9 @@ module Orocos
             event :interrupt do |context|
                 begin
                     orogen_task.stop
+                rescue Orocos::CORBA::ComError
+                    # We actually aborted
+                    emit :aborted
                 rescue Orocos::StateTransitionFailed
                     if state = read_current_state && orogen_task.fatal_error_state?(state)
                         # Nothing to do, the poll block will finalize the task
