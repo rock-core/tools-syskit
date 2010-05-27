@@ -94,7 +94,6 @@ namespace :setup do
     task :orogen_system    do build_orogen 'system' end
 end
 task :setup => "setup:ext"
-
 desc "remove by-products of setup"
 task :clean do
     FileUtils.rm_rf "ext/build"
@@ -141,3 +140,4 @@ if do_doc
     end
 end
 
+task :default => "setup"
