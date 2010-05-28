@@ -365,10 +365,13 @@ module Orocos
 
             class << self
                 attr_reader :name
-                # The Orocos::Generation::StaticDeployment that represents this
-                # task context.
+                # The Orocos::Generation::TaskContext that represents this
+                # deployed task context.
                 attr_reader :orogen_spec
-                # A mapping from state name to event name
+
+                # A state_name => event_name mapping that maps the component's
+                # state names to the event names that should be emitted when it
+                # enters a new state.
                 attr_reader :state_events
                 # A name => boolean mapping that says if the task named 'name'
                 # is configured
@@ -376,6 +379,7 @@ module Orocos
             end
             @@configured = Hash.new
 
+            # Returns the event name that maps to the given component state name
             def state_event(name)
                 model.state_events[name]
             end
@@ -399,14 +403,14 @@ module Orocos
                 end
             end
 
-            def create_fresh_copy
+            def create_fresh_copy # :nodoc:
                 new_task = super
                 new_task.orogen_task = orogen_task
                 new_task.orogen_spec = orogen_spec
                 new_task
             end
 
-            def executable?(with_setup = true)
+            def executable?(with_setup = true) # :nodoc:
                 if !@orogen_spec || !@orogen_task
                     return false
                 end
@@ -416,14 +420,14 @@ module Orocos
                 true
             end
 
-            def added_child_object(child, relations, info)
+            def added_child_object(child, relations, info) # :nodoc:
                 super if defined? super
                 if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
                     Flows::DataFlow.modified_tasks << self
                 end
             end
 
-            def removed_child_object(child, relations)
+            def removed_child_object(child, relations) # :nodoc:
                 super if defined? super
                 if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
                     Flows::DataFlow.modified_tasks << self
@@ -432,6 +436,9 @@ module Orocos
 
             attr_reader :minimal_period
 
+            # Predicate which returns true if the deployed component is
+            # triggered by data on the given port. +port+ is an
+            # Orocos::Generation::InputPort instance
             def self.triggered_by?(port)
                 orogen_spec.event_ports.find { |p| p.name == port.name }
             end
@@ -577,6 +584,7 @@ module Orocos
                 end
             end
 
+            # Called to configure the component
             def setup
                 if TaskContext.configured[orocos_name]
                     if !is_setup?
@@ -605,6 +613,8 @@ module Orocos
                 event(:start).emit_failed(e)
             end
 
+            # Returns true if this component needs to be setup by calling the
+            # #setup method, or if it can be used as-is
             def check_is_setup
                 if orogen_spec.context.needs_configuration?
                     if !orogen_task
@@ -625,6 +635,11 @@ module Orocos
                     true
                 end
             end
+
+            ##
+            # :method: start_event
+            #
+            # Returns the start event object for this task
 
             ##
             # :method: start!
@@ -704,15 +719,33 @@ module Orocos
                     end
                 end
             end
+
             forward :interrupt => :failed
 
-            # Emitted when the component recovers from a runtime error state
+            ##
+            # :method: running_event
+            #
+            # Returns the running event object for this task. This event gets
+            # emitted whenever the component goes into the Running state, either
+            # because it has just been started or because it left a runtime
+            # error state.
             event :running
 
-            # Emitted when the component goes into one of the runtime error
-            # states
+            ##
+            # :method: runtime_error_event
+            #
+            # Returns the runtime error event object for this task. This event
+            # gets emitted whenever the component goes into a runtime error
+            # state.
             event :runtime_error
 
+            ##
+            # :method: fatal_error_event
+            #
+            # Returns the fatal error event object for this task. This event
+            # gets emitted whenever the component goes into a fatal error state.
+            #
+            # This leads to the component emitting both :failed and :stop
             event :fatal_error
             forward :fatal_error => :failed
 
@@ -727,6 +760,7 @@ module Orocos
             event :stop do |context|
                 interrupt!
             end
+
             on :stop do |event|
                 ::Robot.info "stopped #{self}"
                 if @state_reader
@@ -734,6 +768,12 @@ module Orocos
                 end
             end
 
+            # Declares that this task context model can be used as a driver for
+            # the device +model+.
+            #
+            # It will create the corresponding device model if it does not
+            # already exist, and return it. See the documentation of
+            # Component.data_service for the description of +arguments+
             def self.driver_for(model, arguments = Hash.new)
                 if model.respond_to?(:to_str)
                     begin

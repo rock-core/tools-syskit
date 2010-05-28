@@ -1,0 +1,185 @@
+---
+title: Dataflow Specifications
+sort_info: 300
+---
+If we look at the system deployment below, that has been generated from [the
+simple composition](simple_compositions.html), one can see that the Roby plugin
+"decided" to use the data connection policies between the ports.
+
+![Data flow of the instanciated simple composition](simple_composition_instanciate.png)
+
+This page will be about how the plugin chooses policies automatically, how to
+specify what the components need, and how to hand-tune that behaviour when the
+automated way does not work as you expect.
+
+Manual port connections
+-----------------------
+
+Connection between ports in compositions can be specified manually with
+'connect' statements. For instance:
+
+{coderay:: ruby}
+composition 'PTUStabilization' do
+  xsens    = add XsensImu::Task
+  attitude = add AttitudeServoing::Task
+  add Dynamixel::Task
+
+  connect xsens.orientation_samples => attitude.orientation_samples,
+    :type => :buffer, :size => 1
+end
+{coderay}
+
+Which will end up generating the following deployment:
+
+![Example of an explicit connection](dataflow_explicit_connection.png)
+
+See the API documentation of Composition#connect for a complete description of
+the available options.
+
+Automated policy determination
+------------------------------
+If no specific policy is provided, the Roby plugin will determine that policy
+based on various parameters. This mechanism is triggered for connections that
+are created automatically (through the 'autoconnect' statement), and for calls
+to 'connect' without any policy specification.
+
+This policy is determined based on three parameters.
+
+First, an oroGen-side specification of what type of connection the component
+needs for each of its inputs. Three choices are possible:
+
+ * the input should be connected with a data connection. This is specified with
+   the <tt>needs_data_connection</tt> statement
+   {coderay:: ruby}
+   input_port('in', '/std/string').
+     needs_data_connection
+   {coderay}
+
+ * the input should be connected with a buffered connection of size 1. This is
+   specified with the <tt>needs_buffered_connection</tt> statement:
+   {coderay:: ruby}
+   input_port('in', '/std/string').
+     needs_buffered_connection
+   {coderay}
+
+ * the third, and most interesting one, specifies that the component expects
+   that it will receive all samples sent to it. This is specified with the
+   <tt>needs_reliable_connection</tt> statement.
+   {coderay:: ruby}
+   input_port('in', '/std/string').
+     needs_reliable_connection
+   {coderay}
+
+Each of these specifications can be added into the Roby models -- as opposed to
+changing the oroGen specification. This should be used rarely, but comes in
+handy if the oroGen project does not come from you and you can't change it.
+
+This can be done with
+
+{coderay:: ruby}
+class Dynamixel::Task
+  orogen_spec.port('scanner_tilt_angle_set').
+    needs_buffered_connection
+
+  def configure
+    orogen_task.device = "/dev/ttyS1"
+  end
+end
+{coderay}
+
+***Note*** the trailing dot at the end of the input_port line. That dot is
+critical. In practice, all <tt>needs_*</tt> statements are method calls on the
+port objects.
+{: .warning}
+
+While the +needs_data_connection+ and +needs_buffered_connection+ are
+straightforward, the +needs_reliable_connection+ modality needs a bit more of
+documentation.
+
+Automatic connection policies for <tt>needs_reliable_connection</tt>
+--------------------------------------------------------------------
+The issue at hand for <tt>needs_reliable_connection</tt> is to know how many
+samples can be written by an input component until the output component "eats"
+them. To achieve this, the Roby plugin assumes the following behaviour from the
+components:
+
+ 1. whenever the output component is triggered (i.e. its updateHook() gets
+    called), it will read all samples that are currently buffered on its input
+    ports.
+ 2. whenever a component gets triggerd (i.e. its updateHook() gets called), it
+    will write samples on all its output ports.
+ 3. processing time of the output component is lower than the period in its
+    inputs.
+
+Note that both assumptions can be parametrized through oroGen port
+specifications. This will be detailed later in this page.
+
+Based on these assumptions, what the algorithm does is:
+
+ 1. compute what is the maximum duration between two calls of updateHook() _on the
+    input (sink)_ side.
+ 2. compute how many samples will be produced _by the output (source)_ side
+    within that timespan.
+
+The amount of samples computed in (2), obviously, should be the buffer length.
+
+To compute (1), the algorithm uses the scheduler (RT or non-RT) selected for the
+task, and how it is triggered (periodic, port-triggered, fd-triggered). The
+periodic case is straightforward. The port-triggered case propagates trigger
+information along the data flow graph. The FD-triggered case requires
+information about the underlying device, a subject that will be covered later on
+in this guide.
+
+In non-periodic cases, the system uses a latency information that tells, in
+seconds, how long there will be between the time a task is triggered (for
+instance because its input port gets new data) and the time updateHook is
+called. This latency information is returned by the minimal_trigger_latency and
+expected_trigger_latency methods of the deployed task models. It uses a simple
+model, using different static values whether the task is under a realtime or
+non-realtime scheduling policy. This default value can be overriden on a
+per-task basis by accessing the deployment specifications.
+
+Refining output port information to improve the reliable connection management
+------------------------------------------------------------------------------
+
+As stated before, it is assumed that a component will push one sample on each of
+its output ports every time it is triggered. If more than one sample might be
+sent, two statements can be used:
+
+ * the <tt>sample_size</tt> statement specifies that the component will
+   **always** send multiple samples on the connection
+   {coderay:: ruby}
+   output_port('out', '/std/string').
+     sample_size(4)
+   {coderay}
+
+ * the <tt>burst</tt> statement specifies that the component will usually send
+   one sample, but that it may sometime send more. The following example
+   specifies that the component will write 4 samples every 5 calls to
+   updateHook(). The special period value of 0 can be used to mean "rarely
+   enough".
+   {coderay:: ruby}
+   output_port('out', '/std/string').
+     burst(4, 5)
+   {coderay}
+
+Moreover, if the port is not written at each call to updateHook(), the
+<tt>period</tt> statement can be used to specify that. The following example
+specifies that 'out' is written every two calls to updateHook(). If the period
+is variable, use the minimal period (as it is the most constraining for the
+reliable connection specification).
+
+{coderay:: ruby}
+output_port('out', '/std/string').
+ period(2)
+{coderay}
+
+Finally, if an output port is called only when there is new data on specific
+input ports, that can be specified with the <tt>triggered_on</tt> statement. In
+the following example, 'out' will be written whenever data is available on 'in'.
+
+{coderay:: ruby}
+output_port('out', '/std/string').
+ triggered_on('in')
+{coderay}
+

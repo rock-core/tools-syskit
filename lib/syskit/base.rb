@@ -399,6 +399,32 @@ module Orocos
                 data_service(*args)
             end
 
+            # Declares that this component provides the given data service.
+            # +model+ can either be the data service constant name (from
+            # Orocos::RobyPlugin::DataServices), or its plain name.
+            #
+            # If the data service defines an interface, the component must
+            # provide the required input and output ports, *matching the port
+            # name*. See the discussion about the 'main' argument for port name
+            # matching.
+            #
+            # The following arguments are accepted:
+            #
+            # as::
+            #   the data service name on this task context. By default, it
+            #   will be derived from the model name by converting it to snake
+            #   case (i.e. stereo_camera for StereoCamera)
+            # slave_of::
+            #   creates a data service that is slave from another data service.
+            # main::
+            #   creates a main data service. For main data services, the
+            #   component port names must strictly match the ones defined in the
+            #   data service interface. Otherwise, the port names can be
+            #   prefixed or postfixed by the data service name. Data services
+            #   for which the 'as' argument is not specified are main by
+            #   default.
+            #
+            # +provides+ is an alias for this call
             def self.data_service(model, arguments = Hash.new)
                 source_arguments, arguments = Kernel.filter_options arguments,
                     DATA_SERVICE_ARGUMENTS
@@ -495,6 +521,10 @@ module Orocos
                 end
             end
 
+            # Returns the data service model for the given source name
+            #
+            # Raises ArgumentError if source_name is not a data source name on
+            # this component model.
             def data_service_type(source_name)
                 source_name = source_name.to_str
                 root_source_name = source_name.gsub /\..*$/, ''
@@ -518,14 +548,13 @@ module Orocos
                 model
             end
 
-            def check_is_setup
+            def check_is_setup # :nodoc:
                 true
             end
 
             def is_setup?
                 @is_setup ||= check_is_setup
             end
-
 
             def executable?(with_setup = true)
                 if !super()
@@ -656,6 +685,13 @@ module Orocos
             end
         end
 
+        # Represents the actual connection graph between task context proxies.
+        # Its vertices are instances of Orocos::TaskContext, and edges are
+        # mappings from [source_port_name, sink_port_name] pairs to the
+        # connection policy between these ports.
+        #
+        # Orocos::RobyPlugin::ActualDataFlow is the actual global graph instance
+        # in which the overall system connections are maintained in practice
         class ConnectionGraph < BGL::Graph
             def add_connections(source_task, sink_task, mappings) # :nodoc:
                 if mappings.empty?
@@ -677,7 +713,7 @@ module Orocos
                 end
             end
 
-            def remove_connections(source_task, sink_task, mappings)
+            def remove_connections(source_task, sink_task, mappings) # :nodoc:
                 current_mappings = source_task[sink_task, self]
                 mappings.each do |source_port, sink_port|
                     current_mappings.delete([source_port, sink_port])
@@ -692,6 +728,7 @@ module Orocos
         Orocos::TaskContext.include BGL::Vertex
 
         Flows = Roby::RelationSpace(Component)
+
         def self.update_connection_policy(old, new)
             if old.empty?
                 return new
@@ -726,6 +763,10 @@ module Orocos
         end
 
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false, :weak => true do
+            # Makes sure that +self+ has an output port called +name+. It will
+            # instanciate a dynamic port if needed.
+            #
+            # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_output_port(name)
                 if !model.output_port(name)
                     if model.dynamic_output_port?(name)
@@ -736,6 +777,10 @@ module Orocos
                 end
             end
 
+            # Makes sure that +self+ has an input port called +name+. It will
+            # instanciate a dynamic port if needed.
+            #
+            # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_input_port(name)
                 if !model.input_port(name)
                     if model.dynamic_input_port?(name)
@@ -750,7 +795,6 @@ module Orocos
                 Flows::DataFlow.remove(self)
                 super
             end
-
 
             # Forward an input port of a composition to one of its children, or
             # an output port of a composition's child to its parent composition.
@@ -816,7 +860,12 @@ module Orocos
                 add_sink(target_task, mappings)
             end
 
-            # Yields the input connections of this task
+            # call-seq:
+            #   sink_task.each_input_connection { |source_task, source_port_name, sink_port_name, policy| ...}
+            #
+            # Yield or enumerates the connections that exist towards the input
+            # ports of +sink_task+. It includes connections to composition ports
+            # (i.e. exported ports).
             def each_input_connection(required_port = nil)
                 if !block_given?
                     return enum_for(:each_input_connection)
@@ -835,6 +884,14 @@ module Orocos
                 end
             end
 
+            # call-seq:
+            #   sink_task.each_input_connection { |source_task, source_port_name, sink_port_name, policy| ...}
+            #
+            # Yield or enumerates the connections that exist towards the input
+            # ports of +sink_task+. It does not include connections to
+            # composition ports (i.e. exported ports): these connections are
+            # followed until a concrete port (a port on an actual Orocos
+            # task context) is found.
             def each_concrete_input_connection(required_port = nil, &block)
                 if !block_given?
                     return enum_for(:each_concrete_input_connection, required_port)
@@ -882,9 +939,17 @@ module Orocos
                 self
             end
 
-            # Yields the output connections going out of this task. If an
-            # argument is given, only connections going out of this particular
-            # port are yield.
+            # call-seq:
+            #   source_task.each_output_connection { |source_port_name, sink_port_name, sink_port, policy| ...}
+            #
+            # Yield or enumerates the connections that exist getting out
+            # of the ports of +source_task+. It does not include connections to
+            # composition ports (i.e. exported ports): these connections are
+            # followed until a concrete port (a port on an actual Orocos
+            # task context) is found.
+            #
+            # If +required_port+ is given, it must be a port name, and only the
+            # connections going out of this port will be yield.
             def each_output_connection(required_port = nil)
                 if !block_given?
                     return enum_for(:each_output_connection, required_port)
@@ -908,13 +973,20 @@ module Orocos
 
         module Flows
             class << DataFlow
+                # The set of connection changes that have been applied to the
+                # DataFlow relation graph, but not yet applied on the actual
+                # components (i.e. not yet present in the ActualDataFlow graph).
                 attr_accessor :pending_changes
             end
 
+            # Returns the set of tasks whose data flow has been changed that has
+            # not yet been applied.
             def DataFlow.modified_tasks
                 @modified_tasks ||= ValueSet.new
             end
 
+            # Called by the relation graph management to update the DataFlow
+            # edge information when connections are added or removed.
             def DataFlow.merge_info(source, sink, current_mappings, additional_mappings)
                 current_mappings.merge(additional_mappings) do |(from, to), old_options, new_options|
                     RobyPlugin.update_connection_policy(old_options, new_options)
