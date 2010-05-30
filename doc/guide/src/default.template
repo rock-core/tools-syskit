@@ -23,7 +23,7 @@
         <div id="logo">
           <h1>[<a href="{relocatable: /index.html}" accesskey="4">Orocos.rb</a>]</h1>
           <span id="tagline">User's guide</span><BR />
-          for v{execute_cmd: ruby -rlib/orocos/version -e "puts Orocos::VERSION"}
+          for v{execute_cmd: grep VERSION lib/orocos/version.rb | sed 's/.*"\(.*\)"/\1/'}
         </div>
 
         <div id="intro">
