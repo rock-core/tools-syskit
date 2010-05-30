@@ -75,7 +75,11 @@ module Orocos
                 Orocos::RobyPlugin::DataServices.const_get(name.camelcase(true))
             end
 
-            def data_service_type(name, options = Hash.new, &block)
+            def data_service_type(*args, &block)
+                data_service(*args, &block)
+            end
+
+            def data_service(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
                     :child_of => DataService,
                     :interface    => nil

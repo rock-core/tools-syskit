@@ -1,0 +1,9 @@
+---
+title: Standard File Layout
+sort_info: 600
+---
+
+What we did until now is create one system model file to declare the composition
+(in tasks/composition/ptu_servoing.rb) and one single deployment specification
+file 
+

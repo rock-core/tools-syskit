@@ -1,5 +1,19 @@
 module Orocos
     module RobyPlugin
+        # Namespace in which data services are stored.
+        #
+        # When a service is declared with
+        #
+        #   data_service 'a_name_in_snake_case'
+        #
+        # The plugin creates a
+        # Orocos::RobyPlugin::DataServices::ANameInSnakeCase instance of the
+        # DataServiceModel class. This instance then gets included in every task
+        # context model and device model that provides the service.
+        #
+        # A Orocos::Generation::TaskContext instance is used to represent the
+        # service interface. This instance is available through the 'interface'
+        # attribute of the DataServiceModel instance.
         module DataServices
             def self.each
                 constants.each do |name|
@@ -7,7 +21,22 @@ module Orocos
                 end
             end
         end
-        module DataSources
+
+        # Namespace in which device models are stored.
+        #
+        # When a device is declared with
+        #
+        #   device 'a_name_in_snake_case'
+        #
+        # The plugin creates a
+        # Orocos::RobyPlugin::Devices::ANameInSnakeCase instance of the
+        # DataServiceModel class. This instance then gets included in every task
+        # context model that provides the service.
+        #
+        # A Orocos::Generation::TaskContext instance is used to represent the
+        # service interface. This instance is available through the 'interface'
+        # attribute of the DataServiceModel instance.
+        module Devices
             def self.each
                 constants.each do |name|
                     yield(const_get(name))
@@ -15,6 +44,7 @@ module Orocos
             end
         end
 
+        DataSources = Devices
         DServ = DataServices
         DSrc  = DataSources
 
@@ -251,7 +281,7 @@ module Orocos
         end
 
         DataService  = DataServiceModel.new
-        DataSource = DataServiceModel.new
+        DataSource   = DataServiceModel.new
         ComBusDriver = DataServiceModel.new
 
         module DataService

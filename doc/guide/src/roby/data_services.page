@@ -1,0 +1,124 @@
+---
+title: Generalization using Data Services
+sort_info: 500
+---
+
+OK, so, well, right now we have a nice PTUStabilization that is tied to an
+xsens imu  and a dynamixel servo (thanks to [the robot device definitions](device_model.html),
+_any_ xsens imu and _any_ dynamixel servo, but an **Xsens** IMU and
+a **Dynamixel** servo nonetheless).
+
+This page will teach you how to transform that into a PTUStabilization
+composition which can use *any* attitude-providing component and any servo
+component. The goal, obviously, being that the composition definitions
+(and, later, the supervision and planning stuff that comes on top of it)
+should be reused across systems.
+
+Data Services
+-------------
+
+Data services declare types of _port interfaces_. I.e. they declare __abstract__
+component definitions that can be used in compositions, and can then be matched
+with actual hardware and/or software at deployment time.
+
+A data service is declared in a system model file with
+
+{coderay:: ruby}
+data_service 'Imu' do
+    output_port 'attitude_samples', '/wrappers/samples/RigidBodyState'
+end
+{coderay}
+
+Which declares a data service called Imu. Any component that **provides** this
+data service must have an output port called attitude_samples with the specified
+type. This service can be referred directly in the rest of the system model
+files (i.e. composition definitions), in place of an actual component:
+
+{coderay:: ruby}
+using_task_library 'attitude_servoing'
+using_task_library 'dynamixel'
+data_service 'Imu' do
+  output_port 'attitude_samples', '/wrappers/samples/RigidBodyState'
+end
+composition 'PTUStabilization' do
+  add Imu
+  add AttitudeServoing::Task
+  add Dynamixel::Task
+  autoconnect
+end
+{coderay}
+
+**Note** the ptu_stabilization.rb file does not require the xsens_imu oroGen
+project to be there anymore.
+{: .warning}
+
+**Advanced** The data service definition above creates an instance of
+Orocos::RobyPlugin::DataService, which is stored as
+Orocos::RobyPlugin::DataServices::Imu.
+{: .note}
+
+Linking data services and tasks
+-------------------------------
+One declares that a specific task **provides** a data service. This is done
+with:
+
+{coderay:: ruby}
+class XsensImu::Task
+  driver_for 'xsens_imu'
+  provides 'Imu'
+end
+{coderay}
+
+However, one can clearly see that all Xsens IMUs are actually IMUs. The
+'provides' does therefore not apply on the specific XsensImu::Task, but on the
+actual "xsens_imu" device model. We can therefore change the driver_for
+definition to:
+
+{coderay:: ruby}
+class XsensImu::Task
+  driver_for 'xsens_imu', :provides => Imu
+end
+{coderay}
+
+Devices
+-------
+One specific type of data service are devices. The difference between a 'plain'
+data service and device is that it is assumed that a 'device' connects the
+component network with an external data source or sink, while data services only
+process data.
+
+In practice, it means that devices must model what kind how the external source
+and/or sink behaves, as we saw [on the previous page](device_model.html) with
+robot definition files.
+
+Device models are usually created through the driver_for statement in task
+context models. If the same device model can have different device drivers, then
+one will usually declare the device model externally, and still use the
+driver_for statement to declare the task as a driver:
+
+In tasks/compositions/attitude_servoing.rb:
+
+{coderay:: ruby}
+using_task_library 'attitude_servoing'
+using_task_library 'dynamixel'
+data_service 'Imu' do
+  output_port 'attitude_samples', '/wrappers/samples/RigidBodyState'
+end
+device_model 'XsensImu', :provides => 'Imu'
+
+composition 'PTUStabilization' do
+  add Imu
+  add AttitudeServoing::Task
+  add Dynamixel::Task
+  autoconnect
+end
+{coderay}
+
+In tut.rb:
+
+{coderay:: ruby}
+class XsensImu::Task
+  driver_for 'xsens_imu'
+end
+{coderay}
+
