@@ -31,9 +31,9 @@ using_task_library 'xsens_imu'
 using_task_library 'attitude_servoing'
 using_task_library 'dynamixel'
 composition 'PTUStabilization' do
-  add XsensImu::Task
-  add AttitudeServoing::Task
-  add Dynamixel::Task
+  add XsensImu::Task, :as => 'imu'
+  add AttitudeServoing::Task, :as => 'control'
+  add Dynamixel::Task, :as  =>  'servo'
   autoconnect
 end
 {coderay}
