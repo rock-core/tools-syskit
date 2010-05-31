@@ -1,0 +1,146 @@
+---
+title: Device Specifications
+sort_info: 400
+---
+
+Until now, the XsensImu and Dynamixel tasks were set up by hard-coding the
+device names into the task context model. That has one important effect: there
+can be only one XsensImu and/or Dynamixel in our system (as the port is not
+configurable).
+
+Moreover, when we described the dataflow specification, we left out the case of
+device-driven tasks (i.e. fd-driven ones).
+
+Purpose
+-------
+In general, we need to have a way to describe what devices are available on the
+system. Then, as we will see, we will move from a task-oriented description
+towards a service-oriented ones.
+
+The goal is to be able to specify what devices the PTUStabilization should use.
+After this page, we will therefore be able to specify our deployment with
+
+{coderay:: ruby}
+add PTUStabilization,
+    'imu'   => 'left_imu',
+    'servo' => 'left_servo'
+{coderay}
+
+Which can be read as "I want to have a PTUStabilization service which uses the
+xsens_imu device for imu data and the left_servo device for the action part.
+
+Then, assuming that two identical setups are present in the system you could
+servo both sides by having in addition to the declaration above:
+
+{coderay:: ruby}
+add PTUStabilization,
+    'imu'   => 'right_imu',
+    'servo' => 'right_servo'
+{coderay}
+
+Robot description files
+-----------------------
+Two things are needed to get that scheme working:
+
+ * first, you need to declare what **kind** of device is available, and what are
+   the components that should be used to drive them. This is done by adding some
+   declarations to the system definition files.
+ * then, you need to declare what actual devices are available on your
+   particular system.
+
+The first part is done by adding <tt>driver_for</tt> statements to the component
+definitions in tut.rb:
+
+{coderay:: ruby}
+# Roby-level representation of the XsensImu::Task RTT task context
+class XsensImu::Task
+  driver_for 'xsens_imu'
+  def configure
+    orogen_task.port = "/dev/ttyS0"
+  end
+end
+
+# Roby-level representation of the Dynamixel::Task RTT task context
+class Dynamixel::Task
+  driver_for 'dynamixel'
+  def configure
+    orogen_task.device = "/dev/ttyS1"
+  end
+end
+{coderay}
+
+Then, you need to declare the devices. Add the following lines in tut.rb
+
+{coderay:: ruby}
+Robot.devices do
+  device Dynamixel, :as => 'left_servo'
+  device XsensImu,  :as => 'left_imu'
+  device Dynamixel, :as => 'right_servo'
+  device XsensImu,  :as => 'right_imu'
+end
+{coderay}
+
+So, what's the big deal ? I mean, right now you gained nothing from it ...
+
+Well ... The general idea is that the description of each device should be
+all contained in the robot model. One standard statement, for instance, is the
+<tt>device_id</tt> statement which -- in our case -- will be used to specify the
+device files:
+
+{coderay:: ruby}
+Robot.devices do
+  device(Dynamixel, :as => 'left_servo').
+    device_id('/dev/ttyS0')
+  device(XsensImu,  :as => 'left_imu').
+    device_id('/dev/ttyS1')
+end
+{coderay}
+
+The tasks can then access this definition by using the robot_device method:
+
+{coderay:: ruby}
+class Dynamixel::Task
+  driver_for 'dynamixel'
+  def configure
+    orogen_task.device = robot_device.device_id
+  end
+end
+{coderay}
+
+Additionally, the device definition file must contain information about the
+device dynamics, in order for the [dataflow code](dataflow.html) to be able to
+compute connection policies. This is done with the period and sample_size
+statements. The first declare how often (in seconds) the device generates data,
+and the second how many output port samples will be generated each time it will
+generate some data:
+
+{coderay:: ruby}
+  device(XsensImu,  :as => 'left_imu').
+    device_id('/dev/ttyS0').
+    period(0.01)
+{coderay}
+
+If the device sample rate can be configured, this period information should be
+used by the configure method to configure the device accordingly. For instance,
+the Xsens IMU configuration code should configure the actual device to run at
+10Hz:
+
+{coderay:: ruby}
+# Roby-level representation of the XsensImu::Task RTT task context
+class XsensImu::Task
+  driver_for 'xsens_imu'
+  def configure
+    robot_def = robot_device
+    orogen_task.port = robot_def.device_id
+
+    # Compute the period in milliseconds, and give it to the component
+    period = (robot_def.period * 1000).round
+    orogen_task.device_period = period
+  end
+end
+{coderay}
+
+Devices are represented by an object of {rdoc_class:
+RobyPlugin::MasterDeviceInstance}. See the documentation of that class for more
+information.
+{: .note}

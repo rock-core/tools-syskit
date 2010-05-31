@@ -4,7 +4,8 @@ sort_info: 500
 ---
 
 OK, so, well, right now we have a nice PTUStabilization that is tied to an
-xsens imu  and a dynamixel servo (thanks to [the robot device definitions](device_model.html),
+xsens imu  and a dynamixel servo (thanks to [the robot device
+definitions](devices.html),
 _any_ xsens imu and _any_ dynamixel servo, but an **Xsens** IMU and
 a **Dynamixel** servo nonetheless).
 
@@ -88,7 +89,7 @@ component network with an external data source or sink, while data services only
 process data.
 
 In practice, it means that devices must model what kind how the external source
-and/or sink behaves, as we saw [on the previous page](device_model.html) with
+and/or sink behaves, as we saw [on the previous page](devices.html) with
 robot definition files.
 
 Device models are usually created through the driver_for statement in task

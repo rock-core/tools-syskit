@@ -1,7 +1,7 @@
 ---
-title: The Roby plugin
+title: The Basics of the Roby plugin
 sort_info: 0
---- name:content pipeline:tags,markdown,blocks
+---
 
 Roby is a plan management / supervision system. This plugin allows to manage
 Orocos component networks in Roby, thus leveraging its supervision

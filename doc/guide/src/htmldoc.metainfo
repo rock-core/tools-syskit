@@ -5,5 +5,10 @@
     sort_info: 200
 
 /roby:
+    title: The Basics of Model-based Deployment
     sort_info: 300
+
+/roby_extended:
+    title: Complex Model-based Deployments
+    sort_info: 400
 

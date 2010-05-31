@@ -22,15 +22,6 @@ module Orocos
             # The actual task
             attr_accessor :task
 
-            # The device period in seconds
-            attr_reader :period
-            # How many data samples are required to represent one message from
-            # this device
-            attr_reader :sample_size
-            # The device ID. It is dependent on the method of communication to
-            # the device. For a serial line, it would be the device file
-            # (/dev/ttyS0). For CAN, it would be the device ID and mask.
-            attr_reader :device_id
             # Generic property map. The values are set with #set and can be
             # retrieved by calling "self.property_name". The possible values are
             # specific to the type of device
@@ -63,8 +54,62 @@ module Orocos
                 self
             end
 
+            ##
+            # :method:period
+            #
+            # call-seq:
+            #   period(new_period) => new_period
+            #   period => current_period or nil
+            #
+            # Gets or sets the device period
+            #
+            # The device period is the amount of time there is between two
+            # samples coming from the device. The value is a floating-point
+            # value in seconds.
             dsl_attribute(:period) { |v| Float(v) }
+
+            ## 
+            # :method:sample_size
+            #
+            # call-seq:
+            #   sample_size(size)
+            #   sample_size => current_size
+            #
+            # If this device is on a communication bus, the sample_size
+            # statement specifies how many messages on the bus are required to
+            # form one of the device sample.
+            #
+            # For instance, if four motor controllers are modelled as one device
+            # on a CAN bus, and if each of them require one message, then the
+            # following would be used to declare the device:
+            #
+            #   device(Motors).
+            #       device_id(0x0, 0x700).
+            #       period(0.001).sample_size(4)
+            #
+            # It is unused for devices that don't communicate through a bus.
+            #
             dsl_attribute(:sample_size) { |v| Integer(v) }
+
+            ## 
+            # :method:device_id
+            #
+            # call-seq:
+            #   device_id(device_id, definition)
+            #   device_id => current_id or nil
+            #
+            # The device ID. It is dependent on the method of communication to
+            # the device. For a serial line, it would be the device file
+            # (/dev/ttyS0):
+            #
+            #   device(XsensImu).
+            #       device_id('/dev/ttyS0')
+            #
+            # For CAN, it would be the device ID and mask:
+            #
+            #   device(Motors).
+            #       device_id(0x0, 0x700)
+            #
             dsl_attribute(:device_id) do |*values|
                 if values.size > 1
                     values

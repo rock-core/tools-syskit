@@ -3,8 +3,6 @@ module Orocos
         class SystemModel
             include CompositionModel
 
-            attribute(:configuration) { Hash.new }
-
             def initialize
                 @system = self
             end
@@ -38,9 +36,13 @@ module Orocos
             def register_data_source(model)
                 Orocos::RobyPlugin::DataSources.const_set(model.name.camelcase(true), model)
             end
+
+            # Add a new composition model
             def register_composition(model)
                 Orocos::RobyPlugin::Compositions.const_set(model.name.camelcase(true), model)
             end
+
+            # Enumerate the composition models that are available
             def each_composition(&block)
                 if !block_given?
                     return enum_for(:each_composition)
@@ -55,34 +57,68 @@ module Orocos
                     end
             end
 
+            # Load the types defined in the specified oroGen projects
             def import_types_from(*names)
                 Roby.app.main_orogen_project.import_types_from(*names)
             end
+
+            # Load a system model file
+            #
+            # System model files contain data service, data sources and
+            # composition definitions.
             def load_system_model(name)
                 Roby.app.load_system_model(name)
             end
+
+            # Load the specified oroGen project and register the task contexts
+            # and deployments they contain.
             def using_task_library(*names)
                 names.each do |n|
                     Roby.app.load_orogen_project(n)
                 end
             end
 
+            # Returns the object that represents the given data source type
             def get_data_source_type(name)
                 Orocos::RobyPlugin::DataSources.const_get(name.camelcase(true))
             end
 
+            # Returns the object that represents the given data service type
             def get_data_service_type(name)
                 Orocos::RobyPlugin::DataServices.const_get(name.camelcase(true))
             end
 
-            def data_service_type(*args, &block)
+            # DEPRECATED. Use #data_service
+            def data_service_type(*args, &block) # :nodoc:
                 data_service(*args, &block)
             end
 
+            # Creates a new data service model
+            #
+            # The returned value is an instance of DataServiceModel
+            #
+            # If a block is given, it is used to declare the service's
+            # interface, i.e. the input and output ports that are needed on any
+            # task that provides this source.
+            #
+            # Available options:
+            #
+            # provides::
+            #   another data service that this service implements. This is used
+            #   to specialize services (i.e. this data service is a child model
+            #   of the given data service). It can be either a data service name
+            #   or object.
+            # interface::
+            #   alternatively to giving a block, it is possible to provide an
+            #   Orocos::Generation::TaskContext instance directly to define the
+            #   required interface.
             def data_service(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
-                    :child_of => DataService,
+                    :child_of => nil,
+                    :provides => DataService,
                     :interface    => nil
+
+                options[:provides] ||= options[:child_of]
 
                 const_name = name.camelcase(true)
                 if has_data_service?(name)
@@ -103,7 +139,27 @@ module Orocos
                 model
             end
 
+            # DEPRECATED. Use data_source instead
             def data_source_type(name, options = Hash.new)
+                data_source(name, options)
+            end
+
+            # Create a new data source model
+            #
+            # The returned value is an instance of DataServiceModel in which
+            # DataSource has been included.
+            #
+            # The following options are available:
+            #
+            # provides::
+            #   a data service this data source provides
+            # interface::
+            #   an instance of Orocos::Generation::TaskContext that represents
+            #   the data source interface.
+            #
+            # If both provides and interface are provided, the interface must
+            # match the data service's interface.
+            def data_source(name, options = Hash.new)
                 options, device_options = Kernel.filter_options options,
                     :provides => nil, :interface => nil
 
@@ -159,7 +215,22 @@ module Orocos
                 source_model
             end
 
-            def com_bus_type(name, options  = Hash.new)
+            # DEPRECATED use #com_bus
+            def com_bus_type(name, options = Hash.new) # :nodoc:
+                com_bus(name, options)
+            end
+
+            # Creates a new communication bus model
+            #
+            # It accepts the same arguments than data_source. In addition, the
+            # 'message_type' option must be used to specify what data type is
+            # used to represent the bus messages:
+            #
+            #   com_bus 'can', :message_type => '/can/Message'
+            #
+            # The returned value is an instance of DataServiceModel, in which
+            # ComBusDriver is included.
+            def com_bus(name, options  = Hash.new)
                 name = name.to_str
 
                 if has_data_source?(name)
@@ -170,10 +241,26 @@ module Orocos
                 register_data_source(model)
             end
 
-            # Create a new composition model with the given name
+            # call-seq:
+            #   composition('composition_name') do
+            #     # composition definition statements
+            #   end
+            #
+            # Create a new composition model with the given name and returns it.
+            # If a block is given, it is evaluated in the context of the new
+            # composition model, i.e. any method defined on CompositionModel is
+            # available in it:
+            #
+            #   composition('composition_name') do
+            #     provides MyService
+            #     add XsensImu::Task
+            #   end
+            #
+            # The returned value is a subclass of Composition
             def composition(name, options = Hash.new, &block)
                 name = name.to_s
-                options = Kernel.validate_options options, :child_of => Composition, :register => true
+                options = Kernel.validate_options options,
+                    :child_of => Composition, :register => true
 
                 if options[:register] && has_composition?(name)
                     raise ArgumentError, "there is already a composition named '#{name}'"
@@ -189,16 +276,7 @@ module Orocos
                 new_model
             end
 
-            def configure(task_model, &block)
-                task = get(task_model)
-                if task.configure_block
-                    raise SpecError, "#{task_model} already has a configure block"
-                end
-                task.configure_block = block
-                self
-            end
-
-            def pretty_print(pp)
+            def pretty_print(pp) # :nodoc:
                 inheritance = Hash.new { |h, k| h[k] = Set.new }
                 inheritance["Orocos::RobyPlugin::Component"] << "Orocos::RobyPlugin::Composition"
 
@@ -237,7 +315,8 @@ module Orocos
                 self
             end
 
-            def composition_to_dot(io, model)
+            # Internal helper for to_dot
+            def composition_to_dot(io, model) # :nodoc:
                 id = model.object_id
 
                 inputs  = Hash.new { |h, k| h[k] = Array.new }
@@ -286,6 +365,8 @@ module Orocos
                 end
             end
 
+            # Returns a graphviz file that can be processed by 'dot', which
+            # represents all the models defined in this SystemModel instance.
             def to_dot
                 io = []
                 io << "digraph {\n"

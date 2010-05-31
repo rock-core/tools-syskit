@@ -256,6 +256,14 @@ color:#222;
 border:2px solid #ddd;
 }
 
+.note{
+display: inline-block;
+padding:20px;
+background:#eee;
+color:#222;
+border:2px solid #ddd;
+}
+
 .warning{
 padding:20px;
 background:#fbb;

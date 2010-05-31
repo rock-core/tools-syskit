@@ -1,6 +1,6 @@
 ---
 title: Error messages
-sort_info: 300
+sort_info: 500
 --- name:content pipeline:tags,markdown,blocks
 
 <tt>pkg-config --list-all</tt> returns an error

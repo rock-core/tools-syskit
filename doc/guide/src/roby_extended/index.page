@@ -1,0 +1,18 @@
+---
+title: Extended use of the Roby plugin
+sort_info: 0
+---
+
+Now that you have seen [the basics of the Roby plugin](../roby/index.html), we'll get into its more
+complex (and more interesting) uses. All the more advanced features will be
+described by using the example of a robot at DFKI, the Asguard robot.
+
+ * its overall architecture will be presented. Then, we will discuss the
+   __communication busses__ feature, that is used in the device list to handle
+   things like CAN busses.
+ * we will then present its ability to reuse abstract composition models through
+   the use of specializations, i.e. to **create and select specialized composition
+   models** tailored for a particular task context, without losing the abstraction
+   information.
+ * finally, the **online adaptation API** will also be presented
+
