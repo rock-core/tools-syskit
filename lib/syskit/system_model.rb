@@ -319,17 +319,27 @@ module Orocos
             def composition_to_dot(io, model) # :nodoc:
                 id = model.object_id
 
-                inputs  = Hash.new { |h, k| h[k] = Array.new }
-                outputs  = Hash.new { |h, k| h[k] = Array.new }
                 model.connections.each do |(source, sink), mappings|
                     mappings.each do |(source_port, sink_port), policy|
-                        outputs[source] << source_port
-                        inputs[sink] << sink_port
                         io << "C#{id}#{source}:#{source_port} -> C#{id}#{sink}:#{sink_port};"
                     end
                 end
 
                 io << "subgraph cluster_#{id} {"
+                io << "  fontsize=18;"
+                io << "  C#{id} [style=invisible];"
+                label = [model.name.dup]
+                provides = model.each_data_service.map do |name, type|
+                    "#{name}:#{type.name}"
+                end
+                if model.abstract?
+                    label << "Abstract"
+                end
+                if !provides.empty?
+                    label << "Provides:"
+                    label.concat(provides)
+                end
+                io << "  label=\"#{label.join("\\n")}\";"
                 # io << "  label=\"#{model.name}\";"
                 # io << "  C#{id} [style=invisible];"
                 model.each_child do |child_name, child_definition|
@@ -337,31 +347,39 @@ module Orocos
 
                     label = "{"
                     task_label = child_model.map { |m| m.name }.join(',')
-                    if !inputs[child_name].empty?
-                        label << inputs[child_name].map do |port_name|
+
+                    inputs = child_model.map { |m| m.each_input.map(&:name) }.
+                        inject(&:concat).to_set
+                    if !inputs.empty?
+                        label << inputs.map do |port_name|
                             "<#{port_name}> #{port_name}"
                         end.join("|")
                         label << "|"
                     end
                     label << "<main> #{task_label}"
-                    if !outputs[child_name].empty?
+
+                    outputs = child_model.map { |m| m.each_output.map(&:name) }.
+                        inject(&:concat).to_set
+                    if !outputs.empty?
                         label << "|"
-                        label << outputs[child_name].map do |port_name|
+                        label << outputs.map do |port_name|
                             "<#{port_name}> #{port_name}"
                         end.join("|")
                     end
                     label << "}"
 
-                    io << "  C#{id}#{child_name} [label=\"#{label}\"];"
+                    io << "  C#{id}#{child_name} [label=\"#{label}\",fontsize=15];"
                     #io << "  C#{id} -> C#{id}#{child_name}"
                 end
                 io << "}"
 
-                model.specializations.each do |specialized_model|
-                    specialized_id = specialized_model.composition.object_id
-                    # io << "C#{id} -> C#{specialized_id} [ltail=cluster_#{id} lhead=cluster_#{specialized_id} weight=2];"
+                if !model.specializations.empty?
+                    model.specializations.each do |specialized_model|
+                        specialized_id = specialized_model.composition.object_id
+                        io << "C#{id} -> C#{specialized_id} [ltail=cluster_#{id} lhead=cluster_#{specialized_id} weight=2];"
 
-                    composition_to_dot(io, specialized_model.composition)
+                        composition_to_dot(io, specialized_model.composition)
+                    end
                 end
             end
 
@@ -374,7 +392,8 @@ module Orocos
                 io << "  compound=true;\n"
                 io << "  rankdir=TB;"
 
-                models = each_composition.to_a
+                models = each_composition.
+                    find_all { |t| !t.is_specialization? }
                 models.each do |m|
                     composition_to_dot(io, m)
                 end
