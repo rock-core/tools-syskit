@@ -568,14 +568,8 @@ module Orocos
                 parent_model = find_child(child_name)
                 verify_acceptable_specialization(child_name, child_model, false)
 
-                submodel_name = "#{name}_#{child_name}_#{child_model.name}"
-                if submodel_name !~ /^Anon/
-                    submodel_name = "Anon#{submodel_name}"
-                end
                 child_composition = system.composition(
-                        submodel_name,
-                        :child_of => self,
-                        :register => false) do
+                        "", :child_of => self, :register => false) do
                     add child_model, :as => child_name
                 end
                 child_composition.extend CompositionSpecializationModel
