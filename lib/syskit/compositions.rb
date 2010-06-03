@@ -18,6 +18,16 @@ module Orocos
                 @models = old.models.dup
                 @dependency_options = old.dependency_options.dup
             end
+
+            # Return true if this child provides all of the required models
+            def fullfills?(required_models)
+                if !required_models.respond_to?(:each)
+                    required_models = [required_models]
+                end
+                required_models.all? do |req_m|
+                    models.any? { |m| m.fullfills?(req_m) }
+                end
+            end
         end
 
         # Represents a placeholder in a composition
