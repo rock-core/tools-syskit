@@ -4,6 +4,9 @@ require 'utilrb/module/define_or_reuse'
 module Orocos
     module RobyPlugin
         class << self
+            # The set of known process servers.
+            #
+            # It maps the server name to the Orocos::ProcessServer instance
             attr_reader :process_servers
         end
         @process_servers = Hash.new

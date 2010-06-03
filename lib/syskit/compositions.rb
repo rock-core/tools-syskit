@@ -116,7 +116,7 @@ module Orocos
         class CompositionChildInputPort  < CompositionChildPort; end
 
         # Additional methods that are mixed in composition specialization
-        # models. I.e. composition models created by Composition#specialize
+        # models. I.e. composition models created by CompositionModel#specialize
         module CompositionSpecializationModel
             def is_specialization?; true end
 
@@ -270,6 +270,10 @@ module Orocos
                 parent
             end
 
+            # Enumerates all the specialized compositions that have been created
+            # from this composition model.
+            #
+            # If +recursive+ is false, only the direct children are given.
             def each_specialization(recursive = true, &block)
                 if !block_given?
                     return enum_for(:each_specialization, recursive)
@@ -289,21 +293,26 @@ module Orocos
             #++
 
             ##
-            # :method: each_child { |child_name, child_models| ... }
+            # :method: each_child
+            # :call-seq:
+            #   each_child { |child_name, child_models| }
             # 
             # Yields all children defined on this composition. +child_models+ is
             # a ValueSet of task classes (subclasses of Roby::Task) and/or task
             # tags (instances of Roby::TaskModelTag)
 
             ##
-            # :method: find_child(child_name) 
+            # :method: find_child
+            # :call-seq:
+            #   find_child(child_name) -> child
             #
             # Returns the model requirements for the given child. The return
             # value is a ValueSet of task classes (subclasses of Roby::Task)
             # and/or task tags (instances of Roby::TaskModelTag)
 
             ##
-            # :method: each_input { |export_name, port| ... }
+            # :method: each_input
+            # :call-seq: each_input { |export_name, port| }
             #
             # Yields the input ports that are exported by this composition.
             # +export_name+ is the name of the composition's port and +port+ the
@@ -311,7 +320,8 @@ module Orocos
             # exported.
 
             ##
-            # :method: each_output { |export_name, port| ... }
+            # :method: each_output
+            # :call-seq: each_output { |export_name, port| }
             #
             # Yields the output ports that are exported by this composition.
             # +export_name+ is the name of the composition's port and +port+ the
@@ -587,6 +597,15 @@ module Orocos
                 child_composition
             end
 
+            # Checks if an instance of +child_model+ would be acceptable as
+            # the +child_name+ child of +self+.
+            #
+            # Raises SpecError if the choice is not acceptable
+            #--
+            # +user_call+ is for internal use only. If set to false, instead of
+            # raising an exception, it will throw :invalid_selection. This is
+            # meant to avoid the (costly) creation of the exception message in
+            # cases we don't have to report to the user.
             def verify_acceptable_specialization(child_name, child_model, user_call = true)
                 parent_models = find_child(child_name).models
                 if parent_models.any? { |m| m <= child_model }
@@ -1310,7 +1329,7 @@ module Orocos
             end
             
             # call-seq:
-            #   find_selected_model_and_task(engine, child_name, selection) => selected_object_name, child_model, child_task
+            #   find_selected_model_and_task(engine, child_name, selection) -> selected_object_name, child_model, child_task
             #
             # Finds a possible child model for +child_name+. +selection+ is an
             # explicit selection hash of the form
