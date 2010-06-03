@@ -601,11 +601,41 @@ module Orocos
                     end
                 end
 
+                filter_out_abstract_compositions
                 if block
                     apply_specialization_block(child_name, child_model, block)
                 end
                 child_composition
             end
+
+            # Looks for compositions which do not match the registered child
+            # constraints (added with #constrain). Mark them as abstract.
+            def filter_out_abstract_compositions
+                each_specialization(false) do |spec|
+                    child_constraints.each do |child_name, allowed_models|
+                        allowed_models.each do |model_set|
+                            child_spec = spec.find_child(child_name)
+                            if child_spec
+                                if !model_set.any? { |m| child_spec.fullfills?(m) }
+                                    spec.abstract
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+
+                specializations.delete_if do |spec_model|
+                    cmodel = spec_model.composition
+                    cmodel.filter_out_abstract_compositions
+                    if cmodel.abstract? && cmodel.specializations.empty?
+                        true
+                    else
+                        false
+                    end
+                end
+            end
+
 
             # Checks if an instance of +child_model+ would be acceptable as
             # the +child_name+ child of +self+.
