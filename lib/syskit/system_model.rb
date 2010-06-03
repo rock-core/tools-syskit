@@ -125,9 +125,12 @@ module Orocos
                     raise ArgumentError, "there is already a data source named #{name}"
                 end
 
-                parent_model = options[:child_of]
+                parent_model = options[:provides]
                 if parent_model.respond_to?(:to_str)
                     parent_model = Orocos::RobyPlugin::DataServices.const_get(parent_model.camelcase(true))
+                    if !parent_model
+                        raise ArgumentError, "parent model #{options[:provides]} does not exist"
+                    end
                 end
                 model = parent_model.new_submodel(name, :interface => options[:interface])
                 if block_given?
