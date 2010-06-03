@@ -1,16 +1,23 @@
 require 'tempfile'
 module Orocos
     module RobyPlugin
+        # Used by the to_dot* methods for color allocation
         attr_reader :current_color
+        # A set of colors to be used in graphiz graphs
         COLOR_PALETTE = %w{#FF9955 #FF0000 #bb9c21 #37c637 #62816e #2A7FFF #AA00D4 #D40055 #0000FF}
+        # Returns a color from COLOR_PALETTE, rotating each time the method is
+        # called. It is used by the to_dot* methods.
         def self.allocate_color
             @current_color = (@current_color + 1) % COLOR_PALETTE.size
             COLOR_PALETTE[@current_color]
         end
         @current_color = 0
 
+        # A representation of the actual dynamics of a port
         class PortDynamics
+            # At which period the port produces data (in seconds)
             attr_accessor :period
+            # How many samples can be expected on the port at each cycle
             attr_accessor :sample_size
 
             def initialize(period = nil, sample_size = nil)
@@ -19,6 +26,12 @@ module Orocos
             end
         end
 
+        # The main deployment algorithm
+        #
+        # Engine instances are the objects that actually get deployment
+        # requirements and produce a deployment, possibly dynamically.
+        #
+        # The main entry point for the algorithm is Engine#resolve
         class Engine
             extend Logger::Forward
             extend Logger::Hierarchy
@@ -77,6 +90,9 @@ module Orocos
                 @robot
             end
 
+            # :method: modified?
+            #
+            # True if the requirements changed since the last call to #resolve
             attr_predicate :modified
 
             def initialize(plan, model)
@@ -96,14 +112,28 @@ module Orocos
                 @dot_index = 0
             end
 
+            # Representation of a task requirement. Used internally by Engine
             class InstanciatedComponent
+                # The Engine instance
                 attr_reader :engine
+                # The name provided to Engine#add
                 attr_reader :name
+                # The component model specified by #add
                 attr_reader :model
+                # The arguments that should be passed to the task's #instanciate
+                # method (and, in fine, to the component model)
                 attr_reader :arguments
+                # The actual selection given to Engine#add
                 attr_reader :using_spec
+                # The actual task. It is set after #resolve has been called
                 attr_accessor :task
+                ##
+                # :method: mission?
+                #
+                # True if the component should be marked as a mission in the
+                # plan manager. It is set to true by Engine#add_mission
                 attr_predicate :mission, true
+                # The task this new task replaces. It is set by Engine#replace
                 attr_accessor :replaces
 
                 def initialize(engine, name, model, arguments)
@@ -114,11 +144,34 @@ module Orocos
                     @using_spec = Hash.new
                 end
 
+                ##
+                # :call-seq:
+                #   use 'child_name' => 'component_model_or_device'
+                #   use 'child_name' => ComponentModel
+                #   use ChildModel => 'component_model_or_device'
+                #   use ChildModel => ComponentModel
+                #
+                # Provides explicit selections for the children of compositions
+                #
+                # In the first two forms, provides an explicit selection for a
+                # given child. The selection can be given either by name (name
+                # of the model and/or of the selected device), or by directly
+                # giving the model object.
+                #
+                # In the second two forms, provides an explicit selection for
+                # any children that provide the given model. For instance,
+                #
+                #   use IMU => XsensImu::Task
+                #
+                # will select XsensImu::Task for any child that provides IMU
+                #
+                # See also Composition#instanciate
                 def use(mapping)
                     using_spec.merge!(mapping)
                     self
                 end
 
+                # Create a concrete task for this requirements
                 def instanciate(engine)
                     selection = engine.main_selection.merge(using_spec)
                     selection.each_key do |key|
@@ -132,38 +185,32 @@ module Orocos
                 end
             end
 
-            # Returns the task that is currently handling the given device
-            def apply_selection(seed)
-                if seed.kind_of?(Class) && seed < Component
-                    return seed
-                end
-
-                name = seed.to_str
-                sel = (Roby.app.orocos_tasks[name] || subsystem(name))
-
-                if !sel && model.has_data_service?(name)
-                    sel = DataServices.const_get(name.camelcase(true)).task_model
-                end
-                if !sel && model.has_data_source?(name)
-                    sel = DataSources.const_get(name.camelcase(true)).task_model
-                end
-                sel
-            end
-
+            # The set of selections that should be applied on every
+            # compositions. See Engine#use and InstanciatedComponent#use for
+            # more details on the format
             attr_reader :main_selection
+
+            # Provides system-level selection.
+            #
+            # This is akin to dependency injection at the system level. See
+            # InstanciatedComponent#use for details.
             def use(mappings)
                 mappings.each do |model, definition|
                     main_selection[model] = definition
                 end
             end
 
+            # Require a new composition/service, and specify that it should be
+            # marked as 'mission' in the plan manager
             def add_mission(*args)
                 instance = add(*args)
                 instance.mission = true
                 instance
             end
 
-            def create_instanciated_component(model, arguments = Hash.new)
+            # Helper method that creates an instance of InstanciatedComponent
+            # and registers it
+            def create_instanciated_component(model, arguments = Hash.new) # :nodoc:
                 if !(model.kind_of?(Class) && model < Component)
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
                 end
@@ -171,10 +218,27 @@ module Orocos
                 instance = InstanciatedComponent.new(self, arguments[:as], model, task_arguments)
             end
 
+            # Define a component instanciation specification, without adding it
+            # to the current deployment.
+            #
+            # The definition can later be used in #add:
+            #
+            #   define 'piv_control', Control,
+            #       'control' => PIVController::Task
+            #
+            #   ...
+            #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
                 defines[name] = create_instanciated_component(model, arguments)
             end
 
+            # Add a new component requirement to the current deployment
+            #
+            # +model+ can either be the name of a definition (see Engine#define)
+            # or a component model.
+            #
+            # +arguments+ is a hash that can contain explicit child selection
+            # specification (if +model+ is a composition).
             def add(model, arguments = Hash.new)
                 if model.respond_to?(:to_str)
                     if !(instance = defines[model.to_str])
@@ -189,12 +253,16 @@ module Orocos
                 instance
             end
 
-            def replace(current_task, new_task)
+            # Replaces a task already in the deployment by a new task
+            #
+            # +current_task+ can either be the Roby::Task (from the plan
+            # manager's plan) or the value returned by #add
+            def replace(current_task, new_task, arguments = Hash.new)
                 if current_task.respond_to?(:task)
                     current_task = current_task.task
                 end
 
-                task = add(new_task)
+                task = add(new_task, arguments)
                 task.replaces = current_task
 
                 if current_task
@@ -205,6 +273,15 @@ module Orocos
                 task
             end
 
+            # Removes a task from the current deployment
+            #
+            # +task+ can be:
+            # 
+            # * the value returned by #add
+            # * the Roby::Task instance from the plan manager
+            # * the task name as given to #add through the :as option
+            # * a task model, in which case all components that match this model
+            #   will be removed
             def remove(task)
                 if task.kind_of?(InstanciatedComponent)
                     removed_instances, @instances = instances.partition { |t| t == task }
@@ -234,6 +311,11 @@ module Orocos
                 end
             end
 
+            # Create the task instances that are currently required by the
+            # deployment specification
+            #
+            # It does not try to merge the result, i.e. after #instanciate the
+            # plan is probably full of abstract tasks.
             def instanciate
                 self.tasks.clear
 
@@ -275,6 +357,8 @@ module Orocos
                 end
             end
 
+            # Generate a svg file representing the current state of the
+            # deployment
             def to_svg(filename)
                 Tempfile.open('roby_orocos_deployment') do |io|
                     io.write Roby.app.orocos_engine.to_dot
@@ -286,6 +370,8 @@ module Orocos
                 end
             end
 
+            # Generates a dot graph that represents the task hierarchy in this
+            # deployment
             def to_dot_hierarchy
                 result = []
                 result << "digraph {"
@@ -326,6 +412,8 @@ module Orocos
                 to_dot_dataflow
             end
 
+            # Generates a dot graph that represents the task dataflow in this
+            # deployment
             def to_dot_dataflow
                 result = []
                 result << "digraph {"
@@ -404,7 +492,8 @@ module Orocos
                 result.join("\n")
             end
 
-            def dot_task_attributes(task, inputs, outputs, task_colors)
+            # Helper method for the to_dot methods
+            def dot_task_attributes(task, inputs, outputs, task_colors) # :nodoc:
                 task_dot_attributes = []
 
                 task_label = task.to_s.
@@ -465,7 +554,7 @@ module Orocos
                 task_dot_attributes << "label=< #{label} >"
             end
 
-            def pretty_print(pp)
+            def pretty_print(pp) # :nodoc:
                 pp.text "-- Tasks"
                 pp.nest(2) do
                     pp.breakable
@@ -527,6 +616,8 @@ module Orocos
                 end
             end
 
+            # Caches the result of #compare_composition_child to speed up the
+            # instanciation process
             attr_reader :composition_specializations
 
             # Computes if the child called "child_name" is specialized in
@@ -573,6 +664,8 @@ module Orocos
                 flag
             end
 
+            # Must be called everytime the system model changes. It updates the
+            # values that are cached to speed up the instanciation process
             def prepare
                 model.each_composition do |composition|
                     composition.update_all_children
@@ -580,6 +673,25 @@ module Orocos
                 @merging_candidates_queries.clear
             end
 
+            # Generate the deployment according to the current requirements, and
+            # merges it into the current plan
+            #
+            # The following options are understood:
+            #
+            # compute_policies::
+            #   if false, it will not compute the policies between ports. Mainly
+            #   useful for offline testing
+            # compute_deployments::
+            #   if false, it will not do the deployment allocation. Mainly
+            #   useful for testing/debugging purposes. It obviously turns off
+            #   the policy computation as well.
+            # garbage_collect::
+            #   if false, it will not clean up the plan from all tasks that are
+            #   not useful. Mainly useful for testing/debugging purposes
+            # export_plan_on_error::
+            #   by default, #resolve will generate a dot file containing the
+            #   current plan state if an error occurs. Set this option to false
+            #   to disable this (it is costly).
             def resolve(options = Hash.new)
                 if options == true
                     options = { :compute_policies => true }
@@ -691,7 +803,14 @@ module Orocos
                 @plan = engine_plan
             end
 
-            def allocate_abstract_tasks(validate = true)
+            # Do abstract task allocation
+            #
+            # This pass searches for abstract tasks and tries to find a local
+            # task (device) that can fullfill this abstract task
+            #
+            # Raises SpecError if no concrete task is available and Ambiguous if
+            # more than one would match.
+            def allocate_abstract_tasks
                 targets = plan.find_local_tasks(Orocos::RobyPlugin::Component).
                     abstract.
                     to_value_set
@@ -724,7 +843,13 @@ module Orocos
                 end
             end
 
-            MERGE_SORT_TRUTH_TABLE = { [true, true] => nil, [true, false] => -1, [false, true] => 1, [false, false] => nil }
+            # Result table used internally by merge_sort_order
+            MERGE_SORT_TRUTH_TABLE = {
+                [true, true] => nil,
+                [true, false] => -1,
+                [false, true] => 1,
+                [false, false] => nil }
+
             # Will return -1 if +t1+ is a better merge candidate than +t2+, 1 on
             # the contrary and nil if they are not comparable.
             def merge_sort_order(t1, t2)
@@ -735,19 +860,28 @@ module Orocos
                     MERGE_SORT_TRUTH_TABLE[ [t1.respond_to?(:__getobj__), t2.respond_to?(:__getobj__)] ]
             end
 
-            def find_merge_roots(task_set)
-                task_set.map do |t|
-                    inputs = t.parent_objects(Flows::DataFlow).to_value_set
-                    if !inputs.intersects?(task_set)
-                        children = t.children.to_value_set
-                        if !children.intersects?(task_set)
-                            [t, inputs, children]
-                        end
-                    end
-                end.compact
-            end
-
+            # Find merge candidates
+            #
+            # It returns a list of list
+            #
+            #   [
+            #     [t1, [t2]],
+            #     [t2, [t0]]
+            #   ]
+            #   [
+            #     [t3, [t1]]
+            #   ]
+            #
+            # where:
+            #
+            # * the first level represents the connected components of the
+            #   graph (i.e. in the example below there are paths between t1,
+            #   t2 and t0).
+            # * the second level represents the merge candidates (t2 could
+            #   be merged into t1 and t0 into t2.
             def direct_merge_mappings(task_set)
+                # First pass, we create a graph in which an a => b edge means
+                # 'a' could be meged into 'b'
                 merge_graph = BGL::Graph.new
                 for task in task_set
                     query = @merging_candidates_queries[task.model]
@@ -785,6 +919,8 @@ module Orocos
                     end
                 end
 
+                # Second pass, we transform the graph into the expected result.
+                # See the method documentation for details.
                 result = merge_graph.components.map do |cluster|
                     cluster.map do |task|
                         targets = task.
@@ -804,6 +940,11 @@ module Orocos
                 result
             end
 
+            # Filters the result of direct_merge_mappings by finding an optimal
+            # merging pattern
+            #
+            # Raises Ambiguous if there are no obvious solution for some of the
+            # merges (i.e. they are equally good)
             def filter_direct_merge_mappings(result)
                 # Now, remove the merge specifications that are
                 # redundant/useless.
@@ -847,28 +988,11 @@ module Orocos
                 filtered_result
             end
 
-            # Find a mapping that allows to merge +cycle+ into +target_cycle+.
-            # Returns nil if there is none.
-            def cycle_merge_mapping(target_cycle, cycle)
-                return if target_cycle.size != cycle.size
-
-                mapping = Hash.new
-                target_cycle.each do |target_task, target_inputs, target_children|
-                    cycle.each do |task, inputs, children|
-                        result = if can_merge?(target_task, target_inputs, target_children, 
-                                            task, inputs, children)
-
-                            return if mapping.has_key?(target_task)
-                            mapping[target_task] = task
-                        end
-                        Engine.debug { "#{target_task} #{task} #{result}" }
-                    end
-                end
-                if mapping.keys.size == target_cycle.size
-                    mapping
-                end
-            end
-
+            # Apply merges computed by filter_direct_merge_mappings
+            #
+            # It actually takes the tasks and calls #merge according to the
+            # information in +mappings+. It also updates the underlying Roby
+            # plan, and the set of InstanciatedComponent instances
             def apply_merge_mappings(mappings)
                 final_merge_mappings = Hash.new
                 merged_tasks = ValueSet.new
@@ -916,7 +1040,8 @@ module Orocos
                 merged_tasks
             end
 
-            def merge_tasks_next_step(task_set)
+            # Propagation step in the BFS of merge_identical_tasks
+            def merge_tasks_next_step(task_set) # :nodoc:
                 result = ValueSet.new
                 for t in task_set
                     children = t.each_sink(false).to_value_set
@@ -926,6 +1051,13 @@ module Orocos
                 result
             end
 
+            # Merges tasks that are equivalent in the current plan
+            #
+            # It is a BFS that follows the data flow. I.e., it computes the set
+            # of tasks that can be merged and then will look at the children of
+            # these tasks and so on and so forth.
+            #
+            # The step is given by #merge_tasks_next_step
             def merge_identical_tasks
                 # Get all the tasks we need to consider. That's easy,
                 # they all implement the Orocos::RobyPlugin::Component model
@@ -963,6 +1095,30 @@ module Orocos
                         parents = t.each_parent_task.to_value_set
                         candidates.merge(parents) if parents.size > 1
                     end
+                end
+            end
+
+            # Attic: not used for now
+            #
+            # Find a mapping that allows to merge +cycle+ into +target_cycle+.
+            # Returns nil if there is none.
+            def cycle_merge_mapping(target_cycle, cycle) # :nodoc:
+                return if target_cycle.size != cycle.size
+
+                mapping = Hash.new
+                target_cycle.each do |target_task, target_inputs, target_children|
+                    cycle.each do |task, inputs, children|
+                        result = if can_merge?(target_task, target_inputs, target_children, 
+                                            task, inputs, children)
+
+                            return if mapping.has_key?(target_task)
+                            mapping[target_task] = task
+                        end
+                        Engine.debug { "#{target_task} #{task} #{result}" }
+                    end
+                end
+                if mapping.keys.size == target_cycle.size
+                    mapping
                 end
             end
 
@@ -1028,6 +1184,7 @@ module Orocos
                 end
             end
 
+            # Creates communication busses and links the tasks to them
             def link_to_busses
                 candidates = plan.find_local_tasks(Orocos::RobyPlugin::DataSource).
                     find_all { |t| t.com_bus }.
@@ -1131,6 +1288,8 @@ module Orocos
                 nil
             end
 
+            # Instanciates all deployments that have been specified by the user.
+            # Reuses deployments in the current plan manager's plan if possible
             def instanciate_required_deployments
                 deployments.each do |deployment_name|
                     model = Roby.app.orocos_deployments[deployment_name]
@@ -1154,6 +1313,10 @@ module Orocos
 
             # Compute the minimal update periods for each of the components that
             # are deployed
+            #
+            # The return value is a hash for which
+            #
+            #   periods[task][port_name] => port_period
             def port_periods
                 # We only act on deployed tasks, as we need to know how the
                 # tasks are triggered (what activity / priority / ...)
@@ -1194,6 +1357,11 @@ module Orocos
                 result
             end
 
+            # Computes desired connection policies, based on the port dynamics
+            # (computed by #port_periods) and the oroGen's input port
+            # specifications. See the user's guide for more details
+            #
+            # It directly modifies the policies in the data flow graph
             def compute_connection_policies
                 port_periods = self.port_periods
 
@@ -1394,6 +1562,12 @@ module Orocos
                 return new, removed
             end
 
+            # Adds source_task (resp. sink_task) to +set+ if modifying
+            # connection specified in +mappings+ will require source_task (resp.
+            # sink_task) to be restarted.
+            #
+            # Restart is required by having the task's input ports marked as
+            # 'static' in the oroGen specification
             def update_restart_set(set, source_task, sink_task, mappings)
                 if !set.include?(source_task)
                     needs_restart = mappings.any? do |source_port, sink_port|
