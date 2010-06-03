@@ -497,7 +497,11 @@ module Orocos
                     end
                 end
 
-                child_constraints[child].concat( allowed_models )
+                child_constraints[child] << allowed_models
+                filter_out_abstract_compositions
+
+                abstract
+
                 self
             end
 
@@ -550,8 +554,10 @@ module Orocos
                                  child_name.name.gsub(/^.*::/, '')
                              end
 
-                if block && (specialization = specializations.find { |m| m.specialized_children[child_name] == child_model })
-                    apply_specialization_block(child_name, child_model, block)
+                if specialization = specializations.find { |m| m.specialized_children[child_name] == child_model }
+                    if block
+                        apply_specialization_block(child_name, child_model, block)
+                    end
                     return specialization.composition
                 end
 
