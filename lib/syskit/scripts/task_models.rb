@@ -44,31 +44,49 @@ Orocos.available_task_libraries.each do |project_name, _|
     end
 end
 
-def to_dot(io, categories, tasks)
-    io << "digraph {"
-
-    categories.each do |cat_name, cat_content|
-        cat_tasks = []
-        cat_content.each do |task_name|
-            task_name = Regexp.new("(?:::|^)#{Regexp.quote(task_name)}(?:::|$)")
+def category_to_dot(io, tasks, cat_name, cat_content)
+    cat_tasks  = []
+    cat_subcat = []
+    cat_content.each do |object|
+        if object.respond_to?(:to_str) # task name
+            task_name = Regexp.new("(?:::|^)#{Regexp.quote(object)}(?:::|$)")
             matching_tasks, tasks = tasks.partition { |t| t.name =~ task_name }
             cat_tasks.concat(matching_tasks)
-        end
-        if !cat_tasks.empty?
-            io << "subgraph cluster_#{cat_name} {"
-            cat_tasks.each do |t|
-                io << t.to_dot
-            end
-            io << "}"
-        else
-            STDERR.puts "found no task for category #{cat_name} (#{cat_content.join(",")})"
+        else # subcategory
+            cat_subcat << object.to_a.first
         end
     end
+    if !cat_tasks.empty?
+        cluster_name = cat_name.gsub(/\s/, '_')
+        io << "subgraph cluster_#{cluster_name} {\n"
+        io << "  label=<<FONT POINT-SIZE=\"40\">#{cat_name}</FONT>>;\n"
 
+        cat_subcat.sort_by { |(name, _)| name }.each do |(subname, subcontent)|
+            tasks = category_to_dot(io, tasks, subname, subcontent)
+        end
+
+        cat_tasks.sort_by(&:name).reverse.each do |t|
+            io << t.to_dot
+        end
+        io << "};\n"
+    else
+        STDERR.puts "found no task for category #{cat_name} (#{cat_content.join(",")})"
+    end
+    tasks
+end
+
+def to_dot(io, categories, tasks)
+    io << "digraph {\n"
+
+    categories.sort_by(&:first).each do |cat_name, cat_content|
+        tasks = category_to_dot(io, tasks, cat_name, cat_content)
+    end
+
+    # Remaining tasks
     tasks.each do |t|
         io << t.to_dot
     end
-    io << "}"
+    io << "};\n"
 end
 
 case output_type
@@ -78,7 +96,7 @@ when "txt"
     end
 when "dot"
     File.open(output_file, 'w') do |output_io|
-        to_dot(output_io)
+        to_dot(output_io, categories, tasks)
     end
 when "png"
     Tempfile.open('roby_orocos_system_model') do |io|
