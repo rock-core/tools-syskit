@@ -85,6 +85,7 @@ end
 Orocos::RobyPlugin.logger.level = Logger::INFO
 Roby.app.using "orocos"
 Roby.filter_backtrace do
+    Roby.app.using 'orocos'
     Roby.app.setup
 end
 
