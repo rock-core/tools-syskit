@@ -1217,7 +1217,8 @@ module Orocos
                     out_connections = Hash.new
                     handled    = Hash.new
                     used_ports = Set.new
-                    task.model.each_root_data_service do |source_name, source_model|
+                    task.model.each_root_data_service do |source_name, source_service|
+                        source_model = source_service.model
                         next if !(source_model < DataSource)
                         device_spec = robot.devices[task.arguments["#{source_name}_name"]]
                         next if !device_spec || !device_spec.com_bus

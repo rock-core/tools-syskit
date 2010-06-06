@@ -223,8 +223,8 @@ module Orocos
             # It is assumed that the name0 service in model0 and the name1
             # service
             # in model1 are of compatible types (same types or derived types)
-            def self.needs_port_mapping?(model0, name0, model1, name1)
-                name0 != name1 && !(model0.main_data_service?(name0) && model1.main_data_service?(name1))
+            def self.needs_port_mapping?(from, to)
+                from.port_mappings != to.port_mappings
             end
 
             # Computes the port mapping from a plain data service to the given
@@ -238,13 +238,9 @@ module Orocos
             # where +source_port_name+ is the data service port and
             # +target_port_name+ is the actual port on +target+
             def self.compute_port_mappings(service, target, target_name)
-                if service < Roby::Task
-                    raise InternalError, "#{service} should have been a plain data service, but it is a task model"
-                end
-
                 result = Hash.new
-                service.each_port do |source_port|
-                    result[source_port.name] = target.source_port(service, target_name, source_port.name)
+                service.model.each_port do |source_port|
+                    result[source_port.name] = target.map_service_port(service, source_port.name)
                 end
                 result
             end
@@ -286,13 +282,6 @@ module Orocos
 
         module DataService
             module ClassExtension
-                def each_child_data_service(parent_name, &block)
-                    each_data_service(nil).
-                        find_all { |name, model| name =~ /^#{parent_name}\./ }.
-                        map { |name, model| [name.gsub(/^#{parent_name}\./, ''), model] }.
-                        each(&block)
-                end
-
                 # Returns the parent_name, child_name pair for the given service
                 # name. child_name is empty if the service is a root service.
                 def break_data_service_name(name)
@@ -306,15 +295,6 @@ module Orocos
                         raise ArgumentError, "there is no service named #{name} in #{self}"
                     end
                     name !~ /\./
-                end
-
-                # Returns true if +name+ is a main data service on this component
-                def main_data_service?(name)
-                    name = name.to_str
-                    if !has_data_service?(name)
-                        raise ArgumentError, "there is no service named #{name} in #{self}"
-                    end
-                    each_main_data_service.any? { |source_name| source_name == name }
                 end
 
                 def find_data_services(&block)
@@ -337,8 +317,8 @@ module Orocos
                     # Find services in +child_model+ that match the type
                     # specification
                     matching_services = self.
-                        find_data_services { |_, service_type| service_type <= target_model }.
-                        map { |service_name, _| service_name }
+                        find_data_services { |name, dserv| dserv.model <= target_model }.
+                        map(&:last)
 
                     if pattern # explicit selection
                         # Find the selected service. There can be shortcuts, so
@@ -346,51 +326,82 @@ module Orocos
                         # 'left' main service or the 'bla.blo.left' slave
                         # service.
                         rx = /(^|\.)#{pattern}$/
-                        matching_services.delete_if { |name| name !~ rx }
+                        matching_services.delete_if { |service| service.full_name !~ rx }
                         if matching_services.empty?
                             raise SpecError, "no service of type #{target_model.name} with the name #{pattern} exists in #{name}"
                         end
                     else
                         if matching_services.empty?
-                            raise InternalError, "no data service of type #{target_model} found in #{self}"
+                            raise SpecError, "no data service of type #{target_model} found in #{self}"
                         end
                     end
 
-                    selected_name = nil
                     if matching_services.size > 1
-                        main_matching_services = matching_services.find_all { |service_name| root_data_service?(service_name) }
+                        main_matching_services = matching_services.
+                            find_all { |service| root_data_service?(service.full_name) }
+
                         if main_matching_services.size != 1
-                            raise Ambiguous, "there is more than one service of type #{target_model.name} in #{self.name}: #{matching_services.map { |n, _| n }.join(", ")}); you must select one explicitely with a 'use' statement"
+                            raise Ambiguous, "there is more than one service of type #{target_model.name} in #{self.name}: #{matching_services.map(&:name).join(", ")}); you must select one explicitely with a 'use' statement"
                         end
-                        selected_name = main_matching_services.first
+                        selected = main_matching_services.first
                     else
-                        selected_name = matching_services.first
+                        selected = matching_services.first
                     end
 
-                    selected_name
+                    selected
                 end
-                    
 
-                def data_service_name(matching_type)
-                    candidates = each_data_service.find_all do |name, type|
-                        type == matching_type
+                # Returns all data services that offer the given service type
+                #
+                # Raises ArgumentError if there is not exactly one of such
+                # service. Use #all_services_from_type to get all the service
+                # names.
+                def all_services_from_type(matching_type)
+                    each_data_service.find_all do |name, ds|
+                        ds.model <= matching_type
                     end
+                end
+
+                # Returns a single data service definition that matches the
+                # given service type
+                #
+                # Raises ArgumentError if there is not exactly one of such
+                # service. Use #all_services_from_type to get all the service
+                # names.
+                def service_from_type(matching_type)
+                    candidates = all_services_from_type(matching_type)
                     if candidates.empty?
-                        raise ArgumentError, "no service of type '#{type_name}' declared on #{self}"
+                        raise ArgumentError, "no service of type '#{matching_type.name}' declared on #{self}"
                     elsif candidates.size > 1
-                        raise ArgumentError, "multiple services of type #{type_name} are declared on #{self}"
+                        raise ArgumentError, "multiple services of type #{matching_type.name} are declared on #{self}"
                     end
-                    candidates.first.first
+                    candidates.first
                 end
 
                 # Returns the type of the given data service, or raises
                 # ArgumentError if no such service is declared on this model
                 def data_service_type(name)
-                    each_data_service(name) do |type|
-                        return type
+                    service = find_data_service(name)
+                    if service
+                        return service.model
                     end
                     raise ArgumentError, "no service #{name} is declared on #{self}"
                 end
+
+
+                # call-seq:
+                #   TaskModel.each_slave_data_service do |name, service|
+                #   end
+                #
+                # Enumerates all services that are slave (i.e. not slave of other
+                # services)
+                def each_slave_data_service(master_service, &block)
+                    each_data_service(nil).
+                        find_all { |name, service| service.master == master_service }.
+                        map { |name, service| [service.name, service] }.
+                        each(&block)
+                end
+
 
                 # call-seq:
                 #   TaskModel.each_root_data_service do |name, source_model|
@@ -417,15 +428,15 @@ module Orocos
 
                 # Check that for each data service in +target_task+, we can
                 # allocate a corresponding service in +self+
-                each_merged_service(target_task) do |selection, other_name, self_names, source_type|
-                    if self_names.empty?
+                each_source_merge_candidate(target_task) do |selected_source_name, other_service, self_services|
+                    if self_services.empty?
                         return false
                     end
 
                     # Note: implementing port mapping will require to apply the
                     # port mappings to the test below as well (i.e. which tests
                     # that inputs are free/compatible)
-                    if DataServiceModel.needs_port_mapping?(target_task.model, other_name, model, self_names.first)
+                    if DataServiceModel.needs_port_mapping?(other_service, self_services.first)
                         raise NotImplementedError, "mapping data flow ports is not implemented yet"
                     end
                 end
@@ -439,18 +450,18 @@ module Orocos
                 # First thing to do is reassign data services from the merged
                 # task into ourselves. Note that we do that only for services
                 # that are actually in use.
-                each_merged_service(merged_task) do |selection, other_name, self_names, source_type|
-                    if self_names.empty?
+                each_source_merge_candidate(merged_task) do |selected_source_name, other_service, self_services|
+                    if self_services.empty?
                         raise SpecError, "trying to merge #{merged_task} into #{self}, but that seems to not be possible"
-                    elsif self_names.size > 1
+                    elsif self_services.size > 1
                         raise Ambiguous, "merging #{self} and #{merged_task} is ambiguous: the #{self_names.join(", ")} data services could be used"
                     end
 
                     # "select" one service to use to handle other_name
-                    target_name = self_names.pop
+                    target_service = self_services.pop
                     # set the argument
-                    if arguments["#{target_name}_name"] != selection
-                        arguments["#{target_name}_name"] = selection
+                    if arguments["#{target_service.name}_name"] != selected_source_name
+                        arguments["#{target_service.name}_name"] = selected_source_name
                     end
 
                     # What we also need to do is map port names from the ports
@@ -458,7 +469,7 @@ module Orocos
                     #
                     # For that, we first build a name mapping and then we apply
                     # it by moving edges from +merged_task+ into +self+.
-                    if DataServiceModel.needs_port_mapping?(merged_task.model, other_name, model, target_name)
+                    if DataServiceModel.needs_port_mapping?(other_service, target_service)
                         raise NotImplementedError, "mapping data flow ports is not implemented yet"
                     end
                 end
@@ -469,11 +480,9 @@ module Orocos
             # Returns true if at least one port of the given service (designated
             # by its name) is connected to something.
             def using_data_service?(source_name)
-                source_type = model.data_service_type(source_name)
-                inputs  = source_type.each_input.
-                    map { |p| model.source_port(source_type, source_name, p.name) }
-                outputs = source_type.each_output.
-                    map { |p| model.source_port(source_type, source_name, p.name) }
+                service = model.find_data_service(source_name)
+                inputs  = service.each_input.map(&:name)
+                outputs = service.each_output.map(&:name)
 
                 each_source do |output|
                     description = output[self, Flows::DataFlow]
@@ -489,23 +498,26 @@ module Orocos
                 false
             end
 
-            # Finds the services of +other_task+ that are in use, and yields
-            # merge candidates in +self+
-            def each_merged_service(other_task) # :nodoc:
-                other_task.model.each_root_data_service do |other_name, other_type|
-                    other_selection = other_task.selected_data_service(other_name)
+            # Finds the data sources on +other_task+ that have been selected
+            # (i.e. the sources that have been assigned to a particular source
+            # on the system). Yields it along with a data source on +self+ in
+            # which it can be merged, either because the source is assigned as
+            # well to the same device, or because it is not assigned yet
+            def each_source_merge_candidate(other_task) # :nodoc:
+                other_task.model.each_root_data_service do |name, other_service|
+                    other_selection = other_task.selected_data_source(other_service)
                     next if !other_selection
 
                     self_selection = nil
-                    available_services = model.each_data_service.find_all do |self_name, self_type|
-                        self_selection = selected_data_service(self_name)
+                    available_services = model.each_data_service.find_all do |self_name, self_service|
+                        self_selection = selected_data_source(self_service)
 
-                        self_type == other_type &&
+                        self_service.model == other_service.model &&
                             (!self_selection || self_selection == other_selection)
                     end
 
                     if self_selection != other_selection
-                        yield(other_selection, other_name, available_services.map(&:first), other_type)
+                        yield(other_selection, other_service, available_services.map(&:last))
                     end
                 end
             end

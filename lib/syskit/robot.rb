@@ -15,8 +15,9 @@ module Orocos
 
             # The selected task model that allows to drive this device
             attr_reader :task_model
-            # The source in +task_model+ for this device
-            attr_reader :task_source_name
+            # The data service that will drive this device, as a
+            # ProvidedDataService instance
+            attr_reader :service
             # The task arguments
             attr_reader :task_arguments
             # The actual task
@@ -31,9 +32,9 @@ module Orocos
 
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
             def initialize(name, device_model, options,
-                           task_model, task_source_name, task_arguments)
-                @name, @device_model, @task_model, @task_source_name, @task_arguments =
-                    name, device_model, task_model, task_source_name, task_arguments
+                           task_model, service, task_arguments)
+                @name, @device_model, @task_model, @service, @task_arguments =
+                    name, device_model, task_model, service, task_arguments
 
                 @period      = options[:period]
                 @sample_size = options[:sample_size]
@@ -125,15 +126,12 @@ module Orocos
         class SlaveDeviceInstance
             # The MasterDeviceInstance that we depend on
             attr_reader :master_device
-            # Which slave of master_device this is representing
-            attr_reader :slave_name
-            # The data service model for this slave
-            attr_reader :data_service_model
+            # The actual service on master_device's task model
+            attr_reader :service
 
-            def initialize(master_device, slave_name, data_service_model)
+            def initialize(master_device, service)
                 @master_device = master_device
-                @slave_name    = slave_name
-                @data_service_model = data_service_model
+                @service = service
             end
 
             def task; master_device.task end
@@ -288,16 +286,17 @@ module Orocos
                 end
 
                 task_model = tasks.first
-                task_source_name = task_model.data_service_name(device_model)
-                root_task_arguments = {"#{task_source_name}_name" => name, :com_bus => nil}.
+                service = task_model.find_matching_service(device_model)
+                root_task_arguments = {"#{service.name}_name" => name, :com_bus => nil}.
                     merge(task_arguments)
 
                 devices[name] = MasterDeviceInstance.new(
                     name, device_model, device_options,
-                    task_model, task_source_name, root_task_arguments)
+                    task_model, service, root_task_arguments)
 
-                task_model.each_child_data_service(task_source_name) do |child_name, child_model|
-                    devices["#{name}.#{child_name}"] = SlaveDeviceInstance.new(devices[name], child_name, child_model)
+                task_model.each_slave_data_service(service) do |_, slave_service|
+                    devices["#{name}.#{slave_service.name}"] =
+                        SlaveDeviceInstance.new(devices[name], slave_service)
                 end
 
                 devices[name]

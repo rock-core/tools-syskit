@@ -232,8 +232,8 @@ module Orocos
             def pretty_print_specializations(pp) # :nodoc:
                 data_services = each_data_service.to_a
                 parent = parent_model
-                data_services.delete_if do |name, model|
-                    parent.find_data_service(name) == model
+                data_services.delete_if do |name, ds|
+                    parent.find_data_service(name) == ds.model
                 end
 
                 if !data_services.empty?
@@ -241,9 +241,9 @@ module Orocos
                         pp.breakable
                         pp.text "Data Services:"
                         pp.nest(2) do
-                            data_services.each do |name, model|
+                            data_services.each do |name, ds|
                                 pp.breakable
-                                pp.text "#{name}: #{model.name}"
+                                pp.text "#{name}: #{ds.model.name}"
                             end
                         end
                     end
@@ -677,9 +677,9 @@ module Orocos
                         pp.text "Data services:"
                         pp.nest(2) do
                             data_services.sort_by(&:first).
-                                each do |name, model|
+                                each do |name, ds|
                                     pp.breakable
-                                    pp.text "#{name}: #{model.name}"
+                                    pp.text "#{name}: #{ds.model.name}"
                                 end
                         end
                     end
@@ -1271,14 +1271,14 @@ module Orocos
                     if out_name == child_name
                         mappings.delete_if do |(out_port, in_port), options|
                             if mapped_port = port_mappings[out_port]
-                                mapped_connections[ [in_port, mapped_port] ] = options
+                                mapped_connections[ [mapped_port, in_port] ] = options
                             end
                         end
 
                     elsif in_name == child_name
                         mappings.delete_if do |(out_port, in_port), options|
                             if mapped_port = port_mappings[in_port]
-                                mapped_connections[ [mapped_port, out_port] ] = options
+                                mapped_connections[ [out_port, mapped_port] ] = options
                             end
                         end
                     end
@@ -1298,6 +1298,20 @@ module Orocos
                     result |= constraint_set.to_value_set
                 end
                 result
+            end
+
+            # Compares +model+ with the constraints declared for +child_name+.
+            # Returns the set of unmatched constraints, or nil if all
+            # constraints are met
+            def match_child_constraints(child_name, model)
+                missing_constraints = constraints_for(child_name).find_all do |model_set|
+                    model_set.all? do |m|
+                        !model.fullfills?(m)
+                    end
+                end
+                if !missing_constraints.empty?
+                    missing_constraints
+                end
             end
 
             # In the explicit selection phase, try to find a composition that
@@ -1466,10 +1480,10 @@ module Orocos
                     raise SpecError, !user_call || "cannot select #{selected_model} for #{child_name} (#{dependent_model}): [#{selected_model}] is not a specialization of [#{dependent_model.to_a.join(", ")}]"
                 end
 
-                constraints = constraints_for(child_name)
-                if !constraints.empty? && constraints.all? { |m| !selected_model.fullfills?(m) }
+                missing_constraints = match_child_constraints(child_name, selected_model)
+                if missing_constraints
                     throw :invalid_selection if !user_call
-                    raise SpecError, !user_call || "selected model #{selected_model} does not match the constraints for #{child_name}: it implements none of #{constraints.map(&:name).join(", ")}"
+                    raise SpecError, !user_call || "selected model #{selected_model} does not match the constraints for #{child_name}: it implements none of #{missing_constraints.first.map(&:name).join(", ")}"
                 end
             end
 
@@ -1507,13 +1521,12 @@ module Orocos
                 end
 
                 data_services.each do |data_service_model|
-                    target_source_name = child_model.find_matching_service(data_service_model, selection_name)
-                    if !child_model.main_data_service?(target_source_name)
-                        mappings = DataServiceModel.compute_port_mappings(data_service_model, child_model, target_source_name)
-                        port_mappings.merge!(mappings) do |key, old, new|
-                            if old != new
-                                raise InternalError, "two different port mappings are required"
-                            end
+                    target_service =
+                        child_model.find_matching_service(data_service_model, selection_name)
+
+                    port_mappings.merge!(target_service.port_mappings) do |key, old, new|
+                        if old != new
+                            raise InternalError, "two different port mappings are required"
                         end
                     end
                 end
@@ -1633,7 +1646,10 @@ module Orocos
                 selected_models.each do |child_name, (child_model, child_task, port_mappings)|
                     if port_mappings && !port_mappings.empty?
                         Orocos.debug { "applying port mappings for #{child_name}: #{port_mappings.inspect}" }
+                        STDERR.puts "Before: #{connections.inspect}"
+                        STDERR.puts "applying port mappings for #{child_name}: #{port_mappings.inspect}"
                         apply_port_mappings(connections, child_name, port_mappings)
+                        STDERR.puts "After: #{connections.inspect}"
                     end
 
                     role = [child_name].to_set

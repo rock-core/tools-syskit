@@ -35,9 +35,9 @@ class TC_RobySpec_System < Test::Unit::TestCase
 
         camera_type = DataServices::Camera
         assert_equal camera_type,
-            orocos_engine.robot.devices['frontStereo.left'].data_service_model
+            orocos_engine.robot.devices['frontStereo.left'].service.model
         assert_equal camera_type,
-            orocos_engine.robot.devices['frontStereo.right'].data_service_model
+            orocos_engine.robot.devices['frontStereo.right'].service.model
     end
 
     def complete_robot_definition

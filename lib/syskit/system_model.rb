@@ -115,10 +115,10 @@ module Orocos
             def data_service(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
                     :child_of => nil,
-                    :provides => DataService,
-                    :interface    => nil
+                    :provides => nil,
+                    :interface => nil
 
-                options[:provides] ||= options[:child_of]
+                options[:provides] ||= (options[:child_of] || DataService)
 
                 const_name = name.camelcase(true)
                 if has_data_service?(name)
@@ -155,7 +155,10 @@ module Orocos
             # The following options are available:
             #
             # provides::
-            #   a data service this data source provides
+            #   a data service this data source provides. If it is not set, a
+            #   data service will either be created with the same name than the
+            #   data source, or it will be reused if a service already exists
+            #   with that name.
             # interface::
             #   an instance of Orocos::Generation::TaskContext that represents
             #   the data source interface.
@@ -164,7 +167,11 @@ module Orocos
             # match the data service's interface.
             def data_source(name, options = Hash.new)
                 options, device_options = Kernel.filter_options options,
-                    :provides => nil, :interface => nil
+                    :provides => nil, :child_of => nil, :interface => nil
+
+                if options[:provides].nil?
+                    options[:provides] = options[:child_of]
+                end
 
                 const_name = name.camelcase(true)
                 if has_data_source?(name)

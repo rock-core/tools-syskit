@@ -799,8 +799,8 @@ module Orocos
                 if !(model < DataSource)
                     raise ArgumentError, "#{model} is not a device driver model"
                 end
-                data_service_name, _ = data_service(model, arguments)
-                argument "#{data_service_name}_name"
+                dserv = data_service(model, arguments)
+                argument "#{dserv.name}_name"
 
                 model
             end

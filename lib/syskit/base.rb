@@ -18,6 +18,80 @@ module Orocos
         class SpecError < RuntimeError; end
         class Ambiguous < SpecError; end
 
+        # Data structure used internally to represent the data services that are
+        # provided by a given component
+        class ProvidedDataService
+            # The task model which provides this service
+            attr_reader :component_model
+            # The service name
+            attr_reader :name
+            # The master service (if there is one)
+            attr_reader :master
+            # The service model
+            attr_reader :model
+            # The mappings needed between the ports in the service interface and
+            # the actual ports on the component
+            attr_reader :port_mappings
+
+            # The service's full name, i.e. the name with which it is referred
+            # to in the task model
+            attr_reader :full_name
+
+            # :attr: main?
+            #
+            # True if this service is a main service. See
+            # ComponentModel.data_service for more information
+            attr_predicate :main, true
+            # True if this service is not a slave service
+            def master?; !@master end
+
+            def initialize(name, component_model, master, model, port_mappings)
+                @name, @component_model, @master, @model, @port_mappings = 
+                    name, component_model, master, model, port_mappings
+
+                @full_name =
+                    if master
+                        "#{master.name}.#{name}"
+                    else
+                        name
+                    end
+            end
+
+            # Yields the port models for this service's input, applied on the
+            # underlying task. I.e. applies the port mappings to the service
+            # definition
+            def each_input
+                if block_given?
+                    model.each_input do |input_port|
+                        port_name = input_port.name
+                        if mapped_port = port_mappings[port_name]
+                            port_name = mapped_port
+                        end
+                        yield(component_model.input_port(port_name))
+                    end
+                else
+                    enum_for(:each_input)
+                end
+            end
+
+            # Yields the port models for this service's output, applied on the
+            # underlying task. I.e. applies the port mappings to the service
+            # definition
+            def each_output
+                if block_given?
+                    model.each_output do |output_port|
+                        port_name = output_port.name
+                        if mapped_port = port_mappings[port_name]
+                            port_name = mapped_port
+                        end
+                        yield(component_model.output_port(port_name))
+                    end
+                else
+                    enum_for(:each_output)
+                end
+            end
+        end
+
         # Returns an array of modules. It is used as the search path for DSL
         # parsing.
         #
@@ -128,7 +202,9 @@ module Orocos
         # documentation of Model for an explanation of this.
         module ComponentModel
             ##
-            # :method: each_main_data_service { |source_name| ... }
+            # :method: each_main_data_service
+            # :call-seq:
+            #   each_main_data_service { |source_name| }
             #
             # Enumerates the name of all the main data sources that are provided
             # by this component model. Unlike #main_data_services, it enumerates
@@ -151,7 +227,9 @@ module Orocos
             # This is defined on Component using inherited_enumerable
 
             ##
-            # :method: each_data_service { |name, source| ... }
+            # :method: each_data_service
+            # :call-seq:
+            #     each_data_service { |service| }
             #
             # Enumerates all the data sources that are provided by this
             # component model, as pairs of source name and DataService instances.
@@ -164,7 +242,9 @@ module Orocos
             # This is defined on Component using inherited_enumerable
 
             ##
-            # :method: find_data_service(name)
+            # :method: find_data_service
+            # :call-seq:
+            #   find_data_service(name) -> service
             #
             # Returns the DataService instance that has the given name, or nil if
             # there is none.
@@ -173,7 +253,7 @@ module Orocos
             #--
             # This is defined on Component using inherited_enumerable
 
-            ## :attr_reader:data_services
+            ## :attr_reader: data_services
             #
             # The data sources that are provided by this particular component
             # model, as a hash mapping the source name to the corresponding
@@ -449,7 +529,7 @@ module Orocos
                                    else !source_arguments[:as]
                                    end
 
-                # In case it *is* a main source, check if our parent models
+                # In case no name has been given, check if our parent models
                 # already have a source which we could specialize. In that case,
                 # reuse their name
                 if !source_arguments[:as]
@@ -461,7 +541,7 @@ module Orocos
 
                         if candidates.size > 1
                             candidates = candidates.map { |name, _| name }
-                            raise Ambiguous, "this definition could overload the following sources: #{candidates.join(", ")}. Select one with the :as option"
+                            raise Ambiguous, "this definition could overload the following services: #{candidates.join(", ")}. Select one with the :as option"
                         end
                         source_arguments[:as] = candidates.first
                     end
@@ -470,7 +550,7 @@ module Orocos
                 # Get the source name and the source model
                 name = (source_arguments[:as] || model.name.gsub(/^.+::/, '').snakecase).to_str
                 if data_services[name]
-                    raise ArgumentError, "there is already a source named '#{name}' defined on '#{name}'"
+                    raise ArgumentError, "there is already a source named '#{name}' defined on '#{self.name}'"
                 end
 
                 # Verify that the component interface matches the data service
@@ -491,33 +571,39 @@ module Orocos
                     send("#{key}=", value)
                 end
 
-                if parent_source = source_arguments[:slave_of]
-                    if !has_data_service?(parent_source.to_str)
-                        raise SpecError, "parent source #{parent_source} is not registered on #{self}"
+                if master_source = source_arguments[:slave_of]
+                    if !has_data_service?(master_source.to_str)
+                        raise SpecError, "master source #{master_source} is not registered on #{self}"
                     end
-
-                    data_services["#{parent_source}.#{name}"] = model
-                else
-                    data_services[name] = model
-                    if main_data_service
-                        main_data_services << name
-                    end
+                    master = find_data_service(master_source)
                 end
-                return name, model
+
+                service = ProvidedDataService.new(name, self, master, model, Hash.new)
+                full_name = service.full_name
+                data_services[full_name] = service
+                if main_data_service
+                    main_data_services << full_name
+                    service.main = true
+                end
+                service.port_mappings.
+                    merge!(DataServiceModel.compute_port_mappings(service, self, full_name))
+
+                return service
             end
 
 
             # Return the selected name for the given data source, or nil if none
             # is selected yet
-            def selected_data_service(data_service_name)
-                root_source, child_source = model.break_data_service_name(data_service_name)
-                if child_source
-                    # Get the root name
-                    if selected_source = selected_data_service(root_source)
-                        return "#{selected_source}.#{child_source}"
-                    end
+            def selected_data_source(data_service)
+                if data_service.respond_to?(:to_str)
+                    data_service = model.find_data_service(data_service)
+                end
+
+                if data_service.master
+                    parent_source_name = selected_data_source(data_service.master)
+                    "#{parent_source_name}.#{data_service.name}"
                 else
-                    arguments["#{root_source}_name"]
+                    arguments["#{data_service.name}_name"]
                 end
             end
 
@@ -536,7 +622,7 @@ module Orocos
                     raise ArgumentError, "there is no source named #{root_source_name}"
                 end
                 if root_source_name == source_name
-                    return root_source.last
+                    return root_source.last.model
                 end
 
                 subname = source_name.gsub /^#{root_source_name}\./, ''
@@ -642,7 +728,7 @@ module Orocos
             end
 
             def self.method_missing(name, *args)
-                if args.empty? && (port = self.port(name))
+                if args.empty? && orogen_spec && (port = self.port(name))
                     port
                 else
                     super
@@ -650,37 +736,41 @@ module Orocos
             end
 
             # Map the given port name of +source_type+ into the port that
-            # is owned by +source_name+ on +target_type+
+            # is owned by +source_name+ on +self+
             #
             # +source_type+ has to be a plain data source (i.e. not a task)
             #
             # Raises ArgumentError if no mapping is found
-            def self.source_port(source_type, source_name, port_name)
-                source_port = source_type.port(port_name)
-                if main_data_service?(source_name)
+            def self.map_service_port(service, port_name)
+                source_port = service.model.port(port_name)
+                if service.main?
                     if port(port_name)
                         return port_name
                     else
                         raise ArgumentError, "expected #{self} to have a port named #{source_name}"
                     end
                 else
-                    path    = source_name.split '.'
-                    targets = []
-                    while !path.empty?
-                        target_name = "#{path.join('_')}_#{port_name}".camelcase
-                        if port(target_name)
-                            return target_name
+                    path =
+                        if service.master?
+                            [service.name]
+                        else
+                            [service.master.name, service.name]
                         end
-                        targets << target_name
 
-                        target_name = "#{port_name}_#{path.join('_')}".camelcase
-                        if port(target_name)
-                            return target_name
-                        end
-                        targets << target_name
+                    candidates = []
+                    while !path.empty?
+                        candidates << "#{path.join('_')}_#{port_name}"
+                        candidates << "#{port_name}_#{path.join('_')}"
                         path.shift
                     end
-                    raise ArgumentError, "expected #{self} to have a port of type #{source_port.type_name} named as one of the following possibilities: #{targets.join(", ")}"
+                    candidates.concat(candidates.map(&:camelcase))
+
+                    candidates.each do |target_name|
+                        if port(target_name)
+                            return target_name
+                        end
+                    end
+                    raise ArgumentError, "expected #{self} to have a port of type #{source_port.type_name} named as one of the following possibilities: #{candidates.join(", ")}"
                 end
             end
         end

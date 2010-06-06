@@ -313,7 +313,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             add SimpleSource::Source
             constrain SimpleSource::Source, [tag]
         end
-        assert_equal([tag], subsys.find_child_constraint('Source'))
+        assert_equal([[tag]], subsys.find_child_constraint('Source'))
 
         assert_raises(SpecError) do
             subsys.instanciate(orocos_engine,
