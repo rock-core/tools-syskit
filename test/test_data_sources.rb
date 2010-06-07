@@ -355,31 +355,6 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         assert_equal srv_img_left, task_model.find_matching_service(image_model, "stereo.left")
     end
 
-    def test_data_service_implemented_by
-        Roby.app.load_orogen_project 'system_test'
-        model0 = sys_model.data_service_type 'model0' do
-            output_port 'image', 'camera/Image'
-        end
-        assert(model0.implemented_by?(SystemTest::CameraDriver))
-        assert(!model0.implemented_by?(SystemTest::StereoCamera))
-        assert(model0.implemented_by?(SystemTest::StereoCamera, true, 'left'))
-        assert(model0.implemented_by?(SystemTest::StereoCamera, false, 'left'))
-        assert(!model0.implemented_by?(SystemTest::StereoProcessing))
-        assert(!model0.implemented_by?(SystemTest::StereoProcessing, true, 'left'))
-        assert(!model0.implemented_by?(SystemTest::StereoProcessing, false, 'right'))
-
-        model1 = sys_model.data_service_type 'model1' do
-            input_port 'image', 'camera/Image'
-        end
-        assert(!model1.implemented_by?(SystemTest::CameraDriver))
-        assert(!model1.implemented_by?(SystemTest::StereoCamera))
-        assert(!model1.implemented_by?(SystemTest::StereoCamera, true, 'left'))
-        assert(!model1.implemented_by?(SystemTest::StereoCamera, false, 'left'))
-        assert(!model1.implemented_by?(SystemTest::StereoProcessing))
-        assert(model1.implemented_by?(SystemTest::StereoProcessing, true, 'left'))
-        assert(model1.implemented_by?(SystemTest::StereoProcessing, false, 'right'))
-    end
-
     def test_data_service_guess
         Roby.app.load_orogen_project 'system_test'
         model0 = sys_model.data_service_type 'model0' do

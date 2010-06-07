@@ -177,46 +177,6 @@ module Orocos
                 candidates
             end
 
-            # Verifies if +model+ has the ports required by having +self+ as a
-            # data service. +main_service+ says if the match should consider that
-            # the new service would be a main service, and +source_name+ is the
-            # tentative service name.
-            #
-            # Raises SpecError if it does not match
-            def verify_implemented_by(model, main_service = false, source_name = nil)
-                # If this data service defines no interface, return right away
-                return if !orogen_spec
-
-                each_output do |source_port|
-                    has_eqv = each_port_name_candidate(source_port.name, main_service, source_name).any? do |port_name|
-                        port = model.output_port(port_name)
-                        port && port.type_name == source_port.type_name
-                    end
-                    if !has_eqv
-                        raise SpecError, "#{model} does not implement #{self}: the #{source_port.name}[#{source_port.type.name}] output port has no equivalent"
-                    end
-                end
-                each_input do |source_port|
-                    has_eqv = each_port_name_candidate(source_port.name, main_service, source_name).any? do |port_name|
-                        port = model.input_port(port_name)
-                        port && port.type_name == source_port.type_name
-                    end
-                    if !has_eqv
-                        raise SpecError, "#{model} does not implement #{self}: the #{source_port.name}[#{source_port.type.name}] output port has no equivalent"
-                    end
-                end
-                nil
-            end
-
-            # Like #verify_implemented_by, but returns true if it matches and
-            # false otherwise
-            def implemented_by?(model, main_service = false, source_name = nil)
-                verify_implemented_by(model, main_service, source_name)
-                true
-            rescue SpecError
-                false
-            end
-
             # Returns true if a port mapping is needed between the two given
             # data services. Note that this relation is symmetric.
             #
@@ -225,24 +185,6 @@ module Orocos
             # in model1 are of compatible types (same types or derived types)
             def self.needs_port_mapping?(from, to)
                 from.port_mappings != to.port_mappings
-            end
-
-            # Computes the port mapping from a plain data service to the given
-            # data service on the target. +service+ is the interface model and
-            # +target+ the task model we want to select a service on.
-            #
-            # The returned hash is of the form
-            #
-            #   source_port_name => target_port_name
-            #
-            # where +source_port_name+ is the data service port and
-            # +target_port_name+ is the actual port on +target+
-            def self.compute_port_mappings(service, target, target_name)
-                result = Hash.new
-                service.model.each_port do |source_port|
-                    result[source_port.name] = target.map_service_port(service, source_port.name)
-                end
-                result
             end
 
             # Returns the most generic task model that implements +self+. If

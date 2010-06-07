@@ -479,6 +479,84 @@ module Orocos
                 data_service(*args)
             end
 
+            # Helper method for compute_port_mappings
+            def self.compute_directional_port_mappings(result, service, direction) # :nodoc:
+                remaining = service.model.send("each_#{direction}").to_a
+
+                used_ports = service.component_model.
+                    send("each_data_service").
+                    find_all { |_, task_service| task_service.model == service.model }.
+                    map { |_, task_service| task_service.port_mappings.values }.
+                    flatten.to_set
+
+                # 1. check if the task model has a port with the same name
+                remaining.delete_if do |port|
+                    component_port = service.component_model.
+                        send("#{direction}_port", port.name)
+                    if component_port && component_port.type == port.type
+                        used_ports << component_port.name
+                        result[port.name] = port.name
+                    end
+                end
+
+                while !remaining.empty?
+                    current_size = remaining.size
+                    remaining.delete_if do |port|
+                        # 2. look at all ports that have the same type
+                        candidates = service.component_model.send("each_#{direction}").
+                            find_all { |p| !used_ports.include?(p.name) && p.type == port.type }
+                        if candidates.empty?
+                            raise SpecError, "no candidate to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
+                        elsif candidates.size == 1
+                            used_ports << candidates.first.name
+                            result[port.name] = candidates.first.name
+                            next(true)
+                        end
+
+                        # 3. try to filter the ambiguity by name
+                        name_rx = Regexp.new(service.name)
+                        by_name = candidates.find_all { |p| p.name =~ name_rx }
+                        if by_name.empty?
+                            raise SpecError, "multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}: #{candidates.map(&:name)}"
+                        elsif by_name.size == 1
+                            used_ports << by_name.first.name
+                            result[port.name] = by_name.first.name
+                            next(true)
+                        end
+
+                        # 3. try full name if the service is a slave service
+                        next if service.master?
+                        name_rx = Regexp.new(service.master.name)
+                        by_name = by_name.find_all { |p| p.name =~ name_rx }
+                        if by_name.size == 1
+                            used_ports << by_name.first.name
+                            result[port.name] = by_name.first.name
+                            next(true)
+                        end
+                    end
+
+                    if remaining.size == current_size
+                        port = remaining.first
+                        raise SpecError, "there are multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
+                    end
+                end
+            end
+
+
+            # Compute the port mapping from the interface of 'service' onto the
+            # ports of 'self'
+            #
+            # The returned hash is
+            #
+            #   service_interface_port_name => task_model_port_name
+            #
+            def self.compute_port_mappings(service)
+                result = Hash.new
+                compute_directional_port_mappings(result, service, "input")
+                compute_directional_port_mappings(result, service, "output")
+                result
+            end
+
             # Declares that this component provides the given data service.
             # +model+ can either be the data service constant name (from
             # Orocos::RobyPlugin::DataServices), or its plain name.
@@ -553,10 +631,6 @@ module Orocos
                     raise ArgumentError, "there is already a source named '#{name}' defined on '#{self.name}'"
                 end
 
-                # Verify that the component interface matches the data service
-                # interface
-                model.verify_implemented_by(self, main_data_service, name)
-
                 # If a source with the same name exists, verify that the user is
                 # trying to specialize it
                 if has_data_service?(name)
@@ -586,7 +660,7 @@ module Orocos
                     service.main = true
                 end
                 service.port_mappings.
-                    merge!(DataServiceModel.compute_port_mappings(service, self, full_name))
+                    merge!(compute_port_mappings(service))
 
                 return service
             end
@@ -732,45 +806,6 @@ module Orocos
                     port
                 else
                     super
-                end
-            end
-
-            # Map the given port name of +source_type+ into the port that
-            # is owned by +source_name+ on +self+
-            #
-            # +source_type+ has to be a plain data source (i.e. not a task)
-            #
-            # Raises ArgumentError if no mapping is found
-            def self.map_service_port(service, port_name)
-                source_port = service.model.port(port_name)
-                if service.main?
-                    if port(port_name)
-                        return port_name
-                    else
-                        raise ArgumentError, "expected #{self} to have a port named #{source_name}"
-                    end
-                else
-                    path =
-                        if service.master?
-                            [service.name]
-                        else
-                            [service.master.name, service.name]
-                        end
-
-                    candidates = []
-                    while !path.empty?
-                        candidates << "#{path.join('_')}_#{port_name}"
-                        candidates << "#{port_name}_#{path.join('_')}"
-                        path.shift
-                    end
-                    candidates.concat(candidates.map(&:camelcase))
-
-                    candidates.each do |target_name|
-                        if port(target_name)
-                            return target_name
-                        end
-                    end
-                    raise ArgumentError, "expected #{self} to have a port of type #{source_port.type_name} named as one of the following possibilities: #{candidates.join(", ")}"
                 end
             end
         end
