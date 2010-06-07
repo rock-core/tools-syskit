@@ -102,10 +102,10 @@ module Orocos
             # See #port_name
             def name; port_name end
 
+            # THe port's type object
+            def type; port.type end
             # The port's type name
-            def type_name
-                port.type_name
-            end
+            def type_name; port.type_name end
 
             def initialize(child, port, port_name)
                 @child = child
@@ -114,7 +114,7 @@ module Orocos
             end
 
             def ==(other) # :nodoc:
-                other.child == child &&
+                other.kind_of?(CompositionChildPort) && other.child == child &&
                     other.port == port &&
                     other.port_name == port_name
             end
@@ -321,8 +321,8 @@ module Orocos
             # and/or task tags (instances of Roby::TaskModelTag)
 
             ##
-            # :method: each_input
-            # :call-seq: each_input { |export_name, port| }
+            # :method: each_exported_input
+            # :call-seq: each_exported_input { |export_name, port| }
             #
             # Yields the input ports that are exported by this composition.
             # +export_name+ is the name of the composition's port and +port+ the
@@ -330,8 +330,8 @@ module Orocos
             # exported.
 
             ##
-            # :method: each_output
-            # :call-seq: each_output { |export_name, port| }
+            # :method: each_exported_output
+            # :call-seq: each_exported_output { |export_name, port| }
             #
             # Yields the output ports that are exported by this composition.
             # +export_name+ is the name of the composition's port and +port+ the
@@ -345,6 +345,28 @@ module Orocos
             # hierarchy, as an array of Specialization instances. See
             # #specialize for more details
             attribute(:specializations) { Array.new }
+
+            def each_input
+                if block_given?
+                    each_exported_input do |_, p|
+                        yield(p)
+                    end
+                else
+                    enum_for(:each_input)
+                end
+            end
+            def find_input(name); find_exported_input(name) end
+
+            def each_output
+                if block_given?
+                    each_exported_output do |_, p|
+                        yield(p)
+                    end
+                else
+                    enum_for(:each_output)
+                end
+            end
+            def find_output(name); find_exported_output(name) end
 
             # Returns the CompositionChild object that represents the given
             # child, or nil if it does not exist.
@@ -1185,9 +1207,9 @@ module Orocos
 
                 case port
                 when CompositionChildInputPort
-                    inputs[name] = port
+                    exported_inputs[name] = port
                 when CompositionChildOutputPort
-                    outputs[name] = port
+                    exported_outputs[name] = port
                 else
                     raise TypeError, "invalid port #{port.port} of type #{port.port.class}"
                 end
@@ -1203,8 +1225,11 @@ module Orocos
             #   child = Compositions::Test['Source']
             #   Compositions::Test.exported_port?(child.output)
             def exported_port?(port_model)
-                each_output.find { |_, p| port_model == p } ||
-                    each_input.find { |_, p| port_model == p }
+                if exported = find_exported_output(port_model.name)
+                    exported == port_model
+                elsif exported = find_exported_input(port_model.name)
+                    exported == port_model
+                end
             end
 
             # Returns the port named 'name' in this composition
@@ -1212,18 +1237,18 @@ module Orocos
             # See #export to create ports on a composition
             def port(name)
                 name = name.to_str
-                output_port(name) || input_port(name)
+                (output_port(name) || input_port(name))
             end
 
             # Returns the composition's output port named 'name'
             #
             # See #port, and #export to create ports on a composition
-            def output_port(name); find_output(name.to_str) end
+            def output_port(name); find_exported_output(name.to_str) end
 
             # Returns the composition's input port named 'name'
             #
             # See #port, and #export to create ports on a composition
-            def input_port(name); find_input(name.to_str) end
+            def input_port(name); find_exported_input(name.to_str) end
 
             # Returns true if +name+ is a valid dynamic input port.
             #
@@ -1646,10 +1671,7 @@ module Orocos
                 selected_models.each do |child_name, (child_model, child_task, port_mappings)|
                     if port_mappings && !port_mappings.empty?
                         Orocos.debug { "applying port mappings for #{child_name}: #{port_mappings.inspect}" }
-                        STDERR.puts "Before: #{connections.inspect}"
-                        STDERR.puts "applying port mappings for #{child_name}: #{port_mappings.inspect}"
                         apply_port_mappings(connections, child_name, port_mappings)
-                        STDERR.puts "After: #{connections.inspect}"
                     end
 
                     role = [child_name].to_set
@@ -1693,7 +1715,7 @@ module Orocos
                 end
 
                 output_connections = Hash.new { |h, k| h[k] = Hash.new }
-                each_output do |output_name, port|
+                each_exported_output do |output_name, port|
                     output_connections[ port.child.child_name ].
                         merge!([port.name, output_name] => Hash.new)
                 end
@@ -1702,7 +1724,7 @@ module Orocos
                 end
 
                 input_connections = Hash.new { |h, k| h[k] = Hash.new }
-                each_input do |input_name, port|
+                each_exported_input do |input_name, port|
                     input_connections[ port.child.child_name ].
                         merge!([input_name, port.name] => Hash.new)
                 end
@@ -1754,9 +1776,9 @@ module Orocos
             inherited_enumerable(:automatic_connection, :automatic_connections)
 
             # Outputs exported from this composition
-            inherited_enumerable(:output, :outputs, :map => true)  { Hash.new }
+            inherited_enumerable(:exported_output, :exported_outputs, :map => true)  { Hash.new }
             # Inputs imported from this composition
-            inherited_enumerable(:input, :inputs, :map => true)  { Hash.new }
+            inherited_enumerable(:exported_input, :exported_inputs, :map => true)  { Hash.new }
 
             # Overriden from Roby::Task
             #
