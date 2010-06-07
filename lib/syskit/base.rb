@@ -802,7 +802,7 @@ module Orocos
             end
 
             def self.method_missing(name, *args)
-                if args.empty? && orogen_spec && (port = self.port(name))
+                if args.empty? && port = self.port(name)
                     port
                 else
                     super
