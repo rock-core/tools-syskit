@@ -357,6 +357,7 @@ module Orocos
 
                     label = "{"
                     task_label = child_model.map { |m| m.name }.join(',')
+                    task_label = "#{child_name}[#{task_label}]"
 
                     inputs = child_model.map { |m| m.each_input.map(&:name) }.
                         inject(&:concat).to_set
