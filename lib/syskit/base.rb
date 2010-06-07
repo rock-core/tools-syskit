@@ -667,7 +667,7 @@ module Orocos
 
 
             # Return the selected name for the given data source, or nil if none
-            # is selected yet
+            # is selected yet (or if the service is not a source)
             def selected_data_source(data_service)
                 if data_service.respond_to?(:to_str)
                     data_service = model.find_data_service(data_service)
