@@ -526,7 +526,7 @@ module Orocos
                 end
 
                 triggering_devices = model.each_root_data_service.
-                    find_all { |_, model| model < DataSource }.
+                    find_all { |_, service| service.model < DataSource }.
                     map do |source_name, _|
                         device = robot.devices[arguments["#{source_name}_name"]]
                         if !device
@@ -545,11 +545,8 @@ module Orocos
 
                     update_minimal_period(period)
 
-                    source_model, source_name = device_instance.device_model,
-                        device_instance.task_source_name
-
-                    source_model.each_output do |port|
-                        port_name = model.source_port(source_model, source_name, port.name)
+                    service = device_instance.service
+                    service.port_mappings.each do |service_port_name, port_name|
                         port = model.port(port_name)
                         result[port_name] ||= PortDynamics.new(nil, 1)
                         result[port_name].period = [result[port_name].period, period * port.period].compact.min
