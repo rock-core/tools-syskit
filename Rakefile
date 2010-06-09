@@ -32,9 +32,10 @@ begin
 rescue LoadError
     STDERR.puts "cannot load the Hoe gem. Distribution is disabled"
 rescue Exception => e
-    STDERR.puts "cannot load the Hoe gem, or Hoe fails. Distribution is disabled"
-    STDERR.puts "error message is: #{e.message}"
-    STDERR.puts "  #{e.backtrace.join("\n  ")}"
+    if e.message !~ /\.rubyforge/
+        STDERR.puts "cannot load the Hoe gem, or Hoe fails. Distribution is disabled"
+        STDERR.puts "error message is: #{e.message}"
+    end
 end
 
 def build_orogen(name)
@@ -96,7 +97,6 @@ namespace :setup do
     task :orogen_system    do build_orogen 'system' end
 end
 task :setup => "setup:ext"
-
 desc "remove by-products of setup"
 task :clean do
     FileUtils.rm_rf "ext/build"
