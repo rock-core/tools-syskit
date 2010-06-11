@@ -87,6 +87,9 @@ Roby.app.using "orocos"
 Roby.filter_backtrace do
     Roby.app.using 'orocos'
     Roby.app.setup
+    remaining.each do |project_name|
+        Roby.app.use_deployments_from(project_name)
+    end
 end
 
 # Load additional files from the command line
