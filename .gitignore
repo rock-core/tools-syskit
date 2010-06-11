@@ -13,3 +13,4 @@ build/
 *.ior
 *autobuild-stamp
 *.log
+test/roby/*.txt
