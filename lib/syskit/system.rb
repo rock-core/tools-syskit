@@ -166,6 +166,7 @@ module Orocos
                 #   use 'child_name' => ComponentModel
                 #   use ChildModel => 'component_model_or_device'
                 #   use ChildModel => ComponentModel
+                #   use Model1, Model2, Model3
                 #
                 # Provides explicit selections for the children of compositions
                 #
@@ -181,9 +182,24 @@ module Orocos
                 #
                 # will select XsensImu::Task for any child that provides IMU
                 #
+                # Finally, the third form allows to specify preferences without
+                # being specific about where to put them. If ambiguities are
+                # found, and if only one of the possibility is listed there,
+                # then that possibility will be selected. It has a lower
+                # priority than the explicit selection.
+                #
                 # See also Composition#instanciate
-                def use(mapping)
-                    using_spec.merge!(mapping)
+                def use(*mapping)
+                    result = Hash.new
+                    mapping.delete_if do |element|
+                        if element.kind_of?(Hash)
+                            result.merge!(element)
+                        else
+                            result[nil] ||= Array.new
+                            result[nil] << element
+                        end
+                    end
+                    using_spec.merge!(result)
                     self
                 end
 

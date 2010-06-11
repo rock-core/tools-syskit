@@ -1406,6 +1406,18 @@ module Orocos
                 end
                 result
             end
+
+            def filter_ambiguities(candidates, selection)
+                if candidates.size < 2 || !selection.has_key?(nil)
+                    return candidates
+                end
+                result = candidates.find_all { |task| selection.include?(task) || selection.include?(task.model) }
+                if result.empty?
+                    candidates
+                else
+                    result
+                end
+            end
             
             # call-seq:
             #   find_selected_model_and_task(engine, child_name, selection) -> selected_service, child_model, child_task
@@ -1439,6 +1451,7 @@ module Orocos
                 # case, search for a matching composition
                 if !selected_object
                     matching_compositions = find_selected_compositions(engine, child_name, selection)
+                    matching_compositions = filter_ambiguities(matching_compositions, selection)
                     if matching_compositions.size > 1
                         raise Ambiguous, "the following compositions match for #{child_name}: #{matching_compositions.map(&:to_s).join(", ")}"
                     end
@@ -1448,8 +1461,14 @@ module Orocos
                 # Second, look into the child model
                 if !selected_object
                     candidates = dependent_model.map do |m|
-                        selection[m] || selection[m.name]
+                        result = selection[m] || selection[m.name]
+                    end.flatten.compact
+
+                    if candidates.empty? && selection[nil]
+                        candidates = selection[nil].find_all { |default_models| default_models.fullfills?(dependent_model) }
                     end
+
+                    candidates = filter_ambiguities(candidates, selection)
                     if candidates.size > 1
                         raise Ambiguous, "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
                     end
