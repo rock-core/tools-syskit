@@ -355,7 +355,7 @@ module Orocos
                 model.each_child do |child_name, child_definition|
                     child_model = child_definition.models
 
-                    label = "{"
+                    label = "{{"
                     task_label = child_model.map { |m| m.name }.join(',')
                     task_label = "#{child_name}[#{task_label}]"
 
@@ -377,7 +377,7 @@ module Orocos
                             "<#{port_name}> #{port_name}"
                         end.join("|")
                     end
-                    label << "}"
+                    label << "}}"
 
                     io << "  C#{id}#{child_name} [label=\"#{label}\",fontsize=15];"
                     #io << "  C#{id} -> C#{id}#{child_name}"
@@ -401,7 +401,7 @@ module Orocos
                 io << "digraph {\n"
                 io << "  node [shape=record,height=.1];\n"
                 io << "  compound=true;\n"
-                io << "  rankdir=TB;"
+                io << "  rankdir=LR;"
 
                 models = each_composition.
                     find_all { |t| !t.is_specialization? }
