@@ -1408,7 +1408,7 @@ module Orocos
             end
             
             # call-seq:
-            #   find_selected_model_and_task(engine, child_name, selection) -> selected_object_name, child_model, child_task
+            #   find_selected_model_and_task(engine, child_name, selection) -> selected_service, child_model, child_task
             #
             # Finds a possible child model for +child_name+. +selection+ is an
             # explicit selection hash of the form
@@ -1465,16 +1465,14 @@ module Orocos
                     selected_object = dependent_model.first
                 end
 
-                # The selection can either be a device name, a model or a
-                # task instance.
-                if selected_object.respond_to?(:to_str)
-                    selected_object_name = selected_object.to_str
-                    if !(selected_object = engine.tasks[selected_object_name])
-                        raise SpecError, "#{selected_object_name} is not a device name. Compositions and tasks must be given as objects"
-                    end
-                end
-
-                if selected_object.kind_of?(Component)
+                if selected_object.kind_of?(InstanciatedDataService)
+                    selected_service = selected_object.provided_service_model
+                    child_task       = selected_object.task
+                    child_model      = child_task.model
+                elsif selected_object.kind_of?(ProvidedDataService)
+                    selected_service = selected_object.model
+                    child_model      = selected_object.component_model
+                elsif selected_object.kind_of?(Component)
                     child_task  = selected_object # selected an instance explicitely
                     child_model = child_task.model
                 elsif selected_object.kind_of?(DataServiceModel)
@@ -1485,7 +1483,7 @@ module Orocos
                     raise SpecError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
                 end
 
-                return selected_object_name, child_model, child_task
+                return selected_service, child_model, child_task
             end
 
             # Verifies that +selected_model+ is an acceptable selection for
@@ -1524,40 +1522,6 @@ module Orocos
                 return false
             end
 
-            # Computes the port mappings required so that a task of
-            # +child_model+ can be used to fullfill the services listed in
-            # +data_services+. If +selected_object_name+ is non-nil, it is the the selected object (as
-            # a string) given by the caller at instanciation time. It can be of
-            # the form <task_name>.<source_name>, in which case it is used to
-            # perform the selection
-            #
-            # The returned port mapping hash is of the form
-            #
-            #   source_port_name => child_port_name
-            #
-            def compute_port_mapping_for_selection(selected_object_name, child_model, data_services) # :nodoc:
-                port_mappings = Hash.new
-
-                if selected_object_name
-                    _, *selection_name = selected_object_name.split '.'
-                    selection_name = if selection_name.empty? then nil
-                                     else selection_name.join(".")
-                                     end
-                end
-
-                data_services.each do |data_service_model|
-                    target_service =
-                        child_model.find_matching_service(data_service_model, selection_name)
-
-                    port_mappings.merge!(target_service.port_mappings) do |key, old, new|
-                        if old != new
-                            raise InternalError, "two different port mappings are required"
-                        end
-                    end
-                end
-                port_mappings
-            end
-
             # Extracts from +selection+ the specifications that are relevant for
             # +self+, and returns a list of selected models, as
             #
@@ -1572,17 +1536,15 @@ module Orocos
                 result = Hash.new
                 each_child do |child_name, child_definition|
                     dependent_model = child_definition.models
-                    selected_object_name, child_model, child_task =
+                    selected_service, child_model, child_task =
                         find_selected_model_and_task(engine, child_name, selection)
                     verify_acceptable_selection(child_name, child_model, user_call)
 
                     # If the model is a plain data service (i.e. not a task
                     # model), we must map this service to a service on the
                     # selected task
-                    data_services  = dependent_model.find_all { |m| m < DataService && !(m < Roby::Task) }
-                    if !data_services.empty?
-                        port_mappings =
-                            compute_port_mapping_for_selection(selected_object_name, child_model, data_services)
+                    if selected_service
+                        port_mappings = selected_service.port_mappings.dup
                     end
 
                     Engine.debug do

@@ -26,6 +26,22 @@ module Orocos
             end
         end
 
+        # Class that is used to represent a binding of a service model with an
+        # actual task instance during the instanciation process
+        class InstanciatedDataService
+            # The ProvidedDataService instance that represents the data service
+            attr_reader :provided_service_model
+            # The task instance we are bound to
+            attr_reader :task
+            def initialize(task, provided_service_model)
+                @task, @provided_service_model = task, provided_service_model
+            end
+
+            def fullfills?(*args)
+                provided_service_model.model.fullfills?(*args)
+            end
+        end
+
         # The main deployment algorithm
         #
         # Engine instances are the objects that actually get deployment
@@ -171,14 +187,67 @@ module Orocos
                     self
                 end
 
+                # Resolves a selection given through the #use method
+                #
+                # It can take, as input, one of:
+                # 
+                # * an array, in which case it is called recursively on each of
+                #   the array's elements.
+                # * an InstanciatedComponent (returned by Engine#add)
+                # * a name
+                #
+                # In the latter case, the name refers either to a device name,
+                # or to the name given through the ':as' argument to Engine#add.
+                # A particular service can also be selected by adding
+                # ".service_name" to the component name.
+                #
+                # The returned value is either an array of resolved selections,
+                # a Component instance or an InstanciatedDataService instance.
+                def resolve_explicit_selection(value)
+                    if value.kind_of?(InstanciatedComponent)
+                        value.task
+                    elsif value.respond_to?(:to_str)
+                        if !(selected_object = engine.tasks[value.to_str])
+                            raise SpecError, "#{value} does not refer to a known task"
+                        end
+
+                        # Check if a service has explicitely been selected, and
+                        # if it is the case, return it instead of the complete
+                        # task
+                        service_names = value.split '.'
+                        service_names.shift # remove the task name
+                        if service_names.empty?
+                            selected_object
+                        else
+                            candidate_service = selected_object.model.find_data_service(service_names.join("."))
+
+                            if !candidate_service && service_names.size == 1
+                                # Might still be a slave of a main service
+                                services = selected_object.model.each_data_service.
+                                    find_all { |srv| !srv.master? && srv.master.main? && srv.name == service_names.first }
+
+                                if services.empty?
+                                    raise SpecError, "#{value} is not a known device, or an instanciated composition"
+                                elsif services.size > 1
+                                    raise SpecError, "#{value} can refer to multiple objects"
+                                end
+                                candidate_service = services.first
+                            end
+
+                            InstanciatedDataService.new(selected_object, candidate_service)
+                        end
+                    elsif value.respond_to?(:to_ary)
+                        value.map(&method(:resolve_explicit_selection))
+                    else
+                        value
+                    end
+                end
+
                 # Create a concrete task for this requirements
                 def instanciate(engine)
                     selection = engine.main_selection.merge(using_spec)
                     selection.each_key do |key|
-                        value = selection[key]
-                        if value.kind_of?(InstanciatedComponent)
-                            selection[key] = value.task
-                        end
+                        selection[key] = resolve_explicit_selection(selection[key])
                     end
 
                     @task = model.instanciate(engine, arguments.merge(:selection => selection))
