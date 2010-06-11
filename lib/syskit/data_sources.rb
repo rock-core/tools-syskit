@@ -535,7 +535,7 @@ module Orocos
                         device
                     end.compact
 
-                if orogen_spec.activity_type != 'FileDescriptorActivity'
+                if orogen_spec.activity_type !~ /(NonPeriodic|FileDescriptor)Activity/
                     triggering_devices.delete_if { |m| !m.com_bus }
                 end
 
