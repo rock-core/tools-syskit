@@ -9,6 +9,7 @@ output_file = nil
 robot_type, robot_name = nil
 connection_policies = true
 debug = false
+remove_compositions = false
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate [options] deployment\nwhere 'deployment' is either the name of a deployment in config/deployments,\nor a file that should be loaded to get the desired deployment"
     opt.on('-r NAME', '--robot=NAME[,TYPE]', String, 'the robot name used as context to the deployment') do |name|
@@ -24,6 +25,9 @@ parser = OptionParser.new do |opt|
     end
     opt.on('--no-policies', "don't compute the connection policies") do
         connection_policies = false
+    end
+    opt.on("--no-compositions", "remove all compositions from the generated data flow graph") do
+        remove_compositions = true
     end
     opt.on_tail('-h', '--help', 'this help message') do
 	STDERR.puts opt
@@ -73,11 +77,11 @@ when "dot"
         output_io.puts Roby.app.orocos_engine.to_dot_hierarchy
     end
     File.open(dataflow_file, 'w') do |output_io|
-        output_io.puts Roby.app.orocos_engine.to_dot_dataflow
+        output_io.puts Roby.app.orocos_engine.to_dot_dataflow(remove_compositions)
     end
 when "svg", "png"
     Tempfile.open('roby_orocos_instanciate') do |io|
-        io.write Roby.app.orocos_engine.to_dot_dataflow
+        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions)
         io.flush
 
         File.open(dataflow_file, 'w') do |output_io|

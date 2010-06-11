@@ -510,7 +510,7 @@ module Orocos
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
-            def to_dot_dataflow
+            def to_dot_dataflow(remove_compositions = false)
                 result = []
                 result << "digraph {"
                 result << "  rankdir=LR"
@@ -522,6 +522,8 @@ module Orocos
                 all_tasks = plan.find_local_tasks(Deployment).to_value_set
 
                 plan.find_local_tasks(Component).each do |source_task|
+                    next if remove_compositions && source_task.kind_of?(Composition)
+
                     all_tasks << source_task
                     if !source_task.kind_of?(Composition)
                         source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
@@ -538,13 +540,15 @@ module Orocos
                         end
                     end
 
-                    source_task.each_sink do |sink_task, connections|
-                        next if !sink_task.kind_of?(Composition) && !source_task.kind_of?(Composition)
-                        connections.each do |(source_port, sink_port), _|
-                            output_ports[source_task] << source_port
-                            input_ports[sink_task]    << sink_port
+                    if !remove_compositions
+                        source_task.each_sink do |sink_task, connections|
+                            next if !sink_task.kind_of?(Composition) && !source_task.kind_of?(Composition)
+                            connections.each do |(source_port, sink_port), _|
+                                output_ports[source_task] << source_port
+                                input_ports[sink_task]    << sink_port
 
-                            result << "  #{source_task.object_id}:#{source_port} -> #{sink_task.object_id}:#{sink_port} [style=dashed];"
+                                result << "  #{source_task.object_id}:#{source_port} -> #{sink_task.object_id}:#{sink_port} [style=dashed];"
+                            end
                         end
                     end
                 end
