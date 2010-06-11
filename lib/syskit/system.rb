@@ -396,6 +396,16 @@ module Orocos
                 end
             end
 
+            # Register the given task and all its services in the +tasks+ hash
+            def register_task(name, task)
+                task.model.each_data_service do |_, srv|
+                    tasks["#{name}.#{srv.full_name}"] = task
+                    if !srv.master? && srv.master.main?
+                        tasks["#{name}.#{srv.name}"] = task
+                    end
+                end
+            end
+
             # Create the task instances that are currently required by the
             # deployment specification
             #
@@ -418,6 +428,7 @@ module Orocos
 
                     tasks[name] = plan[task]
                     device_instance.task = task
+                    register_task(name, task)
                 end
 
                 robot.each_slave_device do |name, device_instance|
@@ -432,7 +443,7 @@ module Orocos
                 instances.each do |instance|
                     task = instance.instanciate(self)
                     if name = instance.name
-                        tasks[name] = task
+                        register_task(name, task)
                     end
                     if instance.mission?
                         plan.add_mission(task)
