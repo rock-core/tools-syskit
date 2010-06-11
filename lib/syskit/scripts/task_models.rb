@@ -88,6 +88,7 @@ def to_dot(io, categories, tasks)
 
     # Remaining tasks
     tasks.each do |t|
+        STDERR.puts "WARN: no category for #{t.name}"
         io << t.to_dot
     end
     io << "};\n"
