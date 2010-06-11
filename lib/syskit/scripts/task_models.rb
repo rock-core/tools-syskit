@@ -37,10 +37,14 @@ Orocos.load
 fake_project = Orocos::Generation::Component.new
 tasks = Set.new
 Orocos.available_task_libraries.each do |project_name, _|
-    tasklib = fake_project.using_task_library project_name
-    tasklib.self_tasks.each do |task|
-        next if pattern && task.name !~ pattern
-        tasks << task
+    begin
+        tasklib = fake_project.using_task_library project_name
+        tasklib.self_tasks.each do |task|
+            next if pattern && task.name !~ pattern
+            tasks << task
+        end
+    rescue Exception => e
+        STDERR.puts "WARN: cannot load the #{project_name} oroGen project"
     end
 end
 
