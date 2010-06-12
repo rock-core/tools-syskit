@@ -146,7 +146,7 @@ module Orocos
                 # The Engine instance
                 attr_reader :engine
                 # The name provided to Engine#add
-                attr_reader :name
+                attr_accessor :name
                 # The component model specified by #add
                 attr_reader :model
                 # The arguments that should be passed to the task's #instanciate
@@ -327,6 +327,12 @@ module Orocos
             #   ...
             #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
+                # Set the name to 'name' by default, unless the user provided an
+                # 'as' argument explicitely
+                name_arg, _ = Kernel.filter_options arguments.dup, :as => nil
+                if !name_arg.has_key?(:name)
+                    arguments[:as] = name
+                end
                 defines[name] = create_instanciated_component(model, arguments)
             end
 
