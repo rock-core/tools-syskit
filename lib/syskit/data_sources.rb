@@ -475,13 +475,22 @@ module Orocos
             argument "com_bus"
 
             module ClassExtension
+                # Enumerate all the data sources that are defined on this
+                # component model
                 def each_device(&block)
                     each_root_data_service.
-                        find_all { |_, model| model < DataSource }.
+                        find_all { |_, srv| srv.model < DataSource }.
+                        map(&:last).
                         each(&block)
                 end
             end
 
+            # Returns either the MasterDeviceInstance or SlaveDeviceInstance
+            # that represents the device tied to this component.
+            #
+            # If +subname+ is given, it has to be the corresponding data service
+            # name. It is optional only if there is only one device attached to
+            # this component
             def robot_device(subname = nil)
                 devices = model.each_device.to_a
                 if !subname
@@ -491,14 +500,19 @@ module Orocos
                         raise ArgumentError, "#{self} handles more than one device, you must specify one explicitely"
                     end
                 else
-                    devices = devices.find_all { |name, _| name == subname }
+                    devices = devices.find_all { |srv| srv.full_name == subname }
                     if devices.empty?
                         raise ArgumentError, "there is no device called #{subname} on #{self}"
                     end
                 end
-                interface_name, device_model = *devices.first
+                device = devices.first
 
-                device_name = arguments["#{interface_name}_name"]
+                device_name =
+                    if device.master?
+                        arguments["#{device.name}_name"]
+                    else
+                        arguments["#{device.master.name}_name"]
+                    end
                 return if !device_name
 
                 description = robot.devices[device_name]
