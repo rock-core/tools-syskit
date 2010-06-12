@@ -417,6 +417,7 @@ module Orocos
 
             # Register the given task and all its services in the +tasks+ hash
             def register_task(name, task)
+                tasks[name] = task
                 task.model.each_data_service do |_, srv|
                     tasks["#{name}.#{srv.full_name}"] = task
                     if !srv.master? && srv.master.main?
