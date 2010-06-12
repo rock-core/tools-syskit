@@ -485,6 +485,24 @@ module Orocos
                 end
             end
 
+            # Enumerates the names of the devices that are tied to this
+            # component
+            def each_device_name
+                if !block_given?
+                    return enum_for(:each_device_name)
+                end
+
+                model.each_device do |srv|
+                    device_name =
+                        if srv.master?
+                            arguments["#{srv.name}_name"]
+                        else
+                            arguments["#{srv.master.name}_name"]
+                        end
+                    yield(device_name) if device_name
+                end
+            end
+
             # Returns either the MasterDeviceInstance or SlaveDeviceInstance
             # that represents the device tied to this component.
             #

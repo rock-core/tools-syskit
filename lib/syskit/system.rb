@@ -994,7 +994,7 @@ module Orocos
             #   be merged into t1 and t0 into t2.
             def direct_merge_mappings(task_set)
                 # First pass, we create a graph in which an a => b edge means
-                # 'a' could be meged into 'b'
+                # that a.merge(b) is valid
                 merge_graph = BGL::Graph.new
                 for task in task_set
                     query = @merging_candidates_queries[task.model]
@@ -1028,77 +1028,157 @@ module Orocos
                         # Finally, call #can_merge?
                         next if !task.can_merge?(target_task)
 
+                        Engine.debug do
+                            "    #{target_task} => #{task}"
+                        end
                         merge_graph.link(task, target_task, nil)
                     end
                 end
-
-                # Second pass, we transform the graph into the expected result.
-                # See the method documentation for details.
-                result = merge_graph.components.map do |cluster|
-                    cluster.map do |task|
-                        targets = task.
-                            enum_child_objects(merge_graph).
-                            to_a
-
-                        Engine.debug do
-                            targets.each do |target_task|
-                                Engine.debug "   #{target_task} => #{task}"
-                            end
-                            break
-                        end
-                        [task, targets] if !targets.empty?
-                    end.compact
-                end
-                merge_graph.clear
-                result
+                merge_graph
             end
 
-            # Filters the result of direct_merge_mappings by finding an optimal
-            # merging pattern
-            #
-            # Raises Ambiguous if there are no obvious solution for some of the
-            # merges (i.e. they are equally good)
-            def filter_direct_merge_mappings(result)
-                # Now, remove the merge specifications that are
-                # redundant/useless.
-                filtered_result = Array.new
-                for mapping in result
-                    mapping.sort! do | (t1, target1), (t2, target2) |
-                        merge_sort_order(t1, t2) || (target1.size <=> target2.size)
-                    end
+            def do_merge(task, target_task, all_merges, graph)
+                Engine.debug { "    #{target_task} => #{task}" }
+                if task.respond_to?(:merge)
+                    task.merge(target_task)
+                else
+                    plan.replace_task(target_task, task)
+                end
+                plan.remove_object(target_task)
+                graph.replace_vertex(task, target_task)
+                graph.remove(target_task)
+                all_merges[target_task] = task
 
-                    while !mapping.empty?
-                        t1, target1 = mapping.shift
-                        filtered_result.push [t1, target1]
-                        mapping = mapping.map do |t2, target2|
-                            target2.delete(t1)
-                            if merge_sort_order(t1, t2) == 0
-                                if target1.include?(t2)
-                                    target2 = target2 - target1
-                                    [t2, target2] if !target2.empty?
-                                else
-                                    common = (target1 & target2)
-                                    if !common.empty?
-                                        raise Ambiguous, "both #{t1} and #{t2} can be selected for #{common.map(&:name).join(", ")}"
-                                    end
-                                end
-                            else
-                                target2 = target2 - target1
-                                [t2, target2] if !target2.empty?
-                            end
-                        end.compact
+                # Since we modified +task+, we now have to update the graph.
+                # I.e. it is possible that some of +task+'s children cannot be
+                # merged into +task+ anymore
+                task_children = task.enum_for(:each_child_vertex, graph).to_a
+                modified_task_children = []
+                task_children.each do |child|
+                    if !task.can_merge?(child)
+                        graph.unlink(task, child)
+                        modified_task_children << child
+                    end
+                end
+                modified_task_children
+            end
+
+            # Apply the straightforward merges
+            #
+            # A straightforward merge is a merge in which there is no ambiguity
+            # I.e. the 'replaced' task can only be merged into a single other
+            # task, and there is no cycle
+            def apply_simple_merges(merges, merge_graph)
+                # First, merge all leafs that have only one parent to simplify
+                # the graph a bit. We propagate using a BFS
+                candidates = merge_graph.vertices.
+                    find_all(&:leaf?)
+                while !candidates.empty?
+                    target_task = candidates.shift
+
+                    parents = target_task.enum_for(:each_parent_vertex, merge_graph).to_a
+                    next if parents.size != 1
+                    task = parents.first
+
+                    do_merge(task, target_task, merges, merge_graph)
+                    if task.leaf?(merge_graph)
+                        candidates << task
                     end
                 end
 
-                Engine.debug do
-                    filtered_result.map do |t, targets|
-                        targets.map do |target|
-                            Engine.debug "   #{target} => #{t}"
+                # Then look at all tasks that have one parent and are not
+                # part of a loop. As for the leafs, we propagate using a BFS
+                candidates = merge_graph.vertices.
+                    find_all do |vertex|
+                        parents = vertex.enum_for(:each_parent_vertex, merge_graph).to_a
+                        parents.size == 1
+                    end
+                for target_task in candidates
+                    task = target_task.enum_for(:each_parent_vertex, merge_graph).to_a.first
+                    # Don't merge if there is a loop
+                    next if merge_graph.reachable?(target_task, task)
+
+                    # Merge. If some vertices have been removed from
+                    # +merge_graph+ because of the merge, add the corresponding
+                    # tasks to the candidates (as they might have only one
+                    # parent left)
+                    modified_task_children = do_merge(task, target_task, merges, merge_graph)
+                    modified_task_children.delete_if do |vertex|
+                        parents = vertex.enum_for(:each_parent_vertex, merge_graph).to_a
+                        parents.size != 1
+                    end
+                    candidates.concat(modified_task_children)
+                end
+
+                merges
+            end
+
+            def merge_remove_cycles(merge_graph)
+                candidates = merge_graph.vertices
+                while !candidates.empty?
+                    target_task = candidates.shift
+
+                    parents = target_task.enum_for(:each_parent_vertex, merge_graph).to_a
+                    next if parents.empty?
+
+                    parents.each do |parent|
+                        if target_task.child_vertex?(parent, merge_graph)
+                            order = merge_sort_order(parent, target_task)
+                            if order == 1
+                                merge_graph.unlink(parent, target_task)
+                            elsif order == -1
+                                merge_graph.unlink(target_task, parent)
+                            end
                         end
                     end
-                    break
                 end
-                filtered_result
+            end
+
+            # Do merge allocation
+            #
+            # In this method, we look into the tasks for which multiple merge
+            # targets exist.
+            #
+            # There are multiple options:
+            # 
+            # * there is a loop. Break it if one of the two tasks is better per
+            #   the merge_sort_order order.
+            # * one of the targets is a better merge, per the merge_sort_order
+            #   order. Select it.
+            # * it is possible to disambiguate the parents using device and
+            #   task names (for deployed tasks)
+            def merge_allocation(merges, merge_graph)
+                candidates = merge_graph.vertices.
+                    to_value_set
+                while !candidates.empty?
+                    target_task = candidates.find { true }
+                    candidates.delete(target_task)
+
+                    master_set = ValueSet.new
+                    target_task.each_parent_vertex(merge_graph) do |parent|
+                        found = false
+                        master_set.delete_if do |t|
+                            found = true
+                            merge_sort_order(t, parent) == 1
+                        end
+                        if found
+                            master_set << parent
+                        elsif !master_set.any? { |t| merge_sort_order(t, parent) == -1 }
+                            master_set << parent
+                        end
+                    end
+
+                    next if master_set.empty?
+
+                    if master_set.size == 1
+                        do_merge(master_set.find { true }, target_task, merges, merge_graph)
+                    elsif result = yield(target_task, master_set)
+                        if result.size == 1
+                            task = result.to_a.first
+                            do_merge(task, target_task, merges, merge_graph)
+                        end
+                    end
+                end
             end
 
             # Apply merges computed by filter_direct_merge_mappings
@@ -1106,51 +1186,86 @@ module Orocos
             # It actually takes the tasks and calls #merge according to the
             # information in +mappings+. It also updates the underlying Roby
             # plan, and the set of InstanciatedComponent instances
-            def apply_merge_mappings(mappings)
-                final_merge_mappings = Hash.new
-                merged_tasks = ValueSet.new
-                while !mappings.empty?
-                    task, targets = mappings.shift
-                    targets.each do |target_task|
-                        Engine.debug { "   #{target_task} => #{task}" }
-                        if task.respond_to?(:merge)
-                            task.merge(target_task)
-                        else
-                            plan.replace_task(target_task, task)
-                        end
+            def apply_merge_mappings(merge_graph)
+                merges = Hash.new
+                merges_size = nil
+                while merges.size != merges_size
+                    merges_size = merges.size
+                    merge_remove_cycles(merge_graph)
+                    apply_simple_merges(merges, merge_graph)
 
-                        final_merge_mappings[target_task] = task
-                        merged_tasks << task
-                        plan.remove_object(target_task)
-                    end
-
-                    new_mappings = Hash.new
-                    mappings.each do |task, pending_targets|
-                        if !targets.include?(task)
-                            pending_targets = pending_targets - targets
-                            if !pending_targets.empty?
-                                new_mappings[task] = pending_targets
+                    ## Now, disambiguate
+                    # 1. use device and orogen names
+                    merge_allocation(merges, merge_graph) do |target_task, task_set|
+                        Engine.debug do
+                            Engine.debug "    trying to disambiguate using names: #{target_task}"
+                            task_set.each do |task|
+                                Engine.debug "        => #{task}"
                             end
+                            break
+                        end
+
+                        if target_task.respond_to?(:each_device_name)
+                            target_task.each_device_name do |dev_name|
+                                task_set.delete_if do |t|
+                                    !t.execution_agent ||
+                                        (
+                                            t.orogen_name !~ /#{dev_name}/ &&
+                                            t.execution_agent.deployment_name !~ /#{dev_name}/
+                                        )
+                                end
+                            end
+                            task_set
                         end
                     end
-                    mappings = new_mappings
+
+                    # 2. use locality
+                    merge_allocation(merges, merge_graph) do |target_task, task_set|
+                        neighbours = ValueSet.new
+                        target_task.each_concrete_input_connection do |source_task, _|
+                            neighbours << source_task
+                        end
+                        target_task.each_concrete_output_connection do |_, _, sink_task, _|
+                            neighbours << sink_task
+                        end
+                        if neighbours.empty?
+                            next
+                        end
+
+                        Engine.debug do
+                            Engine.debug "    trying to disambiguate using distance: #{target_task}"
+                            task_set.each do |task|
+                                Engine.debug "        => #{task}"
+                            end
+                            break
+                        end
+
+                        distances = task_set.map do |task|
+                            [task, neighbours.map { |neighour_t| neighour_t.distance_to(task) || TaskContext::D_MAX }.min]
+                        end
+                        min_d = distances.min { |a, b| a[1] <=> b[1] }[1]
+                        all_candidates = distances.find_all { |t, d| d == min_d }
+                        if all_candidates.size == 1
+                            all_candidates.map(&:first)
+                        end
+                    end
                 end
 
                 tasks.each_key do |n|
-                    if task = final_merge_mappings[tasks[n]]
+                    if task = merges[tasks[n]]
                         tasks[n] = task
-                        if robot.devices[n]
+                        if robot.devices[n] && robot.devices[n].respond_to?(:task=)
                             robot.devices[n].task = task
                         end
                     end
                 end
                 instances.each do |i|
-                    if task = final_merge_mappings[i.task]
+                    if task = merges[i.task]
                         i.task = task
                     end
                 end
 
-                merged_tasks
+                merges.keys.to_value_set
             end
 
             # Propagation step in the BFS of merge_identical_tasks
@@ -1172,6 +1287,13 @@ module Orocos
             #
             # The step is given by #merge_tasks_next_step
             def merge_identical_tasks
+                Engine.debug do
+                    Engine.debug
+                    Engine.debug "----------------------------------------------------"
+                    Engine.debug "Merging identical tasks"
+                    break
+                end
+
                 # Get all the tasks we need to consider. That's easy,
                 # they all implement the Orocos::RobyPlugin::Component model
                 all_tasks = plan.find_local_tasks(Orocos::RobyPlugin::Component).
@@ -1193,8 +1315,6 @@ module Orocos
                     while !candidates.empty?
                         Engine.debug "  -- Raw merge candidates (a => b merges 'a' into 'b')"
                         merges = direct_merge_mappings(candidates)
-                        Engine.debug "  -- Filtered merge candidates (a => b merges 'a' into 'b')"
-                        merges = filter_direct_merge_mappings(merges)
                         Engine.debug "  -- Applying merges (a => b merges 'a' into 'b') "
                         candidates = apply_merge_mappings(merges)
                         Engine.debug
@@ -1208,6 +1328,13 @@ module Orocos
                         parents = t.each_parent_task.to_value_set
                         candidates.merge(parents) if parents.size > 1
                     end
+                end
+
+                Engine.debug do
+                    Engine.debug "done merging identical tasks"
+                    Engine.debug "----------------------------------------------------"
+                    Engine.debug
+                    break
                 end
             end
 

@@ -61,6 +61,14 @@ module Orocos
             # deployment. This is a shortcut for deployment.model.orogen_spec
             def orogen_spec; self.class.orogen_spec end
 
+            # The name of the executable, i.e. the name of the deployment as
+            # given in the oroGen file
+            #
+            # This  is a shortcut for deployment.model.deployment_name
+            def deployment_name
+                orogen_spec.name
+            end
+
             # A name => Orocos::TaskContext instance mapping of all the task
             # contexts running on this deployment
             attr_reader :task_handles
@@ -431,6 +439,13 @@ module Orocos
                 end
             end
 
+            # Returns the task name inside the deployment
+            #
+            # When using CORBA, this is the CORBA name as well
+            def orogen_name
+                orogen_spec.name
+            end
+
             def create_fresh_copy # :nodoc:
                 new_task = super
                 new_task.orogen_task = orogen_task
@@ -447,6 +462,43 @@ module Orocos
                 end
                 true
             end
+
+            # Value returned by TaskContext#distance_to when the tasks are in
+            # the same process
+            D_SAME_PROCESS = 0
+            # Value returned by TaskContext#distance_to when the tasks are in
+            # different processes, but on the same machine
+            D_SAME_MACHINE = 1
+            # Value returned by TaskContext#distance_to when the tasks are in
+            # different processes localized on different machines
+            D_DIFFERENT_MACHINES = 2
+            # Maximum distance value
+            D_MAX          = 2
+
+            # Returns a value that represents how the two task contexts are far
+            # from each other. The possible return values are:
+            #
+            # nil::
+            #   one or both of the tasks are not deployed
+            # D_SAME_PROCESS::
+            #   both tasks are in the same process
+            # D_SAME_MACHINE::
+            #   both tasks are in different processes, but on the same machine
+            # D_DIFFERENT_MACHINES::
+            #   both tasks are in different processes localized on different
+            #   machines
+            def distance_to(other)
+                return if !execution_agent || !other.execution_agent
+
+                if execution_agent == other.execution_agent # same process
+                    D_SAME_PROCESS
+                elsif execution_agent.machine == other.execution_agent.machine # same machine
+                    D_SAME_MACHINE
+                else
+                    D_DIFFERENT_MACHINES
+                end
+            end
+
 
             def added_child_object(child, relations, info) # :nodoc:
                 super if defined? super
