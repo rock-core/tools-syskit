@@ -11,7 +11,12 @@ connection_policies = true
 debug = false
 remove_compositions = false
 parser = OptionParser.new do |opt|
-    opt.banner = "Usage: scripts/orocos/instanciate [options] deployment\nwhere 'deployment' is either the name of a deployment in config/deployments,\nor a file that should be loaded to get the desired deployment"
+    opt.banner = "Usage: scripts/orocos/instanciate [options] deployment [additional services]
+   'deployment' is either the name of a deployment in config/deployments,
+    or a file that should be loaded to get the desired deployment
+    'additional services', if given, refers to services defined with
+    'define' that should be added
+    "
     opt.on('-r NAME', '--robot=NAME[,TYPE]', String, 'the robot name used as context to the deployment') do |name|
         robot_name, robot_type = name.split(',')
         Roby.app.robot(name, robot_type||robot_name)
@@ -35,11 +40,12 @@ parser = OptionParser.new do |opt|
     end
 end
 remaining = parser.parse(ARGV)
-if remaining.size != 1
+if remaining.empty?
     STDERR.puts parser
     exit(1)
 end
-deployment_file = remaining.first
+deployment_file     = remaining.shift
+additional_services = remaining.dup
 
 Roby.filter_backtrace do
     Roby.app.setup
@@ -54,7 +60,11 @@ Roby.filter_backtrace do
     Dir.chdir(APP_DIR)
     Roby.app.setup_global_singletons
     Roby.app.setup_drb_server
-    Roby.app.apply_orocos_deployment(deployment_file, connection_policies)
+    Roby.app.apply_orocos_deployment(deployment_file, connection_policies) do
+        additional_services.each do |service_name|
+            add service_name
+        end
+    end
 end
 
 # Generate a default name if the output file name has not been given

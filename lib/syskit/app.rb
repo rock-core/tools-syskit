@@ -294,7 +294,7 @@ module Orocos
                 end
             end
 
-	    def apply_orocos_deployment(name, compute_policies = true)
+	    def apply_orocos_deployment(name, compute_policies = true, &block)
                 if File.file?(name)
                     load_system_definition(name)
 		elsif file = robotfile('config', 'ROBOT', 'deployments', "#{name}.rb")
@@ -304,6 +304,7 @@ module Orocos
 		else
 		    raise ArgumentError, "cannot find a deployment named '#{name}'"
 		end
+                orocos_engine.instance_eval(&block) if block_given?
 		orocos_engine.resolve(:compute_policies => compute_policies)
 	    end
 
