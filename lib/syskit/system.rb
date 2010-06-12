@@ -71,18 +71,31 @@ module Orocos
             # The set of deployment names we should use
             attr_reader :deployments
 
-            # Use the given deployment
-            def use_deployment(name)
-                deployments << name
+            # Add the given deployment (referred to by its process name, that is
+            # the name given in the oroGen file) to the set of deployments the
+            # engine can use.
+            #
+            # The following options are allowed:
+            # on::
+            #   if given, it is the name of a process server as declared with
+            #   Application#orocos_process_server. The deployment will be
+            #   started only on that process server. It defaults to "localhost"
+            #   (i.e., the local machine)
+            def use_deployment(name, options = Hash.new)
+                options = Kernel.validate_options options, :on => 'localhost'
+                deployments[options[:on]] << name
                 self
             end
 
-            # Use all the deployments defined in the given project
-            def use_deployments_from(project_name)
+            # Add all the deployments defined in the given oroGen project to the
+            # set of deployments that the engine can use.
+            #
+            # See #use_deployment
+            def use_deployments_from(project_name, options = Hash.new)
                 orogen = Roby.app.load_orogen_project(project_name)
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
-                        deployments << deployment_def.name
+                        use_deployment(deployment_def.name, options)
                     end
                 end
                 self
@@ -116,7 +129,7 @@ module Orocos
                 @model     = model
                 @instances = Array.new
                 @tasks     = Hash.new
-                @deployments = Set.new
+                @deployments = Hash.new { |h, k| h[k] = Set.new }
                 @main_selection = Hash.new
                 @defines   = Hash.new
                 @modified  = false
@@ -1392,23 +1405,42 @@ module Orocos
             # Instanciates all deployments that have been specified by the user.
             # Reuses deployments in the current plan manager's plan if possible
             def instanciate_required_deployments
-                deployments.each do |deployment_name|
-                    model = Roby.app.orocos_deployments[deployment_name]
-                    task  = plan.find_tasks(model).to_a.first
-                    task ||= model.new
-                    task.robot = robot
-                    plan.add(task)
+                Engine.debug do
+                    Engine.debug
+                    Engine.debug "----------------------------------------------------"
+                    Engine.debug "Instanciating deployments"
+                    break
+                end
 
-                    # Now also import the deployment's 
-                    current_contexts = task.merged_relations(:each_executed_task, true).
-                        find_all { |t| !t.finished? }.
-                        map(&:orocos_name).to_set
+                deployments.each do |machine_name, deployment_names|
+                    deployment_names.each do |deployment_name|
+                        model = Roby.app.orocos_deployments[deployment_name]
+                        task  = plan.find_tasks(model).
+                            find { |t| t.arguments[:on] == machine_name }
+                        task ||= model.new(:on => machine_name)
+                        task.robot = robot
+                        plan.add(task)
 
-                    new_activities = (task.orogen_spec.task_activities.
-                        map(&:name).to_set - current_contexts)
-                    new_activities.each do |act_name|
-                        plan[task.task(act_name)]
+                        # Now also import the deployment's 
+                        current_contexts = task.merged_relations(:each_executed_task, true).
+                            find_all { |t| !t.finishing? && !t.finished? }.
+                            map(&:orocos_name).to_set
+
+                        new_activities = (task.orogen_spec.task_activities.
+                            map(&:name).to_set - current_contexts)
+                        new_activities.each do |act_name|
+                            deployed_task = plan[task.task(act_name)]
+                            Engine.debug do
+                                "  #{deployed_task.orogen_name} on #{task.deployment_name}[machine=#{task.machine}] is represented by #{deployed_task}"
+                            end
+                        end
                     end
+                end
+                Engine.debug do
+                    Engine.debug "Done instanciating deployments"
+                    Engine.debug "----------------------------------------------------"
+                    Engine.debug
+                    break
                 end
             end
 

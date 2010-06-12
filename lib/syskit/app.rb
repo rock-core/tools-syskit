@@ -364,12 +364,48 @@ module Orocos
                 Orocos::RobyPlugin.process_servers.delete('localhost')
             end
 
+            # Call to add a process server to to the set of servers that can be
+            # used by this plan manager
+            def orocos_process_server(name, host)
+                if host =~ /^(.*):(\d+)$/
+                    host = $1
+                    port = Integer($2)
+                end
+                orocos_process_servers[name] = [host, port].compact
+            end
+
+            # :attr: orocos_process_servers
+            #
+            # A name => [host[, port]] mapping of all the defined process
+            # servers. In addition, if the orocos_local_process_server?
+            # predicate is true (the default), a process server called
+            # 'localhost' will be started on the local machine
+            attribute(:orocos_process_servers) { Hash.new }
+
+            # :attr: disable_local_process_server?
+            #
+            # In normal operations, a local proces server called 'localhost' is
+            # automatically started on the local machine. If this predicate is
+            # set to true, using self.disable_local_process_server = true), then
+            # this will be disabled
+            #
+            # See also #orocos_process_server
+            attr_predicate :disable_local_process_server?, true
+
             def self.run(app)
                 # Change to the log dir so that the IOR file created by the
                 # CORBA bindings ends up there
                 Dir.chdir(Roby.app.log_dir) do
                     Orocos.initialize
-                    start_local_process_server
+                    if !disable_local_process_server?
+                        start_local_process_server
+                    end
+                end
+
+                # Connect to the process servers
+                app.orocos_process_servers.each do |name, server_uri|
+                    client = Orocos::ProcessClient.new(*server_uri)
+                    Orocos::RobyPlugin.process_servers[name] = client
                 end
                 handler_id = Roby.engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
 

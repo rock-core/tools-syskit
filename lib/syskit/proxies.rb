@@ -124,12 +124,18 @@ module Orocos
             # :ready event will be emitted when the deployment is up and
             # running.
             event :start do |context|
-                RobyPlugin.info { "starting deployment #{model.deployment_name}" }
+                host = self.arguments['on'] ||= 'localhost'
+                RobyPlugin.info { "starting deployment #{model.deployment_name} on #{host}" }
 
-                host = self.arguments['on'] || 'localhost'
                 @orogen_deployment = Orocos::RobyPlugin.process_servers[host].start(model.deployment_name)
                 Deployment.all_deployments[@orogen_deployment] = self
                 emit :start
+            end
+
+            # The name of the machine this deployment is running on, i.e. the
+            # name given to the :on argument.
+            def machine
+                arguments[:on] || 'localhost'
             end
 
             # Called when the process is finished.
