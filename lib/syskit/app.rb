@@ -361,6 +361,7 @@ module Orocos
                     rescue Errno::ESRCH
                     end
                 end
+                Orocos::RobyPlugin.process_servers.delete('localhost')
             end
 
             def self.run(app)
