@@ -60,7 +60,7 @@ Roby.filter_backtrace do
     Dir.chdir(APP_DIR)
     Roby.app.setup_global_singletons
     Roby.app.setup_drb_server
-    Roby.app.apply_orocos_deployment(deployment_file, connection_policies) do
+    Roby.app.apply_orocos_deployment(deployment_file, :compute_policies => connection_policies) do
         additional_services.each do |service_name|
             add service_name
         end

@@ -294,7 +294,18 @@ module Orocos
                 end
             end
 
-	    def apply_orocos_deployment(name, compute_policies = true, &block)
+            # Load the specified orocos deployment file and apply it to the main
+            # plan
+            #
+            # The deployment can either be a file name in
+            # config/deployments/, config/ROBOT/deployments or a full path to a
+            # separate deployment file.
+            #
+            # If a block is given, it is instance_eval'd in orocos_engine. I.e.,
+            # it can be used to modify the loaded deployment.
+            #
+            # This method accepts the same options than Engine#resolve
+	    def apply_orocos_deployment(name, options = Hash.new, &block)
                 if File.file?(name)
                     load_system_definition(name)
 		elsif file = robotfile('config', 'ROBOT', 'deployments', "#{name}.rb")
@@ -305,9 +316,11 @@ module Orocos
 		    raise ArgumentError, "cannot find a deployment named '#{name}'"
 		end
                 orocos_engine.instance_eval(&block) if block_given?
-		orocos_engine.resolve(:compute_policies => compute_policies)
+		orocos_engine.resolve(options)
 	    end
 
+            # Start a process server on the local machine, and register it in
+            # Orocos::RobyPlugin.process_servers under the 'localhost' name
             def self.start_local_process_server(
                     options = Orocos::ProcessServer::DEFAULT_OPTIONS,
                     port = Orocos::ProcessServer::DEFAULT_PORT)
@@ -335,6 +348,8 @@ module Orocos
                 client
             end
 
+            # Stop the process server started by start_local_process_server if
+            # one is running
             def self.stop_local_process_server
                 return if !@server_pid
 
