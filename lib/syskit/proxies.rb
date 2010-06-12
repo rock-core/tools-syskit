@@ -52,20 +52,38 @@ module Orocos
             end
             @@all_deployments = Hash.new
 
+            # Returns the name of this particular deployment instance
+            def self.deployment_name
+                orogen_spec.name
+            end
+
+            # The Orocos::Generation::StaticDeployment object describing this
+            # deployment. This is a shortcut for deployment.model.orogen_spec
             def orogen_spec; self.class.orogen_spec end
 
+            # A name => Orocos::TaskContext instance mapping of all the task
+            # contexts running on this deployment
             attr_reader :task_handles
 
             # The underlying Orocos::Process instance
             attr_reader :orogen_deployment
 
+            ##
+            # :method: ready_event
+            #
+            # Event emitted when the deployment is up and running
+            event :ready
+
+            ##
+            # :method: signaled_event
+            #
+            # Event emitted whenever the deployment finishes because of a UNIX
+            # signal. The event context is the Process::Status instance that
+            # describes the termination
+            #
+            # It is forwarded to failed_event
             event :signaled
             forward :signaled => :failed
-
-            # Returns the name of this particular deployment instance
-            def self.deployment_name
-                orogen_spec.name
-            end
 
             # An array of Orocos::Generation::TaskDeployment instances that
             # represent the tasks available in this deployment. Associated plan
@@ -114,6 +132,10 @@ module Orocos
                 emit :start
             end
 
+            # Called when the process is finished.
+            #
+            # +result+ is the Process::Status object describing how this process
+            # finished.
             def dead!(result)
                 if !result
                     emit :failed
@@ -164,9 +186,6 @@ module Orocos
                     task.orogen_task = nil
                 end
             end
-
-            # Event emitted when the deployment is up and running
-            event :ready
 
             poll do
                 begin
