@@ -450,10 +450,6 @@ module Orocos
                     register_task(name, task)
                 end
 
-                robot.each_slave_device do |name, device_instance|
-                    tasks[name] = device_instance.master_device.task
-                end
-
                 # Merge once here: the idea is that some of the drivers can
                 # be shared among devices, something that is not taken into
                 # account by driver instanciation
