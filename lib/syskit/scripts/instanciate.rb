@@ -64,12 +64,21 @@ Roby.filter_backtrace do
     Dir.chdir(APP_DIR)
     Roby.app.setup_global_singletons
     Roby.app.setup_drb_server
+
+    GC.start
+    
+    tic = Time.now
     Roby.app.load_orocos_deployment(deployment_file)
     additional_services.each do |service_name|
         Roby.app.orocos_engine.add service_name
     end
+    toc = Time.now
+    STDERR.puts "loaded deployment in %.3f seconds" % [toc - tic]
+
     Roby.app.orocos_engine.resolve(:compute_policies => compute_policies, :compute_deployments => compute_deployments)
     end
+    toc = Time.now
+    STDERR.puts "computed deployment in %.3f seconds" % [toc - tic]
 end
 
 # Generate a default name if the output file name has not been given
