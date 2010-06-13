@@ -266,7 +266,18 @@ module Orocos
         # updates the running TaskContext tasks.
         def self.update(plan) # :nodoc:
             if Roby.app.orocos_engine.modified?
-                Roby.app.orocos_engine.resolve
+                begin
+                    Roby.app.orocos_engine.resolve
+                rescue Exception => e
+                    tasks = plan.find_tasks(RequirementModificationTask).running.to_a
+                    raise if tasks.empty?
+
+                    # Just assume that all modifications have been applied by
+                    # the requirement tasks
+                    tasks.each do |t|
+                        t.success_event.emit_failed(e)
+                    end
+                end
             end
 
             all_dead_deployments = ValueSet.new
