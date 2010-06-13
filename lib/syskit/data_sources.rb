@@ -224,21 +224,6 @@ module Orocos
 
         module DataService
             module ClassExtension
-                # Returns the parent_name, child_name pair for the given service
-                # name. child_name is empty if the service is a root service.
-                def break_data_service_name(name)
-                    name.split '.'
-                end
-
-                # Returns true if +name+ is a root data service in this component
-                def root_data_service?(name)
-                    name = name.to_str
-                    if !has_data_service?(name)
-                        raise ArgumentError, "there is no service named #{name} in #{self}"
-                    end
-                    name !~ /\./
-                end
-
                 def find_data_services(&block)
                     each_data_service.find_all(&block)
                 end
@@ -280,7 +265,7 @@ module Orocos
 
                     if matching_services.size > 1
                         main_matching_services = matching_services.
-                            find_all { |service| root_data_service?(service.full_name) }
+                            find_all { |service| service.master? }
 
                         if main_matching_services.size != 1
                             raise Ambiguous, "there is more than one service of type #{target_model.name} in #{self.name}: #{matching_services.map(&:name).join(", ")}); you must select one explicitely with a 'use' statement"
@@ -353,7 +338,7 @@ module Orocos
                 # services)
                 def each_root_data_service(&block)
                     each_data_service(nil).
-                        find_all { |name, _| root_data_service?(name) }.
+                        find_all { |name, srv| srv.master? }.
                         each(&block)
                 end
             end

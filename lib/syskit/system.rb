@@ -866,8 +866,11 @@ module Orocos
                             task.clear_relations
                         end
                     end
-                    instanciate_required_deployments
-                    merge_identical_tasks
+
+                    if options[:compute_deployments]
+                        instanciate_required_deployments
+                        merge_identical_tasks
+                    end
 
                     # the tasks[] and devices mappings are updated during the
                     # merge. We replace the proxies by the corresponding tasks
