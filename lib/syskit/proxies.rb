@@ -115,7 +115,7 @@ module Orocos
                 end
 
                 klass = Roby.app.orocos_tasks[activity.context.name]
-                task = klass.new
+                plan.add(task = klass.new)
                 task.robot = robot
                 task.executed_by self
                 task.orogen_spec = activity
