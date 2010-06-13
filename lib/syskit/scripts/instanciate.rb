@@ -7,7 +7,8 @@ require 'orocos/roby/app'
 output_type = 'txt'
 output_file = nil
 robot_type, robot_name = nil
-connection_policies = true
+compute_policies    = true
+compute_deployments = true
 debug = false
 remove_compositions = false
 parser = OptionParser.new do |opt|
@@ -29,7 +30,10 @@ parser = OptionParser.new do |opt|
         debug = true
     end
     opt.on('--no-policies', "don't compute the connection policies") do
-        connection_policies = false
+        compute_policies = false
+    end
+    opt.on('--no-deployments', "don't deploy") do
+        compute_deployments = false
     end
     opt.on("--no-compositions", "remove all compositions from the generated data flow graph") do
         remove_compositions = true
@@ -60,10 +64,11 @@ Roby.filter_backtrace do
     Dir.chdir(APP_DIR)
     Roby.app.setup_global_singletons
     Roby.app.setup_drb_server
-    Roby.app.apply_orocos_deployment(deployment_file, :compute_policies => connection_policies) do
-        additional_services.each do |service_name|
-            add service_name
-        end
+    Roby.app.load_orocos_deployment(deployment_file)
+    additional_services.each do |service_name|
+        Roby.app.orocos_engine.add service_name
+    end
+    Roby.app.orocos_engine.resolve(:compute_policies => compute_policies, :compute_deployments => compute_deployments)
     end
 end
 
