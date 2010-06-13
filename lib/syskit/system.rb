@@ -1074,70 +1074,63 @@ module Orocos
             # A straightforward merge is a merge in which there is no ambiguity
             # I.e. the 'replaced' task can only be merged into a single other
             # task, and there is no cycle
-            def apply_simple_merges(merges, merge_graph)
-                # First, merge all leafs that have only one parent to simplify
-                # the graph a bit. We propagate using a BFS
-                candidates = merge_graph.vertices.
-                    find_all(&:leaf?)
-                while !candidates.empty?
-                    target_task = candidates.shift
-
+            def apply_simple_merges(candidates, merges, merge_graph)
+                for target_task in candidates
                     parents = target_task.enum_for(:each_parent_vertex, merge_graph).to_a
                     next if parents.size != 1
                     task = parents.first
 
                     do_merge(task, target_task, merges, merge_graph)
-                    if task.leaf?(merge_graph)
-                        candidates << task
-                    end
-                end
-
-                # Then look at all tasks that have one parent and are not
-                # part of a loop. As for the leafs, we propagate using a BFS
-                candidates = merge_graph.vertices.
-                    find_all do |vertex|
-                        parents = vertex.enum_for(:each_parent_vertex, merge_graph).to_a
-                        parents.size == 1
-                    end
-                for target_task in candidates
-                    task = target_task.enum_for(:each_parent_vertex, merge_graph).to_a.first
-                    # Don't merge if there is a loop
-                    next if merge_graph.reachable?(target_task, task)
-
-                    # Merge. If some vertices have been removed from
-                    # +merge_graph+ because of the merge, add the corresponding
-                    # tasks to the candidates (as they might have only one
-                    # parent left)
-                    modified_task_children = do_merge(task, target_task, merges, merge_graph)
-                    modified_task_children.delete_if do |vertex|
-                        parents = vertex.enum_for(:each_parent_vertex, merge_graph).to_a
-                        parents.size != 1
-                    end
-                    candidates.concat(modified_task_children)
                 end
 
                 merges
             end
 
-            def merge_remove_cycles(merge_graph)
+            # Prepare for the actual merge
+            #
+            # It removes direct cycles between tasks, and checks that there are
+            # no "big" cycles that we can't handle.
+            #
+            # It returns two set of tasks: a set of task that have exactly one
+            # parent, and a set of tasks that have at least two parents
+            def merge_prepare(merge_graph)
+                one_parent, ambiguous = ValueSet.new, ValueSet.new
+
                 candidates = merge_graph.vertices
                 while !candidates.empty?
                     target_task = candidates.shift
 
                     parents = target_task.enum_for(:each_parent_vertex, merge_graph).to_a
                     next if parents.empty?
+                    parent_count = parents.size
 
                     parents.each do |parent|
                         if target_task.child_vertex?(parent, merge_graph)
                             order = merge_sort_order(parent, target_task)
                             if order == 1
                                 merge_graph.unlink(parent, target_task)
-                            elsif order == -1
+                                parent_count -= 1
+                                next
+                            end
+
+                            if order == -1
                                 merge_graph.unlink(target_task, parent)
                             end
                         end
+
+                        if merge_graph.reachable?(target_task, parent)
+                            raise InternalError, "cannot handle complex merge cycles"
+                        end
+                    end
+
+                    if parent_count == 1
+                        one_parent << target_task
+                    elsif parent_count > 1
+                        ambiguous << target_task
                     end
                 end
+
+                return one_parent, ambiguous
             end
 
             # Do merge allocation
@@ -1153,9 +1146,9 @@ module Orocos
             #   order. Select it.
             # * it is possible to disambiguate the parents using device and
             #   task names (for deployed tasks)
-            def merge_allocation(merges, merge_graph)
-                candidates = merge_graph.vertices.
-                    to_value_set
+            def merge_allocation(candidates, merges, merge_graph)
+                leftovers = ValueSet.new
+
                 while !candidates.empty?
                     target_task = candidates.find { true }
                     candidates.delete(target_task)
@@ -1174,17 +1167,20 @@ module Orocos
                         end
                     end
 
-                    next if master_set.empty?
-
-                    if master_set.size == 1
+                    if master_set.empty? # nothing to do
+                    elsif master_set.size == 1
                         do_merge(master_set.find { true }, target_task, merges, merge_graph)
-                    elsif result = yield(target_task, master_set)
-                        if result.size == 1
+                    else
+                        result = yield(target_task, master_set)
+                        if result && result.size == 1
                             task = result.to_a.first
                             do_merge(task, target_task, merges, merge_graph)
+                        else
+                            leftovers << target_task
                         end
                     end
                 end
+                leftovers
             end
 
             # Apply merges computed by filter_direct_merge_mappings
@@ -1195,14 +1191,16 @@ module Orocos
             def apply_merge_mappings(merge_graph)
                 merges = Hash.new
                 merges_size = nil
-                while merges.size != merges_size
+
+                one_parent, ambiguous = merge_prepare(merge_graph)
+                apply_simple_merges(one_parent, merges, merge_graph)
+
+                while merges.size != merges_size && !ambiguous.empty?
                     merges_size = merges.size
-                    merge_remove_cycles(merge_graph)
-                    apply_simple_merges(merges, merge_graph)
 
                     ## Now, disambiguate
                     # 1. use device and orogen names
-                    merge_allocation(merges, merge_graph) do |target_task, task_set|
+                    ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                         Engine.debug do
                             Engine.debug "    trying to disambiguate using names: #{target_task}"
                             task_set.each do |task|
@@ -1226,7 +1224,7 @@ module Orocos
                     end
 
                     # 2. use locality
-                    merge_allocation(merges, merge_graph) do |target_task, task_set|
+                    ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                         neighbours = ValueSet.new
                         target_task.each_concrete_input_connection do |source_task, _|
                             neighbours << source_task
@@ -1562,7 +1560,8 @@ module Orocos
                         new_activities = (task.orogen_spec.task_activities.
                             map(&:name).to_set - current_contexts)
                         new_activities.each do |act_name|
-                            deployed_task = plan[task.task(act_name)]
+                            new_task = task.task(act_name)
+                            deployed_task = plan[new_task]
                             Engine.debug do
                                 "  #{deployed_task.orogen_name} on #{task.deployment_name}[machine=#{task.machine}] is represented by #{deployed_task}"
                             end
