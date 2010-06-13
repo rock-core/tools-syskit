@@ -1582,38 +1582,59 @@ module Orocos
             # The return value is a hash for which
             #
             #   periods[task][port_name] => port_period
-            def port_periods
+            def compute_port_periods
                 # We only act on deployed tasks, as we need to know how the
                 # tasks are triggered (what activity / priority / ...)
                 deployed_tasks = plan.find_local_tasks(TaskContext).
-                    find_all { |t| t.execution_agent }
+                    find_all(&:execution_agent)
                 
                 # Get the periods from the activities themselves directly (i.e.
                 # not taking into account the port-driven behaviour)
+                #
+                # We also precompute relevant connections, as they won't change
+                # during the computation
                 result = Hash.new
+                triggering_connections  = Hash.new { |h, k| h[k] = Array.new }
+                triggering_dependencies = Hash.new { |h, k| h[k] = ValueSet.new }
                 deployed_tasks.each do |task|
                     result[task] = task.initial_ports_dynamics
+                    task.orogen_spec.context.event_ports.each do |port_name|
+                        task.each_concrete_input_connection(port_name) do |from_task, from_port, to_port, _|
+                            triggering_connections[task] << [from_task, from_port, to_port]
+                            triggering_dependencies[task] << from_task
+                        end
+                    end
                 end
 
                 remaining = deployed_tasks.dup
                 while !remaining.empty?
+                    remaining = remaining.
+                        sort_by { |t| triggering_dependencies[t].size }
+
                     did_something = false
                     remaining.delete_if do |task|
                         old_size = result[task].size
-
-                        finished = task.propagate_ports_dynamics(result)
-                        if finished || result[task].size != old_size
+                        finished = task.
+                            propagate_ports_dynamics(triggering_connections[task], result)
+                        if finished
+                            did_something = true
+                            triggering_dependencies.delete(task)
+                        elsif result[task].size != old_size
                             did_something = true
                         end
                         finished
                     end
-                    if !did_something
-                        Engine.warn "cannot compute port periods for:"
-                        remaining.each do |task|
-                            port_names = task.model.each_input.map(&:name) + task.model.each_output.map(&:name)
-                            port_names.delete_if { |port_name| result[task].has_key?(port_name) }
 
-                            Engine.warn "    #{task}: #{port_names.join(", ")}"
+                    if !did_something
+                        Engine.info do
+                            "cannot compute port periods for:"
+                            remaining.each do |task|
+                                port_names = task.model.each_input.map(&:name) + task.model.each_output.map(&:name)
+                                port_names.delete_if { |port_name| result[task].has_key?(port_name) }
+
+                                Engine.info "    #{task}: #{port_names.join(", ")}"
+                            end
+                            break
                         end
                         break
                     end
@@ -1628,7 +1649,7 @@ module Orocos
             #
             # It directly modifies the policies in the data flow graph
             def compute_connection_policies
-                port_periods = self.port_periods
+                port_periods = compute_port_periods
 
                 all_tasks = plan.find_local_tasks(TaskContext).
                     to_value_set

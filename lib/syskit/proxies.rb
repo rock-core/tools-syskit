@@ -560,27 +560,24 @@ module Orocos
                 result
             end
 
-            def propagate_ports_dynamics(result)
-                handled_inputs = Set.new
-                each_concrete_input_connection do |from_task, from_port, to_port, _|
-                    next if !orogen_spec.context.event_ports.find { |p| p.name == to_port }
-                    if result[self][to_port] && result[self][to_port].period
-                        handled_inputs << to_port
-                        next
-                    end
-
+            def propagate_ports_dynamics(triggering_connections, result)
+                triggering_connections.delete_if do |from_task, from_port, to_port|
+                    # The source port is computed, save the period in the input
+                    # ports's model
                     if result.has_key?(from_task) && (dynamics = result[from_task][from_port]) && dynamics.period
                         result[self][to_port] ||= PortDynamics.new
                         result[self][to_port].period = dynamics.period
-                        handled_inputs << to_port
                         update_minimal_period(dynamics.period)
+                        true
                     end
                 end
 
+                # Propagate explicit update links, i.e. cases where the output
+                # port is only updated when a set of input ports is.
                 model.each_output do |port|
                     port_model = orogen_spec.context.port(port.name)
-
                     next if port_model.triggered_on_update?
+
                     periods = port_model.port_triggers.map do |trigger_port|
                         result[self][trigger_port.name]
                     end.compact.map(&:period).compact
@@ -590,7 +587,7 @@ module Orocos
                     end
                 end
 
-                if minimal_period && (handled_inputs.size == orogen_spec.context.event_ports.size)
+                if minimal_period && triggering_connections.empty?
                     model.each_output do |port|
                         port_model = orogen_spec.context.port(port.name)
                         if port_model.triggered_on_update?
@@ -601,9 +598,11 @@ module Orocos
 
                     true
                 else
-                    remaining = orogen_spec.context.each_port.map(&:name).to_set
-                    remaining -= result[self].keys.to_set
-                    Engine.info { "cannot find period information for " + remaining.to_a.join(", ") }
+                    Engine.info do
+                        remaining = orogen_spec.context.each_port.map(&:name).to_set
+                        remaining -= result[self].keys.to_set
+                        "cannot find period information for " + remaining.to_a.join(", ")
+                    end
                     false
                 end
             end
