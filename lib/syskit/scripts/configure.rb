@@ -21,11 +21,12 @@ parser = OptionParser.new do |opt|
     end
 end
 remaining = parser.parse(ARGV)
-if remaining.size != 1
+if remaining.empty?
     STDERR.puts parser
     exit(1)
 end
-deployment_file = remaining.first
+deployment_file     = remaining.shift
+additional_services = remaining.dup
 
 Roby.filter_backtrace do
     Roby.app.setup
@@ -44,7 +45,12 @@ Roby.filter_backtrace do
     Roby.app.run do
         Roby.execute do
             Roby.engine.scheduler = nil
-            Roby.app.apply_orocos_deployment(deployment_file)
+            Roby.app.load_orocos_deployment(deployment_file)
+            additional_services.each do |service_name|
+                Roby.app.orocos_engine.add service_name
+            end
+            Roby.app.orocos_engine.resolve
+
             ready_ev = Roby.plan.find_tasks(Orocos::RobyPlugin::Deployment).
                 inject(Roby::AndGenerator.new) do |ev, task|
                     task.start!
