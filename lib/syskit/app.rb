@@ -406,7 +406,7 @@ module Orocos
                 # CORBA bindings ends up there
                 Dir.chdir(Roby.app.log_dir) do
                     Orocos.initialize
-                    if !disable_local_process_server?
+                    if !app.disable_local_process_server?
                         start_local_process_server
                     end
                 end
