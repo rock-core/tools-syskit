@@ -896,13 +896,18 @@ module Orocos
                     # the tasks[] and devices mappings are updated during the
                     # merge. We replace the proxies by the corresponding tasks
                     # when applicable
-                    robot.devices.each_key do |name|
+                    robot.devices.keys.each do |name|
                         device_task = robot.devices[name].task
                         if device_task.plan == trsc && device_task.transaction_proxy?
-                            robot.devices[name].task = device_task.__getobj__
+                            if device_task.__getobj__
+                                robot.devices[name].task = device_task.__getobj__
+                            else # unused
+                                robot.devices.delete(name)
+                            end
                         end
                     end
                     tasks.each_key do |name|
+                        next if !robot.devices[name]
                         instance_task = robot.devices[name].task
                         if instance_task.plan == trsc && instance_task.transaction_proxy?
                             tasks[name].task = instance_task.__getobj__
