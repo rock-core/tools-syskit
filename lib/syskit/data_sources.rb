@@ -228,6 +228,11 @@ module Orocos
                     each_data_service.find_all(&block)
                 end
 
+                def each_data_source(&block)
+                    each_data_service.find_all { |_, srv| srv.model < DataSource }.
+                        each(&block)
+                end
+
                 # Generic data service selection method, based on a service type
                 # and an optional service name. It implements the following
                 # algorithm:
