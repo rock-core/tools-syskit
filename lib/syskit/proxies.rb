@@ -450,6 +450,69 @@ module Orocos
                 end
             end
 
+            # Creates a Ruby class which represents the set of properties that
+            # the task context has. The returned class will initialize its
+            # members to the default values declared in the oroGen files
+            def self.config_type_from_properties(register = true)
+                if @config_type
+                    return @config_type
+                end
+
+                default_values = Hash.new
+                task_model = self
+
+                config = Class.new do
+                    class << self
+                        attr_accessor :name
+                    end
+                    @name = "#{task_model.name}::ConfigType"
+
+                    attr_reader :property_names
+
+                    task_model.orogen_spec.each_property do |p|
+                        default_values[p.name] =
+                            if p.default_value
+                                Typelib.from_ruby(p.default_value, p.type)
+                            else
+                                value = p.type.new
+                                value.zero!
+                                value
+                            end
+
+                        if p.type < Typelib::CompoundType || p.type < Typelib::ArrayType
+                            attr_reader p.name
+                        else
+                            define_method(p.name) do
+                                Typelib.to_ruby(instance_variable_get("@#{p.name}"))
+                            end
+                            define_method("#{p.name}=") do |value|
+                                value = Typelib.from_ruby(value, p.type)
+                                instance_variable_set("@#{p.name}", value)
+                            end
+                        end
+                    end
+
+                    define_method(:initialize) do
+                        default_values.each do |name, value|
+                            instance_variable_set("@#{name}", value.dup)
+                        end
+                        @property_names = default_values.keys
+                    end
+
+                    class_eval <<-EOD
+                    def each
+                        property_names.each do |name|
+                            yield(name, send(name))
+                        end
+                    end
+                    EOD
+                end
+		if register && !self.constants.include?(:Config)
+		    self.const_set(:Config, config)
+		end
+                @config_type = config
+            end
+
             # Returns the task name inside the deployment
             #
             # When using CORBA, this is the CORBA name as well
@@ -890,9 +953,49 @@ module Orocos
                     raise ArgumentError, "#{model} is not a device driver model"
                 end
                 dserv = data_service(model, arguments)
+                if !dserv.config_type
+                    dserv.config_type = config_type_from_properties
+                end
                 argument "#{dserv.name}_name"
 
                 model
+            end
+
+            # Default implementation of the configure method.
+            #
+            # This default implementation takes its configuration from
+            # State.config.task_name, where +task_name+ is the CORBA task name
+            # (i.e. the global name of the task).
+            #
+            # It then sets the task properties using the values found there
+            def configure
+                # First, set configuration stored in State.config
+                if State.config.send("#{orogen_name}?")
+                    config = State.config.send(orogen_name)
+                    apply_configuration(config)
+                end
+
+                # Then set per-source configuration options
+                if respond_to?(:each_device_name)
+                    each_device_name do |name|
+                        device = robot.devices[name]
+                        if device.configuration
+                            apply_configuration(device.configuration)
+                        end
+                    end
+                end
+            end
+
+            # Applies the values stored in +config_type+ to the task properties.
+            #
+            # It is assumed that config_type responds to each, and that the
+            # provided each method yields (name, value) pairs. These pairs are
+            # then used to call component.name=value to set the values on the
+            # component
+            def apply_configuration(config_type)
+                config_type.each do |name, value|
+                    orogen_task.send("#{name}=", value)
+                end
             end
 
             # Creates a subclass of TaskContext that represents the given task

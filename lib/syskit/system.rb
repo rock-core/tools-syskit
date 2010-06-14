@@ -83,6 +83,18 @@ module Orocos
             #   (i.e., the local machine)
             def use_deployment(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
+                pkg = Orocos.available_deployments[name.to_str]
+                if !pkg
+                    raise ArgumentError, "there is no deployment called #{name}"
+                end
+
+                orogen = Roby.app.load_orogen_project(pkg.project_name)
+                deployer = orogen.deployers.find { |d| d.name == name }
+                deployer.task_activities.each do |task|
+                    orocos_task_model = Roby.app.orocos_tasks[task.context.name]
+                    State.config.send("#{task.name}=", orocos_task_model.config_type_from_properties.new)
+                end
+
                 deployments[options[:on]] << name
                 self
             end

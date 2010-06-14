@@ -22,6 +22,8 @@ module Orocos
             attr_reader :task_arguments
             # The actual task
             attr_accessor :task
+            # Configuration data structure
+            attr_reader :configuration
 
             # Generic property map. The values are set with #set and can be
             # retrieved by calling "self.property_name". The possible values are
@@ -29,6 +31,26 @@ module Orocos
             attr_reader :properties
 
             def com_bus; @task_arguments[:com_bus] end
+
+            # call-seq:
+            #   device.configure { |p| }
+            #
+            # Yields a data structure that can be used to configure the given
+            # device. The type of the data structure is declared in the
+            # driver_for and data_service statement using the :config_type
+            # option.
+            #
+            # It will raise ArgumentError if the driver model did *not* declare
+            # a configuration type.
+            #
+            # See the documentation of each task context for details on the
+            # specific configuration parameters.
+            def configure(base_config = nil)
+		if base_config
+		    @configuration = base_config.dup
+		end
+                yield(@configuration)
+            end
 
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
             def initialize(name, device_model, options,
@@ -39,6 +61,9 @@ module Orocos
                 @period      = options[:period]
                 @sample_size = options[:sample_size]
                 @device_id   = options[:device_id]
+                if service.config_type
+                    @configuration = service.config_type.new
+                end
                 @properties  = Hash.new
             end
 
