@@ -321,7 +321,7 @@ module Orocos
             # Helper method that creates an instance of InstanciatedComponent
             # and registers it
             def create_instanciated_component(model, arguments = Hash.new) # :nodoc:
-                if !(model.kind_of?(Class) && model < Component)
+                if !model.kind_of?(MasterDeviceInstance) && !(model.kind_of?(Class) && model < Component)
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
                 end
                 arguments, task_arguments = Kernel.filter_options arguments, :as => nil
@@ -357,7 +357,9 @@ module Orocos
             # specification (if +model+ is a composition).
             def add(model, arguments = Hash.new)
                 if model.respond_to?(:to_str)
-                    if !(instance = defines[model.to_str])
+                    if device = instance = robot.devices[model.to_str]
+                        instance = create_instanciated_component(device, arguments)
+                    elsif !(instance = defines[model.to_str])
                         raise ArgumentError, "#{model} is not a valid instance definition added with #define"
                     end
                     instance = instance.dup
@@ -469,10 +471,17 @@ module Orocos
                 merge_identical_tasks
 
                 instances.each do |instance|
-                    task = instance.instanciate(self)
+                    task =
+                        if instance.model.kind_of?(MasterDeviceInstance)
+                            instance.model.task
+                        else
+                            instance.instanciate(self)
+                        end
+
                     if name = instance.name
                         register_task(name, task)
                     end
+
                     if instance.mission?
                         plan.add_mission(task)
                     else

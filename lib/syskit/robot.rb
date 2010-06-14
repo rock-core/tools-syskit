@@ -67,8 +67,8 @@ module Orocos
                 @properties  = Hash.new
             end
 
-            def instanciate(engine)
-                task_model.instanciate(engine, task_arguments)
+            def instanciate(engine, additional_arguments = Hash.new)
+                task_model.instanciate(engine, additional_arguments.merge(task_arguments))
             end
 
             def set(name, *values)
