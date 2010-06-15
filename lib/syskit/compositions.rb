@@ -595,6 +595,7 @@ module Orocos
                     add child_model, :as => child_name
                 end
                 child_composition.extend CompositionSpecializationModel
+                child_composition.private_model
                 
                 specializations <<
                     Specialization.new({ child_name => child_model }, child_composition)
