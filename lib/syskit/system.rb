@@ -161,6 +161,7 @@ module Orocos
                 @composition_specializations = Hash.new do |h, k|
                     h[k] = Hash.new { |a, b| a[b] = Hash.new }
                 end
+                @pending_removes = Set.new
 
                 @dot_index = 0
             end
@@ -441,6 +442,10 @@ module Orocos
                 task
             end
 
+            # The set of instances that should be removed at the next call to
+            # #resolve
+            attr_reader :pending_removes
+
             # Removes a task from the current deployment
             #
             # +task+ can be:
@@ -472,10 +477,7 @@ module Orocos
 
                 @modified = true
                 removed_instances.each do |instance|
-                    if instance.task && instance.task.plan
-                        plan.unmark_mission(instance.task)
-                        plan.unmark_permanent(instance.task)
-                    end
+                    pending_removes << instance
                 end
             end
 
@@ -487,6 +489,22 @@ module Orocos
                     if !srv.master? && srv.master.main?
                         tasks["#{name}.#{srv.name}"] = task
                     end
+                end
+            end
+
+            # Internal class used to backup the engine's state in #resolve, so
+            # that we are able to rollback in  case the deployment fails.
+            class StateBackup
+                attr_accessor :device_tasks
+                attr_accessor :instance_tasks
+                attr_accessor :instances
+                def valid?; @valid end
+                def valid!; @valid = true end
+
+                def initialize
+                    @device_tasks = Hash.new
+                    @instance_tasks = Hash.new
+                    @instances = Hash.new
                 end
             end
 
@@ -510,7 +528,9 @@ module Orocos
                             device_instance.instanciate(self)
                         end
 
-                    tasks[name] = plan[task]
+                    # Wrap it if it is already in the main plan
+                    task = plan[task]
+                    # Register it
                     device_instance.task = task
                     register_task(name, task)
                 end
@@ -521,12 +541,17 @@ module Orocos
                 merge_identical_tasks
 
                 instances.each do |instance|
+                    instance.task = nil
+                end
+
+                instances.each do |instance|
                     task =
                         if instance.model.kind_of?(MasterDeviceInstance)
                             instance.model.task
                         else
                             instance.instanciate(self)
                         end
+                    instance.task = plan[task]
 
                     if name = instance.name
                         register_task(name, task)
@@ -903,6 +928,27 @@ module Orocos
                     begin
                     @plan = trsc
 
+                    # Start by applying pending modifications, and saving the
+                    # current instanciation state in case we need to discard the
+                    # modifications (because of an error)
+                    state_backup = StateBackup.new
+                    robot.each_master_device do |name, device_instance|
+                        state_backup.device_tasks[name] = device_instance.task
+                    end
+                    state_backup.instances = instances.dup
+                    instances.delete_if do |instance|
+                        state_backup.instance_tasks[instance] = instance.task
+                        if pending_removes.include?(instance) && instance.task && instance.task.plan
+                            plan.unmark_mission(plan[instance.task])
+                            plan.unmark_permanent(plan[instance.task])
+                            true
+                        else
+                            false
+                        end
+                    end
+                    state_backup.valid!
+                    pending_removes.clear
+
                     instanciate
 
                     allocate_abstract_tasks
@@ -986,8 +1032,9 @@ module Orocos
                     trsc.commit_transaction
                     @modified = false
 
-                    rescue
+                    rescue Exception => e
                         if options[:export_plan_on_error]
+                            Roby.log_pp(e, Roby, :fatal)
                             Engine.fatal "Engine#resolve failed"
                             output_path = File.join(Roby.app.log_dir, "orocos-engine-plan-#{@dot_index}.dot")
                             @dot_index += 1
@@ -997,6 +1044,30 @@ module Orocos
                             end
                             Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
                         end
+
+                        if state_backup && !state_backup.valid?
+                            # We might have done something, we just don't know
+                            # what and can't rollback.
+                            #
+                            # Just announce to Roby that something critical
+                            # happened
+                            Roby.engine.add_framework_error(e, "orocos-engine-resolve")
+                            raise e
+                        end
+
+                        # We can rollback. We just do it, and then raise the
+                        # error again. The update handler should propagate the
+                        # error to the requirement modification tasks
+                        state_backup.device_tasks.each do |name, task|
+                            robot.devices[name].task = task
+                        end
+                        @instances = state_backup.instances
+                        instances.each do |instance|
+                            instance.task = state_backup.instance_tasks.delete(instance)
+                        end
+                        @modified = false
+                        Engine.fatal "Engine#resolve failed and rolled back"
+
                         raise
                     end
                 end
