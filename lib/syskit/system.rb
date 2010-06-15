@@ -1423,7 +1423,7 @@ module Orocos
                     end
                 end
 
-                merges.keys.to_value_set
+                merges.values.to_value_set
             end
 
             # Propagation step in the BFS of merge_identical_tasks
