@@ -37,8 +37,11 @@ Roby.filter_backtrace do
     Roby.app.using_plugins 'orocos'
     Roby.app.filter_backtraces = !debug
     if debug
-        Orocos::RobyPlugin::Engine.logger = Logger.new(STDOUT)
-        Orocos::RobyPlugin::Engine.logger.formatter = Roby.logger.formatter
+        levels = Roby.app.log['levels']
+        if !levels || !levels['orocos/roby_plugin/engine']
+            Orocos::RobyPlugin::Engine.logger = Logger.new(STDOUT)
+            Orocos::RobyPlugin::Engine.logger.formatter = Roby.logger.formatter
+        end
         Orocos::RobyPlugin::Engine.logger.level = Logger::DEBUG
     end
 
