@@ -77,6 +77,7 @@ Roby.filter_backtrace do
             # Wait for the deployments to be started
             ready_ev.if_unreachable(true) do
                 Robot.info "failed to start the deployments"
+                Roby.log_pp(ready_ev.unreachability_reason, Robot, info)
                 Roby.engine.quit
             end
             ready_ev.on do |event|
