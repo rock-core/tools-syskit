@@ -1446,7 +1446,7 @@ module Orocos
             # The step is given by #merge_tasks_next_step
             def merge_identical_tasks
                 Engine.debug do
-                    Engine.debug
+                    Engine.debug ""
                     Engine.debug "----------------------------------------------------"
                     Engine.debug "Merging identical tasks"
                     break
@@ -1475,7 +1475,6 @@ module Orocos
                         merges = direct_merge_mappings(candidates)
                         Engine.debug "  -- Applying merges (a => b merges 'a' into 'b') "
                         candidates = apply_merge_mappings(merges)
-                        Engine.debug
                         merged_tasks.merge(candidates)
 
                         candidates = merge_tasks_next_step(candidates)
@@ -1491,7 +1490,7 @@ module Orocos
                 Engine.debug do
                     Engine.debug "done merging identical tasks"
                     Engine.debug "----------------------------------------------------"
-                    Engine.debug
+                    Engine.debug ""
                     break
                 end
             end
@@ -1548,7 +1547,7 @@ module Orocos
                             all_cycles << cycle
                         end
 
-                    Engine.debug
+                    Engine.debug ""
                     Engine.debug " -- Cycles"
                     Engine.debug do
                         all_cycles.each_with_index do |cycle, i|
@@ -1691,7 +1690,7 @@ module Orocos
             # Reuses deployments in the current plan manager's plan if possible
             def instanciate_required_deployments
                 Engine.debug do
-                    Engine.debug
+                    Engine.debug ""
                     Engine.debug "----------------------------------------------------"
                     Engine.debug "Instanciating deployments"
                     break
@@ -1725,7 +1724,7 @@ module Orocos
                 Engine.debug do
                     Engine.debug "Done instanciating deployments"
                     Engine.debug "----------------------------------------------------"
-                    Engine.debug
+                    Engine.debug ""
                     break
                 end
             end
