@@ -296,11 +296,37 @@ module Orocos
                     end
                 end
 
+                def verify_result_in_transaction(key, result)
+                    if result.respond_to?(:to_ary)
+                        result.each { |obj| verify_result_in_transaction(key, obj) }
+                        return
+                    end
+
+                    task = result
+                    if result.respond_to?(:task)
+                        task = result.task
+                    end
+                    if task.respond_to?(:plan)
+                        if !task.plan
+                            if task.removed_at
+                                raise InternalError, "#{task}, which has been selected for #{key}, has been removed from its plan\n  Removed at\n    #{task.removed_at.join("\n    ")}"
+                            else
+                                raise InternalError, "#{task}, which has been selected for #{key}, is not included in any plan"
+                            end
+                        elsif !(task.plan == engine.plan)
+                            raise InternalError, "#{task}, which has been selected for #{key}, is not in #{engine.plan} (is in #{task.plan})"
+                        end
+                    end
+                end
+
                 # Create a concrete task for this requirements
                 def instanciate(engine)
                     selection = engine.main_selection.merge(using_spec)
                     selection.each_key do |key|
-                        selection[key] = resolve_explicit_selection(selection[key])
+                        if result = resolve_explicit_selection(selection[key])
+                            verify_result_in_transaction(key, result)
+                            selection[key] = result
+                        end
                     end
 
                     @task = model.instanciate(engine, arguments.merge(:selection => selection))
