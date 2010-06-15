@@ -266,17 +266,24 @@ module Orocos
         # This method is called at the beginning of each execution cycle, and
         # updates the running TaskContext tasks.
         def self.update(plan) # :nodoc:
+            tasks = plan.find_tasks(RequirementModificationTask).running.to_a
+            
             if Roby.app.orocos_engine.modified?
+                # We assume that all requirement modification have been applied
+                # by the RequirementModificationTask instances. They therefore
+                # take the blame if something fails, and announce a success
                 begin
                     Roby.app.orocos_engine.resolve
-                rescue Exception => e
-                    tasks = plan.find_tasks(RequirementModificationTask).running.to_a
-                    raise if tasks.empty?
-
-                    # Just assume that all modifications have been applied by
-                    # the requirement tasks
                     tasks.each do |t|
-                        t.success_event.emit_failed(e)
+                        t.emit :success
+                    end
+                rescue Exception => e
+                    if tasks.empty?
+                        # No task to take the blame ... we'll have to shut down
+                        raise 
+                    end
+                    tasks.each do |t|
+                        t.emit(:failed, e)
                     end
                 end
             end

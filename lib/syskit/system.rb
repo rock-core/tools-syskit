@@ -2132,6 +2132,17 @@ module Orocos
 
                 true
             end
+
+            # Declare that the services listed in +names+ are available to
+            # fullfill the +service+ model.
+            #
+            # It calls #modality_selection on the MainPlanner. The immediate
+            # consequence is that corresponding "modality_name" methods are
+            # made available on the planner, and "modality_name!" methods are
+            # available on the Roby shell
+            def modality_selection(service, *names)
+                MainPlanner.modality_selection(service, *names)
+            end
         end
     end
 end

@@ -12,14 +12,22 @@ module Orocos
                 modalities.each do |name|
                     describe "selects #{name} for #{service.name}"
                     method(name) do
-                        Orocos::RobyPlugin::ModalitySelectionTask.new(
+                        selection = Orocos::RobyPlugin::ModalitySelectionTask.new(
                             :service_model => service,
                             :selected_modality => name)
+
+                        if service < Roby::Task
+                            main = service.new
+                            main.executable = false
+                        else
+                            main = service.task_model.new
+                        end
+                        main.planned_by selection
+                        main
                     end
                 end
             end
         end
-
 
         # Type of task that allows to modify the Orocos/Roby engine's
         # requirements. The modifications will be applied when the task is
@@ -44,43 +52,57 @@ module Orocos
         # See also ModalitySelectionTask
         class RequirementModificationTask < Roby::Task
             def initialize(arguments = Hash.new, &block)
-                @implementation =
-                    if block then block
-                    else model.implementation
-                    end
-
                 super(arguments)
-            end
 
-            # The block that will be called to modify the system's requirements
-            attr_accessor :implementation
+                @implementation_method =
+                    if block
+                        check_arity(block, 1)
+                        block
+                    elsif respond_to?(:implementation)
+                        method(:implementation)
+                    else
+                        raise "no requirement modification block given"
+                    end
+            end
 
             ##
             # :method: start!
             #
             # Requests the modifications to be applied
             event :start do |context|
-                if !@implementation
+                if !@implementation_method
                     raise ArgumentError, "no implementation set for this RequirementModificationTask"
                 end
 
+                @result = @implementation_method.call(Roby.app.orocos_engine)
                 emit :start
             end
 
             # Defines a requirement modification block for all instances of this
             # task model
             def self.implementation(&block)
-                if block
-                    @implementation = block
-                elsif @implementation
-                    @implementation
-                elsif superclass.respond_to?(:implementation)
-                    superclass.implementation
+                if !block
+                    raise ArgumentError, "no block given"
                 end
+                check_arity(block, 1)
+                define_method(:implementation, &block)
             end
 
-            poll do
-                implementation.call(Roby.app.orocos_engine)
+            on :success do |event|
+                result_task =
+                    if @result
+                        if @result.respond_to?(:task)
+                            @result.task
+                        elsif @result.respond_to?(:to_task)
+                            @result.to_task
+                        end
+                    end
+
+                planned = planned_tasks.to_a
+                if result_task && planned.size == 1
+                    # Replace this result_task by the actual result_task in the network
+                    plan.replace_task(planned.first, result_task)
+                end
             end
         end
 
@@ -101,12 +123,7 @@ module Orocos
             argument :selected_modality
 
             implementation do |engine|
-                @instance = engine.set(service_model, selected_modality)
-            end
-
-            on :stop do |event|
-                # Replace this task by the actual task in the network
-                plan.replace_task(self, @instance.task)
+                engine.set(service_model, selected_modality)
             end
         end
     end
