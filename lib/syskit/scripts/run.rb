@@ -33,8 +33,8 @@ deployment_file     = remaining.shift
 additional_services = remaining.dup
 
 Roby.filter_backtrace do
-    Roby.app.setup
     Roby.app.using_plugins 'orocos'
+    Roby.app.setup
     Roby.app.filter_backtraces = !debug
     if debug
         levels = Roby.app.log['levels']
