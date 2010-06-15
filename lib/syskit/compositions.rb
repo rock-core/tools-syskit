@@ -266,7 +266,7 @@ module Orocos
             # SystemModel instance.
             def new_submodel(name, system)
                 klass = super()
-                klass.name = name
+                klass.name = "Orocos::RobyPlugin::Compositions::#{name.camelcase(true)}"
                 klass.system = system
                 klass
             end

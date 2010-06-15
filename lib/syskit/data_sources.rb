@@ -65,7 +65,7 @@ module Orocos
                 model = options[:type].new
                 model.include self
                 model.instance_variable_set(:@parent_model, self)
-                model.name = name.to_str
+                model.name = name.dup
 
                 if options[:interface] != false
                     if options[:interface]

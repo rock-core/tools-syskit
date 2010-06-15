@@ -39,7 +39,7 @@ module Orocos
 
             # Add a new composition model
             def register_composition(model)
-                Orocos::RobyPlugin::Compositions.const_set(model.name.camelcase(true), model)
+                Orocos::RobyPlugin::Compositions.const_set(model.name.gsub(/.*::/, ''), model)
             end
 
             # Enumerate the composition models that are available
