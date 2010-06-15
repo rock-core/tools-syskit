@@ -1273,7 +1273,7 @@ module Orocos
                         end
 
                         if merge_graph.reachable?(target_task, parent)
-                            raise InternalError, "cannot handle complex merge cycles"
+                            raise InternalError, "cannot handle complex merge cycles (#{target_task} <=> #{parent})"
                         end
                     end
 
