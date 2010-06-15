@@ -71,6 +71,18 @@ module Orocos
             # The set of deployment names we should use
             attr_reader :deployments
 
+            ##
+            # :method: dry_run?
+            #
+            # If true, the resulting tasks are all set as being non-executable,
+            # so that they don't get started
+
+            ##
+            # :method: dry_run=
+            #
+            # Set the dry_run predicate to the given value. See dry_run?
+            attr_predicate :dry_run, true
+
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.
@@ -925,6 +937,13 @@ module Orocos
                         trsc.static_garbage_collect do |obj|
                             trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)
                         end
+                    end
+
+                    if dry_run?
+                        trsc.find_local_tasks(Component).
+                            each do |task|
+                                task.executable = false
+                            end
                     end
                     trsc.commit_transaction
                     @modified = false

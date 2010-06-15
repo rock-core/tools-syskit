@@ -5,7 +5,8 @@ require 'orocos/roby'
 require 'orocos/roby/app'
 
 robot_type, robot_name = nil
-debug = false
+debug   = false
+dry_run = false
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate [options] deployment\nwhere 'deployment' is either the name of a deployment in config/deployments,\nor a file that should be loaded to get the desired deployment"
     opt.on('-r NAME', '--robot=NAME[,TYPE]', String, 'the robot name used as context to the deployment') do |name|
@@ -14,6 +15,9 @@ parser = OptionParser.new do |opt|
     end
     opt.on('--debug', "turn debugging output on") do
         debug = true
+    end
+    opt.on('--dry-run', "do not configure and start any module") do
+        dry_run = true
     end
     opt.on_tail('-h', '--help', 'this help message') do
 	STDERR.puts opt
@@ -44,11 +48,13 @@ Roby.filter_backtrace do
             additional_services.each do |service_name|
                 Roby.app.orocos_engine.add service_name
             end
+            Roby.app.orocos_engine.dry_run = dry_run
             Roby.app.orocos_engine.resolve
             if !Roby.engine.scheduler
                 require 'roby/schedulers/basic'
                 Roby.engine.scheduler = Roby::Schedulers::Basic.new
             end
+
             tasks = Roby.plan.find_tasks(Orocos::RobyPlugin::Component).
                 roots(Roby::TaskStructure::Hierarchy).to_value_set
             tasks.each { |t| Roby.plan.add_mission(t) }
