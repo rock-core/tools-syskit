@@ -409,6 +409,18 @@ module Orocos
                 instance
             end
 
+            # Replace all running services that fullfill +model+ by the +name+
+            # definition (added with #define). If none is running, +name+ is
+            # simply added
+            def set(model, name)
+                begin
+                    remove(model)
+                rescue ArgumentError
+                end
+
+                add(name)
+            end
+
             # Replaces a task already in the deployment by a new task
             #
             # +current_task+ can either be the Roby::Task (from the plan
