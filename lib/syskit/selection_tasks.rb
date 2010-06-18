@@ -51,6 +51,8 @@ module Orocos
         #
         # See also ModalitySelectionTask
         class RequirementModificationTask < Roby::Task
+            terminates
+
             def initialize(arguments = Hash.new, &block)
                 super(arguments)
 
