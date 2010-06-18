@@ -353,7 +353,8 @@ module Orocos
                         end
                 end
 
-                Orocos::RobyPlugin.process_servers['localhost'] = client
+                # Do *not* manage the log directory for that one ...
+                Orocos::RobyPlugin.process_servers['localhost'] = [client, Roby.app.log_dir]
                 client
             end
 
@@ -375,12 +376,12 @@ module Orocos
 
             # Call to add a process server to to the set of servers that can be
             # used by this plan manager
-            def orocos_process_server(name, host)
+            def orocos_process_server(name, host, options = Hash.new)
                 if host =~ /^(.*):(\d+)$/
                     host = $1
                     port = Integer($2)
                 end
-                orocos_process_servers[name] = [host, port].compact
+                orocos_process_servers[name] = [[host, port].compact, options]
             end
 
             # :attr: orocos_process_servers
@@ -412,9 +413,11 @@ module Orocos
                 end
 
                 # Connect to the process servers
-                app.orocos_process_servers.each do |name, server_uri|
+                app.orocos_process_servers.each do |name, (server_uri, options)|
                     client = Orocos::ProcessClient.new(*server_uri)
-                    Orocos::RobyPlugin.process_servers[name] = client
+                    client.save_log_dir(options[:log_dir] || 'log', options[:result_dir] || 'results')
+                    client.create_log_dir(options[:log_dir] || 'log', Roby.app.log_read_time_tag)
+                    Orocos::RobyPlugin.process_servers[name] = [client, options[:log_dir] || 'log']
                 end
                 handler_id = Roby.engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
 
@@ -433,7 +436,7 @@ module Orocos
 
                 # Stop the local process server if we started it ourselves
                 stop_local_process_server
-                Orocos::RobyPlugin.process_servers.each_value do |client|
+                Orocos::RobyPlugin.process_servers.each_value do |client, options|
                     client.disconnect
                 end
                 Orocos::RobyPlugin.process_servers.clear
