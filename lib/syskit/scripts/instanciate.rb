@@ -76,7 +76,6 @@ Roby.filter_backtrace do
     STDERR.puts "loaded deployment in %.3f seconds" % [toc - tic]
 
     Roby.app.orocos_engine.resolve(:compute_policies => compute_policies, :compute_deployments => compute_deployments)
-    end
     toc = Time.now
     STDERR.puts "computed deployment in %.3f seconds" % [toc - tic]
 end
