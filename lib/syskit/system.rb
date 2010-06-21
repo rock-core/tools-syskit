@@ -699,14 +699,14 @@ module Orocos
                 clusters.each do |deployment, task_contexts|
                     if deployment
                         result << "  subgraph cluster_#{deployment.object_id} {"
-                        result << "    #{dot_task_attributes(deployment, Array.new, Array.new, task_colors).join(";\n     ")};"
+                        result << "    #{dot_task_attributes(deployment, Array.new, Array.new, task_colors, remove_compositions).join(";\n     ")};"
                     end
 
                     task_contexts.each do |task|
                         if !task
                             raise "#{task} #{deployment} #{task_contexts.inspect}"
                         end
-                        attributes = dot_task_attributes(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort, task_colors)
+                        attributes = dot_task_attributes(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort, task_colors, remove_compositions)
                         result << "    #{task.object_id} [#{attributes.join(",")}];"
                     end
 
@@ -720,7 +720,7 @@ module Orocos
             end
 
             # Helper method for the to_dot methods
-            def dot_task_attributes(task, inputs, outputs, task_colors) # :nodoc:
+            def dot_task_attributes(task, inputs, outputs, task_colors, remove_compositions = false) # :nodoc:
                 task_dot_attributes = []
 
                 task_label = task.to_s.
@@ -762,7 +762,9 @@ module Orocos
                             gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n').
                             gsub(/\/\[.*\]:/, ':')
                     end
-                    task_label << " <BR/> [Included in:#{parent_compositions.join("\\n")}]"
+                    if !remove_compositions
+                        task_label << " <BR/> [Included in:#{parent_compositions.join("\\n")}]"
+                    end
                 end
 
                 label = "  <TABLE BORDER=\"0\" CELLBORDER=\"#{task.kind_of?(Deployment) ? '0' : '1'}\" CELLSPACING=\"0\">\n"
