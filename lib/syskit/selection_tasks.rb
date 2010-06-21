@@ -88,20 +88,36 @@ module Orocos
                 define_method(:implementation, &block)
             end
 
-            on :success do |event|
-                result_task =
-                    if @result
-                        if @result.respond_to?(:task)
-                            @result.task
-                        elsif @result.respond_to?(:to_task)
-                            @result.to_task
-                        end
+            # If the modification result can be identified by a single task,
+            # returns it. Otherwise, returns nil.
+            def result_task
+                if @result
+                    if @result.respond_to?(:task)
+                        @result.task
+                    elsif @result.respond_to?(:to_task)
+                        @result.to_task
                     end
+                end
+            end
+
+            on :success do |event|
+                result_task = self.result_task
 
                 planned = planned_tasks.to_a
                 if result_task && planned.size == 1
                     # Replace this result_task by the actual result_task in the network
                     plan.replace_task(planned.first, result_task)
+
+                    # When the result task either finishes or is finalized,
+                    # remove the corresponding instance from the requirements
+                    result_task.on :stop do |event|
+                        Roby.app.orocos_engine.removed(@result)
+                    end
+                    result_task.when_finalized do
+                        if result_task.pending?
+                            Roby.app.orocos_engine.removed(@result)
+                        end
+                    end
                 end
             end
         end

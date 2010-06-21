@@ -161,7 +161,7 @@ module Orocos
                 @composition_specializations = Hash.new do |h, k|
                     h[k] = Hash.new { |a, b| a[b] = Hash.new }
                 end
-                @pending_removes = Set.new
+                @pending_removes = Hash.new
 
                 @dot_index = 0
             end
@@ -444,6 +444,10 @@ module Orocos
 
             # The set of instances that should be removed at the next call to
             # #resolve
+            #
+            # It is a mapping from the instance object to a boolean. The boolean
+            # tells the engine whether the remove should be retried even if the
+            # resolve failed (true) or not (false)
             attr_reader :pending_removes
 
             # Removes a task from the current deployment
@@ -455,7 +459,7 @@ module Orocos
             # * the task name as given to #add through the :as option
             # * a task model, in which case all components that match this model
             #   will be removed
-            def remove(task)
+            def remove(task, force = false)
                 if task.kind_of?(InstanciatedComponent)
                     removed_instances, @instances = instances.partition { |t| t == task }
                 elsif task.kind_of?(Roby::Task)
@@ -477,8 +481,18 @@ module Orocos
 
                 @modified = true
                 removed_instances.each do |instance|
-                    pending_removes << instance
+                    pending_removes[instance] = force
                 end
+            end
+
+            # Called when the plan manager has garbage-collected a task that was
+            # under this engine's control. The difference with #remove is that
+            # it does not trigger a resolution pass -- since the task and its
+            # dependencies are already being removed from the plan anyway.
+            def removed(task)
+                modified = @modified
+                remove(task, true)
+                @modified = modified
             end
 
             # Register the given task and all its services in the +tasks+ hash
@@ -912,7 +926,8 @@ module Orocos
                     :compute_policies    => true,
                     :compute_deployments => true,
                     :garbage_collect => true,
-                    :export_plan_on_error => true
+                    :export_plan_on_error => true,
+                    :forced_removes => false # internal flag
 
                 # It makes no sense to compute the policies if we are not
                 # computing the deployments, as policy computation needs
@@ -938,7 +953,7 @@ module Orocos
                     state_backup.instances = instances.dup
                     instances.delete_if do |instance|
                         state_backup.instance_tasks[instance] = instance.task
-                        if pending_removes.include?(instance) && instance.task && instance.task.plan
+                        if pending_removes.has_key?(instance) && instance.task && instance.task.plan
                             plan.unmark_mission(plan[instance.task])
                             plan.unmark_permanent(plan[instance.task])
                             true
@@ -947,7 +962,6 @@ module Orocos
                         end
                     end
                     state_backup.valid!
-                    pending_removes.clear
 
                     instanciate
 
@@ -1030,6 +1044,7 @@ module Orocos
                             end
                     end
                     trsc.commit_transaction
+                    pending_removes.clear
                     @modified = false
 
                     rescue Exception => e
@@ -1051,6 +1066,7 @@ module Orocos
                             #
                             # Just announce to Roby that something critical
                             # happened
+                            pending_removes.clear
                             Roby.engine.add_framework_error(e, "orocos-engine-resolve")
                             raise e
                         end
@@ -1066,7 +1082,14 @@ module Orocos
                             instance.task = state_backup.instance_tasks.delete(instance)
                         end
                         @modified = false
+
                         Engine.fatal "Engine#resolve failed and rolled back"
+
+                        if !options[:forced_removes]
+                            Engine.fatal "Retrying to remove obsolete tasks ..."
+                            pending_removes.delete_if { |_, force| !force }
+                            resolve(options.merge(:forced_removes => true))
+                        end
 
                         raise
                     end

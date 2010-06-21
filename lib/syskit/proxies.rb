@@ -135,7 +135,8 @@ module Orocos
                 host = self.arguments['on'] ||= 'localhost'
                 RobyPlugin.info { "starting deployment #{model.deployment_name} on #{host}" }
 
-                @orogen_deployment = Orocos::RobyPlugin.process_servers[host].start(model.deployment_name)
+                process_server, log_dir = Orocos::RobyPlugin.process_servers[host]
+                @orogen_deployment = process_server.start(model.deployment_name, :working_directory => log_dir)
                 Deployment.all_deployments[@orogen_deployment] = self
                 emit :start
             end
@@ -206,7 +207,9 @@ module Orocos
                     next if ready?
 
                     if orogen_deployment.wait_running(0)
-                        Orocos::Process.log_all_ports(orogen_deployment, :log_dir => Roby.app.log_dir)
+                        Orocos::Process.log_all_ports(orogen_deployment,
+                                    :log_dir => Roby.app.log_dir,
+                                    :remote => (machine != 'localhost'))
 
                         @task_handles = Hash.new
                         orogen_spec.task_activities.each do |activity|
@@ -290,6 +293,7 @@ module Orocos
 
             all_dead_deployments = ValueSet.new
             for name, server in Orocos::RobyPlugin.process_servers
+                server = server.first
                 if dead_deployments = server.wait_termination(0)
                     dead_deployments.each do |p, exit_status|
                         d = Deployment.all_deployments[p]
