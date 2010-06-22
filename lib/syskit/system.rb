@@ -2159,6 +2159,18 @@ module Orocos
                 true
             end
 
+            # Load the given DSL file into this Engine instance
+            def load(file)
+                search_path = [RobyPlugin,
+                    RobyPlugin::DataServices,
+                    RobyPlugin::DataSources,
+                    RobyPlugin::Compositions]
+
+                if Kernel.load_dsl_file(file, self, search_path, false)
+                    RobyPlugin.info "loaded #{file}"
+                end
+            end
+
             # Declare that the services listed in +names+ are available to
             # fullfill the +service+ model.
             #

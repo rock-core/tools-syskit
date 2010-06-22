@@ -272,26 +272,13 @@ module Orocos
                     raise ArgumentError, "there is no system model file called #{file}"
                 end
 
-                search_path = [RobyPlugin,
-                    RobyPlugin::DataServices,
-                    RobyPlugin::DataSources,
-                    RobyPlugin::Compositions]
-                if Kernel.load_dsl_file(path, orocos_system_model, search_path, !Roby.app.filter_backtraces?)
-                    RobyPlugin.info "loaded #{path}"
-                end
+                orocos_system_model.load(file)
             end
 
             # Load a part of the system definition, i.e. the robot description
             # files
             def load_system_definition(file)
-                search_path = [RobyPlugin,
-                    RobyPlugin::DataServices,
-                    RobyPlugin::DataSources,
-                    RobyPlugin::Compositions]
-
-                if Kernel.load_dsl_file(file, orocos_engine, search_path, false)
-                    RobyPlugin.info "loaded #{file}"
-                end
+                orocos_engine.load(file)
             end
 
             # Loads the specified orocos deployment file

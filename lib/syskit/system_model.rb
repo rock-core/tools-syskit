@@ -320,8 +320,15 @@ module Orocos
                 end
             end
 
+            # Load the given DSL file into this SystemModel instance
             def load(file)
-                load_dsl_file(file, binding, true, Exception)
+                search_path = [RobyPlugin,
+                    RobyPlugin::DataServices,
+                    RobyPlugin::DataSources,
+                    RobyPlugin::Compositions]
+                if Kernel.load_dsl_file(file, self, search_path, !Roby.app.filter_backtraces?)
+                    RobyPlugin.info "loaded #{file}"
+                end
                 self
             end
 
