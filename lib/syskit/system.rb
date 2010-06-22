@@ -948,21 +948,25 @@ module Orocos
 
                 prepare
 
+                # Start by applying pending modifications, and saving the
+                # current instanciation state in case we need to discard the
+                # modifications (because of an error)
+                state_backup = StateBackup.new
+                robot.each_master_device do |name, device_instance|
+                    state_backup.device_tasks[name] = device_instance.task
+                end
+                state_backup.instances = instances.dup
+                instances.each do |instance|
+                    state_backup.instance_tasks[instance] = instance.task
+                end
+                state_backup.valid!
+
                 engine_plan = @plan
                 plan.in_transaction do |trsc|
                     begin
                     @plan = trsc
 
-                    # Start by applying pending modifications, and saving the
-                    # current instanciation state in case we need to discard the
-                    # modifications (because of an error)
-                    state_backup = StateBackup.new
-                    robot.each_master_device do |name, device_instance|
-                        state_backup.device_tasks[name] = device_instance.task
-                    end
-                    state_backup.instances = instances.dup
                     instances.delete_if do |instance|
-                        state_backup.instance_tasks[instance] = instance.task
                         if pending_removes.has_key?(instance) && instance.task && instance.task.plan
                             plan.unmark_mission(plan[instance.task])
                             plan.unmark_permanent(plan[instance.task])
@@ -971,7 +975,6 @@ module Orocos
                             false
                         end
                     end
-                    state_backup.valid!
 
                     instanciate
 
@@ -1070,41 +1073,47 @@ module Orocos
                             end
                             Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
                         end
-
-                        if state_backup && !state_backup.valid?
-                            # We might have done something, we just don't know
-                            # what and can't rollback.
-                            #
-                            # Just announce to Roby that something critical
-                            # happened
-                            pending_removes.clear
-                            Roby.engine.add_framework_error(e, "orocos-engine-resolve")
-                            raise e
-                        end
-
-                        # We can rollback. We just do it, and then raise the
-                        # error again. The update handler should propagate the
-                        # error to the requirement modification tasks
-                        state_backup.device_tasks.each do |name, task|
-                            robot.devices[name].task = task
-                        end
-                        @instances = state_backup.instances
-                        instances.each do |instance|
-                            instance.task = state_backup.instance_tasks.delete(instance)
-                        end
-                        @modified = false
-
-                        Engine.fatal "Engine#resolve failed and rolled back"
-
-                        if !options[:forced_removes]
-                            Engine.fatal "Retrying to remove obsolete tasks ..."
-                            pending_removes.delete_if { |_, force| !force }
-                            resolve(options.merge(:forced_removes => true))
-                        end
-
                         raise
                     end
                 end
+
+            rescue Exception => e
+                @plan = engine_plan
+
+                if state_backup && !state_backup.valid?
+                    # We might have done something, we just don't know
+                    # what and can't rollback.
+                    #
+                    # Just announce to Roby that something critical
+                    # happened
+                    pending_removes.clear
+                    Roby.engine.add_framework_error(e, "orocos-engine-resolve")
+                    raise e
+                end
+
+                # We can rollback. We just do it, and then raise the
+                # error again. The update handler should propagate the
+                # error to the requirement modification tasks
+                state_backup.device_tasks.each do |name, task|
+                    robot.devices[name].task = task
+                end
+                @instances = state_backup.instances
+                instances.each do |instance|
+                    instance.task = state_backup.instance_tasks.delete(instance)
+                end
+                @modified = false
+
+                Engine.fatal "Engine#resolve failed and rolled back"
+
+                if !options[:forced_removes]
+                    Engine.fatal "Retrying to remove obsolete tasks ..."
+                    pending_removes.delete_if { |_, force| !force }
+                    if !pending_removes.empty?
+                        resolve(options.merge(:forced_removes => true))
+                    end
+                end
+
+                raise
 
             ensure
                 @plan = engine_plan
