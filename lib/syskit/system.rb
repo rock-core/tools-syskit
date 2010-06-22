@@ -989,7 +989,8 @@ module Orocos
                     # instances would be removed by it
                     all_tasks = trsc.find_tasks(Component).to_a
                     all_tasks.each do |t|
-                        if t.finished?
+                        if t.finishing? || t.finished?
+                            Engine.debug { "clearing the relations of the finished task #{task}" }
                             t.clear_relations
                         end
                     end
