@@ -570,6 +570,8 @@ module Orocos
                     service = device_instance.service
                     service.port_mappings.each do |service_port_name, port_name|
                         port = model.port(port_name)
+                        next if !port.kind_of?(Orocos::Generation::OutputPort)
+
                         result[port_name] ||= PortDynamics.new(nil, 1)
                         result[port_name].period = [result[port_name].period, period * port.period].compact.min
                     end
