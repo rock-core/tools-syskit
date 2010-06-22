@@ -522,6 +522,12 @@ module Orocos
                 end
             end
 
+            # Remove everything that is currently added to the system
+            def clear
+                instances.clear
+                @modified = true
+            end
+
             # Create the task instances that are currently required by the
             # deployment specification
             #

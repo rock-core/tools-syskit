@@ -197,12 +197,26 @@ module Orocos
                     end
                 end
 
+                # Import the task context definitions in Orocos:: directly
                 projects.each do |name|
                     name = name.camelcase(true)
 
                     # The RTT is already handled above
                     if name !~ /RTT/
                         Orocos.const_set(name, Orocos::RobyPlugin.const_get(name))
+                    end
+                end
+
+                # Define planning methods on the main planner for the available
+                # deployment files
+                app.list_dir(APP_DIR, 'config', 'deployments') do |path|
+                    name = File.basename(path, '.rb')
+                    MainPlanner.describe "resets the current component network to the state defined in #{path}"
+                    MainPlanner.method(name) do
+                        RequirementModificationTask.new do |engine|
+                            engine.clear
+                            engine.load(path)
+                        end
                     end
                 end
             end
