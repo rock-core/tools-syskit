@@ -54,7 +54,8 @@ module Orocos
             terminates
 
             def initialize(arguments = Hash.new, &block)
-                super(arguments)
+                super(arguments) do
+                end
 
                 @implementation_method =
                     if block
