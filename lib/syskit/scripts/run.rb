@@ -47,9 +47,11 @@ Roby.filter_backtrace do
 
     Roby.app.run do
         Roby.execute do
-            Roby.app.load_orocos_deployment(deployment_file)
+            if deployment_file != '-'
+                Roby.app.load_orocos_deployment(deployment_file)
+            end
             additional_services.each do |service_name|
-                Roby.app.orocos_engine.add service_name
+                Roby.app.orocos_engine.add_mission(service_name)
             end
             Roby.app.orocos_engine.dry_run = dry_run
             Roby.app.orocos_engine.resolve
