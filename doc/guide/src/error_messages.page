@@ -1,35 +1,33 @@
 ---
 title: Error messages
-sort_info: 500
---- name:content pipeline:tags,markdown,blocks
+sort_info: 300
+---
 
-<tt>pkg-config --list-all</tt> returns an error
------------------------------------------------
+pkg-config --list-all returns an error
+--------------------------------------
 
 Debian and debian-based systems (like Ubuntu) sometime have broken pkg-config
 dependencies between some packages. If you run pkg-config --list-all on a
 console, this leads to an output whose last lines look like:
 
-<pre>
-cairo-ft                                       cairo-ft - FreeType font backend for cairo graphics library
-hbridge-tasks-gnulinux                         hbridgeTasks - tasks defined for the hbridge component
-orogen-visualTest                              visualTest - the static deployment defined for the visualTest deployment
-controldev-transport-corba-gnulinux            controldevCorbaTransport - controldev types support for the Orocos type system
-iso-codes                                      iso-codes - ISO country, language, script and currency codes and translations
-pangox                                         Pango X - X Window System font support for Pango
-xtrans                                         XTrans - Abstract network code for X
-openscenegraph-osgViewer                       openscenegraph-osgViewer - Windowing system setup, thread scene manager library for Openscenegraph
-xsens_imu-transport-corba-gnulinux             xsens_imuCorbaTransport - xsens_imu types support for the Orocos type system
-trajectory_controller-tasks-gnulinux           trajectory_controllerTasks - tasks defined for the trajectory_controller component
-orogen-project-logger                          logger - the definition file for the orogen project itself
-hbridge                                        hbridge - Driver for the ASGuard Hbridge boards
-can-toolkit-gnulinux                           canToolkit - can types support for the Orocos type system
-QtHelp                                         Qthelp - Qthelp Library
-Package libdrm was not found in the pkg-config search path.
-Perhaps you should add the directory containing `libdrm.pc'
-to the PKG_CONFIG_PATH environment variable
-Package 'libdrm', required by 'dri', not found
-</pre>
+    cairo-ft                                       cairo-ft - FreeType font backend for cairo graphics library
+    hbridge-tasks-gnulinux                         hbridgeTasks - tasks defined for the hbridge component
+    orogen-visualTest                              visualTest - the static deployment defined for the visualTest deployment
+    controldev-transport-corba-gnulinux            controldevCorbaTransport - controldev types support for the Orocos type system
+    iso-codes                                      iso-codes - ISO country, language, script and currency codes and translations
+    pangox                                         Pango X - X Window System font support for Pango
+    xtrans                                         XTrans - Abstract network code for X
+    openscenegraph-osgViewer                       openscenegraph-osgViewer - Windowing system setup, thread scene manager library for Openscenegraph
+    xsens_imu-transport-corba-gnulinux             xsens_imuCorbaTransport - xsens_imu types support for the Orocos type system
+    trajectory_controller-tasks-gnulinux           trajectory_controllerTasks - tasks defined for the trajectory_controller component
+    orogen-project-logger                          logger - the definition file for the orogen project itself
+    hbridge                                        hbridge - Driver for the ASGuard Hbridge boards
+    can-toolkit-gnulinux                           canToolkit - can types support for the Orocos type system
+    QtHelp                                         Qthelp - Qthelp Library
+    Package libdrm was not found in the pkg-config search path.
+    Perhaps you should add the directory containing `libdrm.pc'
+    to the PKG_CONFIG_PATH environment variable
+    Package 'libdrm', required by 'dri', not found
 
 The problem is that oroGen-generated components (most notably, the logger
 component), might require pkg-config --list-all to find out what to load. The
@@ -37,9 +35,7 @@ orocos components will therefore fail if pkg-config --list-all fails.
 
 To avoid this  situation, Orocos.initialize reports the following error:
 
-<pre>
-ArgumentError: pkg-config --list-all returns an error. Run it in a console and install packages that are reported.
-</pre>
+    ArgumentError: pkg-config --list-all returns an error. Run it in a console and install packages that are reported.
 
 So, just do that. You will have to find what package contains the package_name.pc
 file (for instance by searching on packages.debian.org or
@@ -47,8 +43,7 @@ packages.ubuntu.com). In the example above, one would search the libdrm.pc file,
 and find out that it is provided by the libdrm-dev package. You then have to
 install it with:
 
-sudo apt-get install libdrm-dev
-{: .commandline}
+    sudo apt-get install libdrm-dev
 
 failed to contact the name server (Orocos::CORBAError)
 ------------------------------------------------------
