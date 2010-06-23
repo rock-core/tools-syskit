@@ -982,8 +982,8 @@ module Orocos
             # It then sets the task properties using the values found there
             def configure
                 # First, set configuration stored in State.config
-                if State.config.send("#{orogen_name}?")
-                    config = State.config.send(orogen_name)
+                if Roby::State.config.send("#{orogen_name}?")
+                    config = Roby::State.config.send(orogen_name)
                     apply_configuration(config)
                 end
 

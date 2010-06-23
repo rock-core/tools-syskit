@@ -95,20 +95,24 @@ module Orocos
             #   (i.e., the local machine)
             def use_deployment(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
-                pkg = Orocos.available_deployments[name.to_str]
-                if !pkg
-                    raise ArgumentError, "there is no deployment called #{name}"
-                end
-
-                orogen = Roby.app.load_orogen_project(pkg.project_name)
-                deployer = orogen.deployers.find { |d| d.name == name }
+                server = process_server_for(options[:on])
+                deployer = server.load_orogen_deployment(name)
                 deployer.task_activities.each do |task|
                     orocos_task_model = Roby.app.orocos_tasks[task.context.name]
-                    State.config.send("#{task.name}=", orocos_task_model.config_type_from_properties.new)
+                    State.config.send("#{task.name}=",
+                          orocos_task_model.config_type_from_properties.new)
                 end
 
                 deployments[options[:on]] << name
                 self
+            end
+
+            def process_server_for(name)
+                server = RobyPlugin.process_servers[name]
+                if !server
+                    raise ArgumentError, "there is no registered process server called #{name}"
+                end
+                server.first
             end
 
             # Add all the deployments defined in the given oroGen project to the
@@ -116,7 +120,9 @@ module Orocos
             #
             # See #use_deployment
             def use_deployments_from(project_name, options = Hash.new)
-                orogen = Roby.app.load_orogen_project(project_name)
+                options = Kernel.validate_options options, :on => 'localhost'
+                server = process_server_for(options[:on])
+                orogen = server.load_orogen_project(project_name)
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
                         use_deployment(deployment_def.name, options)

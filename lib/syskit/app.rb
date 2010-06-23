@@ -1,6 +1,13 @@
 require 'utilrb/kernel/load_dsl_file'
 module Orocos
     module RobyPlugin
+        module MasterProjectHook
+            def register_loaded_project(name, project)
+                super
+                Roby.app.load_orogen_project(name)
+            end
+        end
+
         # This gets mixed in Roby::Application when the orocos plugin is loaded.
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
@@ -51,6 +58,7 @@ module Orocos
             attribute(:main_orogen_project) do
                 project = Orocos::Generation::Component.new
                 project.name 'roby'
+                project.extend MasterProjectHook
             end
 
             # The system model object
@@ -83,10 +91,16 @@ module Orocos
             def loaded_orogen_project?(name); loaded_orogen_projects.include?(name) end
             # Load the given orogen project and defines the associated task
             # models. It also loads the projects this one depends on.
-            def load_orogen_project(name)
+            def load_orogen_project(name, orogen = nil)
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
-                orogen = main_orogen_project.using_task_library(name)
+                orogen ||= main_orogen_project.load_orogen_project(name)
+
+                # If it is a task library, register it on our main project
+                if !orogen.self_tasks.empty?
+                    main_orogen_project.using_task_library(name)
+                end
+
 		Orocos.registry.merge(orogen.registry)
                 loaded_orogen_projects[name] = orogen
 
@@ -144,6 +158,7 @@ module Orocos
                     end
                 end
 
+                Orocos.master_project.extend(MasterProjectHook)
                 app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
                 Orocos.load
@@ -163,6 +178,15 @@ module Orocos
                     attr_reader :engine
                 end
                 Orocos.instance_variable_set :@engine, app.orocos_engine
+
+                # Change to the log dir so that the IOR file created by the
+                # CORBA bindings ends up there
+                Dir.chdir(app.log_dir) do
+                    Orocos.initialize
+                    if !app.disable_local_process_server?
+                        start_local_process_server
+                    end
+                end
             end
 
             def self.require_models(app)
@@ -261,6 +285,7 @@ module Orocos
                 project = Orocos::Generation::Component.new
                 project.name 'roby'
                 @main_orogen_project = project
+                project.extend MasterProjectHook
             end
 
             def self.load_task_extension(file, app)
@@ -335,15 +360,25 @@ module Orocos
                     options = Orocos::ProcessServer::DEFAULT_OPTIONS,
                     port = Orocos::ProcessServer::DEFAULT_PORT)
 
+                options, server_options = Kernel.filter_options options, :redirect => true
+                if Orocos::RobyPlugin.process_servers['localhost']
+                    raise ArgumentError, "there is already a process server called 'localhost' running"
+                end
+
                 @server_pid = fork do
-                    logfile = File.expand_path("local_process_server.txt", Roby.app.log_dir)
-                    new_logger = ::Logger.new(File.open(logfile, 'w'))
+                    if options[:redirect]
+                        logfile = File.expand_path("local_process_server.txt", Roby.app.log_dir)
+                        new_logger = ::Logger.new(File.open(logfile, 'w'))
+                    else
+                        new_logger = ::Logger.new(STDOUT)
+                    end
+
                     new_logger.level = ::Logger::DEBUG
                     new_logger.formatter = Roby.logger.formatter
                     new_logger.progname = "ProcessServer(localhost)"
                     Orocos.logger = new_logger
                     ::Process.setpgrp
-                    Orocos::ProcessServer.run(options, port)
+                    Orocos::ProcessServer.run(server_options, port)
                 end
                 # Wait for the server to be ready
                 client = nil
@@ -355,8 +390,13 @@ module Orocos
                 end
 
                 # Do *not* manage the log directory for that one ...
-                Orocos::RobyPlugin.process_servers['localhost'] = [client, Roby.app.log_dir]
+                register_process_server('localhost', client, Roby.app.log_dir)
                 client
+            end
+
+            def self.register_process_server(name, client, log_dir)
+                client.master_project.extend MasterProjectHook
+                Orocos::RobyPlugin.process_servers[name] = [client, log_dir]
             end
 
             # Stop the process server started by start_local_process_server if
@@ -375,23 +415,41 @@ module Orocos
                 Orocos::RobyPlugin.process_servers.delete('localhost')
             end
 
+            ##
+            # :attr: local_only?
+            #
+            # True if this application should not try to contact other
+            # machines/servers
+            attr_predicate :local_only?, true
+
             # Call to add a process server to to the set of servers that can be
             # used by this plan manager
+            #
+            # If 'host' is set to localhost, it disables the automatic startup
+            # of the local process server (i.e. sets
+            # disable_local_process_server to false)
             def orocos_process_server(name, host, options = Hash.new)
+                if local_only? && host != 'localhost'
+                    raise ArgumentError, "in local only mode"
+                elsif Orocos::RobyPlugin.process_servers[name]
+                    raise ArgumentError, "there is already a process server called #{name} running"
+                end
+
+                port = ProcessServer::DEFAULT_PORT
                 if host =~ /^(.*):(\d+)$/
                     host = $1
                     port = Integer($2)
                 end
-                orocos_process_servers[name] = [[host, port].compact, options]
-            end
 
-            # :attr: orocos_process_servers
-            #
-            # A name => [host[, port]] mapping of all the defined process
-            # servers. In addition, if the orocos_local_process_server?
-            # predicate is true (the default), a process server called
-            # 'localhost' will be started on the local machine
-            attribute(:orocos_process_servers) { Hash.new }
+                if host == 'localhost'
+                    self.disable_local_process_server = true
+                end
+
+                client = Orocos::ProcessClient.new(host, port)
+                client.save_log_dir(options[:log_dir] || 'log', options[:result_dir] || 'results')
+                client.create_log_dir(options[:log_dir] || 'log', Roby.app.log_read_time_tag)
+                Application.register_process_server(name, client, options[:log_dir] || 'log')
+            end
 
             # :attr: disable_local_process_server?
             #
@@ -404,22 +462,6 @@ module Orocos
             attr_predicate :disable_local_process_server?, true
 
             def self.run(app)
-                # Change to the log dir so that the IOR file created by the
-                # CORBA bindings ends up there
-                Dir.chdir(Roby.app.log_dir) do
-                    Orocos.initialize
-                    if !app.disable_local_process_server?
-                        start_local_process_server
-                    end
-                end
-
-                # Connect to the process servers
-                app.orocos_process_servers.each do |name, (server_uri, options)|
-                    client = Orocos::ProcessClient.new(*server_uri)
-                    client.save_log_dir(options[:log_dir] || 'log', options[:result_dir] || 'results')
-                    client.create_log_dir(options[:log_dir] || 'log', Roby.app.log_read_time_tag)
-                    Orocos::RobyPlugin.process_servers[name] = [client, options[:log_dir] || 'log']
-                end
                 handler_id = Roby.engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
 
                 yield
