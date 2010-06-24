@@ -631,7 +631,7 @@ module Orocos
 
                 each_concrete_output_connection do |source_port, sink_port, sink_task|
                     devices = sink_task.model.each_root_data_service.
-                        find_all { |_, model| model < DataSource }.
+                        find_all { |_, service| service.model < DataSource }.
                         map { |source_name, _| robot.devices[sink_task.arguments["#{source_name}_name"]] }.
                         compact.find_all { |device| device.com_bus }
 
