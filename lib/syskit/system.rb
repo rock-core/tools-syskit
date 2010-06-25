@@ -1193,25 +1193,9 @@ module Orocos
                     MERGE_SORT_TRUTH_TABLE[ [t1.respond_to?(:__getobj__), t2.respond_to?(:__getobj__)] ]
             end
 
-            # Find merge candidates
+            # Find merge candidates and returns them as a graph
             #
-            # It returns a list of list
-            #
-            #   [
-            #     [t1, [t2]],
-            #     [t2, [t0]]
-            #   ]
-            #   [
-            #     [t3, [t1]]
-            #   ]
-            #
-            # where:
-            #
-            # * the first level represents the connected components of the
-            #   graph (i.e. in the example below there are paths between t1,
-            #   t2 and t0).
-            # * the second level represents the merge candidates (t2 could
-            #   be merged into t1 and t0 into t2.
+            # In the graph, an edge 'a' => 'b' means that b can be merged into a
             def direct_merge_mappings(task_set)
                 # First pass, we create a graph in which an a => b edge means
                 # that a.merge(b) is valid
