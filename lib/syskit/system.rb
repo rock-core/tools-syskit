@@ -1295,7 +1295,7 @@ module Orocos
             # It returns two set of tasks: a set of task that have exactly one
             # parent, and a set of tasks that have at least two parents
             def merge_prepare(merge_graph)
-                one_parent, ambiguous = ValueSet.new, ValueSet.new
+                one_parent, ambiguous, cycles = ValueSet.new, ValueSet.new, ValueSet.new
 
                 candidates = merge_graph.vertices
                 while !candidates.empty?
@@ -1317,22 +1317,30 @@ module Orocos
                                 next
                             end
 
-                            merge_graph.unlink(target_task, parent)
-                        end
-
-                        if merge_graph.reachable?(target_task, parent)
-                            raise InternalError, "cannot handle complex merge cycles (#{target_task} <=> #{parent})"
+                            if order == -1
+                                Engine.debug do
+                                    "     picking up #{target_task} => #{parent} for local cycle"
+                                end
+                                merge_graph.unlink(target_task, parent)
+                            end
                         end
                     end
 
-                    if parent_count == 1
+
+                    in_cycle = parents.any? do |parent|
+                        merge_graph.reachable?(target_task, parent)
+                    end
+
+                    if in_cycle
+                        cycles << target_task
+                    elsif parent_count == 1
                         one_parent << target_task
                     elsif parent_count > 1
                         ambiguous << target_task
                     end
                 end
 
-                return one_parent, ambiguous
+                return one_parent, ambiguous, cycles
             end
 
             # Do merge allocation
@@ -1385,6 +1393,55 @@ module Orocos
                 leftovers
             end
 
+            def break_simple_cycles(merge_graph, cycles)
+                cycles.delete_if do |task|
+                    parent_removal =
+                        task.enum_for(:each_parent_vertex, merge_graph).find_all do |parent|
+                            cycles.include?(parent)
+                        end
+
+                    if !parent_removal.empty?
+                        parent_removal.each do |removed_parent|
+                            Engine.debug do
+                                "    #{removed_parent} => #{task}"
+                            end
+                            merge_graph.unlink(removed_parent, task)
+                        end
+                        next(true)
+                    end
+
+                    child_removal =
+                        task.enum_for(:each_child_vertex, merge_graph).find_all do |child|
+                            cycles.include?(child)
+                        end
+                    if !child_removal.empty?
+                        child_removal.each do |removed_child|
+                            Engine.debug do
+                                "    #{task} => #{removed_child}"
+                            end
+                            merge_graph.unlink(task, removed_child)
+                            next(true)
+                        end
+                    end
+
+                    false
+                end
+            end
+
+
+
+            def display_merge_graph(title, merge_graph)
+                Engine.debug "  -- #{title} (a => b merges 'a' into 'b') "
+                Engine.debug do
+                    merge_graph.each_vertex do |vertex|
+                        vertex.each_child_vertex(merge_graph) do |child|
+                            Engine.debug "    #{child} => #{vertex}"
+                        end
+                    end
+                    break
+                end
+            end
+
             # Apply merges computed by filter_direct_merge_mappings
             #
             # It actually takes the tasks and calls #merge according to the
@@ -1394,8 +1451,23 @@ module Orocos
                 merges = Hash.new
                 merges_size = nil
 
-                one_parent, ambiguous = merge_prepare(merge_graph)
-                apply_simple_merges(one_parent, merges, merge_graph)
+                while true
+                    one_parent, ambiguous, cycles = merge_prepare(merge_graph)
+                    if one_parent.empty?
+                        break if cycles.empty?
+
+                        Engine.debug "  -- Breaking simple cycles (a => b removes the merge of 'a' into 'b') "
+                        break_simple_cycles(merge_graph, cycles)
+                        next
+                    end
+
+                    Engine.debug "  -- Applying simple merges (a => b merges 'a' into 'b') "
+                    apply_simple_merges(one_parent, merges, merge_graph)
+                    break if cycles.empty?
+                end
+
+                
+                display_merge_graph("Merge graph after first pass", merge_graph)
 
                 Engine.debug "  -- Applying complex merges (a => b merges 'a' into 'b') "
                 while merges.size != merges_size && !ambiguous.empty?
