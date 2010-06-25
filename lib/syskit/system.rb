@@ -1260,6 +1260,9 @@ module Orocos
                 modified_task_children = []
                 task_children.each do |child|
                     if !task.can_merge?(child)
+                        Engine.debug do
+                            "      #{child} => #{task} is not a valid merge anymore, updating merge graph"
+                        end
                         graph.unlink(task, child)
                         modified_task_children << child
                     end
@@ -1306,6 +1309,9 @@ module Orocos
                         if target_task.child_vertex?(parent, merge_graph)
                             order = merge_sort_order(parent, target_task)
                             if order == 1
+                                Engine.debug do
+                                    "     picking up #{parent} => #{target_task} for local cycle"
+                                end
                                 merge_graph.unlink(parent, target_task)
                                 parent_count -= 1
                                 next
@@ -1391,6 +1397,7 @@ module Orocos
                 one_parent, ambiguous = merge_prepare(merge_graph)
                 apply_simple_merges(one_parent, merges, merge_graph)
 
+                Engine.debug "  -- Applying complex merges (a => b merges 'a' into 'b') "
                 while merges.size != merges_size && !ambiguous.empty?
                     merges_size = merges.size
 
@@ -1515,7 +1522,6 @@ module Orocos
                     while !candidates.empty?
                         Engine.debug "  -- Raw merge candidates (a => b merges 'a' into 'b')"
                         merges = direct_merge_mappings(candidates)
-                        Engine.debug "  -- Applying merges (a => b merges 'a' into 'b') "
                         candidates = apply_merge_mappings(merges)
                         merged_tasks.merge(candidates)
 
