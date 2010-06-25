@@ -1,4 +1,15 @@
 require 'tempfile'
+class Object
+    def dot_id
+        id = object_id
+        if id < 0
+            0xFFFFFFFFFFFFFFFF + id
+        else
+            id
+        end
+    end
+end
+
 module Orocos
     module RobyPlugin
         # Used by the to_dot* methods for color allocation
@@ -618,7 +629,7 @@ module Orocos
                     all_tasks << task
                     task.each_child do |child_task, _|
                         all_tasks << child_task
-                        result << "  #{task.object_id} -> #{child_task.object_id};"
+                        result << "  #{task.dot_id} -> #{child_task.dot_id};"
                     end
                 end
 
@@ -626,7 +637,7 @@ module Orocos
                     all_tasks << task
                     task.each_executed_task do |component|
                         all_tasks << component
-                        result << "  #{component.object_id} -> #{task.object_id} [color=\"blue\"];"
+                        result << "  #{component.dot_id} -> #{task.dot_id} [color=\"blue\"];"
                     end
                 end
 
@@ -636,7 +647,7 @@ module Orocos
                         gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n').
                         gsub(/Orocos::RobyPlugin::/, '').
                         gsub(/:0x[\da-z]+/, '')
-                    result << "  #{task.object_id} [label=\"#{task_label}\"];"
+                    result << "  #{task.dot_id} [label=\"#{task_label}\"];"
                 end
 
                 result << "};"
@@ -675,7 +686,7 @@ module Orocos
                                        else policy.to_s
                                        end
 
-                            result << "  #{source_task.object_id}:#{source_port} -> #{sink_task.object_id}:#{sink_port} [label=\"#{policy_s}\"];"
+                            result << "  #{source_task.dot_id}:#{source_port} -> #{sink_task.dot_id}:#{sink_port} [label=\"#{policy_s}\"];"
                         end
                     end
 
@@ -686,7 +697,7 @@ module Orocos
                                 output_ports[source_task] << source_port
                                 input_ports[sink_task]    << sink_port
 
-                                result << "  #{source_task.object_id}:#{source_port} -> #{sink_task.object_id}:#{sink_port} [style=dashed];"
+                                result << "  #{source_task.dot_id}:#{source_port} -> #{sink_task.dot_id}:#{sink_port} [style=dashed];"
                             end
                         end
                     end
@@ -710,7 +721,7 @@ module Orocos
 
                 clusters.each do |deployment, task_contexts|
                     if deployment
-                        result << "  subgraph cluster_#{deployment.object_id} {"
+                        result << "  subgraph cluster_#{deployment.dot_id} {"
                         result << "    #{dot_task_attributes(deployment, Array.new, Array.new, task_colors, remove_compositions).join(";\n     ")};"
                     end
 
@@ -719,7 +730,7 @@ module Orocos
                             raise "#{task} #{deployment} #{task_contexts.inspect}"
                         end
                         attributes = dot_task_attributes(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort, task_colors, remove_compositions)
-                        result << "    #{task.object_id} [#{attributes.join(",")}];"
+                        result << "    #{task.dot_id} [#{attributes.join(",")}];"
                     end
 
                     if deployment
@@ -751,7 +762,7 @@ module Orocos
                 if !task_flags.empty?
                     task_label << "[#{task_flags.join(",")}]"
                 end
-                task_label = "<B>#{task_label}</B>"
+                task_label = "#{task_label}"
                 if sublabel
                     task_label << sublabel
                 end
