@@ -1265,7 +1265,7 @@ module Orocos
                     plan.replace_task(target_task, task)
                 end
                 plan.remove_object(target_task)
-                graph.replace_vertex(task, target_task)
+                graph.replace_vertex(target_task, task)
                 graph.remove(target_task)
                 all_merges[target_task] = task
 
