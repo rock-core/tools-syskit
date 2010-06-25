@@ -1327,9 +1327,7 @@ module Orocos
                                 next
                             end
 
-                            if order == -1
-                                merge_graph.unlink(target_task, parent)
-                            end
+                            merge_graph.unlink(target_task, parent)
                         end
 
                         if merge_graph.reachable?(target_task, parent)
