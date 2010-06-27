@@ -826,7 +826,7 @@ module Orocos
                 if respond_to?(:configure)
                     configure
                 end
-                if state == :PRE_OPERATIONAL
+                if !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
                     orogen_task.configure
                 end
                 TaskContext.configured[orocos_name] = true
@@ -845,7 +845,7 @@ module Orocos
                         state = read_current_state
                         if !state
                             return false
-                        elsif state == :PRE_OPERATIONAL
+                        elsif !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
                             return false
                         end
                     end
