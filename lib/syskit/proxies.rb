@@ -600,36 +600,45 @@ module Orocos
                 end
             end
 
-            attr_reader :minimal_period
+            # The PortDynamics object that describes the dynamics of the task
+            # itself
+            attr_reader :task_dynamics
 
             # Predicate which returns true if the deployed component is
             # triggered by data on the given port. +port+ is an
             # Orocos::Generation::InputPort instance
             def self.triggered_by?(port)
-                orogen_spec.event_ports.find { |p| p.name == port.name }
+                if port.respond_to?(:to_str)
+                    orogen_spec.event_ports.find { |p| p.name == port.to_str }
+                else
+                    orogen_spec.event_ports.find { |p| p.name == port.name }
+                end
+
             end
 
+            def minimal_period
+                task_dynamics.minimal_period
+            end
+
+            # Maximum time between the task gets triggered and the time it is
+            # actually triggered
             def trigger_latency
                 orogen_spec.expected_trigger_latency
-            end
-
-            def update_minimal_period(period)
-                if !@minimal_period || @minimal_period > period
-                    @minimal_period = period
-                end
             end
 
             # Computes the minimal update period from the activity alone. If it
             # is not possible (not enough information, or port-driven task for
             # instance), return nil
             def initial_ports_dynamics
+                @task_dynamics = PortDynamics.new
+
                 result = Hash.new
                 if defined? super
                     result.merge(super)
                 end
 
                 if orogen_spec.activity_type == 'PeriodicActivity'
-                    update_minimal_period(orogen_spec.period)
+                    task_dynamics.add_trigger(orogen_spec.period, 1)
                 end
 
                 result
@@ -639,47 +648,78 @@ module Orocos
                 triggering_connections.delete_if do |from_task, from_port, to_port|
                     # The source port is computed, save the period in the input
                     # ports's model
-                    if result.has_key?(from_task) && (dynamics = result[from_task][from_port]) && dynamics.period
-                        result[self][to_port] ||= PortDynamics.new
-                        result[self][to_port].period = dynamics.period
-                        update_minimal_period(dynamics.period)
+                    if result.has_key?(from_task) && (out_dynamics = result[from_task][from_port])
+                        dynamics = (result[self][to_port] ||= PortDynamics.new)
+                        dynamics.triggers.concat(out_dynamics.triggers)
+                        if model.triggered_by?(to_port)
+                            task_dynamics.triggers.concat(out_dynamics.triggers)
+                        end
                         true
                     end
+                end
+
+                return if !triggering_connections.empty?
+
+                trigger_latency = self.trigger_latency
+                if task_dynamics
+                    task_minimal_period = self.minimal_period || 0
+                    task_sample_count   = task_dynamics.
+                        sample_count(task_minimal_period + trigger_latency)
+                else
+                    task_minimal_period = 0
+                    task_sample_count   = 0
                 end
 
                 # Propagate explicit update links, i.e. cases where the output
                 # port is only updated when a set of input ports is.
                 model.each_output do |port|
                     port_model = orogen_spec.context.port(port.name)
-                    next if port_model.triggered_on_update?
 
-                    periods = port_model.port_triggers.map do |trigger_port|
-                        result[self][trigger_port.name]
-                    end.compact.map(&:period).compact
-                    if periods.size == port_model.port_triggers.size
-                        result[self][port.name] ||= PortDynamics.new
-                        result[self][port.name].period = periods.min * port.period
+                    next if port_model.port_triggers.empty?
+                    # Ignore if we don't have the necessary information for the
+                    # ports that trigger this one
+                    next if port_model.port_triggers.any? { |p| !result[self][p] }
+
+                    dynamics = (result[self][port.name] ||= PortDynamics.new(port.sample_size))
+
+                    # Compute how many samples we will have queued during
+                    # +trigger_latency+
+                    port_model.port_triggers.map do |trigger_port_name|
+                        trigger_port_dynamics = result[self][trigger_port_name]
+                        period       = trigger_port_dynamics.minimal_period
+
+                        duration =
+                            if model.triggered_by?(trigger_port_name)
+                                period + trigger_latency
+                            else
+                                task_minimal_period + trigger_latency
+                            end
+
+                        sample_count = trigger_port_dynamics.
+                            sample_count(duration)
+
+                        dynamics.add_trigger(period * port.period,
+                                 sample_count)
                     end
+                    dynamics.add_trigger(
+                        port.burst_period * dynamics.minimal_period,
+                        port.burst_size)
                 end
 
-                if minimal_period && triggering_connections.empty?
+
+                if task_minimal_period != 0
                     model.each_output do |port|
-                        port_model = orogen_spec.context.port(port.name)
-                        if port_model.triggered_on_update?
-                            result[self][port.name] ||= PortDynamics.new
-                            result[self][port.name].period = minimal_period * port.period
-                        end
-                    end
+                        port_model = model.port(port.name)
+                        next if !port_model.triggered_on_update?
 
-                    true
-                else
-                    Engine.info do
-                        remaining = orogen_spec.context.each_port.map(&:name).to_set
-                        remaining -= result[self].keys.to_set
-                        "cannot find period information for " + remaining.to_a.join(", ")
+                        dynamics = (result[self][port.name] ||= PortDynamics.new(port.sample_size))
+                        dynamics.add_trigger(
+                            task_minimal_period * port.period,
+                            task_sample_count)
                     end
-                    false
                 end
+
+                true
             end
 
             def input_port(name)

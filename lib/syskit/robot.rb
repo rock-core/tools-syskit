@@ -64,6 +64,8 @@ module Orocos
                 if service.config_type
                     @configuration = service.config_type.new
                 end
+
+                burst   0
                 @properties  = Hash.new
             end
 
@@ -143,6 +145,8 @@ module Orocos
                     values.first
                 end
             end
+
+            dsl_attribute(:burst)   { |v| Integer(v) }
         end
 
         # A SlaveDeviceInstance represents slave devices, i.e. data services

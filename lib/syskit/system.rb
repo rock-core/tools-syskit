@@ -15,14 +15,41 @@ module Orocos
 
         # A representation of the actual dynamics of a port
         class PortDynamics
-            # At which period the port produces data (in seconds)
-            attr_accessor :period
-            # How many samples can be expected on the port at each cycle
-            attr_accessor :sample_size
+            # The number of data samples per trigger, if the port's model value
+            # needs to be overriden
+            attr_reader :sample_size
+            # The set of registered triggers for this port, as a list of
+            # [minimal_period, burst_size, burst_period] triples, where +period+
+            # is in seconds and burst_period is in multiples of period
+            attr_reader :triggers
 
-            def initialize(period = nil, sample_size = nil)
-                @period = period
+            def initialize(sample_size = 1)
                 @sample_size = sample_size
+                @triggers = Array.new
+            end
+
+            def add_trigger(period, sample_count)
+                if sample_count != 0
+                    triggers << [period, sample_count]
+                end
+            end
+
+            def minimal_period
+                triggers.map(&:first).min
+            end
+
+            def sample_count(duration)
+                triggers.map do |period, sample_count|
+                    if period == 0
+                        sample_count
+                    else
+                        sample_count + (duration/period).floor * sample_count
+                    end
+                end.inject(&:+)
+            end
+
+            def queue_size(duration)
+                sample_count(duration) * sample_size
             end
         end
 
@@ -1800,10 +1827,19 @@ module Orocos
                 triggering_dependencies = Hash.new { |h, k| h[k] = ValueSet.new }
                 deployed_tasks.each do |task|
                     result[task] = task.initial_ports_dynamics
-                    task.orogen_spec.context.event_ports.each do |port_name|
-                        task.each_concrete_input_connection(port_name) do |from_task, from_port, to_port, _|
+                    task.orogen_spec.context.event_ports.each do |port|
+                        task.each_concrete_input_connection(port.name) do |from_task, from_port, to_port, _|
                             triggering_connections[task] << [from_task, from_port, to_port]
                             triggering_dependencies[task] << from_task
+                        end
+                    end
+                    task.orogen_spec.context.each_output_port do |port|
+                        port.port_triggers.each do |port_trigger_name|
+                            next if task.model.triggered_by?(port_trigger_name)
+                            task.each_concrete_input_connection(port_trigger_name) do |from_task, from_port, to_port, _|
+                                triggering_connections[task] << [from_task, from_port, to_port]
+                                triggering_dependencies[task] << from_task
+                            end
                         end
                     end
                 end
@@ -1840,6 +1876,29 @@ module Orocos
                         end
                         break
                     end
+                end
+
+                Engine.debug do
+                    result.each do |task, ports|
+                        Engine.debug "#{task.name}:"
+                        if dyn = task.task_dynamics
+                            Engine.debug "  period:#{dyn.minimal_period}"
+                            dyn.triggers.each do |period, size|
+                                Engine.debug "  trigger: #{period}:#{size}"
+                            end
+                        end
+                        ports.each do |port_name, dyn|
+                            port_model = task.model.port(port_name)
+                            next if !port_model.kind_of?(Orocos::Generation::OutputPort)
+
+                            Engine.debug "  #{port_name}"
+                            Engine.debug "    period:#{dyn.minimal_period}"
+                            dyn.triggers.each do |period, size|
+                                Engine.debug "    trigger: #{period}:#{size}"
+                            end
+                        end
+                    end
+                    break
                 end
 
                 result
@@ -1889,35 +1948,25 @@ module Orocos
 
                         # Compute the buffer size
                         input_dynamics = port_periods[source_task][source_port.name]
-                        if !input_dynamics || !input_dynamics.period
+                        if !input_dynamics
                             raise SpecError, "period information for port #{source_task}:#{source_port.name} cannot be computed"
                         end
 
                         reading_latency = if sink_task.model.triggered_by?(sink_port)
                                               sink_task.trigger_latency
                                           else
-                                              [sink_task.minimal_period, sink_task.trigger_latency].max
+                                              sink_task.minimal_period + sink_task.trigger_latency
                                           end
 
-                        Engine.debug { "     input_period:#{input_dynamics.period} => reading_latency:#{reading_latency}" }
                         policy[:type] = :buffer
-
-                        latency_cycles = (reading_latency / input_dynamics.period).ceil
-
-                        size = latency_cycles * (input_dynamics.sample_size || source_port.sample_size)
-                        if burst_size = source_port.burst_size
-                            burst_period = source_port.burst_period
-                            Engine.debug { "     burst: #{burst_size} every #{burst_period}" }
-                            if burst_period == 0
-                                size = [1 + burst_size, size].max
-                            else
-                                size += (Float(latency_cycles) / burst_period).ceil * burst_size
+                        policy[:size] = input_dynamics.queue_size(reading_latency)
+                        Engine.debug do
+                            Engine.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"
+                            input_dynamics.triggers.each do |period, size|
+                                Engine.debug "     trigger: #{period}:#{size}"
                             end
+                            break
                         end
-
-                        Engine.debug { "     latency:#{latency_cycles} cycles, sample_size:#{input_dynamics.sample_size}, buffer_size:#{size}" }
-
-                        policy[:size] = size
                         policy.merge! Port.validate_policy(policy)
                         Engine.debug { "     result: #{policy}" }
                     end
