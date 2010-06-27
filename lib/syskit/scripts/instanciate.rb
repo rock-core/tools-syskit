@@ -53,9 +53,12 @@ additional_services = remaining.dup
 
 Roby.filter_backtrace do
     begin
+        tic = Time.now
         Roby.app.setup
         Roby.app.using_plugins 'orocos'
         Roby.app.filter_backtraces = !debug
+        toc = Time.now
+        STDERR.puts "loaded Roby application in %.3f seconds" % [toc - tic]
         if debug
             Orocos::RobyPlugin::Engine.logger = Logger.new(STDOUT)
             Orocos::RobyPlugin::Engine.logger.formatter = Roby.logger.formatter
