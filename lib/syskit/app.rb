@@ -169,13 +169,14 @@ module Orocos
 
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
-            def loaded_orogen_project?(name); loaded_orogen_projects.include?(name) end
+            def loaded_orogen_project?(name); loaded_orogen_projects.has_key?(name) end
             # Load the given orogen project and defines the associated task
             # models. It also loads the projects this one depends on.
             def load_orogen_project(name, orogen = nil)
-                return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
                 orogen ||= main_orogen_project.load_orogen_project(name)
+
+                return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
                 # If it is a task library, register it on our main project
                 if !orogen.self_tasks.empty?
