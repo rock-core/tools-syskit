@@ -141,6 +141,12 @@ module Orocos
                 emit :start
             end
 
+            def log_dir
+                host = self.arguments['on'] ||= 'localhost'
+                process_server, log_dir = Orocos::RobyPlugin.process_servers[host]
+                log_dir
+            end
+
             # The name of the machine this deployment is running on, i.e. the
             # name given to the :on argument.
             def machine
@@ -207,14 +213,25 @@ module Orocos
                     next if ready?
 
                     if orogen_deployment.wait_running(0)
-                        Orocos::Process.log_all_ports(orogen_deployment,
-                                    :log_dir => Roby.app.log_dir,
-                                    :remote => (machine != 'localhost'))
-
                         @task_handles = Hash.new
                         orogen_spec.task_activities.each do |activity|
                             task_handles[activity.name] = 
                                 ::Orocos::TaskContext.get(activity.name)
+                        end
+
+                        if State.orocos.deployment_excluded_from_log?(self)
+                            Robot.info "not logging any port in deployment #{name}"
+                        else
+                            Orocos::Process.log_all_ports(orogen_deployment,
+                                        :log_dir => log_dir,
+                                        :remote => (machine != 'localhost')) do |port|
+
+                                result = !State.orocos.port_excluded_from_log?(self, Roby.app.orocos_tasks[port.task.model.name], port)
+                                if !result
+                                    Robot.info "not logging #{port.task.name}:#{port.name}"
+                                end
+                                result
+                            end
                         end
 
                         each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
