@@ -948,9 +948,9 @@ module Orocos
                         model = Orocos::RobyPlugin::DataSources.const_get model.to_str.camelcase(true)
                     rescue NameError
                         device_arguments, arguments = Kernel.filter_options arguments,
-                            :provides => nil
+                            :provides => nil, :interface => nil
 
-                        if !device_arguments[:provides]
+                        if !device_arguments[:provides] && !device_arguments[:interface]
                             # Look for an existing data source that match the name.
                             # If there is none, we will assume that +self+ describes
                             # the interface of +model+
