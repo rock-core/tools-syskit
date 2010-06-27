@@ -477,6 +477,14 @@ module Orocos
                     Roby.engine.remove_propagation_handler(handler_id)
                 end
 
+                stop_process_servers
+            end
+
+            def stop_process_servers
+                Application.stop_process_servers
+            end
+            
+            def self.stop_process_servers
                 # Stop the local process server if we started it ourselves
                 stop_local_process_server
                 Orocos::RobyPlugin.process_servers.each_value do |client, options|
