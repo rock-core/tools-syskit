@@ -210,6 +210,13 @@ module Orocos
                     end
                 end
 
+
+                # Finally, import in Orocos directly
+                const_name = name.camelcase(true)
+                if !orogen.self_tasks.empty?
+                    Orocos.const_set(const_name, Orocos::RobyPlugin.const_get(const_name))
+                end
+
                 orogen
             end
 
@@ -285,33 +292,6 @@ module Orocos
                         app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', category).to_a
                     all_files.each do |path|
                         app.load_system_model(path)
-                    end
-                end
-
-                project_names = app.loaded_orogen_projects.keys
-                task_models = (app.list_dir(APP_DIR, "tasks", 'components').to_a +
-                    app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'components').to_a)
-                task_models.each do |path|
-                    if project_names.include?(File.basename(path, ".rb"))
-                        load_task_extension(path, app)
-                    end
-                end
-
-                Orocos.const_set(:RTT, Orocos::RobyPlugin::RTT)
-                projects = Set.new
-                app.orocos_tasks.each_value do |model|
-                    if model.orogen_spec
-                        projects << model.orogen_spec.component.name.camelcase(true)
-                    end
-                end
-
-                # Import the task context definitions in Orocos:: directly
-                projects.each do |name|
-                    name = name.camelcase(true)
-
-                    # The RTT is already handled above
-                    if name !~ /RTT/
-                        Orocos.const_set(name, Orocos::RobyPlugin.const_get(name))
                     end
                 end
 
