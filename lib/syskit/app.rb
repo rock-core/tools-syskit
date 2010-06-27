@@ -307,6 +307,11 @@ module Orocos
                         end
                     end
                 end
+
+                # Finally, we load the configuration file ourselves
+                if file = app.robotfile(APP_DIR, 'config', "ROBOT.rb")
+                    app.load_system_model file
+                end
             end
 
             def use_deployments_from(*args)
