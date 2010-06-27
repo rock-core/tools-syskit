@@ -311,7 +311,7 @@ module Orocos
                     raise ArgumentError, "there is no system model file called #{file}"
                 end
 
-                orocos_system_model.load(file)
+                orocos_system_model.load(path)
             end
 
             # Load a part of the system definition, i.e. the robot description
