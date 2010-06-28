@@ -1275,6 +1275,10 @@ module Orocos
             end
 
             def do_merge(task, target_task, all_merges, graph)
+                if task == target_task
+                    raise "trying to merge a task onto itself: #{task}"
+                end
+
                 Engine.debug { "    #{target_task} => #{task}" }
                 if task.respond_to?(:merge)
                     task.merge(target_task)
