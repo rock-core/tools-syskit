@@ -516,7 +516,7 @@ module Orocos
 
                 client = Orocos::ProcessClient.new(host, port)
                 client.save_log_dir(options[:log_dir] || 'log', options[:result_dir] || 'results')
-                client.create_log_dir(options[:log_dir] || 'log', Roby.app.log_read_time_tag)
+                client.create_log_dir(options[:log_dir] || 'log', Roby.app.time_tag)
                 Application.register_process_server(name, client, options[:log_dir] || 'log')
             end
 
