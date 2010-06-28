@@ -8,6 +8,87 @@ module Orocos
             end
         end
 
+        # Orocos engine configuration interface
+        #
+        # The main instance of this object can be accessed as State.orocos. For
+        # instance,
+        #
+        #   State.orocos.disable_logging
+        #
+        # will completely disable logging (not recommended !)
+        class Configuration
+            def initialize
+                @log_enabled = true
+
+                @excluded_deployments = Set.new
+                @excluded_tasks = Set.new
+                @excluded_ports = Set.new
+                @excluded_names = Set.new
+            end
+
+            attr_reader :excluded_deployments
+            attr_reader :excluded_tasks
+            attr_reader :excluded_ports
+            attr_reader :excluded_names
+
+            # Exclude +object+ from the logging system
+            #
+            # +object+ can be
+            # * a deployment model, in which case no task  in this deployment
+            #   will be logged
+            # * a task model, in which case no port of any task of this type
+            #   will be logged
+            # * a port model, in which case no such port will be logged
+            #   (regardless of which task it is on)
+            # * a string. It can then either be a task name, a port name or a type
+            #   name
+            def exclude_from_log(object)
+                if object.kind_of?(Class) && object < RobyPlugin::TaskContext
+                    excluded_tasks << object
+                elsif object.kind_of?(Class) && object < RobyPlugin::Deployments
+                    excluded_deployments << object
+                elsif object.respond_to?(Orocos::Generation::OutputPort)
+                    excluded_ports << object
+                else
+                    excluded_names << object.to_str
+                end
+            end
+
+            attr_predicate :log_enabled?
+
+            def enable_logging; @log_enabled = true end
+            def disable_logging; @log_enabled = false end
+
+            def deployment_excluded_from_log?(deployment)
+                if !log_enabled?
+                    true
+                elsif excluded_deployments.include?(deployment.model)
+                    true
+                elsif excluded_names.include?(deployment.name)
+                    true
+                else
+                    false
+                end
+            end
+
+            def port_excluded_from_log?(deployment, task_model, port)
+                if !log_enabled?
+                    true
+                elsif excluded_ports.include?(port.model)
+                    true
+                elsif excluded_tasks.include?(task_model)
+                    true
+                elsif excluded_deployments.include?(deployment.model)
+                    true
+                else
+                    excluded_names.include?(port.type_name) ||
+                        excluded_names.include?(port.task.name) ||
+                        excluded_names.include?(port.name) ||
+                        excluded_names.include?("#{port.task.name}.#{port.name}")
+                end
+            end
+        end
+
         # This gets mixed in Roby::Application when the orocos plugin is loaded.
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
@@ -88,13 +169,14 @@ module Orocos
 
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
-            def loaded_orogen_project?(name); loaded_orogen_projects.include?(name) end
+            def loaded_orogen_project?(name); loaded_orogen_projects.has_key?(name) end
             # Load the given orogen project and defines the associated task
             # models. It also loads the projects this one depends on.
             def load_orogen_project(name, orogen = nil)
-                return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
                 orogen ||= main_orogen_project.load_orogen_project(name)
+
+                return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
                 # If it is a task library, register it on our main project
                 if !orogen.self_tasks.empty?
@@ -128,6 +210,13 @@ module Orocos
                     end
                 end
 
+
+                # Finally, import in Orocos directly
+                const_name = name.camelcase(true)
+                if !orogen.self_tasks.empty?
+                    Orocos.const_set(const_name, Orocos::RobyPlugin.const_get(const_name))
+                end
+
                 orogen
             end
 
@@ -157,6 +246,8 @@ module Orocos
                         Roby.app.orocos_engine
                     end
                 end
+
+                State.orocos = Configuration.new
 
                 Orocos.master_project.extend(MasterProjectHook)
                 app.orocos_auto_configure = true
@@ -204,33 +295,6 @@ module Orocos
                     end
                 end
 
-                project_names = app.loaded_orogen_projects.keys
-                task_models = (app.list_dir(APP_DIR, "tasks", 'components').to_a +
-                    app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', 'components').to_a)
-                task_models.each do |path|
-                    if project_names.include?(File.basename(path, ".rb"))
-                        load_task_extension(path, app)
-                    end
-                end
-
-                Orocos.const_set(:RTT, Orocos::RobyPlugin::RTT)
-                projects = Set.new
-                app.orocos_tasks.each_value do |model|
-                    if model.orogen_spec
-                        projects << model.orogen_spec.component.name.camelcase(true)
-                    end
-                end
-
-                # Import the task context definitions in Orocos:: directly
-                projects.each do |name|
-                    name = name.camelcase(true)
-
-                    # The RTT is already handled above
-                    if name !~ /RTT/
-                        Orocos.const_set(name, Orocos::RobyPlugin.const_get(name))
-                    end
-                end
-
                 # Define planning methods on the main planner for the available
                 # deployment files
                 app.list_dir(APP_DIR, 'config', 'deployments') do |path|
@@ -242,6 +306,11 @@ module Orocos
                             engine.load(path)
                         end
                     end
+                end
+
+                # Finally, we load the configuration file ourselves
+                if file = app.robotfile(APP_DIR, 'config', "ROBOT.rb")
+                    app.load_system_model file
                 end
             end
 
@@ -311,7 +380,7 @@ module Orocos
                     raise ArgumentError, "there is no system model file called #{file}"
                 end
 
-                orocos_system_model.load(file)
+                orocos_system_model.load(path)
             end
 
             # Load a part of the system definition, i.e. the robot description
@@ -477,6 +546,14 @@ module Orocos
                     Roby.engine.remove_propagation_handler(handler_id)
                 end
 
+                stop_process_servers
+            end
+
+            def stop_process_servers
+                Application.stop_process_servers
+            end
+            
+            def self.stop_process_servers
                 # Stop the local process server if we started it ourselves
                 stop_local_process_server
                 Orocos::RobyPlugin.process_servers.each_value do |client, options|

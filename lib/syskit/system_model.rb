@@ -210,9 +210,11 @@ module Orocos
 
                     interfaces = parents.find_all { |p| p.interface }
                     child_spec = source_model.create_orogen_interface
+                    if options[:interface]
+                        child_spec.subclasses options[:interface].orogen_spec.name
+                    end
+
                     if !interfaces.empty?
-                        first_interface = interfaces.shift
-                        child_spec.subclasses first_interface.interface.name
                         interfaces.each do |p|
                             child_spec.implements p.interface.name
                             child_spec.merge_ports_from(p.interface)

@@ -52,32 +52,38 @@ deployment_file     = remaining.shift
 additional_services = remaining.dup
 
 Roby.filter_backtrace do
-    Roby.app.setup
-    Roby.app.using_plugins 'orocos'
-    Roby.app.filter_backtraces = !debug
-    if debug
-        Orocos::RobyPlugin::Engine.logger = Logger.new(STDOUT)
-        Orocos::RobyPlugin::Engine.logger.formatter = Roby.logger.formatter
-        Orocos::RobyPlugin::Engine.logger.level = Logger::DEBUG
+    begin
+        tic = Time.now
+        Roby.app.setup
+        Roby.app.using_plugins 'orocos'
+        Roby.app.filter_backtraces = !debug
+        toc = Time.now
+        STDERR.puts "loaded Roby application in %.3f seconds" % [toc - tic]
+        if debug
+            Orocos::RobyPlugin::Engine.logger = Logger.new(STDOUT)
+            Orocos::RobyPlugin::Engine.logger.formatter = Roby.logger.formatter
+            Orocos::RobyPlugin::Engine.logger.level = Logger::DEBUG
+        end
+
+        Dir.chdir(APP_DIR)
+        Roby.app.setup_global_singletons
+        Roby.app.setup_drb_server
+
+        GC.start
+        
+        tic = Time.now
+        Roby.app.load_orocos_deployment(deployment_file)
+        additional_services.each do |service_name|
+            Roby.app.orocos_engine.add service_name
+        end
+        toc = Time.now
+        STDERR.puts "loaded deployment in %.3f seconds" % [toc - tic]
+
+        Roby.app.orocos_engine.resolve(:compute_policies => compute_policies, :compute_deployments => compute_deployments)
+        toc = Time.now
+        STDERR.puts "computed deployment in %.3f seconds" % [toc - tic]
+    ensure Roby.app.stop_process_servers
     end
-
-    Dir.chdir(APP_DIR)
-    Roby.app.setup_global_singletons
-    Roby.app.setup_drb_server
-
-    GC.start
-    
-    tic = Time.now
-    Roby.app.load_orocos_deployment(deployment_file)
-    additional_services.each do |service_name|
-        Roby.app.orocos_engine.add service_name
-    end
-    toc = Time.now
-    STDERR.puts "loaded deployment in %.3f seconds" % [toc - tic]
-
-    Roby.app.orocos_engine.resolve(:compute_policies => compute_policies, :compute_deployments => compute_deployments)
-    toc = Time.now
-    STDERR.puts "computed deployment in %.3f seconds" % [toc - tic]
 end
 
 # Generate a default name if the output file name has not been given

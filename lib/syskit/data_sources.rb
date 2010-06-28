@@ -562,18 +562,22 @@ module Orocos
                 end
 
                 triggering_devices.each do |device_instance|
-                    period = device_instance.period
-                    next if !period
-
-                    update_minimal_period(period)
-
                     service = device_instance.service
                     service.port_mappings.each do |service_port_name, port_name|
                         port = model.port(port_name)
+                        # We don't care about input ports
                         next if !port.kind_of?(Orocos::Generation::OutputPort)
+                        # We don't care about ports that aren't triggered by
+                        # thsi device
+                        next if !port.port_triggers.empty?
 
-                        result[port_name] ||= PortDynamics.new(nil, 1)
-                        result[port_name].period = [result[port_name].period, period * port.period].compact.min
+                        if device_instance.period
+                            dynamics = (result[port_name] ||= PortDynamics.new(port.sample_size))
+                            dynamics.add_trigger(device_instance.period, 1)
+                            dynamics.add_trigger(
+                                device_instance.period * device_instance.burst,
+                                device_instance.burst)
+                        end
                     end
                 end
 
@@ -624,6 +628,11 @@ module Orocos
                 model
             end
 
+            # Finds out what output port serves what devices by looking at what
+            # tasks it is connected.
+            #
+            # Indeed, for communication busses, the device model is determined
+            # by the sink port of output connections.
             def each_connected_device(&block)
                 if !block_given?
                     return enum_for(:each_connected_device)
@@ -646,8 +655,12 @@ module Orocos
                 end
 
                 each_connected_device do |port, devices|
-                    result[port] = PortDynamics.new(devices.map(&:period).compact.min,
-                                                    devices.map(&:sample_size).compact.inject(&:+))
+                    dynamics = PortDynamics.new(devices.map(&:sample_size).inject(&:+))
+                    devices.each do |dev|
+                        dynamics.add_trigger(dev.period, 1)
+                        dynamics.add_trigger(dev.period * dev.burst, dev.burst)
+                    end
+                    result[port] = dynamics
                 end
 
                 result
