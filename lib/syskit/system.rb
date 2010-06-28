@@ -192,6 +192,12 @@ module Orocos
             # True if the requirements changed since the last call to #resolve
             attr_predicate :modified
 
+            # Force marking the specification as modified, triggering a system
+            # update
+            def modified!
+                @modified = true
+            end
+
             def initialize(plan, model)
                 @plan      = plan
                 @model     = model
