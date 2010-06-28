@@ -219,8 +219,8 @@ module Orocos
                                 ::Orocos::TaskContext.get(activity.name)
                         end
 
-                        if State.orocos.deployment_excluded_from_log?(self)
-                            Robot.info "not logging any port in deployment #{name}"
+                        if !arguments[:log] || State.orocos.deployment_excluded_from_log?(self)
+                            Robot.info "not automatically logging any port in deployment #{name}"
                         else
                             Orocos::Process.log_all_ports(orogen_deployment,
                                         :log_dir => log_dir,
