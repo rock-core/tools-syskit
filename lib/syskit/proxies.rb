@@ -43,6 +43,12 @@ module Orocos
         class Deployment < ::Roby::Task
             attr_accessor :robot
 
+            def initialize(arguments = Hash.new)
+	    	opts, task_arguments = Kernel.filter_options  arguments, :log => true
+		task_arguments[:log] = opts[:log]
+                super(task_arguments)
+	    end
+
             class << self
                 # The Orocos::Generation::StaticDeployment that represents this
                 # deployment.
