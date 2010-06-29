@@ -49,6 +49,9 @@ module Orocos
 		if base_config
 		    @configuration = base_config.dup
 		end
+		if !@configuration && service.config_type
+		    @configuration = service.config_type.new
+		end
                 yield(@configuration)
             end
 
@@ -61,9 +64,6 @@ module Orocos
                 @period      = options[:period]
                 @sample_size = options[:sample_size]
                 @device_id   = options[:device_id]
-                if service.config_type
-                    @configuration = service.config_type.new
-                end
 
                 burst   0
                 @properties  = Hash.new
