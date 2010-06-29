@@ -912,7 +912,11 @@ module Orocos
                 if orogen_task.fatal_error_state?(orogen_state)
                     @stopping_because_of_error = true
                     @stopping_origin = orogen_state
-                    orogen_task.reset_error
+		    begin
+		        orogen_task.reset_error
+		    rescue Orocos::StateTransitionFailed => e
+			Robot.warn "cannot reset error on #{name}: #{e.message}"
+		    end
                 elsif orogen_state == :RUNNING && last_orogen_state && orogen_task.error_state?(last_orogen_state)
                     emit :running
                 elsif orogen_state == :STOPPED
