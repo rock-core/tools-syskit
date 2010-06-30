@@ -121,6 +121,25 @@ module Orocos
             # Set the dry_run predicate to the given value. See dry_run?
             attr_predicate :dry_run, true
 
+	    ##
+	    # :method: disabled?
+	    #
+	    # Completely disable #resolve. This can be used to make sure that
+	    # the engine will not touch the plan
+	    #
+	    # Set with disable_updates and reset with enable_updates
+	    attr_predicate :disabled?
+
+	    # Set the disabled flag
+	    #
+	    # See #disabled?
+	    def disable_updates; @disabled = true end
+
+	    # Resets the disabled flag
+	    #
+	    # See #disabled?
+	    def enable_updates; @enabled = true end
+
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.
@@ -979,6 +998,8 @@ module Orocos
             #   current plan state if an error occurs. Set this option to false
             #   to disable this (it is costly).
             def resolve(options = Hash.new)
+	    	return if disabled?
+
                 if options == true
                     options = { :compute_policies => true }
                 end
