@@ -982,13 +982,17 @@ module Orocos
             #
             # Interrupts the execution of this task context
             event :interrupt do |context|
+	        Robot.info "interrupting #{name}"
                 begin
                     orogen_task.stop
                 rescue Orocos::CORBA::ComError
                     # We actually aborted
                     emit :aborted
                 rescue Orocos::StateTransitionFailed
-                    if state = read_current_state && !orogen_task.running?
+		    # ALL THE LOGIC BELOW must use the state returned by
+		    # read_current_state. Do NOT call other state-related
+		    # methods like #state as they will read the state port
+                    if (state = read_current_state) && (state != :RUNNING)
                         # Nothing to do, the poll block will finalize the task
                     else
                         raise
