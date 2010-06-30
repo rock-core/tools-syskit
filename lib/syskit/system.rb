@@ -2227,9 +2227,11 @@ module Orocos
                 # We do it only for the new set, as the removed connections are
                 # obviously between tasks that can be connected ;-)
                 new.each do |(source, sink), mappings|
-                    if !sink.executable?(false) || !sink.is_setup? ||
-                        !source.executable?(false) || !source.is_setup?
-                        throw :cancelled
+                    if !dry_run?
+                        if !sink.executable?(false) || !sink.is_setup? ||
+                            !source.executable?(false) || !source.is_setup?
+                            throw :cancelled
+                        end
                     end
 
                     update_restart_set(restart_tasks, source, sink, mappings.keys)
