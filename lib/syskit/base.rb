@@ -863,6 +863,8 @@ module Orocos
         Flows = Roby::RelationSpace(Component)
 
         def self.update_connection_policy(old, new)
+            old = old.dup
+            new = new.dup
             if old.empty?
                 return new
             elsif new.empty?
@@ -1035,7 +1037,7 @@ module Orocos
                     if source_task.kind_of?(Composition)
                         source_task.each_concrete_input_connection(source_port) do |source_task, source_port, _, connection_policy|
                             begin
-                                policy = RobyPlugin.update_connection_policy(policy, connection_policy)
+                                this_policy = RobyPlugin.update_connection_policy(policy, connection_policy)
                             rescue ArgumentError => e
                                 raise SpecError, "incompatible policies in input chain for #{self}:#{sink_port}: #{e.message}"
                             end
@@ -1059,11 +1061,11 @@ module Orocos
                     if sink_task.kind_of?(Composition)
                         sink_task.each_concrete_output_connection(sink_port) do |_, sink_port, sink_task, connection_policy|
                             begin
-                                policy = RobyPlugin.update_connection_policy(policy, connection_policy)
+                                this_policy = RobyPlugin.update_connection_policy(policy, connection_policy)
                             rescue ArgumentError => e
                                 raise SpecError, "incompatible policies in output chain for #{self}:#{source_port}: #{e.message}"
                             end
-                            yield(source_port, sink_port, sink_task, policy)
+                            yield(source_port, sink_port, sink_task, this_policy)
                         end
                     else
                         yield(source_port, sink_port, sink_task, policy)
