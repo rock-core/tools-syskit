@@ -593,7 +593,13 @@ module Orocos
 
             # Remove everything that is currently added to the system
             def clear
-                instances.clear
+	        instances.clear
+	    end
+
+	    def remove_all
+                instances.each do |instance|
+                    pending_removes[instance] = false
+                end
                 @modified = true
             end
 
