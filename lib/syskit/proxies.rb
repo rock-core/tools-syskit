@@ -368,7 +368,7 @@ module Orocos
                 # call.
                 #
                 # Ignore tasks whose process is terminating
-                next if t.execution_agent.finishing?
+                next if !t.execution_agent || t.execution_agent.finishing?
 
                 if !t.is_setup? && Roby.app.orocos_auto_configure?
                     t.setup 
