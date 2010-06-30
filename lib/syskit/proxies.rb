@@ -341,7 +341,7 @@ module Orocos
                 if dead_deployments = server.wait_termination(0)
                     dead_deployments.each do |p, exit_status|
                         d = Deployment.all_deployments[p]
-                        if !d.stop_event.pending?
+                        if !d.finishing?
                             Orocos::RobyPlugin.warn "#{p.name} unexpectedly died on #{name}"
                         end
                         all_dead_deployments << d
