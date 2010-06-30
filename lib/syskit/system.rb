@@ -2127,7 +2127,17 @@ module Orocos
             # +to_port+ are the names of the ports that have to be disconnected
             # (i.e. strings)
             def compute_connection_changes(tasks)
-                return if tasks.any? { |t| !t.orogen_task }
+                not_running = tasks.find_all { |t| !t.orogen_task }
+                if !not_running.empty?
+                    Engine.debug do
+                        Engine.debug "not computing connections because the deployment of the following tasks is not yet ready"
+                        tasks.each do |t|
+                            Engine.debug "  #{t}"
+                        end
+                        break
+                    end
+                    return
+                end
 
                 update_required_dataflow_graph(tasks)
                 new_edges, removed_edges, updated_edges =
