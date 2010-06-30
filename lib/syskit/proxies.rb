@@ -178,39 +178,56 @@ module Orocos
                 orogen_spec.task_activities.each do |act|
                     TaskContext.configured.delete(act.name)
                 end
-                if task_handles
-                    # task_handles is only initialized when ready is reached ...
-                    # so can be nil here
-                    all_tasks = task_handles.values.to_value_set
-                    all_tasks.each do |task|
-                        task.each_parent_vertex(ActualDataFlow) do |parent_task|
-                            mappings = parent_task[task, ActualDataFlow]
-                            mappings.each do |(source_port, sink_port), policy|
-                                if policy[:pull] # we have to disconnect explicitely
-                                    begin parent_task.port(source_port).disconnect_from(task.port(sink_port, false))
-                                    rescue Exception => e
-                                        Orocos::RobyPlugin.warn "error while disconnecting #{parent_task}:#{source_port} from #{task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
-                                    end
-                                end
-                            end
-                        end
-                        task.each_child_vertex(ActualDataFlow) do |child_task|
-                            mappings = task[child_task, ActualDataFlow]
-                            mappings.each do |(source_port, sink_port), policy|
-                                begin child_task.port(sink_port).disconnect_all
-                                rescue Exception => e
-                                    Orocos::RobyPlugin.warn "error while disconnecting #{task}:#{source_port} from #{child_task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
-                                end
-                            end
-                        end
-
-                        ActualDataFlow.remove(task)
-                        RequiredDataFlow.remove(task)
-                    end
-                end
-
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orogen_task = nil
+                end
+            end
+
+            # Removes any connection that points to tasks that were in this
+            # process, and that are therefore dead because of the process
+            # termination
+            def cleanup_dead_connections
+                return if !task_handles
+
+                # task_handles is only initialized when ready is reached ...
+                # so can be nil here
+                all_tasks = task_handles.values.to_value_set
+                all_tasks.each do |task|
+                    task.each_parent_vertex(ActualDataFlow) do |parent_task|
+                        next if parent_task.process && !parent_task.process.running?
+                        if parent_task.execution_agent && (roby_task = Deployment.all_deployments[parent_task.execution_agent])
+                            next if roby_task.finishing?
+                        end
+
+                        mappings = parent_task[task, ActualDataFlow]
+                        mappings.each do |(source_port, sink_port), policy|
+                            if policy[:pull] # we have to disconnect explicitely
+                                begin
+                                    parent_task.port(source_port).disconnect_from(task.port(sink_port, false))
+                                rescue Exception => e
+                                    Orocos::RobyPlugin.warn "error while disconnecting #{parent_task}:#{source_port} from #{task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
+                                end
+                            end
+                        end
+                    end
+                    task.each_child_vertex(ActualDataFlow) do |child_task|
+                        next if child_task.process && !child_task.process.running?
+                        if child_task.execution_agent && (roby_task = Deployment.all_deployments[child_task.execution_agent])
+                            next if roby_task.finishing?
+                        end
+
+                        mappings = task[child_task, ActualDataFlow]
+                        mappings.each do |(source_port, sink_port), policy|
+                            begin
+                                child_task.port(sink_port).disconnect_all
+                            rescue Exception => e
+                                Orocos::RobyPlugin.warn "error while disconnecting #{task}:#{source_port} from #{child_task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
+                            end
+                        end
+                    end
+
+                    ActualDataFlow.remove(task)
+                    RequiredDataFlow.remove(task)
                 end
             end
 
@@ -329,6 +346,10 @@ module Orocos
                 end
             end
 
+            for deployment in all_dead_deployments
+                deployment.cleanup_dead_connections
+            end
+
             if !(query = plan.instance_variable_get :@orocos_update_query)
                 query = plan.find_tasks(Orocos::RobyPlugin::TaskContext).
                     not_finished.not_failed
@@ -338,6 +359,13 @@ module Orocos
             query.reset
             for t in query
                 next if !t.orogen_task
+                # Some CORBA implementations (namely, omniORB) may behave weird
+                # if the remote process terminates in the middle of a remote
+                # call.
+                #
+                # Ignore tasks whose process is terminating
+                next if t.execution_agent.finishing?
+
                 if !t.is_setup? && Roby.app.orocos_auto_configure?
                     t.setup 
                 end
