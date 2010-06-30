@@ -1766,6 +1766,7 @@ module Orocos
             #
             # will return false if any of the children is not executable.
             def executable?(with_setup = false) # :nodoc:
+	    	return true if running?
                 each_child do |child_task, _|
                     if child_task.kind_of?(Component) && !child_task.executable?(with_setup)
                         return false

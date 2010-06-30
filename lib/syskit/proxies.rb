@@ -607,7 +607,9 @@ module Orocos
             end
 
             def executable?(with_setup = true) # :nodoc:
-                if !@orogen_spec || !@orogen_task
+	    	if running?
+		    return true
+                elsif !@orogen_spec || !@orogen_task
                     return false
                 end
                 if !super
