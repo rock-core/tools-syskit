@@ -542,7 +542,15 @@ module Orocos
                         raise ArgumentError, "no task called #{task} has been instanciated through Engine#add"
                     end
                 elsif task < Roby::Task || task.kind_of?(Roby::TaskModelTag)
-                    removed_instances, @instances = instances.partition { |t| t.model <= task }
+                    removed_instances, @instances = instances.partition do |t|
+                        model =
+                            if t.model.kind_of?(MasterDeviceInstance)
+                                t.model.task_model
+                            else
+                                t.model
+                            end
+                        model <= task
+                    end
                     if removed_instances.empty?
                         raise ArgumentError, "no task matching #{task} have been instanciated through Engine#add"
                     end
