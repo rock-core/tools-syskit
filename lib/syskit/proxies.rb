@@ -127,6 +127,7 @@ module Orocos
                 task.orogen_spec = activity
                 if ready?
                     task.orogen_task = task_handles[name]
+                    task.orogen_task.process = orogen_deployment
                 end
                 task
             end
@@ -194,9 +195,10 @@ module Orocos
                 all_tasks = task_handles.values.to_value_set
                 all_tasks.each do |task|
                     task.each_parent_vertex(ActualDataFlow) do |parent_task|
-                        next if parent_task.process && !parent_task.process.running?
-                        if parent_task.execution_agent && (roby_task = Deployment.all_deployments[parent_task.execution_agent])
-                            next if roby_task.finishing?
+                        if parent_task.process
+                            next if !parent_task.process.running?
+                            roby_task = Deployment.all_deployments[parent_task.process]
+                            next if roby_task.finishing? || roby_task.finished?
                         end
 
                         mappings = parent_task[task, ActualDataFlow]
@@ -211,9 +213,10 @@ module Orocos
                         end
                     end
                     task.each_child_vertex(ActualDataFlow) do |child_task|
-                        next if child_task.process && !child_task.process.running?
-                        if child_task.execution_agent && (roby_task = Deployment.all_deployments[child_task.execution_agent])
-                            next if roby_task.finishing?
+                        if child_task.process
+                            next if !child_task.process.running?
+                            roby_task = Deployment.all_deployments[child_task.process]
+                            next if roby_task.finishing? || roby_task.finished?
                         end
 
                         mappings = task[child_task, ActualDataFlow]
@@ -259,6 +262,7 @@ module Orocos
 
                         each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                             task.orogen_task = task_handles[task.orocos_name]
+                            task.orogen_task.process = orogen_deployment
                         end
 
                         emit :ready
