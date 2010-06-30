@@ -833,9 +833,6 @@ module Orocos
                 end
 
                 if @state_reader
-                    if !orogen_task.port('state').connected?
-                        raise InternalError, "the state reader has been disconnected"
-                    end
                     if v = @state_reader.read
                         @last_orogen_state = orogen_state
                         @orogen_state = v
