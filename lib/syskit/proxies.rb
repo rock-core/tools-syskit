@@ -979,7 +979,7 @@ module Orocos
                     # We actually aborted
                     emit :aborted
                 rescue Orocos::StateTransitionFailed
-                    if state = read_current_state && orogen_task.fatal_error_state?(state)
+                    if state = read_current_state && !orogen_task.running?
                         # Nothing to do, the poll block will finalize the task
                     else
                         raise
