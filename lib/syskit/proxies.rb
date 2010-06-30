@@ -1032,6 +1032,7 @@ module Orocos
             forward :fatal_error => :failed
 
             on :aborted do |event|
+	        Robot.info "#{event.task} has been aborted"
                 @orogen_task = nil
             end
 
