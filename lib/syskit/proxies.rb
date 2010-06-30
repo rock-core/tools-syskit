@@ -273,6 +273,12 @@ module Orocos
                 end
             end
 
+	    def ready_to_die!
+	    	@ready_to_die = true
+	    end
+
+	    attr_predicate :ready_to_die?
+
             ##
             # method: stop!
             #
@@ -281,6 +287,7 @@ module Orocos
             event :stop do |context|
                 to_be_killed = each_executed_task.find_all(&:running?)
                 if to_be_killed.empty?
+		    ready_to_die!
                     orogen_deployment.kill(false)
                     return
                 end
@@ -292,7 +299,10 @@ module Orocos
                     task.stop!
                     terminal << task.stop_event
                 end
-                terminal.on { |event| orogen_deployment.kill(false) }
+                terminal.on do |event|
+		    ready_to_die!
+		    orogen_deployment.kill(false)
+		end
                 # The stop event will get emitted after the process has been
                 # killed. See the polling block.
             end
@@ -368,7 +378,9 @@ module Orocos
                 # call.
                 #
                 # Ignore tasks whose process is terminating
-                next if !t.execution_agent || t.execution_agent.finishing?
+		if t.execution_agent.ready_to_die?
+		    next
+		end
 
                 if !t.is_setup? && Roby.app.orocos_auto_configure?
                     t.setup 
