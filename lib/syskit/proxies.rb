@@ -285,26 +285,8 @@ module Orocos
             # Stops all tasks that are running on top of this deployment, and
             # kill the deployment
             event :stop do |context|
-                to_be_killed = each_executed_task.find_all(&:running?)
-                if to_be_killed.empty?
-		    ready_to_die!
-                    orogen_deployment.kill(false)
-                    return
-                end
-
-                # Add an intermediate event that will fire when the intermediate
-                # tasks have been stopped
-                terminal = Roby::AndGenerator.new
-                to_be_killed.each do |task|
-                    task.stop!
-                    terminal << task.stop_event
-                end
-                terminal.on do |event|
-		    ready_to_die!
-		    orogen_deployment.kill(false)
-		end
-                # The stop event will get emitted after the process has been
-                # killed. See the polling block.
+		ready_to_die!
+                orogen_deployment.kill(false)
             end
 
             # Creates a subclass of Deployment that represents the deployment
