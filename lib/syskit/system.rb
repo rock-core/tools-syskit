@@ -1052,10 +1052,10 @@ module Orocos
                     begin
                     @plan = trsc
 
+                    deleted_tasks = ValueSet.new
                     instances.delete_if do |instance|
                         if pending_removes.has_key?(instance) && instance.task && instance.task.plan
-                            plan.unmark_mission(plan[instance.task])
-                            plan.unmark_permanent(plan[instance.task])
+                            deleted_tasks << instance.task
                             true
                         else
                             false
@@ -1068,34 +1068,30 @@ module Orocos
                     link_to_busses
                     merge_identical_tasks
 
-                    # Now import tasks that are already in the plan and merge
-                    # them. We unmark the tasks that should be replaced and run
-                    # a GC pass to disconnect them to everything that is around
-                    # them.
-                    #
-                    # NOTE: the GC pass HAS TO be done before
-                    # instanciate_required_deployments, as new deployment
-                    # instances would be removed by it
-                    all_tasks = trsc.find_tasks(Component).to_a
+                    autosave_plan_to_dot("before_deployment")
+                    used_tasks = plan.find_local_tasks(Component).
+                        to_value_set
+
+                    deleted_tasks.each do |task|
+                        task = plan[task]
+                        plan.unmark_mission(task)
+                        plan.unmark_permanent(task)
+                        plan[task].clear_relations
+                    end
+
+                    all_tasks = trsc.find_tasks(Component).to_value_set
                     all_tasks.each do |t|
                         if t.finishing? || t.finished?
                             Engine.debug { "clearing the relations of the finished task #{task}" }
-                            t.clear_relations
+                            t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
+                            t.remove_relations(Roby::TaskStructure::Dependency)
                         end
                     end
 
-                    instances.each do |instance|
-                        if replaced_task = instance.replaces
-                            replaced_task = trsc[replaced_task]
-                            trsc.unmark_mission(replaced_task)
-                            trsc.unmark_permanent(replaced_task)
-                        end
-                    end
-                    trsc.static_garbage_collect do |task|
-                        if !tasks.values.find { |t| t == task }
-                            Engine.debug { "clearing the relations of #{task}" }
-                            task.clear_relations
-                        end
+                    (all_tasks - used_tasks).each do |t|
+                        Engine.debug { "clearing the relations of #{t}" }
+                        t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
+                        t.remove_relations(Roby::TaskStructure::Dependency)
                     end
 
                     if options[:compute_deployments]
