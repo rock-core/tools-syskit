@@ -530,19 +530,19 @@ module Orocos
             #   will be removed
             def remove(task, force = false)
                 if task.kind_of?(InstanciatedComponent)
-                    removed_instances, @instances = instances.partition { |t| t == task }
+                    removed_instances = instances.find_all { |t| t == task }
                 elsif task.kind_of?(Roby::Task)
-                    removed_instances, @instances = instances.partition { |t| t.task == task }
+                    removed_instances = instances.find_all { |t| t.task == task }
                     if removed_instances.empty?
                         raise ArgumentError, "#{task} has not been added through Engine#add"
                     end
                 elsif task.respond_to?(:to_str)
-                    removed_instances, @instances = instances.partition { |t| t.name == task.to_str }
+                    removed_instances = instances.find_all { |t| t.name == task.to_str }
                     if removed_instances.empty?
                         raise ArgumentError, "no task called #{task} has been instanciated through Engine#add"
                     end
                 elsif task < Roby::Task || task.kind_of?(Roby::TaskModelTag)
-                    removed_instances, @instances = instances.partition do |t|
+                    removed_instances = instances.find_all do |t|
                         model =
                             if t.model.kind_of?(MasterDeviceInstance)
                                 t.model.task_model
