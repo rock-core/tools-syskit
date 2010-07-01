@@ -2378,8 +2378,12 @@ module Orocos
             # made available on the planner, and "modality_name!" methods are
             # available on the Roby shell
             def modality_selection(service, *names)
-                MainPlanner.modality_selection(service, *names)
+                ::MainPlanner.modality_selection(service, *names)
             end
+
+	    def planner_method(name, &block)
+	        ::MainPlanner.method(name, &block)
+	    end
         end
     end
 end

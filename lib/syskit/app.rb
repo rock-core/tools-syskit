@@ -299,8 +299,8 @@ module Orocos
                 # deployment files
                 app.list_dir(APP_DIR, 'config', 'deployments') do |path|
                     name = File.basename(path, '.rb')
-                    MainPlanner.describe "resets the current component network to the state defined in #{path}"
-                    MainPlanner.method(name) do
+                    ::MainPlanner.describe "resets the current component network to the state defined in #{path}"
+                    ::MainPlanner.method(name) do
                         RequirementModificationTask.new do |engine|
                             engine.clear
                             engine.load(path)
