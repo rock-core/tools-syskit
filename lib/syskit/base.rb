@@ -725,7 +725,7 @@ module Orocos
             end
 
             def executable?(with_setup = true)
-	    	if running?
+	    	if forced_executable?
 		    return true
                 elsif !super()
                     return false
