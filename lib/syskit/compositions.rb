@@ -1623,10 +1623,6 @@ module Orocos
                 arguments, task_arguments = Model.filter_instanciation_arguments(arguments)
                 user_selection = arguments[:selection]
 
-                # First of all, add the task for +self+
-                engine.plan.add(self_task = new(task_arguments))
-                self_task.robot = engine.robot
-
                 # Apply the selection to our children
                 selected_models = filter_selection(engine, user_selection)
 
@@ -1641,6 +1637,10 @@ module Orocos
                 elsif !candidates.empty?
                     return candidates[0].instanciate(engine, arguments)
                 end
+
+                # First of all, add the task for +self+
+                engine.plan.add(self_task = new(task_arguments))
+                self_task.robot = engine.robot
 
                 # The set of connections we must create on our children. This is
                 # self.connections on which port mappings rules have been
