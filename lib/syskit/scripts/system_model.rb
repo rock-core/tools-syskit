@@ -85,10 +85,13 @@ end
 Orocos::RobyPlugin.logger.level = Logger::INFO
 Roby.app.using "orocos"
 Roby.filter_backtrace do
-    Roby.app.using 'orocos'
-    Roby.app.setup
-    remaining.each do |project_name|
-        Roby.app.use_deployments_from(project_name)
+    begin
+        Roby.app.using 'orocos'
+        Roby.app.setup
+        remaining.each do |project_name|
+            Roby.app.use_deployments_from(project_name)
+        end
+    ensure Roby.app.stop_process_servers
     end
 end
 
