@@ -404,13 +404,14 @@ module Orocos
                             end
                         end
                         Engine.info "  removed connections:"
-                        removed.each do |(from_task, to_task), mappings|
-                            Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
-                            Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
-                            mappings.each do |from_port, to_port|
-                                Engine.info "      #{from_port}:#{to_port}"
-                            end
-                        end
+			Engine.info "  disable debug display because it is unstable in case of process crashes"
+                        #removed.each do |(from_task, to_task), mappings|
+                        #    Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
+                        #    Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
+                        #    mappings.each do |from_port, to_port|
+                        #        Engine.info "      #{from_port}:#{to_port}"
+                        #    end
+                        #end
                             
                         break
                     end
