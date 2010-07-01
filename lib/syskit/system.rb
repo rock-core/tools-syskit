@@ -1022,6 +1022,7 @@ module Orocos
                     :compute_deployments => true,
                     :garbage_collect => true,
                     :export_plan_on_error => true,
+                    :save_plans => true,
                     :forced_removes => false # internal flag
 
                 # It makes no sense to compute the policies if we are not
@@ -1142,6 +1143,11 @@ module Orocos
                                 task.executable = false
                             end
                     end
+
+                    if options[:save_plans]
+                        output_path = autosave_plan_to_dot
+                        Engine.info "saved generated plan into #{output_path}"
+                    end
                     trsc.commit_transaction
                     pending_removes.clear
                     @modified = false
@@ -1150,12 +1156,8 @@ module Orocos
                         if options[:export_plan_on_error]
                             Roby.log_pp(e, Roby, :fatal)
                             Engine.fatal "Engine#resolve failed"
-                            output_path = File.join(Roby.app.log_dir, "orocos-engine-plan-#{@dot_index}.dot")
-                            @dot_index += 1
-                            Engine.fatal "the generated plan is saved into #{output_path}"
-                            File.open(output_path, 'w') do |io|
-                                io.write to_dot
-                            end
+                            output_path = autosave_plan_to_dot
+                            Engine.fatal "the generated plan has been saved into #{output_path}"
                             Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
                         end
                         raise
@@ -1202,6 +1204,15 @@ module Orocos
 
             ensure
                 @plan = engine_plan
+            end
+
+            def autosave_plan_to_dot(suffix = nil)
+                output_path = File.join(Roby.app.log_dir, "orocos-engine-plan-#{(suffix + '-') if suffix}#{@dot_index}.dot")
+                @dot_index += 1
+                File.open(output_path, 'w') do |io|
+                    io.write to_dot
+                end
+                output_path
             end
 
             # Do abstract task allocation
