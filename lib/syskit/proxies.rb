@@ -968,9 +968,15 @@ module Orocos
             event :interrupt do |context|
 	        Robot.info "interrupting #{name}"
                 begin
-                    orogen_task.stop
+		    if !orogen_task # already killed
+		        emit :interrupt
+		        emit :aborted
+		    elsif execution_agent && !execution_agent.finishing?
+		        orogen_task.stop
+		    end
                 rescue Orocos::CORBA::ComError
                     # We actually aborted
+		    emit :interrupt
                     emit :aborted
                 rescue Orocos::StateTransitionFailed
 		    # ALL THE LOGIC BELOW must use the state returned by
