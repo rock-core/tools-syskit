@@ -547,7 +547,7 @@ module Orocos
                             end
 
                         if p.type < Typelib::CompoundType || p.type < Typelib::ArrayType
-                            attr_reader p.name
+                            attr_accessor p.name
                         else
                             define_method(p.name) do
                                 Typelib.to_ruby(instance_variable_get("@#{p.name}"))
