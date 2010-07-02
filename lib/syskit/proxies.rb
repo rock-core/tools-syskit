@@ -286,7 +286,7 @@ module Orocos
             # kill the deployment
             event :stop do |context|
 		ready_to_die!
-                orogen_deployment.kill(:wait => false, :kill_tasks => false)
+                orogen_deployment.kill(false)
             end
 
             # Creates a subclass of Deployment that represents the deployment
