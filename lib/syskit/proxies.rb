@@ -778,14 +778,22 @@ module Orocos
                 if !orogen_task
                     raise ArgumentError, "#input_port called but we have no task handler yet"
                 end
-                orogen_task.input_port(name)
+                port = orogen_task.port(name)
+		if port.kind_of?(Orocos::OutputPort)
+		    raise ArgumentError, "port #{name} is an output of #{self}"
+		end
+		port
             end
 
             def output_port(name)
                 if !orogen_task
                     raise ArgumentError, "#output_port called but we have no task handler yet"
                 end
-                orogen_task.output_port(name)
+                port = orogen_task.port(name)
+		if port.kind_of?(Orocos::InputPort)
+		    raise ArgumentError, "port #{name} is an input of #{self}"
+		end
+		port
             end
 
 
