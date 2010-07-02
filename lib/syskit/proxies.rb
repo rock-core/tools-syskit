@@ -532,6 +532,11 @@ module Orocos
                     attr_reader :property_names
 
                     task_model.orogen_spec.each_property do |p|
+		    	singleton_class.class_eval do
+			    attr_reader p.name
+			end
+			instance_variable_set "@#{p.name}", p.type
+
                         default_values[p.name] =
                             if p.default_value
                                 Typelib.from_ruby(p.default_value, p.type)
