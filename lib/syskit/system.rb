@@ -1074,7 +1074,8 @@ module Orocos
                         task = plan[task]
                         plan.unmark_mission(task)
                         plan.unmark_permanent(task)
-                        plan[task].clear_relations
+                        task.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
+                        task.remove_relations(Roby::TaskStructure::Dependency)
                         task
                     end.to_value_set
 
