@@ -558,6 +558,7 @@ module Orocos
 
                 @modified = true
                 removed_instances.each do |instance|
+		    Engine.debug { "queueing removal of #{instance.task}" }
                     pending_removes[instance] = force
                 end
             end
@@ -1069,6 +1070,7 @@ module Orocos
                         to_value_set
 
                     deleted_tasks = deleted_tasks.map do |task|
+		        Engine.debug { "removed #{task}, removing mission and/or permanent" }
                         task = plan[task]
                         plan.unmark_mission(task)
                         plan.unmark_permanent(task)
@@ -1079,7 +1081,7 @@ module Orocos
                     all_tasks = trsc.find_tasks(Component).to_value_set
                     all_tasks.each do |t|
                         if t.finishing? || t.finished?
-                            Engine.debug { "clearing the relations of the finished task #{task}" }
+                            Engine.debug { "clearing the relations of the finished task #{t}" }
                             t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
                             t.remove_relations(Roby::TaskStructure::Dependency)
                         end
