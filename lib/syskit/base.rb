@@ -818,6 +818,56 @@ module Orocos
                     super
                 end
             end
+
+            # The set of data readers created with #data_reader. Used to connect
+            # them when the task stops
+            attribute(:data_readers) { Array.new }
+
+            # call-seq:
+            #   data_reader 'port_name'[, policy]
+            #   data_reader 'role_name', 'port_name'[, policy]
+            #
+            # Returns a data reader that allows to read the specified port
+            #
+            # In the first case, the returned reader is applied to a port on +self+.
+            # In the second case, it is a port of the specified child. In both
+            # cases, an optional connection policy can be specified as
+            #
+            #   data_reader('pose', 'pose_samples', :type => :buffer, :size => 1)
+            #
+            # A pull policy is taken by default, as to avoid impacting the
+            # components.
+            #
+            # The reader is automatically disconnected when the task quits
+            def data_reader(*args)
+                policy = Hash.new
+                if args.last.respond_to?(:to_hash)
+                    policy = args.pop
+                end
+                policy, other_policy = Kernel.filter_options policy, :pull => true
+                policy.merge!(other_policy)
+
+                port =
+                    if args.size == 2
+                        role_name, port_name = *args
+                        child_from_role(role_name).orogen_task.port(port_name)
+                    else
+                        port_name = args.first
+                        orogen_task.port(port_name)
+                    end
+
+                result = port.reader(policy)
+                data_readers << reader
+                result
+            end
+            
+            on :stop do |event|
+                data_readers.each do |reader|
+                    if reader.connected?
+                        reader.disconnect
+                    end
+                end
+            end
         end
 
         # Represents the actual connection graph between task context proxies.
