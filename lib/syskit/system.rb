@@ -1291,6 +1291,8 @@ module Orocos
                     for target_task in candidates
                         next if target_task == task
 
+			# We never merge two proxies together
+			next if target_task.transaction_proxy?
                         # We don't do task allocation as this level.
                         # Meaning: we merge only abstract tasks together and
                         # concrete tasks together
