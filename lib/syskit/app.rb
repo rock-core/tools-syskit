@@ -1,4 +1,14 @@
 require 'utilrb/kernel/load_dsl_file'
+
+require 'typelib'
+module Typelib
+    class CompoundType
+    	def update(&block)
+	    yield(self)
+	end
+    end
+end
+
 module Orocos
     module RobyPlugin
         module MasterProjectHook
