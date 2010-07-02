@@ -850,14 +850,18 @@ module Orocos
                 port =
                     if args.size == 2
                         role_name, port_name = *args
-                        child_from_role(role_name).orogen_task.port(port_name)
+                        task = child_from_role(role_name)
+			if !task
+			    raise ArgumentError, "#{self} has no child with role #{role_name}"
+			end
+			task.output_port(port_name)
                     else
                         port_name = args.first
-                        orogen_task.port(port_name)
+                        output_port(port_name)
                     end
 
                 result = port.reader(policy)
-                data_readers << reader
+                data_readers << result
                 result
             end
             
