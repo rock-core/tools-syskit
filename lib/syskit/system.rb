@@ -1068,12 +1068,13 @@ module Orocos
                     used_tasks = plan.find_local_tasks(Component).
                         to_value_set
 
-                    deleted_tasks.each do |task|
+                    deleted_tasks = deleted_tasks.map do |task|
                         task = plan[task]
                         plan.unmark_mission(task)
                         plan.unmark_permanent(task)
                         plan[task].clear_relations
-                    end
+                        task
+                    end.to_value_set
 
                     all_tasks = trsc.find_tasks(Component).to_value_set
                     all_tasks.each do |t|
@@ -1125,7 +1126,9 @@ module Orocos
 
                     if options[:garbage_collect]
                         trsc.static_garbage_collect do |obj|
-                            trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)
+                            if !deleted_tasks.include?(obj)
+                                trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)
+                            end
                         end
                     end
 
