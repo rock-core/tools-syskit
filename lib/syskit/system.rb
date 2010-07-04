@@ -1053,8 +1053,10 @@ module Orocos
                     instances.delete_if do |instance|
                         if (pending_removes.has_key?(instance.task) || pending_removes.has_key?(instance))
                             deleted_tasks << instance.task if instance.task && instance.task.plan
+                            #STDERR.puts "removing #{instance} (#{instance.task}) from the instances set (#{instance.task} #{instance.task.plan})"
                             true
                         else
+                            #STDERR.puts "keeping #{instance} (#{instance.task}) in the instances set"
                             false
                         end
                     end
@@ -1065,7 +1067,6 @@ module Orocos
                     link_to_busses
                     merge_identical_tasks
 
-                    autosave_plan_to_dot("before_deployment")
                     used_tasks = plan.find_local_tasks(Component).
                         to_value_set
 
