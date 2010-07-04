@@ -368,9 +368,13 @@ module Orocos
                     t.setup 
                 end
 
+                handled_this_cycle = Array.new
+                next if !t.running?
                 while t.update_orogen_state
-                    if t.running?
+                    state = t.orogen_state
+                    if !handled_this_cycle.include?(state)
                         t.handle_state_changes
+                        handled_this_cycle << state
                     end
                 end
             end
