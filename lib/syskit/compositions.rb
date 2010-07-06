@@ -1771,7 +1771,15 @@ module Orocos
 		end
 
                 each_child do |child_task, _|
-                    if child_task.kind_of?(Component) && !child_task.executable?(with_setup)
+                    if child_task.kind_of?(TaskContext)
+                        if Roby.orocos_engine.dry_run?
+                            if !child_task.orogen_task
+                                return false
+                            end
+                        elsif !child_task.executable?(with_setup)
+                            return false
+                        end
+                    elsif !child_task.executable?
                         return false
                     end
                 end

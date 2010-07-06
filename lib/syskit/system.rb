@@ -1143,7 +1143,10 @@ module Orocos
                     if dry_run?
                         trsc.find_local_tasks(Component).
                             each do |task|
-                                task.executable = false
+                                next if task.running?
+                                if task.kind_of?(TaskContext)
+                                    task.executable = false
+                                end
                             end
                     end
 
@@ -2178,6 +2181,10 @@ module Orocos
             # +to_port+ are the names of the ports that have to be disconnected
             # (i.e. strings)
             def compute_connection_changes(tasks)
+                if dry_run?
+                    return [], []
+                end
+
                 not_running = tasks.find_all { |t| !t.orogen_task }
                 if !not_running.empty?
                     Engine.debug do
