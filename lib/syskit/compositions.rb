@@ -1684,7 +1684,7 @@ module Orocos
                     end
 
                     dependency_options = find_child(child_name).dependency_options
-                    dependency_options = { :model => [dependent_models, dependent_arguments], :roles => role }.
+                    dependency_options = { :success => [], :failure => [:stop], :model => [dependent_models, dependent_arguments], :roles => role }.
                         merge(dependency_options)
 
                     Engine.info do
