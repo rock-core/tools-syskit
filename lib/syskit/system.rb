@@ -1081,11 +1081,15 @@ module Orocos
                     end.to_value_set
 
                     all_tasks = trsc.find_tasks(Component).to_value_set
-                    all_tasks.each do |t|
+                    all_tasks.delete_if do |t|
                         if t.finishing? || t.finished?
                             Engine.debug { "clearing the relations of the finished task #{t}" }
                             t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
                             t.remove_relations(Roby::TaskStructure::Dependency)
+                            true
+                        elsif t.transaction_proxy? && t.__getobj__.planning_task.kind_of?(RequirementModificationTask)
+                            trsc.remove_object(t)
+                            true
                         end
                     end
 
