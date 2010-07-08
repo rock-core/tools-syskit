@@ -61,8 +61,8 @@ module Orocos
                 @name, @device_model, @task_model, @service, @task_arguments =
                     name, device_model, task_model, service, task_arguments
 
-                @period      = options[:period]
-                @sample_size = options[:sample_size]
+                @period      = options[:period] || 1
+                @sample_size = options[:sample_size] || 1
                 @device_id   = options[:device_id]
 
                 burst   0
