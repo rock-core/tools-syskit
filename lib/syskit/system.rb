@@ -1019,7 +1019,7 @@ module Orocos
                     :compute_deployments => true,
                     :garbage_collect => true,
                     :export_plan_on_error => true,
-                    :save_plans => true,
+                    :save_plans => false,
                     :forced_removes => false # internal flag
 
                 # It makes no sense to compute the policies if we are not
