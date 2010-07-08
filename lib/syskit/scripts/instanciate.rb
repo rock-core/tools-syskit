@@ -51,7 +51,7 @@ end
 deployment_file     = remaining.shift
 additional_services = remaining.dup
 
-Roby.filter_backtrace do
+error = Roby.display_exception do
     begin
         tic = Time.now
         Roby.app.setup
@@ -79,11 +79,15 @@ Roby.filter_backtrace do
         toc = Time.now
         STDERR.puts "loaded deployment in %.3f seconds" % [toc - tic]
 
-        Roby.app.orocos_engine.resolve(:compute_policies => compute_policies, :compute_deployments => compute_deployments)
+        Roby.app.orocos_engine.resolve(:export_plan_on_error => false, :compute_policies => compute_policies, :compute_deployments => compute_deployments)
         toc = Time.now
         STDERR.puts "computed deployment in %.3f seconds" % [toc - tic]
     ensure Roby.app.stop_process_servers
     end
+end
+
+if error
+    exit(1)
 end
 
 # Generate a default name if the output file name has not been given
