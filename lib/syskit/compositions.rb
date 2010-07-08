@@ -1,5 +1,41 @@
 module Orocos
     module RobyPlugin
+        # Exception raised during instanciation if there is an ambiguity for a
+        # composition child
+        class AmbiguousIndirectCompositionSelection < Ambiguous
+            attr_reader :composition_model
+            attr_reader :child_name
+            attr_reader :selection
+            attr_reader :candidates
+
+            def initialize(composition_model, child_name, selection, candidates)
+                @composition_model = composition_model
+                @child_name = child_name
+                @selection  = selection
+                @candidates = candidates
+            end
+
+            def pretty_print(pp)
+                pp.text "ambiguity while searching for compositions for the child #{child_name} of #{composition_model.short_name}"
+                pp.breakable
+                pp.text "selection is:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(selection) do |name, model|
+                        pp.text "#{name} => #{model.short_name}"
+                    end
+                end
+                pp.breakable
+                pp.text "which corresponds to the following compositions:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(candidates) do |model|
+                        pp.text "#{model.short_name}"
+                    end
+                end
+            end
+        end
+
         # Exception raised when selection facets lead to a specialization
         # selection that is incompatible
         class IncompatibleFacetedSelection < Ambiguous
@@ -1496,7 +1532,10 @@ module Orocos
                     matching_compositions = find_selected_compositions(engine, child_name, selection)
                     matching_compositions = filter_ambiguities(matching_compositions, selection)
                     if matching_compositions.size > 1
-                        raise Ambiguous, "the following compositions match for #{child_name}: #{matching_compositions.map(&:to_s).join(", ")}"
+                        selection = selection.dup
+                        selection.delete_if { |name, model| name !~ /^#{Regexp.quote("#{child_name}.")}/ }
+                        raise AmbiguousIndirectCompositionSelection.new(self, child_name, selection, matching_compositions),
+                            "the following compositions match for #{child_name}: #{matching_compositions.map(&:to_s).join(", ")}"
                     end
                     selected_object = matching_compositions.first
                 end

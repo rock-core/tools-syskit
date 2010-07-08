@@ -140,6 +140,9 @@ module Orocos
                     options, :selection => Hash.new, :as => nil)
             end
 
+            def short_name
+                name.gsub('Orocos::RobyPlugin::', '')
+            end
         end
 
         # For 1.8 compatibility
