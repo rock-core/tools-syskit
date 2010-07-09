@@ -1212,7 +1212,7 @@ module Orocos
             rescue Exception => e
                 @plan = engine_plan
 
-                if state_backup && !state_backup.valid?
+                if !state_backup || (state_backup && !state_backup.valid?)
                     # We might have done something, we just don't know
                     # what and can't rollback.
                     #
