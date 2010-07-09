@@ -224,6 +224,7 @@ module Orocos
                 @tasks     = Hash.new
                 @deployments = Hash.new { |h, k| h[k] = Set.new }
                 @main_selection = Hash.new
+                @main_user_selection = Hash.new
                 @defines   = Hash.new
                 @modified  = false
                 @merging_candidates_queries = Hash.new
@@ -403,9 +404,12 @@ module Orocos
                 end
             end
 
-            # The set of selections that should be applied on every
-            # compositions. See Engine#use and InstanciatedComponent#use for
-            # more details on the format
+            # The set of selections the user specified should be applied on
+            # every compositions. See Engine#use and InstanciatedComponent#use
+            # for more details on the format
+            attr_reader :main_user_selection
+
+            # The system-level device selection used during instanciation
             attr_reader :main_selection
 
             # Provides system-level selection.
@@ -414,7 +418,7 @@ module Orocos
             # InstanciatedComponent#use for details.
             def use(mappings)
                 mappings.each do |model, definition|
-                    main_selection[model] = definition
+                    main_user_selection[model] = definition
                 end
             end
 
@@ -984,10 +988,40 @@ module Orocos
             # Must be called everytime the system model changes. It updates the
             # values that are cached to speed up the instanciation process
             def prepare
+                # This caches the mapping from child name to child model to
+                # speed up instanciation
                 model.each_composition do |composition|
                     composition.update_all_children
                 end
+
+                # Remove all cached plan queries
                 @merging_candidates_queries.clear
+
+                # We now compute default selections for data service models. It
+                # computes if there is only one non-abstract task model that
+                # provides a given data service, and -- if it is the case --
+                # will add it to the 'use' sets
+                all_concrete_models = ValueSet.new
+                model.each_composition do |composition_model|
+                    if !composition_model.abstract?
+                        all_concrete_models << composition_model 
+                    end
+                end
+                model.each_task_model do |task_model|
+                    if !task_model.abstract?
+                        all_concrete_models << task_model
+                    end
+                end
+
+                result = Hash.new
+                model.each_data_service do |service|
+                    candidates = all_concrete_models.
+                        find_all { |m| m < service }
+                    if candidates.size == 1
+                        result[service] = candidates.to_a.first
+                    end
+                end
+                @main_selection = result.merge(main_user_selection)
             end
 
             # Generate the deployment according to the current requirements, and

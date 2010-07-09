@@ -42,6 +42,19 @@ module Orocos
                 Orocos::RobyPlugin::Compositions.const_set(model.name.gsub(/.*::/, ''), model)
             end
 
+            def each_data_service(&block)
+                if !block_given?
+                    return enum_for(:each_data_service)
+                end
+
+                Orocos::RobyPlugin::DataServices.constants.
+                    map { |name| Orocos::RobyPlugin::DataServices.const_get(name) }.
+                    find_all { |model| model.kind_of?(Module) && model < DataService }.
+                    each do |model|
+                        yield(model)
+                    end
+            end
+
             # Enumerate the composition models that are available
             def each_composition(&block)
                 if !block_given?
@@ -55,6 +68,10 @@ module Orocos
                         yield(model)
                         model.each_specialization(&block)
                     end
+            end
+
+            def each_task_model(&block)
+                Roby.app.orocos_tasks.each_value(&block)
             end
 
             # Load the types defined in the specified oroGen projects
