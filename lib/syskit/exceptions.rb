@@ -67,14 +67,14 @@ module Orocos
             def initialize(tasks)
                 @tasks = Hash.new
                 tasks.each do |task|
-                    parents = abstract_task.
+                    parents = task.
                         enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
                         map do |parent_task|
-                            options = parent_task[abstract_task,
+                            options = parent_task[task,
                                 Roby::TaskStructure::Dependency]
                             [options[:roles].to_a.first, parent_task]
                         end
-                    tasks[task] = parents
+                    @tasks[task] = parents
                 end
             end
 
