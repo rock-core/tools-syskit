@@ -932,6 +932,18 @@ module Orocos
                         is_specialized
                     end
                 end
+
+                # Now unconditionally remove specializations that have their
+                # parents in +result+. Note that it is different from the
+                # previous filtering as, unlike there, we don't look at specific
+                # children
+                result.delete_if do |composition|
+                    next(false) if !composition.is_specialization?
+                    result.any? do |model|
+                        composition < model
+                    end
+                end
+                
                 result
             end
 
