@@ -1,5 +1,7 @@
 require 'logger'
 require 'utilrb/logger'
+require 'orocos/roby/exceptions'
+
 module Orocos
     # Roby is a plan management component, i.e. a supervision framework that is
     # based on the concept of plans.
@@ -12,11 +14,6 @@ module Orocos
     module RobyPlugin
         extend Logger::Forward
         extend Logger::Hierarchy
-
-        class InternalError < RuntimeError; end
-        class ConfigError < RuntimeError; end
-        class SpecError < RuntimeError; end
-        class Ambiguous < SpecError; end
 
         # Data structure used internally to represent the data services that are
         # provided by a given component
@@ -433,6 +430,10 @@ module Orocos
                     port_model
                 else instanciated_dynamic_outputs[name]
                 end
+            end
+
+            def to_short_s
+                to_s.gsub /Orocos::RobyPlugin::/, ''
             end
 
             # Returns the input port model for the given name, or nil if the

@@ -927,7 +927,8 @@ module Orocos
                         end
 
                     if !not_deployed.empty?
-                        raise Ambiguous, "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
+                        raise MissingDeployments.new(not_deployed),
+                            "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
                     end
                 end
             end
@@ -1250,9 +1251,11 @@ module Orocos
                     end
 
                     if candidates.empty?
-                        raise SpecError, "cannot find a concrete task for #{target} in #{target.parents.map(&:to_s).join(", ")}"
+                        raise TaskAllocationFailed.new(target),
+                            "cannot find a concrete task for #{target} in #{target.parents.map(&:to_s).join(", ")}"
                     elsif candidates.size > 1
-                        raise Ambiguous, "there are multiple candidates for #{target} (#{candidates.join(", ")}), you must select one with the 'use' statement"
+                        raise AmbiguousTaskAllocation.new(target, candidates),
+                            "there are multiple candidates for #{target} (#{candidates.join(", ")}), you must select one with the 'use' statement"
                     end
 
                     Engine.debug { "   #{target} => #{candidates.first}" }
