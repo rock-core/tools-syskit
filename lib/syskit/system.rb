@@ -1098,6 +1098,10 @@ module Orocos
 
                     instanciate
 
+                    # Needed at least for now to merge together drivers that
+                    # have multiple devices
+                    merge_identical_tasks
+
                     allocate_abstract_tasks
                     link_to_busses
                     merge_identical_tasks
