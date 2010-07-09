@@ -1658,7 +1658,7 @@ module Orocos
                     end
 
                     Engine.debug do
-                        " selected #{child_task || child_model} (#{port_mappings}) for #{child_name} (#{dependent_model.map(&:to_s).join(",")}) [#{data_services.empty?}]"
+                        "  selected #{child_task || child_model.name} (#{port_mappings}) for #{child_name} (#{dependent_model.map(&:name).join(",")})"
                     end
                     result[child_name] = [child_model, child_task, port_mappings || Hash.new]
                 end
@@ -1713,6 +1713,8 @@ module Orocos
                 arguments, task_arguments = Model.filter_instanciation_arguments(arguments)
                 user_selection = arguments[:selection]
 
+                Engine.debug { "instanciating #{name}" }
+
                 # Apply the selection to our children
                 selected_models = filter_selection(engine, user_selection)
 
@@ -1725,6 +1727,7 @@ module Orocos
                     candidates = candidates.map(&:name).join(", ")
                     raise Ambiguous, "more than one specialization apply: #{candidates}"
                 elsif !candidates.empty?
+                    Engine.debug { "using specialization #{candidates[0].short_name} of #{short_name}" }
                     return candidates[0].instanciate(engine, arguments)
                 end
 
