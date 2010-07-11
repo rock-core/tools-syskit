@@ -194,15 +194,9 @@ module Orocos
                     return @task_model
                 end
 
-                @task_model = Class.new(TaskContext) do
-                    class << self
-                        attr_accessor :name
-                    end
-                end
+                @task_model = Class.new(DataServiceProxy)
                 @task_model.instance_variable_set(:@orogen_spec, orogen_spec)
-                @task_model.abstract
-                @task_model.name = "#{name}DataServiceTask"
-                @task_model.extend Model
+                @task_model.name = name
                 @task_model.data_service self
                 @task_model
             end

@@ -1166,6 +1166,22 @@ module Orocos
             end
         end
 
+        class DataServiceProxy < TaskContext
+            extend Model
+            abstract
+
+            class << self
+                attr_accessor :name
+            end
+            @name = "Orocos::RobyPlugin::DataServiceProxy"
+
+            def proxied_data_service
+                puts self.model.data_services
+                self.model.data_services.values.first
+            end
+        end
+
+
         RequiredDataFlow = ConnectionGraph.new
         Orocos::RobyPlugin::TaskContext.include BGL::Vertex
     end
