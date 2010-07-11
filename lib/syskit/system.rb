@@ -671,9 +671,9 @@ module Orocos
 
             # Generate a svg file representing the current state of the
             # deployment
-            def to_svg(filename)
+            def to_svg(filename, remove_compositions = false)
                 Tempfile.open('roby_orocos_deployment') do |io|
-                    io.write Roby.app.orocos_engine.to_dot
+                    io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions)
                     io.flush
 
                     File.open(filename, 'w') do |output_io|
