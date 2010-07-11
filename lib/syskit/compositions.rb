@@ -1413,20 +1413,6 @@ module Orocos
                 result
             end
 
-            # Compares +model+ with the constraints declared for +child_name+.
-            # Returns the set of unmatched constraints, or nil if all
-            # constraints are met
-            def match_child_constraints(child_name, model)
-                missing_constraints = constraints_for(child_name).find_all do |model_set|
-                    model_set.all? do |m|
-                        !model.fullfills?(m)
-                    end
-                end
-                if !missing_constraints.empty?
-                    missing_constraints
-                end
-            end
-
             # In the explicit selection phase, try to find a composition that
             # matches +selection+ for +child_name+
             def find_selected_compositions(engine, child_name, selection) # :nodoc:
@@ -1611,12 +1597,6 @@ module Orocos
                 if !selected_model.fullfills?(dependent_model)
                     throw :invalid_selection if !user_call
                     raise SpecError, !user_call || "cannot select #{selected_model} for #{child_name} (#{dependent_model}): [#{selected_model}] is not a specialization of [#{dependent_model.to_a.join(", ")}]"
-                end
-
-                missing_constraints = match_child_constraints(child_name, selected_model)
-                if missing_constraints
-                    throw :invalid_selection if !user_call
-                    raise SpecError, !user_call || "selected model #{selected_model} does not match the constraints for #{child_name}: it implements none of #{missing_constraints.first.map(&:name).join(", ")}"
                 end
             end
 
