@@ -937,6 +937,10 @@ module Orocos
                 end
             end
 
+            # A mapping from data service models to concrete models
+            # (compositions and/or task models) that implement it
+            attr_reader :service_allocation_candidates
+
             # Caches the result of #compare_composition_child to speed up the
             # instanciation process
             attr_reader :composition_specializations
@@ -1013,12 +1017,16 @@ module Orocos
                     end
                 end
 
+                @service_allocation_candidates = Hash.new
                 result = Hash.new
                 model.each_data_service do |service|
                     candidates = all_concrete_models.
                         find_all { |m| m < service }
                     if candidates.size == 1
                         result[service] = candidates.to_a.first
+                    end
+                    if !candidates.empty?
+                        service_allocation_candidates[service] = candidates
                     end
                 end
                 @main_selection = result.merge(main_user_selection)
