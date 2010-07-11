@@ -217,6 +217,7 @@ module Orocos
         ComBusDriver = DataServiceModel.new
 
         module DataService
+            @name = "Orocos::RobyPlugin::DataService"
             module ClassExtension
                 def find_data_services(&block)
                     each_data_service.find_all(&block)
@@ -456,6 +457,7 @@ module Orocos
         # methods that are available at the task model level, see
         # DataSource::ClassExtension
         module DataSource
+            @name = "Orocos::RobyPlugin::DataSource"
             argument "com_bus"
 
             module ClassExtension
@@ -599,6 +601,7 @@ module Orocos
         # defines the methods that are available on task instances. For methods
         # that are added to the task models, see ComBus::ClassExtension
         module ComBusDriver
+            @name = "Orocos::RobyPlugin::ComBusDriver"
             # Communication busses are also device drivers
             include DataSource
 

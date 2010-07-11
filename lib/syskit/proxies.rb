@@ -473,6 +473,7 @@ module Orocos
         # relation.
         class TaskContext < Component
             abstract
+            @name = "Orocos::RobyPlugin::TaskContext"
 
             extend Model
 
