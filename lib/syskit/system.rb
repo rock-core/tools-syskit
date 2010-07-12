@@ -816,8 +816,7 @@ module Orocos
                 task_label = task.to_s.
                     gsub(/\s+/, '').gsub('=>', ':').
                     gsub(/\[\]|\{\}/, '').gsub(/[{},]/, '<BR/>').
-                    gsub(/Orocos::RobyPlugin::/, '').
-                    gsub(/:0x[\da-z]+/, '')
+                    gsub(/Orocos::RobyPlugin::/, '')
                 if task_label =~ /^(.*)\/(\[.*\])(:0x.)*/
                     task_label = "#{$1}#{$3}"
                     sublabel = " <BR/> #{$2}"
