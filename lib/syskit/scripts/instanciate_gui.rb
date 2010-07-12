@@ -47,7 +47,6 @@ module Ui
             plan.engine.garbage_collect
             engine.to_svg('bla.svg')
 
-            Roby.logger.level = Logger::DEBUG
             @task_from_id = Hash.new
             plan.each_task do |task|
                 task_from_id[task.object_id] = task
