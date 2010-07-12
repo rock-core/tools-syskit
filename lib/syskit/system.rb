@@ -847,12 +847,12 @@ module Orocos
                     find_all { |c| c.kind_of?(Composition) }
                 if !parent_compositions.empty?
                     parent_compositions = parent_compositions.map do |parent_task|
-                        parent_task.to_s.gsub(/\s+/, '').gsub('=>', ':').
-                            gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n').
-                            gsub(/\/\[.*\]:/, ':')
+                        id = parent_task.to_s
+                        id =~ /(0x[0-9a-f]+)/
+                        "#{parent_task.model.short_name}:#{$1}"
                     end
                     if !remove_compositions
-                        task_label << " <BR/> [Included in:#{parent_compositions.join("\\n")}]"
+                        task_label << " <BR/> [Included in: #{parent_compositions.join("\\n")}]"
                     end
                 end
 
