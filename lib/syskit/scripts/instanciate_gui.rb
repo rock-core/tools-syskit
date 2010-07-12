@@ -33,16 +33,17 @@ module Ui
 
         attr_reader :task_from_id
 
+        attr_reader :main
         def update
             engine.clear
             plan.clear
 
-            engine.add_mission(model).use(selection)
+            @main = engine.add_mission(model).use(selection)
             engine.prepare
             engine.instanciate
             engine.merge_identical_tasks
             plan.engine.garbage_collect
-            engine.to_svg('bla.svg', true)
+            engine.to_svg('bla.svg')
 
             Roby.logger.level = Logger::DEBUG
             @task_from_id = Hash.new
@@ -57,6 +58,22 @@ module Ui
         attr_reader :renderer
         attr_reader :main_item
         attr_reader :task_items
+
+        def role_path(task)
+            task_roles = task.each_role.to_a.first.last
+            if task.parent_object?(main.task, Roby::TaskStructure::Dependency)
+                task_roles.to_a
+            else
+                task.enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
+                    map { |parent_task| role_path(parent_task) }.
+                    flatten.
+                    map do |parent_role|
+                        task_roles.map do |role|
+                            "#{parent_role}.#{role}"
+                        end
+                    end.flatten
+            end
+        end
 
         def display_svg(filename)
             # Build a two-way mapping from the SVG IDs and the task objects
@@ -115,7 +132,7 @@ module Ui
                         # Get the task's role. We can safely assume the task
                         # has only one parent and is used for only one role
                         # in this parent
-                        roles = task.each_role.to_a.first.last
+                        roles = window.role_path(task)
 
                         #Roby.app.orocos_engine.service_allocation_candidates.each do |service_model, candidates|
                         #    puts "#{service_model.name} =>\n    #{candidates.map(&:name).join("\n    ")}"
