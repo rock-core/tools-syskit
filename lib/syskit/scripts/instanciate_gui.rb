@@ -20,7 +20,9 @@ module Ui
 
             @scene = Qt::GraphicsScene.new
             @view  = Qt::GraphicsView.new(scene)
-            view.resize 320, 200
+            view.viewport_update_mode = Qt::GraphicsView::FullViewportUpdate
+            view.scale(0.8, 0.8)
+            view.resize 640, 480
             view.show
         end
 
