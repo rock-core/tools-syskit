@@ -824,7 +824,7 @@ module Orocos
                         text
                     end
                 result.gsub(/\s+/, '').gsub('=>', ':').
-
+                    gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '<BR/>')
             end
 
             # Helper method for the to_dot methods
@@ -868,17 +868,20 @@ module Orocos
                         "#{parent_task.model.short_name}:#{$1}"
                     end
                     if !remove_compositions
-                        task_label << " <BR/> [Included in: #{parent_compositions.join("<BR/>")}]"
+                        task_label << " <BR/>Included in:"
+                        parent_compositions.each do |parent|
+                            task_label << "<BR/>#{format_task_label(parent, '')}"
+                        end
                     end
                 end
 
-                label = "  <TABLE BORDER=\"0\" CELLBORDER=\"#{task.kind_of?(Deployment) ? '0' : '1'}\" CELLSPACING=\"0\">\n"
+                label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"#{task.kind_of?(Deployment) ? '0' : '1'}\" CELLSPACING=\"0\">\n"
                 if !inputs.empty?
                     label << inputs.map do |name|
                         "    <TR><TD PORT=\"#{name}\">#{name} </TD></TR>\n"
                     end.join("")
                 end
-                label << "    <TR><TD PORT=\"main\">#{task_label} </TD></TR>\n"
+                label << "    <TR><TD ALIGN=\"LEFT\" PORT=\"main\">#{task_label} </TD></TR>\n"
                 if !outputs.empty?
                     label << outputs.map do |name|
                         "    <TR><TD PORT=\"#{name}\">#{name} </TD></TR>\n"
