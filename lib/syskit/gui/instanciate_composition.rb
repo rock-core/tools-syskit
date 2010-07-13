@@ -1,13 +1,19 @@
 module Ui
+    class InvalidInstanciation < RuntimeError; end
+
     # Widget that allows to instanciate a composition step by step
-    class InstanciateComposition
+    class InstanciateComposition < Qt::Object
         attr_reader :scene
         attr_reader :view
         attr_reader :model
         attr_reader :selection
+        attr_reader :parent_window
 
         def initialize(main = nil)
+            super()
             @selection = Hash.new
+
+            @parent_window = main
 
             @scene = Qt::GraphicsScene.new
             @view  = Qt::GraphicsView.new(scene, main)
@@ -15,6 +21,53 @@ module Ui
 
             view.viewport_update_mode = Qt::GraphicsView::FullViewportUpdate
             view.scale(0.8, 0.8)
+        end
+
+        def to_ruby
+            result = ["add(#{model.short_name})"]
+
+            selection = self.selection
+            actual_selection = selection.dup
+            actual_selection.delete_if do |from, to|
+                to.respond_to?(:is_specialization?) && to.is_specialization?
+            end
+
+            removed_selections = selection.keys - actual_selection.keys
+            if !removed_selections.empty?
+                removed_selections.map! do |path|
+                    [path, resolve_role_path(path.split('.')).model]
+                end
+
+                @selection = actual_selection
+                compute
+                removed_selections.each do |path, model|
+                    current_model = resolve_role_path(path.split('.')).model
+                    if current_model != model
+                        raise InvalidInstanciation, "cannot generate instanciation code in the current state: you need to enforce the specialization of #{path} by picking the relevant children"
+                    end
+                end
+            end
+            actual_selection.each do |from, to|
+                if from.respond_to?(:to_str)
+                    from = "'#{from.to_str}'"
+                elsif from.respond_to?(:short_name)
+                    from = from.short_name
+                end
+                if to.respond_to?(:to_str)
+                    to = "'#{to.to_str}'"
+                elsif to.respond_to?(:short_name)
+                    to = to.short_name
+                end
+                result << "\n  use(#{from} => #{to})"
+            end
+            result.join(".")
+
+        ensure
+            if selection
+                @selection = selection
+                compute
+                update_view
+            end
         end
 
         def engine
@@ -33,9 +86,7 @@ module Ui
             update
         end
 
-        HIERARCHY_DATAFLOW_MARGIN = 50
-        attr_reader :main
-        def update
+        def compute
             engine.clear
             plan.clear
 
@@ -44,6 +95,9 @@ module Ui
             engine.instanciate
             engine.merge_identical_tasks
             plan.engine.garbage_collect
+        end
+
+        def update_view
             engine.to_svg('hierarchy', 'hierarchy.svg')
             engine.to_svg('dataflow', 'dataflow.svg', false)
 
@@ -66,9 +120,30 @@ module Ui
             end
         end
 
+        signals 'updated()'
+
+        HIERARCHY_DATAFLOW_MARGIN = 50
+        attr_reader :main
+        def update
+            compute
+            update_view
+            emit updated()
+        end
+
         attr_reader :graphicsitem_to_task
         attr_reader :renderers
         attr_reader :task_items
+
+        def resolve_role_path(path)
+            up_until_now = []
+            path.inject(main.task) do |task, role|
+                up_until_now << role
+                if !(next_task = task.child_from_role(role))
+                    raise ArgumentError, "the child #{up_until_now.join(".")} of #{task} does not exist"
+                end
+                next_task
+            end
+        end
 
         def role_path(task)
             if task == main.task

@@ -21,7 +21,15 @@ module Ui
             puts "selected #{composition_models[idx]}"
             composer.model = composition_models[idx]
         end
-        slots 'item_clicked(QTreeWidgetItem*,int)'
+
+        def compositionInstanciationUpdated
+            text = composer.to_ruby
+            ui.codeDisplay.text = text
+        rescue Exception => e
+            ui.codeDisplay.text = e.message
+        end
+
+        slots 'item_clicked(QTreeWidgetItem*,int)', 'compositionInstanciationUpdated()'
 
         def setupUi(main)
             @main = main
@@ -35,6 +43,8 @@ module Ui
 
             Qt::Object.connect(ui.compositionModels, SIGNAL('itemClicked(QTreeWidgetItem*,int)'),
                               self, SLOT('item_clicked(QTreeWidgetItem*,int)'))
+            Qt::Object.connect(composer, SIGNAL('updated()'),
+                              self, SLOT('compositionInstanciationUpdated()'))
             
             @composition_models = []
             system_model.each_composition do |model|
