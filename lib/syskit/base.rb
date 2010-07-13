@@ -15,6 +15,27 @@ module Orocos
         extend Logger::Forward
         extend Logger::Hierarchy
 
+        # Merge the given orogen interfaces into one subclass
+        def self.merge_orogen_interfaces(target, interfaces)
+            interfaces.each do |i|
+                target.implements i.name
+                target.merge_ports_from(i)
+            end
+        end
+
+        # Creates a blank orogen interface and returns it
+        def self.create_orogen_interface(name)
+            basename = "roby_#{name}".camelcase(true)
+            if Roby.app.main_orogen_project.find_task_context(basename)
+                basename << "_DD"
+            end
+
+            interface = Roby.app.main_orogen_project.
+                external_task_context(basename)
+            interface.abstract
+            interface
+        end
+
         # Data structure used internally to represent the data services that are
         # provided by a given component
         class ProvidedDataService

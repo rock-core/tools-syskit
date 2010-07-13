@@ -91,15 +91,7 @@ module Orocos
             end
 
             def create_orogen_interface
-                basename = "roby_#{name}".camelcase(true)
-                if Roby.app.main_orogen_project.find_task_context(basename)
-                    basename << "_DD"
-                end
-
-                interface = Roby.app.main_orogen_project.
-                    external_task_context(basename)
-                interface.abstract
-                interface
+                RobyPlugin.create_orogen_interface(name)
             end
 
             attr_reader :orogen_spec

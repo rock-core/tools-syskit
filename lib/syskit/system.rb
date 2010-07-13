@@ -809,29 +809,45 @@ module Orocos
                 result.join("\n")
             end
 
+            def format_task_label(task, additional)
+                text = task.to_s
+                text = text.gsub('Orocos::RobyPlugin::', '').
+                    gsub(/\s+/, '').gsub('=>', ':')
+                result =
+                    if text =~ /(.*)\/\[(.*)\](:0x[0-9a-f]+)/
+                        name = $1
+                        specializations = $2
+                        id  = $3
+                        name + id + additional +
+                            "<BR/>" + specializations[1..-2].gsub('),', ')<BR/>')
+                    else
+                        text
+                    end
+                result.gsub(/\s+/, '').gsub('=>', ':').
+
+            end
+
             # Helper method for the to_dot methods
             def dot_task_attributes(task, inputs, outputs, task_colors, remove_compositions = false) # :nodoc:
                 task_dot_attributes = []
 
-                task_label = task.to_s.
-                    gsub(/\s+/, '').gsub('=>', ':').
-                    gsub(/\[\]|\{\}/, '').gsub(/[{},]/, '<BR/>').
-                    gsub(/Orocos::RobyPlugin::/, '')
-                if task_label =~ /^(.*)\/(\[.*\])(:0x.)*/
-                    task_label = "#{$1}#{$3}"
-                    sublabel = " <BR/> #{$2}"
-                end
                 task_flags = []
                 task_flags << "E" if task.executable?
                 task_flags << "A" if task.abstract?
                 task_flags << "C" if task.kind_of?(Composition)
-                if !task_flags.empty?
-                    task_label << "[#{task_flags.join(",")}]"
-                end
-                task_label = "#{task_label}"
-                if sublabel
-                    task_label << sublabel
-                end
+                task_flags =
+                    if !task_flags.empty?
+                        "[#{task_flags.join(",")}]"
+                    else ""
+                    end
+                
+                task_label = 
+                    if task.respond_to?(:proxied_data_services)
+                        task.proxied_data_services.map(&:model).map(&:short_name).join(", ")
+                    else
+                        format_task_label(task, task_flags)
+                    end
+
                 if task.kind_of?(Deployment)
                     if task_colors[task]
                         task_dot_attributes << "color=\"#{task_colors[task]}\""
@@ -852,7 +868,7 @@ module Orocos
                         "#{parent_task.model.short_name}:#{$1}"
                     end
                     if !remove_compositions
-                        task_label << " <BR/> [Included in: #{parent_compositions.join("\\n")}]"
+                        task_label << " <BR/> [Included in: #{parent_compositions.join("<BR/>")}]"
                     end
                 end
 
@@ -1005,15 +1021,18 @@ module Orocos
                 # provides a given data service, and -- if it is the case --
                 # will add it to the 'use' sets
                 all_concrete_models = ValueSet.new
+                all_models = ValueSet.new
                 model.each_composition do |composition_model|
                     if !composition_model.abstract?
                         all_concrete_models << composition_model 
                     end
+                    all_models << composition_model
                 end
                 model.each_task_model do |task_model|
                     if !task_model.abstract?
                         all_concrete_models << task_model
                     end
+                    all_models << task_model
                 end
 
                 @service_allocation_candidates = Hash.new
@@ -1024,6 +1043,9 @@ module Orocos
                     if candidates.size == 1
                         result[service] = candidates.to_a.first
                     end
+
+                    candidates = all_models.
+                        find_all { |m| m < service }
                     if !candidates.empty?
                         service_allocation_candidates[service] = candidates
                     end

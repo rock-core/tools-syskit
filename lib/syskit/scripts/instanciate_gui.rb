@@ -124,10 +124,10 @@ module Ui
                     def item.mousePressEvent(event)
                         super
 
-                        model =
-                            if task.respond_to?(:proxied_data_service)
-                                task.proxied_data_service.model
-                            else task
+                        models =
+                            if task.respond_to?(:proxied_data_services)
+                                task.proxied_data_services.map(&:model)
+                            else [task.model]
                             end
 
                         # Get the task's role. We can safely assume the task
@@ -138,14 +138,16 @@ module Ui
                         #Roby.app.orocos_engine.service_allocation_candidates.each do |service_model, candidates|
                         #    puts "#{service_model.name} =>\n    #{candidates.map(&:name).join("\n    ")}"
                         #end
-                        candidates = Roby.app.orocos_engine.
-                            service_allocation_candidates[model] || Array.new
+                        candidates = models.map do |m|
+                            Roby.app.orocos_engine.service_allocation_candidates[m]
+                        end.compact.map(&:to_value_set).inject(:&)
+                        candidates ||= ValueSet.new
 
                         current_selection = roles.find_all do |role_name|
                             window.selection[role_name]
                         end
 
-                        puts "mouse pressed for #{self} (#{model.name}) [#{task}, #{roles.to_a.join(", ")}]"
+                        puts "mouse pressed for #{self} (#{models.map(&:name).join(", ")}) [#{task}, #{roles.to_a.join(", ")}]"
                         return if candidates.empty? && current_selection.empty?
 
                         menu = Qt::Menu.new

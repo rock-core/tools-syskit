@@ -230,13 +230,7 @@ module Orocos
                     if options[:interface]
                         child_spec.subclasses options[:interface].orogen_spec.name
                     end
-
-                    if !interfaces.empty?
-                        interfaces.each do |p|
-                            child_spec.implements p.interface.name
-                            child_spec.merge_ports_from(p.interface)
-                        end
-                    end
+                    RobyPlugin.merge_orogen_interfaces(child_spec, interfaces)
                     source_model.instance_variable_set :@orogen_spec, child_spec
                 end
 

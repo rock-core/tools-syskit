@@ -1492,6 +1492,40 @@ module Orocos
                     result
                 end
             end
+
+            attr_reader :child_proxy_models
+
+            # Creates a task model to proxy the services and/or task listed in
+            # +models+
+            def child_proxy_model(child_name, models)
+                @child_proxy_models ||= Hash.new
+                if m = child_proxy_models[child_name]
+                    return m
+                end
+
+                if task_model = models.find { |t| t < Roby::Task }
+                    model = Class.new(task_model)
+                    class << model
+                        abstract
+                        def proxied_data_service
+                            self.model.data_services.values
+                        end
+                    end
+                else
+                    model = Class.new(DataServiceProxy)
+                end
+                name = "#{short_name}::#{child_name.camelcase(true)}Proxy"
+                orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
+                model.name        = name
+                model.instance_variable_set(:@orogen_spec, orogen_spec)
+                RobyPlugin.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
+                models.each do |m|
+                    if m.kind_of?(DataServiceModel)
+                        model.data_service m
+                    end
+                end
+                child_proxy_models[child_name] = model
+            end
             
             # call-seq:
             #   find_selected_model_and_task(engine, child_name, selection) -> selected_service, child_model, child_task
@@ -1554,7 +1588,7 @@ module Orocos
 
                 if !selected_object
                     if dependent_model.size > 1
-                        raise Ambiguous, "#{child_name} has to be selected explicitely"
+                        dependent_model = [child_proxy_model(child_name, dependent_model)]
                     end
 
                     # no explicit selection, just add the default one
