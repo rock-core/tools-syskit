@@ -57,6 +57,10 @@ module Orocos
             # The parent model, if any
             attr_reader :parent_model
 
+            def short_name
+                name.gsub('Orocos::RobyPlugin::', '')
+            end
+
             # Creates a new DataServiceModel that is a submodel of +self+
             def new_submodel(name, options = Hash.new)
                 options = Kernel.validate_options options,
