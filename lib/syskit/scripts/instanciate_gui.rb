@@ -161,9 +161,9 @@ module Ui
                         end
 
                         selection = Hash.new
-                        candidates.each do |model|
-                            selection[model.name] = model
-                            menu.add_action(model.name)
+                        candidates.each do |m|
+                            selection[m.name] = m
+                            menu.add_action(m.name)
                         end
                         return unless action = menu.exec(event.screenPos)
 
