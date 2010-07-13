@@ -1571,10 +1571,15 @@ module Orocos
 
                 # Second, look into the child model
                 if !selected_object
+                    # Search for candidates in the user selection, from the
+                    # child models
                     candidates = dependent_model.map do |m|
                         result = selection[m] || selection[m.name]
                     end.flatten.compact
 
+                    # Search for candidates in the user selection, without the
+                    # child models (i.e. the "default part" of the user
+                    # selection)
                     if candidates.empty? && selection[nil]
                         candidates = selection[nil].find_all { |default_models| default_models.fullfills?(dependent_model) }
                     end
@@ -1583,10 +1588,13 @@ module Orocos
                     if candidates.size > 1
                         raise Ambiguous, "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
                     end
+
                     selected_object = candidates.first
                 end
 
                 if !selected_object
+                    # We don't have a selection, but the child model cannot be
+                    # directly translated into a task model
                     if dependent_model.size > 1
                         dependent_model = [child_proxy_model(child_name, dependent_model)]
                     end
