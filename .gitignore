@@ -14,3 +14,4 @@ build/
 *autobuild-stamp
 *.log
 test/roby/*.txt
+*_ui.rb

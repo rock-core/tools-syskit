@@ -671,9 +671,15 @@ module Orocos
 
             # Generate a svg file representing the current state of the
             # deployment
-            def to_svg(filename, remove_compositions = false)
+            def to_svg(kind, filename = nil, *additional_args)
+                # For backward compatibility reasons
+                if !filename
+                    filename = kind
+                    kind = 'dataflow'
+                end
+
                 Tempfile.open('roby_orocos_deployment') do |io|
-                    io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions)
+                    io.write Roby.app.orocos_engine.send("to_dot_#{kind}", *additional_args)
                     io.flush
 
                     File.open(filename, 'w') do |output_io|
@@ -709,12 +715,13 @@ module Orocos
                 end
 
                 all_tasks.each do |task|
-                    task_label = task.to_s.
-                        gsub(/\s+/, '').gsub('=>', ':').
-                        gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '\\n').
-                        gsub(/Orocos::RobyPlugin::/, '').
-                        gsub(/:0x[\da-z]+/, '')
-                    result << "  #{task.dot_id} [label=\"#{task_label}\"];"
+                    task_label = format_task_label(task)
+                    attributes = ["label=<#{task_label}>"]
+                    if task.abstract?
+                        attributes << " color=\"red\""
+                    end
+
+                    result << "  #{task.dot_id} [#{attributes.join(" ")}];"
                 end
 
                 result << "};"
@@ -809,28 +816,7 @@ module Orocos
                 result.join("\n")
             end
 
-            def format_task_label(task, additional)
-                text = task.to_s
-                text = text.gsub('Orocos::RobyPlugin::', '').
-                    gsub(/\s+/, '').gsub('=>', ':')
-                result =
-                    if text =~ /(.*)\/\[(.*)\](:0x[0-9a-f]+)/
-                        name = $1
-                        specializations = $2
-                        id  = $3
-                        name + id + additional +
-                            "<BR/>" + specializations[1..-2].gsub('),', ')<BR/>')
-                    else
-                        text
-                    end
-                result.gsub(/\s+/, '').gsub('=>', ':').
-                    gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '<BR/>')
-            end
-
-            # Helper method for the to_dot methods
-            def dot_task_attributes(task, inputs, outputs, task_colors, remove_compositions = false) # :nodoc:
-                task_dot_attributes = []
-
+            def format_task_label(task)
                 task_flags = []
                 task_flags << "E" if task.executable?
                 task_flags << "A" if task.abstract?
@@ -843,9 +829,23 @@ module Orocos
                 
                 task_label = 
                     if task.respond_to?(:proxied_data_services)
-                        task.proxied_data_services.map(&:model).map(&:short_name).join(", ")
+                        task.proxied_data_services.map(&:model).map(&:short_name).join(", ") + task_flags
                     else
-                        format_task_label(task, task_flags)
+                        text = task.to_s
+                        text = text.gsub('Orocos::RobyPlugin::', '').
+                            gsub(/\s+/, '').gsub('=>', ':')
+                        result =
+                            if text =~ /(.*)\/\[(.*)\](:0x[0-9a-f]+)/
+                                name = $1
+                                specializations = $2
+                                id  = $3
+                                name + id + task_flags +
+                                    "<BR/>" + specializations.gsub('),', ')<BR/>')
+                            else
+                                text
+                            end
+                        result.gsub(/\s+/, '').gsub('=>', ':').
+                            gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '<BR/>')
                     end
 
                 if task.kind_of?(Deployment)
@@ -859,21 +859,14 @@ module Orocos
                     end
                 end
 
-                parent_compositions = task.each_parent_task.
-                    find_all { |c| c.kind_of?(Composition) }
-                if !parent_compositions.empty?
-                    parent_compositions = parent_compositions.map do |parent_task|
-                        id = parent_task.to_s
-                        id =~ /(0x[0-9a-f]+)/
-                        "#{parent_task.model.short_name}:#{$1}"
-                    end
-                    if !remove_compositions
-                        task_label << " <BR/>Included in:"
-                        parent_compositions.each do |parent|
-                            task_label << "<BR/>#{format_task_label(parent, '')}"
-                        end
-                    end
-                end
+                task_label
+            end
+
+            # Helper method for the to_dot methods
+            def dot_task_attributes(task, inputs, outputs, task_colors, remove_compositions = false) # :nodoc:
+                task_dot_attributes = []
+
+                task_label = format_task_label(task)
 
                 label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"#{task.kind_of?(Deployment) ? '0' : '1'}\" CELLSPACING=\"0\">\n"
                 if !inputs.empty?
@@ -890,6 +883,10 @@ module Orocos
                 label << "  </TABLE>"
 
                 task_dot_attributes << "label=< #{label} >"
+                if task.abstract?
+                    task_dot_attributes << "color=\"red\""
+                end
+                task_dot_attributes
             end
 
             def pretty_print(pp) # :nodoc:

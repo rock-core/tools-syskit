@@ -95,6 +95,22 @@ namespace :setup do
     task :orogen_uncaught    do build_orogen 'uncaught' end
     desc "builds the test 'system' module"
     task :orogen_system    do build_orogen 'system' end
+
+    UIFILES = %w{orocos_composer.ui}
+    desc 'generate all Qt UI files using rbuic4'
+    task :uic do
+        rbuic = 'rbuic4'
+        if File.exists?('/usr/lib/kde4/bin/rbuic4')
+            rbuic = '/usr/lib/kde4/bin/rbuic4'
+        end
+
+        UIFILES.each do |file|
+            file = 'lib/orocos/roby/gui/' + file
+            if !system(rbuic, '-o', file.gsub(/\.ui$/, '_ui.rb'), file)
+                STDERR.puts "Failed to generate #{file}"
+            end
+        end
+    end
 end
 task :setup => "setup:ext"
 desc "remove by-products of setup"
