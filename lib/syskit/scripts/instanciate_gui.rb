@@ -171,7 +171,7 @@ module Ui
                             roles.each do |child_name|
                                 window.selection[child_name] = selected_model
                             end
-                            puts "selected #{selected_model} for #{roles.to_a.join(", ")}"
+                            puts "selected #{selected_model.short_name} for #{roles.to_a.join(", ")}"
                         elsif deselected_role = deselection[action.text]
                             window.selection.delete(deselected_role)
                         end
