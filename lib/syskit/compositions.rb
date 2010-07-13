@@ -1514,6 +1514,7 @@ module Orocos
                 else
                     model = Class.new(DataServiceProxy)
                 end
+                model.abstract
                 name = "#{short_name}::#{child_name.camelcase(true)}Proxy"
                 orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
                 model.name        = name
