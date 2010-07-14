@@ -1176,8 +1176,11 @@ module Orocos
             end
             @name = "Orocos::RobyPlugin::DataServiceProxy"
 
+            def self.proxied_data_services
+                data_services.values
+            end
             def proxied_data_services
-                self.model.data_services.values
+                self.model.proxied_data_services
             end
         end
 

@@ -771,12 +771,11 @@ module Orocos
             end
 
             def user_required_model
-                models = model.ancestors
-                models.shift if abstract?
-                klass  = models.find { |t| t.kind_of?(Class) }
-                models = models.find_all { |t| t.kind_of?(Roby::TaskModelTag) }
-                models.push(klass) if klass
-                models
+                if model.respond_to?(:proxied_data_services)
+                    model.proxied_data_services.map(&:model)
+                else
+                    [model]
+                end
             end
 
             def can_merge?(target_task)
