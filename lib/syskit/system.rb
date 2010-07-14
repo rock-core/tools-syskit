@@ -715,8 +715,8 @@ module Orocos
                 end
 
                 all_tasks.each do |task|
-                    task_label = format_task_label(task)
-                    attributes = ["label=<#{task_label}>"]
+                    task_label, attributes = format_task_label(task)
+                    attributes << "label=<#{task_label}>"
                     if task.abstract?
                         attributes << " color=\"red\""
                     end
@@ -816,7 +816,8 @@ module Orocos
                 result.join("\n")
             end
 
-            def format_task_label(task)
+            def format_task_label(task, task_colors = Hash.new)
+                task_node_attributes = []
                 task_flags = []
                 task_flags << "E" if task.executable?
                 task_flags << "A" if task.abstract?
@@ -850,7 +851,7 @@ module Orocos
 
                 if task.kind_of?(Deployment)
                     if task_colors[task]
-                        task_dot_attributes << "color=\"#{task_colors[task]}\""
+                        task_node_attributes << "color=\"#{task_colors[task]}\""
                         task_label = "<FONT COLOR=\"#{task_colors[task]}\">#{task_label}"
                         task_label << " <BR/> [Process name: #{task.model.deployment_name}]</FONT>"
                     else
@@ -859,14 +860,12 @@ module Orocos
                     end
                 end
 
-                task_label
+                return task_label, task_node_attributes
             end
 
             # Helper method for the to_dot methods
             def dot_task_attributes(task, inputs, outputs, task_colors, remove_compositions = false) # :nodoc:
-                task_dot_attributes = []
-
-                task_label = format_task_label(task)
+                task_label, task_dot_attributes = format_task_label(task, task_colors)
 
                 label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"#{task.kind_of?(Deployment) ? '0' : '1'}\" CELLSPACING=\"0\">\n"
                 if !inputs.empty?
