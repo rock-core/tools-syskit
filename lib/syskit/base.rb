@@ -343,11 +343,13 @@ module Orocos
 
             # Enumerates this component's output ports
             def each_output(&block)
+                return [].each(&block) if !respond_to?(:orogen_spec)
                 orogen_spec.each_output_port(&block)
             end
 
             # Enumerates this component's input ports
             def each_input(&block)
+                return [].each(&block) if !respond_to?(:orogen_spec)
                 orogen_spec.each_input_port(&block)
             end
 
