@@ -92,6 +92,36 @@ module Orocos
                 end
             end
         end
+        # Exception raised when the user provided a composition child selection
+        # that is not compatible with the child definition
+        class InvalidSelection < SpecError
+            # The composition model
+            attr_reader :composition_model
+            # The child name for which the selection is invalid
+            attr_reader :child_name
+            # The model selected by the user
+            attr_reader :selected_model
+            # The model required by the composition for +child_name+
+            attr_reader :required_models
+
+            def initialize(composition_model, child_name, selected_model, required_models)
+                @composition_model, @child_name, @selected_model, @required_models =
+                    composition_model, child_name, selected_model, required_models
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot use #{selected_model.short_name} for the child #{child_name} of #{composition_model.short_name}"
+                pp.breakable
+                pp.text "it does not provide the required models"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(required_models) do |m|
+                        pp.text m.short_name
+                    end
+                end
+            end
+        end
     end
 end
+
 

@@ -1639,7 +1639,8 @@ module Orocos
 
                 if !selected_model.fullfills?(dependent_model)
                     throw :invalid_selection if !user_call
-                    raise SpecError, !user_call || "cannot select #{selected_model} for #{child_name} (#{dependent_model}): [#{selected_model}] is not a specialization of [#{dependent_model.to_a.join(", ")}]"
+                    raise InvalidSelection.new(self, child_name, selected_model, dependent_model),
+                        "cannot select #{selected_model} for #{child_name}: [#{selected_model}] is not a specialization of [#{dependent_model.map(&:short_name).join(", ")}]"
                 end
             end
 
