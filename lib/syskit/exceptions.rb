@@ -25,7 +25,8 @@ module Orocos
                 pp.text "cannot find a concrete implementation for #{abstract_task}"
                 pp.nest(2) do
                     pp.breakable
-                    pp.seplist(task_parents) do |role, parent|
+                    pp.seplist(task_parents) do |parent|
+                        role, parent = parent
                         pp.text "child #{role.to_a.first} of #{parent.to_short_s}"
                     end
                 end
@@ -44,7 +45,8 @@ module Orocos
                 pp.text "there are multiple candidates to implement the abstract task #{abstract_task}"
                 pp.nest(2) do
                     pp.breakable
-                    pp.seplist(task_parents) do |role, parent|
+                    pp.seplist(task_parents) do |parent|
+                        role, parent = parent
                         pp.text "child #{role.to_a.first} of #{parent.to_short_s}"
                     end
                 end
@@ -85,13 +87,15 @@ module Orocos
                     pp.text task.to_s
                     pp.nest(2) do
                         pp.breakable
-                        pp.seplist(parents) do |role, parent_task|
+                        pp.seplist(parents) do |parent_task|
+                            role, parent_task = parent_task
                             pp.text "child #{role} of #{parent_task}"
                         end
                     end
                 end
             end
         end
+
         # Exception raised when the user provided a composition child selection
         # that is not compatible with the child definition
         class InvalidSelection < SpecError
