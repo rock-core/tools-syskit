@@ -215,6 +215,11 @@ module Orocos
 
         module DataService
             @name = "Orocos::RobyPlugin::DataService"
+
+            def to_short_s
+                to_s.gsub /Orocos::RobyPlugin::/, ''
+            end
+
             module ClassExtension
                 def find_data_services(&block)
                     each_data_service.find_all(&block)
