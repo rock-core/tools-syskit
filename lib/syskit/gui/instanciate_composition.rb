@@ -93,7 +93,6 @@ module Ui
             @main = engine.add_mission(model).use(selection)
             engine.prepare
             engine.instanciate
-            engine.merge_identical_tasks
             plan.static_garbage_collect
         end
 
