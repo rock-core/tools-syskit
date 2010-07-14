@@ -63,7 +63,14 @@ module Orocos
             end
         end
 
+        # Exception raised at the end of #resolve if some tasks do not have a
+        # deployed equivalent
         class MissingDeployments < SpecError
+            # The tasks that are not deployed, as a hash from the actual task to
+            # a set of [role_set, parent_task] pairs
+            #
+            # This is computed in #initialize as the dependency structure will
+            # probably change afterwards
             attr_reader :tasks
 
             def initialize(tasks)
