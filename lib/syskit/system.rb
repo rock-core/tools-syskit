@@ -1653,6 +1653,26 @@ module Orocos
                     merges_size = merges.size
 
                     ## Now, disambiguate
+                    # 0. check for compositions and children. We assume that, if
+                    #    a candidate is the child of another, we should select
+                    #    the highest-level one
+                    ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
+                        Engine.debug do
+                            Engine.debug "    trying to disambiguate using dependency structure: #{target_task}"
+                            task_set.each do |task|
+                                Engine.debug "        => #{task}"
+                            end
+                            break
+                        end
+
+                        task_set.delete_if do |candidate|
+                            task_set.any? do |possible_parent|
+                                possible_parent != candidate &&
+                                    Roby::TaskStructure::Dependency.reachable?(possible_parent, candidate)
+                            end
+                        end
+                    end
+
                     # 1. use device and orogen names
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                         Engine.debug do
