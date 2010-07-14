@@ -96,7 +96,7 @@ namespace :setup do
     desc "builds the test 'system' module"
     task :orogen_system    do build_orogen 'system' end
 
-    UIFILES = %w{orocos_composer.ui}
+    UIFILES = %w{orocos_composer.ui orocos_system_builder.ui}
     desc 'generate all Qt UI files using rbuic4'
     task :uic do
         rbuic = 'rbuic4'

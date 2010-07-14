@@ -679,7 +679,7 @@ module Orocos
                 end
 
                 Tempfile.open('roby_orocos_deployment') do |io|
-                    io.write Roby.app.orocos_engine.send("to_dot_#{kind}", *additional_args)
+                    io.write send("to_dot_#{kind}", *additional_args)
                     io.flush
 
                     File.open(filename, 'w') do |output_io|
@@ -1039,18 +1039,32 @@ module Orocos
                 result = Hash.new
                 model.each_data_service do |service|
                     candidates = all_concrete_models.
-                        find_all { |m| m < service }
+                        find_all { |m| m.fullfills?(service) }
                     if candidates.size == 1
                         result[service] = candidates.to_a.first
                     end
 
-                    candidates = all_models.
-                        find_all { |m| m < service }
+                    candidates = all_models.find_all do |m|
+                        m.fullfills?(service)
+                    end
                     if !candidates.empty?
                         service_allocation_candidates[service] = candidates
                     end
                 end
                 @main_selection = result.merge(main_user_selection)
+            end
+
+            # Compute in #plan the network needed to fullfill the requirements
+            #
+            # This network is neither validated nor tied to actual deployments
+            def compute_system_network
+                instanciate
+                # Needed at least for now to merge together drivers that
+                # have multiple devices
+                merge_identical_tasks
+
+                link_to_busses
+                merge_identical_tasks
             end
 
             # Generate the deployment according to the current requirements, and
@@ -1123,15 +1137,7 @@ module Orocos
                         end
                     end
 
-                    instanciate
-
-                    # Needed at least for now to merge together drivers that
-                    # have multiple devices
-                    merge_identical_tasks
-
-                    allocate_abstract_tasks
-                    link_to_busses
-                    merge_identical_tasks
+                    compute_system_network
 
                     used_tasks = plan.find_local_tasks(Component).
                         to_value_set

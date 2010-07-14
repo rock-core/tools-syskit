@@ -7,7 +7,7 @@ require 'orocos/roby/app'
 require 'nokogiri'
 require 'Qt4'
 
-require 'orocos/roby/gui/orocos_composer'
+require 'orocos/roby/gui/orocos_system_builder'
 
 debug = false
 parser = OptionParser.new do |opt|
@@ -46,7 +46,7 @@ error = Roby.display_exception do
 
         app  = Qt::Application.new(ARGV)
         main = Qt::Widget.new
-        ui = Ui::OrocosComposerWidget.new(Roby.app.orocos_engine.model)
+        ui = Ui::OrocosSystemBuilderWidget.new(Roby.app.orocos_engine.model)
         ui.setupUi(main)
         main.show
 
