@@ -1541,14 +1541,17 @@ module Orocos
 
                     master_set = ValueSet.new
                     target_task.each_parent_vertex(merge_graph) do |parent|
-                        found = false
+                        # Remove from +master_set+ all tasks that are superseded
+                        # by +parent+, and check at the same time if +parent+
+                        # does add some information to the set
+                        is_worse, is_better = false, false
                         master_set.delete_if do |t|
-                            found = true
-                            merge_sort_order(t, parent) == 1
+                            order = merge_sort_order(t, parent)
+                            is_worse  ||= (order == -1)
+                            is_better ||= (order == 1)
+                            order == 1
                         end
-                        if found
-                            master_set << parent
-                        elsif !master_set.any? { |t| merge_sort_order(t, parent) == -1 }
+                        if is_better || !is_worse
                             master_set << parent
                         end
                     end
