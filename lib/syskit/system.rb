@@ -1354,49 +1354,60 @@ module Orocos
 
             # Find merge candidates and returns them as a graph
             #
-            # In the graph, an edge 'a' => 'b' means that b can be merged into a
+            # In the graph, an edge 'a' => 'b' means that we can use a to
+            # replace b, i.e. a.merge(b) is valid
             def direct_merge_mappings(task_set)
-                # First pass, we create a graph in which an a => b edge means
-                # that a.merge(b) is valid
+                # In the loop, we list the possible merge candidates for that
+                # task. What we are looking for are tasks that can be used to
+                # replace +task+
+
                 merge_graph = BGL::Graph.new
                 for task in task_set
+                    # We never replace a transaction proxy. We only use them to
+                    # replace new tasks in the transaction
+                    next if task.transaction_proxy?
+                    # We never replace a deployed task (i.e. target_task cannot
+                    # be executable)
+                    next if task.execution_agent
+
                     query = @merging_candidates_queries[task.model]
                     if !query
                         required_model = task.user_required_model
                         query = @merging_candidates_queries[task.model] = plan.find_local_tasks(required_model)
                     end
                     query.reset
-                    candidates = query.to_value_set & task_set
-                    next if candidates.empty?
 
-                    if task.kind_of?(Composition)
-                        task_children = task.merged_relations(:each_child, true, false).to_value_set
+                    # Get the set of candidates. We are checking if the tasks in
+                    # this set can be replaced by +task+
+                    candidates = query.to_value_set & task_set
+                    candidates.delete(task)
+                    if candidates.empty?
+                        next
                     end
 
-                    for target_task in candidates
-                        next if target_task == task
+                    # Used only if +task+ is a composition and we find a merge
+                    # candidate that is also a composition
+                    task_children = nil
 
-			# We never merge two proxies together
-			next if target_task.transaction_proxy?
-                        # We don't do task allocation as this level.
-                        # Meaning: we merge only abstract tasks together and
-                        # concrete tasks together
-                        next if (target_task.abstract? ^ task.abstract?)
-                        # We never replace a deployed task (i.e. target_task
-                        # cannot be executable)
-                        next if target_task.execution_agent
-                        # Merge only if +task+ has the same child set than +target+
+                    for target_task in candidates
+                        # We can not replace a non-abstract task with an
+                        # abstract one
+                        next if (!task.abstract? && target_task.abstract?)
+
+                        # If both tasks are compositions, merge only if +task+
+                        # has the same child set than +target+
                         if task.kind_of?(Composition) && target_task.kind_of?(Composition)
+                            task_children   ||= task.merged_relations(:each_child, true, false).to_value_set
                             target_children = target_task.merged_relations(:each_child, true, false).to_value_set
                             next if task_children != target_children
                         end
                         # Finally, call #can_merge?
-                        next if !task.can_merge?(target_task)
+                        next if !target_task.can_merge?(task)
 
                         Engine.debug do
-                            "    #{target_task} => #{task}"
+                            "    #{task} => #{target_task}"
                         end
-                        merge_graph.link(task, target_task, nil)
+                        merge_graph.link(target_task, task, nil)
                     end
                 end
                 merge_graph
