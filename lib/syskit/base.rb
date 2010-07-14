@@ -225,6 +225,8 @@ module Orocos
         # Definition of model-level methods for the Component models. See the
         # documentation of Model for an explanation of this.
         module ComponentModel
+            include Model
+
             ##
             # :method: each_main_data_service
             # :call-seq:
