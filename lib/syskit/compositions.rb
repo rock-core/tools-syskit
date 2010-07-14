@@ -1737,7 +1737,23 @@ module Orocos
                 arguments, task_arguments = Model.filter_instanciation_arguments(arguments)
                 user_selection = arguments[:selection]
 
-                Engine.debug { "instanciating #{name}" }
+                Engine.debug do
+                    Engine.debug "instanciating #{name} with"
+                    user_selection.each do |from, to|
+                        from =
+                            if from.respond_to?(:short_name)
+                                from.short_name
+                            else from
+                            end
+                        to =
+                            if to.respond_to?(:short_name)
+                                to.short_name
+                            else to
+                            end
+                        Engine.debug "   #{from} => #{to}"
+                    end
+                    break
+                end
 
                 # Apply the selection to our children
                 selected_models = filter_selection(engine, user_selection)
