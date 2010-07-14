@@ -92,6 +92,7 @@ module Ui
             end
 
             begin
+                engine.prepare
                 engine.compute_system_network
                 plan_display.update_view(plan, engine)
             rescue Exception => e
