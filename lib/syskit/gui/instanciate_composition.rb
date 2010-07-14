@@ -97,8 +97,14 @@ module Ui
             plan.static_garbage_collect
         end
 
+        def disable_updates; @updates_disabled = true end
+        def enable_updates; @updates_disabled = false end
+        def updates_disabled?; !!@updates_disabled end
+
         signals 'updated()'
         def update
+            return if updates_disabled?
+
             compute
             update_view
             emit updated()

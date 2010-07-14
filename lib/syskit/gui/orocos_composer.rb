@@ -27,11 +27,12 @@ module Ui
         end
 
         def set(model, selection)
-            composer.selection.clear
-            composer.selection.merge(selection)
+            composer.disable_updates
+            ui.compositionModels.current_item = model_to_item[model]
             composer.model = model
-
-            model_to_item[model].selected = true
+            composer.selection.merge!(selection)
+            composer.enable_updates
+            composer.update
         end
 
         def state

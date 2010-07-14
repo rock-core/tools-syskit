@@ -46,6 +46,7 @@ module Ui
 
             ui.lstInstances.connect(SIGNAL('itemDoubleClicked(QTreeWidgetItem*,int)')) do |item, column|
                 composer = setup_composer
+                composer.set(item.base_model, item.selection)
                 if composer.exec == Qt::Dialog::Accepted
                     base, selection, code = composer.state
                     refresh(item, base, selection, code)
@@ -62,6 +63,7 @@ module Ui
         end
 
         def refresh(item, base_model, selection, code)
+            item.set_text(0, code)
             item.base_model = base_model
             item.selection  = selection
             ui.lstInstances.update
