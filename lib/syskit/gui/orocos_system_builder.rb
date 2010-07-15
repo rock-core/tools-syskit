@@ -15,15 +15,21 @@ module Ui
         def initialize(system_model, robot)
             super()
             @instances = Array.new
+            @defines   = Array.new
 
             @system_model = system_model
             @robot        = robot
+            robot.devices.each do |name, d|
+                puts "device: #{name} #{d}"
+            end
             @plan   = Roby::Plan.new
             @engine = Orocos::RobyPlugin::Engine.new(plan, system_model, robot)
+
         end
 
         attr_reader :composer
         attr_reader :instances
+        attr_reader :defines
         attr_reader :ui
 
         def setup_composer
@@ -38,7 +44,8 @@ module Ui
         end
 
         def setupUi(main)
-            @ui = Ui::OrocosSystemBuilder.new
+            system_builder = self
+            ui = @ui = Ui::OrocosSystemBuilder.new
             @ui.setupUi(main)
 
             @graph_holder_layout = Qt::VBoxLayout.new(ui.graphHolder)
@@ -54,6 +61,21 @@ module Ui
                     refresh(item, base, selection, code)
                 end
             end
+            ui.lstInstances.connect(SIGNAL('itemClicked(QTreeWidgetItem*,int)')) do |item, column|
+                if item.check_state(0) == Qt::Checked
+                    if !instances.include?(item)
+                        instances << item
+                        defines.delete(item)
+                        update
+                    end
+                else
+                    if !defines.include?(item)
+                        defines << item
+                        instances.delete(item)
+                        update
+                    end
+                end
+            end
 
             ui.btnAdd.connect(SIGNAL('clicked()')) do
                 composer = setup_composer
@@ -61,6 +83,32 @@ module Ui
                     base, selection, code = composer.state
                     add(base, selection, code)
                 end
+            end
+
+            ui.lstInstances.connect(SIGNAL('itemSelectionChanged()')) do
+                ui.btnDelete.enabled = !ui.lstInstances.selected_items.empty?
+            end
+            ui.btnDelete.connect(SIGNAL('clicked()')) do
+                if current_selection = ui.lstInstances.selected_items.first
+                    remove(current_selection)
+                end
+            end
+
+            settings = Qt::Settings.new('Orocos', 'SystemBuilder')
+            main.restore_geometry(
+                settings.value('orocosSystemBuilder/geometry').to_byte_array)
+            ui.splitter.restore_state(
+                settings.value('orocosSystemBuilder/splitter_state').to_byte_array)
+
+            class << main; attr_accessor :ui end
+            main.ui = ui
+            def main.closeEvent(event)
+                settings = Qt::Settings.new('Orocos', 'SystemBuilder')
+                settings.setValue("orocosSystemBuilder/geometry",
+                                  Qt::Variant.new(save_geometry))
+                settings.setValue("orocosSystemBuilder/splitter_state",
+                                  Qt::Variant.new(ui.splitter.save_state))
+                super
             end
         end
 
@@ -80,8 +128,18 @@ module Ui
             end
             item.base_model = base_model
             item.selection  = selection
+            item.set_check_state(0, Qt::Checked)
             instances << item
 
+            update
+        end
+
+        def remove(item)
+            instances.delete(item)
+            defines.delete(item)
+
+            idx = ui.lstInstances.index_of_top_level_item(item)
+            ui.lstInstances.take_top_level_item(idx)
             update
         end
 

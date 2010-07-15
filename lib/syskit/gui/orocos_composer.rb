@@ -58,13 +58,20 @@ module Ui
 
         def setupUi(main)
             @main = main
+
             @ui = Ui::OrocosComposer.new
             @ui.setupUi(main)
-
             @graph_holder_layout = Qt::VBoxLayout.new(ui.graphHolder)
-            @composer = Ui::InstanciateComposition.new(system_model, robot, ui.graphHolder)
+
+            composer = @composer = Ui::InstanciateComposition.new(system_model, robot, ui.graphHolder)
             @composer_widget = composer.view
             @graph_holder_layout.add_widget(@composer_widget)
+
+            @ui.use_main_selection.checked = composer.engine.use_main_selection?
+            @ui.use_main_selection.connect(SIGNAL('toggled(bool)')) do |value|
+                composer.engine.use_main_selection = value
+                composer.update
+            end
 
             Qt::Object.connect(ui.compositionModels, SIGNAL('itemClicked(QTreeWidgetItem*,int)'),
                               self, SLOT('item_clicked(QTreeWidgetItem*,int)'))
@@ -93,6 +100,26 @@ module Ui
             end
             ui.btnDone.connect(SIGNAL('clicked()')) do
                 main.accept
+            end
+
+            settings = Qt::Settings.new('Orocos', 'SystemBuilder')
+            main.restore_geometry(settings.value('composer/geometry').to_byte_array)
+            ui.hsplitter.restore_state(
+                settings.value('composer/hsplitter/state').to_byte_array)
+            ui.vsplitter.restore_state(
+                settings.value('composer/vsplitter/state').to_byte_array)
+
+            class << main; attr_accessor :ui end
+            main.ui = ui
+            def main.closeEvent(event)
+                settings = Qt::Settings.new('Orocos', 'SystemBuilder')
+                settings.setValue("composer/geometry",
+                                  Qt::Variant.new(save_geometry))
+                settings.setValue("composer/vsplitter/state",
+                                  Qt::Variant.new(ui.vsplitter.save_state))
+                settings.setValue("composer/hsplitter/state",
+                                  Qt::Variant.new(ui.hsplitter.save_state))
+                super
             end
         end
     end
