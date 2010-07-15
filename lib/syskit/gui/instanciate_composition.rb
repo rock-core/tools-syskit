@@ -9,17 +9,19 @@ module Ui
 
         attr_reader :plan
         attr_reader :system_model
+        attr_reader :robot
         attr_reader :engine
         attr_reader :parent_window
 
-        def initialize(system_model, main = nil)
-            super
+        def initialize(system_model, robot, main = nil)
+            super(main)
             @selection = Hash.new
 
             @parent_window = main
             @system_model = system_model
+            @robot = robot
             @plan   = Roby::Plan.new
-            @engine = Orocos::RobyPlugin::Engine.new(plan, system_model)
+            @engine = Orocos::RobyPlugin::Engine.new(plan, system_model, robot)
         end
 
         def root_task

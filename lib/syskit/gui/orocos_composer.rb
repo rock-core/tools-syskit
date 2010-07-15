@@ -6,14 +6,16 @@ module Ui
         attr_reader :main
         attr_reader :ui
         attr_reader :system_model
+        attr_reader :robot
         attr_reader :composition_models
 
         attr_reader :composer
         attr_reader :composer_widget
         attr_reader :model_to_item
 
-        def initialize(system_model)
+        def initialize(system_model, robot)
             @system_model = system_model
+            @robot        = robot
             super()
             @model_to_item = Hash.new
         end
@@ -60,7 +62,7 @@ module Ui
             @ui.setupUi(main)
 
             @graph_holder_layout = Qt::VBoxLayout.new(ui.graphHolder)
-            @composer = Ui::InstanciateComposition.new(system_model, ui.graphHolder)
+            @composer = Ui::InstanciateComposition.new(system_model, robot, ui.graphHolder)
             @composer_widget = composer.view
             @graph_holder_layout.add_widget(@composer_widget)
 

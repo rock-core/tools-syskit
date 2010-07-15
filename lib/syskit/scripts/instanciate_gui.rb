@@ -46,7 +46,7 @@ error = Roby.display_exception do
 
         app  = Qt::Application.new(ARGV)
         main = Qt::Widget.new
-        ui = Ui::OrocosSystemBuilderWidget.new(Roby.app.orocos_engine.model)
+        ui = Ui::OrocosSystemBuilderWidget.new(Roby.app.orocos_engine.model, Roby.app.orocos_engine.robot)
         ui.setupUi(main)
         main.show
 

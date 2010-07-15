@@ -6,18 +6,20 @@ require 'orocos/roby/gui/plan_display'
 module Ui
     class OrocosSystemBuilderWidget < Qt::Object
         attr_reader :system_model
+        attr_reader :robot
         attr_reader :engine
         attr_reader :plan
         attr_reader :plan_display
         attr_reader :plan_display_widget
 
-        def initialize(system_model)
+        def initialize(system_model, robot)
             super()
             @instances = Array.new
 
             @system_model = system_model
+            @robot        = robot
             @plan   = Roby::Plan.new
-            @engine = Orocos::RobyPlugin::Engine.new(plan, system_model)
+            @engine = Orocos::RobyPlugin::Engine.new(plan, system_model, robot)
         end
 
         attr_reader :composer
@@ -28,7 +30,7 @@ module Ui
             if !@composer_dialog
                 dialog   = Qt::Dialog.new
                 dialog.set_attribute(Qt::WA_DeleteOnClose, false)
-                composer = Ui::OrocosComposerWidget.new(system_model)
+                composer = Ui::OrocosComposerWidget.new(system_model, robot)
                 composer.setupUi(dialog)
                 @composer_dialog = composer
             end
@@ -40,7 +42,7 @@ module Ui
             @ui.setupUi(main)
 
             @graph_holder_layout = Qt::VBoxLayout.new(ui.graphHolder)
-            @plan_display = Ui::PlanDisplay.new(system_model)
+            @plan_display = Ui::PlanDisplay.new
             @plan_display_widget = plan_display.view
             @graph_holder_layout.add_widget plan_display_widget
 

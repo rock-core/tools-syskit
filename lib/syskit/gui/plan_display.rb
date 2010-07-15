@@ -6,7 +6,7 @@ module Ui
         attr_reader :graphicsitem_to_task
         attr_reader :renderers
 
-        def initialize(system_model, main = nil)
+        def initialize(main = nil)
             super()
             @scene = Qt::GraphicsScene.new
             @view  = Qt::GraphicsView.new(scene, main)
