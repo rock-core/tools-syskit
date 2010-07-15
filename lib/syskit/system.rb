@@ -196,10 +196,6 @@ module Orocos
             #   end
             #
             def robot(&block)
-                if !@robot
-                    new_model = RobotDefinition.new(self)
-                    @robot = new_model
-                end
                 if block_given?
                     @robot.with_module(*RobyPlugin.constant_search_path, &block)
                 end
@@ -217,9 +213,11 @@ module Orocos
                 @modified = true
             end
 
-            def initialize(plan, model)
+            def initialize(plan, model, robot = nil)
                 @plan      = plan
                 @model     = model
+                @robot     = robot || RobotDefinition.new(self)
+
                 @instances = Array.new
                 @tasks     = Hash.new
                 @deployments = Hash.new { |h, k| h[k] = Set.new }
