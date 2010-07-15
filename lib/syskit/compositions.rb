@@ -86,11 +86,13 @@ module Orocos
             def initialize(models = ValueSet.new, dependency_options = Hash.new)
                 @models = models
                 @dependency_options = dependency_options
+                @using_spec = Hash.new
             end
 
             def initialize_copy(old)
                 @models = old.models.dup
                 @dependency_options = old.dependency_options.dup
+                @using_spec = old.using_spec.dup
             end
 
             # Return true if this child provides all of the required models
@@ -100,6 +102,36 @@ module Orocos
                 end
                 required_models.all? do |req_m|
                     models.any? { |m| m.fullfills?(req_m) }
+                end
+            end
+
+            attr_reader :using_spec
+
+            # If this child is a composition, narrow its model based on the
+            # provided selection specification.
+            #
+            # If the selection is enough to narrow down the model, return the
+            # new model. Otherwise, return nil
+            def use(spec)
+                # Check that this child is a composition. Note that we have the
+                # guarantee that there is at most one subclass of Composition in
+                # models, as it is not allowed to have multiple classes in there
+                composition_model = models.find { |m| m < Composition }
+                if !composition_model
+                    raise SpecError, "#use can be called only on children that are compositions"
+                end
+
+
+                # Now update the spec and check if we can narrow down the model
+                @using_spec = using_spec.merge(spec)
+                selected_models = composition_model.filter_selection(using_spec)
+                candidates      = composition_model.find_specializations(selected_models)
+                if candidates.size == 1
+                    new_model = candidates.find { true }
+                    STDERR.puts "updating model from #{composition_model.short_name} to #{new_model.short_name}"
+                    models.delete(composition_model)
+                    models << new_model
+                    new_model
                 end
             end
         end
@@ -129,6 +161,14 @@ module Orocos
             # Returns the required model for this compostion child
             def model
                 composition.find_child(child_name).models
+            end
+
+            # If this child is itself a composition model, give more information
+            # as to what specialization should be picked
+            #
+            # See CompositionChildDefinition#use
+            def use(spec)
+                composition.find_child(child_name).use(spec)
             end
 
             # Returns a CompositionChildPort instance if +name+ is a valid port
