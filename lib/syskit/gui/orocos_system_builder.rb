@@ -154,6 +154,7 @@ module Ui
             begin
                 engine.prepare
                 engine.compute_system_network
+                plan.static_garbage_collect
                 plan_display.update_view(plan, engine)
             rescue Exception => e
                 plan_display.display_error("Failed to deploy the required system network", e)
