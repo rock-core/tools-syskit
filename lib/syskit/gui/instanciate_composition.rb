@@ -136,7 +136,12 @@ module Ui
                         roles = window.root_task.role_paths(task).
                             map { |role_path| role_path.join(".") }
 
-                        candidates = 
+                        device_candidates =
+                            window.robot.devices.values.find_all do |dev|
+                                dev.model.fullfills?(models)
+                            end.to_value_set
+
+                        system_candidates = 
                             if models.empty?
                                 ValueSet.new
                             else
@@ -153,8 +158,10 @@ module Ui
 
                         puts "mouse pressed for #{self} (#{models.map(&:name).join(", ")}) [#{task}, #{roles.to_a.join(", ")}]"
                         menu = Qt::Menu.new
-                        candidates = candidates.to_a.sort_by(&:name)
-                        if candidates.empty? && current_selection.empty?
+
+                        device_candidates = device_candidates.to_a.sort_by(&:short_name)
+                        system_candidates = system_candidates.to_a.sort_by(&:short_name)
+                        if device_candidates.empty? && system_candidates.empty? && current_selection.empty?
                             action = menu.add_action('No available selection')
                             action.enabled = false
                         end
@@ -167,9 +174,19 @@ module Ui
                         end
 
                         selection = Hash.new
-                        candidates.each do |m|
-                            selection[m.name] = m
-                            menu.add_action(m.name)
+                        if !device_candidates.empty?
+                            menu.add_separator.text = "Devices"
+                            device_candidates.each do |m|
+                                selection[m.name] = m
+                                action = menu.add_action(m.name)
+                            end
+                        end
+                        if !system_candidates.empty?
+                            menu.add_separator.text = "Models"
+                            system_candidates.each do |m|
+                                selection[m.name] = m
+                                action = menu.add_action(m.name)
+                            end
                         end
                         return unless action = menu.exec(event.screenPos)
 

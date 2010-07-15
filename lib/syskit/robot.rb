@@ -12,6 +12,12 @@ module Orocos
             attr_reader :name
             # The device model, as a subclass of DataSource
             attr_reader :device_model
+            def model; device_model end
+
+            # Defined to be consistent with task and data service models
+            def short_name
+                name
+            end
 
             # The selected task model that allows to drive this device
             attr_reader :task_model
