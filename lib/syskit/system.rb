@@ -218,6 +218,8 @@ module Orocos
                 @model     = model
                 @robot     = robot || RobotDefinition.new(self)
 
+                @use_main_selection = true
+
                 @instances = Array.new
                 @tasks     = Hash.new
                 @deployments = Hash.new { |h, k| h[k] = Set.new }
@@ -954,8 +956,14 @@ module Orocos
             # (compositions and/or task models) that implement it
             attr_reader :service_allocation_candidates
 
+            # If true, the engine will compute for each service the set of
+            # concrete task models that provides it. If that set is one element,
+            # it will automatically add it to the set of default selection.
             #
+            # If false, this mechanism is ignored
             #
+            # It is true by default
+            attr_predicate :use_main_selection?, true
 
             # Must be called everytime the system model changes. It updates the
             # values that are cached to speed up the instanciation process
@@ -968,6 +976,11 @@ module Orocos
 
                 # Remove all cached plan queries
                 @merging_candidates_queries.clear
+
+                if !use_main_selection?
+                    @main_selection.clear
+                    return
+                end
 
                 # We now compute default selections for data service models. It
                 # computes if there is only one non-abstract task model that
