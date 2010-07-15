@@ -328,6 +328,10 @@ module Orocos
                 # The returned value is either an array of resolved selections,
                 # a Component instance or an InstanciatedDataService instance.
                 def resolve_explicit_selection(value)
+                    if value.kind_of?(MasterDeviceInstance) || value.kind_of?(SlaveDeviceInstance)
+                        value = value.name
+                    end
+
                     if value.kind_of?(InstanciatedComponent)
                         value.task
                     elsif value.respond_to?(:to_str)
