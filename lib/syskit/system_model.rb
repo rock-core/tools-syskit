@@ -5,6 +5,9 @@ module Orocos
 
             def initialize
                 @system = self
+                @composition_specializations = Hash.new do |h, k|
+                    h[k] = Hash.new { |a, b| a[b] = Hash.new }
+                end
             end
 
             if method(:const_defined?).arity == 1 # probably Ruby 1.8
@@ -430,6 +433,54 @@ module Orocos
                 end
                 io << "}"
                 io.join("\n")
+            end
+
+            # Caches the result of #compare_composition_child to speed up the
+            # instanciation process
+            attr_reader :composition_specializations
+
+            # Computes if the child called "child_name" is specialized in
+            # +test_model+, compared to the definition in +base_model+.
+            #
+            # If both compositions have a child called child_name, then returns
+            # 1 if the declared model is specialized in test_model, 0 if they
+            # are equivalent and false in all other cases.
+            #
+            # If +test_model+ has +child_name+ but +base_model+ has not, returns
+            # 1
+            #
+            # If +base_model+ has +child_name+ but not +test_model+, returns
+            # false
+            #
+            # If neither have a child called +child_name+, returns 0
+            def compare_composition_child(child_name, base_model, test_model)
+                cache = composition_specializations[child_name][base_model]
+
+                if cache.has_key?(test_model)
+                    return cache[test_model]
+                end
+
+                base_child = base_model.find_child(child_name)
+                test_child = test_model.find_child(child_name)
+                if !base_child && !test_child
+                    return cache[test_model] = 0
+                elsif !base_child
+                    return cache[test_model] = 1
+                elsif !test_child
+                    return cache[test_model] = false
+                end
+
+                base_child = base_child.models
+                test_child = test_child.models
+
+                flag = Composition.compare_model_sets(base_child, test_child)
+                cache[test_model] = flag
+                if flag == 0
+                    cache[test_model] = 0
+                elsif flag == 1
+                    composition_specializations[child_name][test_model][base_model] = false
+                end
+                flag
             end
         end
     end

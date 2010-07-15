@@ -906,7 +906,7 @@ module Orocos
             # * there is at least one of those children that is specialized in
             #   +B+
             # 
-            def find_most_specialized_compositions(engine, model_set, children_names)
+            def find_most_specialized_compositions(model_set, children_names)
                 return model_set if children_names.empty?
 
                 result = model_set.dup
@@ -919,7 +919,7 @@ module Orocos
 
                         is_specialized = false
                         children_names.each do |child_name|
-                            comparison = engine.compare_composition_child(
+                            comparison = system.compare_composition_child(
                                 child_name, composition, other_composition)
                             if !comparison
                                 is_specialized = false
@@ -975,7 +975,7 @@ module Orocos
             #
             # This is applied recursively, i.e. will search in
             # specializations-of-specializations
-            def find_specializations(engine, selected_models)
+            def find_specializations(selected_models)
                 # Select in our specializations the ones that match the current
                 # selection. To do that, we simply have to find those for which
                 # +selected_models+ is an acceptable selection.
@@ -1019,7 +1019,7 @@ module Orocos
                 # specializations
                 queue.each do |composition|
                     candidates.concat(composition.
-                          find_specializations(engine, selected_models))
+                          find_specializations(selected_models))
                 end
 
                 Orocos::RobyPlugin.debug do
@@ -1031,7 +1031,7 @@ module Orocos
                 end
 
                 result = find_most_specialized_compositions(
-                    engine, candidates, selected_models.keys)
+                    candidates, selected_models.keys)
 
                 # Don't bother doing more if there is no ambiguity left
                 if result.size < 2
@@ -1415,7 +1415,7 @@ module Orocos
 
             # In the explicit selection phase, try to find a composition that
             # matches +selection+ for +child_name+
-            def find_selected_compositions(engine, child_name, selection) # :nodoc:
+            def find_selected_compositions(child_name, selection) # :nodoc:
                 subselection = selection.dup
                 selection_children = Array.new
                 selection.each do |name, model|
@@ -1435,7 +1435,7 @@ module Orocos
 
                 # Find all compositions that can be used for +child_name+ and
                 # for which +subselection+ is a valid selection
-                candidates = engine.model.each_composition.find_all do |composition_model|
+                candidates = system.each_composition.find_all do |composition_model|
                     if !selection_children.all? { |n| composition_model.all_children.has_key?(n) }
                         next
                     end
@@ -1447,14 +1447,14 @@ module Orocos
                     next if !valid
 
                     valid = catch :invalid_selection do
-                        composition_model.filter_selection(engine, subselection, false)
+                        composition_model.filter_selection(subselection, false)
                         true
                     end
                     valid
                 end
 
                 # Now select the most specialized models
-                result = find_most_specialized_compositions(engine, candidates, subselection.keys)
+                result = find_most_specialized_compositions(candidates, subselection.keys)
                 # Don't bother going further if there is no ambiguity
                 if result.size < 2
                     return result
@@ -1529,7 +1529,7 @@ module Orocos
             end
             
             # call-seq:
-            #   find_selected_model_and_task(engine, child_name, selection) -> selected_service, child_model, child_task
+            #   find_selected_model_and_task(child_name, selection) -> selected_service, child_model, child_task
             #
             # Finds a possible child model for +child_name+. +selection+ is an
             # explicit selection hash of the form
@@ -1549,7 +1549,7 @@ module Orocos
             #   be a task model (as a class object) or a task instance (as a
             #   Component instance).
             #
-            def find_selected_model_and_task(engine, child_name, selection) # :nodoc:
+            def find_selected_model_and_task(child_name, selection) # :nodoc:
                 dependent_model = find_child(child_name).models
 
                 # First, simply check for the child's name
@@ -1559,7 +1559,7 @@ module Orocos
                 # child's child (i.e. starting with child_name.). In that
                 # case, search for a matching composition
                 if !selected_object
-                    matching_compositions = find_selected_compositions(engine, child_name, selection)
+                    matching_compositions = find_selected_compositions(child_name, selection)
                     matching_compositions = filter_ambiguities(matching_compositions, selection)
                     if matching_compositions.size > 1
                         selection = selection.dup
@@ -1666,12 +1666,12 @@ module Orocos
             #
             # +child_task+ will be non-nil only if the user specifically
             # selected a task.
-            def filter_selection(engine, selection, user_call = true) # :nodoc:
+            def filter_selection(selection, user_call = true) # :nodoc:
                 result = Hash.new
                 each_child do |child_name, child_definition|
                     dependent_model = child_definition.models
                     selected_service, child_model, child_task =
-                        find_selected_model_and_task(engine, child_name, selection)
+                        find_selected_model_and_task(child_name, selection)
                     verify_acceptable_selection(child_name, child_model, user_call)
 
                     # If the model is a plain data service (i.e. not a task
@@ -1756,10 +1756,10 @@ module Orocos
                 end
 
                 # Apply the selection to our children
-                selected_models = filter_selection(engine, user_selection)
+                selected_models = filter_selection(user_selection)
 
                 # Find the specializations that apply
-                candidates = find_specializations(engine, selected_models)
+                candidates = find_specializations(selected_models)
 
                 # Now, check if some of our specializations apply to
                 # +selected_models+. If there is one, call #instanciate on it
