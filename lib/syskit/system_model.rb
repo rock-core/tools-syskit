@@ -1,6 +1,9 @@
 module Orocos
     module RobyPlugin
         class SystemModel
+            extend Logger::Forward
+            extend Logger::Hierarchy
+
             include CompositionModel
 
             def initialize

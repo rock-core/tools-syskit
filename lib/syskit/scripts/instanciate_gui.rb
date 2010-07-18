@@ -33,6 +33,9 @@ error = Roby.display_exception do
         toc = Time.now
         STDERR.puts "loaded Roby application in %.3f seconds" % [toc - tic]
         if debug
+            Orocos::RobyPlugin::SystemModel.logger = Logger.new(STDOUT)
+            Orocos::RobyPlugin::SystemModel.logger.formatter = Roby.logger.formatter
+            Orocos::RobyPlugin::SystemModel.logger.level = Logger::DEBUG
             Orocos::RobyPlugin::Engine.logger = Logger.new(STDOUT)
             Orocos::RobyPlugin::Engine.logger.formatter = Roby.logger.formatter
             Orocos::RobyPlugin::Engine.logger.level = Logger::DEBUG

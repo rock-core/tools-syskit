@@ -731,6 +731,20 @@ module Orocos
                         spec.composition.verify_acceptable_specialization(child_name, child_model, false)
                     end
                     if valid
+                        SystemModel.debug do
+                            SystemModel.debug "recursively creating specialization"
+                            SystemModel.debug "  for #{child_name} with type #{child_model.short_name}"
+                            SystemModel.debug "  from #{short_name}"
+                            SystemModel.debug "  on #{spec.composition.short_name}"
+                            break
+                        end
+
+                        # Do NOT apply the block here. We first create all the
+                        # specialized models and *then* apply the block.
+                        #
+                        # This is because we filter out some of the compositions
+                        # in-between and therefore don't need to do this expensive
+                        # operation on them.
                         spec.composition.specialize(child_name, child_model, options)
                     end
                 end
@@ -849,6 +863,14 @@ module Orocos
             def apply_specialization_block(child_name, child_model, block) # :nodoc:
                 specializations.each do |spec|
                     if spec.specialized_children[child_name] == child_model
+                        SystemModel.debug do
+                            SystemModel.debug "recursively applying specialization block #{block}"
+                            SystemModel.debug "  for #{child_name} with type #{child_model.short_name}"
+                            SystemModel.debug "  from #{short_name}"
+                            SystemModel.debug "  on #{spec.composition.short_name}"
+                            break
+                        end
+
                         spec.composition.with_module(*RobyPlugin.constant_search_path, &block)
                     else
                         spec.composition.apply_specialization_block(child_name, child_model, block)
@@ -1062,10 +1084,15 @@ module Orocos
                           find_specializations(selected_models))
                 end
 
-                Orocos::RobyPlugin.debug do
-                    Orocos::RobyPlugin.debug "found #{candidates.size} specializations for #{name} against #{selected_models}"
+                SystemModel.debug do
+                    SystemModel.debug "found #{candidates.size} specializations for #{name}"
+                    SystemModel.debug "  on #{short_name}"
+                    SystemModel.debug "  against"
+                    selected_models.each do |specialized_child_name, (specialized_child_model, _)|
+                        SystemModel.debug "    #{specialized_child_name} => #{specialized_child_model.short_name}"
+                    end
                     candidates.each do |c|
-                        Orocos::RobyPlugin.debug c.name
+                        SystemModel.debug "  #{c.short_name}"
                     end
                     break
                 end
@@ -1263,11 +1290,11 @@ module Orocos
                     end
                 end
 
-                RobyPlugin.debug do
-                    RobyPlugin.debug "Automatic connections in #{self}"
+                SystemModel.debug do
+                    SystemModel.debug "automatic connection result in #{short_name}"
                     result.each do |(out_child, in_child), connections|
                         connections.each do |(out_port, in_port), policy|
-                            RobyPlugin.debug "    #{out_child}:#{out_port} => #{in_child}:#{in_port} (#{policy})"
+                            SystemModel.debug "    #{out_child}:#{out_port} => #{in_child}:#{in_port} (#{policy})"
                         end
                     end
                     break
