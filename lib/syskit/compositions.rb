@@ -128,7 +128,6 @@ module Orocos
                 candidates      = composition_model.find_specializations(user_selection)
                 if candidates.size == 1
                     new_model = candidates.find { true }
-                    STDERR.puts "updating model from #{composition_model.short_name} to #{new_model.short_name}"
                     models.delete(composition_model)
                     models << new_model
                     new_model
