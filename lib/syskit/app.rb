@@ -175,6 +175,8 @@ module Orocos
                 end
                 ::Robot.const_set 'Devices', mod
 
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::Generation::OROGEN_LIB_DIR))
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(File.expand_path('..', File.dirname(__FILE__))))
             end
 
             # Returns true if the given orogen project has already been loaded
