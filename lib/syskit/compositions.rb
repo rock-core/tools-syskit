@@ -1701,7 +1701,7 @@ module Orocos
             end
 
             # Verifies that +selected_model+ is an acceptable selection for
-            # +child_name+ on +self+. Raises SpecError if it is not the case,
+            # +child_name+ on +self+. Raises InvalidSelection if it is not the case,
             # and ArgumentError if the specified child is not a child of this
             # composition.
             #
