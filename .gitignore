@@ -1,6 +1,6 @@
 doc/html
 webgen.cache
-*.swp
+*.sw?
 *.o
 *.so
 orocos.log
