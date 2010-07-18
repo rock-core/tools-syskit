@@ -821,9 +821,9 @@ module Orocos
             def format_task_label(task, task_colors = Hash.new)
                 task_node_attributes = []
                 task_flags = []
-                task_flags << "E" if task.executable?
-                task_flags << "A" if task.abstract?
-                task_flags << "C" if task.kind_of?(Composition)
+                #task_flags << "E" if task.executable?
+                #task_flags << "A" if task.abstract?
+                #task_flags << "C" if task.kind_of?(Composition)
                 task_flags =
                     if !task_flags.empty?
                         "[#{task_flags.join(",")}]"
@@ -842,10 +842,10 @@ module Orocos
                                 name = $1
                                 specializations = $2
                                 id  = $3
-                                name + id + task_flags +
+                                name + task_flags +
                                     "<BR/>" + specializations.gsub('),', ')<BR/>')
                             else
-                                text
+                                text.gsub /:0x[0-9a-f]+/, ''
                             end
                         result.gsub(/\s+/, '').gsub('=>', ':').
                             gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '<BR/>')
