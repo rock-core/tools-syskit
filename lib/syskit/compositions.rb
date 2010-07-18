@@ -681,11 +681,12 @@ module Orocos
                     end
                 end
 
-                child_name = if child_name.respond_to?(:to_str)
-                                 child_name.to_str
-                             else
-                                 child_name.name.gsub(/^.*::/, '')
-                             end
+                child_name =
+                    if child_name.respond_to?(:to_str)
+                        child_name.to_str
+                    else
+                        child_name.name.gsub(/^.*::/, '')
+                    end
 
                 if specialization = specializations.find { |m| m.specialized_children[child_name] == child_model }
                     if block
