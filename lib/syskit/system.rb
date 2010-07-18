@@ -696,7 +696,7 @@ module Orocos
                 result = []
                 result << "digraph {"
                 result << "  rankdir=TB"
-                result << "  node [shape=record,height=.1];"
+                result << "  node [shape=record,height=.1,fontname=\"Arial\"];"
 
                 all_tasks = ValueSet.new
 
@@ -740,7 +740,7 @@ module Orocos
                 result = []
                 result << "digraph {"
                 result << "  rankdir=LR"
-                result << "  node [shape=none,margin=0,height=.1];"
+                result << "  node [shape=none,margin=0,height=.1,fontname=\"Arial\"];"
 
                 output_ports = Hash.new { |h, k| h[k] = Set.new }
                 input_ports  = Hash.new { |h, k| h[k] = Set.new }
