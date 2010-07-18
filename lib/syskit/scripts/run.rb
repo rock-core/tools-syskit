@@ -36,7 +36,6 @@ Roby.filter_backtrace do
     Roby.app.filter_backtraces = !debug
     Roby.app.using_plugins 'orocos'
     Roby.app.setup
-    Roby.app.filter_backtraces = !debug
     if debug
         levels = Roby.app.log['levels']
         if !levels || !levels['orocos/roby_plugin/engine']

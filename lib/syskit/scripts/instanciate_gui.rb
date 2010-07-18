@@ -29,8 +29,6 @@ remaining = parser.parse(ARGV)
 error = Roby.display_exception do
     begin
         tic = Time.now
-        Roby.app.using_plugins 'orocos'
-        Roby.app.setup
         Roby.app.filter_backtraces = !debug
         toc = Time.now
         STDERR.puts "loaded Roby application in %.3f seconds" % [toc - tic]
@@ -40,6 +38,8 @@ error = Roby.display_exception do
             Orocos::RobyPlugin::Engine.logger.level = Logger::DEBUG
         end
 
+        Roby.app.using_plugins 'orocos'
+        Roby.app.setup
         Dir.chdir(APP_DIR)
         Roby.app.setup_global_singletons
         Roby.app.setup_drb_server

@@ -29,9 +29,9 @@ deployment_file     = remaining.shift
 additional_services = remaining.dup
 
 Roby.filter_backtrace do
+    Roby.app.filter_backtraces = !debug
     Roby.app.setup
     Roby.app.using_plugins 'orocos'
-    Roby.app.filter_backtraces = !debug
     if debug
         Orocos::RobyPlugin::Engine.logger = Logger.new(STDOUT)
         Orocos::RobyPlugin::Engine.logger.formatter = Roby.logger.formatter

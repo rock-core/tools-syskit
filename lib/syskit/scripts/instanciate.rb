@@ -54,9 +54,9 @@ additional_services = remaining.dup
 error = Roby.display_exception do
     begin
         tic = Time.now
+        Roby.app.filter_backtraces = !debug
         Roby.app.using_plugins 'orocos'
         Roby.app.setup
-        Roby.app.filter_backtraces = !debug
         toc = Time.now
         STDERR.puts "loaded Roby application in %.3f seconds" % [toc - tic]
         if debug
