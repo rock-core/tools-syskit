@@ -219,6 +219,7 @@ module Orocos
                 @robot     = robot || RobotDefinition.new(self)
 
                 @use_main_selection = true
+                @service_allocation_candidates = Hash.new
 
                 @instances = Array.new
                 @tasks     = Hash.new
@@ -977,11 +978,6 @@ module Orocos
                 # Remove all cached plan queries
                 @merging_candidates_queries.clear
 
-                if !use_main_selection?
-                    @main_selection.clear
-                    return
-                end
-
                 # We now compute default selections for data service models. It
                 # computes if there is only one non-abstract task model that
                 # provides a given data service, and -- if it is the case --
@@ -1001,7 +997,7 @@ module Orocos
                     all_models << task_model
                 end
 
-                @service_allocation_candidates = Hash.new
+                service_allocation_candidates.clear
                 result = Hash.new
                 model.each_data_service do |service|
                     candidates = all_concrete_models.
@@ -1017,7 +1013,12 @@ module Orocos
                         service_allocation_candidates[service] = candidates
                     end
                 end
-                @main_selection = result.merge(main_user_selection)
+
+                if !use_main_selection?
+                    @main_selection = main_user_selection.dup
+                else
+                    @main_selection = result.merge(main_user_selection)
+                end
             end
 
             # Compute in #plan the network needed to fullfill the requirements
