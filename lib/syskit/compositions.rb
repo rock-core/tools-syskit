@@ -124,8 +124,8 @@ module Orocos
 
                 # Now update the spec and check if we can narrow down the model
                 @using_spec = using_spec.merge(spec)
-                selected_models = composition_model.filter_selection(using_spec)
-                candidates      = composition_model.find_specializations(selected_models)
+                user_selection, _ = composition_model.find_children_models_and_tasks(using_spec)
+                candidates      = composition_model.find_specializations(user_selection)
                 if candidates.size == 1
                     new_model = candidates.find { true }
                     STDERR.puts "updating model from #{composition_model.short_name} to #{new_model.short_name}"
@@ -1487,7 +1487,7 @@ module Orocos
                     next if !valid
 
                     valid = catch :invalid_selection do
-                        composition_model.filter_selection(subselection, false)
+                        composition_model.find_children_models_and_tasks(subselection, false)
                         true
                     end
                     valid
@@ -1569,7 +1569,7 @@ module Orocos
             end
             
             # call-seq:
-            #   find_selected_model_and_task(child_name, selection) -> selected_service, child_model, child_task
+            #   find_selected_model_and_task(child_name, selection) -> is_default, selected_service, child_model, child_task
             #
             # Finds a possible child model for +child_name+. +selection+ is an
             # explicit selection hash of the form
@@ -1592,8 +1592,12 @@ module Orocos
             def find_selected_model_and_task(child_name, selection) # :nodoc:
                 dependent_model = find_child(child_name).models
 
+                is_explicit = false
+
                 # First, simply check for the child's name
-                selected_object = selection[child_name]
+                if selected_object = selection[child_name]
+                    is_explicit = true
+                end
 
                 # Now, check that if there is an explicit selection for a
                 # child's child (i.e. starting with child_name.). In that
@@ -1607,7 +1611,9 @@ module Orocos
                         raise AmbiguousIndirectCompositionSelection.new(self, child_name, selection, matching_compositions),
                             "the following compositions match for #{child_name}: #{matching_compositions.map(&:to_s).join(", ")}"
                     end
-                    selected_object = matching_compositions.first
+                    if selected_object = matching_compositions.first
+                        is_explicit = true
+                    end
                 end
 
                 # Second, look into the child model
@@ -1630,7 +1636,9 @@ module Orocos
                         raise Ambiguous, "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
                     end
 
-                    selected_object = candidates.first
+                    if selected_object = candidates.first
+                        is_explicit = true
+                    end
                 end
 
                 if !selected_object
@@ -1662,7 +1670,7 @@ module Orocos
                     raise ArgumentError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
                 end
 
-                return selected_service, child_model, child_task
+                return is_explicit, selected_service, child_model, child_task
             end
 
             # Verifies that +selected_model+ is an acceptable selection for
@@ -1696,8 +1704,8 @@ module Orocos
                 return false
             end
 
-            # Extracts from +selection+ the specifications that are relevant for
-            # +self+, and returns a list of selected models, as
+            # Computes the required models and task instances for each of the
+            # composition's children. It returns two mappings for the form
             #
             #   child_name => [child_model, child_task, port_mappings]
             #
@@ -1706,11 +1714,16 @@ module Orocos
             #
             # +child_task+ will be non-nil only if the user specifically
             # selected a task.
-            def filter_selection(selection, user_call = true) # :nodoc:
-                result = Hash.new
+            #
+            # The first returned mapping is the set of explicit selections (i.e.
+            # selections that are specified by +selection+) and the second one
+            # is the complete result for all the composition children.
+            def find_children_models_and_tasks(selection, user_call = true) # :nodoc:
+                explicit = Hash.new
+                result   = Hash.new
                 each_child do |child_name, child_definition|
                     dependent_model = child_definition.models
-                    selected_service, child_model, child_task =
+                    is_explicit, selected_service, child_model, child_task =
                         find_selected_model_and_task(child_name, selection)
                     verify_acceptable_selection(child_name, child_model, user_call)
 
@@ -1724,10 +1737,14 @@ module Orocos
                     Engine.debug do
                         "  selected #{child_task || child_model.name} (#{port_mappings}) for #{child_name} (#{dependent_model.map(&:name).join(",")})"
                     end
-                    result[child_name] = [child_model, child_task, port_mappings || Hash.new]
+                    selected_model = [child_model, child_task, port_mappings || Hash.new]
+                    if is_explicit
+                        explicit[child_name] = selected_model
+                    end
+                    result[child_name] = selected_model
                 end
 
-                result
+                return explicit, result
             end
 
             # Cached set of all the children definitions for this composition
@@ -1796,10 +1813,10 @@ module Orocos
                 end
 
                 # Apply the selection to our children
-                selected_models = filter_selection(user_selection)
+                user_selection, selected_models = find_children_models_and_tasks(user_selection)
 
                 # Find the specializations that apply
-                candidates = find_specializations(selected_models)
+                candidates = find_specializations(user_selection)
 
                 # Now, check if some of our specializations apply to
                 # +selected_models+. If there is one, call #instanciate on it
