@@ -839,6 +839,9 @@ module Orocos
                             gsub(/\s+/, '').gsub('=>', ':')
                         result =
                             if text =~ /(.*)\/\[(.*)\](:0x[0-9a-f]+)/
+                                # It is a specialization, move the
+                                # specialization specification below the model
+                                # name
                                 name = $1
                                 specializations = $2
                                 id  = $3
