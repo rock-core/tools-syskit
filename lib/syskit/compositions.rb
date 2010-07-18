@@ -639,7 +639,7 @@ module Orocos
             end
 
             # Internal representation of specializations
-            Specialization = Struct.new :specialized_children, :composition
+            Specialization = Struct.new :specialized_children, :composition, :definition_blocks
 
             # Create a child of this composition model in which +child_name+ is
             # constrained to implement the +child_model+ interface. If a block
@@ -701,15 +701,14 @@ module Orocos
                 parent_model = find_child(child_name)
                 verify_acceptable_specialization(child_name, child_model, false)
 
-                child_composition = system.composition(
-                        "", :child_of => self, :register => false) do
-                    add child_model, :as => child_name
-                end
+                child_composition = new_submodel('', system)
                 child_composition.extend CompositionSpecializationModel
+                child_composition.add child_model, :as => child_name
                 child_composition.private_model
                 
                 specializations <<
-                    Specialization.new({ child_name => child_model }, child_composition)
+                    Specialization.new({ child_name => child_model },
+                                       child_composition, [])
 
                 # Apply the specialization to the existing ones
                 specializations.each do |spec|
@@ -875,6 +874,7 @@ module Orocos
                     else
                         spec.composition.apply_specialization_block(child_name, child_model, block)
                     end
+                    spec.definition_blocks << block
                 end
             end
 

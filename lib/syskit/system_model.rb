@@ -299,6 +299,20 @@ module Orocos
                 if block_given?
                     new_model.with_module(*RobyPlugin.constant_search_path, &block)
                 end
+
+                # Apply existing specializations of the parent model on the
+                # child
+                #
+                # Note: we must NOT move that to #new_submodel as #new_submodel
+                # is used to create specializations as well !
+                options[:child_of].specializations.each do |spec|
+                    spec.specialized_children.each do |name, model|
+                        spec.definition_blocks.each do |block|
+                            new_model.specialize(name, model, &block)
+                        end
+                    end
+                end
+
                 if options[:register]
                     register_composition(new_model)
                 end
