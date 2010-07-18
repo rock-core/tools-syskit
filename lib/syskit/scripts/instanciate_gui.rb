@@ -30,8 +30,6 @@ error = Roby.display_exception do
     begin
         tic = Time.now
         Roby.app.filter_backtraces = !debug
-        toc = Time.now
-        STDERR.puts "loaded Roby application in %.3f seconds" % [toc - tic]
         if debug
             Orocos::RobyPlugin::SystemModel.logger = Logger.new(STDOUT)
             Orocos::RobyPlugin::SystemModel.logger.formatter = Roby.logger.formatter
@@ -43,6 +41,9 @@ error = Roby.display_exception do
 
         Roby.app.using_plugins 'orocos'
         Roby.app.setup
+        toc = Time.now
+        STDERR.puts "loaded Roby application in %.3f seconds" % [toc - tic]
+
         Dir.chdir(APP_DIR)
         Roby.app.setup_global_singletons
         Roby.app.setup_drb_server
@@ -51,6 +52,10 @@ error = Roby.display_exception do
         main = Qt::Widget.new
         ui = Ui::OrocosSystemBuilderWidget.new(Roby.app.orocos_engine.model, Roby.app.orocos_engine.robot)
         ui.setupUi(main)
+        remaining.each do |file|
+            STDERR.puts "script: #{file}"
+            ui.append(file)
+        end
         main.show
 
         app.exec

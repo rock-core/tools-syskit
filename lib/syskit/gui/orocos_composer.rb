@@ -40,8 +40,7 @@ module Ui
         def state
             model = composer.model
             actual_selection = composer.actual_selection
-            code = composer.to_ruby(actual_selection)
-            return model, actual_selection, code
+            return model, actual_selection
         end
 
         def item_clicked(item, column)
@@ -100,6 +99,11 @@ module Ui
             end
             ui.btnDone.connect(SIGNAL('clicked()')) do
                 main.accept
+            end
+            ui.btnSaveSVG.connect(SIGNAL('clicked()')) do
+                if filename = Qt::FileDialog.get_save_file_name
+                    composer.save_svg(filename)
+                end
             end
 
             settings = Qt::Settings.new('Orocos', 'SystemBuilder')

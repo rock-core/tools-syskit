@@ -43,6 +43,20 @@ module Ui
             @composer_dialog
         end
 
+        def select(item)
+            if !instances.include?(item)
+                instances << item
+                defines.delete(item)
+            end
+        end
+
+        def deselect(item)
+            if !defines.include?(item)
+                defines << item
+                instances.delete(item)
+            end
+        end
+
         def setupUi(main)
             system_builder = self
             ui = @ui = Ui::OrocosSystemBuilder.new
@@ -57,40 +71,98 @@ module Ui
                 composer = setup_composer
                 composer.set(item.base_model, item.selection)
                 if composer.exec == Qt::Dialog::Accepted
-                    base, selection, code = composer.state
-                    refresh(item, base, selection, code)
+                    base, selection = composer.state
+                    refresh(item, base, selection)
+                    update
                 end
             end
             ui.lstInstances.connect(SIGNAL('itemClicked(QTreeWidgetItem*,int)')) do |item, column|
                 if item.check_state(0) == Qt::Checked
-                    if !instances.include?(item)
-                        instances << item
-                        defines.delete(item)
-                        update
-                    end
+                    select(item)
                 else
-                    if !defines.include?(item)
-                        defines << item
-                        instances.delete(item)
-                        update
-                    end
+                    deselect(item)
                 end
+                update
             end
 
             ui.btnAdd.connect(SIGNAL('clicked()')) do
                 composer = setup_composer
                 if composer.exec == Qt::Dialog::Accepted
-                    base, selection, code = composer.state
-                    add(base, selection, code)
+                    base, selection = composer.state
+                    add(base, selection)
+                    update
                 end
             end
 
             ui.lstInstances.connect(SIGNAL('itemSelectionChanged()')) do
                 ui.btnDelete.enabled = !ui.lstInstances.selected_items.empty?
             end
+            instance_list = ui.lstInstances
+            def instance_list.contextMenuEvent(event)
+                if current_selection = selected_items.first
+                    menu = Qt::Menu.new
+                    if current_selection.name
+                        menu.add_action "Remove name"
+                        menu.add_action "Change name"
+                    else
+                        menu.add_action "Set name"
+                    end
+
+                    if action = menu.exec(event.global_pos)
+                        if action.text == "Remove name"
+                            current_selection.name = nil
+                            current_selection.update_text
+                        else
+                            new_name = current_selection.name || ""
+                            valid = false
+                            while !valid
+                                new_name = Qt::InputDialog.getText(self,
+                                        "Orocos System Builder",
+                                        "Definition name",
+                                        Qt::LineEdit::Normal,
+                                        new_name || "")
+                                break if !new_name
+
+                                valid = true
+                                if new_name !~ /^\w+$/
+                                    Qt::MessageBox.warning(self, "Orocos System Builder", "invalid name '#{new_name}': names must be non-empty and contain only alphanumeric characters and _ (underscore)")
+                                    valid = false
+                                else
+                                    valid = top_level_item_count.enum_for(:times).all? do |idx|
+                                        item = top_level_item(idx)
+                                        if item != current_selection && item.name == new_name
+                                            Qt::MessageBox.warning(self, "Orocos System Builder", "the name '#{new_name}' is already in use")
+                                            false
+                                        else
+                                            true
+                                        end
+                                    end
+                                end
+                            end
+
+                            if new_name
+                                current_selection.name = new_name
+                                current_selection.update_text
+                            end
+                        end
+                    end
+                end
+                super
+            end
+
             ui.btnDelete.connect(SIGNAL('clicked()')) do
                 if current_selection = ui.lstInstances.selected_items.first
                     remove(current_selection)
+                end
+            end
+            ui.btnSave.connect(SIGNAL('clicked()')) do
+                if filename = Qt::FileDialog.get_save_file_name
+                    save(filename)
+                end
+            end
+            ui.btnSaveSVG.connect(SIGNAL('clicked()')) do
+                if filename = Qt::FileDialog.get_save_file_name
+                    plan_display.save_svg(filename)
                 end
             end
 
@@ -112,26 +184,89 @@ module Ui
             end
         end
 
-        def refresh(item, base_model, selection, code)
-            item.set_text(0, code)
-            item.base_model = base_model
-            item.selection  = selection
-            ui.lstInstances.update
+        def append(filename)
+            engine.load(filename)
+
+            items = Hash.new
+            engine.defines.each_value do |instance|
+                item = add(instance.model, instance.using_spec)
+                item.set_check_state(0, Qt::Unchecked)
+                item.name = instance.name
+                item.update_text
+                items[item.name] = item
+                deselect(item)
+            end
+
+            engine.instances.each do |instance|
+                if item = items[instance.name]
+                    item.set_check_state(0, Qt::Checked)
+                    select(item)
+                else
+                    item = add(instance.model, instance.using_spec)
+                    item.name = instance.name
+                    items[item.name] = item
+                    item.update_text
+                end
+            end
             update
         end
 
-        def add(base_model, selection, code)
+        def load(filename)
+            engine.clear
+            plan.clear
+            ui.lstInstances.clear
+
+            append(filename)
+        end
+
+        def save(filename)
+            code = []
+            ui.lstInstances.top_level_item_count.times do |idx|
+                it = ui.lstInstances.top_level_item(idx)
+                if it.name
+                    code << InstanciateComposition.to_ruby_define(
+                        it.base_model, it.selection, it.name)
+                    if it.check_state(0) == Qt::Checked
+                        code << "add('#{it.name}')"
+                    end
+                elsif it.check_state(0) == Qt::Checked
+                    code << InstanciateComposition.to_ruby(
+                        it.base_model, it.selection, it.name)
+                end
+            end
+
+            File.open(filename, 'w') do |io|
+                io.write code.join("\n")
+            end
+        end
+
+        def refresh(item, base_model, selection)
+            item.base_model = base_model
+            item.selection  = selection
+            item.set_text(0, InstanciateComposition.to_ruby(
+                     base_model, selection, item.name))
+            ui.lstInstances.update
+        end
+
+        def add(base_model, selection)
+            code = InstanciateComposition.to_ruby(base_model, selection, nil)
             item = Qt::TreeWidgetItem.new(ui.lstInstances, [code])
             class << item
+                attr_accessor :name
                 attr_accessor :base_model
                 attr_accessor :selection
+
+                def update_text
+                    self.set_text(0, InstanciateComposition.to_ruby(
+                        base_model, selection, name))
+                end
             end
             item.base_model = base_model
             item.selection  = selection
             item.set_check_state(0, Qt::Checked)
             instances << item
 
-            update
+            item
         end
 
         def remove(item)
@@ -140,7 +275,6 @@ module Ui
 
             idx = ui.lstInstances.index_of_top_level_item(item)
             ui.lstInstances.take_top_level_item(idx)
-            update
         end
 
         def update

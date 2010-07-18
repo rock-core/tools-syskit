@@ -4,7 +4,9 @@ module Ui
 
     # Widget that allows to instanciate a composition step by step
     class InstanciateComposition < PlanDisplay
+        # The model
         attr_reader :model
+        # The disambiguation selection
         attr_reader :selection
 
         attr_reader :plan
@@ -61,10 +63,13 @@ module Ui
         end
 
 
-        def to_ruby(actual_selection = nil)
-            result = ["add(#{model.short_name})"]
+        def to_ruby(actual_selection = nil, name = nil)
+            InstanciateComposition.to_ruby(
+                model, actual_selection || self.actual_selection, name)
+        end
 
-            (actual_selection || self.actual_selection).each do |from, to|
+        def self.format_selection(result, actual_selection)
+            actual_selection.each do |from, to|
                 if from.respond_to?(:to_str)
                     from = "'#{from.to_str}'"
                 elsif from.respond_to?(:short_name)
@@ -77,6 +82,24 @@ module Ui
                 end
                 result << "\n  use(#{from} => #{to})"
             end
+            result
+        end
+
+        def self.to_ruby_define(model, actual_selection, name)
+            if !name
+                raise ArgumentError, "definitions must have a name"
+            end
+            result = ["define('#{name}', #{model.short_name})"]
+            result = format_selection(result, actual_selection)
+            result.join(".")
+        end
+
+        def self.to_ruby(model, actual_selection, name)
+            if name
+                options = ", :as => #{name}"
+            end
+            result = ["add(#{model.short_name}#{options})"]
+            result = format_selection(result, actual_selection)
             result.join(".")
         end
 
@@ -92,10 +115,12 @@ module Ui
             engine.clear
             plan.clear
 
-            @main = engine.add_mission(model).use(selection)
-            engine.prepare
-            engine.instanciate
-            plan.static_garbage_collect
+            if model
+                @main = engine.add_mission(model).use(selection)
+                engine.prepare
+                engine.instanciate
+                plan.static_garbage_collect
+            end
         end
 
         def disable_updates; @updates_disabled = true end
@@ -177,7 +202,7 @@ module Ui
                         if !device_candidates.empty?
                             menu.add_separator.text = "Devices"
                             device_candidates.each do |m|
-                                selection[m.name] = m
+                                selection[m.name] = m.name
                                 action = menu.add_action(m.name)
                             end
                         end
@@ -194,7 +219,6 @@ module Ui
                             roles.each do |child_name|
                                 window.selection[child_name] = selected_model
                             end
-                            puts "selected #{selected_model.short_name} for #{roles.to_a.join(", ")}"
                         elsif deselected_role = deselection[action.text]
                             window.selection.delete(deselected_role)
                         end

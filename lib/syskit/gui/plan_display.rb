@@ -5,14 +5,16 @@ module Ui
         attr_reader :task_from_id
         attr_reader :graphicsitem_to_task
         attr_reader :renderers
+        attr_reader :svg
 
         def initialize(main = nil)
             super()
-            @scene = Qt::GraphicsScene.new
-            @view  = Qt::GraphicsView.new(scene, main)
-            @renderers = Hash.new
+            @scene           = Qt::GraphicsScene.new
+            @view            = Qt::GraphicsView.new(scene, main)
+            @renderers       = Hash.new
             @hierarchy_items = Array.new
-            @dataflow_items = Array.new
+            @dataflow_items  = Array.new
+            @svg             = Hash.new
 
             view.viewport_update_mode = Qt::GraphicsView::FullViewportUpdate
             view.scale(0.8, 0.8)
@@ -76,7 +78,8 @@ module Ui
             svgid_to_task = Hash.new
             svg_objects = Set.new
 
-            xml = Nokogiri::XML(File.read(filename))
+            svg[filename.gsub(/\.svg$/, '')] = svg_data = File.read(filename).dup
+            xml = Nokogiri::XML(svg_data)
             xml.children.children.children.each do |el|
                 title = (el/"title")
                 next if title.empty?
@@ -127,6 +130,40 @@ module Ui
 
             view.update
             all_items
+        end
+
+        # The margin between the top and bottom parts of the saved SVG, in
+        # points
+        SVG_PARTS_MARGIN = 20
+
+        def save_svg(filename)
+            hierarchy = svg['hierarchy']
+            dataflow  = svg['dataflow']
+
+            # Generate one single SVG with both graphs
+            hierarchy = Nokogiri::XML(hierarchy)
+            dataflow  = Nokogiri::XML(dataflow)
+            hierarchy_root = (hierarchy / 'svg').first
+            hierarchy_view = hierarchy_root["viewBox"].split.map(&method(:Float))
+
+            dataflow_root  = (dataflow / 'svg').first
+            dataflow_view  = dataflow_root["viewBox"].split.map(&method(:Float))
+
+            # Add a new group to hierarchy_root
+            new_group = Nokogiri::XML::Node.new("g", hierarchy)
+            hierarchy_root.add_child(new_group)
+            new_group['transform'] = "translate(0, #{hierarchy_view[3] + SVG_PARTS_MARGIN})"
+            new_group.add_child((dataflow_root / "g[id=graph1]").first.to_xml)
+
+            # Update the lower bound for the view
+            height = Float(hierarchy_root['height'].gsub('pt', ''))
+            hierarchy_root['height'] = "#{height + dataflow_view[3] + SVG_PARTS_MARGIN}pt"
+            hierarchy_view[3] += dataflow_view[3] + SVG_PARTS_MARGIN
+            hierarchy_root['viewBox'] = hierarchy_view.map(&:to_s).join(" ")
+
+            File.open(filename, 'w') do |io|
+                io.write hierarchy_root.to_xml
+            end
         end
     end
 end
