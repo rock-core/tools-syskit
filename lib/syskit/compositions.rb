@@ -2036,7 +2036,7 @@ module Orocos
             # for the exported port +exported_port+.
             def resolve_port(exported_port) # :nodoc:
                 role = exported_port.child.child_name
-                task = child_from_role(role)
+                task = child_from_role(role, false)
                 if !task
                     return
                 end
