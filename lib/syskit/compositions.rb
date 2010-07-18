@@ -118,7 +118,7 @@ module Orocos
                 # models, as it is not allowed to have multiple classes in there
                 composition_model = models.find { |m| m < Composition }
                 if !composition_model
-                    raise SpecError, "#use can be called only on children that are compositions"
+                    raise ArgumentError, "#use can be called only on children that are compositions"
                 end
 
 
@@ -504,7 +504,7 @@ module Orocos
 
                 child_task_model = child_model.find_all { |m| m < Component }
                 if child_task_model.size > 1
-                    raise SpecError, "more than one task model specified for #{name}"
+                    raise ArgumentError, "more than one task model specified for #{name}"
                 end
                 child_task_model = child_task_model.first
 
@@ -512,7 +512,7 @@ module Orocos
                 if child_task_model
                     parent_task_model = parent_model.models.find { |m| m < Component }
                     if parent_task_model && !(child_task_model <= parent_task_model)
-                        raise SpecError, "trying to overload #{parent_model.models} with #{child_model}"
+                        raise ArgumentError, "trying to overload the child #{name} of #{short_name} of type #{parent_model.models.map(&:short_name).join(", ")} with #{child_model.map(&:short_name).join(", ")}"
                     end
                 end
 
@@ -532,7 +532,7 @@ module Orocos
             #
             # If an 'as' option is provided, this name will be used as the child
             # name. Otherwise, the basename of 'model' is used as the child
-            # name. It will raise SpecError if the name is already used in this
+            # name. It will raise ArgumentError if the name is already used in this
             # composition.
             #
             # Returns the child definition as a CompositionChild instance. This
@@ -556,7 +556,7 @@ module Orocos
             # model, then +add+ can be used to override a child definition. In
             # if it the case, if +model+ is a component model, then it has to be
             # a subclass of any component model that has been used in the parent
-            # composition. Otherwise, #add raises SpecError
+            # composition. Otherwise, #add raises ArgumentError
             #
             # For instance,
             #
@@ -696,7 +696,7 @@ module Orocos
 
                 # Make sure we actually specialize ...
                 if !has_child?(child_name)
-                    raise SpecError, "there is no child called #{child_name} in #{self}"
+                    raise ArgumentError, "there is no child called #{child_name} in #{short_name}"
                 end
                 parent_model = find_child(child_name)
                 verify_acceptable_specialization(child_name, child_model, false)
@@ -774,7 +774,7 @@ module Orocos
             # Checks if an instance of +child_model+ would be acceptable as
             # the +child_name+ child of +self+.
             #
-            # Raises SpecError if the choice is not acceptable
+            # Raises ArgumentError if the choice is not acceptable
             #--
             # +user_call+ is for internal use only. If set to false, instead of
             # raising an exception, it will throw :invalid_selection. This is
@@ -784,12 +784,12 @@ module Orocos
                 parent_models = find_child(child_name).models
                 if parent_models.any? { |m| m <= child_model }
                     throw :invalid_selection if !user_call
-                    raise SpecError, "#{child_model} does not specify a specialization of #{parent_models}"
+                    raise ArgumentError, "#{child_model.short_name} does not specify a specialization of #{parent_models.map(&:short_name)}"
                 end
                 if child_model < Component && parent_class = parent_models.find { |m| m < Component }
                     if !(child_model < parent_class)
                         throw :invalid_selection if !user_call
-                        raise SpecError, "#{child_model} is not a subclass of #{parent_class}, cannot specialize #{child_name} with it"
+                        raise ArgumentError, "#{child_model.short_name} is not a subclass of #{parent_class.short_name}, cannot specialize #{child_name} with it"
                     end
                 end
                 true
@@ -1330,7 +1330,7 @@ module Orocos
                 options = Kernel.validate_options options, :as => port.name
                 name = options[:as].to_str
                 if self.port(name)
-                    raise SpecError, "there is already a port named #{name} on #{self}"
+                    raise ArgumentError, "there is already a port named #{name} on #{short_name}"
                 end
 
                 case port
@@ -1659,7 +1659,7 @@ module Orocos
                 elsif selected_object < Component
                     child_model = selected_object
                 else
-                    raise SpecError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
+                    raise ArgumentError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
                 end
 
                 return selected_service, child_model, child_task
