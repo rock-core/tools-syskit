@@ -2376,6 +2376,15 @@ module Orocos
                     if !dry_run?
                         if !sink.executable?(false) || !sink.is_setup? ||
                             !source.executable?(false) || !source.is_setup?
+                            Engine.debug do
+                                Engine.debug "cannot modify connections from #{source}"
+                                Engine.debug "  to #{sink}"
+                                Engine.debug "  source.executable?(false): #{source.executable?(false)}"
+                                Engine.debug "  sink.executable?(false):   #{sink.executable?(false)}"
+                                Engine.debug "  source.is_setup?:          #{source.is_setup?}"
+                                Engine.debug "  sink.is_setup?:            #{sink.is_setup?}"
+                                break
+                            end
                             throw :cancelled
                         end
                     end
