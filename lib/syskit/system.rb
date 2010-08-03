@@ -154,12 +154,6 @@ module Orocos
                 options = Kernel.validate_options options, :on => 'localhost'
                 server = process_server_for(options[:on])
                 deployer = server.load_orogen_deployment(name)
-                deployer.task_activities.each do |task|
-                    orocos_task_model = Roby.app.orocos_tasks[task.context.name]
-                    State.config.send("#{task.name}=",
-                          orocos_task_model.config_type_from_properties.new)
-                end
-
                 deployments[options[:on]] << name
                 self
             end
