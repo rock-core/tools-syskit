@@ -30,6 +30,14 @@ module Orocos
             attr_accessor :task
             # Configuration data structure
             attr_reader :configuration
+            # Block given to #configure to configure the device. It will be
+            # yield a data structure that represents the set of properties of
+            # the underlying task
+            #
+            # Note that it is executed twice. Once at loading time to verify
+            # that the block is compatible with the data structure, and once at
+            # runtime to actually configure the task
+            attr_reader :configuration_block
 
             # Generic property map. The values are set with #set and can be
             # retrieved by calling "self.property_name". The possible values are
@@ -51,14 +59,21 @@ module Orocos
             #
             # See the documentation of each task context for details on the
             # specific configuration parameters.
-            def configure(base_config = nil)
+            def configure(base_config = nil, &config_block)
 		if base_config
 		    @configuration = base_config.dup
 		end
-		if !@configuration && service.config_type
-		    @configuration = service.config_type.new
-		end
-                yield(@configuration)
+                if block_given?
+                    if @configuration
+                        yield(@configuration)
+                    else
+                        # Just verify that there is no error in
+                        # configuration_block
+                        yield(service.config_type.new)
+                    end
+                end
+                @configuration_block = config_block
+                self
             end
 
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }

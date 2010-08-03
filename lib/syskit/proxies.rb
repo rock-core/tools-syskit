@@ -1115,6 +1115,8 @@ module Orocos
                         device = robot.devices[name]
                         if device.configuration
                             apply_configuration(device.configuration)
+                        elsif device.configuration_block
+                            device.configuration_block.call(orogen_task)
                         end
                     end
                 end
@@ -1128,7 +1130,11 @@ module Orocos
             # component
             def apply_configuration(config_type)
                 config_type.each do |name, value|
-                    orogen_task.send("#{name}=", value)
+                    if orogen_task.has_property?(name)
+                        orogen_task.send("#{name}=", value)
+                    else
+                        Robot.warn "ignoring field #{name} in configuration of #{orogen_name} (#{model.orogen_name})"
+                    end
                 end
             end
 
