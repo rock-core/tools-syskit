@@ -132,6 +132,51 @@ module Orocos
                 end
             end
         end
+
+        class AmbiguousAutoConnection < Ambiguous
+            # The composition model in which the automatic connection was to be
+            # computed
+            attr_reader :composition_model
+            # The type name of the ports are involved
+            attr_reader :type_name
+            # The set of output candidates
+            attr_reader :outputs
+            # The set of input candidates
+            attr_reader :inputs
+
+            def initialize(composition_model, type_name, outputs, inputs)
+                @composition_model, @type_name, @outputs, @inputs =
+                    composition_model, type_name, outputs, inputs
+            end
+
+            def pretty_print_ports(pp, port_set)
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(port_set) do |port_description|
+                        child_name, port_name = port_description
+                        child_spec   = composition_model.find_child(child_name)
+                        child_models = child_spec.models.map(&:short_name)
+                        pp.text "#{child_name}.#{port_name} where"
+                        pp.nest(2) do
+                            pp.breakable
+                            pp.text "#{child_name}'s model is #{child_models.join(", ")}"
+                        end
+                    end
+                end
+            end
+
+            def pretty_print(pp)
+                pp.text "there is an ambiguity while automatically computing connections in #{composition_model.short_name}"
+                pp.breakable
+                pp.text "the considered port type is #{type_name}"
+                pp.breakable
+                pp.text "involved inputs:"
+                pretty_print_ports(pp, inputs)
+                pp.breakable
+                pp.text "involved outputs:"
+                pretty_print_ports(pp, outputs)
+            end
+        end
     end
 end
 

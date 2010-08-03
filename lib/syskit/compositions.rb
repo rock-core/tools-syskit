@@ -1224,8 +1224,8 @@ module Orocos
             # If an input port is involved in an explicit connection, it will
             # be ignored.
             #
-            # It raises Ambiguous if there is more than one candidate for an
-            # input port.
+            # It raises AmbiguousAutoConnection if there is more than one
+            # candidate for an input port.
             def do_autoconnect(children_names)
                 result = Hash.new { |h, k| h[k] = Hash.new }
 
@@ -1273,15 +1273,20 @@ module Orocos
 
                         # If it is ambiguous, check first if there is only one
                         # candidate that has the same name. If there is one,
-                        # pick it. Otherwise, raise an Ambiguous exception
+                        # pick it. Otherwise, raise an exception
                         if out_ports.size > 1
                             # Check for port name
                             same_name = out_ports.find_all { |_, out_port_name| out_port_name == in_port_name }
                             if same_name.size == 1
                                 out_ports = same_name
                             else
+                                error = AmbiguousAutoConnection.new(
+                                    self, typename,
+                                    [[in_child_name, in_port_name]],
+                                    out_ports)
+
                                 out_port_names = out_ports.map { |child_name, port_name| "#{child_name}.#{port_name}" }
-                                raise Ambiguous, "multiple output candidates in #{name} for #{in_child_name}.#{in_port_name} (of type #{typename}): #{out_port_names.join(", ")}"
+                                raise error, "multiple output candidates in #{name} for the input port #{in_child_name}.#{in_port_name} (of type #{typename}): #{out_port_names.join(", ")}"
                             end
                         end
 
