@@ -7,6 +7,80 @@ module Orocos
 
         class Ambiguous < SpecError; end
 
+        # Exception raised during instanciation if there is an ambiguity for a
+        # composition child
+        class AmbiguousIndirectCompositionSelection < Ambiguous
+            attr_reader :composition_model
+            attr_reader :child_name
+            attr_reader :selection
+            attr_reader :candidates
+
+            def initialize(composition_model, child_name, selection, candidates)
+                @composition_model = composition_model
+                @child_name = child_name
+                @selection  = selection
+                @candidates = candidates
+            end
+
+            def pretty_print(pp)
+                pp.text "ambiguity while searching for compositions for the child #{child_name} of #{composition_model.short_name}"
+                pp.breakable
+                pp.text "selection is:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(selection) do |name, model|
+                        pp.text "#{name} => #{model.short_name}"
+                    end
+                end
+                pp.breakable
+                pp.text "which corresponds to the following compositions:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(candidates) do |model|
+                        pp.text "#{model.short_name}"
+                    end
+                end
+            end
+        end
+
+        # Exception raised when selection facets lead to a specialization
+        # selection that is incompatible
+        class IncompatibleFacetedSelection < Ambiguous
+            # The composition that is being selected
+            attr_reader :composition
+            # A mapping from a child name to its selected facet
+            attr_reader :faceted_children
+            # The selected specializations for each of the children, as a
+            # mapping from the child name to a set of composition models
+            attr_reader :specializations
+
+            def initialize(composition, faceted_children, specializations)
+                @composition, @faceted_children, @specializations =
+                    composition, faceted_children.dup, specializations.dup
+            end
+
+            def pretty_print(pp) # :nodoc:
+                pp.text "a set of explicit facet selections requires incompatible specializations to be selected"
+                pp.breakable
+                pp.text "while looking for specializations of #{composition.name}"
+                pp.breakable
+                pp.nest(2) do
+                    pp.seplist(faceted_children) do |child_name, child_model|
+                        pp.breakable
+                        pp.text "child #{child_name} is using the facet #{child_model.first.selected_facet.name} of #{child_model.first.name}"
+                        pp.breakable
+                        pp.text "which leads to the following selected specialization(s)"
+                        pp.nest(2) do
+                            pp.seplist(specializations[child_name]) do |model|
+                                pp.breakable
+                                pp.text model.name
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
         class TaskAllocationFailed < SpecError
             attr_reader :task_parents
             attr_reader :abstract_task
