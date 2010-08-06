@@ -71,7 +71,7 @@ namespace :setup do
     end
 
     desc "builds the oroGen modules that are needed by the tests"
-    task :orogen_all => :ext do
+    task :orogen_all do
         build_orogen 'process'
         build_orogen 'simple_sink'
         build_orogen 'simple_source'

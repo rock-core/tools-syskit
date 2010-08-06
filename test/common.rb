@@ -68,7 +68,7 @@ module RobyPluginCommonTest
     def teardown
         Roby.app.orocos_clear_models
         ::Orocos.instance_variable_set :@registry, Typelib::Registry.new
-        ::Orocos::CORBA.instance_variable_set :@loaded_toolkits, []
+        ::Orocos::CORBA.instance_variable_set :@loaded_typekits, []
 
         deployments = plan.find_tasks(Deployment).running.to_a
 
