@@ -146,6 +146,12 @@ module Orocos
             # The port's type name
             def type_name; port.type_name end
 
+            # Declare that this port should be ignored in the automatic
+            # connection computation
+            def ignore
+                child.composition.autoconnect_ignores << [child.child_name, port_name]
+            end
+
             def initialize(child, port, port_name)
                 @child = child
                 @port  = port
@@ -309,6 +315,8 @@ module Orocos
                 klass.system = system
                 klass
             end
+
+            attribute(:autoconnect_ignores) { Set.new }
 
             # Returns the composition model that is parent to this one
             def parent_model
@@ -1166,17 +1174,21 @@ module Orocos
                     seen = Set.new
                     dependent_models.each do |sys|
                         sys.each_input do |in_port|
-                            if !seen.include?(in_port.name) && !exported_port?(in_port)
-                                child_inputs[in_port.type_name] << [name, in_port.name]
-                                seen << in_port.name
-                            end
+                            next if seen.include?(in_port.name)
+                            next if exported_port?(in_port)
+                            next if autoconnect_ignores.include?([name, in_port.name])
+
+                            child_inputs[in_port.type_name] << [name, in_port.name]
+                            seen << in_port.name
                         end
 
                         sys.each_output do |out_port|
-                            if !seen.include?(out_port.name) && !exported_port?(out_port)
-                                child_outputs[out_port.type_name] << [name, out_port.name]
-                                seen << out_port.name
-                            end
+                            next if seen.include?(out_port.name)
+                            next if exported_port?(out_port)
+                            next if autoconnect_ignores.include?([name, out_port.name])
+
+                            child_outputs[out_port.type_name] << [name, out_port.name]
+                            seen << out_port.name
                         end
                     end
                 end
