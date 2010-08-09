@@ -2162,7 +2162,7 @@ module Orocos
                         # Compute the buffer size
                         input_dynamics = port_periods[source_task][source_port.name]
                         if !input_dynamics
-                            raise SpecError, "period information for port #{source_task}:#{source_port.name} cannot be computed"
+                            raise SpecError, "period information for output port #{source_task}:#{source_port.name} cannot be computed"
                         end
 
                         reading_latency = if sink_task.model.triggered_by?(sink_port)
