@@ -4,8 +4,28 @@ module Orocos
         class ConfigError < RuntimeError; end
         class SpecError < RuntimeError; end
 
-
         class Ambiguous < SpecError; end
+
+        class InvalidPortMapping < SpecError; end
+
+        class InvalidProvides < SpecError
+            attr_reader :original_error
+
+            def initialize(original_error = nil)
+                @original_error = original_error
+                super()
+            end
+
+            def pretty_print(pp)
+                pp.text message
+                if original_error
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.text original_error.message
+                    end
+                end
+            end
+        end
 
         # Exception raised during instanciation if there is an ambiguity for a
         # composition child

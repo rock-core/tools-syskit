@@ -540,7 +540,7 @@ module Orocos
                         candidates = service.component_model.send("each_#{direction}").
                             find_all { |p| !used_ports.include?(p.name) && p.type == port.type }
                         if candidates.empty?
-                            raise SpecError, "no candidate to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
+                            raise InvalidPortMapping, "no candidate to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
                         elsif candidates.size == 1
                             used_ports << candidates.first.name
                             result[port.name] = candidates.first.name
@@ -551,7 +551,7 @@ module Orocos
                         name_rx = Regexp.new(service.name)
                         by_name = candidates.find_all { |p| p.name =~ name_rx }
                         if by_name.empty?
-                            raise SpecError, "multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}: #{candidates.map(&:name)}"
+                            raise InvalidPortMapping, "multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}: #{candidates.map(&:name)}"
                         elsif by_name.size == 1
                             used_ports << by_name.first.name
                             result[port.name] = by_name.first.name
@@ -571,7 +571,7 @@ module Orocos
 
                     if remaining.size == current_size
                         port = remaining.first
-                        raise SpecError, "there are multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
+                        raise InvalidPortMapping, "there are multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
                     end
                 end
             end
@@ -693,8 +693,12 @@ module Orocos
                     main_data_services << full_name
                     service.main = true
                 end
-                service.port_mappings.
-                    merge!(compute_port_mappings(service))
+                begin
+                    service.port_mappings.
+                        merge!(compute_port_mappings(service))
+                rescue InvalidPortMapping => e
+                    raise InvalidProvides.new(e), "#{self.name} does not provide #{model.name}", e.backtrace
+                end
 
 		if !source_arguments[:config_type] && constants.include?(:Config)
 		    source_arguments[:config_type] = const_get('Config')
