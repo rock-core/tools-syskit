@@ -238,9 +238,9 @@ module Orocos
             # The set of input candidates
             attr_reader :inputs
 
-            def initialize(composition_model, type_name, outputs, inputs)
-                @composition_model, @type_name, @outputs, @inputs =
-                    composition_model, type_name, outputs, inputs
+            def initialize(composition_model, type_name, inputs, outputs)
+                @composition_model, @type_name, @inputs, @outputs =
+                    composition_model, type_name, inputs, outputs
             end
 
             def pretty_print_ports(pp, port_set)
@@ -264,11 +264,11 @@ module Orocos
                 pp.breakable
                 pp.text "the considered port type is #{type_name}"
                 pp.breakable
-                pp.text "involved inputs:"
-                pretty_print_ports(pp, inputs)
-                pp.breakable
                 pp.text "involved outputs:"
                 pretty_print_ports(pp, outputs)
+                pp.breakable
+                pp.text "involved inputs:"
+                pretty_print_ports(pp, inputs)
             end
         end
     end
