@@ -238,12 +238,15 @@ module Orocos
             # This is formatted as
             # root_model/child_name.is_a?(specialized_list),other_child.is_a?(...)
             def name
-                specializations = all_specializations.map do |child_name, child_models|
+                if !@name
+                    specializations = all_specializations.map do |child_name, child_models|
                     "#{child_name}.is_a?(#{child_models.map(&:name).join(",")})"
-                end
+                    end
 
-                root = ancestors.find { |k| k.kind_of?(Class) && !k.is_specialization? }
-                "#{root.name}/#{specializations}"
+                    root = ancestors.find { |k| k.kind_of?(Class) && !k.is_specialization? }
+                    @name = "#{root.name}/#{specializations}"
+                end
+                @name
             end
 
             # Returns true if this composition model is a model created by
