@@ -971,9 +971,14 @@ module Orocos
                 end
 
                 # Check that all device instances are proper tasks (not proxies)
+                instances.each do |instance|
+                    if instance.task.transaction_proxy?
+                        raise InternalError, "some transaction proxies are stored in instance definitions"
+                    end
+                end
                 robot.devices.each do |name, instance|
                     if instance.task.transaction_proxy?
-                        raise InternalError, "some transaction proxies are stored in instance.task"
+                        raise InternalError, "some transaction proxies are stored in devices definitions"
                     end
                 end
 
@@ -1185,6 +1190,11 @@ module Orocos
                     # the tasks[] and devices mappings are updated during the
                     # merge. We replace the proxies by the corresponding tasks
                     # when applicable
+                    instances.each do |instance|
+                        if instance.task && instance.task.transaction_proxy?
+                            instance.task = instance.task.__getobj__
+                        end
+                    end
                     robot.devices.keys.each do |name|
                         device_task = robot.devices[name].task
                         if device_task.plan == trsc && device_task.transaction_proxy?
