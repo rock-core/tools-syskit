@@ -234,8 +234,11 @@ module Orocos
                 attr_reader :engine
                 # The name provided to Engine#add
                 attr_accessor :name
-                # The component model specified by #add
+                # The component model narrowed down from +base_model+ using
+                # +using_spec+
                 attr_reader :model
+                # The component model specified by #add
+                attr_reader :base_model
                 # The arguments that should be passed to the task's #instanciate
                 # method (and, in fine, to the component model)
                 attr_reader :arguments
@@ -255,7 +258,7 @@ module Orocos
                 def initialize(engine, name, model, arguments)
                     @engine    = engine
                     @name      = name
-                    @model     = model
+                    @model     = @base_model = model
                     @arguments = arguments
                     @using_spec = Hash.new
                 end
@@ -300,7 +303,28 @@ module Orocos
                         end
                     end
                     using_spec.merge!(result)
+
+                    narrow_model
                     self
+                end
+
+                # Computes the value of +model+ based on the current selection
+                # (in using_spec) and the base model specified in #add or
+                # #define
+                def narrow_model
+                    selection = Hash.new
+                    using_spec.each_key do |key|
+                        if result = resolve_explicit_selection(using_spec[key])
+                            selection[key] = result
+                        end
+                    end
+                    candidates = base_model.narrow(selection)
+                    @model =
+                        if candidates.size == 1
+                            candidates.find { true }
+                        else
+                            base_model
+                        end
                 end
 
                 # Resolves a selection given through the #use method
@@ -327,8 +351,15 @@ module Orocos
                     if value.kind_of?(InstanciatedComponent)
                         value.task
                     elsif value.respond_to?(:to_str)
-                        if !(selected_object = engine.tasks[value.to_str])
-                            raise SpecError, "#{value} does not refer to a known task"
+                        value = value.to_str
+                        if !(selected_object = engine.tasks[value])
+                            if selected_object = engine.robot.devices[value]
+                                # Do a weak selection and return the device's
+                                # task model
+                                return selected_object.task_model
+                            else
+                                raise SpecError, "#{value} does not refer to a known task or device"
+                            end
                         end
 
                         # Check if a service has explicitely been selected, and
@@ -336,7 +367,7 @@ module Orocos
                         # task
                         service_names = value.split '.'
                         service_names.shift # remove the task name
-                        if service_names.empty?
+                        if !selected_object.kind_of?(Component) || service_names.empty? 
                             selected_object
                         else
                             candidate_service = selected_object.model.find_data_service(service_names.join("."))

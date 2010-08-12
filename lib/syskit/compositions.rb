@@ -50,8 +50,7 @@ module Orocos
 
                 # Now update the spec and check if we can narrow down the model
                 @using_spec = using_spec.merge(spec)
-                user_selection, _ = composition_model.find_children_models_and_tasks(using_spec)
-                candidates      = composition_model.find_specializations(user_selection)
+                candidates = composition_model.narrow(using_spec)
                 if candidates.size == 1
                     new_model = candidates.find { true }
                     models.delete(composition_model)
@@ -1722,15 +1721,31 @@ module Orocos
             #
             # It can be used to limit the impact of using #find_child, which
             # requires a traversal of the model ancestry.
-            attr_reader :all_children
+            def all_children(force_computation = false)
+                if @all_children
+                    return @all_children
+                else
+                    compute_all_children
+                end
+            end
+            
+            def compute_all_children
+                result = Hash.new
+                each_child do |name, model|
+                    result[name] = model
+                end
+                result
+            end
 
             # Updates the #all_children hash
             def update_all_children
-                @all_children = Hash.new
-                each_child do |name, model|
-                    @all_children[name] = model
-                end
-                all_children
+                @all_children = self.compute_all_children
+            end
+
+            # Returns the set of specializations that match +using_spec+
+            def narrow(using_spec)
+                user_selection, _ = find_children_models_and_tasks(using_spec)
+                find_specializations(user_selection)
             end
 
             # Returns a Composition task with instanciated children. If
