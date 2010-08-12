@@ -691,6 +691,11 @@ module Orocos
                     if instance.mission?
                         plan.add_mission(task)
                     else
+                        # This is important here, as #resolve uses
+                        # static_garbage_collect to clear up the plan
+                        #
+                        # However, the permanent flag will be removed at the end
+                        # of #resolve
                         plan.add_permanent(task)
                     end
                 end
@@ -1210,6 +1215,15 @@ module Orocos
                             if !deleted_tasks.include?(obj)
                                 trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)
                             end
+                        end
+                    end
+
+                    # Remove the permanent flag from all the new tasks. We
+                    # originally mark them as permanent to protect them from
+                    # #static_garbage_collect
+                    plan.find_tasks.permanent.each do |t|
+                        if !t.transaction_proxy? && plan.permanent?(t)
+                            plan.unmark_permanent(t)
                         end
                     end
 
