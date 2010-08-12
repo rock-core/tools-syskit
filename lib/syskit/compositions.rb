@@ -709,6 +709,7 @@ module Orocos
                     cmodel = spec_model.composition
                     cmodel.filter_out_abstract_compositions
                     if cmodel.abstract? && cmodel.specializations.empty?
+                        Roby::Task.deregister(cmodel)
                         true
                     else
                         false
