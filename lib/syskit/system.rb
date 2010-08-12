@@ -1148,6 +1148,14 @@ module Orocos
                         end
                     end
 
+                    compute_system_network
+
+                    used_tasks = trsc.find_local_tasks(Component).
+                        to_value_set
+
+                    # This must be done *after* #compute_system_network,
+                    # and the computation of #used_tasks otherwise the deleted
+                    # tasks will end up in used_tasks
                     deleted_tasks = deleted_tasks.map do |task|
 		        Engine.debug { "removed #{task}, removing mission and/or permanent" }
                         task = plan[task]
@@ -1156,11 +1164,6 @@ module Orocos
                         task.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
                         task
                     end.to_value_set
-
-                    compute_system_network
-
-                    used_tasks = trsc.find_local_tasks(Component).
-                        to_value_set
 
                     all_tasks = trsc.find_tasks(Component).to_value_set
                     all_tasks.delete_if do |t|
