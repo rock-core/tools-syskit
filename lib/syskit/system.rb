@@ -1148,20 +1148,19 @@ module Orocos
                         end
                     end
 
-                    compute_system_network
-
-                    used_tasks = plan.find_local_tasks(Component).
-                        to_value_set
-
                     deleted_tasks = deleted_tasks.map do |task|
 		        Engine.debug { "removed #{task}, removing mission and/or permanent" }
                         task = plan[task]
                         plan.unmark_mission(task)
                         plan.unmark_permanent(task)
                         task.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
-                        task.remove_relations(Roby::TaskStructure::Dependency)
                         task
                     end.to_value_set
+
+                    compute_system_network
+
+                    used_tasks = trsc.find_local_tasks(Component).
+                        to_value_set
 
                     all_tasks = trsc.find_tasks(Component).to_value_set
                     all_tasks.delete_if do |t|
@@ -1170,16 +1169,20 @@ module Orocos
                             t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
                             t.remove_relations(Roby::TaskStructure::Dependency)
                             true
-                        elsif t.transaction_proxy? && t.__getobj__.planning_task.kind_of?(RequirementModificationTask)
-                            trsc.remove_object(t)
-                            true
+                        elsif t.transaction_proxy?
+                            # Check if the task is a placeholder for a
+                            # requirement modification
+                            planner = t.__getobj__.planning_task
+                            if planner.kind_of?(RequirementModificationTask) && !planner.finished?
+                                trsc.remove_object(t)
+                                true
+                            end
                         end
                     end
 
                     (all_tasks - used_tasks).each do |t|
                         Engine.debug { "clearing the relations of #{t}" }
                         t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
-                        t.remove_relations(Roby::TaskStructure::Dependency)
                     end
 
                     if options[:compute_deployments]
@@ -1216,14 +1219,21 @@ module Orocos
                     # Finally, we should now only have deployed tasks. Verify it
                     # and compute the connection policies
                     validate_result(trsc, options)
+
                     if options[:compute_policies]
                         compute_connection_policies
                     end
 
                     if options[:garbage_collect]
                         trsc.static_garbage_collect do |obj|
-                            if !deleted_tasks.include?(obj)
-                                trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)
+                            if obj.transaction_proxy?
+                                # Clear up the dependency relations for the
+                                # obsolete tasks that are in the plan
+                                obj.remove_relations(Roby::TaskStructure::Dependency)
+                            else
+                                # Remove tasks that we just added and are not
+                                # useful anymore
+                                trsc.remove_object(obj)
                             end
                         end
                     end
