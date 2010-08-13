@@ -1749,6 +1749,20 @@ module Orocos
                 find_specializations(user_selection)
             end
 
+            ##
+            # :method: strict_specialization_selection?
+            #
+            # If true, any ambiguity in the selection of composition
+            # specializations will lead to an error. If false, the common parent
+            # of all the possible specializations will be instanciated. One can
+            # note that it is less dangerous that it sounds, as this parent is
+            # most likely abstract and will therefore be rejected later in the
+            # system deployment process.
+            #
+            # However, don't set this to false unless you know what you are
+            # doing
+            attr_predicate :strict_specialization_selection, true
+
             # Returns a Composition task with instanciated children. If
             # specializations have been specified on this composition, the
             # return task will be of the most specialized model that matches the
@@ -1806,7 +1820,7 @@ module Orocos
 
                 # Now, check if some of our specializations apply to
                 # +selected_models+. If there is one, call #instanciate on it
-                if candidates.size > 1
+                if Composition.strict_specialization_selection? && candidates.size > 1
                     raise AmbiguousSpecialization.new(self, user_selection, candidates)
                 elsif !candidates.empty?
                     Engine.debug { "using specialization #{candidates[0].short_name} of #{short_name}" }
@@ -1919,6 +1933,7 @@ module Orocos
             extend CompositionModel
 
             @name = "Orocos::RobyPlugin::Composition"
+            @strict_specialization_selection = true
 
             terminates
 
