@@ -116,10 +116,15 @@ module Ui
             plan.clear
 
             if model
-                @main = engine.add_mission(model).use(selection)
-                engine.prepare
-                engine.instanciate
-                plan.static_garbage_collect
+                begin
+                    Orocos::RobyPlugin::Composition.strict_specialization_selection = false
+                    @main = engine.add_mission(model).use(selection)
+                    engine.prepare
+                    engine.instanciate
+                    plan.static_garbage_collect
+                ensure
+                    Orocos::RobyPlugin::Composition.strict_specialization_selection = true
+                end
             end
         end
 
