@@ -296,6 +296,57 @@ module Orocos
             end
         end
     
+        # Exception raised by CompositionModel#instanciate when multiple
+        # specializations can be applied
+        class AmbiguousSpecialization < Ambiguous
+            # The composition model that was being instanciated
+            attr_reader :composition_model
+            # The user selection (see Composition.instanciate for details)
+            attr_reader :selection
+            # The set of possible specializations given the model and the selection
+            attr_reader :candidates
+
+            def initialize(composition_model, selection, candidates)
+                @composition_model, @selection, @candidates =
+                    composition_model, selection, candidates
+            end
+
+            def pretty_print(pp)
+                pp.text "there is an ambiguity in the instanciation of #{composition_model.short_name}"
+                pp.breakable
+                if selection.empty?
+                    pp.text "with no selection applied"
+                else
+                    pp.text "with the following selection:"
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.seplist(selection) do |keyvalue|
+                            key, value = *keyvalue
+                            if key.respond_to?(:short_name)
+                                key = key.short_name
+                            end
+                            value = value[0]
+                            if value.respond_to?(:short_name)
+                                value = value.short_name
+                            end
+
+                            pp.text "#{key} => #{value}"
+                        end
+                    end
+                end
+                pp.breakable
+                pp.text "the following specializations apply:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(candidates) do |spec|
+                        pp.text spec.short_name
+                    end
+                end
+
+                pp.breakable
+                Roby.pretty_print_backtrace(pp, backtrace)
+            end
+        end
     end
 end
 

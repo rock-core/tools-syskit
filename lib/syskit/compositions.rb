@@ -1807,8 +1807,7 @@ module Orocos
                 # Now, check if some of our specializations apply to
                 # +selected_models+. If there is one, call #instanciate on it
                 if candidates.size > 1
-                    candidates = candidates.map(&:name).join(", ")
-                    raise Ambiguous, "more than one specialization apply: #{candidates}"
+                    raise AmbiguousSpecialization.new(self, user_selection, candidates)
                 elsif !candidates.empty?
                     Engine.debug { "using specialization #{candidates[0].short_name} of #{short_name}" }
                     return candidates[0].instanciate(engine, arguments)
