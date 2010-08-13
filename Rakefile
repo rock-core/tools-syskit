@@ -47,7 +47,7 @@ def build_orogen(name)
     Orocos::Test.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir
 end
 
-task :default => "setup:ext"
+task :default => ["setup:ext", "setup:uic"]
 
 namespace :setup do
     desc "builds Orocos.rb C extension"
