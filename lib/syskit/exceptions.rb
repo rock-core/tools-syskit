@@ -24,6 +24,9 @@ module Orocos
                         pp.text original_error.message
                     end
                 end
+
+                pp.breakable
+                Roby.pretty_print_backtrace(pp, backtrace)
             end
         end
 
@@ -60,6 +63,9 @@ module Orocos
                         pp.text "#{model.short_name}"
                     end
                 end
+
+                pp.breakable
+                Roby.pretty_print_backtrace(pp, backtrace)
             end
         end
 
@@ -98,6 +104,9 @@ module Orocos
                         end
                     end
                 end
+
+                pp.breakable
+                Roby.pretty_print_backtrace(pp, backtrace)
             end
         end
 
@@ -124,6 +133,9 @@ module Orocos
                         pp.text "child #{role.to_a.first} of #{parent.to_short_s}"
                     end
                 end
+
+                pp.breakable
+                Roby.pretty_print_backtrace(pp, backtrace)
             end
         end
 
@@ -154,6 +166,9 @@ module Orocos
                         pp.text task.to_short_s
                     end
                 end
+
+                pp.breakable
+                Roby.pretty_print_backtrace(pp, backtrace)
             end
         end
 
@@ -194,6 +209,9 @@ module Orocos
                         end
                     end
                 end
+
+                pp.breakable
+                Roby.pretty_print_backtrace(pp, backtrace)
             end
         end
 
@@ -224,6 +242,9 @@ module Orocos
                         pp.text m.short_name
                     end
                 end
+
+                pp.breakable
+                Roby.pretty_print_backtrace(pp, backtrace)
             end
         end
 
@@ -269,8 +290,12 @@ module Orocos
                 pp.breakable
                 pp.text "involved inputs:"
                 pretty_print_ports(pp, inputs)
+
+                pp.breakable
+                Roby.pretty_print_backtrace(pp, backtrace)
             end
         end
+    
     end
 end
 
