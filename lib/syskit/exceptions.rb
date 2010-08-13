@@ -51,7 +51,8 @@ module Orocos
                 pp.text "selection is:"
                 pp.nest(2) do
                     pp.breakable
-                    pp.seplist(selection) do |name, model|
+                    pp.seplist(selection) do |keyvalue|
+                        name, model = keyvalue
                         pp.text "#{name} => #{model.short_name}"
                     end
                 end
