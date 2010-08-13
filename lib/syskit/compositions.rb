@@ -830,7 +830,7 @@ module Orocos
             # preferred w.r.t. the other.
             #
             # By using
-            #   default_specialization 'Control' => SimpleController
+            #   default_specialization 'Control', SimpleController
             #
             # the first one will be preferred by default. The second one can
             # then be selected at instanciation time with
