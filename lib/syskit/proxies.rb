@@ -836,7 +836,7 @@ module Orocos
                 end
 
                 if @state_reader
-                    if v = @state_reader.read
+                    if v = @state_reader.read_new
                         @last_orogen_state = orogen_state
                         @orogen_state = v
                     end
