@@ -9,10 +9,10 @@
         Sylvain Joyeux/sylvain.joyeux@m4x.org
     </copyright>
     <license>GPL v2 or later</license>
-    <url>http://doudou.github.com/orocos-rb</url>
+    <url>http://orocos.org/dfki</url>
 
-    <depend package="orocos/orogen" />
-    <depend package="orocos/rtt" />
+    <depend package="orogen" />
+    <depend package="rtt" />
     <depend package="typelib" />
     <depend package="utilrb" />
     <rosdep name="hoe" />
