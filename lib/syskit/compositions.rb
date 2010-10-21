@@ -433,6 +433,9 @@ module Orocos
                 end
 
                 name = name.to_str
+                if children.has_key?(name)
+                    raise ArgumentError, "composition #{self.name} already has a child named #{name}"
+                end
 
                 child_task_model = child_model.find_all { |m| m < Component }
                 if child_task_model.size > 1

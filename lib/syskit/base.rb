@@ -113,6 +113,15 @@ module Orocos
                     enum_for(:each_output)
                 end
             end
+
+            # If an unknown method is called on this object, try to return the
+            # corresponding slave service (if there is one)
+            def method_missing(name, *args)
+                if subservice = component_model.find_data_service("#{full_name}.#{name}")
+                    return subservice
+                end
+                super
+            end
         end
 
         # Returns an array of modules. It is used as the search path for DSL
@@ -877,11 +886,15 @@ module Orocos
             end
 
             def self.method_missing(name, *args)
-                if args.empty? && port = self.port(name)
-                    port
-                else
-                    super
+                if args.empty?
+                    puts "#{name} #{self} #{self.find_data_service(name)}"
+                    if port = self.port(name)
+                        return port
+                    elsif service = self.find_data_service(name.to_s)
+                        return service
+                    end
                 end
+                super
             end
 
             # The set of data readers created with #data_reader. Used to connect
