@@ -887,7 +887,6 @@ module Orocos
 
             def self.method_missing(name, *args)
                 if args.empty?
-                    puts "#{name} #{self} #{self.find_data_service(name)}"
                     if port = self.port(name)
                         return port
                     elsif service = self.find_data_service(name.to_s)

@@ -1625,7 +1625,6 @@ module Orocos
                     selected_object = dependent_model.first
                 end
 
-                puts "found #{selected_object}"
                 if selected_object.kind_of?(InstanciatedDataService)
                     selected_service = selected_object.provided_service_model
                     child_task       = selected_object.task
