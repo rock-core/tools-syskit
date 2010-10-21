@@ -64,6 +64,28 @@ module Orocos
             end
         end
 
+        # Exception raised in composition instanciations if a selected component
+        # model provides multipe services that fullfills a child's model 
+        class AmbiguousServiceSelection < Ambiguous
+            def initialize(composition_model, child_name, selection, candidates)
+                @composition_model, @child_name, @selection, @candidates =
+                    composition_model, child_name, selection, candidates
+            end
+
+            def pretty_print(pp)
+                pp.text "there is an ambiguity while looking for a service in #{selection} that matches the child #{child_name} of #{composition_model.short_name}"
+                pp.breakable
+                pp.text "candidates are:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(candidates) do |keyvalue|
+                        name, model = keyvalue
+                        pp.text name
+                    end
+                end
+            end
+        end
+
         # Exception raised when selection facets lead to a specialization
         # selection that is incompatible
         class IncompatibleFacetedSelection < Ambiguous

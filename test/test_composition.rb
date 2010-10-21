@@ -808,6 +808,64 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
     end
 
+    def test_instanciate_detects_ambiguous_service_mappings
+        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+
+        camera_service = sys_model.get_data_service_type 'camera'
+
+        SystemTest::StereoCamera.driver_for 'stereo'
+        SystemTest::StereoCamera.data_service 'camera',
+                :as => 'left', :slave_of => 'stereo'
+        SystemTest::StereoCamera.data_service 'camera',
+                :as => 'right', :slave_of => 'stereo'
+
+        compo = sys_model.composition "Stereo" do
+            stereo = add SystemTest::StereoProcessing, :as => 'processing'
+            image0 = add DataServices::Camera, :as => "image0"
+            image1 = add DataServices::Camera, :as => "image1"
+            connect image0.image => stereo.leftImage
+            connect image1.image => stereo.rightImage
+        end
+
+        camera = SystemTest::StereoCamera.new
+        assert_raises(AmbiguousServiceSelection) do
+            compo.instanciate(orocos_engine,
+                  :selection => {DataServices::Camera => SystemTest::StereoCamera})
+        end
+    end
+
+    def test_instanciate_handles_port_mappings_for_implicit_service_selection
+        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+
+        camera_service = sys_model.get_data_service_type 'camera'
+
+        SystemTest::StereoCamera.driver_for 'stereo'
+        SystemTest::StereoCamera.data_service 'camera',
+                :as => 'left', :slave_of => 'stereo'
+
+        compo = sys_model.composition "Stereo" do
+            stereo = add SystemTest::StereoProcessing, :as => 'processing'
+            image0 = add DataServices::Camera, :as => "image0"
+            image1 = add DataServices::Camera, :as => "image1"
+            connect image0.image => stereo.leftImage
+            connect image1.image => stereo.rightImage
+        end
+
+        camera = SystemTest::StereoCamera.new
+        instance = compo.instanciate(orocos_engine,
+            :selection => {DataServices::Camera => SystemTest::StereoCamera})
+
+        processing_task = instance.child_from_role 'processing'
+        image0_task = instance.child_from_role 'image0'
+        image1_task = instance.child_from_role 'image1'
+        assert_equal [['leftImage', 'leftImage']],
+            image0_task[processing_task, Flows::DataFlow].keys
+        assert_equal [['leftImage', 'rightImage']],
+            image1_task[processing_task, Flows::DataFlow].keys
+    end
+
     def test_instanciate_handles_explicit_device_selection_and_maps_the_ports_accordingly
         sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
         sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver

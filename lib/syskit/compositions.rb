@@ -1625,6 +1625,7 @@ module Orocos
                     selected_object = dependent_model.first
                 end
 
+                puts "found #{selected_object}"
                 if selected_object.kind_of?(InstanciatedDataService)
                     selected_service = selected_object.provided_service_model
                     child_task       = selected_object.task
@@ -1632,13 +1633,40 @@ module Orocos
                 elsif selected_object.kind_of?(ProvidedDataService)
                     selected_service = selected_object
                     child_model      = selected_object.component_model
+                elsif selected_object.kind_of?(DataServiceModel)
+                    child_model = selected_object.task_model
                 elsif selected_object.kind_of?(Component)
                     child_task  = selected_object # selected an instance explicitely
                     child_model = child_task.model
-                elsif selected_object.kind_of?(DataServiceModel)
-                    child_model = selected_object.task_model
+
+                    if dependent_model.any? { |m| m.kind_of?(DataServiceModel) }
+                        # Need to map the required services to the component
+                        candidate_services =
+                            selected_object.model.each_data_service.find_all do |name, srv|
+                                srv.model.fullfills?(dependent_model)
+                            end
+
+                        if candidate_services.size > 1
+                            raise AmbiguousServiceSelection.new(self, child_name, selected_object, candidate_services),
+                                "multiple services fullfill #{dependent_model.map(&:name).join(", ")} on #{selected_object}: #{candidate_services.map(&:first).join(", ")}"
+                        end
+                        selected_service = candidate_services.first[1]
+                    end
                 elsif selected_object < Component
                     child_model = selected_object
+                    if dependent_model.any? { |m| m.kind_of?(DataServiceModel) }
+                        # Need to map the required services to the component
+                        candidate_services =
+                            selected_object.each_data_service.find_all do |name, srv|
+                                srv.model.fullfills?(dependent_model)
+                            end
+
+                        if candidate_services.size > 1
+                            raise AmbiguousServiceSelection.new(self, child_name, selected_object, candidate_services),
+                                "multiple services fullfill #{dependent_model.map(&:name).join(", ")} on #{selected_object}: #{candidate_services.map(&:first).join(", ")}"
+                        end
+                        selected_service = candidate_services.first[1]
+                    end
                 else
                     raise ArgumentError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
                 end
