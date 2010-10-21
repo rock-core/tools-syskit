@@ -39,7 +39,7 @@ rescue Exception => e
 end
 
 def build_orogen(name)
-    require 'lib/orocos/test'
+    require './lib/orocos/test'
     work_dir = File.expand_path(File.join('test', 'working_copy'))
     prefix   = File.join(work_dir, 'prefix')
     data_dir = File.expand_path(File.join('test', 'data'))
