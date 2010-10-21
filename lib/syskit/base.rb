@@ -514,7 +514,7 @@ module Orocos
             end
 
             # Helper method for compute_port_mappings
-            def self.compute_directional_port_mappings(result, service, direction) # :nodoc:
+            def self.compute_directional_port_mappings(result, service, direction, explicit_mappings) # :nodoc:
                 remaining = service.model.send("each_#{direction}").to_a
 
                 used_ports = service.component_model.
@@ -522,6 +522,23 @@ module Orocos
                     find_all { |_, task_service| task_service.model == service.model }.
                     map { |_, task_service| task_service.port_mappings.values }.
                     flatten.to_set
+
+                # 0. check if an explicit port mapping is provided for this port
+                remaining.delete_if do |port|
+                    mapping = explicit_mappings[port.name]
+                    next if !mapping
+
+                    # Verify that the mapping is valid
+                    component_port = service.component_model.
+                        send("#{direction}_port", mapping)
+                    if !component_port
+                        raise InvalidPortMapping, "the explicit mapping from #{port.name} to #{mapping} is invalid as #{mapping} is not an #{direction} port of #{service.component_model.name}"
+                    end
+                    if component_port.type != port.type
+                        raise InvalidPortMapping, "the explicit mapping from #{port.name} to #{mapping} is invalid as they have different types (#{port.type_name} != #{component_port.type_name}"
+                    end
+                    result[port.name] = mapping
+                end
 
                 # 1. check if the task model has a port with the same name
                 remaining.delete_if do |port|
@@ -584,10 +601,19 @@ module Orocos
             #
             #   service_interface_port_name => task_model_port_name
             #
-            def self.compute_port_mappings(service)
+            def self.compute_port_mappings(service, explicit_mappings)
+                normalized_mappings = Hash.new
+                explicit_mappings.each do |from, to|
+                    from = from.to_s if from.kind_of?(Symbol)
+                    to   = to.to_s   if to.kind_of?(Symbol)
+                    if from.respond_to?(:to_str) && to.respond_to?(:to_str)
+                        normalized_mappings[from] = to 
+                    end
+                end
+
                 result = Hash.new
-                compute_directional_port_mappings(result, service, "input")
-                compute_directional_port_mappings(result, service, "output")
+                compute_directional_port_mappings(result, service, "input", normalized_mappings)
+                compute_directional_port_mappings(result, service, "output", normalized_mappings)
                 result
             end
 
@@ -675,9 +701,6 @@ module Orocos
                 end
 
                 include model
-                arguments.each do |key, value|
-                    send("#{key}=", value)
-                end
 
                 if master_source = source_arguments[:slave_of]
                     if !has_data_service?(master_source.to_str)
@@ -694,17 +717,25 @@ module Orocos
                     service.main = true
                 end
                 begin
+                    new_port_mappings = compute_port_mappings(service, arguments)
                     service.port_mappings.
-                        merge!(compute_port_mappings(service))
+                        merge!(new_port_mappings)
+
+                    # Remove from +arguments+ the items that were port mappings
+                    new_port_mappings.each do |from, to|
+                        if arguments[from].to_s == to # this was a port mapping !
+                            arguments.delete(from)
+                        elsif arguments[from.to_sym].to_s == to
+                            arguments.delete(from.to_sym)
+                        end
+                    end
                 rescue InvalidPortMapping => e
-                    raise InvalidProvides.new(e), "#{self.name} does not provide #{model.name}", e.backtrace
+                    raise InvalidProvides.new(e), "#{self.name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
                 end
 
-		if !source_arguments[:config_type] && constants.include?(:Config)
-		    source_arguments[:config_type] = const_get('Config')
-		end
-
-		service.config_type = source_arguments[:config_type]
+                arguments.each do |key, value|
+                    send("#{key}=", value)
+                end
                 return service
             end
 

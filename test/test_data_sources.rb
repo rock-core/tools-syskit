@@ -347,9 +347,9 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         assert_equal srv_img_left, task_model.find_matching_service(image_model, "stereo.left")
 
         # Add fakes to trigger disambiguation by main/non-main
-        srv_left = task_model.data_service DServ::Image, :as => 'left'
+        srv_left = task_model.data_service DServ::Image, :as => 'left', 'image' => 'leftImage'
         assert_equal srv_left, task_model.find_matching_service(image_model)
-        task_model.data_service DServ::Image, :as => 'right'
+        task_model.data_service DServ::Image, :as => 'right', 'image' => 'rightImage'
         assert_raises(Ambiguous) { task_model.find_matching_service(image_model) }
         assert_equal srv_left, task_model.find_matching_service(image_model, "left")
         assert_equal srv_img_left, task_model.find_matching_service(image_model, "stereo.left")
