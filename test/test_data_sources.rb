@@ -111,7 +111,6 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
 
         model  = sys_model.data_source_type("camera")
         assert(model < source)
-        assert_equal(source.orogen_spec, model.orogen_spec.superclass)
         assert_same(source, DServ::Camera)
     end
 
@@ -126,7 +125,6 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         end
         model  = sys_model.data_source_type("camera", :provides => source)
         assert(model < source)
-        assert_equal(source.orogen_spec, model.orogen_spec.superclass)
         assert(! sys_model.has_data_service?('camera'))
     end
 
@@ -406,7 +404,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
     def test_data_service_instance_validation
         Roby.app.load_orogen_project "system_test"
         stereo_model = sys_model.data_service_type 'stereocam', :interface => SystemTest::StereoCamera
-        assert_raises(SpecError) do
+        assert_raises(InvalidProvides) do
             SystemTest::CameraDriver.data_service DServ::Stereocam, :as => 'stereo'
         end
     end
@@ -563,7 +561,6 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
             output_port 'image', 'camera/Image'
         end
         device_model = sys_model.data_source_type 'camera', :provides => 'image'
-        assert_equal image_model.orogen_spec, device_model.orogen_spec.superclass
 
         SystemTest::CameraDriver.driver_for 'camera'
         data_source = SystemTest::CameraDriver

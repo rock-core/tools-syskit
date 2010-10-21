@@ -11,7 +11,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def teardown
         super
-        orocos_engine.composition_specializations.clear
+        sys_model.composition_specializations.clear
     end
 
     def simple_composition
@@ -30,7 +30,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
         assert_equal sys_model, subsys.system
         assert(subsys < Orocos::RobyPlugin::Composition)
-        assert_equal "simple", subsys.name
+        assert_equal "Orocos::RobyPlugin::Compositions::Simple", subsys.name
 
         assert_equal ['Echo', 'echo', 'source', 'sink'].to_set,
             subsys.children.keys.to_set
@@ -118,7 +118,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             add Echo::Echo, :as => 'echo2'
             autoconnect
         end
-        assert_raises(Ambiguous) { subsys.compute_autoconnection }
+        assert_raises(AmbiguousAutoConnection) { subsys.compute_autoconnection }
 
         subsys = sys_model.composition("source_sink2") do
             add SimpleSource::Source, :as => 'source1'
@@ -126,7 +126,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             add SimpleSink::Sink, :as => 'sink1'
             autoconnect
         end
-        assert_raises(Ambiguous) { subsys.compute_autoconnection }
+        assert_raises(AmbiguousAutoConnection) { subsys.compute_autoconnection }
     end
 
     def test_connect_overrides_autoconnect
