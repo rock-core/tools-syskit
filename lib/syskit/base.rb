@@ -568,7 +568,7 @@ module Orocos
                         name_rx = Regexp.new(service.name)
                         by_name = candidates.find_all { |p| p.name =~ name_rx }
                         if by_name.empty?
-                            raise InvalidPortMapping, "multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}: #{candidates.map(&:name)}"
+                            raise InvalidPortMapping, "#{candidates.map(&:name)} are equally valid candidates to map #{port.name}[#{port.type_name}] from the '#{service.name}' service onto the #{name} task's interface"
                         elsif by_name.size == 1
                             used_ports << by_name.first.name
                             result[port.name] = by_name.first.name
