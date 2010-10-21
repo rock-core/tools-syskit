@@ -56,6 +56,19 @@ module Orocos
             attr_accessor :name
             # The parent model, if any
             attr_reader :parent_model
+            # The configuration type for instances of this service model
+            attr_writer :config_type
+
+            # Return the config type for the instances of this service, if any
+            def config_type
+                ancestors = self.ancestors
+                for klass in ancestors
+                    if type = klass.instance_variable_get(:@config_type)
+                        return type
+                    end
+                end
+                type
+            end
 
             def short_name
                 name.gsub('Orocos::RobyPlugin::', '')

@@ -243,6 +243,8 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         task_model.driver_for('camera', :as => 'left_image')
 
         assert(task_model.has_data_service?('left_image'))
+        # The data source has been explicitely defined, no config type
+        assert(!task_model.find_data_service('left_image').config_type)
 
         assert(task_model.fullfills?(source_model))
         assert(task_model.fullfills?(driver_model))
@@ -274,6 +276,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         motors_model = model.driver_for('Motors')
         assert_same(Orocos::RobyPlugin::DataSources::Motors, motors_model)
         assert_equal(model.orogen_spec, motors_model.orogen_spec.superclass)
+        assert_equal(model.config_type_from_properties, motors_model.config_type)
     end
 
     def define_stereocamera

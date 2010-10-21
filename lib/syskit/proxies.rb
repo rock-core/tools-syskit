@@ -1070,7 +1070,7 @@ module Orocos
                         model = Orocos::RobyPlugin::DataSources.const_get model.to_str.camelcase(true)
                     rescue NameError
                         device_arguments, arguments = Kernel.filter_options arguments,
-                            :provides => nil, :interface => nil
+                            :provides => nil, :interface => nil, :config_type => nil
 
                         if !device_arguments[:provides] && !device_arguments[:interface]
                             # Look for an existing data source that match the name.
@@ -1081,15 +1081,15 @@ module Orocos
                             end
                         end
                         model = system.data_source_type model, device_arguments
+                        if !model.config_type
+                            model.config_type = config_type_from_properties
+                        end
                     end
                 end
                 if !(model < DataSource)
                     raise ArgumentError, "#{model} is not a device driver model"
                 end
                 dserv = data_service(model, arguments)
-                if !dserv.config_type
-                    dserv.config_type = config_type_from_properties
-                end
                 argument "#{dserv.name}_name"
 
                 model

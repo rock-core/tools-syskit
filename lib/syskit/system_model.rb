@@ -135,11 +135,14 @@ module Orocos
             #   alternatively to giving a block, it is possible to provide an
             #   Orocos::Generation::TaskContext instance directly to define the
             #   required interface.
+            # config_type::
+            #   the type of the configuration data structures
             def data_service(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
                     :child_of => nil,
                     :provides => nil,
-                    :interface => nil
+                    :interface => nil,
+                    :config_type => nil
 
                 options[:provides] ||= (options[:child_of] || DataService)
 
@@ -162,6 +165,7 @@ module Orocos
 
                 register_data_service(model)
                 model.instance_variable_set :@name, name
+                model.config_type = options[:config_type]
                 model
             end
 
