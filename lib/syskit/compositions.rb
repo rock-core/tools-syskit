@@ -1630,7 +1630,7 @@ module Orocos
                     child_task       = selected_object.task
                     child_model      = child_task.model
                 elsif selected_object.kind_of?(ProvidedDataService)
-                    selected_service = selected_object.model
+                    selected_service = selected_object
                     child_model      = selected_object.component_model
                 elsif selected_object.kind_of?(Component)
                     child_task  = selected_object # selected an instance explicitely

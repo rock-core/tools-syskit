@@ -585,5 +585,22 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         instance = instance_model.new
         assert_equal '/can/Message', instance.model.message_type
     end
+
+    def test_port_mapping
+        Roby.app.load_orogen_project 'system_test'
+        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+
+        camera_service = sys_model.get_data_service_type 'camera'
+
+        SystemTest::StereoCamera.driver_for 'stereo'
+        left = SystemTest::StereoCamera.data_service 'camera',
+                :as => 'left', :slave_of => 'stereo'
+        right = SystemTest::StereoCamera.data_service 'camera',
+                :as => 'right', :slave_of => 'stereo'
+
+        assert_equal({'image' => 'leftImage'}, left.port_mappings)
+        assert_equal({'image' => 'rightImage'}, right.port_mappings)
+    end
 end
 
