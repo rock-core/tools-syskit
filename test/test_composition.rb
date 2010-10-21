@@ -78,7 +78,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             
         subsys.export sink1.cycle
         assert_equal(sink1.cycle, subsys.port('cycle'))
-        assert_raises(SpecError) { subsys.export(sink2.cycle) }
+        assert_raises(ArgumentError) { subsys.export(sink2.cycle) }
         
         subsys.export sink2.cycle, :as => 'cycle2'
         assert_equal(sink1.cycle, subsys.port('cycle'))
@@ -198,8 +198,8 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
 
         expected = {
-            ['Source', 'source_sink0'] => { ['cycle', 'in_cycle'] => {} },
-            ['source_sink0', 'Sink'] => { ['out_cycle', 'cycle'] => {} }
+            ['Source', 'SourceSink0'] => { ['cycle', 'in_cycle'] => {} },
+            ['SourceSink0', 'Sink'] => { ['out_cycle', 'cycle'] => {} }
         }
         assert_equal(expected, complete.connections)
     end
@@ -265,25 +265,25 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         orocos_engine.prepare
 
         selection = test.find_selected_compositions(
-            orocos_engine, "child", Hash.new)
+            "child", Hash.new)
         assert_equal [], selection
 
         selection = test.find_selected_compositions(
-            orocos_engine, "child", "child.not_a_child" => SimpleSource::Source)
+            "child", "child.not_a_child" => SimpleSource::Source)
         assert_equal [], selection
 
         selection = test.find_selected_compositions(
-            orocos_engine, "child", "child.source" => SimpleSource::Source)
+            "child", "child.source" => SimpleSource::Source)
         assert_equal [subsys], selection
 
         model.include tag1
         selection = test.find_selected_compositions(
-            orocos_engine, "child", "child.source" => model)
+            "child", "child.source" => model)
         assert_equal [spec1].to_set, selection.to_set
 
         model.include tag2
         selection = test.find_selected_compositions(
-            orocos_engine, "child", "child.source" => model)
+            "child", "child.source" => model)
         assert_equal [spec2].to_set, selection.to_set
     end
 
@@ -305,27 +305,6 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             source[task, Flows::DataFlow])
         assert_equal({ ['in_cycle', 'cycle'] => Hash.new },
             task[sink, Flows::DataFlow])
-    end
-
-    def test_constrain
-        tag   = Roby::TaskModelTag.new { def self.name; "Tag" end }
-        subsys = sys_model.composition("composition") do
-            add SimpleSource::Source
-            constrain SimpleSource::Source, [tag]
-        end
-        assert_equal([[tag]], subsys.find_child_constraint('Source'))
-
-        assert_raises(SpecError) do
-            subsys.instanciate(orocos_engine,
-                    :selection => { 'Source' => SimpleSource::Source })
-        end
-
-        model = Class.new(SimpleSource::Source) do
-            def self.name; "Model" end
-        end
-        model.include tag
-        subsys.instanciate(orocos_engine,
-                :selection => { 'Source' => model })
     end
 
     def test_compare_model_sets
@@ -411,16 +390,16 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         c1234 = c123.specializations[0].composition
 
         assert_equal [subsys, c1, c2, c12, c123, c1234],
-            subsys.find_most_specialized_compositions(orocos_engine,
+            subsys.find_most_specialized_compositions(
                    [subsys, c1, c2, c12, c123, c1234], Array.new)
         assert_equal [c12],
-            subsys.find_most_specialized_compositions(orocos_engine,
+            subsys.find_most_specialized_compositions(
                    [subsys, c1, c2, c3, c4, c12], ['Source'])
         assert_equal [c12, c3, c4].to_set,
-            subsys.find_most_specialized_compositions(orocos_engine,
+            subsys.find_most_specialized_compositions(
                    [subsys, c1, c2, c3, c4, c12], ['Source', 'Sink']).to_set
-        assert_equal [c12, c123, c1234].to_set,
-            subsys.find_most_specialized_compositions(orocos_engine,
+        assert_equal [c12].to_set,
+            subsys.find_most_specialized_compositions(
                    [subsys, c1, c2, c3, c4, c12, c123, c1234], ['Source']).to_set
     end
 
@@ -452,39 +431,39 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         source2_sink12 = source2_sink1.specializations[0].composition
         source12_sink12 = source12_sink1.specializations[0].composition
 
-        assert_equal [], subsys.find_specializations(orocos_engine,
+        assert_equal [], subsys.find_specializations(
                 'Source' => [SimpleSource::Source]).map(&:name)
 
         source_submodel_with_tag = Class.new(source_submodel) do
             def self.name; "SourceModelWithTag" end
             include tag
         end
-        assert_equal [source1], subsys.find_specializations(orocos_engine,
+        assert_equal [source1], subsys.find_specializations(
                 'Source' => [source_submodel_with_tag])
 
         source_submodel_with_tag.include tag2
         assert_equal [source12],
-            subsys.find_specializations(orocos_engine,
+            subsys.find_specializations(
                 'Source' => [source_submodel_with_tag])
 
         sink_submodel_with_tag = Class.new(sink_submodel) do
             def self.name; "SinkModelWithTag" end
             include tag
         end
-        assert_equal [source12_sink1], subsys.find_specializations(orocos_engine,
+        assert_equal [source12_sink1], subsys.find_specializations(
                 'Sink' => [sink_submodel_with_tag],
                 'Source' => [source_submodel_with_tag])
         # Verify that we get the same result, regardless of the selection order
-        assert_equal [source12_sink1], subsys.find_specializations(orocos_engine,
+        assert_equal [source12_sink1], subsys.find_specializations(
                 'Source' => [source_submodel_with_tag],
                 'Sink' => [sink_submodel_with_tag])
 
         sink_submodel_with_tag.include tag2
-        assert_equal [source12_sink12], subsys.find_specializations(orocos_engine,
+        assert_equal [source12_sink12], subsys.find_specializations(
                 'Sink' => [sink_submodel_with_tag],
                 'Source' => [source_submodel_with_tag])
         # Verify that we get the same result, regardless of the selection order
-        assert_equal [source12_sink12], subsys.find_specializations(orocos_engine,
+        assert_equal [source12_sink12], subsys.find_specializations(
                 'Source' => [source_submodel_with_tag],
                 'Sink' => [sink_submodel_with_tag])
     end
@@ -550,11 +529,11 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             end
         end
 
-        assert_equal [], subsys.find_specializations(orocos_engine,
+        assert_equal [], subsys.find_specializations(
                 'child' => [model1])
-        assert_equal [spec0], subsys.find_specializations(orocos_engine,
+        assert_equal [spec0], subsys.find_specializations(
                 'child' => [model0])
-        assert_equal [spec0_submodel], subsys.find_specializations(orocos_engine,
+        assert_equal [spec0_submodel], subsys.find_specializations(
                 'child' => [submodel0])
     end
 
@@ -637,7 +616,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             specialize SimpleSource::Source, tag2, :not => tag
         end
 
-        assert_raises(Ambiguous) do
+        assert_raises(AmbiguousSpecialization) do
             subsys.instanciate(orocos_engine,
                 :selection => { 'Source' => model })
         end
@@ -717,7 +696,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         bad_model = Class.new(Component) do
             def self.name; "BadModel" end
         end
-        assert_raises(SpecError) do
+        assert_raises(ArgumentError) do
             child.add bad_model, :as => "Sink"
         end
 
