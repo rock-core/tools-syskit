@@ -259,7 +259,7 @@ module Orocos
                     end
                 end
 
-                State.orocos = Configuration.new
+                Roby::State.orocos = Configuration.new
 
                 Orocos.master_project.extend(MasterProjectHook)
                 app.orocos_auto_configure = true
