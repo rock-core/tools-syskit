@@ -388,8 +388,12 @@ module Orocos
             rescue Orocos::CORBA::ComError => e
                 if running?
                     emit :aborted, e
+                    @orogen_state = nil
                 elsif pending? || starting?
                     event(:start).emit_failed e
+                    @orogen_state = nil
+                else
+                    raise
                 end
             end
 
