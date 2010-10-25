@@ -272,7 +272,6 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
     def test_connection_change
         Roby.app.load_orogen_project "system_test"
-        Orocos::RobyPlugin::Engine.logger.level = Logger::INFO
 
         plan.add_permanent(deployment = Orocos::RobyPlugin::Deployments::System.new)
         system_test = Orocos::RobyPlugin::SystemTest
