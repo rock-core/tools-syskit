@@ -2563,6 +2563,167 @@ module Orocos
 	        ::MainPlanner.method(name, &block)
 	    end
         end
+
+        # This method is called at the beginning of each execution cycle, and
+        # updates the running TaskContext tasks.
+        def self.update(plan) # :nodoc:
+            tasks = plan.find_tasks(RequirementModificationTask).running.to_a
+            
+            if Roby.app.orocos_engine.modified?
+                # We assume that all requirement modification have been applied
+                # by the RequirementModificationTask instances. They therefore
+                # take the blame if something fails, and announce a success
+                begin
+                    Roby.app.orocos_engine.resolve
+                    tasks.each do |t|
+                        t.emit :success
+                    end
+                rescue Exception => e
+                    if tasks.empty?
+                        # No task to take the blame ... we'll have to shut down
+                        raise 
+                    end
+                    tasks.each do |t|
+                        t.emit(:failed, e)
+                    end
+                end
+            end
+
+            all_dead_deployments = ValueSet.new
+            for name, server in Orocos::RobyPlugin.process_servers
+                server = server.first
+                if dead_deployments = server.wait_termination(0)
+                    dead_deployments.each do |p, exit_status|
+                        d = Deployment.all_deployments[p]
+                        if !d.finishing?
+                            Orocos::RobyPlugin.warn "#{p.name} unexpectedly died on #{name}"
+                        end
+                        all_dead_deployments << d
+                        d.dead!(exit_status)
+                    end
+                end
+            end
+
+            for deployment in all_dead_deployments
+                deployment.cleanup_dead_connections
+            end
+
+            if !(query = plan.instance_variable_get :@orocos_update_query)
+                query = plan.find_tasks(Orocos::RobyPlugin::TaskContext).
+                    not_finished.not_failed
+                plan.instance_variable_set :@orocos_update_query, query
+            end
+
+            query.reset
+            for t in query
+                next if !t.orogen_task
+                # Some CORBA implementations (namely, omniORB) may behave weird
+                # if the remote process terminates in the middle of a remote
+                # call.
+                #
+                # Ignore tasks whose process is terminating
+		if t.execution_agent.ready_to_die?
+		    next
+		end
+
+                if !t.is_setup? && Roby.app.orocos_auto_configure?
+                    t.setup 
+                end
+
+                handled_this_cycle = Array.new
+                next if !t.running?
+                while t.update_orogen_state
+                    state = t.orogen_state
+                    if !handled_this_cycle.include?(state)
+                        t.handle_state_changes
+                        handled_this_cycle << state
+                    end
+                end
+            end
+
+            tasks = Flows::DataFlow.modified_tasks
+            tasks.delete_if { |t| !t.plan || all_dead_deployments.include?(t.execution_agent) || t.transaction_proxy? }
+            if !tasks.empty?
+                main_tasks, proxy_tasks = tasks.partition { |t| t.plan.executable? }
+                main_tasks = main_tasks.to_value_set
+                if Flows::DataFlow.pending_changes
+                    main_tasks.merge(Flows::DataFlow.pending_changes.first)
+                end
+
+                Engine.info do
+                    Engine.info "computing data flow update from modified tasks"
+                    for t in main_tasks
+                        Engine.info "  #{t}"
+                    end
+                    break
+                end
+
+                new, removed = Roby.app.orocos_engine.compute_connection_changes(main_tasks)
+                if new
+                    Engine.info do
+                        Engine.info "  new connections:"
+                        new.each do |(from_task, to_task), mappings|
+                            Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
+                            Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
+                            mappings.each do |(from_port, to_port), policy|
+                                Engine.info "      #{from_port}:#{to_port} #{policy}"
+                            end
+                        end
+                        Engine.info "  removed connections:"
+			Engine.info "  disable debug display because it is unstable in case of process crashes"
+                        #removed.each do |(from_task, to_task), mappings|
+                        #    Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
+                        #    Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
+                        #    mappings.each do |from_port, to_port|
+                        #        Engine.info "      #{from_port}:#{to_port}"
+                        #    end
+                        #end
+                            
+                        break
+                    end
+
+                    pending_replacement =
+                        if Flows::DataFlow.pending_changes
+                            Flows::DataFlow.pending_changes[3]
+                        end
+
+                    Flows::DataFlow.pending_changes = [main_tasks, new, removed, pending_replacement]
+                    Flows::DataFlow.modified_tasks.clear
+                    Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_value_set)
+                else
+                    Engine.info "cannot compute changes, keeping the tasks queued"
+                end
+            end
+
+            if Flows::DataFlow.pending_changes
+                _, new, removed, pending_replacement = Flows::DataFlow.pending_changes
+                if pending_replacement && !pending_replacement.happened? && !pending_replacement.unreachable?
+                    Engine.info "waiting for replaced tasks to stop"
+                else
+                    if pending_replacement
+                        Engine.info "successfully started replaced tasks, now applying pending changes"
+                        pending_replacement.clear_vertex
+                        plan.unmark_permanent(pending_replacement)
+                    end
+
+                    pending_replacement = catch :cancelled do
+                        Engine.info "applying pending changes from the data flow graph"
+                        Roby.app.orocos_engine.apply_connection_changes(new, removed)
+                        Flows::DataFlow.pending_changes = nil
+                    end
+
+                    if !Flows::DataFlow.pending_changes
+                        Engine.info "successfully applied pending changes"
+                    elsif pending_replacement
+                        Engine.info "waiting for replaced tasks to stop"
+                        plan.add_permanent(pending_replacement)
+                        Flows::DataFlow.pending_changes[3] = pending_replacement
+                    else
+                        Engine.info "failed to apply pending changes"
+                    end
+                end
+            end
+        end
     end
 end
 
