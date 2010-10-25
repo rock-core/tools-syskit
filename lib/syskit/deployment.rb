@@ -221,14 +221,14 @@ module Orocos
                                 ::Orocos::TaskContext.get(activity.name)
                         end
 
-                        if !arguments[:log] || State.orocos.deployment_excluded_from_log?(self)
+                        if !arguments[:log] || Roby::State.orocos.deployment_excluded_from_log?(self)
                             Robot.info "not automatically logging any port in deployment #{name}"
                         else
                             Orocos::Process.log_all_ports(orogen_deployment,
                                         :log_dir => log_dir,
                                         :remote => (machine != 'localhost')) do |port|
 
-                                result = !State.orocos.port_excluded_from_log?(self, Roby.app.orocos_tasks[port.task.model.name], port)
+                                result = !Roby::State.orocos.port_excluded_from_log?(self, Roby.app.orocos_tasks[port.task.model.name], port)
                                 if !result
                                     Robot.info "not logging #{port.task.name}:#{port.name}"
                                 end
