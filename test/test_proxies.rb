@@ -13,11 +13,6 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         @orocos_update = engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
     end
 
-    def teardown
-        Orocos::RobyPlugin::Application.stop_local_process_server
-        super
-    end
-
     needs_no_orogen_projects
 
     def test_deployment_nominal_actions
