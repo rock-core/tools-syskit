@@ -1546,6 +1546,28 @@ module Orocos
                 end
                 child_proxy_models[child_name] = model
             end
+
+            def compute_service_selection(child_name, task_model, required_services, user_call)
+                result = []
+                required_services.each do |required|
+                    next if !required.kind_of?(DataServiceModel)
+                    candidate_services =
+                        task_model.each_data_service.find_all do |name, srv|
+                            srv.model.fullfills?(required)
+                        end
+
+                    if candidate_services.size > 1
+                        throw :invalid_selection if !user_call
+                        raise AmbiguousServiceSelection.new(self, child_name, task_model, required, candidate_services),
+                            "multiple services fullfill #{required.name} on #{task_model.name}: #{candidate_services.map(&:first).join(", ")}"
+                    elsif candidate_services.empty?
+                        throw :invalid_selection if !user_call
+                        raise Ambiguous, "there is no service of #{task_model.name} that provide #{required.name}, for the child #{child_name} of #{self.name}"
+                    end
+                    result << candidate_services.first[1]
+                end
+                result
+            end
             
             # call-seq:
             #   find_selected_model_and_task(child_name, selection) -> is_default, selected_service, child_model, child_task
@@ -1568,7 +1590,7 @@ module Orocos
             #   be a task model (as a class object) or a task instance (as a
             #   Component instance).
             #
-            def find_selected_model_and_task(child_name, selection) # :nodoc:
+            def find_selected_model_and_task(child_name, selection, user_call = true) # :nodoc:
                 dependent_model = find_child(child_name).models
 
                 is_explicit = false
@@ -1587,6 +1609,7 @@ module Orocos
                     if matching_compositions.size > 1
                         selection = selection.dup
                         selection.delete_if { |name, model| name !~ /^#{Regexp.quote("#{child_name}.")}/ }
+                        throw :invalid_selection if !user_call
                         raise AmbiguousIndirectCompositionSelection.new(self, child_name, selection, matching_compositions),
                             "the following compositions match for #{child_name}: #{matching_compositions.map(&:to_s).join(", ")}"
                     end
@@ -1612,6 +1635,7 @@ module Orocos
 
                     candidates = filter_ambiguities(candidates, selection)
                     if candidates.size > 1
+                        throw :invalid_selection if !user_call
                         raise Ambiguous, "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
                     end
 
@@ -1643,40 +1667,16 @@ module Orocos
                 elsif selected_object.kind_of?(Component)
                     child_task  = selected_object # selected an instance explicitely
                     child_model = child_task.model
-
-                    if dependent_model.any? { |m| m.kind_of?(DataServiceModel) }
-                        # Need to map the required services to the component
-                        candidate_services =
-                            selected_object.model.each_data_service.find_all do |name, srv|
-                                srv.model.fullfills?(dependent_model)
-                            end
-
-                        if candidate_services.size > 1
-                            raise AmbiguousServiceSelection.new(self, child_name, selected_object, candidate_services),
-                                "multiple services fullfill #{dependent_model.map(&:name).join(", ")} on #{selected_object}: #{candidate_services.map(&:first).join(", ")}"
-                        end
-                        selected_service = candidate_services.first[1]
-                    end
+                    selected_services = compute_service_selection(child_name, child_model, dependent_model, user_call)
                 elsif selected_object < Component
                     child_model = selected_object
-                    if dependent_model.any? { |m| m.kind_of?(DataServiceModel) }
-                        # Need to map the required services to the component
-                        candidate_services =
-                            selected_object.each_data_service.find_all do |name, srv|
-                                srv.model.fullfills?(dependent_model)
-                            end
-
-                        if candidate_services.size > 1
-                            raise AmbiguousServiceSelection.new(self, child_name, selected_object, candidate_services),
-                                "multiple services fullfill #{dependent_model.map(&:name).join(", ")} on #{selected_object}: #{candidate_services.map(&:first).join(", ")}"
-                        end
-                        selected_service = candidate_services.first[1]
-                    end
+                    selected_services = compute_service_selection(child_name, child_model, dependent_model, user_call)
                 else
+                    throw :invalid_selection if !user_call
                     raise ArgumentError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
                 end
 
-                return is_explicit, selected_service, child_model, child_task
+                return is_explicit, (selected_services || []), child_model, child_task
             end
 
             # Verifies that +selected_model+ is an acceptable selection for
@@ -1729,21 +1729,22 @@ module Orocos
                 result   = Hash.new
                 each_child do |child_name, child_definition|
                     dependent_model = child_definition.models
-                    is_explicit, selected_service, child_model, child_task =
-                        find_selected_model_and_task(child_name, selection)
+                    is_explicit, selected_services, child_model, child_task =
+                        find_selected_model_and_task(child_name, selection, user_call)
                     verify_acceptable_selection(child_name, child_model, user_call)
 
                     # If the model is a plain data service (i.e. not a task
                     # model), we must map this service to a service on the
                     # selected task
-                    if selected_service
-                        port_mappings = selected_service.port_mappings.dup
+                    port_mappings = Hash.new
+                    if !selected_services.empty?
+                        port_mappings = selected_services.inject(port_mappings) { |mappings, srv| mappings.merge(srv.port_mappings.dup) }
                     end
 
                     Engine.debug do
                         "  selected #{child_task || child_model.name} (#{port_mappings}) for #{child_name} (#{dependent_model.map(&:name).join(",")})"
                     end
-                    selected_model = [child_model, child_task, port_mappings || Hash.new]
+                    selected_model = [child_model, child_task, port_mappings]
                     if is_explicit
                         explicit[child_name] = selected_model
                     end
