@@ -351,6 +351,14 @@ module Orocos
             # The Robot instance we are running on
             attr_accessor :robot
 
+            # Returns the set of communication busses names that this task
+            # needs.
+            def com_busses
+                arguments.find_all do |arg_name, bus_name| 
+                    bus_name && (arg_name.to_s =~ /_com_bus$/)
+                end.map(&:last).to_set
+            end
+
             def create_fresh_copy
                 new_task = super
                 new_task.robot = robot

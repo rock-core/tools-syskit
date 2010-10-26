@@ -44,7 +44,14 @@ module Orocos
             # specific to the type of device
             attr_reader :properties
 
-            def com_bus; @task_arguments[:com_bus] end
+            # Returns the names of the com busses this device instance is
+            # connected to
+            def com_busses
+                @task_arguments.find_all do |arg_name, bus_name|
+                    arg_name.to_s =~ /_com_bus$/ &&
+                        bus_name
+                end.map(&:last)
+            end
 
             # call-seq:
             #   device.configure { |p| }
@@ -337,8 +344,11 @@ module Orocos
 
                 task_model = tasks.first
                 service = task_model.find_matching_service(device_model)
-                root_task_arguments = {"#{service.name}_name" => name, :com_bus => nil}.
+                root_task_arguments = {
+                    "#{service.name}_name" => name, 
+                    "#{service.name}_com_bus" => task_arguments[:com_bus]}.
                     merge(task_arguments)
+                root_task_arguments.delete :com_bus
 
                 devices[name] = MasterDeviceInstance.new(
                     name, device_model, device_options,

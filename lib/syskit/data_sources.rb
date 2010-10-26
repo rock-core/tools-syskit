@@ -474,7 +474,6 @@ module Orocos
         # DataSource::ClassExtension
         module DataSource
             @name = "Orocos::RobyPlugin::DataSource"
-            argument "com_bus"
 
             module ClassExtension
                 # Enumerate all the data sources that are defined on this
@@ -570,7 +569,12 @@ module Orocos
                     end.compact
 
                 if orogen_spec.activity_type !~ /(NonPeriodic|FileDescriptor)Activity/
-                    triggering_devices.delete_if { |m| !m.com_bus }
+                    # There is no "internal" triggering: we are only triggered
+                    # by ports. So, remove the devices that are not using a
+                    # combus component
+                    triggering_devices.delete_if do |m| 
+                        m.com_busses.empty?
+                    end
                 end
 
                 triggering_devices.each do |device_instance|
@@ -655,7 +659,7 @@ module Orocos
                     devices = sink_task.model.each_root_data_service.
                         find_all { |_, service| service.model < DataSource }.
                         map { |source_name, _| robot.devices[sink_task.arguments["#{source_name}_name"]] }.
-                        compact.find_all { |device| device.com_bus }
+                        compact.find_all { |device| !device.com_busses.empty? }
 
                     yield(source_port, devices)
                 end

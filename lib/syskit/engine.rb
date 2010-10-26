@@ -1938,106 +1938,119 @@ module Orocos
                 end
             end
 
+            def link_task_to_bus(task, bus_name)
+                if !(com_bus = tasks[bus_name])
+                    raise SpecError, "there is no communication bus named #{bus_name}"
+                end
+
+                # Assume that if the com bus is one of our dependencies,
+                # then it means we are already linked to it
+                next if task.depends_on?(com_bus)
+
+                # Enumerate in/out ports on task of the bus datatype
+                message_type = Orocos.registry.get(com_bus.model.message_type).name
+                out_candidates = task.model.each_output.find_all do |p|
+                    p.type.name == message_type
+                end
+                in_candidates = task.model.each_input.find_all do |p|
+                    p.type.name == message_type
+                end
+                if out_candidates.empty? && in_candidates.empty?
+                    raise SpecError, "#{task} is supposed to be connected to #{com_bus}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
+                end
+
+                task.depends_on com_bus
+
+                in_connections  = Hash.new
+                out_connections = Hash.new
+                handled    = Hash.new
+                used_ports = Set.new
+
+                task.model.each_root_data_service do |source_name, source_service|
+                    source_model = source_service.model
+                    next if !(source_model < DataSource)
+                    device_spec = robot.devices[task.arguments["#{source_name}_name"]]
+                    next if !device_spec || !device_spec.com_busses.include?(bus_name)
+                    
+                    in_ports  = in_candidates.find_all  { |p| p.name =~ /#{source_name}/i }
+                    out_ports = out_candidates.find_all { |p| p.name =~ /#{source_name}/i }
+                    if in_ports.size > 1
+                        raise Ambiguous, "there are multiple options to connect #{com_bus.name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
+                    elsif out_ports.size > 1
+                        raise Ambiguous, "there are multiple options to connect #{source_name} in #{task} to #{com_bus.name}: #{out_ports.map(&:name)}"
+                    end
+
+                    handled[source_name] = [!out_ports.empty?, !in_ports.empty?]
+                    if !in_ports.empty?
+                        port = in_ports.first
+                        used_ports << port.name
+                        in_connections[ [com_bus.output_name_for(source_name), port.name] ] = Hash.new
+                    end
+                    if !out_ports.empty?
+                        port = out_ports.first
+                        used_ports << port.name
+                        out_connections[ [port.name, com_bus.input_name_for(source_name)] ] = Hash.new
+                    end
+                end
+
+                # if there are some unconnected data sources, search for
+                # generic ports (input and/or output) on the task, and link
+                # to it.
+                if handled.values.any? { |v| v == [false, false] }
+                    in_candidates.delete_if  { |p| used_ports.include?(p.name) }
+                    out_candidates.delete_if { |p| used_ports.include?(p.name) }
+
+                    if in_candidates.size > 1
+                        raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                    elsif in_candidates.size == 1
+                        # One generic input port
+                        if !task.bus_name
+                            raise SpecError, "#{task} has one generic input port '#{in_candidates.first.name}' but no bus name"
+                        end
+                        in_connections[ [com_bus.output_name_for(task.bus_name), in_candidates.first.name] ] = Hash.new
+
+                    end
+
+                    if out_candidates.size > 1
+                        raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                    elsif out_candidates.size == 1
+                        # One generic output port
+                        if !task.bus_name
+                            raise SpecError, "#{task} has one generic output port '#{out_candidates.first.name} but no bus name"
+                        end
+                        out_connections[ [out_candidates.first.name, com_bus.input_name_for(task.bus_name)] ] = Hash.new
+                    end
+                end
+                
+                if !in_connections.empty?
+                    com_bus.connect_ports(task, in_connections)
+                    in_connections.each_key do |_, sink_port|
+                        task.input_port_model(sink_port).needs_reliable_connection
+                    end
+                end
+                if !out_connections.empty?
+                    task.connect_ports(com_bus, out_connections)
+                    out_connections.each_key do |_, sink_port|
+                        com_bus.input_port_model(sink_port).needs_reliable_connection
+                    end
+                end
+            end
+
             # Creates communication busses and links the tasks to them
             def link_to_busses
+                # Get all the tasks that need at least one communication bus
                 candidates = plan.find_local_tasks(Orocos::RobyPlugin::DataSource).
-                    find_all { |t| t.com_bus }.
-                    to_value_set
-
-                candidates.each do |task|
-                    if !(com_bus = tasks[task.com_bus])
-                        raise SpecError, "there is no communication bus named #{task.com_bus}"
+                    inject(Hash.new) do |h, t|
+                        required_busses = t.com_busses
+                        if !required_busses.empty?
+                            h[t] = required_busses
+                        end
+                        h
                     end
 
-                    # Assume that if the com bus is one of our dependencies,
-                    # then it means we are already linked to it
-                    next if task.depends_on?(com_bus)
-
-                    # Enumerate in/out ports on task of the bus datatype
-                    message_type = Orocos.registry.get(com_bus.model.message_type).name
-                    out_candidates = task.model.each_output.find_all do |p|
-                        p.type.name == message_type
-                    end
-                    in_candidates = task.model.each_input.find_all do |p|
-                        p.type.name == message_type
-                    end
-                    if out_candidates.empty? && in_candidates.empty?
-                        raise SpecError, "#{task} is supposed to be connected to #{com_bus}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
-                    end
-
-		    task.depends_on com_bus
-
-                    in_connections  = Hash.new
-                    out_connections = Hash.new
-                    handled    = Hash.new
-                    used_ports = Set.new
-                    task.model.each_root_data_service do |source_name, source_service|
-                        source_model = source_service.model
-                        next if !(source_model < DataSource)
-                        device_spec = robot.devices[task.arguments["#{source_name}_name"]]
-                        next if !device_spec || !device_spec.com_bus
-
-                        in_ports  = in_candidates.find_all  { |p| p.name =~ /#{source_name}/i }
-                        out_ports = out_candidates.find_all { |p| p.name =~ /#{source_name}/i }
-                        if in_ports.size > 1
-                            raise Ambiguous, "there are multiple options to connect #{com_bus.name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
-                        elsif out_ports.size > 1
-                            raise Ambiguous, "there are multiple options to connect #{source_name} in #{task} to #{com_bus.name}: #{out_ports.map(&:name)}"
-                        end
-
-                        handled[source_name] = [!out_ports.empty?, !in_ports.empty?]
-                        if !in_ports.empty?
-                            port = in_ports.first
-                            used_ports << port.name
-                            in_connections[ [com_bus.output_name_for(source_name), port.name] ] = Hash.new
-                        end
-                        if !out_ports.empty?
-                            port = out_ports.first
-                            used_ports << port.name
-                            out_connections[ [port.name, com_bus.input_name_for(source_name)] ] = Hash.new
-                        end
-                    end
-
-                    # if there are some unconnected data sources, search for
-                    # generic ports (input and/or output) on the task, and link
-                    # to it.
-                    if handled.values.any? { |v| v == [false, false] }
-                        in_candidates.delete_if  { |p| used_ports.include?(p.name) }
-                        out_candidates.delete_if { |p| used_ports.include?(p.name) }
-
-                        if in_candidates.size > 1
-                            raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
-                        elsif in_candidates.size == 1
-                            # One generic input port
-                            if !task.bus_name
-                                raise SpecError, "#{task} has one generic input port '#{in_candidates.first.name}' but no bus name"
-                            end
-                            in_connections[ [com_bus.output_name_for(task.bus_name), in_candidates.first.name] ] = Hash.new
-
-                        end
-
-                        if out_candidates.size > 1
-                            raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
-                        elsif out_candidates.size == 1
-                            # One generic output port
-                            if !task.bus_name
-                                raise SpecError, "#{task} has one generic output port '#{out_candidates.first.name} but no bus name"
-                            end
-                            out_connections[ [out_candidates.first.name, com_bus.input_name_for(task.bus_name)] ] = Hash.new
-                        end
-                    end
-
-                    if !in_connections.empty?
-                        com_bus.connect_ports(task, in_connections)
-                        in_connections.each_key do |_, sink_port|
-                            task.input_port_model(sink_port).needs_reliable_connection
-                        end
-                    end
-                    if !out_connections.empty?
-                        task.connect_ports(com_bus, out_connections)
-                        out_connections.each_key do |_, sink_port|
-                            com_bus.input_port_model(sink_port).needs_reliable_connection
-                        end
+                candidates.each do |task, needed_busses|
+                    needed_busses.each do |bus_name|
+                        link_task_to_bus(task, bus_name)
                     end
                 end
                 nil
