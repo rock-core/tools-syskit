@@ -433,9 +433,15 @@ module Orocos
                 end
 
                 name = name.to_str
-                if children.has_key?(name)
-                    raise ArgumentError, "composition #{self.name} already has a child named #{name}"
-                end
+                # We do NOT check for an already existing definition. The reason
+                # is that specialization (among other) will add a default child,
+                # that may be overriden by the composition's owner. Either to
+                # set arguments, or to have a specialization over an aspect of a
+                # data service use a more specific task model in the specialized
+                # composition.
+                #
+                # Anyway, the remainder checks that the new definition is a
+                # valid overloading of the previous one.
 
                 child_task_model = child_model.find_all { |m| m < Component }
                 if child_task_model.size > 1
