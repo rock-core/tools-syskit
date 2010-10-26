@@ -645,12 +645,12 @@ module Orocos
 
                 child_composition = new_submodel('', system)
                 child_composition.extend CompositionSpecializationModel
-                child_composition.add child_model, :as => child_name
-                child_composition.private_model
-                
                 specializations <<
                     Specialization.new({ child_name => child_model },
                                        child_composition, [])
+
+                child_composition.add child_model, :as => child_name
+                child_composition.private_model
 
                 # Apply the specialization to the existing ones
                 specializations.each do |spec|
