@@ -14,9 +14,6 @@ module Orocos
             # The mappings needed between the ports in the service interface and
             # the actual ports on the component
             attr_reader :port_mappings
-            # The type that can be used for configuring this service. I.e. the
-            # task's configure method will expect an object of class config_type
-            attr_accessor :config_type
 
             # The service's full name, i.e. the name with which it is referred
             # to in the task model
@@ -40,6 +37,10 @@ module Orocos
                     else
                         name
                     end
+            end
+
+            def config_type
+                model.config_type
             end
 
             # Yields the port models for this service's input, applied on the
