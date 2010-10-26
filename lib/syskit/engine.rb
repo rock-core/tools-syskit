@@ -2543,7 +2543,7 @@ module Orocos
                     RobyPlugin::DataSources,
                     RobyPlugin::Compositions]
 
-                if Kernel.load_dsl_file(file, self, search_path, false)
+                if Kernel.load_dsl_file(file, self, search_path, !Roby.app.filter_backtraces?)
                     RobyPlugin.info "loaded #{file}"
                 end
             end
