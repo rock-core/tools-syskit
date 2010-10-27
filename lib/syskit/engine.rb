@@ -958,18 +958,18 @@ module Orocos
                 end
             end
 
-            def validate_result(plan, options = Hash.new)
+            def validate_generated_network(plan, options = Hash.new)
                 # Check for the presence of abstract tasks
                 still_abstract = plan.find_local_tasks(Component).
-                    abstract.to_a.
-                    delete_if do |p|
-                        p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
-                    end
+                    abstract.to_a
 
                 if !still_abstract.empty?
-                    raise Ambiguous, "there are ambiguities left in the plan: #{still_abstract}"
+                    raise TaskAllocationFailed.new(still_abstract),
+                        "could not find implementation for the following abstract tasks: #{still_abstract}"
                 end
+            end
 
+            def validate_final_network(plan, options = Hash.new)
                 # Check that all device instances are proper tasks (not proxies)
                 instances.each do |instance|
                     if instance.task.transaction_proxy?
@@ -1188,6 +1188,22 @@ module Orocos
                         t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
                     end
 
+                    if options[:garbage_collect]
+                        trsc.static_garbage_collect do |obj|
+                            if obj.transaction_proxy?
+                                # Clear up the dependency relations for the
+                                # obsolete tasks that are in the plan
+                                obj.remove_relations(Roby::TaskStructure::Dependency)
+                            else
+                                # Remove tasks that we just added and are not
+                                # useful anymore
+                                trsc.remove_object(obj)
+                            end
+                        end
+
+                        validate_generated_network(trsc, options)
+                    end
+
                     if options[:compute_deployments]
                         instanciate_required_deployments
                         merge_identical_tasks
@@ -1221,7 +1237,7 @@ module Orocos
 
                     # Finally, we should now only have deployed tasks. Verify it
                     # and compute the connection policies
-                    validate_result(trsc, options)
+                    validate_final_network(trsc, options)
 
                     if options[:compute_policies]
                         compute_connection_policies
