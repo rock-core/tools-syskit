@@ -1392,6 +1392,12 @@ module Orocos
                     options = Kernel.validate_options options, Orocos::Port::CONNECTION_POLICY_OPTIONS
                 end
                 mappings.each do |out_p, in_p|
+                    if !out_p.kind_of?(CompositionChildOutputPort)
+                        raise ArgumentError, "#{out_p.name} is an input port of #{out_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    end
+                    if !in_p.kind_of?(CompositionChildInputPort)
+                        raise ArgumentError, "#{in_p.name} is an input port of #{in_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    end
                     explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.name, in_p.name] ] = options
                 end
             end

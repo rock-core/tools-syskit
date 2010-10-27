@@ -285,6 +285,26 @@ module Orocos
                 end
             end
 
+            # Returns true if +name+ is a valid output port name for instances
+            # of +self+. If including_dynamic is set to false, only static ports
+            # will be considered
+            def has_output_port?(name, including_dynamic = true)
+                return true if output_port(name)
+                if including_dynamic
+                    dynamic_output_port?(name)
+                end
+            end
+
+            # Returns true if +name+ is a valid input port name for instances of
+            # +self+. If including_dynamic is set to false, only static ports
+            # will be considered
+            def has_input_port?(name, including_dynamic = true)
+                return true if input_port(name)
+                if including_dynamic
+                    dynamic_input_port?(name)
+                end
+            end
+
             # True if +name+ could be a dynamic output port name.
             #
             # Dynamic output ports are declared on the task models using the
