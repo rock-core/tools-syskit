@@ -1945,7 +1945,7 @@ module Orocos
 
                 # Assume that if the com bus is one of our dependencies,
                 # then it means we are already linked to it
-                next if task.depends_on?(com_bus)
+                return if task.depends_on?(com_bus)
 
                 # Enumerate in/out ports on task of the bus datatype
                 message_type = Orocos.registry.get(com_bus.model.message_type).name
