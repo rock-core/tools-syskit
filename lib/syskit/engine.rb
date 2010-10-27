@@ -1338,41 +1338,6 @@ module Orocos
             #
             # Raises SpecError if no concrete task is available and Ambiguous if
             # more than one would match.
-            def allocate_abstract_tasks
-                targets = plan.find_local_tasks(Orocos::RobyPlugin::Component).
-                    abstract.
-                    to_value_set
-
-                Engine.debug "  -- Task allocation"
-
-                targets.each do |target|
-                    candidates = plan.find_local_tasks(target.fullfilled_model.first).
-                        not_abstract.
-                        find_all { |candidate| candidate.can_merge?(target) }
-
-                    candidates.delete_if do |candidate_task|
-                        candidates.any? do |t|
-                            if t != candidate_task
-                                comparison = merge_sort_order(t, candidate_task)
-                                comparison && comparison < 0
-                            end
-                        end
-                    end
-
-                    if candidates.empty?
-                        raise TaskAllocationFailed.new(target),
-                            "cannot find a concrete task for #{target} in #{target.parents.map(&:to_s).join(", ")}"
-                    elsif candidates.size > 1
-                        raise AmbiguousTaskAllocation.new(target, candidates),
-                            "there are multiple candidates for #{target} (#{candidates.join(", ")}), you must select one with the 'use' statement"
-                    end
-
-                    Engine.debug { "   #{target} => #{candidates.first}" }
-                    candidates.first.merge(target)
-                    plan.remove_object(target)
-                end
-            end
-
             # Result table used internally by merge_sort_order
             MERGE_SORT_TRUTH_TABLE = {
                 [true, true] => nil,
