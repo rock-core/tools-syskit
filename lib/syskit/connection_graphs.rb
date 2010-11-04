@@ -42,8 +42,6 @@ module Orocos
         ActualDataFlow   = ConnectionGraph.new
         Orocos::TaskContext.include BGL::Vertex
 
-        Flows = Roby::RelationSpace(Component)
-
         def self.update_connection_policy(old, new)
             old = old.dup
             new = new.dup
@@ -79,6 +77,7 @@ module Orocos
             end
         end
 
+        Flows = Roby::RelationSpace(Component)
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false, :weak => true do
             # Makes sure that +self+ has an output port called +name+. It will
             # instanciate a dynamic port if needed.
