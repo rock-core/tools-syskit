@@ -29,6 +29,7 @@ module Orocos
         class Configuration
             def initialize
                 @log_enabled = true
+                @redirect_local_process_server = true
 
                 @excluded_deployments = Set.new
                 @excluded_tasks = Set.new
@@ -64,8 +65,9 @@ module Orocos
                 end
             end
 
-            attr_predicate :log_enabled?
+            attr_predicate :redirect_local_process_server?, true
 
+            attr_predicate :log_enabled?
             def enable_logging; @log_enabled = true end
             def disable_logging; @log_enabled = false end
 
@@ -251,6 +253,14 @@ module Orocos
                 end
             end
 
+            attr_writer :redirect_local_process_server
+            def redirect_local_process_server?
+                if @redirect_local_process_server.nil?
+                    true
+                else @redirect_local_process_server
+                end
+            end
+
             # Called by Roby::Application on setup
             def self.setup(app)
                 if !Roby.respond_to?(:orocos_engine)
@@ -259,7 +269,7 @@ module Orocos
                     end
                 end
 
-                State.orocos = Configuration.new
+                Roby::State.orocos = Configuration.new
 
                 Orocos.master_project.extend(MasterProjectHook)
                 app.orocos_auto_configure = true
@@ -287,7 +297,7 @@ module Orocos
                 Dir.chdir(app.log_dir) do
                     Orocos.initialize
                     if !app.disable_local_process_server?
-                        start_local_process_server
+                        start_local_process_server(:redirect => app.redirect_local_process_server?)
                     end
                 end
             end

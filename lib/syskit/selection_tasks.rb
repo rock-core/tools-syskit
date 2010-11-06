@@ -9,6 +9,18 @@ module Orocos
             # ModalitySelectionTask instance that will select the given modality
             # for +service+
             def self.modality_selection(service, *modalities)
+                # Verify that the requested modalities match the service
+                engine = Roby.app.orocos_engine
+                modalities.each do |name|
+                    definition = engine.defines[name]
+                    if !definition
+                        raise ArgumentError, "#{name} is not a know definition"
+                    end
+                    if !definition.model.fullfills?(service)
+                        raise ArgumentError, "the model of #{name} (#{service}) does not provide the required service, #{service}"
+                    end
+                end
+
                 modalities.each do |name|
                     describe "selects #{name} for #{service.name}"
                     method(name) do

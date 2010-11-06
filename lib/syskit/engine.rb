@@ -234,8 +234,11 @@ module Orocos
                 attr_reader :engine
                 # The name provided to Engine#add
                 attr_accessor :name
-                # The component model specified by #add
+                # The component model narrowed down from +base_model+ using
+                # +using_spec+
                 attr_reader :model
+                # The component model specified by #add
+                attr_reader :base_model
                 # The arguments that should be passed to the task's #instanciate
                 # method (and, in fine, to the component model)
                 attr_reader :arguments
@@ -255,7 +258,7 @@ module Orocos
                 def initialize(engine, name, model, arguments)
                     @engine    = engine
                     @name      = name
-                    @model     = model
+                    @model     = @base_model = model
                     @arguments = arguments
                     @using_spec = Hash.new
                 end
@@ -300,7 +303,28 @@ module Orocos
                         end
                     end
                     using_spec.merge!(result)
+
+                    narrow_model
                     self
+                end
+
+                # Computes the value of +model+ based on the current selection
+                # (in using_spec) and the base model specified in #add or
+                # #define
+                def narrow_model
+                    selection = Hash.new
+                    using_spec.each_key do |key|
+                        if result = resolve_explicit_selection(using_spec[key])
+                            selection[key] = result
+                        end
+                    end
+                    candidates = base_model.narrow(selection)
+                    @model =
+                        if candidates.size == 1
+                            candidates.find { true }
+                        else
+                            base_model
+                        end
                 end
 
                 # Resolves a selection given through the #use method
@@ -327,8 +351,15 @@ module Orocos
                     if value.kind_of?(InstanciatedComponent)
                         value.task
                     elsif value.respond_to?(:to_str)
-                        if !(selected_object = engine.tasks[value.to_str])
-                            raise SpecError, "#{value} does not refer to a known task"
+                        value = value.to_str
+                        if !(selected_object = engine.tasks[value])
+                            if selected_object = engine.robot.devices[value]
+                                # Do a weak selection and return the device's
+                                # task model
+                                return selected_object.task_model
+                            else
+                                raise SpecError, "#{value} does not refer to a known task or device"
+                            end
                         end
 
                         # Check if a service has explicitely been selected, and
@@ -336,7 +367,7 @@ module Orocos
                         # task
                         service_names = value.split '.'
                         service_names.shift # remove the task name
-                        if service_names.empty?
+                        if !selected_object.kind_of?(Component) || service_names.empty? 
                             selected_object
                         else
                             candidate_service = selected_object.model.find_data_service(service_names.join("."))
@@ -660,6 +691,11 @@ module Orocos
                     if instance.mission?
                         plan.add_mission(task)
                     else
+                        # This is important here, as #resolve uses
+                        # static_garbage_collect to clear up the plan
+                        #
+                        # However, the permanent flag will be removed at the end
+                        # of #resolve
                         plan.add_permanent(task)
                     end
                 end
@@ -744,6 +780,12 @@ module Orocos
                 plan.find_local_tasks(Component).each do |source_task|
                     next if remove_compositions && source_task.kind_of?(Composition)
 
+                    source_task.model.each_input do |port|
+                        input_ports[source_task] << port.name
+                    end
+                    source_task.model.each_output do |port|
+                        output_ports[source_task] << port.name
+                    end
                     all_tasks << source_task
                     if !source_task.kind_of?(Composition)
                         source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
@@ -916,22 +958,27 @@ module Orocos
                 end
             end
 
-            def validate_result(plan, options = Hash.new)
+            def validate_generated_network(plan, options = Hash.new)
                 # Check for the presence of abstract tasks
                 still_abstract = plan.find_local_tasks(Component).
-                    abstract.to_a.
-                    delete_if do |p|
-                        p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
-                    end
+                    abstract.to_a
 
                 if !still_abstract.empty?
-                    raise Ambiguous, "there are ambiguities left in the plan: #{still_abstract}"
+                    raise TaskAllocationFailed.new(still_abstract),
+                        "could not find implementation for the following abstract tasks: #{still_abstract}"
                 end
+            end
 
+            def validate_final_network(plan, options = Hash.new)
                 # Check that all device instances are proper tasks (not proxies)
+                instances.each do |instance|
+                    if instance.task.transaction_proxy?
+                        raise InternalError, "some transaction proxies are stored in instance definitions"
+                    end
+                end
                 robot.devices.each do |name, instance|
                     if instance.task.transaction_proxy?
-                        raise InternalError, "some transaction proxies are stored in instance.task"
+                        raise InternalError, "some transaction proxies are stored in devices definitions"
                     end
                 end
 
@@ -1103,16 +1150,18 @@ module Orocos
 
                     compute_system_network
 
-                    used_tasks = plan.find_local_tasks(Component).
+                    used_tasks = trsc.find_local_tasks(Component).
                         to_value_set
 
+                    # This must be done *after* #compute_system_network,
+                    # and the computation of #used_tasks otherwise the deleted
+                    # tasks will end up in used_tasks
                     deleted_tasks = deleted_tasks.map do |task|
 		        Engine.debug { "removed #{task}, removing mission and/or permanent" }
                         task = plan[task]
                         plan.unmark_mission(task)
                         plan.unmark_permanent(task)
                         task.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
-                        task.remove_relations(Roby::TaskStructure::Dependency)
                         task
                     end.to_value_set
 
@@ -1123,16 +1172,36 @@ module Orocos
                             t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
                             t.remove_relations(Roby::TaskStructure::Dependency)
                             true
-                        elsif t.transaction_proxy? && t.__getobj__.planning_task.kind_of?(RequirementModificationTask)
-                            trsc.remove_object(t)
-                            true
+                        elsif t.transaction_proxy?
+                            # Check if the task is a placeholder for a
+                            # requirement modification
+                            planner = t.__getobj__.planning_task
+                            if planner.kind_of?(RequirementModificationTask) && !planner.finished?
+                                trsc.remove_object(t)
+                                true
+                            end
                         end
                     end
 
                     (all_tasks - used_tasks).each do |t|
                         Engine.debug { "clearing the relations of #{t}" }
                         t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
-                        t.remove_relations(Roby::TaskStructure::Dependency)
+                    end
+
+                    if options[:garbage_collect]
+                        trsc.static_garbage_collect do |obj|
+                            if obj.transaction_proxy?
+                                # Clear up the dependency relations for the
+                                # obsolete tasks that are in the plan
+                                obj.remove_relations(Roby::TaskStructure::Dependency)
+                            else
+                                # Remove tasks that we just added and are not
+                                # useful anymore
+                                trsc.remove_object(obj)
+                            end
+                        end
+
+                        validate_generated_network(trsc, options)
                     end
 
                     if options[:compute_deployments]
@@ -1143,6 +1212,11 @@ module Orocos
                     # the tasks[] and devices mappings are updated during the
                     # merge. We replace the proxies by the corresponding tasks
                     # when applicable
+                    instances.each do |instance|
+                        if instance.task && instance.task.transaction_proxy?
+                            instance.task = instance.task.__getobj__
+                        end
+                    end
                     robot.devices.keys.each do |name|
                         device_task = robot.devices[name].task
                         if device_task.plan == trsc && device_task.transaction_proxy?
@@ -1163,16 +1237,32 @@ module Orocos
 
                     # Finally, we should now only have deployed tasks. Verify it
                     # and compute the connection policies
-                    validate_result(trsc, options)
+                    validate_final_network(trsc, options)
+
                     if options[:compute_policies]
                         compute_connection_policies
                     end
 
                     if options[:garbage_collect]
                         trsc.static_garbage_collect do |obj|
-                            if !deleted_tasks.include?(obj)
-                                trsc.remove_object(obj) if !obj.respond_to?(:__getobj__)
+                            if obj.transaction_proxy?
+                                # Clear up the dependency relations for the
+                                # obsolete tasks that are in the plan
+                                obj.remove_relations(Roby::TaskStructure::Dependency)
+                            else
+                                # Remove tasks that we just added and are not
+                                # useful anymore
+                                trsc.remove_object(obj)
                             end
+                        end
+                    end
+
+                    # Remove the permanent flag from all the new tasks. We
+                    # originally mark them as permanent to protect them from
+                    # #static_garbage_collect
+                    plan.find_tasks.permanent.each do |t|
+                        if !t.transaction_proxy? && plan.permanent?(t)
+                            plan.unmark_permanent(t)
                         end
                     end
 
@@ -1264,41 +1354,6 @@ module Orocos
             #
             # Raises SpecError if no concrete task is available and Ambiguous if
             # more than one would match.
-            def allocate_abstract_tasks
-                targets = plan.find_local_tasks(Orocos::RobyPlugin::Component).
-                    abstract.
-                    to_value_set
-
-                Engine.debug "  -- Task allocation"
-
-                targets.each do |target|
-                    candidates = plan.find_local_tasks(target.fullfilled_model.first).
-                        not_abstract.
-                        find_all { |candidate| candidate.can_merge?(target) }
-
-                    candidates.delete_if do |candidate_task|
-                        candidates.any? do |t|
-                            if t != candidate_task
-                                comparison = merge_sort_order(t, candidate_task)
-                                comparison && comparison < 0
-                            end
-                        end
-                    end
-
-                    if candidates.empty?
-                        raise TaskAllocationFailed.new(target),
-                            "cannot find a concrete task for #{target} in #{target.parents.map(&:to_s).join(", ")}"
-                    elsif candidates.size > 1
-                        raise AmbiguousTaskAllocation.new(target, candidates),
-                            "there are multiple candidates for #{target} (#{candidates.join(", ")}), you must select one with the 'use' statement"
-                    end
-
-                    Engine.debug { "   #{target} => #{candidates.first}" }
-                    candidates.first.merge(target)
-                    plan.remove_object(target)
-                end
-            end
-
             # Result table used internally by merge_sort_order
             MERGE_SORT_TRUTH_TABLE = {
                 [true, true] => nil,
@@ -1864,106 +1919,119 @@ module Orocos
                 end
             end
 
+            def link_task_to_bus(task, bus_name)
+                if !(com_bus = tasks[bus_name])
+                    raise SpecError, "there is no communication bus named #{bus_name}"
+                end
+
+                # Assume that if the com bus is one of our dependencies,
+                # then it means we are already linked to it
+                return if task.depends_on?(com_bus)
+
+                # Enumerate in/out ports on task of the bus datatype
+                message_type = Orocos.registry.get(com_bus.model.message_type).name
+                out_candidates = task.model.each_output.find_all do |p|
+                    p.type.name == message_type
+                end
+                in_candidates = task.model.each_input.find_all do |p|
+                    p.type.name == message_type
+                end
+                if out_candidates.empty? && in_candidates.empty?
+                    raise SpecError, "#{task} is supposed to be connected to #{com_bus}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
+                end
+
+                task.depends_on com_bus
+
+                in_connections  = Hash.new
+                out_connections = Hash.new
+                handled    = Hash.new
+                used_ports = Set.new
+
+                task.model.each_root_data_service do |source_name, source_service|
+                    source_model = source_service.model
+                    next if !(source_model < DataSource)
+                    device_spec = robot.devices[task.arguments["#{source_name}_name"]]
+                    next if !device_spec || !device_spec.com_busses.include?(bus_name)
+                    
+                    in_ports  = in_candidates.find_all  { |p| p.name =~ /#{source_name}/i }
+                    out_ports = out_candidates.find_all { |p| p.name =~ /#{source_name}/i }
+                    if in_ports.size > 1
+                        raise Ambiguous, "there are multiple options to connect #{com_bus.name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
+                    elsif out_ports.size > 1
+                        raise Ambiguous, "there are multiple options to connect #{source_name} in #{task} to #{com_bus.name}: #{out_ports.map(&:name)}"
+                    end
+
+                    handled[source_name] = [!out_ports.empty?, !in_ports.empty?]
+                    if !in_ports.empty?
+                        port = in_ports.first
+                        used_ports << port.name
+                        in_connections[ [com_bus.output_name_for(source_name), port.name] ] = Hash.new
+                    end
+                    if !out_ports.empty?
+                        port = out_ports.first
+                        used_ports << port.name
+                        out_connections[ [port.name, com_bus.input_name_for(source_name)] ] = Hash.new
+                    end
+                end
+
+                # if there are some unconnected data sources, search for
+                # generic ports (input and/or output) on the task, and link
+                # to it.
+                if handled.values.any? { |v| v == [false, false] }
+                    in_candidates.delete_if  { |p| used_ports.include?(p.name) }
+                    out_candidates.delete_if { |p| used_ports.include?(p.name) }
+
+                    if in_candidates.size > 1
+                        raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                    elsif in_candidates.size == 1
+                        # One generic input port
+                        if !task.bus_name
+                            raise SpecError, "#{task} has one generic input port '#{in_candidates.first.name}' but no bus name"
+                        end
+                        in_connections[ [com_bus.output_name_for(task.bus_name), in_candidates.first.name] ] = Hash.new
+
+                    end
+
+                    if out_candidates.size > 1
+                        raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                    elsif out_candidates.size == 1
+                        # One generic output port
+                        if !task.bus_name
+                            raise SpecError, "#{task} has one generic output port '#{out_candidates.first.name} but no bus name"
+                        end
+                        out_connections[ [out_candidates.first.name, com_bus.input_name_for(task.bus_name)] ] = Hash.new
+                    end
+                end
+                
+                if !in_connections.empty?
+                    com_bus.connect_ports(task, in_connections)
+                    in_connections.each_key do |_, sink_port|
+                        task.input_port_model(sink_port).needs_reliable_connection
+                    end
+                end
+                if !out_connections.empty?
+                    task.connect_ports(com_bus, out_connections)
+                    out_connections.each_key do |_, sink_port|
+                        com_bus.input_port_model(sink_port).needs_reliable_connection
+                    end
+                end
+            end
+
             # Creates communication busses and links the tasks to them
             def link_to_busses
+                # Get all the tasks that need at least one communication bus
                 candidates = plan.find_local_tasks(Orocos::RobyPlugin::DataSource).
-                    find_all { |t| t.com_bus }.
-                    to_value_set
-
-                candidates.each do |task|
-                    if !(com_bus = tasks[task.com_bus])
-                        raise SpecError, "there is no communication bus named #{task.com_bus}"
+                    inject(Hash.new) do |h, t|
+                        required_busses = t.com_busses
+                        if !required_busses.empty?
+                            h[t] = required_busses
+                        end
+                        h
                     end
 
-                    # Assume that if the com bus is one of our dependencies,
-                    # then it means we are already linked to it
-                    next if task.depends_on?(com_bus)
-
-                    # Enumerate in/out ports on task of the bus datatype
-                    message_type = Orocos.registry.get(com_bus.model.message_type).name
-                    out_candidates = task.model.each_output.find_all do |p|
-                        p.type.name == message_type
-                    end
-                    in_candidates = task.model.each_input.find_all do |p|
-                        p.type.name == message_type
-                    end
-                    if out_candidates.empty? && in_candidates.empty?
-                        raise SpecError, "#{task} is supposed to be connected to #{com_bus}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
-                    end
-
-		    task.depends_on com_bus
-
-                    in_connections  = Hash.new
-                    out_connections = Hash.new
-                    handled    = Hash.new
-                    used_ports = Set.new
-                    task.model.each_root_data_service do |source_name, source_service|
-                        source_model = source_service.model
-                        next if !(source_model < DataSource)
-                        device_spec = robot.devices[task.arguments["#{source_name}_name"]]
-                        next if !device_spec || !device_spec.com_bus
-
-                        in_ports  = in_candidates.find_all  { |p| p.name =~ /#{source_name}/i }
-                        out_ports = out_candidates.find_all { |p| p.name =~ /#{source_name}/i }
-                        if in_ports.size > 1
-                            raise Ambiguous, "there are multiple options to connect #{com_bus.name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
-                        elsif out_ports.size > 1
-                            raise Ambiguous, "there are multiple options to connect #{source_name} in #{task} to #{com_bus.name}: #{out_ports.map(&:name)}"
-                        end
-
-                        handled[source_name] = [!out_ports.empty?, !in_ports.empty?]
-                        if !in_ports.empty?
-                            port = in_ports.first
-                            used_ports << port.name
-                            in_connections[ [com_bus.output_name_for(source_name), port.name] ] = Hash.new
-                        end
-                        if !out_ports.empty?
-                            port = out_ports.first
-                            used_ports << port.name
-                            out_connections[ [port.name, com_bus.input_name_for(source_name)] ] = Hash.new
-                        end
-                    end
-
-                    # if there are some unconnected data sources, search for
-                    # generic ports (input and/or output) on the task, and link
-                    # to it.
-                    if handled.values.any? { |v| v == [false, false] }
-                        in_candidates.delete_if  { |p| used_ports.include?(p.name) }
-                        out_candidates.delete_if { |p| used_ports.include?(p.name) }
-
-                        if in_candidates.size > 1
-                            raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
-                        elsif in_candidates.size == 1
-                            # One generic input port
-                            if !task.bus_name
-                                raise SpecError, "#{task} has one generic input port '#{in_candidates.first.name}' but no bus name"
-                            end
-                            in_connections[ [com_bus.output_name_for(task.bus_name), in_candidates.first.name] ] = Hash.new
-
-                        end
-
-                        if out_candidates.size > 1
-                            raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
-                        elsif out_candidates.size == 1
-                            # One generic output port
-                            if !task.bus_name
-                                raise SpecError, "#{task} has one generic output port '#{out_candidates.first.name} but no bus name"
-                            end
-                            out_connections[ [out_candidates.first.name, com_bus.input_name_for(task.bus_name)] ] = Hash.new
-                        end
-                    end
-
-                    if !in_connections.empty?
-                        com_bus.connect_ports(task, in_connections)
-                        in_connections.each_key do |_, sink_port|
-                            task.input_port_model(sink_port).needs_reliable_connection
-                        end
-                    end
-                    if !out_connections.empty?
-                        task.connect_ports(com_bus, out_connections)
-                        out_connections.each_key do |_, sink_port|
-                            com_bus.input_port_model(sink_port).needs_reliable_connection
-                        end
+                candidates.each do |task, needed_busses|
+                    needed_busses.each do |bus_name|
+                        link_task_to_bus(task, bus_name)
                     end
                 end
                 nil
@@ -2156,7 +2224,7 @@ module Orocos
                         # Compute the buffer size
                         input_dynamics = port_periods[source_task][source_port.name]
                         if !input_dynamics
-                            raise SpecError, "period information for port #{source_task}:#{source_port.name} cannot be computed"
+                            raise SpecError, "period information for output port #{source_task}:#{source_port.name} cannot be computed"
                         end
 
                         reading_latency = if sink_task.model.triggered_by?(sink_port)
@@ -2469,7 +2537,7 @@ module Orocos
                     RobyPlugin::DataSources,
                     RobyPlugin::Compositions]
 
-                if Kernel.load_dsl_file(file, self, search_path, false)
+                if Kernel.load_dsl_file(file, self, search_path, !Roby.app.filter_backtraces?)
                     RobyPlugin.info "loaded #{file}"
                 end
             end
@@ -2488,6 +2556,170 @@ module Orocos
 	    def planner_method(name, &block)
 	        ::MainPlanner.method(name, &block)
 	    end
+        end
+
+        # This method is called at the beginning of each execution cycle, and
+        # updates the running TaskContext tasks.
+        def self.update(plan) # :nodoc:
+            tasks = plan.find_tasks(RequirementModificationTask).running.to_a
+            
+            if Roby.app.orocos_engine.modified?
+                # We assume that all requirement modification have been applied
+                # by the RequirementModificationTask instances. They therefore
+                # take the blame if something fails, and announce a success
+                begin
+                    Roby.app.orocos_engine.resolve
+                    tasks.each do |t|
+                        t.emit :success
+                    end
+                rescue Exception => e
+                    if tasks.empty?
+                        # No task to take the blame ... we'll have to shut down
+                        raise 
+                    end
+                    tasks.each do |t|
+                        t.emit(:failed, e)
+                    end
+                end
+            end
+
+            all_dead_deployments = ValueSet.new
+            for name, server in Orocos::RobyPlugin.process_servers
+                server = server.first
+                if dead_deployments = server.wait_termination(0)
+                    dead_deployments.each do |p, exit_status|
+                        d = Deployment.all_deployments[p]
+                        if !d.finishing?
+                            Orocos::RobyPlugin.warn "#{p.name} unexpectedly died on #{name}"
+                        end
+                        all_dead_deployments << d
+                        d.dead!(exit_status)
+                    end
+                end
+            end
+
+            for deployment in all_dead_deployments
+                deployment.cleanup_dead_connections
+            end
+
+            if !(query = plan.instance_variable_get :@orocos_update_query)
+                query = plan.find_tasks(Orocos::RobyPlugin::TaskContext).
+                    not_finished.not_failed
+                plan.instance_variable_set :@orocos_update_query, query
+            end
+
+            query.reset
+            for t in query
+                next if !t.orogen_task
+                # Some CORBA implementations (namely, omniORB) may behave weird
+                # if the remote process terminates in the middle of a remote
+                # call.
+                #
+                # Ignore tasks whose process is terminating
+		if t.execution_agent.ready_to_die?
+		    next
+		end
+
+                if !t.is_setup? && Roby.app.orocos_auto_configure?
+                    t.setup 
+                end
+
+                handled_this_cycle = Array.new
+                next if !t.running?
+                while t.update_orogen_state
+                    state = t.orogen_state
+                    # Returns nil if we have a communication problem. In this
+                    # case, #update_orogen_state will have emitted the right
+                    # events for us anyway
+                    if state && !handled_this_cycle.include?(state)
+                        t.handle_state_changes
+                        handled_this_cycle << state
+                    end
+                end
+            end
+
+            tasks = Flows::DataFlow.modified_tasks
+            tasks.delete_if { |t| !t.plan || all_dead_deployments.include?(t.execution_agent) || t.transaction_proxy? }
+            if !tasks.empty?
+                main_tasks, proxy_tasks = tasks.partition { |t| t.plan.executable? }
+                main_tasks = main_tasks.to_value_set
+                if Flows::DataFlow.pending_changes
+                    main_tasks.merge(Flows::DataFlow.pending_changes.first)
+                end
+
+                Engine.info do
+                    Engine.info "computing data flow update from modified tasks"
+                    for t in main_tasks
+                        Engine.info "  #{t}"
+                    end
+                    break
+                end
+
+                new, removed = Roby.app.orocos_engine.compute_connection_changes(main_tasks)
+                if new
+                    Engine.info do
+                        Engine.info "  new connections:"
+                        new.each do |(from_task, to_task), mappings|
+                            Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
+                            Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
+                            mappings.each do |(from_port, to_port), policy|
+                                Engine.info "      #{from_port}:#{to_port} #{policy}"
+                            end
+                        end
+                        Engine.info "  removed connections:"
+			Engine.info "  disable debug display because it is unstable in case of process crashes"
+                        #removed.each do |(from_task, to_task), mappings|
+                        #    Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
+                        #    Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
+                        #    mappings.each do |from_port, to_port|
+                        #        Engine.info "      #{from_port}:#{to_port}"
+                        #    end
+                        #end
+                            
+                        break
+                    end
+
+                    pending_replacement =
+                        if Flows::DataFlow.pending_changes
+                            Flows::DataFlow.pending_changes[3]
+                        end
+
+                    Flows::DataFlow.pending_changes = [main_tasks, new, removed, pending_replacement]
+                    Flows::DataFlow.modified_tasks.clear
+                    Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_value_set)
+                else
+                    Engine.info "cannot compute changes, keeping the tasks queued"
+                end
+            end
+
+            if Flows::DataFlow.pending_changes
+                _, new, removed, pending_replacement = Flows::DataFlow.pending_changes
+                if pending_replacement && !pending_replacement.happened? && !pending_replacement.unreachable?
+                    Engine.info "waiting for replaced tasks to stop"
+                else
+                    if pending_replacement
+                        Engine.info "successfully started replaced tasks, now applying pending changes"
+                        pending_replacement.clear_vertex
+                        plan.unmark_permanent(pending_replacement)
+                    end
+
+                    pending_replacement = catch :cancelled do
+                        Engine.info "applying pending changes from the data flow graph"
+                        Roby.app.orocos_engine.apply_connection_changes(new, removed)
+                        Flows::DataFlow.pending_changes = nil
+                    end
+
+                    if !Flows::DataFlow.pending_changes
+                        Engine.info "successfully applied pending changes"
+                    elsif pending_replacement
+                        Engine.info "waiting for replaced tasks to stop"
+                        plan.add_permanent(pending_replacement)
+                        Flows::DataFlow.pending_changes[3] = pending_replacement
+                    else
+                        Engine.info "failed to apply pending changes"
+                    end
+                end
+            end
         end
     end
 end

@@ -11,7 +11,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def teardown
         super
-        orocos_engine.composition_specializations.clear
+        sys_model.composition_specializations.clear
     end
 
     def simple_composition
@@ -30,7 +30,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
         assert_equal sys_model, subsys.system
         assert(subsys < Orocos::RobyPlugin::Composition)
-        assert_equal "simple", subsys.name
+        assert_equal "Orocos::RobyPlugin::Compositions::Simple", subsys.name
 
         assert_equal ['Echo', 'echo', 'source', 'sink'].to_set,
             subsys.children.keys.to_set
@@ -78,7 +78,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             
         subsys.export sink1.cycle
         assert_equal(sink1.cycle, subsys.port('cycle'))
-        assert_raises(SpecError) { subsys.export(sink2.cycle) }
+        assert_raises(ArgumentError) { subsys.export(sink2.cycle) }
         
         subsys.export sink2.cycle, :as => 'cycle2'
         assert_equal(sink1.cycle, subsys.port('cycle'))
@@ -118,7 +118,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             add Echo::Echo, :as => 'echo2'
             autoconnect
         end
-        assert_raises(Ambiguous) { subsys.compute_autoconnection }
+        assert_raises(AmbiguousAutoConnection) { subsys.compute_autoconnection }
 
         subsys = sys_model.composition("source_sink2") do
             add SimpleSource::Source, :as => 'source1'
@@ -126,7 +126,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             add SimpleSink::Sink, :as => 'sink1'
             autoconnect
         end
-        assert_raises(Ambiguous) { subsys.compute_autoconnection }
+        assert_raises(AmbiguousAutoConnection) { subsys.compute_autoconnection }
     end
 
     def test_connect_overrides_autoconnect
@@ -198,8 +198,8 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
 
         expected = {
-            ['Source', 'source_sink0'] => { ['cycle', 'in_cycle'] => {} },
-            ['source_sink0', 'Sink'] => { ['out_cycle', 'cycle'] => {} }
+            ['Source', 'SourceSink0'] => { ['cycle', 'in_cycle'] => {} },
+            ['SourceSink0', 'Sink'] => { ['out_cycle', 'cycle'] => {} }
         }
         assert_equal(expected, complete.connections)
     end
@@ -265,25 +265,25 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         orocos_engine.prepare
 
         selection = test.find_selected_compositions(
-            orocos_engine, "child", Hash.new)
+            "child", Hash.new)
         assert_equal [], selection
 
         selection = test.find_selected_compositions(
-            orocos_engine, "child", "child.not_a_child" => SimpleSource::Source)
+            "child", "child.not_a_child" => SimpleSource::Source)
         assert_equal [], selection
 
         selection = test.find_selected_compositions(
-            orocos_engine, "child", "child.source" => SimpleSource::Source)
+            "child", "child.source" => SimpleSource::Source)
         assert_equal [subsys], selection
 
         model.include tag1
         selection = test.find_selected_compositions(
-            orocos_engine, "child", "child.source" => model)
+            "child", "child.source" => model)
         assert_equal [spec1].to_set, selection.to_set
 
         model.include tag2
         selection = test.find_selected_compositions(
-            orocos_engine, "child", "child.source" => model)
+            "child", "child.source" => model)
         assert_equal [spec2].to_set, selection.to_set
     end
 
@@ -305,27 +305,6 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             source[task, Flows::DataFlow])
         assert_equal({ ['in_cycle', 'cycle'] => Hash.new },
             task[sink, Flows::DataFlow])
-    end
-
-    def test_constrain
-        tag   = Roby::TaskModelTag.new { def self.name; "Tag" end }
-        subsys = sys_model.composition("composition") do
-            add SimpleSource::Source
-            constrain SimpleSource::Source, [tag]
-        end
-        assert_equal([[tag]], subsys.find_child_constraint('Source'))
-
-        assert_raises(SpecError) do
-            subsys.instanciate(orocos_engine,
-                    :selection => { 'Source' => SimpleSource::Source })
-        end
-
-        model = Class.new(SimpleSource::Source) do
-            def self.name; "Model" end
-        end
-        model.include tag
-        subsys.instanciate(orocos_engine,
-                :selection => { 'Source' => model })
     end
 
     def test_compare_model_sets
@@ -411,16 +390,16 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         c1234 = c123.specializations[0].composition
 
         assert_equal [subsys, c1, c2, c12, c123, c1234],
-            subsys.find_most_specialized_compositions(orocos_engine,
+            subsys.find_most_specialized_compositions(
                    [subsys, c1, c2, c12, c123, c1234], Array.new)
         assert_equal [c12],
-            subsys.find_most_specialized_compositions(orocos_engine,
+            subsys.find_most_specialized_compositions(
                    [subsys, c1, c2, c3, c4, c12], ['Source'])
         assert_equal [c12, c3, c4].to_set,
-            subsys.find_most_specialized_compositions(orocos_engine,
+            subsys.find_most_specialized_compositions(
                    [subsys, c1, c2, c3, c4, c12], ['Source', 'Sink']).to_set
-        assert_equal [c12, c123, c1234].to_set,
-            subsys.find_most_specialized_compositions(orocos_engine,
+        assert_equal [c12].to_set,
+            subsys.find_most_specialized_compositions(
                    [subsys, c1, c2, c3, c4, c12, c123, c1234], ['Source']).to_set
     end
 
@@ -452,39 +431,39 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         source2_sink12 = source2_sink1.specializations[0].composition
         source12_sink12 = source12_sink1.specializations[0].composition
 
-        assert_equal [], subsys.find_specializations(orocos_engine,
+        assert_equal [], subsys.find_specializations(
                 'Source' => [SimpleSource::Source]).map(&:name)
 
         source_submodel_with_tag = Class.new(source_submodel) do
             def self.name; "SourceModelWithTag" end
             include tag
         end
-        assert_equal [source1], subsys.find_specializations(orocos_engine,
+        assert_equal [source1], subsys.find_specializations(
                 'Source' => [source_submodel_with_tag])
 
         source_submodel_with_tag.include tag2
         assert_equal [source12],
-            subsys.find_specializations(orocos_engine,
+            subsys.find_specializations(
                 'Source' => [source_submodel_with_tag])
 
         sink_submodel_with_tag = Class.new(sink_submodel) do
             def self.name; "SinkModelWithTag" end
             include tag
         end
-        assert_equal [source12_sink1], subsys.find_specializations(orocos_engine,
+        assert_equal [source12_sink1], subsys.find_specializations(
                 'Sink' => [sink_submodel_with_tag],
                 'Source' => [source_submodel_with_tag])
         # Verify that we get the same result, regardless of the selection order
-        assert_equal [source12_sink1], subsys.find_specializations(orocos_engine,
+        assert_equal [source12_sink1], subsys.find_specializations(
                 'Source' => [source_submodel_with_tag],
                 'Sink' => [sink_submodel_with_tag])
 
         sink_submodel_with_tag.include tag2
-        assert_equal [source12_sink12], subsys.find_specializations(orocos_engine,
+        assert_equal [source12_sink12], subsys.find_specializations(
                 'Sink' => [sink_submodel_with_tag],
                 'Source' => [source_submodel_with_tag])
         # Verify that we get the same result, regardless of the selection order
-        assert_equal [source12_sink12], subsys.find_specializations(orocos_engine,
+        assert_equal [source12_sink12], subsys.find_specializations(
                 'Source' => [source_submodel_with_tag],
                 'Sink' => [sink_submodel_with_tag])
     end
@@ -550,11 +529,11 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             end
         end
 
-        assert_equal [], subsys.find_specializations(orocos_engine,
+        assert_equal [], subsys.find_specializations(
                 'child' => [model1])
-        assert_equal [spec0], subsys.find_specializations(orocos_engine,
+        assert_equal [spec0], subsys.find_specializations(
                 'child' => [model0])
-        assert_equal [spec0_submodel], subsys.find_specializations(orocos_engine,
+        assert_equal [spec0_submodel], subsys.find_specializations(
                 'child' => [submodel0])
     end
 
@@ -637,7 +616,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             specialize SimpleSource::Source, tag2, :not => tag
         end
 
-        assert_raises(Ambiguous) do
+        assert_raises(AmbiguousSpecialization) do
             subsys.instanciate(orocos_engine,
                 :selection => { 'Source' => model })
         end
@@ -717,7 +696,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         bad_model = Class.new(Component) do
             def self.name; "BadModel" end
         end
-        assert_raises(SpecError) do
+        assert_raises(ArgumentError) do
             child.add bad_model, :as => "Sink"
         end
 
@@ -808,24 +787,96 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
     end
 
-    def test_compute_port_mappings
+    def test_instanciate_detects_ambiguous_service_mappings
         sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
         sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
 
         camera_service = sys_model.get_data_service_type 'camera'
 
         SystemTest::StereoCamera.driver_for 'stereo'
-        SystemTest::StereoCamera.data_service 'camera', :as => 'left', :slave_of => 'stereo'
-        SystemTest::StereoCamera.data_service 'camera', :as => 'right', :slave_of => 'stereo'
+        SystemTest::StereoCamera.data_service 'camera',
+                :as => 'left', :slave_of => 'stereo'
+        SystemTest::StereoCamera.data_service 'camera',
+                :as => 'right', :slave_of => 'stereo'
 
-        sys_model.composition "Stereo" do
+        compo = sys_model.composition "Stereo" do
             stereo = add SystemTest::StereoProcessing, :as => 'processing'
             image0 = add DataServices::Camera, :as => "image0"
             image1 = add DataServices::Camera, :as => "image1"
+            connect image0.image => stereo.leftImage
+            connect image1.image => stereo.rightImage
         end
 
-        assert_equal({ 'image' => 'leftImage' }, sys_model.compute_port_mapping_for_selection(
-            'stereo.left', SystemTest::StereoCamera, [camera_service]))
+        camera = SystemTest::StereoCamera.new
+        assert_raises(AmbiguousServiceSelection) do
+            compo.instanciate(orocos_engine,
+                  :selection => {DataServices::Camera => SystemTest::StereoCamera})
+        end
+    end
+
+    def test_instanciate_handles_port_mappings_for_implicit_service_selection
+        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+
+        camera_service = sys_model.get_data_service_type 'camera'
+
+        SystemTest::StereoCamera.driver_for 'stereo'
+        SystemTest::StereoCamera.data_service 'camera',
+                :as => 'left', :slave_of => 'stereo'
+
+        compo = sys_model.composition "Stereo" do
+            stereo = add SystemTest::StereoProcessing, :as => 'processing'
+            image0 = add DataServices::Camera, :as => "image0"
+            image1 = add DataServices::Camera, :as => "image1"
+            connect image0.image => stereo.leftImage
+            connect image1.image => stereo.rightImage
+        end
+
+        camera = SystemTest::StereoCamera.new
+        instance = compo.instanciate(orocos_engine,
+            :selection => {DataServices::Camera => SystemTest::StereoCamera})
+
+        processing_task = instance.child_from_role 'processing'
+        image0_task = instance.child_from_role 'image0'
+        image1_task = instance.child_from_role 'image1'
+        assert_equal [['leftImage', 'leftImage']],
+            image0_task[processing_task, Flows::DataFlow].keys
+        assert_equal [['leftImage', 'rightImage']],
+            image1_task[processing_task, Flows::DataFlow].keys
+    end
+
+    def test_instanciate_handles_explicit_device_selection_and_maps_the_ports_accordingly
+        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+
+        camera_service = sys_model.get_data_service_type 'camera'
+
+        SystemTest::StereoCamera.driver_for 'stereo'
+        SystemTest::StereoCamera.data_service 'camera',
+                :as => 'left', :slave_of => 'stereo'
+        SystemTest::StereoCamera.data_service 'camera',
+                :as => 'right', :slave_of => 'stereo'
+
+        compo = sys_model.composition "Stereo" do
+            stereo = add SystemTest::StereoProcessing, :as => 'processing'
+            image0 = add DataServices::Camera, :as => "image0"
+            image1 = add DataServices::Camera, :as => "image1"
+            connect image0.image => stereo.leftImage
+            connect image1.image => stereo.rightImage
+        end
+
+        camera = SystemTest::StereoCamera.new
+        instance = compo.instanciate(orocos_engine,
+            :selection => {'image0' => SystemTest::StereoCamera.stereo.left,
+                'image1' => SystemTest::StereoCamera.stereo.right})
+
+        processing_task = instance.child_from_role 'processing'
+        image0_task = instance.child_from_role 'image0'
+        image1_task = instance.child_from_role 'image1'
+        assert_equal [['leftImage', 'leftImage']],
+            image0_task[processing_task, Flows::DataFlow].keys
+        assert_equal [['rightImage', 'rightImage']],
+            image1_task[processing_task, Flows::DataFlow].keys
     end
 end
 

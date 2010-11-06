@@ -50,8 +50,7 @@ module Orocos
 
                 # Now update the spec and check if we can narrow down the model
                 @using_spec = using_spec.merge(spec)
-                user_selection, _ = composition_model.find_children_models_and_tasks(using_spec)
-                candidates      = composition_model.find_specializations(user_selection)
+                candidates = composition_model.narrow(using_spec)
                 if candidates.size == 1
                     new_model = candidates.find { true }
                     models.delete(composition_model)
@@ -145,6 +144,12 @@ module Orocos
             def type; port.type end
             # The port's type name
             def type_name; port.type_name end
+
+            # Declare that this port should be ignored in the automatic
+            # connection computation
+            def ignore
+                child.composition.autoconnect_ignores << [child.child_name, port_name]
+            end
 
             def initialize(child, port, port_name)
                 @child = child
@@ -310,6 +315,8 @@ module Orocos
                 klass
             end
 
+            attribute(:autoconnect_ignores) { Set.new }
+
             # Returns the composition model that is parent to this one
             def parent_model
                 parent = superclass
@@ -426,6 +433,15 @@ module Orocos
                 end
 
                 name = name.to_str
+                # We do NOT check for an already existing definition. The reason
+                # is that specialization (among other) will add a default child,
+                # that may be overriden by the composition's owner. Either to
+                # set arguments, or to have a specialization over an aspect of a
+                # data service use a more specific task model in the specialized
+                # composition.
+                #
+                # Anyway, the remainder checks that the new definition is a
+                # valid overloading of the previous one.
 
                 child_task_model = child_model.find_all { |m| m < Component }
                 if child_task_model.size > 1
@@ -629,12 +645,12 @@ module Orocos
 
                 child_composition = new_submodel('', system)
                 child_composition.extend CompositionSpecializationModel
-                child_composition.add child_model, :as => child_name
-                child_composition.private_model
-                
                 specializations <<
                     Specialization.new({ child_name => child_model },
                                        child_composition, [])
+
+                child_composition.add child_model, :as => child_name
+                child_composition.private_model
 
                 # Apply the specialization to the existing ones
                 specializations.each do |spec|
@@ -702,6 +718,7 @@ module Orocos
                     cmodel = spec_model.composition
                     cmodel.filter_out_abstract_compositions
                     if cmodel.abstract? && cmodel.specializations.empty?
+                        Roby::Task.deregister(cmodel)
                         true
                     else
                         false
@@ -822,7 +839,7 @@ module Orocos
             # preferred w.r.t. the other.
             #
             # By using
-            #   default_specialization 'Control' => SimpleController
+            #   default_specialization 'Control', SimpleController
             #
             # the first one will be preferred by default. The second one can
             # then be selected at instanciation time with
@@ -1166,17 +1183,21 @@ module Orocos
                     seen = Set.new
                     dependent_models.each do |sys|
                         sys.each_input do |in_port|
-                            if !seen.include?(in_port.name) && !exported_port?(in_port)
-                                child_inputs[in_port.type_name] << [name, in_port.name]
-                                seen << in_port.name
-                            end
+                            next if seen.include?(in_port.name)
+                            next if exported_port?(in_port)
+                            next if autoconnect_ignores.include?([name, in_port.name])
+
+                            child_inputs[in_port.type_name] << [name, in_port.name]
+                            seen << in_port.name
                         end
 
                         sys.each_output do |out_port|
-                            if !seen.include?(out_port.name) && !exported_port?(out_port)
-                                child_outputs[out_port.type_name] << [name, out_port.name]
-                                seen << out_port.name
-                            end
+                            next if seen.include?(out_port.name)
+                            next if exported_port?(out_port)
+                            next if autoconnect_ignores.include?([name, out_port.name])
+
+                            child_outputs[out_port.type_name] << [name, out_port.name]
+                            seen << out_port.name
                         end
                     end
                 end
@@ -1186,7 +1207,7 @@ module Orocos
                     in_ports.each do |in_child_name, in_port_name|
                         # Ignore this port if there is an explicit inbound connection that involves it
                         has_explicit_connection = each_explicit_connection.any? do |(child_source, child_dest), mappings|
-                            child_dest == in_child_name && mappings.keys.find { |p, _| p == in_port_name }
+                            child_dest == in_child_name && mappings.keys.find { |port_pair| port_pair[1] == in_port_name }
                         end
                         next if has_explicit_connection
 
@@ -1371,6 +1392,12 @@ module Orocos
                     options = Kernel.validate_options options, Orocos::Port::CONNECTION_POLICY_OPTIONS
                 end
                 mappings.each do |out_p, in_p|
+                    if !out_p.kind_of?(CompositionChildOutputPort)
+                        raise ArgumentError, "#{out_p.name} is an input port of #{out_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    end
+                    if !in_p.kind_of?(CompositionChildInputPort)
+                        raise ArgumentError, "#{in_p.name} is an input port of #{in_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    end
                     explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.name, in_p.name] ] = options
                 end
             end
@@ -1525,6 +1552,28 @@ module Orocos
                 end
                 child_proxy_models[child_name] = model
             end
+
+            def compute_service_selection(child_name, task_model, required_services, user_call)
+                result = []
+                required_services.each do |required|
+                    next if !required.kind_of?(DataServiceModel)
+                    candidate_services =
+                        task_model.each_data_service.find_all do |name, srv|
+                            srv.model.fullfills?(required)
+                        end
+
+                    if candidate_services.size > 1
+                        throw :invalid_selection if !user_call
+                        raise AmbiguousServiceSelection.new(self, child_name, task_model, required, candidate_services),
+                            "multiple services fullfill #{required.name} on #{task_model.name}: #{candidate_services.map(&:first).join(", ")}"
+                    elsif candidate_services.empty?
+                        throw :invalid_selection if !user_call
+                        raise Ambiguous, "there is no service of #{task_model.name} that provide #{required.name}, for the child #{child_name} of #{self.name}"
+                    end
+                    result << candidate_services.first[1]
+                end
+                result
+            end
             
             # call-seq:
             #   find_selected_model_and_task(child_name, selection) -> is_default, selected_service, child_model, child_task
@@ -1547,7 +1596,7 @@ module Orocos
             #   be a task model (as a class object) or a task instance (as a
             #   Component instance).
             #
-            def find_selected_model_and_task(child_name, selection) # :nodoc:
+            def find_selected_model_and_task(child_name, selection, user_call = true) # :nodoc:
                 dependent_model = find_child(child_name).models
 
                 is_explicit = false
@@ -1566,6 +1615,7 @@ module Orocos
                     if matching_compositions.size > 1
                         selection = selection.dup
                         selection.delete_if { |name, model| name !~ /^#{Regexp.quote("#{child_name}.")}/ }
+                        throw :invalid_selection if !user_call
                         raise AmbiguousIndirectCompositionSelection.new(self, child_name, selection, matching_compositions),
                             "the following compositions match for #{child_name}: #{matching_compositions.map(&:to_s).join(", ")}"
                     end
@@ -1591,6 +1641,7 @@ module Orocos
 
                     candidates = filter_ambiguities(candidates, selection)
                     if candidates.size > 1
+                        throw :invalid_selection if !user_call
                         raise Ambiguous, "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
                     end
 
@@ -1615,20 +1666,23 @@ module Orocos
                     child_task       = selected_object.task
                     child_model      = child_task.model
                 elsif selected_object.kind_of?(ProvidedDataService)
-                    selected_service = selected_object.model
+                    selected_service = selected_object
                     child_model      = selected_object.component_model
+                elsif selected_object.kind_of?(DataServiceModel)
+                    child_model = selected_object.task_model
                 elsif selected_object.kind_of?(Component)
                     child_task  = selected_object # selected an instance explicitely
                     child_model = child_task.model
-                elsif selected_object.kind_of?(DataServiceModel)
-                    child_model = selected_object.task_model
+                    selected_services = compute_service_selection(child_name, child_model, dependent_model, user_call)
                 elsif selected_object < Component
                     child_model = selected_object
+                    selected_services = compute_service_selection(child_name, child_model, dependent_model, user_call)
                 else
+                    throw :invalid_selection if !user_call
                     raise ArgumentError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
                 end
 
-                return is_explicit, selected_service, child_model, child_task
+                return is_explicit, (selected_services || []), child_model, child_task
             end
 
             # Verifies that +selected_model+ is an acceptable selection for
@@ -1681,21 +1735,22 @@ module Orocos
                 result   = Hash.new
                 each_child do |child_name, child_definition|
                     dependent_model = child_definition.models
-                    is_explicit, selected_service, child_model, child_task =
-                        find_selected_model_and_task(child_name, selection)
+                    is_explicit, selected_services, child_model, child_task =
+                        find_selected_model_and_task(child_name, selection, user_call)
                     verify_acceptable_selection(child_name, child_model, user_call)
 
                     # If the model is a plain data service (i.e. not a task
                     # model), we must map this service to a service on the
                     # selected task
-                    if selected_service
-                        port_mappings = selected_service.port_mappings.dup
+                    port_mappings = Hash.new
+                    if !selected_services.empty?
+                        port_mappings = selected_services.inject(port_mappings) { |mappings, srv| mappings.merge(srv.port_mappings.dup) }
                     end
 
                     Engine.debug do
                         "  selected #{child_task || child_model.name} (#{port_mappings}) for #{child_name} (#{dependent_model.map(&:name).join(",")})"
                     end
-                    selected_model = [child_model, child_task, port_mappings || Hash.new]
+                    selected_model = [child_model, child_task, port_mappings]
                     if is_explicit
                         explicit[child_name] = selected_model
                     end
@@ -1710,16 +1765,46 @@ module Orocos
             #
             # It can be used to limit the impact of using #find_child, which
             # requires a traversal of the model ancestry.
-            attr_reader :all_children
+            def all_children(force_computation = false)
+                if @all_children
+                    return @all_children
+                else
+                    compute_all_children
+                end
+            end
+            
+            def compute_all_children
+                result = Hash.new
+                each_child do |name, model|
+                    result[name] = model
+                end
+                result
+            end
 
             # Updates the #all_children hash
             def update_all_children
-                @all_children = Hash.new
-                each_child do |name, model|
-                    @all_children[name] = model
-                end
-                all_children
+                @all_children = self.compute_all_children
             end
+
+            # Returns the set of specializations that match +using_spec+
+            def narrow(using_spec)
+                user_selection, _ = find_children_models_and_tasks(using_spec)
+                find_specializations(user_selection)
+            end
+
+            ##
+            # :method: strict_specialization_selection?
+            #
+            # If true, any ambiguity in the selection of composition
+            # specializations will lead to an error. If false, the common parent
+            # of all the possible specializations will be instanciated. One can
+            # note that it is less dangerous that it sounds, as this parent is
+            # most likely abstract and will therefore be rejected later in the
+            # system deployment process.
+            #
+            # However, don't set this to false unless you know what you are
+            # doing
+            attr_predicate :strict_specialization_selection, true
 
             # Returns a Composition task with instanciated children. If
             # specializations have been specified on this composition, the
@@ -1778,9 +1863,8 @@ module Orocos
 
                 # Now, check if some of our specializations apply to
                 # +selected_models+. If there is one, call #instanciate on it
-                if candidates.size > 1
-                    candidates = candidates.map(&:name).join(", ")
-                    raise Ambiguous, "more than one specialization apply: #{candidates}"
+                if Composition.strict_specialization_selection? && candidates.size > 1
+                    raise AmbiguousSpecialization.new(self, user_selection, candidates)
                 elsif !candidates.empty?
                     Engine.debug { "using specialization #{candidates[0].short_name} of #{short_name}" }
                     return candidates[0].instanciate(engine, arguments)
@@ -1892,6 +1976,7 @@ module Orocos
             extend CompositionModel
 
             @name = "Orocos::RobyPlugin::Composition"
+            @strict_specialization_selection = true
 
             terminates
 

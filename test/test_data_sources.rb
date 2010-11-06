@@ -111,7 +111,6 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
 
         model  = sys_model.data_source_type("camera")
         assert(model < source)
-        assert_equal(source.orogen_spec, model.orogen_spec.superclass)
         assert_same(source, DServ::Camera)
     end
 
@@ -126,7 +125,6 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         end
         model  = sys_model.data_source_type("camera", :provides => source)
         assert(model < source)
-        assert_equal(source.orogen_spec, model.orogen_spec.superclass)
         assert(! sys_model.has_data_service?('camera'))
     end
 
@@ -245,6 +243,8 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         task_model.driver_for('camera', :as => 'left_image')
 
         assert(task_model.has_data_service?('left_image'))
+        # The data source has been explicitely defined, no config type
+        assert(!task_model.find_data_service('left_image').config_type)
 
         assert(task_model.fullfills?(source_model))
         assert(task_model.fullfills?(driver_model))
@@ -276,6 +276,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         motors_model = model.driver_for('Motors')
         assert_same(Orocos::RobyPlugin::DataSources::Motors, motors_model)
         assert_equal(model.orogen_spec, motors_model.orogen_spec.superclass)
+        assert_equal(model.config_type_from_properties, motors_model.config_type)
     end
 
     def define_stereocamera
@@ -347,9 +348,9 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         assert_equal srv_img_left, task_model.find_matching_service(image_model, "stereo.left")
 
         # Add fakes to trigger disambiguation by main/non-main
-        srv_left = task_model.data_service DServ::Image, :as => 'left'
+        srv_left = task_model.data_service DServ::Image, :as => 'left', 'image' => 'leftImage'
         assert_equal srv_left, task_model.find_matching_service(image_model)
-        task_model.data_service DServ::Image, :as => 'right'
+        task_model.data_service DServ::Image, :as => 'right', 'image' => 'rightImage'
         assert_raises(Ambiguous) { task_model.find_matching_service(image_model) }
         assert_equal srv_left, task_model.find_matching_service(image_model, "left")
         assert_equal srv_img_left, task_model.find_matching_service(image_model, "stereo.left")
@@ -406,7 +407,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
     def test_data_service_instance_validation
         Roby.app.load_orogen_project "system_test"
         stereo_model = sys_model.data_service_type 'stereocam', :interface => SystemTest::StereoCamera
-        assert_raises(SpecError) do
+        assert_raises(InvalidProvides) do
             SystemTest::CameraDriver.data_service DServ::Stereocam, :as => 'stereo'
         end
     end
@@ -563,7 +564,6 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
             output_port 'image', 'camera/Image'
         end
         device_model = sys_model.data_source_type 'camera', :provides => 'image'
-        assert_equal image_model.orogen_spec, device_model.orogen_spec.superclass
 
         SystemTest::CameraDriver.driver_for 'camera'
         data_source = SystemTest::CameraDriver
@@ -584,6 +584,23 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         instance_model.driver_for 'can'
         instance = instance_model.new
         assert_equal '/can/Message', instance.model.message_type
+    end
+
+    def test_port_mapping
+        Roby.app.load_orogen_project 'system_test'
+        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+
+        camera_service = sys_model.get_data_service_type 'camera'
+
+        SystemTest::StereoCamera.driver_for 'stereo'
+        left = SystemTest::StereoCamera.data_service 'camera',
+                :as => 'left', :slave_of => 'stereo'
+        right = SystemTest::StereoCamera.data_service 'camera',
+                :as => 'right', :slave_of => 'stereo'
+
+        assert_equal({'image' => 'leftImage'}, left.port_mappings)
+        assert_equal({'image' => 'rightImage'}, right.port_mappings)
     end
 end
 

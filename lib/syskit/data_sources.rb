@@ -56,6 +56,19 @@ module Orocos
             attr_accessor :name
             # The parent model, if any
             attr_reader :parent_model
+            # The configuration type for instances of this service model
+            attr_writer :config_type
+
+            # Return the config type for the instances of this service, if any
+            def config_type
+                ancestors = self.ancestors
+                for klass in ancestors
+                    if type = klass.instance_variable_get(:@config_type)
+                        return type
+                    end
+                end
+                type
+            end
 
             def short_name
                 name.gsub('Orocos::RobyPlugin::', '')
@@ -192,6 +205,7 @@ module Orocos
 
                 @task_model = Class.new(DataServiceProxy)
                 @task_model.abstract
+                @task_model.fullfilled_model = [Roby::Task, [self], {}]
                 @task_model.instance_variable_set(:@orogen_spec, orogen_spec)
                 @task_model.name = name
                 @task_model.data_service self
@@ -460,7 +474,6 @@ module Orocos
         # DataSource::ClassExtension
         module DataSource
             @name = "Orocos::RobyPlugin::DataSource"
-            argument "com_bus"
 
             module ClassExtension
                 # Enumerate all the data sources that are defined on this
@@ -556,7 +569,12 @@ module Orocos
                     end.compact
 
                 if orogen_spec.activity_type !~ /(NonPeriodic|FileDescriptor)Activity/
-                    triggering_devices.delete_if { |m| !m.com_bus }
+                    # There is no "internal" triggering: we are only triggered
+                    # by ports. So, remove the devices that are not using a
+                    # combus component
+                    triggering_devices.delete_if do |m| 
+                        m.com_busses.empty?
+                    end
                 end
 
                 triggering_devices.each do |device_instance|
@@ -641,7 +659,7 @@ module Orocos
                     devices = sink_task.model.each_root_data_service.
                         find_all { |_, service| service.model < DataSource }.
                         map { |source_name, _| robot.devices[sink_task.arguments["#{source_name}_name"]] }.
-                        compact.find_all { |device| device.com_bus }
+                        compact.find_all { |device| !device.com_busses.empty? }
 
                     yield(source_port, devices)
                 end

@@ -4,8 +4,28 @@ module Orocos
         class ConfigError < RuntimeError; end
         class SpecError < RuntimeError; end
 
-
         class Ambiguous < SpecError; end
+
+        class InvalidPortMapping < SpecError; end
+
+        class InvalidProvides < SpecError
+            attr_reader :original_error
+
+            def initialize(original_error = nil)
+                @original_error = original_error
+                super()
+            end
+
+            def pretty_print(pp)
+                pp.text message
+                if original_error
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.text original_error.message
+                    end
+                end
+            end
+        end
 
         # Exception raised during instanciation if there is an ambiguity for a
         # composition child
@@ -28,7 +48,8 @@ module Orocos
                 pp.text "selection is:"
                 pp.nest(2) do
                     pp.breakable
-                    pp.seplist(selection) do |name, model|
+                    pp.seplist(selection) do |keyvalue|
+                        name, model = keyvalue
                         pp.text "#{name} => #{model.short_name}"
                     end
                 end
@@ -38,6 +59,28 @@ module Orocos
                     pp.breakable
                     pp.seplist(candidates) do |model|
                         pp.text "#{model.short_name}"
+                    end
+                end
+            end
+        end
+
+        # Exception raised in composition instanciations if a selected component
+        # model provides multipe services that fullfills a child's model 
+        class AmbiguousServiceSelection < Ambiguous
+            def initialize(composition_model, child_name, selection, candidates)
+                @composition_model, @child_name, @selection, @candidates =
+                    composition_model, child_name, selection, candidates
+            end
+
+            def pretty_print(pp)
+                pp.text "there is an ambiguity while looking for a service in #{selection} that matches the child #{child_name} of #{composition_model.short_name}"
+                pp.breakable
+                pp.text "candidates are:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(candidates) do |keyvalue|
+                        name, model = keyvalue
+                        pp.text name
                     end
                 end
             end
@@ -81,57 +124,39 @@ module Orocos
             end
         end
 
+        # Exception raised when we could not find concrete implementations for
+        # abstract tasks that are in the plan
         class TaskAllocationFailed < SpecError
-            attr_reader :task_parents
-            attr_reader :abstract_task
-            def initialize(task)
-                @abstract_task = task
-                @task_parents = abstract_task.
-                    enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
-                    map do |parent_task|
-                        options = parent_task[abstract_task,
-                            Roby::TaskStructure::Dependency]
-                        [options[:roles], parent_task]
-                    end
+            # A task to parents mapping for the failed allocations
+            attr_reader :abstract_tasks
+
+            def initialize(tasks)
+                @abstract_tasks = Hash.new
+
+                tasks.each do |abstract_task|
+                    parents = abstract_task.
+                        enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
+                        map do |parent_task|
+                            options = parent_task[abstract_task,
+                                Roby::TaskStructure::Dependency]
+                            [options[:roles], parent_task]
+                        end
+                    abstract_tasks[abstract_task] = parents
+                end
             end
 
             def pretty_print(pp)
-                pp.text "cannot find a concrete implementation for #{abstract_task}"
-                pp.nest(2) do
-                    pp.breakable
-                    pp.seplist(task_parents) do |parent|
-                        role, parent = parent
-                        pp.text "child #{role.to_a.first} of #{parent.to_short_s}"
-                    end
-                end
-            end
-        end
+                pp.text "cannot find a concrete implementation for #{abstract_tasks.size} task(s)"
 
-        class AmbiguousTaskAllocation < TaskAllocationFailed
-            attr_reader :candidates
-
-            def initialize(task, candidates)
-                super(task)
-                @candidates    = candidates
-            end
-
-            def pretty_print(pp)
-                pp.text "there are multiple candidates to implement the abstract task #{abstract_task}"
-                pp.nest(2) do
+                abstract_tasks.each do |task, parents|
                     pp.breakable
-                    pp.seplist(task_parents) do |parent|
-                        role, parent = parent
-                        pp.text "child #{role.to_a.first} of #{parent.to_short_s}"
-                    end
-                end
-                pp.breakable
-                pp.text "you must select one of the candidates using the 'use' statement"
-                pp.breakable
-                pp.text "possible candidates are"
-                pp.nest(2) do
-                    pp.breakable
-                    pp.seplist(candidates) do |task|
-                        pp.text task.to_short_s
+                    pp.text "for #{task}"
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.seplist(parents) do |parent|
+                            role, parent = parent
+                            pp.text "child #{role.to_a.first} of #{parent.to_short_s}"
+                        end
                     end
                 end
             end
@@ -218,9 +243,9 @@ module Orocos
             # The set of input candidates
             attr_reader :inputs
 
-            def initialize(composition_model, type_name, outputs, inputs)
-                @composition_model, @type_name, @outputs, @inputs =
-                    composition_model, type_name, outputs, inputs
+            def initialize(composition_model, type_name, inputs, outputs)
+                @composition_model, @type_name, @inputs, @outputs =
+                    composition_model, type_name, inputs, outputs
             end
 
             def pretty_print_ports(pp, port_set)
@@ -244,11 +269,60 @@ module Orocos
                 pp.breakable
                 pp.text "the considered port type is #{type_name}"
                 pp.breakable
-                pp.text "involved inputs:"
-                pretty_print_ports(pp, inputs)
-                pp.breakable
                 pp.text "involved outputs:"
                 pretty_print_ports(pp, outputs)
+                pp.breakable
+                pp.text "involved inputs:"
+                pretty_print_ports(pp, inputs)
+            end
+        end
+    
+        # Exception raised by CompositionModel#instanciate when multiple
+        # specializations can be applied
+        class AmbiguousSpecialization < Ambiguous
+            # The composition model that was being instanciated
+            attr_reader :composition_model
+            # The user selection (see Composition.instanciate for details)
+            attr_reader :selection
+            # The set of possible specializations given the model and the selection
+            attr_reader :candidates
+
+            def initialize(composition_model, selection, candidates)
+                @composition_model, @selection, @candidates =
+                    composition_model, selection, candidates
+            end
+
+            def pretty_print(pp)
+                pp.text "there is an ambiguity in the instanciation of #{composition_model.short_name}"
+                pp.breakable
+                if selection.empty?
+                    pp.text "with no selection applied"
+                else
+                    pp.text "with the following selection:"
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.seplist(selection) do |keyvalue|
+                            key, value = *keyvalue
+                            if key.respond_to?(:short_name)
+                                key = key.short_name
+                            end
+                            value = value[0]
+                            if value.respond_to?(:short_name)
+                                value = value.short_name
+                            end
+
+                            pp.text "#{key} => #{value}"
+                        end
+                    end
+                end
+                pp.breakable
+                pp.text "the following specializations apply:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(candidates) do |spec|
+                        pp.text spec.short_name
+                    end
+                end
             end
         end
     end

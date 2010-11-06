@@ -39,7 +39,7 @@ rescue Exception => e
 end
 
 def build_orogen(name)
-    require 'lib/orocos/test'
+    require './lib/orocos/test'
     work_dir = File.expand_path(File.join('test', 'working_copy'))
     prefix   = File.join(work_dir, 'prefix')
     data_dir = File.expand_path(File.join('test', 'data'))
@@ -47,7 +47,7 @@ def build_orogen(name)
     Orocos::Test.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir
 end
 
-task :default => "setup:ext"
+task :default => ["setup:ext", "setup:uic"]
 
 namespace :setup do
     desc "builds Orocos.rb C extension"

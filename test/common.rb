@@ -52,6 +52,7 @@ module RobyPluginCommonTest
         project.name 'roby'
         Roby.app.instance_variable_set :@main_orogen_project, project
 
+        Roby.app.redirect_local_process_server = false
         Orocos::RobyPlugin::Application.setup(Roby.app)
         if self.class.needed_orogen_projects.empty? && !self.class.needs_no_orogen_projects?
             Roby.app.orogen_load_all

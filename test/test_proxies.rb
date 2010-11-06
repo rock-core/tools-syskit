@@ -13,11 +13,6 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         @orocos_update = engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
     end
 
-    def teardown
-        Orocos::RobyPlugin::Application.stop_local_process_server
-        super
-    end
-
     needs_no_orogen_projects
 
     def test_deployment_nominal_actions
@@ -58,10 +53,9 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
     def test_deployment_task
         Roby.app.load_orogen_project "echo"
-        deployment = Orocos::RobyPlugin::Deployments::Echo.new
+        plan.add(deployment = Orocos::RobyPlugin::Deployments::Echo.new)
         task       = deployment.task 'echo_Echo'
         assert task.child_object?(deployment, TaskStructure::ExecutionAgent)
-        plan.add(task)
     end
 
     def test_task_executable_flag
@@ -70,7 +64,7 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
         engine.run
 
         ::Robot.logger.level = Logger::WARN
-        deployment = Orocos::RobyPlugin::Deployments::States.new
+        plan.add(deployment = Orocos::RobyPlugin::Deployments::States.new)
         task       = deployment.task 'states_Task'
 
         assert !task.executable?
@@ -138,15 +132,17 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
     def test_task_nominal
         Roby.app.load_orogen_project "echo"
+        plan.add_permanent(deployment = Orocos::RobyPlugin::Deployments::Echo.new)
 	engine.run
 
-        deployment = Orocos::RobyPlugin::Deployments::Echo.new
-        task       = deployment.task 'echo_Echo'
+        task = nil
+        engine.execute do
+            plan.add_permanent(task = deployment.task('echo_Echo'))
+        end
         assert_any_event(task.start_event) do
             plan.add_permanent(task)
             task.start!
 	end
-
         assert_any_event(task.stop_event) do
             task.stop!
         end
@@ -154,8 +150,8 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
     def test_task_extended_states_definition
         Roby.app.load_orogen_project "states"
-        deployment = Orocos::RobyPlugin::Deployments::States.new
-        plan.add(task = deployment.task('states_Task'))
+        plan.add(deployment = Orocos::RobyPlugin::Deployments::States.new)
+        task = deployment.task('states_Task')
 
         assert task.has_event?(:custom_runtime)
         assert !task.event(:custom_runtime).terminal?
@@ -180,10 +176,8 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
         task = nil
         engine.execute do
-            task = deployment.task 'states_Task'
-            plan.add_permanent(task)
+            plan.add_permanent(task = deployment.task('states_Task'))
         end
-
         assert_any_event(task.start_event) do
             plan.add_permanent(task)
             task.start!
@@ -273,7 +267,6 @@ class TC_RobyPlugin_Proxies < Test::Unit::TestCase
 
     def test_connection_change
         Roby.app.load_orogen_project "system_test"
-        Orocos::RobyPlugin::Engine.logger.level = Logger::INFO
 
         plan.add_permanent(deployment = Orocos::RobyPlugin::Deployments::System.new)
         system_test = Orocos::RobyPlugin::SystemTest
