@@ -12,11 +12,7 @@
     <url>http://orocos.org/dfki</url>
 
     <depend package="orogen" />
-    <depend package="rtt" />
-    <depend package="typelib" />
-    <depend package="utilrb" />
-    <rosdep name="hoe" />
-    <rosdep name="omniorb" />
-    <rosdep name="omniorb-nameserver" />
+    <depend package="hoe" />
+    <depend package="omniorb" />
 </package>
 
