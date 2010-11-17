@@ -103,6 +103,8 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
 
         assert task.has_event?(:custom_runtime)
         assert !task.event(:custom_runtime).terminal?
+        assert task.has_event?(:custom_exception)
+        assert task.event(:custom_exception).terminal?
         assert task.has_event?(:custom_fatal)
         assert task.event(:custom_fatal).terminal?
         assert task.has_event?(:custom_error)
@@ -141,13 +143,52 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
         end
     end
 
+    def test_task_fatal_error_handling(operation = :do_fatal_error, fatal_event = :fatal_error)
+        Roby.app.load_orogen_project "states"
+
+        deployment = Orocos::RobyPlugin::Deployments::States.new
+        plan.add_permanent(deployment)
+
+        ::Robot.logger.level = Logger::WARN
+	engine.run
+
+        task = nil
+        assert_any_event(deployment.start_event) do
+            deployment.start!
+        end
+        engine.execute do
+            plan.add_permanent(task = deployment.task('states_Task'))
+        end
+        assert_any_event(task.start_event) do
+            task.start!
+        end
+        assert_any_event(task.stop_event) do
+            task.orogen_task.send(operation)
+        end
+        engine.execute do
+            assert(task.fatal_error_event.happened?)
+            assert(task.event(fatal_event).happened?)
+        end
+        engine.execute do
+            plan.add_permanent(task = deployment.task('states_Task'))
+        end
+        sleep 0.1
+        engine.execute do
+            assert !task.executable?
+        end
+    end
+
+    def test_task_custom_fatal_error_handling
+        test_task_fatal_error_handling(:do_custom_fatal, :custom_fatal)
+    end
+
     def test_task_termination
         Roby.app.load_orogen_project "states"
 
         means_of_termination = [
             [:stop            ,  :success],
-            [:do_fatal_error  ,  :fatal_error],
-            [:do_custom_fatal ,  :custom_fatal] ]
+            [:do_exception  ,  :exception],
+            [:do_custom_exception ,  :custom_exception] ]
 
         deployment = Orocos::RobyPlugin::Deployments::States.new
         plan.add_permanent(deployment)
@@ -156,9 +197,14 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
 	engine.run
 
         means_of_termination.each do |method, state|
-            task = deployment.task 'states_Task'
+            task = nil
+            assert_any_event(deployment.start_event) do
+                deployment.start!
+            end
+            engine.execute do
+                plan.add_permanent(task = deployment.task('states_Task'))
+            end
             assert_any_event(task.start_event) do
-                plan.add_permanent(task)
                 task.start!
             end
             assert_any_event(task.event(state)) do

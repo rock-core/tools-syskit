@@ -436,6 +436,8 @@ module Orocos
                         state = read_current_state
                         if !state
                             return false
+                        elsif orogen_task.fatal_error_state?(state)
+                            return false
                         elsif !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
                             return false
                         end
@@ -465,8 +467,8 @@ module Orocos
                 state = read_current_state
 
                 if state != :STOPPED
-                    if orogen_task.fatal_error_state?(orogen_state)
-                        orogen_task.reset_error
+                    if orogen_task.exception_state?(orogen_state)
+                        orogen_task.reset_exception
                     else
                         raise InternalError, "wrong state in start event: got #{state}, expected STOPPED"
                     end
@@ -494,14 +496,19 @@ module Orocos
 
             # Handle a state transition by emitting the relevant events
             def handle_state_changes # :nodoc:
-                if orogen_task.fatal_error_state?(orogen_state)
+                if orogen_task.exception_state?(orogen_state)
                     @stopping_because_of_error = true
                     @stopping_origin = orogen_state
 		    begin
-		        orogen_task.reset_error
+		        orogen_task.reset_exception
 		    rescue Orocos::StateTransitionFailed => e
 			Robot.warn "cannot reset error on #{name}: #{e.message}"
 		    end
+                elsif orogen_task.fatal_error_state?(orogen_state)
+                    if event = state_event(orogen_state)
+                        emit event
+                    else emit :fatal_error
+                    end
                 elsif orogen_state == :RUNNING && last_orogen_state && orogen_task.error_state?(last_orogen_state)
                     emit :running
                 elsif orogen_state == :STOPPED
@@ -568,6 +575,15 @@ module Orocos
             # gets emitted whenever the component goes into a runtime error
             # state.
             event :runtime_error
+
+            ##
+            # :method: exception_event
+            #
+            # Returns the exception error event object for this task. This event
+            # gets emitted whenever the component goes into an exception
+            # state.
+            event :exception
+            forward :exception => :failed
 
             ##
             # :method: fatal_error_event
@@ -696,12 +712,14 @@ module Orocos
                 namespace.const_set(task_spec.basename.camelcase(true), klass)
                 
                 # Define specific events for the extended states (if there is any)
-                state_events = { :FATAL_ERROR => :fatal_error, :RUNTIME_ERROR => :runtime_error }
+                state_events = { :EXCEPTION => :exception, :FATAL_ERROR => :fatal_error, :RUNTIME_ERROR => :runtime_error }
                 task_spec.states.each do |name, type|
                     event_name = name.snakecase.downcase
                     klass.event event_name
                     if type == :fatal
                         klass.forward event_name => :fatal_error
+                    elsif type == :exception
+                        klass.forward event_name => :exception
                     elsif type == :error
                         klass.forward event_name => :runtime_error
                     end
