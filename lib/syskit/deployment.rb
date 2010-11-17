@@ -143,6 +143,10 @@ module Orocos
             def dead!(result)
                 if !result
                     emit :failed
+                elsif history.find(&:terminal?)
+                    # Do nothing. A terminal event already happened, so we don't
+                    # need to tell what kind of end this is for the system
+                    emit :stop
                 elsif result.success?
                     emit :success
                 elsif result.signaled?
