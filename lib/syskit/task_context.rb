@@ -509,9 +509,11 @@ module Orocos
                         emit event
                     else emit :fatal_error
                     end
+
                 elsif orogen_state == :RUNNING && last_orogen_state && orogen_task.error_state?(last_orogen_state)
                     emit :running
-                elsif orogen_state == :STOPPED
+
+                elsif orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
                     if @stopping_because_of_error
                         if event = state_event(@stopping_origin)
                             emit event
@@ -610,6 +612,10 @@ module Orocos
 
             on :stop do |event|
                 ::Robot.info "stopped #{self}"
+
+                # Reset the is_setup flag, as the user might transition to
+                # PRE_OPERATIONAL
+                @is_setup = false
                 if @state_reader
                     @state_reader.disconnect
                 end
