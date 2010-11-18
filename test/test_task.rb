@@ -89,17 +89,9 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
 
     def test_task_nominal
         Roby.app.load_orogen_project "echo"
-        plan.add_permanent(deployment = Orocos::RobyPlugin::Deployments::Echo.new)
 	engine.run
+        task, _ = start_task_context Orocos::RobyPlugin::Deployments::Echo, "echo_Echo"
 
-        task = nil
-        engine.execute do
-            plan.add_permanent(task = deployment.task('echo_Echo'))
-        end
-        assert_any_event(task.start_event) do
-            plan.add_permanent(task)
-            task.start!
-	end
         assert_any_event(task.stop_event) do
             task.stop!
         end
@@ -120,6 +112,25 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
         assert !task.event(:custom_error).terminal?
     end
 
+    def start_task_context(deployment, task_name)
+        deployment_task = nil
+        task = nil
+        engine.execute do
+            plan.add(deployment_task = deployment.new)
+            plan.add_permanent(task = deployment_task.task(task_name))
+        end
+        assert_event_emission deployment_task.ready_event do
+            deployment_task.start!
+        end
+        engine.wait_one_cycle # to make sure that the task is configured
+        assert_any_event(task.start_event) do
+            assert(task.orogen_task, "I don't have the task handle")
+            assert(task.check_is_setup, "task is not ready")
+            task.start!
+        end
+        return task, deployment_task
+    end
+
     def test_task_runtime_error
         Roby.app.load_orogen_project "states"
 
@@ -127,21 +138,10 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
             [:do_runtime_error,  :runtime_error],
             [:do_custom_error ,  :custom_error]]
 
-        deployment = Orocos::RobyPlugin::Deployments::States.new
-        plan.add_permanent(deployment)
-
         ::Robot.logger.level = Logger::WARN
 	engine.run
 
-        task = nil
-        engine.execute do
-            plan.add_permanent(task = deployment.task('states_Task'))
-        end
-        assert_any_event(task.start_event) do
-            plan.add_permanent(task)
-            task.start!
-        end
-
+        task, _ = start_task_context Orocos::RobyPlugin::Deployments::States, 'states_Task'
         runtime_errors.each do |method, state|
             assert_any_event(task.event(state)) do
                 task.orogen_task.send(method)
@@ -155,22 +155,10 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
     def test_task_fatal_error_handling(operation = :do_fatal_error, fatal_event = :fatal_error)
         Roby.app.load_orogen_project "states"
 
-        deployment = Orocos::RobyPlugin::Deployments::States.new
-        plan.add_permanent(deployment)
-
         ::Robot.logger.level = Logger::WARN
 	engine.run
 
-        task = nil
-        assert_any_event(deployment.start_event) do
-            deployment.start!
-        end
-        engine.execute do
-            plan.add_permanent(task = deployment.task('states_Task'))
-        end
-        assert_any_event(task.start_event) do
-            task.start!
-        end
+        task, deployment = start_task_context Orocos::RobyPlugin::Deployments::States, 'states_Task'
         assert_any_event(task.stop_event) do
             task.orogen_task.send(operation)
         end
@@ -199,24 +187,12 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
             [:do_exception  ,  :exception],
             [:do_custom_exception ,  :custom_exception] ]
 
-        deployment = Orocos::RobyPlugin::Deployments::States.new
-        plan.add_permanent(deployment)
-
         ::Robot.logger.level = Logger::WARN
 	engine.run
 
         means_of_termination.each do |method, state|
-            task = nil
-            assert_any_event(deployment.start_event) do
-                deployment.start!
-            end
-            engine.execute do
-                plan.add_permanent(task = deployment.task('states_Task'))
-            end
-            assert_any_event(task.start_event) do
-                task.start!
-            end
-            assert_any_event(task.event(state)) do
+            task, _ = start_task_context Orocos::RobyPlugin::Deployments::States, 'states_Task'
+            assert_event_emission(task.event(state)) do
                 task.orogen_task.send(method)
             end
             engine.execute do
