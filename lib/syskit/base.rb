@@ -58,7 +58,7 @@ module Orocos
         module Model
             # All models are defined in the context of a SystemModel instance.
             # This is this instance
-            attr_accessor :system
+            attr_accessor :system_model
 
             def to_s # :nodoc:
                 supermodels = ancestors.map(&:name)
@@ -73,7 +73,7 @@ module Orocos
             # Creates a new class that is a submodel of this model
             def new_submodel
                 klass = Class.new(self)
-                klass.system = system
+                klass.system_model = system_model
                 klass
             end
 

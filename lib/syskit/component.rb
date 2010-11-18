@@ -593,9 +593,9 @@ module Orocos
                     DATA_SERVICE_ARGUMENTS
 
                 if model.respond_to?(:to_str)
-                    begin
-                        model = system.data_service_model(model.to_str)
-                    rescue NameError
+                    if system_model.has_data_service?(model.to_str)
+                        model = system_model.data_service_model(model.to_str)
+                    else
                         raise ArgumentError, "there is no data source type #{model}"
                     end
                 end

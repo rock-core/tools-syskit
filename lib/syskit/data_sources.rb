@@ -77,12 +77,13 @@ module Orocos
             # Creates a new DataServiceModel that is a submodel of +self+
             def new_submodel(name, options = Hash.new)
                 options = Kernel.validate_options options,
-                    :type => self.class, :interface => nil
+                    :type => self.class, :interface => nil, :system_model => nil
 
                 model = options[:type].new
                 model.include self
                 model.instance_variable_set(:@parent_model, self)
                 model.name = name.dup
+                model.system_model = options[:system_model]
 
                 if options[:interface] != false
                     if options[:interface]

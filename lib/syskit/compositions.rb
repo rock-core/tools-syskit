@@ -308,10 +308,10 @@ module Orocos
 
             # Creates a submodel of this model, in the frame of the given
             # SystemModel instance.
-            def new_submodel(name, system)
+            def new_submodel(name, system_model)
                 klass = super()
                 klass.name = "Orocos::RobyPlugin::Compositions::#{name.camelcase(:upper)}"
-                klass.system = system
+                klass.system_model = system_model
                 klass
             end
 
@@ -643,7 +643,7 @@ module Orocos
                 parent_model = find_child(child_name)
                 verify_acceptable_specialization(child_name, child_model, false)
 
-                child_composition = new_submodel('', system)
+                child_composition = new_submodel('', system_model)
                 child_composition.extend CompositionSpecializationModel
                 specializations <<
                     Specialization.new({ child_name => child_model },
@@ -924,7 +924,7 @@ module Orocos
 
                         is_specialized = false
                         children_names.each do |child_name|
-                            comparison = system.compare_composition_child(
+                            comparison = system_model.compare_composition_child(
                                 child_name, composition, other_composition)
                             if !comparison
                                 is_specialized = false
@@ -1460,7 +1460,7 @@ module Orocos
 
                 # Find all compositions that can be used for +child_name+ and
                 # for which +subselection+ is a valid selection
-                candidates = system.each_composition.find_all do |composition_model|
+                candidates = system_model.each_composition.find_all do |composition_model|
                     if !selection_children.all? { |n| composition_model.all_children.has_key?(n) }
                         next
                     end

@@ -11,6 +11,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
 
     def test_data_service_type
         model = sys_model.data_service_type("image")
+        assert_equal(sys_model, model.system_model)
         assert_kind_of(DataServiceModel, model)
         assert(model < DataService)
 
@@ -32,6 +33,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
     def test_data_service_submodel
         parent_model = sys_model.data_service_type("test")
         model = sys_model.data_service_type("image", :child_of => "test")
+        assert_same(sys_model, model.system_model)
         assert_same(model, DServ::Image)
         assert_equal 'image', model.name
         assert_kind_of(DataServiceModel, model)
@@ -138,7 +140,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
 
     def test_task_data_service_declaration_using_type
         source_model = sys_model.data_service_type 'image'
-        task_model   = Class.new(TaskContext) do
+        task_model   = sys_model.task_context do
             data_service source_model
         end
         assert_raises(ArgumentError) { task_model.data_service('image') }
@@ -159,7 +161,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
 
     def test_task_data_service_declaration_default_name
         source_model = sys_model.data_service_type 'image'
-        task_model   = Class.new(TaskContext) do
+        task_model   = sys_model.task_context do
             data_service 'image'
         end
         assert_raises(ArgumentError) { task_model.data_service('image') }
@@ -180,7 +182,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
 
     def test_task_data_service_declaration_specific_name
         source_model       = sys_model.data_service_type 'image'
-        task_model   = Class.new(TaskContext) do
+        task_model   = sys_model.task_context do
             data_service 'image', :as => 'left_image'
         end
         assert_raises(ArgumentError) { task_model.data_service('image', :as => 'left_image') }
@@ -200,7 +202,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
     def test_task_data_service_specific_model
         source_model = sys_model.data_service_type 'image'
         other_source = sys_model.data_service_type 'image2'
-        task_model   = Class.new(TaskContext) do
+        task_model   = sys_model.task_context do
             data_service other_source, :as => 'left_image'
         end
         assert_same(other_source, task_model.data_service_type('left_image'))
@@ -213,11 +215,11 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         child_model  = sys_model.data_service_type 'child', :child_of => parent_model
         unrelated_model = sys_model.data_service_type 'unrelated'
 
-        parent_task = Class.new(TaskContext) do
+        parent_task = sys_model.task_context do
             data_service 'parent'
             data_service 'parent', :as => 'specific_name'
         end
-        child_task = Class.new(parent_task)
+        child_task = sys_model.task_context(:child_of => parent_task)
         assert_raises(SpecError) { child_task.data_service(unrelated_model, :as => 'specific_name') }
 
         child_task.data_service('child')
@@ -236,10 +238,10 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         source_model = sys_model.data_service_type 'image'
         driver_model = sys_model.data_source_type 'camera', :provides => 'image'
 
-        parent_model   = Class.new(TaskContext) do
+        parent_model   = sys_model.task_context do
             data_service 'image', :as => 'left_image'
         end
-        task_model = Class.new(parent_model)
+        task_model = sys_model.task_context(:child_of => parent_model)
         task_model.driver_for('camera', :as => 'left_image')
 
         assert(task_model.has_data_service?('left_image'))
@@ -263,9 +265,8 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         image_model = sys_model.data_service_type 'image'
 
         fake_spec = Roby.app.main_orogen_project.task_context 'FakeSpec'
-        model   = Class.new(TaskContext)
+        model   = sys_model.task_context
         model.instance_variable_set(:@orogen_spec, fake_spec)
-        model.system = sys_model
 
         firewire_camera = model.driver_for('FirewireCamera', :provides => image_model, :as => 'left_image')
 
@@ -536,7 +537,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         image_model  = sys_model.data_service_type 'image'
 
         srv_stereo, srv_img_left, srv_img_right = nil
-        task_model   = Class.new(TaskContext) do
+        task_model   = sys_model.task_context do
             srv_stereo    = data_service 'stereocam', :as => 'stereo'
             srv_img_left  = data_service 'image', :as => 'left', :slave_of => 'stereo'
             srv_img_right = data_service 'image', :as => 'right', :slave_of => 'stereo'
@@ -577,10 +578,11 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
 
     def test_com_bus
         model = sys_model.com_bus_type 'can', :message_type => '/can/Message'
+        assert_same sys_model, model.system_model
         assert_equal 'can', model.name
         assert_equal '/can/Message', model.message_type
 
-        instance_model = Class.new(TaskContext)
+        instance_model = sys_model.task_context
         instance_model.driver_for 'can'
         instance = instance_model.new
         assert_equal '/can/Message', instance.model.message_type
@@ -591,7 +593,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
         sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
 
-        camera_service = sys_model.get_data_service_type 'camera'
+        camera_service = sys_model.data_service_model 'camera'
 
         SystemTest::StereoCamera.driver_for 'stereo'
         left = SystemTest::StereoCamera.data_service 'camera',

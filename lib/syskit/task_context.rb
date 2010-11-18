@@ -627,9 +627,9 @@ module Orocos
             # Component.data_service for the description of +arguments+
             def self.driver_for(model, arguments = Hash.new)
                 if model.respond_to?(:to_str)
-                    begin
-                        model = data_source_model(model)
-                    rescue NameError
+                    if system_model.has_data_source?(model)
+                        model = system_model.data_source_model(model)
+                    else
                         device_arguments, arguments = Kernel.filter_options arguments,
                             :provides => nil, :interface => nil, :config_type => nil
 
@@ -637,11 +637,11 @@ module Orocos
                             # Look for an existing data source that match the name.
                             # If there is none, we will assume that +self+ describes
                             # the interface of +model+
-                            if !system.has_data_service?(model)
+                            if !system_model.has_data_service?(model)
                                 device_arguments[:interface] = self
                             end
                         end
-                        model = system.data_source_type model, device_arguments
+                        model = system_model.data_source_type model, device_arguments
                         if !model.config_type
                             model.config_type = config_type_from_properties
                         end
@@ -702,18 +702,15 @@ module Orocos
             # Creates a subclass of TaskContext that represents the given task
             # specification. The class is registered as
             # Roby::Orogen::ProjectName::ClassName.
-            def self.define_from_orogen(task_spec, system = nil)
+            def self.define_from_orogen(task_spec, system_model)
                 superclass = task_spec.superclass
                 if !(supermodel = Roby.app.orocos_tasks[superclass.name])
                     supermodel = define_from_orogen(superclass, system)
                 end
+                klass = system_model.
+                    task_context(task_spec.name, :child_of => supermodel)
 
-                klass = Class.new(supermodel)
                 klass.instance_variable_set :@orogen_spec, task_spec
-                namespace = Orocos::RobyPlugin.orogen_project_module(task_spec.component.name)
-                klass.instance_variable_set :@name, "Orocos::RobyPlugin::#{task_spec.component.name.camelcase(:upper)}::#{task_spec.basename.camelcase(:upper)}"
-                klass.instance_variable_set :@system, system
-                namespace.const_set(task_spec.basename.camelcase(:upper), klass)
                 
                 # Define specific events for the extended states (if there is any)
                 state_events = { :EXCEPTION => :exception, :FATAL_ERROR => :fatal_error, :RUNTIME_ERROR => :runtime_error }

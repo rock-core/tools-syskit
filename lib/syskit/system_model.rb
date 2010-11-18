@@ -7,7 +7,7 @@ module Orocos
             include CompositionModel
 
             def initialize
-                @system = self
+                @system_model = self
                 @composition_specializations = Hash.new do |h, k|
                     h[k] = Hash.new { |a, b| a[b] = Hash.new }
                 end
@@ -156,7 +156,7 @@ module Orocos
                         raise ArgumentError, "parent model #{options[:provides]} does not exist"
                     end
                 end
-                model = parent_model.new_submodel(name, :interface => options[:interface])
+                model = parent_model.new_submodel(name, :system_model => self, :interface => options[:interface])
                 if block_given?
                     model.interface(&block)
                 end
@@ -267,8 +267,42 @@ module Orocos
                     raise ArgumentError, "there is already a device driver called #{name}"
                 end
 
-                model = ComBusDriver.new_submodel(name, options)
+                model = ComBusDriver.new_submodel(name, options.merge(:system_model => self))
                 register_data_source(model)
+            end
+
+            # Creates a new task context model in this system model
+            def task_context(name = nil, options = Hash.new, &block)
+                if name.kind_of?(Hash)
+                    name, options = nil, name
+                end
+
+                options = Kernel.validate_options options,
+                    :child_of => Orocos::RobyPlugin::TaskContext
+
+                klass = Class.new(options[:child_of])
+                klass.instance_variable_set :@system_model, system_model
+
+                if name
+                    namespace, basename = name.split '::'
+                    if !namespace
+                        namespace, basename = nil, namespace
+                    end
+
+                    namespace =
+                        if namespace
+                            Orocos::RobyPlugin.orogen_project_module(namespace)
+                        else
+                            Orocos::RobyPlugin
+                        end
+                    klass.instance_variable_set :@name, "#{namespace.name}::#{basename.camelcase(:upper)}"
+                    namespace.const_set(basename.camelcase(:upper), klass)
+                end
+
+                if block_given?
+                    klass.class_eval(&block)
+                end
+                klass
             end
 
             # call-seq:
