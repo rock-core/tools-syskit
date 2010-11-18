@@ -429,19 +429,17 @@ module Orocos
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
             def check_is_setup
-                if orogen_spec.context.needs_configuration?
-                    if !orogen_task
-                        return false
-                    else
-                        state = read_current_state
-                        if !state
-                            return false
-                        elsif orogen_task.fatal_error_state?(state)
-                            return false
-                        elsif !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
-                            return false
-                        end
-                    end
+                if !orogen_task
+                    return false
+                end
+
+                state = read_current_state
+                if !state
+                    return false
+                elsif orogen_task.fatal_error_state?(state)
+                    return false
+                elsif !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
+                    return false
                 end
 
                 if respond_to?(:configure)
