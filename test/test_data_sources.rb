@@ -332,7 +332,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         assert_equal(expected.to_set, service_set[task_model.each_data_service])
         assert_equal([["stereo", stereo_driver_model]].to_set,
                      service_set[task_model.each_root_data_service])
-        assert_equal([:stereo_name, :com_bus], task_model.arguments.to_a)
+        assert_equal([:stereo_name], task_model.arguments.to_a)
     end
 
     def test_data_service_find_matching_service
