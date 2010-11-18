@@ -84,10 +84,14 @@ module RobyPluginCommonTest
     ensure
         Orocos::RobyPlugin::Application.stop_local_process_server
 
-        FileUtils.rm_rf Roby.app.log_dir
+        if !keep_logs?
+            FileUtils.rm_rf Roby.app.log_dir
+        end
         ENV['PKG_CONFIG_PATH'] = @old_pkg_config
         Orocos.logger.level = @old_loglevel if @old_loglevel
     end
+
+    attr_predicate :keep_logs?, true
 end
 
 
