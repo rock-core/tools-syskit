@@ -25,7 +25,7 @@ module Orocos
 
         # Creates a blank orogen interface and returns it
         def self.create_orogen_interface(name)
-            basename = "roby_#{name}".camelcase(true)
+            basename = "roby_#{name}".camelcase(:upper)
 	    begin
 		Roby.app.main_orogen_project.find_task_context(basename)
                 basename << "_DD"
@@ -106,7 +106,7 @@ module Orocos
 
         # Returns the Project instance that represents the given orogen project.
         def self.orogen_project_module(name)
-            const_name = name.camelcase(true)
+            const_name = name.camelcase(:upper)
             Orocos::RobyPlugin.define_or_reuse(const_name) do
                 mod = Project.new
                 mod.instance_variable_set :@orogen_spec, ::Roby.app.loaded_orogen_projects[name]

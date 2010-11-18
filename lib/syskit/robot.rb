@@ -243,6 +243,10 @@ module Orocos
             # The devices that are available on this robot
             attr_reader :devices
 
+            def system_model
+                engine.model
+            end
+
             # Declares a new communication bus. It is both seen as a device and
             # as a com bus, and as such is registered in both the devices and
             # com_busses hashes
@@ -300,11 +304,11 @@ module Orocos
             # Returns the MasterDeviceInstance object that describes this device
             def device(device_model, options = Hash.new)
                 if device_model.respond_to?(:to_str)
-                    device_model = Orocos::RobyPlugin::DataSources.const_get(device_model.to_str.camelcase(true))
+                    device_model = system_model.data_source_model(device_model.to_str)
                 elsif device_model < DataService && !(device_model < DataSource)
                     name = device_model.name
                     if engine.model.has_data_source?(name)
-                        device_model = Orocos::RobyPlugin::DataSources.const_get(name.camelcase(true))
+                        device_model = system_model.data_source_model(name)
                     end
                 end
 

@@ -130,8 +130,8 @@ module Orocos
                     if main_service
                         yield(port_name)
                     end
-                    yield("#{source_name}_#{port_name}".camelcase(false))
-                    yield("#{port_name}_#{source_name}".camelcase(false))
+                    yield("#{source_name}_#{port_name}".camelcase(:inter))
+                    yield("#{port_name}_#{source_name}".camelcase(:inter))
                 else
                     yield(port_name)
                 end

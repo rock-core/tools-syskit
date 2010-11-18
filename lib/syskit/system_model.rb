@@ -15,32 +15,40 @@ module Orocos
 
             if method(:const_defined?).arity == 1 # probably Ruby 1.8
             def has_data_service?(name)
-                Orocos::RobyPlugin::DataServices.const_defined?(name.camelcase(true))
+                Orocos::RobyPlugin::DataServices.const_defined?(name.camelcase(:upper))
             end
             def has_data_source?(name)
-                Orocos::RobyPlugin::DataSources.const_defined?(name.camelcase(true))
+                Orocos::RobyPlugin::DataSources.const_defined?(name.camelcase(:upper))
             end
             def has_composition?(name)
-                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(true))
+                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(:upper))
             end
             else
             def has_data_service?(name)
-                Orocos::RobyPlugin::DataServices.const_defined?(name.camelcase(true), false)
+                Orocos::RobyPlugin::DataServices.const_defined?(name.camelcase(:upper), false)
             end
             def has_data_source?(name)
-                Orocos::RobyPlugin::DataSources.const_defined?(name.camelcase(true), false)
+                Orocos::RobyPlugin::DataSources.const_defined?(name.camelcase(:upper), false)
             end
             def has_composition?(name)
-                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(true), false)
+                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(:upper), false)
             end
+            end
+
+            def data_source_model(name)
+                Orocos::RobyPlugin::DataSources.const_get(name.camelcase(:upper))
+            end
+
+            def data_service_model(name)
+                Orocos::RobyPlugin::DataServices.const_get(name.camelcase(:upper))
             end
 
             def register_data_service(model)
-                Orocos::RobyPlugin::DataServices.const_set(model.name.camelcase(true), model)
+                Orocos::RobyPlugin::DataServices.const_set(model.name.camelcase(:upper), model)
             end
 
             def register_data_source(model)
-                Orocos::RobyPlugin::DataSources.const_set(model.name.camelcase(true), model)
+                Orocos::RobyPlugin::DataSources.const_set(model.name.camelcase(:upper), model)
             end
 
             # Add a new composition model
@@ -101,16 +109,6 @@ module Orocos
                 end
             end
 
-            # Returns the object that represents the given data source type
-            def get_data_source_type(name)
-                Orocos::RobyPlugin::DataSources.const_get(name.camelcase(true))
-            end
-
-            # Returns the object that represents the given data service type
-            def get_data_service_type(name)
-                Orocos::RobyPlugin::DataServices.const_get(name.camelcase(true))
-            end
-
             # DEPRECATED. Use #data_service
             def data_service_type(*args, &block) # :nodoc:
                 data_service(*args, &block)
@@ -146,14 +144,14 @@ module Orocos
 
                 options[:provides] ||= (options[:child_of] || DataService)
 
-                const_name = name.camelcase(true)
+                const_name = name.camelcase(:upper)
                 if has_data_service?(name)
                     raise ArgumentError, "there is already a data source named #{name}"
                 end
 
                 parent_model = options[:provides]
                 if parent_model.respond_to?(:to_str)
-                    parent_model = Orocos::RobyPlugin::DataServices.const_get(parent_model.camelcase(true))
+                    parent_model = data_service_model(parent_model)
                     if !parent_model
                         raise ArgumentError, "parent model #{options[:provides]} does not exist"
                     end
@@ -200,7 +198,6 @@ module Orocos
                     options[:provides] = options[:child_of]
                 end
 
-                const_name = name.camelcase(true)
                 if has_data_source?(name)
                     raise ArgumentError, "there is already a device type #{name}"
                 end
@@ -210,7 +207,7 @@ module Orocos
                 if parents = options[:provides]
                     parents = [*parents].map do |parent|
                         if parent.respond_to?(:to_str)
-                            Orocos::RobyPlugin::DataServices.const_get(parent.camelcase(true))
+                            data_service_model(parent)
                         else
                             parent
                         end
@@ -226,7 +223,7 @@ module Orocos
 
                 elsif options[:provides].nil?
                     begin
-                        parents = [Orocos::RobyPlugin::DataServices.const_get(const_name)]
+                        parents = [data_service_model(name)]
                     rescue NameError
                         parents = [self.data_service_type(name, :interface => options[:interface])]
                     end

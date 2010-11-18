@@ -594,7 +594,7 @@ module Orocos
 
                 if model.respond_to?(:to_str)
                     begin
-                        model = Orocos::RobyPlugin::DataServices.const_get model.to_str.camelcase(true)
+                        model = system.data_service_model(model.to_str)
                     rescue NameError
                         raise ArgumentError, "there is no data source type #{model}"
                     end

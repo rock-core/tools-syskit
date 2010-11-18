@@ -310,7 +310,7 @@ module Orocos
             # SystemModel instance.
             def new_submodel(name, system)
                 klass = super()
-                klass.name = "Orocos::RobyPlugin::Compositions::#{name.camelcase(true)}"
+                klass.name = "Orocos::RobyPlugin::Compositions::#{name.camelcase(:upper)}"
                 klass.system = system
                 klass
             end
@@ -1540,7 +1540,7 @@ module Orocos
                     model = Class.new(DataServiceProxy)
                 end
                 model.abstract
-                name = "#{short_name}::#{child_name.camelcase(true)}Proxy"
+                name = "#{short_name}::#{child_name.camelcase(:upper)}Proxy"
                 orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
                 model.name        = name
                 model.instance_variable_set(:@orogen_spec, orogen_spec)

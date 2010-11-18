@@ -226,7 +226,7 @@ module Orocos
 
 
                 # Finally, import in Orocos directly
-                const_name = name.camelcase(true)
+                const_name = name.camelcase(:upper)
                 if !orogen.self_tasks.empty?
                     Orocos.const_set(const_name, Orocos::RobyPlugin.const_get(const_name))
                 end
@@ -345,8 +345,8 @@ module Orocos
 
                 orocos_tasks.each_value do |model|
                     if model.orogen_spec
-                        project_name = model.orogen_spec.component.name.camelcase(true)
-                        task_name    = model.orogen_spec.basename.camelcase(true)
+                        project_name = model.orogen_spec.component.name.camelcase(:upper)
+                        task_name    = model.orogen_spec.basename.camelcase(:upper)
                         projects << project_name
                         constant("Orocos::RobyPlugin::#{project_name}").send(:remove_const, task_name)
                     end
@@ -354,13 +354,13 @@ module Orocos
                 orocos_tasks.clear
 
                 orocos_deployments.each_key do |name|
-                    name = name.camelcase(true)
+                    name = name.camelcase(:upper)
                     Orocos::RobyPlugin::Deployments.send(:remove_const, name)
                 end
                 orocos_deployments.clear
 
                 projects.each do |name|
-                    name = name.camelcase(true)
+                    name = name.camelcase(:upper)
                     Orocos::RobyPlugin.send(:remove_const, name)
                     if Orocos.const_defined?(name)
                         Orocos.send(:remove_const, name)

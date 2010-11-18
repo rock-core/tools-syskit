@@ -275,9 +275,9 @@ module Orocos
             # +deployment_spec+ is an instance of Orogen::Generation::Deployment
             def self.define_from_orogen(deployment_spec)
                 klass = Class.new(Deployment)
-                klass.instance_variable_set :@name, "Orocos::RobyPlugin::Deployments::#{deployment_spec.name.camelcase(true)}"
+                klass.instance_variable_set :@name, "Orocos::RobyPlugin::Deployments::#{deployment_spec.name.camelcase(:upper)}"
                 klass.instance_variable_set :@orogen_spec, deployment_spec
-                Orocos::RobyPlugin::Deployments.const_set(deployment_spec.name.camelcase(true), klass)
+                Orocos::RobyPlugin::Deployments.const_set(deployment_spec.name.camelcase(:upper), klass)
                 klass
             end
         end

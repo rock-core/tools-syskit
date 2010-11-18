@@ -630,7 +630,7 @@ module Orocos
             def self.driver_for(model, arguments = Hash.new)
                 if model.respond_to?(:to_str)
                     begin
-                        model = Orocos::RobyPlugin::DataSources.const_get model.to_str.camelcase(true)
+                        model = data_source_model(model)
                     rescue NameError
                         device_arguments, arguments = Kernel.filter_options arguments,
                             :provides => nil, :interface => nil, :config_type => nil
@@ -713,9 +713,9 @@ module Orocos
                 klass = Class.new(supermodel)
                 klass.instance_variable_set :@orogen_spec, task_spec
                 namespace = Orocos::RobyPlugin.orogen_project_module(task_spec.component.name)
-                klass.instance_variable_set :@name, "Orocos::RobyPlugin::#{task_spec.component.name.camelcase(true)}::#{task_spec.basename.camelcase(true)}"
+                klass.instance_variable_set :@name, "Orocos::RobyPlugin::#{task_spec.component.name.camelcase(:upper)}::#{task_spec.basename.camelcase(:upper)}"
                 klass.instance_variable_set :@system, system
-                namespace.const_set(task_spec.basename.camelcase(true), klass)
+                namespace.const_set(task_spec.basename.camelcase(:upper), klass)
                 
                 # Define specific events for the extended states (if there is any)
                 state_events = { :EXCEPTION => :exception, :FATAL_ERROR => :fatal_error, :RUNTIME_ERROR => :runtime_error }
