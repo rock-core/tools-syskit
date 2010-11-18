@@ -37,6 +37,31 @@ module Orocos
                     unlink(source_task, sink_task)
                 end
             end
+
+            def has_out_connections?(task, port)
+                task.each_child_vertex(self) do |child_task|
+                    if task[child_task, self].any? { |source_port, _| source_port == port }
+                        return true
+                    end
+                end
+                false
+            end
+
+            def has_in_connections?(task, port)
+                task.each_parent_vertex(self) do |parent_task|
+                    if parent_task[task, self].any? { |_, target_port| target_port == port }
+                        return true
+                    end
+                end
+                false
+            end
+
+            def connected?(source_task, source_port, sink_task, sink_port)
+                if !linked?(source_task, sink_task)
+                    return false
+                end
+                source_task[sink_task, self].has_key?([source_port, sink_port])
+            end
         end
 
         ActualDataFlow   = ConnectionGraph.new

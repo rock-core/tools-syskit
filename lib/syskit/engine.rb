@@ -2494,21 +2494,33 @@ module Orocos
                             break
                         end
 
+                        source = source_task.port(source_port, false)
+                        sink   = sink_task.port(sink_port, false)
+
                         begin
-                            source_task.port(source_port).disconnect_from(sink_task.port(sink_port, false))
+                            if !source.disconnect_from(sink)
+                                Engine.warn "while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port} returned false"
+                                Engine.warn "I assume that the ports are disconnected, but this should not have happened"
+                            end
 
                         rescue CORBA::ComError => e
                             Engine.warn "CORBA error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
-                            Engine.warn "trying by disconnecting the output port"
-                            begin
-                                sink_task.port(sink_port, true).disconnect_all
-                            rescue CORBA::ComError => e
-                                Engine.warn "this fails again with #{e.message}. We assume that both sides are dead and that therefore the disconnection is effective"
-                            end
+                            Engine.warn "I am assuming that the source component is dead and that therefore the connection is actually effective"
                         end
 
                         ActualDataFlow.remove_connections(source_task, sink_task,
                                           [[source_port, sink_port]])
+
+                        # The following test is meant to make sure that we
+                        # cleanup input ports after crashes. CORBA connections
+                        # will properly cleanup the output port-to-corba part
+                        # automatically, but never the corba-to-input port
+                        #
+                        # It will break code that connects to input ports
+                        # externally. This is not a common case however.
+                        if !ActualDataFlow.has_in_connections?(sink_task, sink_port)
+                            sink.disconnect_all
+                        end
                     end
                 end
 
