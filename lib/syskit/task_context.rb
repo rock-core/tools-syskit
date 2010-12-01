@@ -74,28 +74,29 @@ module Orocos
                     attr_reader :property_names
 
                     task_model.orogen_spec.each_property do |p|
+                        property_type = p.typelib_type
 		    	singleton_class.class_eval do
 			    attr_reader p.name
 			end
-			instance_variable_set "@#{p.name}", p.type
+			instance_variable_set "@#{p.name}", property_type
 
                         default_values[p.name] =
                             if p.default_value
-                                Typelib.from_ruby(p.default_value, p.type)
+                                Typelib.from_ruby(p.default_value, property_type)
                             else
-                                value = p.type.new
+                                value = property_type.new
                                 value.zero!
                                 value
                             end
 
-                        if p.type < Typelib::CompoundType || p.type < Typelib::ArrayType
+                        if property_type < Typelib::CompoundType || property_type < Typelib::ArrayType
                             attr_accessor p.name
                         else
                             define_method(p.name) do
                                 Typelib.to_ruby(instance_variable_get("@#{p.name}"))
                             end
                             define_method("#{p.name}=") do |value|
-                                value = Typelib.from_ruby(value, p.type)
+                                value = Typelib.from_ruby(value, property_type)
                                 instance_variable_set("@#{p.name}", value)
                             end
                         end
