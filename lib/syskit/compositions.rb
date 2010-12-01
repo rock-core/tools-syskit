@@ -108,7 +108,7 @@ module Orocos
                     end
                 end
 
-                raise NoMethodError, "child #{child_name}[#{composition.find_child(child_name).models.to_a.join(", ")}] of #{composition} has no port named #{name}", caller(1)
+                raise NoMethodError, "in composition #{composition.short_name}: child #{child_name} of type #{composition.find_child(child_name).models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
             end
 
             def ==(other) # :nodoc:
