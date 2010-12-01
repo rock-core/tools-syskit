@@ -133,12 +133,11 @@ module Orocos
             attr_reader :port
             # The actual port name. Can be different from port.name
             # in case of port exports (in compositions) and port aliasing
-            attr_reader :port_name
+            attr_accessor :name
 
-            # The port name
-            #
-            # See #port_name
-            def name; port_name end
+            # Returns the true name for the port, i.e. the name of the port on
+            # the child
+            def actual_name; port.name end
 
             # THe port's type object
             def type; port.type end
@@ -148,19 +147,19 @@ module Orocos
             # Declare that this port should be ignored in the automatic
             # connection computation
             def ignore
-                child.composition.autoconnect_ignores << [child.child_name, port_name]
+                child.composition.autoconnect_ignores << [child.child_name, name]
             end
 
             def initialize(child, port, port_name)
                 @child = child
                 @port  = port
-                @port_name = port_name
+                @name = port_name
             end
 
             def ==(other) # :nodoc:
                 other.kind_of?(CompositionChildPort) && other.child == child &&
                     other.port == port &&
-                    other.port_name == port_name
+                    other.name == name
             end
         end
 
@@ -1314,9 +1313,11 @@ module Orocos
 
                 case port
                 when CompositionChildInputPort
-                    exported_inputs[name] = port
+                    exported_inputs[name] = port.dup
+                    exported_inputs[name].name = name
                 when CompositionChildOutputPort
-                    exported_outputs[name] = port
+                    exported_outputs[name] = port.dup
+                    exported_outputs[name].name = name
                 else
                     raise TypeError, "invalid port #{port.port} of type #{port.port.class}"
                 end
@@ -1931,7 +1932,7 @@ module Orocos
                 output_connections = Hash.new { |h, k| h[k] = Hash.new }
                 each_exported_output do |output_name, port|
                     output_connections[ port.child.child_name ].
-                        merge!([port.name, output_name] => Hash.new)
+                        merge!([port.actual_name, output_name] => Hash.new)
                 end
                 output_connections.each do |child_name, mappings|
                     children_tasks[child_name].forward_ports(self_task, mappings)
@@ -1940,7 +1941,7 @@ module Orocos
                 input_connections = Hash.new { |h, k| h[k] = Hash.new }
                 each_exported_input do |input_name, port|
                     input_connections[ port.child.child_name ].
-                        merge!([input_name, port.name] => Hash.new)
+                        merge!([input_name, port.actual_name] => Hash.new)
                 end
                 input_connections.each do |child_name, mappings|
                     self_task.forward_ports(children_tasks[child_name], mappings)
