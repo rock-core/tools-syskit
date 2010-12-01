@@ -8,6 +8,8 @@ module Orocos
 
         class InvalidPortMapping < SpecError; end
 
+        # Raised when a provides declaration does not match the underlying task
+        # interface
         class InvalidProvides < SpecError
             attr_reader :original_error
 
