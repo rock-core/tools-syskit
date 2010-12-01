@@ -84,22 +84,24 @@ end
 # Load the models
 Orocos::RobyPlugin.logger.level = Logger::INFO
 Roby.app.using "orocos"
-Roby.filter_backtrace do
+error = Roby.display_exception do
     begin
         Roby.app.using 'orocos'
         Roby.app.setup
-        remaining.each do |project_name|
+
+        files, projects = remaining.partition { |path| File.file?(path) }
+        projects.each do |project_name|
             Roby.app.use_deployments_from(project_name)
+        end
+        files.each do |file|
+            Roby.app.load_system_model file
         end
     ensure Roby.app.stop_process_servers
     end
 end
 
-# Load additional files from the command line
-ARGV.each do |file|
-    if File.file?(file)
-        Roby.app.load_system_model file
-    end
+if error
+    exit(1)
 end
 
 # Now output them

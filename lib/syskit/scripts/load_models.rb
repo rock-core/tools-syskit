@@ -22,8 +22,18 @@ Loads model files to check if there is no errors in them
 end
 
 Orocos::RobyPlugin.logger.level = Logger::INFO
-Roby.filter_backtrace do
-    Roby.app.setup
+error = Roby.display_exception do
+    begin
+        Roby.app.setup
+        Roby.app.orocos_system_model.each_composition do |composition_model|
+            puts composition_model
+            composition_model.compute_autoconnection
+        end
+        STDERR.puts "all models load fine"
+    ensure Roby.app.stop_process_servers
+    end
 end
-STDERR.puts "all models load fine"
+if error
+    exit(1)
+end
 
