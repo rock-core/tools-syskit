@@ -187,7 +187,6 @@ module Orocos
             # Load the given orogen project and defines the associated task
             # models. It also loads the projects this one depends on.
             def load_orogen_project(name, orogen = nil)
-
                 orogen ||= main_orogen_project.load_orogen_project(name)
 
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
