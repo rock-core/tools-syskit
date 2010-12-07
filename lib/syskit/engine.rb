@@ -26,41 +26,70 @@ module Orocos
 
         # A representation of the actual dynamics of a port
         class PortDynamics
+            # The name of the port we are computing dynamics for. This is used
+            # for debugging purposes only
+            attr_reader :name
             # The number of data samples per trigger, if the port's model value
             # needs to be overriden
             attr_reader :sample_size
             # The set of registered triggers for this port, as a list of
-            # [minimal_period, burst_size, burst_period] triples, where +period+
-            # is in seconds and burst_period is in multiples of period
+            # Trigger objects, where +period+ is in seconds and
+            # sample_count is the count of samples sent at +period+ intervals
             attr_reader :triggers
 
-            def initialize(sample_size = 1)
+            class Trigger
+                attr_reader :name
+                attr_reader :period
+                attr_reader :sample_count
+
+                def initialize(name, period, sample_count)
+                    @name, @period, @sample_count =
+                        name, period, sample_count
+                end
+            end
+
+            def initialize(name, sample_size = 1)
+                @name = name
                 @sample_size = sample_size
                 @triggers = Array.new
             end
 
-            def add_trigger(period, sample_count)
+            def empty?; triggers.empty? end
+
+            def add_trigger(name, period, sample_count)
                 if sample_count != 0
-                    triggers << [period, sample_count]
+                    Engine.debug { "  [#{self.name}]: adding trigger from #{name} - #{period} #{sample_count}" }
+                    triggers << Trigger.new(name, period, sample_count).freeze
                 end
             end
 
+            def merge(other_dynamics)
+                Engine.debug do
+                    Engine.debug "  adding triggers from #{other_dynamics.name} to #{name}"
+                    other_dynamics.triggers.each do |tr|
+                        Engine.debug "    (#{tr.name}): #{tr.period} #{tr.sample_count}"
+                    end
+                    break
+                end
+                triggers.concat(other_dynamics.triggers)
+            end
+
             def minimal_period
-                triggers.map(&:first).min
+                triggers.map(&:period).min
             end
 
             def sample_count(duration)
-                triggers.map do |period, sample_count|
-                    if period == 0
-                        sample_count
+                triggers.map do |trigger|
+                    if trigger.period == 0
+                        trigger.sample_count
                     else
-                        sample_count + (duration/period).floor * sample_count
+                        (duration/trigger.period).floor * trigger.sample_count
                     end
                 end.inject(&:+)
             end
 
             def queue_size(duration)
-                sample_count(duration) * sample_size
+                (1 + sample_count(duration)) * sample_size
             end
         end
 
@@ -1716,7 +1745,7 @@ module Orocos
                         end
 
                         if target_task.respond_to?(:each_device_name)
-                            target_task.each_device_name do |dev_name|
+                            target_task.each_device_name do |_, dev_name|
                                 task_set.delete_if do |t|
                                     !t.execution_agent ||
                                         (
@@ -1955,6 +1984,13 @@ module Orocos
 
                 task.depends_on com_bus
 
+                com_bus_in = com_bus.model.each_input_port.
+                    find_all { |p| p.type.name == message_type }
+                com_bus_in =
+                    if com_bus_in.size == 1
+                        com_bus_in.first.name
+                    end
+
                 in_connections  = Hash.new
                 out_connections = Hash.new
                 handled    = Hash.new
@@ -1966,8 +2002,11 @@ module Orocos
                     device_spec = robot.devices[task.arguments["#{source_name}_name"]]
                     next if !device_spec || !device_spec.com_busses.include?(bus_name)
                     
-                    in_ports  = in_candidates.find_all  { |p| p.name =~ /#{source_name}/i }
-                    out_ports = out_candidates.find_all { |p| p.name =~ /#{source_name}/i }
+                    in_ports  = in_candidates.
+                        find_all { |p| p.name =~ /#{source_name}/i }
+                    out_ports = out_candidates.
+                        find_all { |p| p.name =~ /#{source_name}/i }
+
                     if in_ports.size > 1
                         raise Ambiguous, "there are multiple options to connect #{com_bus.name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
                     elsif out_ports.size > 1
@@ -1978,12 +2017,16 @@ module Orocos
                     if !in_ports.empty?
                         port = in_ports.first
                         used_ports << port.name
-                        in_connections[ [com_bus.output_name_for(source_name), port.name] ] = Hash.new
+                        com_out_port = com_bus.output_name_for(source_name)
+                        com_bus.port_to_device[com_out_port] << device_spec.name
+                        in_connections[ [com_out_port, port.name] ] = Hash.new
                     end
                     if !out_ports.empty?
                         port = out_ports.first
                         used_ports << port.name
-                        out_connections[ [port.name, com_bus.input_name_for(source_name)] ] = Hash.new
+                        com_in_port = com_bus_in || com_bus.input_name_for(source_name)
+                        com_bus.port_to_device[com_in_port] << device_spec.name
+                        out_connections[ [port.name, com_in_port] ] = Hash.new
                     end
                 end
 
@@ -1991,41 +2034,46 @@ module Orocos
                 # generic ports (input and/or output) on the task, and link
                 # to it.
                 if handled.values.any? { |v| v == [false, false] }
+                    generic_name = handled.find_all { |_, v| v == [false, false] }.
+                        map(&:first).join("_")
                     in_candidates.delete_if  { |p| used_ports.include?(p.name) }
                     out_candidates.delete_if { |p| used_ports.include?(p.name) }
 
                     if in_candidates.size > 1
                         raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
                     elsif in_candidates.size == 1
-                        # One generic input port
-                        if !task.bus_name
-                            raise SpecError, "#{task} has one generic input port '#{in_candidates.first.name}' but no bus name"
-                        end
-                        in_connections[ [com_bus.output_name_for(task.bus_name), in_candidates.first.name] ] = Hash.new
-
+                        com_out_port = com_bus.output_name_for(generic_name)
+                        com_bus.port_to_device[com_out_port].concat(task.each_device_name.map(&:last))
+                        in_connections[ [com_out_port, in_candidates.first.name] ] = Hash.new
                     end
 
                     if out_candidates.size > 1
                         raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
                     elsif out_candidates.size == 1
                         # One generic output port
-                        if !task.bus_name
-                            raise SpecError, "#{task} has one generic output port '#{out_candidates.first.name} but no bus name"
-                        end
-                        out_connections[ [out_candidates.first.name, com_bus.input_name_for(task.bus_name)] ] = Hash.new
+                        com_in_port = com_bus_in || com_bus.input_name_for(generic_name)
+                        com_bus.port_to_device[com_in_port].concat(task.each_device_name.map(&:last))
+                        out_connections[ [out_candidates.first.name, com_in_port] ] = Hash.new
                     end
                 end
                 
                 if !in_connections.empty?
                     com_bus.connect_ports(task, in_connections)
-                    in_connections.each_key do |_, sink_port|
-                        task.input_port_model(sink_port).needs_reliable_connection
-                    end
                 end
                 if !out_connections.empty?
                     task.connect_ports(com_bus, out_connections)
+                end
+
+                # If the combus model asks us to do it, make sure all
+                # connections will be computed as "reliable"
+                if com_bus.model.override_policy?
+                    in_connections.each_key do |_, sink_port|
+                        task.find_input_port_model(sink_port).
+                            needs_reliable_connection
+                    end
                     out_connections.each_key do |_, sink_port|
-                        com_bus.input_port_model(sink_port).needs_reliable_connection
+                        com_bus.find_input_port_model(sink_port).
+                            needs_reliable_connection
                     end
                 end
             end
@@ -2129,16 +2177,20 @@ module Orocos
                     # updated
                     task.orogen_spec.task_model.each_output_port do |port|
                         port.port_triggers.each do |port_trigger_name|
+                            # No need to re-register if it already triggering
+                            # the task
                             next if task.model.triggered_by?(port_trigger_name)
+
                             task.each_concrete_input_connection(port_trigger_name) do |from_task, from_port, to_port, _|
                                 triggering_connections[task] << [from_task, from_port, to_port]
                                 triggering_dependencies[task] << from_task
                             end
-                        end
+                       end
                     end
                 end
 
                 remaining = deployed_tasks.dup
+                propagated_port_to_port = Set.new
                 while !remaining.empty?
                     remaining = remaining.
                         sort_by { |t| triggering_dependencies[t].size }
@@ -2150,6 +2202,10 @@ module Orocos
                             propagate_ports_dynamics(triggering_connections[task], result)
                         if finished
                             did_something = true
+                            if !propagated_port_to_port.include?(task)
+                                task.propagate_ports_dynamics_on_outputs(result, false)
+                            end
+                            task.propagate_ports_dynamics_on_outputs(result, true)
                             triggering_dependencies.delete(task)
                         elsif result[task].size != old_size
                             did_something = true
@@ -2158,8 +2214,15 @@ module Orocos
                     end
 
                     if !did_something
+                        remaining.each do |task|
+                            did_something ||= task.propagate_ports_dynamics_on_outputs(result, false)
+                            propagated_port_to_port << task
+                        end
+                    end
+
+                    if !did_something
                         Engine.info do
-                            "cannot compute port periods for:"
+                            Engine.info "cannot compute port periods for:"
                             remaining.each do |task|
                                 port_names = task.model.each_input_port.map(&:name) + task.model.each_output_port.map(&:name)
                                 port_names.delete_if { |port_name| result[task].has_key?(port_name) }
@@ -2176,9 +2239,9 @@ module Orocos
                     result.each do |task, ports|
                         Engine.debug "#{task.name}:"
                         if dyn = task.task_dynamics
-                            Engine.debug "  period:#{dyn.minimal_period}"
-                            dyn.triggers.each do |period, size|
-                                Engine.debug "  trigger: #{period}:#{size}"
+                            Engine.debug "  period=#{dyn.minimal_period}"
+                            dyn.triggers.each do |tr|
+                                Engine.debug "  trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
                             end
                         end
                         ports.each do |port_name, dyn|
@@ -2186,9 +2249,9 @@ module Orocos
                             next if !port_model.kind_of?(Orocos::Generation::OutputPort)
 
                             Engine.debug "  #{port_name}"
-                            Engine.debug "    period:#{dyn.minimal_period}"
-                            dyn.triggers.each do |period, size|
-                                Engine.debug "    trigger: #{period}:#{size}"
+                            Engine.debug "    period=#{dyn.minimal_period} sample_size=#{dyn.sample_size}"
+                            dyn.triggers.each do |tr|
+                                Engine.debug "    trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
                             end
                         end
                     end
@@ -2242,22 +2305,26 @@ module Orocos
 
                         # Compute the buffer size
                         input_dynamics = port_periods[source_task][source_port.name]
-                        if !input_dynamics
-                            raise SpecError, "period information for output port #{source_task}:#{source_port.name} cannot be computed"
+                        if !input_dynamics || input_dynamics.empty?
+                            raise SpecError, "period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
                         end
 
-                        reading_latency = if sink_task.model.triggered_by?(sink_port)
-                                              sink_task.trigger_latency
-                                          else
-                                              sink_task.minimal_period + sink_task.trigger_latency
-                                          end
+                        reading_latency =
+                            if sink_task.model.triggered_by?(sink_port)
+                                sink_task.trigger_latency
+                            elsif !sink_task.minimal_period
+                                raise SpecError, "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
+                            else
+                                sink_task.minimal_period + sink_task.trigger_latency
+                            end
 
                         policy[:type] = :buffer
                         policy[:size] = input_dynamics.queue_size(reading_latency)
                         Engine.debug do
                             Engine.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"
-                            input_dynamics.triggers.each do |period, size|
-                                Engine.debug "     trigger: #{period}:#{size}"
+                            Engine.debug "     sample_size:#{input_dynamics.sample_size}"
+                            input_dynamics.triggers.each do |tr|
+                                Engine.debug "     trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
                             end
                             break
                         end

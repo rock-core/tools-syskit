@@ -521,7 +521,7 @@ module Orocos
             module ClassExtension
                 # Enumerate all the data sources that are defined on this
                 # component model
-                def each_device(&block)
+                def each_master_data_source(&block)
                     each_root_data_service.
                         find_all { |_, srv| srv.model < DataSource }.
                         map(&:last).
@@ -529,21 +529,45 @@ module Orocos
                 end
             end
 
-            # Enumerates the names of the devices that are tied to this
-            # component
+            # Enumerates the devices that are mapped to this component
+            #
+            # It yields the data service and the device model
             def each_device_name
                 if !block_given?
                     return enum_for(:each_device_name)
                 end
 
-                model.each_device do |srv|
-                    device_name =
-                        if srv.master?
-                            arguments["#{srv.name}_name"]
-                        else
-                            arguments["#{srv.master.name}_name"]
-                        end
-                    yield(device_name) if device_name
+                seen = Set.new
+                model.each_master_data_source do |srv|
+                    # Slave devices have the same name than the master device,
+                    # so no need to list them
+                    next if !srv.master?
+
+                    device_name = arguments["#{srv.name}_name"]
+                    if device_name && !seen.include?(device_name)
+                        seen << device_name
+                        yield(srv, device_name)
+                    end
+                end
+            end
+
+            # Enumerates the MasterDeviceInstance and/or SlaveDeviceInstance
+            # objects that are mapped to this task context
+            #
+            # It yields the data service and the device model
+            #
+            # See also #each_device_name
+            def each_device
+                if !block_given?
+                    return enum_for(:each_device)
+                end
+
+                each_device_name do |service, device_name|
+                    if !(device = robot.devices[device_name])
+                        raise SpecError, "#{self} attaches device #{device_name} to #{service.full_name}, but #{device_name} is not a known device"
+                    end
+
+                    yield(service, device)
                 end
             end
 
@@ -557,42 +581,18 @@ module Orocos
                 devices = model.each_device.to_a
                 if !subname
                     if devices.empty?
-                        raise ArgumentError, "#{self} does not handle any device"
+                        raise ArgumentError, "#{self} is not attached to any device"
                     elsif devices.size > 1
                         raise ArgumentError, "#{self} handles more than one device, you must specify one explicitely"
                     end
                 else
-                    devices = devices.find_all { |srv| srv.full_name == subname }
+                    devices = devices.find_all { |srv, _| srv.full_name == subname }
                     if devices.empty?
-                        raise ArgumentError, "there is no device called #{subname} on #{self}"
+                        raise ArgumentError, "there is no data service called #{subname} on #{self}"
                     end
                 end
-                device = devices.first
-
-                device_name =
-                    if device.master?
-                        arguments["#{device.name}_name"]
-                    else
-                        arguments["#{device.master.name}_name"]
-                    end
-                return if !device_name
-
-                description = robot.devices[device_name]
-                if !description
-                    raise ArgumentError, "there is no device called #{device_name} (selected for #{interface_name} on #{self})"
-                end
-                description
-            end
-
-            def bus_name
-                if arguments[:bus_name]
-                    arguments[:bus_name]
-                else
-                    roots = model.each_root_data_service.to_a
-                    if roots.size == 1
-                        roots.first.first
-                    end
-                end
+                data_source, device = devices.first
+                device
             end
 
             def initial_ports_dynamics
@@ -601,42 +601,36 @@ module Orocos
                     result.merge(super)
                 end
 
-                triggering_devices = model.each_root_data_service.
-                    find_all { |_, service| service.model < DataSource }.
-                    map do |source_name, _|
-                        device = robot.devices[arguments["#{source_name}_name"]]
-                        if !device
-                            RobyPlugin::Engine.warn "no device associated with #{source_name} (#{arguments["#{source_name}_name"]})"
-                        end
-                        device
-                    end.compact
+                Engine.debug { "initial port dynamics on #{self} (data source)" }
 
-                if orogen_spec.activity_type !~ /(NonPeriodic|FileDescriptor)Activity/
-                    # There is no "internal" triggering: we are only triggered
-                    # by ports. So, remove the devices that are not using a
-                    # combus component
-                    triggering_devices.delete_if do |m| 
-                        m.com_busses.empty?
-                    end
+                internal_trigger_activity =
+                    (orogen_spec.activity_type.name == "FileDescriptorActivity")
+
+                if !internal_trigger_activity
+                    Engine.debug "  is NOT triggered internally"
+                    return result
                 end
 
-                triggering_devices.each do |device_instance|
-                    service = device_instance.service
-                    service.port_mappings.each do |service_port_name, port_name|
-                        port = model.port(port_name)
-                        # We don't care about input ports
-                        next if !port.kind_of?(Orocos::Generation::OutputPort)
-                        # We don't care about ports that aren't triggered by
-                        # thsi device
-                        next if !port.port_triggers.empty?
+                triggering_devices = each_device.to_a
 
-                        if device_instance.period
-                            dynamics = (result[port_name] ||= PortDynamics.new(port.sample_size))
-                            dynamics.add_trigger(device_instance.period, 1)
-                            dynamics.add_trigger(
-                                device_instance.period * device_instance.burst,
-                                device_instance.burst)
-                        end
+                Engine.debug do
+                    Engine.debug "  is triggered internally"
+                    Engine.debug "  attached devices: #{triggering_devices.map(&:last).map(&:name).join(", ")}"
+                    break
+                end
+
+                triggering_devices.each do |service, device|
+                    Engine.debug { "  #{device.name}: #{device.period} #{device.burst}" }
+                    device_dynamics = PortDynamics.new(device.name, 1)
+                    device_dynamics.add_trigger(device.name, device.period, 1)
+                    device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
+
+                    task_dynamics.merge(device_dynamics)
+                    service.each_output_port do |out_port|
+                        out_port.triggered_on_update = false
+                        port_name = out_port.name
+                        port_dynamics = (result[port_name] ||= PortDynamics.new("#{self.orocos_name}.#{out_port.name}", out_port.sample_size))
+                        port_dynamics.merge(device_dynamics)
                     end
                 end
 
@@ -672,13 +666,18 @@ module Orocos
                 "#<ComBusDriver: #{name}>"
             end
 
+            attribute(:port_to_device) { Hash.new { |h, k| h[k] = Array.new } }
+
             def self.new_submodel(model, options = Hash.new)
                 bus_options, options = Kernel.filter_options options,
-                    :message_type => nil
+                    :override_policy => true, :message_type => nil
 
                 model = super(model, options)
                 model.class_eval <<-EOD
                 module ModuleExtension
+                    def override_policy?
+                        #{bus_options[:override_policy]}
+                    end
                     def message_type
                         \"#{bus_options[:message_type]}\" || (super if defined? super)
                     end
@@ -686,6 +685,14 @@ module Orocos
                 extend ModuleExtension
                 EOD
                 model
+            end
+
+            def each_attached_device(&block)
+                result = ValueSet.new
+                each_connected_device do |_, devices|
+                    result |= devices.to_value_set
+                end
+                result.each(&block)
             end
 
             # Finds out what output port serves what devices by looking at what
@@ -699,10 +706,13 @@ module Orocos
                 end
 
                 each_concrete_output_connection do |source_port, sink_port, sink_task|
-                    devices = sink_task.model.each_root_data_service.
-                        find_all { |_, service| service.model < DataSource }.
-                        map { |source_name, _| robot.devices[sink_task.arguments["#{source_name}_name"]] }.
-                        compact.find_all { |device| !device.com_busses.empty? }
+                    devices = port_to_device[source_port].
+                        map do |d_name|
+                            if !(device = robot.devices[d_name])
+                                raise ArgumentError, "#{self} refers to device #{d_name} for port #{source_port}, but there is no such device"
+                            end
+                            device
+                        end
 
                     yield(source_port, devices)
                 end
@@ -714,11 +724,12 @@ module Orocos
                     result = super
                 end
 
+                by_device = Hash.new
                 each_connected_device do |port, devices|
-                    dynamics = PortDynamics.new(devices.map(&:sample_size).inject(&:+))
+                    dynamics = PortDynamics.new("#{self.orocos_name}.#{port}", devices.map(&:sample_size).inject(&:+))
                     devices.each do |dev|
-                        dynamics.add_trigger(dev.period, 1)
-                        dynamics.add_trigger(dev.period * dev.burst, dev.burst)
+                        dynamics.add_trigger(dev.name, dev.period, 1)
+                        dynamics.add_trigger(dev.name, dev.period * dev.burst, dev.burst)
                     end
                     result[port] = dynamics
                 end

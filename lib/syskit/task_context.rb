@@ -213,7 +213,6 @@ module Orocos
                 else
                     !!orogen_spec.find_event_port(port.name)
                 end
-
             end
 
             def minimal_period
@@ -223,14 +222,14 @@ module Orocos
             # Maximum time between the task gets triggered and the time it is
             # actually triggered
             def trigger_latency
-                orogen_spec.expected_trigger_latency
+                orogen_spec.worstcase_trigger_latency
             end
 
             # Computes the minimal update period from the activity alone. If it
             # is not possible (not enough information, or port-driven task for
             # instance), return nil
             def initial_ports_dynamics
-                @task_dynamics = PortDynamics.new
+                @task_dynamics = PortDynamics.new("#{orocos_name}.main")
 
                 result = Hash.new
                 if defined? super
@@ -238,84 +237,111 @@ module Orocos
                 end
 
                 if orogen_spec.activity_type == 'PeriodicActivity'
-                    task_dynamics.add_trigger(orogen_spec.period, 1)
+                    Engine.debug { "  adding periodic trigger #{orogen_spec.period} 1" }
+                    task_dynamics.add_trigger("main-period", orogen_spec.period, 1)
                 end
 
                 result
             end
 
-            def propagate_ports_dynamics(triggering_connections, result)
-                triggering_connections.delete_if do |from_task, from_port, to_port|
-                    # The source port is computed, save the period in the input
-                    # ports's model
-                    if result.has_key?(from_task) && (out_dynamics = result[from_task][from_port])
-                        dynamics = (result[self][to_port] ||= PortDynamics.new)
-                        dynamics.triggers.concat(out_dynamics.triggers)
-                        if model.triggered_by?(to_port)
-                            task_dynamics.triggers.concat(out_dynamics.triggers)
-                        end
-                        true
-                    end
+            def propagate_ports_dynamics_on_outputs(result, only_task_dynamics)
+                if only_task_dynamics
+                    task_minimal_period = task_dynamics.minimal_period
                 end
 
-                return if !triggering_connections.empty?
-
-                trigger_latency = self.trigger_latency
-                if task_dynamics
-                    task_minimal_period = self.minimal_period || 0
-                    task_sample_count   = task_dynamics.
-                        sample_count(task_minimal_period + trigger_latency)
-                else
-                    task_minimal_period = 0
-                    task_sample_count   = 0
-                end
+                did_something = false
 
                 # Propagate explicit update links, i.e. cases where the output
                 # port is only updated when a set of input ports is.
-                model.each_output do |port|
-                    port_model = orogen_spec.context.port(port.name)
-
+                model.each_output_port do |port_model|
                     next if port_model.port_triggers.empty?
+                    next if only_task_dynamics ^ port_model.triggered_on_update?
+
                     # Ignore if we don't have the necessary information for the
                     # ports that trigger this one
-                    next if port_model.port_triggers.any? { |p| !result[self][p] }
+                    info_available = port_model.port_triggers.all? do |p|
+                        result[self][p.name] &&
+                            (only_task_dynamics || model.triggered_by?(p.name))
+                    end
+                    next if !info_available
 
-                    dynamics = (result[self][port.name] ||= PortDynamics.new(port.sample_size))
+                    dynamics =
+                        (result[self][port_model.name] ||=
+                         PortDynamics.new("#{orocos_name}.#{port_model.name}", port_model.sample_size))
+
+                    did_something = true
 
                     # Compute how many samples we will have queued during
                     # +trigger_latency+
-                    port_model.port_triggers.map do |trigger_port_name|
+                    port_model.port_triggers.each do |trigger_port|
+                        trigger_port_name = trigger_port.name
                         trigger_port_dynamics = result[self][trigger_port_name]
                         period       = trigger_port_dynamics.minimal_period
 
-                        duration =
+                        sample_count =
                             if model.triggered_by?(trigger_port_name)
-                                period + trigger_latency
+                                # The task gets triggered by the input port. It
+                                # means that we will get 1 + (number of possible
+                                # input samples during trigger_latency) samples
+                                # out
+                                1 + trigger_port_dynamics.
+                                    sample_count(trigger_latency)
                             else
-                                task_minimal_period + trigger_latency
+                                trigger_port_dynamics.
+                                    sample_count(task_minimal_period + trigger_latency)
                             end
 
-                        sample_count = trigger_port_dynamics.
-                            sample_count(duration)
-
-                        dynamics.add_trigger(period * port.period,
-                                 sample_count)
+                        puts "period: #{period} port_model:#{port_model.period}"
+                        dynamics.add_trigger(trigger_port_name, period * port_model.period, 1)
+                        dynamics.add_trigger(trigger_port_name, 0, sample_count - 1)
                     end
-                    dynamics.add_trigger(
-                        port.burst_period * dynamics.minimal_period,
-                        port.burst_size)
+                    dynamics.add_trigger("burst",
+                        port_model.burst_period * dynamics.minimal_period,
+                        port_model.burst_size)
+                end
+                did_something
+            end
+
+            def propagate_ports_dynamics(triggering_connections, result)
+                triggering_connections.delete_if do |from_task, from_port, to_port|
+                    if result.has_key?(from_task)
+                        out_dynamics = result[from_task][from_port]
+                    end
+                    next if !out_dynamics
+
+                    # The source port is computed, save the period in the input
+                    # ports's model
+                    if model.triggered_by?(to_port)
+                        task_dynamics.merge(out_dynamics)
+                    end
+
+                    # We may need it to propagate triggers to output ports for
+                    # which triggering inputs are specified
+                    dynamics = (result[self][to_port] ||= PortDynamics.new("#{self.orocos_name}.#{to_port}"))
+                    dynamics.merge(out_dynamics)
+
+                    # Handled fine
+                    true
                 end
 
+                # We don't have all the info we need yet
+                if !triggering_connections.empty?
+                    return
+                end
 
-                if task_minimal_period != 0
-                    model.each_output do |port|
-                        port_model = model.port(port.name)
-                        next if !port_model.triggered_on_update?
+                model.each_output_port do |port_model|
+                    next if !port_model.triggered_on_update?
 
-                        dynamics = (result[self][port.name] ||= PortDynamics.new(port.sample_size))
-                        dynamics.add_trigger(
-                            task_minimal_period * port.period,
-                            task_sample_count)
+                    dynamics =
+                        (result[self][port_model.name] ||=
+                         PortDynamics.new("#{self.orocos_name}.#{port_model.name}", port_model.sample_size))
+
+                    triggered_once = port_model.triggered_once_per_update?
+                    task_dynamics.triggers.each do |tr|
+                        dynamics.add_trigger("main", tr.period * port_model.period, 1)
+                        if !triggered_once
+                            dynamics.add_trigger("main", 0, tr.sample_count - 1)
+                        end
                     end
                 end
 
@@ -673,8 +699,7 @@ module Orocos
 
                 # Then set per-source configuration options
                 if respond_to?(:each_device_name)
-                    each_device_name do |name|
-                        device = robot.devices[name]
+                    each_device do |_, device|
                         if device.configuration
                             apply_configuration(device.configuration)
                         elsif device.configuration_block
