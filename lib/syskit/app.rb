@@ -294,8 +294,11 @@ module Orocos
                 # Change to the log dir so that the IOR file created by the
                 # CORBA bindings ends up there
                 Dir.chdir(app.log_dir) do
-                    Orocos.initialize
-                    if !app.disable_local_process_server?
+                    if !app.orocos_only_load_models?
+                        Orocos.initialize
+                    end
+
+                    if !app.orocos_disables_local_process_server?
                         start_local_process_server(:redirect => app.redirect_local_process_server?)
                     end
                 end
@@ -541,15 +544,26 @@ module Orocos
                 Application.register_process_server(name, client, options[:log_dir] || 'log')
             end
 
-            # :attr: disable_local_process_server?
+            # :attr: orocos_only_load_models?
+            #
+            # In normal operations, the plugin initializes the CORBA layer,
+            # which takes some time.
+            #
+            # In some tools, one only wants to manipulate models offline. In
+            # which case we don't need to waste time initializing the layer.
+            #
+            # Set this value to true to avoid initializing the CORBA layer
+            attr_predicate :orocos_only_load_models?, true
+
+            # :attr: orocos_disables_local_process_server?
             #
             # In normal operations, a local proces server called 'localhost' is
             # automatically started on the local machine. If this predicate is
-            # set to true, using self.disable_local_process_server = true), then
+            # set to true, using self.orocos_disables_local_process_server = true), then
             # this will be disabled
             #
             # See also #orocos_process_server
-            attr_predicate :disable_local_process_server?, true
+            attr_predicate :orocos_disables_local_process_server?, true
 
             def self.run(app)
                 handler_id = Roby.engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
