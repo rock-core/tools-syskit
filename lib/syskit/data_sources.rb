@@ -639,12 +639,12 @@ module Orocos
 
             include DataService
 
+            def self.to_s # :nodoc:
+                "#<DataSource: #{name}>"
+            end
+
             @name = "DataSource"
             module ModuleExtension
-                def to_s # :nodoc:
-                    "#<DataSource: #{name}>"
-                end
-
                 def task_model
                     model = super
                     model.name = "#{name}DataSourceTask"
