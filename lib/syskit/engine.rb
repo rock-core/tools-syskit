@@ -1151,6 +1151,7 @@ module Orocos
                     :garbage_collect => true,
                     :export_plan_on_error => true,
                     :save_plans => false,
+                    :validate_network => true,
                     :forced_removes => false # internal flag
 
                 # It makes no sense to compute the policies if we are not
@@ -1242,7 +1243,9 @@ module Orocos
                                 trsc.remove_object(obj)
                             end
                         end
+                    end
 
+                    if options[:garbage_collect] && options[:validate_network]
                         validate_generated_network(trsc, options)
                     end
 
@@ -1279,7 +1282,9 @@ module Orocos
 
                     # Finally, we should now only have deployed tasks. Verify it
                     # and compute the connection policies
-                    validate_final_network(trsc, options)
+                    if options[:garbage_collect] && options[:validate_network]
+                        validate_final_network(trsc, options)
+                    end
 
                     if options[:compute_policies]
                         compute_connection_policies
