@@ -166,6 +166,10 @@ module Orocos
                 @selected_facet = facet
             end
 
+            def short_name
+                to_s
+            end
+
             def to_s
                 "#{model.short_name}.as(#{selected_facet.short_name})"
             end
