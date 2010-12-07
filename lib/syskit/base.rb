@@ -1,6 +1,7 @@
 require 'logger'
 require 'utilrb/logger'
 require 'orocos/roby/exceptions'
+require 'facets/string/snakecase'
 
 module Orocos
     # Roby is a plan management component, i.e. a supervision framework that is
@@ -59,6 +60,20 @@ module Orocos
             # All models are defined in the context of a SystemModel instance.
             # This is this instance
             attr_accessor :system_model
+
+            # Returns a string suitable to reference an element of type +self+.
+            #
+            # This is for instance used by the composition if no explicit name
+            # is given:
+            #
+            #   add ElementModel
+            #
+            # will have a default name of
+            #
+            #   ElementModel.snakename
+            def snakename
+                name.gsub(/.*::/, '').snakecase
+            end
 
             def to_s # :nodoc:
                 supermodels = ancestors.map(&:name)
