@@ -315,6 +315,11 @@ module Orocos
                 # (in using_spec) and the base model specified in #add or
                 # #define
                 def narrow_model
+                    Engine.debug do
+                        Engine.debug "narrowing model for #{name}"
+                        Engine.debug "  from #{base_model.short_name}"
+                        break
+                    end
                     selection = Hash.new
                     using_spec.each_key do |key|
                         if result = resolve_explicit_selection(using_spec[key])
@@ -328,6 +333,11 @@ module Orocos
                         else
                             base_model
                         end
+
+                    Engine.debug do
+                        Engine.debug "  found #{@model.short_name}"
+                        break
+                    end
                 end
 
                 # Resolves a selection given through the #use method
