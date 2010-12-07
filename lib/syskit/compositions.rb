@@ -47,6 +47,14 @@ module Orocos
                     raise ArgumentError, "#use can be called only on children that are compositions"
                 end
 
+                SystemModel.debug do
+                    SystemModel.debug "narrowing #{composition_model.short_name}"
+                    spec_txt = spec.map do |name, models|
+                        "#{name} => #{models}"
+                    end
+                    SystemModel.log_array :debug, "  on ", "     ", spec_txt
+                    break
+                end
 
                 # Now update the spec and check if we can narrow down the model
                 @using_spec = using_spec.merge(spec)
@@ -55,7 +63,14 @@ module Orocos
                     new_model = candidates.find { true }
                     models.delete(composition_model)
                     models << new_model
+                    SystemModel.debug do
+                        SystemModel.debug "  found #{new_model.short_name}"
+                        break
+                    end
                     new_model
+                else
+                    SystemModel.debug "  cannot narrow it further"
+                    nil
                 end
             end
         end
