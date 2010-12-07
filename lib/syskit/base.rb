@@ -40,7 +40,6 @@ module Orocos
 
             interface = Roby.app.main_orogen_project.
                 external_task_context(basename)
-            interface.abstract
             interface
         end
 

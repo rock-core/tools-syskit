@@ -4,14 +4,18 @@ module Orocos
         # system
         #
         # It is returned by Robot.device
-        class DeviceInstance; end
+        class DeviceInstance
+        end
 
         # Specialization of MasterDeviceInstance used to represent root devices
         class MasterDeviceInstance
+            # The RobotDefinition instance we are built upon
+            attr_reader :robot
             # The device name
             attr_reader :name
             # The device model, as a subclass of DataSource
             attr_reader :device_model
+
             def model; device_model end
 
             # Defined to be consistent with task and data service models
@@ -84,10 +88,10 @@ module Orocos
             end
 
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
-            def initialize(name, device_model, options,
+            def initialize(robot, name, device_model, options,
                            task_model, service, task_arguments)
-                @name, @device_model, @task_model, @service, @task_arguments =
-                    name, device_model, task_model, service, task_arguments
+                @robot, @name, @device_model, @task_model, @service, @task_arguments =
+                    robot, name, device_model, task_model, service, task_arguments
 
                 @period      = options[:period] || 1
                 @sample_size = options[:sample_size] || 1
@@ -175,6 +179,50 @@ module Orocos
             end
 
             dsl_attribute(:burst)   { |v| Integer(v) }
+
+            def slave(slave_service, options = Hash.new)
+                options = Kernel.validate_options options, :as => nil
+
+                # If slave_service is a string, it should refer to an actual
+                # service on +task_model+
+                if slave_service.respond_to?(:to_str)
+                    srv = task_model.find_service(slave_service)
+                    if !srv
+                        raise ArgumentError, "there is no service in #{task_model.short_name} named #{slave_service}"
+                    end
+                elsif slave_service.kind_of?(DataServiceModel)
+                    srv = task_model.find_matching_service(slave_service, options[:as])
+                    if !srv
+                        options[:as] ||= slave_service.snakename
+                        task_model.each_multiplexed_driver.each do |model, specialization_block, _|
+                            if model == slave_service
+                                if !task_model.private_specialization?
+                                    SystemModel.debug do
+                                        SystemModel.debug "creating specialized submodel of #{task_model.short_name} to dynamically create slave services on #{name}"
+                                        break
+                                    end
+                                    @task_model = task_model.specialize(task_model.name + "_" + name)
+                                end
+                                specialization_block.call(task_model, options[:as])
+                                srv = task_model.data_service(model, :as => options[:as])
+                                break
+                            end
+                        end
+
+                        if !srv
+                            raise ArgumentError, "there is no service in #{task_model.short_name} of type #{slave_service.short_name}"
+                        end
+
+                        SystemModel.debug do
+                            SystemModel.debug "dynamically created slave device instance #{name}.#{srv.name} of type #{srv.model.short_name}"
+                            break
+                        end
+                        robot.devices["#{name}.#{srv.name}"] ||= SlaveDeviceInstance.new(self, srv)
+                    end
+                else
+                    raise ArgumentError, "expected #{slave_service} to be either a string or a data service model"
+                end
+            end
         end
 
         # A SlaveDeviceInstance represents slave devices, i.e. data services
@@ -195,6 +243,31 @@ module Orocos
 
             def period;      master_device.period end
             def sample_size; master_device.sample_size end
+
+            ## 
+            # :method:slave_id
+            #
+            # call-seq:
+            #   slave_id(slave_id, definition)
+            #   slave_id => current_id or nil
+            #
+            # Configuration information for the slave of a particular device.
+            # This is mainly used for so-called multiplexed drivers.
+            #
+            # For instance, the Hbridge driver can mux and demux groups of
+            # actual hbridge devices. To configure these groups, one uses slave
+            # devices and multiplexed drivers, and configures one group with
+            #
+            #   device(HbridgeSet).
+            #       slave(Hbridge).slave_id(0, 1, 2, 3)
+            #
+            dsl_attribute(:device_id) do |*values|
+                if values.size > 1
+                    values
+                else
+                    values.first
+                end
+            end
         end
 
         # This class represents a communication bus on the robot, i.e. a device
@@ -348,6 +421,10 @@ module Orocos
 
                 task_model = tasks.first
                 service = task_model.find_matching_service(device_model)
+                if !service
+                    raise ArgumentError, "#{task_model.short_name} has no service of type #{device_model.short_name}"
+                end
+
                 root_task_arguments = {
                     "#{service.name}_name" => name, 
                     "#{service.name}_com_bus" => task_arguments[:com_bus]}.
@@ -355,7 +432,7 @@ module Orocos
                 root_task_arguments.delete :com_bus
 
                 devices[name] = MasterDeviceInstance.new(
-                    name, device_model, device_options,
+                    self, name, device_model, device_options,
                     task_model, service, root_task_arguments)
 
                 task_model.each_slave_data_service(service) do |_, slave_service|

@@ -1407,10 +1407,11 @@ module Orocos
             # the contrary and nil if they are not comparable.
             def merge_sort_order(t1, t2)
                 MERGE_SORT_TRUTH_TABLE[ [!t1.finished?, !t2.finished?] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [t1.execution_agent, t2.execution_agent] ] ||
+                    MERGE_SORT_TRUTH_TABLE[ [t1.running?, t2.running?] ] ||
+                    MERGE_SORT_TRUTH_TABLE[ [!t1.execution_agent, !t2.execution_agent] ] ||
                     MERGE_SORT_TRUTH_TABLE[ [!t1.respond_to?(:proxied_data_services), !t2.respond_to?(:proxied_data_services)] ] ||
                     MERGE_SORT_TRUTH_TABLE[ [t1.fully_instanciated?, t2.fully_instanciated?] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [t1.respond_to?(:__getobj__), t2.respond_to?(:__getobj__)] ]
+                    MERGE_SORT_TRUTH_TABLE[ [t1.transaction_proxy?, t2.transaction_proxy?] ]
             end
 
             # Find merge candidates and returns them as a graph
@@ -1427,9 +1428,10 @@ module Orocos
                     # We never replace a transaction proxy. We only use them to
                     # replace new tasks in the transaction
                     next if task.transaction_proxy?
-                    # We never replace a deployed task (i.e. target_task cannot
-                    # be executable)
-                    next if task.execution_agent
+                    # We can only replace a deployed task by a non deployed
+                    # task if the deployed task is not running, and if it is
+                    # the case
+                    next if task.execution_agent && !task.pending?
 
                     query = @merging_candidates_queries[task.model]
                     if !query
@@ -1454,6 +1456,9 @@ module Orocos
                         # We can not replace a non-abstract task with an
                         # abstract one
                         next if (!task.abstract? && target_task.abstract?)
+                        # Merges involving a deployed task can only involve a
+                        # non-deployed task as well
+                        next if (task.execution_agent && target_task.execution_agent)
 
                         # If both tasks are compositions, merge only if +task+
                         # has the same child set than +target+

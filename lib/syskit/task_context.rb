@@ -15,10 +15,10 @@ module Orocos
             extend Model
 
             class << self
-                attr_reader :name
+                attr_accessor :name
                 # The Orocos::Generation::TaskContext that represents this
                 # deployed task context.
-                attr_reader :orogen_spec
+                attr_accessor :orogen_spec
 
                 # A state_name => event_name mapping that maps the component's
                 # state names to the event names that should be emitted when it
@@ -27,6 +27,37 @@ module Orocos
                 # A name => boolean mapping that says if the task named 'name'
                 # is configured
                 def configured; @@configured end
+
+                def to_s
+                    services = each_data_service.map do |name, srv|
+                            "#{name}[#{srv.model.short_name}]"
+                    end.join(", ")
+                    if private_specialization?
+                        "#<TaskContext: specialized from #{superclass.name} services: #{services}>"
+                    else
+                        "#<TaskContext: #{name} services: #{services}>"
+                    end
+                end
+
+                # :attr: private_specialization?
+                #
+                # If true, this model is used internally to represent
+                # instanciated dynamic services. Otherwise, it is an actual
+                # task context model
+                attr_predicate :private_specialization?, true
+
+                # Creates a private specialization of the current model
+                def specialize(name)
+                    if self == TaskContext
+                        raise "#specialize should not be used to create a specialization of TaskContext. Use only on \"real\" task context models"
+                    end
+                    klass = new_submodel
+                    klass.private_specialization = true
+                    klass.name = name
+                    klass.orogen_spec = RobyPlugin.create_orogen_interface(self.name + "_" + name)
+                    RobyPlugin.merge_orogen_interfaces(klass.orogen_spec, [orogen_spec])
+                    klass
+                end
             end
             @@configured = Hash.new
 
@@ -35,8 +66,22 @@ module Orocos
                 model.state_events[name]
             end
 
+            def merge(merged_task)
+                super
+                if merged_task.orogen_spec && !orogen_spec
+                    self.orogen_spec = merged_task.orogen_spec
+                end
+
+                if merged_task.orogen_task && !orogen_task
+                    self.orogen_task = merged_task.orogen_task
+                end
+                nil
+            end
+
             def initialize(arguments = Hash.new)
                 super
+
+                @multiplexed_drivers = Array.new
 
                 start = event(:start)
                 def start.calling(context)
@@ -644,6 +689,21 @@ module Orocos
                 if @state_reader
                     @state_reader.disconnect
                 end
+            end
+
+            inherited_enumerable(:multiplexed_driver, :multiplexed_drivers) { Array.new }
+
+            # Declares that this task context can be used to drive multiple
+            # devices at the same time
+            #
+            # The actual devices will be added at deployment time, based on the
+            # information contained in the robot description
+            def self.multiplexed_driver(model, arguments = Hash.new, &block)
+                if !block
+                    raise ArgumentError, "#multiplexed_driver requires a block to be given, of the signature block(task_model, new_service_name)"
+                end
+                source_model = system_model.data_source_type model, arguments
+                multiplexed_drivers << [source_model, block, model, arguments]
             end
 
             # Declares that this task context model can be used as a driver for
