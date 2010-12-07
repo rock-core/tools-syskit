@@ -15,11 +15,6 @@ module Orocos
         # service interface. This instance is available through the 'interface'
         # attribute of the DataServiceModel instance.
         module DataServices
-            def self.each
-                constants.each do |name|
-                    yield(const_get(name))
-                end
-            end
         end
 
         # Namespace in which device models are stored.
@@ -37,11 +32,6 @@ module Orocos
         # service interface. This instance is available through the 'interface'
         # attribute of the DataServiceModel instance.
         module Devices
-            def self.each
-                constants.each do |name|
-                    yield(const_get(name))
-                end
-            end
         end
 
         DataSources = Devices
