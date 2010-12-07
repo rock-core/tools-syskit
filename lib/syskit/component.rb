@@ -151,7 +151,7 @@ module Orocos
             end
 
             def to_s
-                "#{model}.as(#{selected_facet})"
+                "#{model.short_name}.as(#{selected_facet.short_name})"
             end
 
             def method_missing(*args, &block) # :nodoc:
