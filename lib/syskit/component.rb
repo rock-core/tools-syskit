@@ -851,9 +851,55 @@ module Orocos
                 super
             end
 
-            # The set of data readers created with #data_reader. Used to connect
+            # The set of data readers created with #data_reader. Used to disconnect
             # them when the task stops
             attribute(:data_readers) { Array.new }
+
+            # The set of data writers created with #data_writer. Used to disconnect
+            # them when the task stops
+            attribute(:data_writers) { Array.new }
+
+            # call-seq:
+            #   data_writer 'port_name'[, policy]
+            #   data_writer 'role_name', 'port_name'[, policy]
+            #
+            # Returns a data writer that allows to read the specified port
+            #
+            # In the first case, the returned writer is applied to a port on +self+.
+            # In the second case, it is a port of the specified child. In both
+            # cases, an optional connection policy can be specified as
+            #
+            #   data_writer('pose', 'pose_samples', :type => :buffer, :size => 1)
+            #
+            # A pull policy is taken by default, as to avoid impacting the
+            # components.
+            #
+            # The writer is automatically disconnected when the task quits
+            def data_writer(*args)
+                policy = Hash.new
+                if args.last.respond_to?(:to_hash)
+                    policy = args.pop
+                end
+                policy, other_policy = Kernel.filter_options policy, :pull => true
+                policy.merge!(other_policy)
+
+                port =
+                    if args.size == 2
+                        role_name, port_name = *args
+                        task = child_from_role(role_name)
+			if !task
+			    raise ArgumentError, "#{self} has no child with role #{role_name}"
+			end
+			task.input_port(port_name)
+                    else
+                        port_name = args.first
+                        input_port(port_name)
+                    end
+
+                result = port.writer(policy)
+                data_writers << result
+                result
+            end
 
             # call-seq:
             #   data_reader 'port_name'[, policy]
@@ -898,6 +944,11 @@ module Orocos
             end
             
             on :stop do |event|
+                data_writers.each do |writer|
+                    if writer.connected?
+                        writer.disconnect
+                    end
+                end
                 data_readers.each do |reader|
                     if reader.connected?
                         reader.disconnect
