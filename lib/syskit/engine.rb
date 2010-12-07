@@ -161,6 +161,9 @@ module Orocos
             def process_server_for(name)
                 server = RobyPlugin.process_servers[name]
                 if !server
+                    if name == 'localhost'
+                        return Roby.app.main_orogen_project
+                    end
                     raise ArgumentError, "there is no registered process server called #{name}"
                 end
                 server.first
