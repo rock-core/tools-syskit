@@ -45,7 +45,7 @@ module Orocos
         # I.e. when someone uses a ClassName in a DSL, this constant will be
         # searched following the order of modules returned by this method.
         def self.constant_search_path
-            [Orocos::RobyPlugin::DataServices, Orocos::RobyPlugin::DataSources, Orocos::RobyPlugin::Compositions, Orocos::RobyPlugin]
+            [Orocos::RobyPlugin, Orocos::RobyPlugin::DataServices, Orocos::RobyPlugin::DataSources, Orocos::RobyPlugin::Compositions]
         end
 
         # Generic module included in all classes that are used as models.
