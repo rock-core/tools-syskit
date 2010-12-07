@@ -66,25 +66,74 @@ module Orocos
             end
         end
 
-        # Exception raised in composition instanciations if a selected component
-        # model provides multipe services that fullfills a child's model 
-        class AmbiguousServiceSelection < Ambiguous
-            def initialize(composition_model, child_name, selection, candidates)
-                @composition_model, @child_name, @selection, @candidates =
-                    composition_model, child_name, selection, candidates
+        # Exception raised when a service is required but none can be found on a
+        # particular task context
+        class NoMatchingService < Ambiguous
+            attr_reader :composition_model
+            attr_reader :child_name
+            attr_reader :task_model
+            attr_reader :required_service
+
+            def initialize(composition_model, child_name, task_model, required_service)
+                @composition_model, @child_name, @task_model, @required_service =
+                    composition_model, child_name, task_model, required_service
             end
 
             def pretty_print(pp)
-                pp.text "there is an ambiguity while looking for a service in #{selection} that matches the child #{child_name} of #{composition_model.short_name}"
+                pp.text "there are no services in #{task_model} that provide the service #{required_service.short_name}, to fullfill the constraints on the child #{child_name} of #{composition_model.short_name}"
+                pp.breakable
+                pp.text "the services of #{task_model.short_name} are:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(task_model.each_data_service) do |srv|
+                        pp.text "#{srv.name}: #{srv.model.short_name}"
+                    end
+                end
+            end
+        end
+
+        # Exception raised when a service is being selected by type, but
+        # multiple services are available within the component that match the
+        # constraints
+        class AmbiguousServiceSelection < Ambiguous
+            attr_reader :task_model
+            attr_reader :required_service
+            attr_reader :candidates
+
+            def initialize(task_model, required_service, candidates)
+                @task_model, @required_service, @candidates =
+                    task_model, required_service, candidates
+            end
+
+            def pretty_print(pp)
+                pp.text "there is an ambiguity while looking for a service of type #{required_service.short_name} in #{task_model.short_name}"
                 pp.breakable
                 pp.text "candidates are:"
                 pp.nest(2) do
                     pp.breakable
-                    pp.seplist(candidates) do |keyvalue|
-                        name, model = keyvalue
-                        pp.text name
+                    pp.seplist(candidates) do |service|
+                        pp.text service.name
                     end
                 end
+            end
+        end
+
+        # Exception raised in composition instanciations if a selected component
+        # model provides multipe services that fullfills a child's model 
+        class AmbiguousServiceMapping < AmbiguousServiceSelection
+            attr_reader :composition_model
+            attr_reader :child_name
+
+            def initialize(composition_model, child_name, task_model, required_service, candidates)
+                super(task_model, required_service, candidates)
+                @composition_model, @child_name =
+                    composition_model, child_name
+            end
+
+            def pretty_print(pp)
+                pp.text "while trying to fullfill the constraints on the child #{child_name} of #{composition_model.short_name}"
+                pp.breakable
+                super
             end
         end
 

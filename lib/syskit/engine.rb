@@ -793,10 +793,10 @@ module Orocos
                 plan.find_local_tasks(Component).each do |source_task|
                     next if remove_compositions && source_task.kind_of?(Composition)
 
-                    source_task.model.each_input do |port|
+                    source_task.model.each_input_port do |port|
                         input_ports[source_task] << port.name
                     end
-                    source_task.model.each_output do |port|
+                    source_task.model.each_output_port do |port|
                         output_ports[source_task] << port.name
                     end
                     all_tasks << source_task

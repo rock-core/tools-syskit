@@ -746,7 +746,7 @@ module Orocos
             @name = "Orocos::RobyPlugin::DataServiceProxy"
 
             def self.proxied_data_services
-                data_services.values
+                data_services.values.map(&:model)
             end
             def proxied_data_services
                 self.model.proxied_data_services

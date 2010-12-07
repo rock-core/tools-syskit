@@ -55,9 +55,21 @@ module Orocos
             # The name of the model
             attr_accessor :name
             # The parent model, if any
-            attr_reader :parent_model
+            attribute(:parent_models) { ValueSet.new }
             # The configuration type for instances of this service model
             attr_writer :config_type
+            # Port mappings from this service's parent models to the service
+            # itself
+            #
+            # Whenever a data service provides another one, it is possible to
+            # specify that some ports of the provided service are mapped onto th
+            # ports of the new service. This hash keeps track of these port
+            # mappings.
+            #
+            # The mapping is of the form
+            #   
+            #   [service_model, port] => target_port
+            attribute(:port_mappings) { Hash.new }
 
             # Return the config type for the instances of this service, if any
             def config_type
@@ -80,32 +92,62 @@ module Orocos
                     :type => self.class, :interface => nil, :system_model => nil
 
                 model = options[:type].new
-                model.include self
-                model.instance_variable_set(:@parent_model, self)
                 model.name = name.dup
                 model.system_model = options[:system_model]
 
-                if options[:interface] != false
-                    if options[:interface]
-                        iface_spec = Roby.app.get_orocos_task_model(options[:interface]).orogen_spec
+                child_spec = model.create_orogen_interface
+                if options[:interface]
+                    RobyPlugin.merge_orogen_interfaces(child_spec, [Roby.app.get_orocos_task_model(options[:interface]).orogen_spec])
+                end
+                model.instance_variable_set :@orogen_spec, child_spec
+                model.provides self
+                model
+            end
 
-                        # If we also have an interface, verify that the two
-                        # interfaces are compatible
-                        if interface 
-                            if !iface_spec.implements?(interface.name)
-                                raise SpecError, "data service #{name}'s interface, #{options[:interface].name} is not a specialization of #{self.name}'s interface #{self.interface.name}"
-                            end
-                        end
-                        model.instance_variable_set(:@orogen_spec, iface_spec)
-                    elsif interface
-                        child_spec = model.create_orogen_interface
-                        child_spec.subclasses interface.name
-                        model.instance_variable_set :@orogen_spec, child_spec
-                    else
-                        model.instance_variable_set :@orogen_spec, model.create_orogen_interface
+            class BlockInstanciator < BasicObject
+                def initialize(service)
+                    @service = service
+                    @interface = service.interface
+                end
+
+                def method_missing(m, *args, &block)
+                    if @interface.respond_to?(m)
+                        @interface.send(m, *args, &block)
+                    else @service.send(m, *args, &block)
                     end
                 end
-                model
+            end
+
+            def apply_block(&block)
+                BlockInstanciator.new(self).instance_eval(&block)
+            end
+
+            def port_mappings_for(service_type)
+                result = port_mappings[service_type]
+                if !result
+                    raise ArgumentError, "#{service_type.short_name} is not provided by #{short_name}"
+                end
+                result
+            end
+
+            def provides(service_model, new_port_mappings = Hash.new)
+                include service_model
+                parent_models << service_model
+
+                service_model.port_mappings.each do |original_service, mappings|
+                    updated_mappings = Hash.new
+                    mappings.each do |from, to|
+                        updated_mappings[from] = new_port_mappings[to] || to
+                    end
+                    port_mappings[original_service] =
+                        SystemModel.merge_port_mappings(port_mappings[original_service] || Hash.new, updated_mappings)
+                end
+                port_mappings[service_model] =
+                    SystemModel.merge_port_mappings(port_mappings[service_model] || Hash.new, new_port_mappings)
+
+                if service_model.interface
+                    RobyPlugin.merge_orogen_interfaces(interface, [service_model.interface], new_port_mappings)
+                end
             end
 
             def create_orogen_interface
@@ -114,10 +156,9 @@ module Orocos
 
             attr_reader :orogen_spec
 
-            def interface(&block)
+            def interface
                 if block_given?
-                    @orogen_spec ||= create_orogen_interface
-                    orogen_spec.instance_eval(&block)
+                    raise ArgumentError, "interface(&block) is not available anymore"
                 end
                 orogen_spec
             end
@@ -146,10 +187,10 @@ module Orocos
             def guess_source_name(model)
                 port_list = lambda do |m|
                     result = Hash.new { |h, k| h[k] = Array.new }
-                    m.each_output do |source_port|
+                    m.each_output_port do |source_port|
                         result[ [true, source_port.type_name] ] << source_port.name
                     end
-                    m.each_input do |source_port|
+                    m.each_input_port do |source_port|
                         result[ [false, source_port.type_name] ] << source_port.name
                     end
                     result
@@ -260,24 +301,15 @@ module Orocos
                 def find_matching_service(target_model, pattern = nil)
                     # Find services in +child_model+ that match the type
                     # specification
-                    matching_services = self.
-                        find_data_services { |name, dserv| dserv.model <= target_model }.
-                        map(&:last)
+                    matching_services = find_all_services_from_type(target_model)
 
-                    if pattern # explicit selection
+                    if pattern # match by name too
                         # Find the selected service. There can be shortcuts, so
                         # for instance bla.left would be able to select both the
                         # 'left' main service or the 'bla.blo.left' slave
                         # service.
                         rx = /(^|\.)#{pattern}$/
                         matching_services.delete_if { |service| service.full_name !~ rx }
-                        if matching_services.empty?
-                            raise SpecError, "no service of type #{target_model.name} with the name #{pattern} exists in #{name}"
-                        end
-                    else
-                        if matching_services.empty?
-                            raise SpecError, "no data service of type #{target_model} found in #{self}"
-                        end
                     end
 
                     if matching_services.size > 1
@@ -293,33 +325,6 @@ module Orocos
                     end
 
                     selected
-                end
-
-                # Returns all data services that offer the given service type
-                #
-                # Raises ArgumentError if there is not exactly one of such
-                # service. Use #all_services_from_type to get all the service
-                # names.
-                def all_services_from_type(matching_type)
-                    each_data_service.find_all do |name, ds|
-                        ds.model <= matching_type
-                    end
-                end
-
-                # Returns a single data service definition that matches the
-                # given service type
-                #
-                # Raises ArgumentError if there is not exactly one of such
-                # service. Use #all_services_from_type to get all the service
-                # names.
-                def service_from_type(matching_type)
-                    candidates = all_services_from_type(matching_type)
-                    if candidates.empty?
-                        raise ArgumentError, "no service of type '#{matching_type.name}' declared on #{self}"
-                    elsif candidates.size > 1
-                        raise ArgumentError, "multiple services of type #{matching_type.name} are declared on #{self}"
-                    end
-                    candidates.first
                 end
 
                 # Returns the type of the given data service, or raises
@@ -372,51 +377,102 @@ module Orocos
 
                 # Check that for each data service in +target_task+, we can
                 # allocate a corresponding service in +self+
-                each_source_merge_candidate(target_task) do |selected_source_name, other_service, self_services|
+                each_service_merge_candidate(target_task) do |selected_source_name, other_service, self_services|
                     if self_services.empty?
+                        Engine.debug "cannot merge #{target_task} into #{self} as"
+                        Engine.debug "  no candidates for #{other_service}"
                         return false
                     end
-
-                    # Note: implementing port mapping will require to apply the
-                    # port mappings to the test below as well (i.e. which tests
-                    # that inputs are free/compatible)
-                    if DataServiceModel.needs_port_mapping?(other_service, self_services.first)
-                        raise NotImplementedError, "mapping data flow ports is not implemented yet"
-                    end
                 end
-
                 true
             end
 
             # Replace +merged_task+ by +self+, possibly modifying +self+ so that
             # it is possible.
             def merge(merged_task)
+                connection_mappings = Hash.new
+
                 # First thing to do is reassign data services from the merged
                 # task into ourselves. Note that we do that only for services
                 # that are actually in use.
-                each_source_merge_candidate(merged_task) do |selected_source_name, other_service, self_services|
+                each_service_merge_candidate(merged_task) do |selected_source_name, other_service, self_services|
                     if self_services.empty?
                         raise SpecError, "trying to merge #{merged_task} into #{self}, but that seems to not be possible"
                     elsif self_services.size > 1
-                        raise Ambiguous, "merging #{self} and #{merged_task} is ambiguous: the #{self_names.join(", ")} data services could be used"
+                        raise Ambiguous, "merging #{self} and #{merged_task} is ambiguous: the #{self_services.map(&:short_name).join(", ")} data services could be used"
                     end
 
                     # "select" one service to use to handle other_name
                     target_service = self_services.pop
                     # set the argument
-                    if arguments["#{target_service.name}_name"] != selected_source_name
+                    if selected_source_name && arguments["#{target_service.name}_name"] != selected_source_name
                         arguments["#{target_service.name}_name"] = selected_source_name
                     end
 
                     # What we also need to do is map port names from the ports
-                    # in +merged_task+ into the ports in +self+
-                    #
-                    # For that, we first build a name mapping and then we apply
-                    # it by moving edges from +merged_task+ into +self+.
-                    if DataServiceModel.needs_port_mapping?(other_service, target_service)
-                        raise NotImplementedError, "mapping data flow ports is not implemented yet"
+                    # in +merged_task+ into the ports in +self+. We do that by
+                    # moving the connections explicitely from +merged_task+ onto
+                    # +self+
+                    merged_mappings = other_service.port_mappings_for_task.dup
+                    new_mappings    = target_service.port_mappings_for_task.dup
+
+                    new_mappings.each do |from, to|
+                        from = merged_mappings.delete(from) || from
+                        connection_mappings[from] = to
+                    end
+                    merged_mappings.each do |from, to|
+                        connection_mappings[to] = from
                     end
                 end
+
+                merged_task.each_source do |source_task|
+                    connections = source_task[merged_task, Flows::DataFlow]
+                    new_connections = Hash.new
+                    connections.each do |(from, to), policy|
+                        to = connection_mappings[to] || to
+                        new_connections[[from, to]] = policy
+                    end
+                    Engine.debug do
+                        Engine.debug "moving input connections of #{merged_task}"
+                        Engine.debug "  => #{source_task} onto #{self}"
+                        Engine.debug "  mappings: #{connection_mappings}"
+                        Engine.debug "  old:"
+                        connections.each do |(from, to), policy|
+                            Engine.debug "    #{from} => #{to} (#{policy})"
+                        end
+                        Engine.debug "  new:"
+                        new_connections.each do |(from, to), policy|
+                            Engine.debug "    #{from} => #{to} (#{policy})"
+                        end
+                        break
+                    end
+                    source_task.connect_ports(self, new_connections)
+                end
+                merged_task.each_sink do |sink_task, connections|
+                    new_connections = Hash.new
+                    connections.each do |(from, to), policy|
+                        from = connection_mappings[from] || from
+                        new_connections[[from, to]] = policy
+                    end
+
+                    Engine.debug do
+                        Engine.debug "moving output connections of #{merged_task}"
+                        Engine.debug "  => #{sink_task}"
+                        Engine.debug "  onto #{self}"
+                        Engine.debug "  mappings: #{connection_mappings}"
+                        Engine.debug "  old:"
+                        connections.each do |(from, to), policy|
+                            Engine.debug "    #{from} => #{to} (#{policy})"
+                        end
+                        Engine.debug "  new:"
+                        new_connections.each do |(from, to), policy|
+                            Engine.debug "    #{from} => #{to} (#{policy})"
+                        end
+                        break
+                    end
+                    self.connect_ports(sink_task, new_connections)
+                end
+                Flows::DataFlow.remove(merged_task)
 
                 super
             end
@@ -425,8 +481,8 @@ module Orocos
             # by its name) is connected to something.
             def using_data_service?(source_name)
                 service = model.find_data_service(source_name)
-                inputs  = service.each_input.map(&:name)
-                outputs = service.each_output.map(&:name)
+                inputs  = service.each_input_port.map(&:name)
+                outputs = service.each_output_port.map(&:name)
 
                 each_source do |output|
                     description = output[self, Flows::DataFlow]
@@ -447,22 +503,18 @@ module Orocos
             # on the system). Yields it along with a data source on +self+ in
             # which it can be merged, either because the source is assigned as
             # well to the same device, or because it is not assigned yet
-            def each_source_merge_candidate(other_task) # :nodoc:
+            def each_service_merge_candidate(other_task) # :nodoc:
                 other_task.model.each_root_data_service do |name, other_service|
                     other_selection = other_task.selected_data_source(other_service)
-                    next if !other_selection
 
                     self_selection = nil
                     available_services = model.each_data_service.find_all do |self_name, self_service|
                         self_selection = selected_data_source(self_service)
-
-                        self_service.model == other_service.model &&
-                            (!self_selection || self_selection == other_selection)
+                        self_service.model.fullfills?(other_service.model) &&
+                            (!self_selection || !other_selection || self_selection == other_selection)
                     end
 
-                    if self_selection != other_selection
-                        yield(other_selection, other_service, available_services.map(&:last))
-                    end
+                    yield(other_selection, other_service, available_services.map(&:last))
                 end
             end
 

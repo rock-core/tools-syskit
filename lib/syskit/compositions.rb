@@ -8,17 +8,20 @@ module Orocos
             # of data service models 
             attr_accessor :models
             attr_accessor :dependency_options
+            attr_accessor :port_mappings
 
             def initialize(models = ValueSet.new, dependency_options = Hash.new)
                 @models = models
                 @dependency_options = dependency_options
                 @using_spec = Hash.new
+                @port_mappings = Hash.new
             end
 
             def initialize_copy(old)
                 @models = old.models.dup
                 @dependency_options = old.dependency_options.dup
                 @using_spec = old.using_spec.dup
+                @port_mappings = old.port_mappings.dup
             end
 
             # Return true if this child provides all of the required models
@@ -189,76 +192,25 @@ module Orocos
         module CompositionSpecializationModel
             def is_specialization?; true end
 
-            # Returns a name to model_set mapping of the specializations that
-            # have been applied to get to this model from its direct parent.
-            #
-            # I.e. if one does
-            #
-            #   first_specialization = composition.specialize 'child' => model
-            #   second_specialization =
-            #       first_specialization.specialize 'other_child' => other_model
-            #
-            # then first_specialization.self_specialization will return
-            #
-            #   { 'child' => #<ValueSet: model> }
-            #
-            # and second_specialization.self_specialization will return
-            #
-            #   { 'other_child' => #<ValueSet: other_model> }
-            #
-            # See all_specializations to get all the specializations that go
-            # from the root composition to this composition
-            def self_specialization
-                result = Hash.new
-                parent_model.specializations.find { |s| s.composition == self }.
-                    specialized_children.each do |child_name, child_model|
-                        result[child_name] = [child_model].to_value_set
-                    end
-                result
-            end
-
-            # Returns a name to model_set mapping of the specializations that
-            # have been applied to get to this model from the root composition.
-            #
-            # I.e. if one does
-            #
-            #   first_specialization = composition.specialize 'child' => model
-            #   second_specialization =
-            #       first_specialization.specialize 'other_child' => other_model
-            #
-            # then first_specialization.self_specialization will return
-            #
-            #   { 'child' => #<ValueSet: model> }
-            #
-            # and second_specialization.self_specialization will return
-            #
-            #   { 'child' => #<ValueSet: model>,
-            #   'other_child' => #<ValueSet: other_model> }
-            #
-            # See also self_specialization
-            def all_specializations
-                superclass = parent_model
-                if superclass.is_specialization?
-                    superclass.all_specializations.
-                        merge(self_specialization) do |child_name, old_models, new_models|
-                            old_models | new_models
-                        end
-                else
-                    self_specialization
-                end
-            end
+            # The root composition model in the specialization chain
+            attr_accessor :root_model
+            # The set of children that have been specialized to go from
+            # +root_model+ to +self+
+            attribute(:specialized_children) { Hash.new }
+            # The set of definition blocks that have been applied on +self+ in
+            # the process of specializing +root_model+
+            attribute(:definition_blocks) { Array.new }
 
             # Returns the model name
             #
             # This is formatted as
             # root_model/child_name.is_a?(specialized_list),other_child.is_a?(...)
             def name
-                specializations = all_specializations.map do |child_name, child_models|
-                    "#{child_name}.is_a?(#{child_models.map(&:name).join(",")})"
+                specializations = self.specialized_children.map do |child_name, child_models|
+                    "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
                 end
 
-                root = ancestors.find { |k| k.kind_of?(Class) && !k.is_specialization? }
-                "#{root.name}/#{specializations}"
+                "#{root_model.short_name}/#{specializations}"
             end
 
             # Returns true if this composition model is a model created by
@@ -277,37 +229,43 @@ module Orocos
             #       submodel.specialized_on?('Source', Logger) # => false
             #   end
             def specialized_on?(child_name, child_model)
-                parent = parent_model
-                return if parent == Composition
-
-                spec_model = parent.specializations.find { |s| s.composition == self }
-                return if !spec_model
-
-                spec_model.specialized_children[child_name] == child_model ||
-                    parent.specialized_on?(child_name, child_model)
+                specialized_children[child_name].include?(child_model)
             end
 
-            # Overloaded from CompositionModel
-            def pretty_print_specializations(pp) # :nodoc:
-                data_services = each_data_service.to_a
-                parent = parent_model
-                data_services.delete_if do |name, ds|
-                    parent.find_data_service(name) == ds.model
-                end
+            # Applies the specialization block +block+ on +self+. If +recursive+
+            # is true, also applies it on the children of this particular
+            # specialization
+            #
+            # Whenever a new specialization block is applied on an existing
+            # specialization, calling this method with recursive = true ensures
+            # that the block is applied on all specialization models that should
+            # have it applied
+            def apply_specialization_block(block, recursive = true)
+                if !definition_blocks.include?(block)
+                    with_module(*RobyPlugin.constant_search_path, &block)
+                    definition_blocks << block
 
-                if !data_services.empty?
-                    pp.nest(2) do
-                        pp.breakable
-                        pp.text "Data Services:"
-                        pp.nest(2) do
-                            data_services.each do |name, ds|
-                                pp.breakable
-                                pp.text "#{name}: #{ds.model.name}"
-                            end
+                    if recursive
+                        specializations.each do |subspec|
+                            subspec.apply_specialization_block(block, false)
                         end
                     end
                 end
-                super
+            end
+
+            # Returns the specialization spec that is a merge of the one of
+            # +self+ with the specified one.
+            def merge_specialization_spec(new_spec)
+                specialized_children.merge(new_spec) do |child_name, models_a, models_b|
+                    result = ValueSet.new
+                    (models_a | models_b).each do |m|
+                        if !result.any? { |result_m| result_m <= m }
+                            result.delete_if { |result_m| m < result_m }
+                            result << m
+                        end
+                    end
+                    result
+                end
             end
         end
 
@@ -321,6 +279,9 @@ module Orocos
             # The composition model name
             attr_accessor :name
 
+            # The root composition model in the specialization hierarchy
+            def root_model; self end
+
             # Creates a submodel of this model, in the frame of the given
             # SystemModel instance.
             def new_submodel(name, system_model)
@@ -332,30 +293,34 @@ module Orocos
 
             attribute(:autoconnect_ignores) { Set.new }
 
-            # Returns the composition model that is parent to this one
-            def parent_model
-                parent = superclass
-                while !parent.kind_of?(Class)
-                    parent = parent.superclass
-                end
-                parent
-            end
+            # Returns the composition models that are parent to this one
+            attribute(:parent_models) { ValueSet.new }
 
-            # Enumerates all the specialized compositions that have been created
-            # from this composition model.
+            ##
+            # :attr: specializations
             #
-            # If +recursive+ is false, only the direct children are given.
-            def each_specialization(recursive = true, &block)
+            # The set of specializations defined at this level of the model
+            # hierarchy, as an array of Specialization instances. See
+            # #specialize for more details
+            attribute(:specializations) { Hash.new }
+
+            # Enumerates all the specializations of this model that are direct
+            # children of it
+            def each_direct_specialization(&block)
                 if !block_given?
-                    return enum_for(:each_specialization, recursive)
+                    return enum_for(:each_direct_specialization)
                 end
 
-                specializations.each do |spec|
-                    yield(spec.composition)
-                    if recursive
-                        spec.composition.each_specialization(&block)
+                specializations.each_value do |compo|
+                    if compo.parent_models.include?(self)
+                        yield(compo)
                     end
                 end
+            end
+
+            # Enumerates all compositions that are specializations of this model
+            def each_specialization(&block)
+                specializations.each_value(&block)
             end
 
             #--
@@ -402,14 +367,6 @@ module Orocos
             # Enumerates the input ports that are defined on this composition,
             # i.e.  the ports created by #export
             def each_input_port
-            ##
-            # :attr: specializations
-            #
-            # The set of specializations defined at this level of the model
-            # hierarchy, as an array of Specialization instances. See
-            # #specialize for more details
-            attribute(:specializations) { Array.new }
-
                 if block_given?
                     each_exported_input do |_, p|
                         yield(p)
@@ -453,11 +410,8 @@ module Orocos
             # Raises ArgumentError if +name+ is already used by a child
             # definition at this level of the model hierarchy:
             def add_child(name, child_model, dependency_options)
-                if !child_model.respond_to?(:to_ary)
-                    child_model = [child_model]
-                end
-
                 name = name.to_str
+
                 # We do NOT check for an already existing definition. The reason
                 # is that specialization (among other) will add a default child,
                 # that may be overriden by the composition's owner. Either to
@@ -485,9 +439,36 @@ module Orocos
                 # Delete from +parent_model+ everything that is already included
                 # in +child_model+
                 result = parent_model.dup
-                result.models.delete_if { |parent_m| child_model.any? { |child_m| child_m <= parent_m } }
+                result.models.delete_if do |parent_m|
+                    replaced_by = child_model.find_all { |child_m| child_m < parent_m }
+                    if !replaced_by.empty?
+                        mappings = replaced_by.inject(Hash.new) do |mappings, m|
+                            SystemModel.merge_port_mappings(mappings, m.port_mappings_for(parent_m))
+                        end
+                        result.port_mappings.clear
+                        result.port_mappings.merge!(mappings)
+                        parent_model.port_mappings.each do |from, to|
+                            result.port_mappings[from] = mappings[to] || to
+                        end
+                    end
+                end
                 result.models |= child_model.to_value_set
                 result.dependency_options = result.dependency_options.merge(dependency_options)
+
+                SystemModel.debug do
+                    SystemModel.debug "added child #{name} to #{short_name}"
+                    SystemModel.debug "  with models #{result.models.map(&:short_name).join(", ")}"
+                    if !parent_model.models.empty?
+                        SystemModel.debug "  updated from #{parent_model.models.map(&:short_name).join(", ")}"
+                    end
+                    if !result.port_mappings.empty?
+                        SystemModel.debug "  port mappings"
+                        result.port_mappings.each do |from, to|
+                            SystemModel.debug "    #{from} => #{to}"
+                        end
+                    end
+                    break
+                end
                 children[name] = result
             end
 
@@ -545,13 +526,30 @@ module Orocos
             # would be invalid as the 'imu' child cannot be both an XsensImu and
             # DfkiImu task. In this case, you would need to define a common data
             # service that is provided by both components.
-            def add(model, options = Hash.new)
-                if !model.kind_of?(Roby::TaskModelTag) && !(model.kind_of?(Class) && model < Component)
-                    raise ArgumentError, "wrong model type #{model.class} for #{model}"
+            def add(models, options = Hash.new)
+                if !models.respond_to?(:each)
+                    models = [models]
                 end
-                options, dependency_options = Kernel.filter_options options, :as => model.name.gsub(/.*::/, '')
+                models = models.to_value_set
 
-                add_child(options[:as], model, dependency_options)
+                wrong_type = models.find do |m|
+                    !m.kind_of?(Roby::TaskModelTag) && !(m.kind_of?(Class) && m < Component)
+                end
+                if wrong_type
+                    raise ArgumentError, "wrong model type #{wrong_type.class} for #{wrong_type}"
+                end
+
+                if models.size == 1
+                    default_name = models.find { true }.snakename
+                end
+                options, dependency_options = Kernel.filter_options options,
+                    :as => default_name
+
+                if !options[:as]
+                    raise ArgumentError, "you must provide an explicit name with the :as option"
+                end
+
+                add_child(options[:as], models, dependency_options)
                 CompositionChild.new(self, options[:as])
             end
 
@@ -590,9 +588,9 @@ module Orocos
                     if options[:exclusive]
                         exclusions = allowed_models.dup
                         exclusions.delete(model)
-                        specialize(child, model, :not => exclusions)
+                        specialize(child => model, :not => exclusions)
                     else
-                        specialize(child, model)
+                        specialize(child => model)
                     end
                 end
 
@@ -603,9 +601,6 @@ module Orocos
 
                 self
             end
-
-            # Internal representation of specializations
-            Specialization = Struct.new :specialized_children, :composition, :definition_blocks
 
             # Create a child of this composition model in which +child_name+ is
             # constrained to implement the +child_model+ interface. If a block
@@ -634,123 +629,189 @@ module Orocos
             # have been added: the same two than above, and the one case where
             # 'Control' fullfills both the SimpleController and
             # FourWheelController data services.
-            def specialize(child_name, child_model, options = Hash.new, &block)
-                options = Kernel.validate_options options, :not => []
+            def specialize(options = Hash.new, &block)
+                SystemModel.debug do
+                    SystemModel.debug "trying to specialize #{short_name}"
+                    for_txt = options.map do |name, models|
+                        "#{name} => #{models}"
+                    end
+                    SystemModel.log_array(:debug, "  with ", "      ", for_txt)
+                    SystemModel.debug ""
+                    break
+                end
+
+                options, mappings = Kernel.filter_options options, :not => []
                 if !options[:not].respond_to?(:to_ary)
                     options[:not] = [options[:not]]
                 end
 
-                if child_name.kind_of?(Module)
-                    candidates = each_child.find_all { |name, child_definition| child_definition.models.include?(child_name) }
-                    if candidates.size == 1
-                        child_name = candidates[0][0]
-                    end
-                end
+                # Normalize the user-provided specialization mapping
+                new_spec = Hash.new
+                mappings.each do |child, child_model|
+                    if child.kind_of?(Module)
+                        children = each_child.
+                            find_all { |name, child_definition| child_definition.models.include?(child) }.
+                            map { |name, _| name }
 
-                child_name =
-                    if child_name.respond_to?(:to_str)
-                        child_name.to_str
+                        children.each do |child_name|
+                            new_spec[child_name] = [child_model].to_value_set
+                        end
+                    elsif !child_model.respond_to?(:each)
+                        new_spec[child.to_str] = [child_model].to_value_set
                     else
-                        child_name.name.gsub(/^.*::/, '')
+                        new_spec[child.to_str] = child_model.to_value_set
                     end
-
-                if specialization = specializations.find { |m| m.specialized_children[child_name] == child_model }
-                    if block
-                        apply_specialization_block(child_name, child_model, block)
-                    end
-                    return specialization.composition
                 end
 
-                # Make sure we actually specialize ...
-                if !has_child?(child_name)
-                    raise ArgumentError, "there is no child called #{child_name} in #{short_name}"
+                # ... and validate it
+                verify_acceptable_specialization(new_spec)
+
+                # Find out which of our specializations already apply for the
+                # given mapping. Apply the specializations only on those
+                matching_specializations = find_all_specializations(new_spec)
+                if matching_specializations.empty?
+                    matching_specializations << self
                 end
-                parent_model = find_child(child_name)
-                verify_acceptable_specialization(child_name, child_model, false)
 
-                child_composition = new_submodel('', system_model)
-                child_composition.extend CompositionSpecializationModel
-                specializations <<
-                    Specialization.new({ child_name => child_model },
-                                       child_composition, [])
-
-                child_composition.add child_model, :as => child_name
-                child_composition.private_model
-
-                # Apply the specialization to the existing ones
-                specializations.each do |spec|
-                    next if spec.composition == child_composition
-
-                    # If the user required some exclusions in the specialization
-                    # chain, filter them out
-                    if !options[:not].empty?
+                # Remove the candidates that are filtered out by the :not option
+                if !options[:not].empty?
+                    matching_specializations.delete_if do |spec|
                         if child_specialization = spec.specialized_children[child_name]
                             if options[:not].any? { |model| child_specialization.fullfills?(model) }
-                                next
+                                true
                             end
                         end
                     end
+                end
 
-                    # Don't try to cross-specialize if the specialization is not
-                    # valid.
-                    valid = catch :invalid_selection do
-                        spec.composition.verify_acceptable_specialization(child_name, child_model, false)
+                create_specializations(matching_specializations, new_spec, &block)
+            end
+
+            # Creates specializations on +new_spec+ for each of the models
+            # listed in +matching_specializations+. +matching_specializations+
+            # is expected to be specializations of +self+ or +self+ itself.
+            def create_specializations(matching_specializations, new_spec, &block)
+                SystemModel.debug do
+                    SystemModel.debug "creating new specialization of #{short_name}"
+                    SystemModel.log_array(:debug, "  on  ", "      ", matching_specializations.map(&:short_name))
+                    for_txt = new_spec.map do |name, models|
+                        "#{name} => #{models.map(&:short_name).join(", ")}"
                     end
-                    if valid
-                        SystemModel.debug do
-                            SystemModel.debug "recursively creating specialization"
-                            SystemModel.debug "  for #{child_name} with type #{child_model.short_name}"
-                            SystemModel.debug "  from #{short_name}"
-                            SystemModel.debug "  on #{spec.composition.short_name}"
-                            break
+                    SystemModel.log_array(:debug, "  for ", "     ", for_txt)
+                    SystemModel.debug ""
+                    break
+                end
+
+                new_specializations = Hash.new
+                matching_specializations.each do |specialization_model|
+                    all_specializations = specialization_model.merge_specialization_spec(new_spec)
+
+                    has_spec = specializations.keys.find { |m| m == all_specializations }
+                    if has_spec && !specializations[all_specializations]
+                        raise "blabla"
+                    end
+
+                    if spec = specializations[all_specializations]
+                        Engine.debug "adding #{specialization_model.short_name} as parent of #{spec.short_name}"
+                        # Make sure that +specialization_model+ knows about
+                        # +spec+
+                        spec.parent_models << specialization_model
+                        specialization_model.register_specialization(spec)
+
+                        # We already have a specialization with that signature.
+                        #
+                        # Apply the block recursively
+                        spec.apply_specialization_block(block)
+                        new_specializations[specialization_model] = spec
+                    else
+                        # Don't try to cross-specialize if the specialization is not
+                        # valid.
+                        valid = catch :invalid_selection do
+                            specialization_model.verify_acceptable_specialization(new_spec, false)
                         end
 
-                        # Do NOT apply the block here. We first create all the
-                        # specialized models and *then* apply the block.
-                        #
-                        # This is because we filter out some of the compositions
-                        # in-between and therefore don't need to do this expensive
-                        # operation on them.
-                        spec.composition.specialize(child_name, child_model, options)
+                        Engine.debug "creating new specialization on #{specialization_model.short_name}"
+                        # Create the specialization on the child. It will
+                        # register it recursively on its own parents up to
+                        # +self+
+                        new_composition_model = specialization_model.
+                            add_specialization(all_specializations, new_spec, &block)
+                        new_specializations[specialization_model] = new_composition_model
                     end
                 end
 
-                filter_out_abstract_compositions
-                if block
-                    apply_specialization_block(child_name, child_model, block)
+                # Now, update the parent list to reflect orthogonal
+                # specializations
+                matching_specializations.each do |composition_model|
+                    specialized = new_specializations[composition_model]
+                    composition_model.parent_models.each do |parent|
+                        next if !matching_specializations.include?(parent)
+                        specialized_parent = new_specializations[parent]
+                        if specialized_parent != specialized
+                            specialized.parent_models << specialized_parent
+                            specialized_parent.register_specialization(specialized)
+                        end
+                    end
                 end
+            end
+
+            def add_specialization(all_specializations, new_specializations, &block)
+                # There's no composition with that spec. Create a new one
+                child_composition = new_submodel('', system_model)
+                child_composition.parent_models << self
+                child_composition.extend CompositionSpecializationModel
+                child_composition.specialized_children.merge!(all_specializations)
+                child_composition.private_model
+                child_composition.root_model = root_model
+                new_specializations.each do |child_name, child_models|
+                    child_composition.add child_models, :as => child_name
+                end
+                if block
+                    child_composition.apply_specialization_block(block)
+                end
+                register_specialization(child_composition)
                 child_composition
             end
 
-            # Looks for compositions which do not match the registered child
-            # constraints (added with #constrain). Mark them as abstract.
-            def filter_out_abstract_compositions
-                each_specialization(false) do |spec|
-                    child_constraints.each do |child_name, allowed_models|
-                        allowed_models.each do |model_set|
-                            child_spec = spec.find_child(child_name)
-                            if child_spec
-                                if !model_set.any? { |m| child_spec.fullfills?(m) }
-                                    spec.abstract
-                                    break
-                                end
-                            end
-                        end
-                    end
+            def register_specialization(specialization_model)
+                has_spec = specializations.keys.find do |spec|
+                    spec == specialization_model.specialized_children
                 end
 
-                specializations.delete_if do |spec_model|
-                    cmodel = spec_model.composition
-                    cmodel.filter_out_abstract_compositions
-                    if cmodel.abstract? && cmodel.specializations.empty?
-                        Roby::Task.deregister(cmodel)
-                        true
-                    else
-                        false
-                    end
+                if has_spec && !specializations[specialization_model.specialized_children]
+                    raise "bloblo"
+                end
+
+                return if specializations[specialization_model.specialized_children]
+
+                specializations[specialization_model.specialized_children] = specialization_model
+                parent_models.each do |p_m|
+                    p_m.register_specialization(specialization_model)
                 end
             end
 
+            # Verifies that the child selection in +new_spec+ is valid
+            #
+            # +new_spec+ has to be formatted as a mapping from child name to a
+            # set of models that should be tested against the definition of the
+            # child name, i.e.
+            #
+            #   child_name => child_models
+            #--
+            # +user_call+ is for internal use only. If set to false, instead of
+            # raising an exception, it will throw :invalid_selection. This is
+            # meant to avoid the (costly) creation of the exception message in
+            # cases we don't have to report to the user.
+            def verify_acceptable_specialization(new_spec, user_call = true)
+                new_spec.each do |child_name, child_models|
+                    if !has_child?(child_name)
+                        raise ArgumentError, "there is no child called #{child_name} in #{short_name}"
+                    end
+                    child_models.each do |m|
+                        verify_acceptable_child_specialization(child_name, m, user_call)
+                    end
+                end
+            end
 
             # Checks if an instance of +child_model+ would be acceptable as
             # the +child_name+ child of +self+.
@@ -761,12 +822,21 @@ module Orocos
             # raising an exception, it will throw :invalid_selection. This is
             # meant to avoid the (costly) creation of the exception message in
             # cases we don't have to report to the user.
-            def verify_acceptable_specialization(child_name, child_model, user_call = true)
+            def verify_acceptable_child_specialization(child_name, child_model, user_call) # :nodoc:
                 parent_models = find_child(child_name).models
                 if parent_models.any? { |m| m <= child_model }
                     throw :invalid_selection if !user_call
                     raise ArgumentError, "#{child_model.short_name} does not specify a specialization of #{parent_models.map(&:short_name)}"
                 end
+
+                child_model.each_port do |port|
+                    if conflict = parent_models.find { |m| !(child_model < m) && m.has_port?(port.name) }
+                        throw :invalid_selection if !user_call
+                        raise ArgumentError, "#{child_model.short_name} has a port called #{port.name}, which is already used by #{conflict.short_name}"
+                    end
+                end
+
+
                 if child_model < Component && parent_class = parent_models.find { |m| m < Component }
                     if !(child_model < parent_class)
                         throw :invalid_selection if !user_call
@@ -782,6 +852,12 @@ module Orocos
 
             # See CompositionSpecializationModel#specialized_on?
             def specialized_on?(child_name, child_model); false end
+
+            # Returns the specialization specification which is a merge of
+            # +new_spec+ with the specialization specification of +self+
+            #
+            # On non-specialized compositions, new_spec.dup is returned.
+            def merge_specialization_spec(new_spec); new_spec.dup end
             
             def pretty_print(pp) # :nodoc:
                 pp.text "#{name}:"
@@ -799,6 +875,7 @@ module Orocos
                         end
                     end
                 end
+                specializations = each_direct_specialization.to_a
                 if !specializations.empty?
                     pp.nest(2) do
                         pp.breakable
@@ -810,39 +887,11 @@ module Orocos
 
             def pretty_print_specializations(pp) # :nodoc:
                 pp.nest(2) do
-                    specializations.each do |submodel|
+                    each_direct_specialization do |submodel|
                         pp.breakable
-                        submodel = submodel.composition
-                        specializations =
-                            submodel.all_specializations.
-                            map do |child_name, child_models|
-                                "#{child_name}.is_a?(#{child_models.map(&:name).join(",")})"
-                            end
-
-                        pp.text specializations.join(";")
+                        pp.text submodel.name
                         submodel.pretty_print_specializations(pp)
                     end
-                end
-            end
-
-            # Helper method used by #specialize to recursively apply definition
-            # of new specializations.
-            def apply_specialization_block(child_name, child_model, block) # :nodoc:
-                specializations.each do |spec|
-                    if spec.specialized_children[child_name] == child_model
-                        SystemModel.debug do
-                            SystemModel.debug "recursively applying specialization block #{block}"
-                            SystemModel.debug "  for #{child_name} with type #{child_model.short_name}"
-                            SystemModel.debug "  from #{short_name}"
-                            SystemModel.debug "  on #{spec.composition.short_name}"
-                            break
-                        end
-
-                        spec.composition.with_module(*RobyPlugin.constant_search_path, &block)
-                    else
-                        spec.composition.apply_specialization_block(child_name, child_model, block)
-                    end
-                    spec.definition_blocks << block
                 end
             end
 
@@ -880,48 +929,6 @@ module Orocos
                 default_specializations[child] = child_model
             end
 
-            # Computes if +test_model+ is either equivalent or a specialization
-            # of +base_model+
-            #
-            # Returns 0 if test_model and base_model represent the same overall
-            # type, 1 if test_model is a specialization of base_model and nil if
-            # they are not ordered.
-            def compare_model_sets(base_model, test_model)
-                equivalent_models = true
-
-                # First, check if +test_model+ has a specialization and/or
-                # equality on each models present in +base_model+
-                specialized_models = ValueSet.new
-                equal_models       = ValueSet.new
-                base_model.each do |base_m|
-                    has_specialized = false
-                    has_equal       = false
-                    test_model.each do |test_m|
-                        if test_m < base_m
-                            has_specialized = true
-                            specialized_models << test_m
-                        elsif test_m == base_m
-                            has_equal = true
-                            equal_models << test_m
-                        end
-                    end
-
-                    if !has_specialized && !has_equal
-                        # No relationship whatsoever
-                        return
-                    end
-                end
-
-                specialized_models -= equal_models
-                equivalent_models = specialized_models.empty?
-
-                if !equivalent_models || (specialized_models.size + equal_models.size) < test_model.size
-                    1
-                elsif equivalent_models
-                    0
-                end
-            end
-
             # Returns the composition models from model_set that are the most
             # specialized in the context the children listed in +children_names+
             #
@@ -947,10 +954,15 @@ module Orocos
                     result.any? do |other_composition|
                         next if composition == other_composition
 
+                        children = (composition.all_children.keys & other_composition.all_children.keys) | children_names
+
                         is_specialized = false
-                        children_names.each do |child_name|
+                        children.each do |child_name|
                             comparison = system_model.compare_composition_child(
                                 child_name, composition, other_composition)
+
+                            this_child = composition.find_child(child_name)
+                            other_child = other_composition.find_child(child_name)
                             if !comparison
                                 is_specialized = false
                                 break
@@ -977,101 +989,64 @@ module Orocos
                 result
             end
 
-            # Returns the set of specializations of +self+ that can use the
-            # models selected in +selected_models+. It filters out ambiguous
-            # solutions by:
-            # * returning the most specialized compositions, for the children
-            #   that are listed in +selected_models+.<br/>
-            #   <i>Example: we have a composition A with a child A.camera and a
-            #   specialization B for which B.camera has to be a FirewireCamera
-            #   model. B is also specialized into C for StereoCamera models. If
-            #   +selected_models+ explicitely selects a FirewireCamera which is
-            #   not a StereoCamera, find_specializations will return B. If it is
-            #   a StereoCamera, then C is returned even though B would
-            #   apply.</i><br/>
-            # * returning the least specialized compositions for the children
-            #   that are <b>not</b> listed in +selected_models+.<br/>
-            #   <i>Example: let's assume that, in addition to a camera, the
-            #   composition also includes an image processing module and have
-            #   specializations for it. If +specialized_models+ does <b>not</b>
-            #   explicitely select for an image processing component, only [B,
-            #   C] will be returned even though all specializations on the image
-            #   processing are valid (since selected_models does not specify
-            #   anything).
+            # Returns the set of specializations that are valid for the provided
+            # mapping
             #
-            # If there are ambiguities, it will prefer the specializations
-            # specified by facet selection and/or default specializations. See
-            # #default_specialization for more information.
-            #
-            # This is applied recursively, i.e. will search in
-            # specializations-of-specializations
-            def find_specializations(selected_models)
-                # Select in our specializations the ones that match the current
-                # selection. To do that, we simply have to find those for which
-                # +selected_models+ is an acceptable selection.
-                #
-                # We push in +queue+ the compositions whose specializations
-                # should be recursively discovered
-                queue = []
-                candidates = specializations.map { |spec| spec.composition }.
-                    find_all do |child_composition|
-                        # Note that the 'new' models in +child_composition+ are
-                        # all in child_composition.children
-                        recurse = true
-                        valid   = false
-                        child_composition.each_child do |child_name, child_definition|
-                            selected_model = selected_models[child_name]
-                            # no explicit selection for this child, ignore
-                            next if !selected_model
+            # The mapping must be a mapping from child name to a set of models
+            def find_all_specializations(selection)
+                candidates = ValueSet.new
+                specializations.each do |mapping, composition|
+                    next if candidates.include?(composition)
 
-                            selected_model = selected_model.first
-
-                            # Look first at ourselves. If the component submodel
-                            # is not an improvement on this particular child,
-                            # do not select it
-                            our_child_model = find_child(child_name).models
-                            comparison_with_ourselves = compare_model_sets(our_child_model, child_definition.models)
-                            comparison_with_selection = compare_model_sets(child_definition.models, [selected_model])
-                            if !comparison_with_selection
-                                recurse = false
-                                valid = false
-                                break
-                            elsif comparison_with_selection && comparison_with_ourselves == 1
-                                valid = true
+                    valid = mapping.all? do |child_name, child_models|
+                        selected_models = selection[child_name]
+                        if selected_models
+                            # There is an explicit selection on +self+. Make
+                            # sure that the specialization covers it
+                            selected_models.all? do |selected_m|
+                                selected_m.fullfills?(child_models)
                             end
+                        else
+                            true
                         end
-
-                        queue << child_composition if recurse
-                        valid
                     end
 
-                # Recursively apply to find the specializations of
-                # specializations
-                queue.each do |composition|
-                    candidates.concat(composition.
-                          find_specializations(selected_models))
+                    if valid
+                        candidates << composition
+                    end
                 end
+                candidates
+            end
 
-                SystemModel.debug do
-                    SystemModel.debug "found #{candidates.size} specializations for #{name}"
-                    SystemModel.debug "  on #{short_name}"
-                    SystemModel.debug "  against"
-                    selected_models.each do |specialized_child_name, (specialized_child_model, _)|
-                        SystemModel.debug "    #{specialized_child_name} => #{specialized_child_model.short_name}"
-                    end
-                    candidates.each do |c|
-                        SystemModel.debug "  #{c.short_name}"
+            # Returns the most specialized compositions that are valid for the
+            # provided mapping
+            #
+            # Unlike #find_all_specializations, it really only returns the most
+            # specialized compositions, i.e. the leaves in the model graph
+            def find_specializations(selected_models)
+                Engine.debug do
+                    Engine.debug "looking for specializations of #{short_name} on"
+                    selected_models.each do |selector, m|
+                        selector = selector.short_name if selector.respond_to?(:short_name)
+                        Engine.debug "  #{selector} => #{m.map(&:short_name).join(", ")}"
                     end
                     break
                 end
 
-                result = find_most_specialized_compositions(
-                    candidates, selected_models.keys)
-
-                # Don't bother doing more if there is no ambiguity left
-                if result.size < 2
-                    return result
+                raw_candidates = find_all_specializations(selected_models)
+                candidates = raw_candidates.dup
+                raw_candidates.each do |m|
+                    candidates -= m.parent_models
                 end
+
+                Engine.debug do
+                    Engine.debug "  initial results:"
+                    raw_candidates.each do |m|
+                        Engine.debug "    #{m.short_name} (leaf=#{candidates.include?(m)})"
+                    end
+                    break
+                end
+
 
                 all_filtered_results = Hash.new
 
@@ -1083,7 +1058,7 @@ module Orocos
 
                     selected_facet = selected_child_model.selected_facet
 
-                    preferred_models = result.find_all do |composition_model|
+                    preferred_models = candidates.find_all do |composition_model|
                         composition_model.specialized_on?(child_name, selected_facet)
                     end
 
@@ -1103,13 +1078,13 @@ module Orocos
                         end
                         raise IncompatibleFacetedSelection.new(self, facets, all_filtered_results), "inconsistent use of faceted selection"
                     end
-                    result = filtered_out
+                    candidates = filtered_out
                 end
 
                 # We now look at default specializations. Compositions that have
                 # certain specializations are preferred over other.
                 each_default_specialization do |child_name, default_child_model|
-                    preferred_models = result.find_all do |composition_model|
+                    preferred_models = candidates.find_all do |composition_model|
                         composition_model.specialized_on?(child_name, default_child_model)
                     end
 
@@ -1124,7 +1099,7 @@ module Orocos
                 if filtered_out && !filtered_out.empty?
                     return filtered_out.to_a
                 else
-                    return result
+                    return candidates
                 end
             end
 
@@ -1148,13 +1123,14 @@ module Orocos
             #    only for ports that have the same name.
             #
             def autoconnect(*names)
-                @autoconnect = if names.empty? 
-                                   each_child.map { |n, _| n }
-                               else names
-                               end
+                @autoconnect =
+                    if names.empty? 
+                        each_child.map { |n, _| n }
+                    else names
+                    end
 
-                specializations.each do |spec|
-                    spec.composition.autoconnect
+                specializations.each_value do |spec|
+                    spec.autoconnect(*names)
                 end
             end
 
@@ -1170,16 +1146,23 @@ module Orocos
 
             # Computes the connections specified by #autoconnect
             def compute_autoconnection(force = false)
+                if !force && automatic_connections
+                    return self.automatic_connections
+                end
+
+                parent_connections = Hash.new
                 if superclass.respond_to?(:compute_autoconnection)
-                    superclass.compute_autoconnection(force)
+                    parent_connections = superclass.compute_autoconnection(force)
                 end
 
                 if @autoconnect && !@autoconnect.empty?
                     if force || !automatic_connections
                         do_autoconnect(@autoconnect)
+                    else
+                        self.automatic_connections
                     end
                 else
-                    self.automatic_connections = Hash.new
+                    self.automatic_connections = map_connections(parent_connections)
                 end
             end
 
@@ -1195,6 +1178,23 @@ module Orocos
             # It raises AmbiguousAutoConnection if there is more than one
             # candidate for an input port.
             def do_autoconnect(children_names)
+                parent_autoconnections =
+                    if (superclass < Composition)
+                        map_connections(superclass.compute_autoconnection)
+                    else Hash.new
+                    end
+
+                SystemModel.debug do
+                    SystemModel.debug "computing autoconnections on #{short_name}"
+                    SystemModel.debug "  parent connections:"
+                    parent_autoconnections.each do |(child_out, child_in), mappings|
+                        mappings.each do |(port_out, port_in), policy|
+                            SystemModel.debug "    #{child_out}:#{port_out} => #{child_in}: #{port_in} [#{policy}]"
+                        end
+                    end
+                    break
+                end
+
                 result = Hash.new { |h, k| h[k] = Hash.new }
 
                 # First, gather per-type available inputs and outputs. Both
@@ -1227,17 +1227,25 @@ module Orocos
                     end
                 end
 
+
+                existing_inbound_connections = Set.new
+                (each_explicit_connection.to_a + parent_autoconnections.to_a).
+                    each do |(_, child_in), mappings|
+                        mappings.each_key do |_, port_in|
+                            existing_inbound_connections << [child_in, port_in]
+                        end
+                    end
+
                 # Now create the connections
                 child_inputs.each do |typename, in_ports|
                     in_ports.each do |in_child_name, in_port_name|
                         # Ignore this port if there is an explicit inbound connection that involves it
-                        has_explicit_connection = each_explicit_connection.any? do |(child_source, child_dest), mappings|
-                            child_dest == in_child_name && mappings.keys.find { |port_pair| port_pair[1] == in_port_name }
-                        end
-                        next if has_explicit_connection
+                        next if existing_inbound_connections.include?([in_child_name, in_port_name])
 
                         # Now remove the potential connections to the same child
-                        out_ports = child_outputs[typename]
+                        # We need to #dup as we modify the hash (delete_if just
+                        # below)
+                        out_ports = child_outputs[typename].dup
                         out_ports.delete_if do |out_child_name, out_port_name|
                             out_child_name == in_child_name
                         end
@@ -1247,19 +1255,29 @@ module Orocos
                         # candidate that has the same name. If there is one,
                         # pick it. Otherwise, raise an exception
                         if out_ports.size > 1
-                            # Check for port name
+                            # Check for identical port name
                             same_name = out_ports.find_all { |_, out_port_name| out_port_name == in_port_name }
                             if same_name.size == 1
                                 out_ports = same_name
-                            else
-                                error = AmbiguousAutoConnection.new(
-                                    self, typename,
-                                    [[in_child_name, in_port_name]],
-                                    out_ports)
-
-                                out_port_names = out_ports.map { |child_name, port_name| "#{child_name}.#{port_name}" }
-                                raise error, "multiple output candidates in #{name} for the input port #{in_child_name}.#{in_port_name} (of type #{typename}): #{out_port_names.join(", ")}"
                             end
+
+                            # Check for child name
+                            includes_child_name = out_ports.find_all do |out_child_name, _|
+                                in_port_name =~ /#{Regexp.quote(out_child_name)}/
+                            end
+                            if includes_child_name.size == 1
+                                out_ports = includes_child_name
+                            end
+                        end
+
+                        if out_ports.size > 1
+                            error = AmbiguousAutoConnection.new(
+                                self, typename,
+                                [[in_child_name, in_port_name]],
+                                out_ports)
+
+                            out_port_names = out_ports.map { |child_name, port_name| "#{child_name}.#{port_name}" }
+                            raise error, "multiple output candidates in #{name} for the input port #{in_child_name}.#{in_port_name} (of type #{typename}): #{out_port_names.join(", ")}"
                         end
 
                         out_port = out_ports.first
@@ -1277,7 +1295,7 @@ module Orocos
                     break
                 end
 
-                self.automatic_connections = result
+                self.automatic_connections = result.merge(parent_autoconnections)
             end
 
             # Returns the set of connections that should be created during the
@@ -1305,6 +1323,31 @@ module Orocos
                     result[key].merge!(mappings)
                 end
                 result
+            end
+
+            def map_connections(connections)
+                result = Hash.new
+                connections.each do |(child_name_out, child_name_in), mappings|
+                    child_out = find_child(child_name_out)
+                    child_in  = find_child(child_name_in)
+
+                    mapped = Hash.new
+                    mappings.each do |(port_name_out, port_name_in), options|
+                        port_name_out = (child_out.port_mappings[port_name_out] || port_name_out)
+                        port_name_in  = (child_in.port_mappings[port_name_in]   || port_name_in)
+                        mapped[[port_name_out, port_name_in]] = options
+                    end
+                    result[[child_name_out, child_name_in]] = mapped
+                end
+                result
+            end
+
+            def each_automatic_connection(&block)
+                automatic_connections.each(&block)
+            end
+
+            def each_explicit_connection(&block)
+                map_connections(each_unmapped_explicit_connection).each(&block)
             end
 
             # Export the given port to the boundary of the composition (it
@@ -1425,7 +1468,7 @@ module Orocos
                     if !in_p.kind_of?(CompositionChildInputPort)
                         raise ArgumentError, "#{in_p.name} is an input port of #{in_p.child.child_name}. The correct syntax is 'connect output => input'"
                     end
-                    explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.name, in_p.name] ] = options
+                    unmapped_explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.name, in_p.name] ] = options
                 end
             end
 
@@ -1556,11 +1599,15 @@ module Orocos
                 end
 
                 if task_model = models.find { |t| t < Roby::Task }
-                    model = Class.new(task_model)
-                    class << model
-                        abstract
-                        def proxied_data_service
-                            self.model.data_services.values
+                    model = task_model.specialize("proxy_" + models.map(&:short_name).join("_"))
+                    model.abstract
+                    model.class_eval do
+                        @proxied_data_services = [task_model, *models]
+                        def self.proxied_data_services
+                            @proxied_data_services
+                        end
+                        def proxied_data_services
+                            self.model.proxied_data_services
                         end
                     end
                 else
@@ -1585,19 +1632,23 @@ module Orocos
                 required_services.each do |required|
                     next if !required.kind_of?(DataServiceModel)
                     candidate_services =
-                        task_model.each_data_service.find_all do |name, srv|
-                            srv.model.fullfills?(required)
-                        end
+                        task_model.find_all_services_from_type(required)
+
+                    if task_model.respond_to?(:selected_facet)
+                        subselection = task_model.selected_facet
+                        candidate_services.delete_if { |m| !m.fullfills?(subselection) }
+                    end
 
                     if candidate_services.size > 1
                         throw :invalid_selection if !user_call
-                        raise AmbiguousServiceSelection.new(self, child_name, task_model, required, candidate_services),
-                            "multiple services fullfill #{required.name} on #{task_model.name}: #{candidate_services.map(&:first).join(", ")}"
+                        raise AmbiguousServiceMapping.new(self, child_name, task_model, required, candidate_services),
+                            "multiple services fullfill #{required.name} on #{task_model.name}: #{candidate_services.join(", ")}"
                     elsif candidate_services.empty?
                         throw :invalid_selection if !user_call
-                        raise Ambiguous, "there is no service of #{task_model.name} that provide #{required.name}, for the child #{child_name} of #{self.name}"
+                        raise NoMatchingService.new(self, child_name, task_model, required),
+                            "there is no service of #{task_model.name} that provide #{required.name}, for the child #{child_name} of #{self.name}"
                     end
-                    result << candidate_services.first[1]
+                    result << candidate_services.first
                 end
                 result
             end
@@ -1619,7 +1670,7 @@ module Orocos
             #
             # selected_object::
             #   if given by name, it can either be a device name, or the name
-            #   given to a task instance in Engine#add. Otherwise, it can either
+            #   given to a task instance in Engine#add. Otherwise, it can eithe
             #   be a task model (as a class object) or a task instance (as a
             #   Component instance).
             #
@@ -1719,11 +1770,12 @@ module Orocos
             #
             # See also #acceptable_selection?
             def verify_acceptable_selection(child_name, selected_model, user_call = true) # :nodoc:
-                dependent_model = find_child(child_name).models
+                dependent_model = find_child(child_name)
                 if !dependent_model
                     raise ArgumentError, "#{child_name} is not the name of a child of #{self}"
                 end
 
+                dependent_model = dependent_model.models
                 if !selected_model.fullfills?(dependent_model)
                     throw :invalid_selection if !user_call
                     raise InvalidSelection.new(self, child_name, selected_model, dependent_model),
@@ -1771,7 +1823,11 @@ module Orocos
                     # selected task
                     port_mappings = Hash.new
                     if !selected_services.empty?
-                        port_mappings = selected_services.inject(port_mappings) { |mappings, srv| mappings.merge(srv.port_mappings.dup) }
+                        selected_services.each do |srv|
+                            if existing_mappings = child_model.port_mappings_for(srv.model)
+                                port_mappings = SystemModel.merge_port_mappings(port_mappings, existing_mappings)
+                            end
+                        end
                     end
 
                     Engine.debug do
@@ -1816,7 +1872,10 @@ module Orocos
             # Returns the set of specializations that match +using_spec+
             def narrow(using_spec)
                 user_selection, _ = find_children_models_and_tasks(using_spec)
-                find_specializations(user_selection)
+
+                spec = Hash.new
+                user_selection.each { |name, selection| spec[name] = [selection.first] }
+                find_specializations(spec)
             end
 
             ##
@@ -1886,7 +1945,9 @@ module Orocos
                 user_selection, selected_models = find_children_models_and_tasks(user_selection)
 
                 # Find the specializations that apply
-                candidates = find_specializations(user_selection)
+                find_specialization_spec = Hash.new
+                user_selection.each { |name, sel| find_specialization_spec[name] = [sel.first] }
+                candidates = find_specializations(find_specialization_spec)
 
                 # Now, check if some of our specializations apply to
                 # +selected_models+. If there is one, call #instanciate on it
@@ -1911,8 +1972,19 @@ module Orocos
                 children_tasks = Hash.new
                 selected_models.each do |child_name, (child_model, child_task, port_mappings)|
                     if port_mappings && !port_mappings.empty?
-                        Orocos.debug { "applying port mappings for #{child_name}: #{port_mappings.inspect}" }
+                        Engine.debug do
+                            Engine.debug "applying port mappings for #{child_name}"
+                            port_mappings.each do |from, to|
+                                Engine.debug "  #{from} => #{to}"
+                            end
+                            break
+                        end
                         apply_port_mappings(connections, child_name, port_mappings)
+                    else
+                        Engine.debug do
+                            Engine.debug "no port mappings for #{child_name}"
+                            break
+                        end
                     end
 
                     role = [child_name].to_set
@@ -2012,10 +2084,15 @@ module Orocos
             inherited_enumerable(:default_specialization, :default_specializations, :map => true) { Hash.new }
 
             # The set of connections specified by the user for this composition
-            inherited_enumerable(:explicit_connection, :explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
+            inherited_enumerable(:unmapped_explicit_connection, :unmapped_explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
             # The set of connections automatically generated by
             # compute_autoconnection
-            inherited_enumerable(:automatic_connection, :automatic_connections)
+            #
+            # #do_autoconnect computes all connections for the +self+ model, so
+            # there is no need to use inherited_enumerable here
+            class << self
+                attr_accessor :automatic_connections
+            end
 
             # Outputs exported from this composition
             inherited_enumerable(:exported_output, :exported_outputs, :map => true)  { Hash.new }

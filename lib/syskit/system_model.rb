@@ -4,6 +4,52 @@ module Orocos
             extend Logger::Forward
             extend Logger::Hierarchy
 
+            # Safe port mapping merging implementation
+            #
+            # It verifies that there is no conflicting mappings, and if there
+            # are, raises Ambiguous
+            def self.merge_port_mappings(a, b)
+                a.merge(b) do |source, target_a, target_b|
+                    if target_a != target_b
+                        raise Ambiguous, "merging conflicting port mappings: #{source} => #{target_a} and #{source} => #{target_b}"
+                    end
+                    target_a
+                end
+            end
+
+            # Updates the port mappings in +result+ by applying +new_mappings+
+            # on +old_mappings+
+            #
+            # +result+ and +old_mappings+ map service models to the
+            # corresponding port mappings, of the form from => to
+            #
+            # +new_mappings+ is a new name mapping of the form from => to
+            #
+            # The method updates result by applying +new_mappings+ to the +to+
+            # fields in +old_mappings+, saving the resulting mappins in +result+
+            def self.update_port_mappings(result, new_mappings, old_mappings)
+                old_mappings.each do |service, mappings|
+                    updated_mappings = Hash.new
+                    mappings.each do |from, to|
+                        updated_mappings[from] = new_mappings[to] || to
+                    end
+                    result[service] =
+                        SystemModel.merge_port_mappings(result[service] || Hash.new, updated_mappings)
+                end
+            end
+
+            def self.log_array(level, first_header, header, array)
+                first = true
+                array.each do |line|
+                    if first
+                        send(level, "#{first_header}#{line}")
+                        first = false
+                    else
+                        send(level, "#{header}#{line}")
+                    end
+                end
+            end
+
             include CompositionModel
 
             def initialize
@@ -156,9 +202,11 @@ module Orocos
                         raise ArgumentError, "parent model #{options[:provides]} does not exist"
                     end
                 end
-                model = parent_model.new_submodel(name, :system_model => self, :interface => options[:interface])
+                model = parent_model.new_submodel(name,
+                        :system_model => self,
+                        :interface => options[:interface])
                 if block_given?
-                    model.interface(&block)
+                    model.apply_block(&block)
                 end
 
                 register_data_service(model)
@@ -222,23 +270,15 @@ module Orocos
                     end
 
                 elsif options[:provides].nil?
-                    begin
+                    if has_data_service?(name)
                         parents = [data_service_model(name)]
-                    rescue NameError
+                    else
                         parents = [self.data_service_type(name, :interface => options[:interface])]
                     end
                 end
 
                 if parents
-                    parents.each { |p| source_model.include(p) }
-
-                    interfaces = parents.find_all { |p| p.interface }
-                    child_spec = source_model.create_orogen_interface
-                    if options[:interface]
-                        child_spec.subclasses options[:interface].orogen_spec.name
-                    end
-                    RobyPlugin.merge_orogen_interfaces(child_spec, interfaces)
-                    source_model.instance_variable_set :@orogen_spec, child_spec
+                    parents.each { |p| source_model.provides(p) }
                 end
 
                 register_data_source(source_model)
@@ -340,11 +380,9 @@ module Orocos
                 #
                 # Note: we must NOT move that to #new_submodel as #new_submodel
                 # is used to create specializations as well !
-                options[:child_of].specializations.each do |spec|
-                    spec.specialized_children.each do |name, model|
-                        spec.definition_blocks.each do |block|
-                            new_model.specialize(name, model, &block)
-                        end
+                options[:child_of].specializations.each_value do |spec|
+                    spec.definition_blocks.each do |block|
+                        new_model.specialize(spec.specialized_children, &block)
                     end
                 end
 
@@ -364,8 +402,9 @@ module Orocos
                     pp.breakable
                     each_composition.sort_by(&:name).
                         each do |composition_model|
-                            superclass = composition_model.parent_model
-                            inheritance[superclass.name] << composition_model.name
+                            composition_model.parent_models.each do |superclass|
+                                inheritance[superclass.name] << composition_model.name
+                            end
                             composition_model.pretty_print(pp)
                             pp.breakable
                         end
@@ -410,10 +449,23 @@ module Orocos
                     end
                 end
 
+                if !model.is_specialization?
+                    specializations = model.each_specialization.to_a
+                    model.specializations.each do |spec, specialized_model|
+                        composition_to_dot(io, specialized_model)
+
+                        specialized_model.parent_models.each do |parent_compositions|
+                            parent_id = parent_compositions.object_id
+                            specialized_id = specialized_model.object_id
+                            io << "C#{parent_id} -> C#{specialized_id} [ltail=cluster_#{parent_id} lhead=cluster_#{specialized_id} weight=2];"
+                        end
+                    end
+                end
+
                 io << "subgraph cluster_#{id} {"
                 io << "  fontsize=18;"
                 io << "  C#{id} [style=invisible];"
-                label = [model.name.dup]
+                label = [model.short_name.dup]
                 provides = model.each_data_service.map do |name, type|
                     "#{name}:#{type.name}"
                 end
@@ -431,10 +483,10 @@ module Orocos
                     child_model = child_definition.models
 
                     label = "{{"
-                    task_label = child_model.map { |m| m.name }.join(',')
+                    task_label = child_model.map(&:short_name).join(',')
                     task_label = "#{child_name}[#{task_label}]"
 
-                    inputs = child_model.map { |m| m.each_input.map(&:name) }.
+                    inputs = child_model.map { |m| m.each_input_port.map(&:name) }.
                         inject(&:concat).to_set
                     if !inputs.empty?
                         label << inputs.map do |port_name|
@@ -444,7 +496,7 @@ module Orocos
                     end
                     label << "<main> #{task_label}"
 
-                    outputs = child_model.map { |m| m.each_output.map(&:name) }.
+                    outputs = child_model.map { |m| m.each_output_port.map(&:name) }.
                         inject(&:concat).to_set
                     if !outputs.empty?
                         label << "|"
@@ -458,15 +510,6 @@ module Orocos
                     #io << "  C#{id} -> C#{id}#{child_name}"
                 end
                 io << "}"
-
-                if !model.specializations.empty?
-                    model.specializations.each do |specialized_model|
-                        specialized_id = specialized_model.composition.object_id
-                        io << "C#{id} -> C#{specialized_id} [ltail=cluster_#{id} lhead=cluster_#{specialized_id} weight=2];"
-
-                        composition_to_dot(io, specialized_model.composition)
-                    end
-                end
             end
 
             # Returns a graphviz file that can be processed by 'dot', which

@@ -39,6 +39,22 @@ module Orocos
                     end
             end
 
+            def to_s
+                "#<ProvidedDataService: #{component_model.short_name} #{full_name}>"
+            end
+
+            def fullfills?(model)
+                self.model.fullfills?(model)
+            end
+
+            def port_mappings_for_task
+                port_mappings_for(model)
+            end
+
+            def port_mappings_for(service_model)
+                port_mappings[service_model]
+            end
+
             def config_type
                 model.config_type
             end
@@ -504,10 +520,11 @@ module Orocos
                     result[port.name] = mapping
                 end
 
-                # 1. check if the task model has a port with the same name
+                # 1. check if the task model has a port with the same name and
+                #    same type
                 remaining.delete_if do |port|
                     component_port = service.component_model.
-                        send("#{direction}_port", port.name)
+                        send("find_#{direction}_port", port.name)
                     if component_port && component_port.type == port.type
                         used_ports << component_port.name
                         result[port.name] = port.name
@@ -557,6 +574,43 @@ module Orocos
                 end
             end
 
+            # Finds a single service that provides +type+
+            #
+            # If multiple services exist with that signature, raises
+            # AmbiguousServiceSelection
+            def self.find_service_from_type(type)
+                candidates = find_all_services_from_type(type)
+                if candidates.size > 1
+                    raise AmbiguousServiceSelection.new(self, type, candidates),
+                        "multiple services match #{type.short_name} on #{short_name}"
+                elsif candidates.size == 1
+                    return candidates.first
+                end
+            end
+
+            # Finds all the services that fullfill the given service type
+            def self.find_all_services_from_type(type)
+                result = []
+                each_data_service do |_, m|
+                    result << m if m.fullfills?(type)
+                end
+                result
+            end
+
+            # Returns the port mappings that are required by the usage of this
+            # component as a service of type +service_type+
+            #
+            # If no name are given, the method will raise
+            # AmbiguousServiceSelection if there are multiple services of the
+            # given type
+            def self.port_mappings_for(service_type)
+                service = find_service_from_type(service_type)
+                if !service
+                    raise ArgumentError, "#{short_name} does not provide a service of type #{service_type.short_name}"
+                end
+
+                service.port_mappings_for(service_type).dup
+            end
 
             # Compute the port mapping from the interface of 'service' onto the
             # ports of 'self'
@@ -565,7 +619,7 @@ module Orocos
             #
             #   service_interface_port_name => task_model_port_name
             #
-            def self.compute_port_mappings(service, explicit_mappings)
+            def self.compute_port_mappings(service, explicit_mappings = Hash.new)
                 normalized_mappings = Hash.new
                 explicit_mappings.each do |from, to|
                     from = from.to_s if from.kind_of?(Symbol)
@@ -682,8 +736,11 @@ module Orocos
                 end
                 begin
                     new_port_mappings = compute_port_mappings(service, arguments)
-                    service.port_mappings.
-                        merge!(new_port_mappings)
+                    service.port_mappings[model] = new_port_mappings
+
+                    # Now, adapt the port mappings from +model+ itself and map
+                    # them into +service.port_mappings+
+                    SystemModel.update_port_mappings(service.port_mappings, new_port_mappings, service.port_mappings)
 
                     # Remove from +arguments+ the items that were port mappings
                     new_port_mappings.each do |from, to|
@@ -775,7 +832,7 @@ module Orocos
 
             def user_required_model
                 if model.respond_to?(:proxied_data_services)
-                    model.proxied_data_services.map(&:model)
+                    model.proxied_data_services
                 else
                     [model]
                 end

@@ -17,10 +17,15 @@ module Orocos
         extend Logger::Hierarchy
 
         # Merge the given orogen interfaces into one subclass
-        def self.merge_orogen_interfaces(target, interfaces)
+        def self.merge_orogen_interfaces(target, interfaces, port_mappings = Hash.new)
             interfaces.each do |i|
                 target.implements i.name
-                target.merge_ports_from(i)
+                target.merge_ports_from(i, port_mappings)
+
+                i.each_event_port do |port|
+                    target_name = port_mappings[port.name] || port.name
+                    target.port_driven target_name
+                end
             end
         end
 
