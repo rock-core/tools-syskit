@@ -109,8 +109,8 @@ module Orocos
             #
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_output_port(name)
-                if !model.output_port(name)
-                    if model.dynamic_output_port?(name)
+                if !model.find_output_port(name)
+                    if model.has_dynamic_output_port?(name)
                         instanciate_dynamic_output(name)
                     else
                         raise ArgumentError, "#{self} has no output port called #{name}"
@@ -123,8 +123,8 @@ module Orocos
             #
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_input_port(name)
-                if !model.input_port(name)
-                    if model.dynamic_input_port?(name)
+                if !model.find_input_port(name)
+                    if model.has_dynamic_input_port?(name)
                         instanciate_dynamic_input(name)
                     else
                         raise ArgumentError, "#{self} has no input port called #{name}"

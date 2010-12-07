@@ -43,37 +43,55 @@ module Orocos
                 model.config_type
             end
 
+            def has_output_port?(name)
+                each_output_port.find { |p| p.name == name }
+            end
+
+            def has_input_port?(name)
+                each_input_port.find { |p| p.name == name }
+            end
+
             # Yields the port models for this service's input, applied on the
             # underlying task. I.e. applies the port mappings to the service
             # definition
-            def each_input
+            def each_input_port
                 if block_given?
-                    model.each_input do |input_port|
+                    port_mappings = port_mappings_for(model)
+                    model.each_input_port do |input_port|
                         port_name = input_port.name
                         if mapped_port = port_mappings[port_name]
                             port_name = mapped_port
                         end
-                        yield(component_model.input_port(port_name))
+                        p = component_model.find_input_port(port_name)
+                        if !p
+                            raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
+                        end
+                        yield(p)
                     end
                 else
-                    enum_for(:each_input)
+                    enum_for(:each_input_port)
                 end
             end
 
             # Yields the port models for this service's output, applied on the
             # underlying task. I.e. applies the port mappings to the service
             # definition
-            def each_output
+            def each_output_port
                 if block_given?
-                    model.each_output do |output_port|
+                    port_mappings = port_mappings_for(model)
+                    model.each_output_port do |output_port|
                         port_name = output_port.name
                         if mapped_port = port_mappings[port_name]
                             port_name = mapped_port
                         end
-                        yield(component_model.output_port(port_name))
+                        p = component_model.find_output_port(port_name)
+                        if !p
+                            raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
+                        end
+                        yield(p)
                     end
                 else
-                    enum_for(:each_output)
+                    enum_for(:each_output_port)
                 end
             end
 
@@ -243,55 +261,54 @@ module Orocos
 
             # Returns the port object that maps to the given name, or nil if it
             # does not exist.
-            def port(name)
+            def find_port(name)
                 name = name.to_str
-                output_port(name) || input_port(name)
+                find_output_port(name) || find_input_port(name)
+            end
+
+            def has_port?(name)
+                has_input_port?(name) || has_output_port?(name)
             end
 
             # Returns the output port with the given name, or nil if it does not
             # exist.
-            def output_port(name)
-                name = name.to_str
-                each_output.find { |p| p.name == name }
+            def find_output_port(name)
+                return if !respond_to?(:orogen_spec)
+                orogen_spec.find_output_port(name)
             end
 
             # Returns the input port with the given name, or nil if it does not
             # exist.
-            def input_port(name)
-                name = name.to_str
-                each_input.find { |p| p.name == name }
+            def find_input_port(name)
+                return if !respond_to?(:orogen_spec)
+                orogen_spec.find_input_port(name)
             end
 
             # Enumerates this component's output ports
-            def each_output(&block)
+            def each_output_port(&block)
                 return [].each(&block) if !respond_to?(:orogen_spec)
                 orogen_spec.each_output_port(&block)
             end
 
             # Enumerates this component's input ports
-            def each_input(&block)
+            def each_input_port(&block)
                 return [].each(&block) if !respond_to?(:orogen_spec)
                 orogen_spec.each_input_port(&block)
             end
 
             # Enumerates all of this component's ports
             def each_port(&block)
-                if block_given?
-                    each_input(&block)
-                    each_output(&block)
-                    self
-                else
-                    enum_for(:each_port)
-                end
+                return [].each(&block) if !respond_to?(:orogen_spec)
+                orogen_spec.each_port(&block)
             end
 
             # Returns true if +name+ is a valid output port name for instances
             # of +self+. If including_dynamic is set to false, only static ports
             # will be considered
             def has_output_port?(name, including_dynamic = true)
-                return true if output_port(name)
+                return true if find_output_port(name)
                 if including_dynamic
-                    dynamic_output_port?(name)
+                    has_dynamic_output_port?(name)
                 end
             end
 
@@ -299,9 +316,9 @@ module Orocos
             # +self+. If including_dynamic is set to false, only static ports
             # will be considered
             def has_input_port?(name, including_dynamic = true)
-                return true if input_port(name)
+                return true if find_input_port(name)
                 if including_dynamic
-                    dynamic_input_port?(name)
+                    has_dynamic_input_port?(name)
                 end
             end
 
@@ -316,8 +333,9 @@ module Orocos
             #
             # One can then match if a given string (+name+) matches one of the
             # dynamic output port declarations using this predicate.
-            def dynamic_output_port?(name)
-                orogen_spec.dynamic_output_port?(name)
+            def has_dynamic_output_port?(name)
+                return if !respond_to?(:orogen_spec)
+                orogen_spec.has_dynamic_output_port?(name)
             end
 
             # True if +name+ could be a dynamic input port name.
@@ -331,8 +349,9 @@ module Orocos
             #
             # One can then match if a given string (+name+) matches one of the
             # dynamic input port declarations using this predicate.
-            def dynamic_input_port?(name)
-                orogen_spec.dynamic_input_port?(name)
+            def has_dynamic_input_port?(name)
+                return if !respond_to?(:orogen_spec)
+                orogen_spec.has_dynamic_input_port?(name)
             end
 
             # Generic instanciation of a component. 
@@ -397,7 +416,7 @@ module Orocos
             # model has no port named like this.
             #
             # It may return an instanciated dynamic port
-            def output_port_model(name)
+            def find_output_port_model(name)
                 if port_model = model.orogen_spec.each_output_port.find { |p| p.name == name }
                     port_model
                 else instanciated_dynamic_outputs[name]
@@ -412,7 +431,7 @@ module Orocos
             # model has no port named like this.
             #
             # It may return an instanciated dynamic port
-            def input_port_model(name)
+            def find_input_port_model(name)
                 if port_model = model.orogen_spec.each_input_port.find { |p| p.name == name }
                     port_model
                 else instanciated_dynamic_inputs[name]
@@ -460,7 +479,7 @@ module Orocos
 
             # Helper method for compute_port_mappings
             def self.compute_directional_port_mappings(result, service, direction, explicit_mappings) # :nodoc:
-                remaining = service.model.send("each_#{direction}").to_a
+                remaining = service.model.send("each_#{direction}_port").to_a
 
                 used_ports = service.component_model.
                     send("each_data_service").
@@ -475,7 +494,7 @@ module Orocos
 
                     # Verify that the mapping is valid
                     component_port = service.component_model.
-                        send("#{direction}_port", mapping)
+                        send("find_#{direction}_port", mapping)
                     if !component_port
                         raise InvalidPortMapping, "the explicit mapping from #{port.name} to #{mapping} is invalid as #{mapping} is not an #{direction} port of #{service.component_model.name}"
                     end
@@ -499,7 +518,7 @@ module Orocos
                     current_size = remaining.size
                     remaining.delete_if do |port|
                         # 2. look at all ports that have the same type
-                        candidates = service.component_model.send("each_#{direction}").
+                        candidates = service.component_model.send("each_#{direction}_port").
                             find_all { |p| !used_ports.include?(p.name) && p.type == port.type }
                         if candidates.empty?
                             raise InvalidPortMapping, "no candidate to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
@@ -823,7 +842,7 @@ module Orocos
 
             def self.method_missing(name, *args)
                 if args.empty?
-                    if port = self.port(name)
+                    if port = self.find_port(name)
                         return port
                     elsif service = self.find_data_service(name.to_s)
                         return service

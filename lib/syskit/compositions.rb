@@ -99,11 +99,12 @@ module Orocos
             # name
             def method_missing(name, *args) # :nodoc:
                 if args.empty?
+                    name = name.to_s
                     composition.find_child(child_name).models.each do |child_model|
-                        if port = child_model.output_port(name)
-                            return CompositionChildOutputPort.new(self, port, name.to_str)
-                        elsif port = child_model.input_port(name)
-                            return CompositionChildInputPort.new(self, port, name.to_str)
+                        if port = child_model.find_output_port(name)
+                            return CompositionChildOutputPort.new(self, port, name)
+                        elsif port = child_model.find_input_port(name)
+                            return CompositionChildInputPort.new(self, port, name)
                         end
                     end
                 end
@@ -383,6 +384,9 @@ module Orocos
             # CompositionChildPort object that represents the port that is being
             # exported.
 
+            # Enumerates the input ports that are defined on this composition,
+            # i.e.  the ports created by #export
+            def each_input_port
             ##
             # :attr: specializations
             #
@@ -391,27 +395,34 @@ module Orocos
             # #specialize for more details
             attribute(:specializations) { Array.new }
 
-            def each_input
                 if block_given?
                     each_exported_input do |_, p|
                         yield(p)
                     end
                 else
-                    enum_for(:each_input)
+                    enum_for(:each_input_port)
                 end
             end
-            def find_input(name); find_exported_input(name) end
 
-            def each_output
+            # Returns the input port of this composition named +name+, or nil if
+            # there are none
+            def find_input_port(name); find_exported_input(name) end
+
+            # Enumerates the output ports that are defined on this composition,
+            # i.e.  the ports created by #export
+            def each_output_port
                 if block_given?
                     each_exported_output do |_, p|
                         yield(p)
                     end
                 else
-                    enum_for(:each_output)
+                    enum_for(:each_output_port)
                 end
             end
-            def find_output(name); find_exported_output(name) end
+
+            # Returns the output port of this composition named +name+, or nil
+            # if there are none
+            def find_output_port(name); find_exported_output(name) end
 
             # Returns the CompositionChild object that represents the given
             # child, or nil if it does not exist.
@@ -1181,7 +1192,7 @@ module Orocos
                     dependent_models = find_child(name).models
                     seen = Set.new
                     dependent_models.each do |sys|
-                        sys.each_input do |in_port|
+                        sys.each_input_port do |in_port|
                             next if seen.include?(in_port.name)
                             next if exported_port?(in_port)
                             next if autoconnect_ignores.include?([name, in_port.name])
@@ -1190,7 +1201,7 @@ module Orocos
                             seen << in_port.name
                         end
 
-                        sys.each_output do |out_port|
+                        sys.each_output_port do |out_port|
                             next if seen.include?(out_port.name)
                             next if exported_port?(out_port)
                             next if autoconnect_ignores.include?([name, out_port.name])
@@ -1307,7 +1318,7 @@ module Orocos
             def export(port, options = Hash.new)
                 options = Kernel.validate_options options, :as => port.name
                 name = options[:as].to_str
-                if self.port(name)
+                if self.find_port(name)
                     raise ArgumentError, "there is already a port named #{name} on #{short_name}"
                 end
 
@@ -1343,32 +1354,32 @@ module Orocos
             # Returns the port named 'name' in this composition
             #
             # See #export to create ports on a composition
-            def port(name)
+            def find_port(name)
                 name = name.to_str
-                (output_port(name) || input_port(name))
+                (find_output_port(name) || find_input_port(name))
             end
 
             # Returns the composition's output port named 'name'
             #
             # See #port, and #export to create ports on a composition
-            def output_port(name); find_exported_output(name.to_str) end
+            def find_output_port(name); find_exported_output(name.to_str) end
 
             # Returns the composition's input port named 'name'
             #
             # See #port, and #export to create ports on a composition
-            def input_port(name); find_exported_input(name.to_str) end
+            def find_input_port(name); find_exported_input(name.to_str) end
 
             # Returns true if +name+ is a valid dynamic input port.
             #
             # On a composition, it always returns false. This method is defined
             # for consistency for the other kinds of Component objects.
-            def dynamic_input_port?(name); false end
+            def has_dynamic_input_port?(name); false end
 
             # Returns true if +name+ is a valid dynamic output port.
             #
             # On a composition, it always returns false. This method is defined
             # for consistency for the other kinds of Component objects.
-            def dynamic_output_port?(name); false end
+            def has_dynamic_output_port?(name); false end
 
             # Explicitly create the given connections between children of this
             # composition.
@@ -2032,20 +2043,20 @@ module Orocos
             #   end
             #
             # then, once the composition is instanciated,
-            # test_task.output_port('output') will return src_task.output where
+            # test_task.find_output_port('output') will return src_task.output where
             # src_task is the actual component used for the Source child. If, at
             # the time of the call, no such component is present, then
             # output_port will return nil.
             #
             # See also #input_port
-            def output_port(name)
+            def find_output_port(name)
                 real_task, real_port = resolve_output_port(name)
-                real_task.output_port(real_port)
+                real_task.find_output_port(real_port)
             end
 
             # Helper method for #output_port and #resolve_port
             def resolve_output_port(name) # :nodoc:
-                if !(port = model.output_port(name))
+                if !(port = model.find_output_port(name))
                     raise ArgumentError, "no output port named '#{name}' on '#{self}'"
                 end
                 resolve_port(port)
@@ -2055,16 +2066,16 @@ module Orocos
             # an exported input, or returns nil if there is currently none.
             #
             # See #output_port for details.
-            def input_port(name)
+            def find_input_port(name)
                 real_task, real_port = resolve_input_port(name)
-                real_task.input_port(real_port)
+                real_task.find_input_port(real_port)
             end
 
             # Helper method for #output_port and #resolve_port
             #
             # It returns a component instance and a port name.
             def resolve_input_port(name) # :nodoc:
-                if !(port = model.input_port(name.to_str))
+                if !(port = model.find_input_port(name.to_str))
                     raise ArgumentError, "no input port named '#{name}' on '#{self}'"
                 end
                 resolve_port(port)

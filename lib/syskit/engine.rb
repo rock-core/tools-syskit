@@ -1930,10 +1930,10 @@ module Orocos
 
                 # Enumerate in/out ports on task of the bus datatype
                 message_type = Orocos.registry.get(com_bus.model.message_type).name
-                out_candidates = task.model.each_output.find_all do |p|
+                out_candidates = task.model.each_output_port.find_all do |p|
                     p.type.name == message_type
                 end
-                in_candidates = task.model.each_input.find_all do |p|
+                in_candidates = task.model.each_input_port.find_all do |p|
                     p.type.name == message_type
                 end
                 if out_candidates.empty? && in_candidates.empty?
@@ -2102,13 +2102,19 @@ module Orocos
                 triggering_dependencies = Hash.new { |h, k| h[k] = ValueSet.new }
                 deployed_tasks.each do |task|
                     result[task] = task.initial_ports_dynamics
-                    task.orogen_spec.context.event_ports.each do |port|
+
+                    # First, add all connections that will trigger the target
+                    # task
+                    task.orogen_spec.task_model.each_event_port do |port|
                         task.each_concrete_input_connection(port.name) do |from_task, from_port, to_port, _|
                             triggering_connections[task] << [from_task, from_port, to_port]
                             triggering_dependencies[task] << from_task
                         end
                     end
-                    task.orogen_spec.context.each_output_port do |port|
+                    
+                    # Then register the connections that will make one port be
+                    # updated
+                    task.orogen_spec.task_model.each_output_port do |port|
                         port.port_triggers.each do |port_trigger_name|
                             next if task.model.triggered_by?(port_trigger_name)
                             task.each_concrete_input_connection(port_trigger_name) do |from_task, from_port, to_port, _|
@@ -2142,7 +2148,7 @@ module Orocos
                         Engine.info do
                             "cannot compute port periods for:"
                             remaining.each do |task|
-                                port_names = task.model.each_input.map(&:name) + task.model.each_output.map(&:name)
+                                port_names = task.model.each_input_port.map(&:name) + task.model.each_output_port.map(&:name)
                                 port_names.delete_if { |port_name| result[task].has_key?(port_name) }
 
                                 Engine.info "    #{task}: #{port_names.join(", ")}"
@@ -2163,7 +2169,7 @@ module Orocos
                             end
                         end
                         ports.each do |port_name, dyn|
-                            port_model = task.model.port(port_name)
+                            port_model = task.model.find_port(port_name)
                             next if !port_model.kind_of?(Orocos::Generation::OutputPort)
 
                             Engine.debug "  #{port_name}"
@@ -2200,8 +2206,8 @@ module Orocos
                         end
 
 
-                        source_port = source_task.output_port_model(source_port_name)
-                        sink_port   = sink_task.input_port_model(sink_port_name)
+                        source_port = source_task.find_output_port_model(source_port_name)
+                        sink_port   = sink_task.find_input_port_model(sink_port_name)
                         if !source_port
                             raise InternalError, "#{source_port_name} is not a port of #{source_task.model}"
                         elsif !sink_port
@@ -2255,7 +2261,7 @@ module Orocos
             # static connections will be considered
             def all_inputs_connected?(task, only_static)
                 task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    if only_static && !task.input_port_model(sink_port).static?
+                    if only_static && !task.find_input_port_model(sink_port).static?
                         next
                     end
 
@@ -2397,7 +2403,7 @@ module Orocos
             def update_restart_set(set, source_task, sink_task, mappings)
                 if !set.include?(source_task)
                     needs_restart = mappings.any? do |source_port, sink_port|
-                        source_task.output_port_model(source_port).static? && source_task.running?
+                        source_task.find_output_port_model(source_port).static? && source_task.running?
                     end
                     if needs_restart
                         set << source_task
@@ -2406,7 +2412,7 @@ module Orocos
 
                 if !set.include?(sink_task)
                     needs_restart =  mappings.any? do |source_port, sink_port|
-                        sink_task.input_port_model(sink_port).static? && sink_task.running?
+                        sink_task.find_input_port_model(sink_port).static? && sink_task.running?
                     end
 
                     if needs_restart

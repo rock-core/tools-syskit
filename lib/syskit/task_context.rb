@@ -209,9 +209,9 @@ module Orocos
             # Orocos::Generation::InputPort instance
             def self.triggered_by?(port)
                 if port.respond_to?(:to_str)
-                    orogen_spec.event_ports.find { |p| p.name == port.to_str }
+                    !!orogen_spec.find_event_port(port.to_str)
                 else
-                    orogen_spec.event_ports.find { |p| p.name == port.name }
+                    !!orogen_spec.find_event_port(port.name)
                 end
 
             end
