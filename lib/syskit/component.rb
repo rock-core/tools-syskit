@@ -743,7 +743,7 @@ module Orocos
 
                     # Now, adapt the port mappings from +model+ itself and map
                     # them into +service.port_mappings+
-                    SystemModel.update_port_mappings(service.port_mappings, new_port_mappings, service.port_mappings)
+                    SystemModel.update_port_mappings(service.port_mappings, new_port_mappings, model.port_mappings)
 
                     # Remove from +arguments+ the items that were port mappings
                     new_port_mappings.each do |from, to|
