@@ -52,7 +52,10 @@ module Orocos
             end
 
             def port_mappings_for(service_model)
-                port_mappings[service_model]
+                if !(result = port_mappings[service_model])
+                    raise ArgumentError, "#{service_model} is not provided by #{model.short_name}"
+                end
+                result
             end
 
             def config_type
