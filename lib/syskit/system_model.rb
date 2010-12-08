@@ -115,6 +115,19 @@ module Orocos
                     end
             end
 
+            def each_data_source(&block)
+                if !block_given?
+                    return enum_for(:each_data_source)
+                end
+
+                Orocos::RobyPlugin::DataSources.constants.
+                    map { |name| Orocos::RobyPlugin::DataSources.const_get(name) }.
+                    find_all { |model| model.kind_of?(Module) && model < DataSource }.
+                    each do |model|
+                        yield(model)
+                    end
+            end
+
             # Enumerate the composition models that are available
             def each_composition(&block)
                 if !block_given?
