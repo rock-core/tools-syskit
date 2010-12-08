@@ -914,7 +914,7 @@ module Orocos
                     else
                         text = task.to_s
                         text = text.gsub('Orocos::RobyPlugin::', '').
-                            gsub(/\s+/, '').gsub('=>', ':')
+                            gsub(/\s+/, '').gsub('=>', ':').tr('<>', '[]')
                         result =
                             if text =~ /(.*)\/\[(.*)\](:0x[0-9a-f]+)/
                                 # It is a specialization, move the
@@ -931,6 +931,7 @@ module Orocos
                         result.gsub(/\s+/, '').gsub('=>', ':').
                             gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '<BR/>')
                     end
+                task_label.tr('<>', '[]')
 
                 if task.kind_of?(Deployment)
                     if task_colors[task]
