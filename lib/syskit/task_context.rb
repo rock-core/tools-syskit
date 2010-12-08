@@ -704,6 +704,7 @@ module Orocos
                 end
                 source_model = system_model.data_source_type model, arguments
                 multiplexed_drivers << [source_model, block, model, arguments]
+                source_model
             end
 
             # Declares that this task context model can be used as a driver for
