@@ -446,10 +446,6 @@ module Orocos
                 end
             end
 
-            def to_short_s
-                to_s.gsub /Orocos::RobyPlugin::/, ''
-            end
-
             # Returns the input port model for the given name, or nil if the
             # model has no port named like this.
             #
