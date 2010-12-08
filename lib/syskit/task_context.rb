@@ -818,6 +818,15 @@ module Orocos
                 klass.instance_variable_set :@state_events, state_events
                 klass
             end
+
+            def self.require_dynamic_service(service_model, options)
+                # Unlike #data_service, we need to add the service's interface
+                # to our own
+                RobyPlugin.merge_orogen_interfaces(orogen_spec, [service_model.orogen_spec])
+
+                # Then we can add the service
+                data_service(service_model, options)
+            end
         end
 
         # Placeholders used in the plan to represent a data service that has not
