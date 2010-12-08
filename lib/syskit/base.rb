@@ -31,7 +31,7 @@ module Orocos
 
         # Creates a blank orogen interface and returns it
         def self.create_orogen_interface(name)
-            basename = "roby_#{name}".camelcase(:upper)
+            basename = "roby_#{name.gsub(/[^\w]/, '_')}".camelcase(:upper)
 	    begin
 		Roby.app.main_orogen_project.find_task_context(basename)
                 basename << "_DD"
