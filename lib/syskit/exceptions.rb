@@ -12,14 +12,18 @@ module Orocos
         # interface
         class InvalidProvides < SpecError
             attr_reader :original_error
+            attr_reader :model
+            attr_reader :required_service
 
-            def initialize(original_error = nil)
-                @original_error = original_error
+            def initialize(model, required_service, original_error = nil)
+                @model = model
+                @required_service = required_service
+                @original_error   = original_error
                 super()
             end
 
             def pretty_print(pp)
-                pp.text message
+                pp.text "#{model.short_name} does not provide the '#{required_service.short_name}' service's interface"
                 if original_error
                     pp.nest(2) do
                         pp.breakable

@@ -542,7 +542,7 @@ module Orocos
                         candidates = service.component_model.send("each_#{direction}_port").
                             find_all { |p| !used_ports.include?(p.name) && p.type == port.type }
                         if candidates.empty?
-                            raise InvalidPortMapping, "no candidate to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
+                            raise InvalidPortMapping, "no candidate to map #{port.name}[#{port.type_name}] from #{service.name} onto #{short_name}"
                         elsif candidates.size == 1
                             used_ports << candidates.first.name
                             result[port.name] = candidates.first.name
@@ -553,7 +553,7 @@ module Orocos
                         name_rx = Regexp.new(service.name)
                         by_name = candidates.find_all { |p| p.name =~ name_rx }
                         if by_name.empty?
-                            raise InvalidPortMapping, "#{candidates.map(&:name)} are equally valid candidates to map #{port.name}[#{port.type_name}] from the '#{service.name}' service onto the #{name} task's interface"
+                            raise InvalidPortMapping, "#{candidates.map(&:name)} are equally valid candidates to map #{port.name}[#{port.type_name}] from the '#{service.name}' service onto the #{short_name} task's interface"
                         elsif by_name.size == 1
                             used_ports << by_name.first.name
                             result[port.name] = by_name.first.name
@@ -755,7 +755,7 @@ module Orocos
                         end
                     end
                 rescue InvalidPortMapping => e
-                    raise InvalidProvides.new(e), "#{self.name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
+                    raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
                 end
 
                 arguments.each do |key, value|
