@@ -155,11 +155,6 @@ module Orocos
                 end
             end
 
-            # DEPRECATED. Use #data_service
-            def data_service_type(*args, &block) # :nodoc:
-                data_service(*args, &block)
-            end
-
             # Creates a new data service model
             #
             # The returned value is an instance of DataServiceModel
@@ -181,7 +176,7 @@ module Orocos
             #   required interface.
             # config_type::
             #   the type of the configuration data structures
-            def data_service(name, options = Hash.new, &block)
+            def data_service_type(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
                     :child_of => nil,
                     :provides => nil,
@@ -215,11 +210,6 @@ module Orocos
                 model
             end
 
-            # DEPRECATED. Use data_source instead
-            def data_source_type(name, options = Hash.new)
-                data_source(name, options)
-            end
-
             # Create a new data source model
             #
             # The returned value is an instance of DataServiceModel in which
@@ -238,7 +228,7 @@ module Orocos
             #
             # If both provides and interface are provided, the interface must
             # match the data service's interface.
-            def data_source(name, options = Hash.new)
+            def data_source_type(name, options = Hash.new)
                 options, device_options = Kernel.filter_options options,
                     :provides => nil, :child_of => nil, :interface => nil
 
@@ -285,11 +275,6 @@ module Orocos
                 source_model
             end
 
-            # DEPRECATED use #com_bus
-            def com_bus_type(name, options = Hash.new) # :nodoc:
-                com_bus(name, options)
-            end
-
             # Creates a new communication bus model
             #
             # It accepts the same arguments than data_source. In addition, the
@@ -300,7 +285,7 @@ module Orocos
             #
             # The returned value is an instance of DataServiceModel, in which
             # ComBusDriver is included.
-            def com_bus(name, options  = Hash.new)
+            def com_bus_type(name, options  = Hash.new)
                 name = name.to_str
 
                 if has_data_source?(name)
