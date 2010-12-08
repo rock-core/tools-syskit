@@ -1972,13 +1972,16 @@ module Orocos
             end
 
             def link_task_to_bus(task, bus_name)
-                if !(com_bus = tasks[bus_name])
-                    raise SpecError, "there is no communication bus named #{bus_name}"
+                if !(com_bus_task = tasks[bus_name])
+                    raise SpecError, "there is no task that handles a communication bus named #{bus_name}"
                 end
-
                 # Assume that if the com bus is one of our dependencies,
                 # then it means we are already linked to it
-                return if task.depends_on?(com_bus)
+                return if task.depends_on?(com_bus_task)
+
+                if !(com_bus = robot.com_busses[bus_name])
+                    raise SpecError, "there is no communication bus named #{bus_name}"
+                end
 
                 # Enumerate in/out ports on task of the bus datatype
                 message_type = Orocos.registry.get(com_bus.model.message_type).name
@@ -1989,12 +1992,12 @@ module Orocos
                     p.type.name == message_type
                 end
                 if out_candidates.empty? && in_candidates.empty?
-                    raise SpecError, "#{task} is supposed to be connected to #{com_bus}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
+                    raise SpecError, "#{task} is supposed to be connected to #{bus_name}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
                 end
 
-                task.depends_on com_bus
+                task.depends_on com_bus_task
 
-                com_bus_in = com_bus.model.each_input_port.
+                com_bus_in = com_bus_task.model.each_input_port.
                     find_all { |p| p.type.name == message_type }
                 com_bus_in =
                     if com_bus_in.size == 1
@@ -2010,7 +2013,7 @@ module Orocos
                     source_model = source_service.model
                     next if !(source_model < DataSource)
                     device_spec = robot.devices[task.arguments["#{source_name}_name"]]
-                    next if !device_spec || !device_spec.com_busses.include?(bus_name)
+                    next if !device_spec || !device_spec.com_bus_names.include?(bus_name)
                     
                     in_ports  = in_candidates.
                         find_all { |p| p.name =~ /#{source_name}/i }
@@ -2018,24 +2021,24 @@ module Orocos
                         find_all { |p| p.name =~ /#{source_name}/i }
 
                     if in_ports.size > 1
-                        raise Ambiguous, "there are multiple options to connect #{com_bus.name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
+                        raise Ambiguous, "there are multiple options to connect #{bus_name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
                     elsif out_ports.size > 1
-                        raise Ambiguous, "there are multiple options to connect #{source_name} in #{task} to #{com_bus.name}: #{out_ports.map(&:name)}"
+                        raise Ambiguous, "there are multiple options to connect #{source_name} in #{task} to #{bus_name}: #{out_ports.map(&:name)}"
                     end
 
                     handled[source_name] = [!out_ports.empty?, !in_ports.empty?]
                     if !in_ports.empty?
                         port = in_ports.first
                         used_ports << port.name
-                        com_out_port = com_bus.output_name_for(source_name)
-                        com_bus.port_to_device[com_out_port] << device_spec.name
+                        com_out_port = com_bus.model.output_name_for(source_name)
+                        com_bus_task.port_to_device[com_out_port] << device_spec.name
                         in_connections[ [com_out_port, port.name] ] = Hash.new
                     end
                     if !out_ports.empty?
                         port = out_ports.first
                         used_ports << port.name
-                        com_in_port = com_bus_in || com_bus.input_name_for(source_name)
-                        com_bus.port_to_device[com_in_port] << device_spec.name
+                        com_in_port = com_bus_in || com_bus.model.input_name_for(source_name)
+                        com_bus_task.port_to_device[com_in_port] << device_spec.name
                         out_connections[ [port.name, com_in_port] ] = Hash.new
                     end
                 end
@@ -2050,28 +2053,28 @@ module Orocos
                     out_candidates.delete_if { |p| used_ports.include?(p.name) }
 
                     if in_candidates.size > 1
-                        raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                        raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{bus_name}"
                     elsif in_candidates.size == 1
-                        com_out_port = com_bus.output_name_for(generic_name)
-                        com_bus.port_to_device[com_out_port].concat(task.each_device_name.map(&:last))
+                        com_out_port = com_bus.model.output_name_for(generic_name)
+                        com_bus_task.port_to_device[com_out_port].concat(task.each_device_name.map(&:last))
                         in_connections[ [com_out_port, in_candidates.first.name] ] = Hash.new
                     end
 
                     if out_candidates.size > 1
-                        raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{com_bus}"
+                        raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{bus_name}"
                     elsif out_candidates.size == 1
                         # One generic output port
-                        com_in_port = com_bus_in || com_bus.input_name_for(generic_name)
-                        com_bus.port_to_device[com_in_port].concat(task.each_device_name.map(&:last))
+                        com_in_port = com_bus_in || com_bus.model.input_name_for(generic_name)
+                        com_bus_task.port_to_device[com_in_port].concat(task.each_device_name.map(&:last))
                         out_connections[ [out_candidates.first.name, com_in_port] ] = Hash.new
                     end
                 end
                 
                 if !in_connections.empty?
-                    com_bus.connect_ports(task, in_connections)
+                    com_bus_task.connect_ports(task, in_connections)
                 end
                 if !out_connections.empty?
-                    task.connect_ports(com_bus, out_connections)
+                    task.connect_ports(com_bus_task, out_connections)
                 end
 
                 # If the combus model asks us to do it, make sure all
@@ -2082,7 +2085,7 @@ module Orocos
                             needs_reliable_connection
                     end
                     out_connections.each_key do |_, sink_port|
-                        com_bus.find_input_port_model(sink_port).
+                        com_bus_task.find_input_port_model(sink_port).
                             needs_reliable_connection
                     end
                 end

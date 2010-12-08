@@ -212,14 +212,10 @@ module Orocos
                 end
                 model = parent_model.new_submodel(name,
                         :system_model => self,
-                        :interface => options[:interface])
-                if block_given?
-                    model.apply_block(&block)
-                end
+                        :interface => options[:interface],
+                        :config_type => options[:config_type], &block)
 
                 register_data_service(model)
-                model.instance_variable_set :@name, name
-                model.config_type = options[:config_type]
                 model
             end
 
@@ -253,8 +249,6 @@ module Orocos
                     raise ArgumentError, "there is already a device type #{name}"
                 end
 
-                source_model = DataSource.new_submodel(name, :interface => false)
-
                 if parents = options[:provides]
                     parents = [*parents].map do |parent|
                         if parent.respond_to?(:to_str)
@@ -280,10 +274,16 @@ module Orocos
                     end
                 end
 
-                if parents
-                    parents.each { |p| source_model.provides(p) }
-                end
+                # Find which of DataSource and ComBusDriver should be our parent
+                # ...
+                parent_model, options =
+                    if com_bus = parents.find { |m| m < ComBusDriver }
+                        [ComBusDriver, { :message_type => com_bus.message_type, :override_policy => com_bus.override_policy? }]
+                    else [DataSource, {}]
+                    end
 
+                source_model = parent_model.new_submodel(name, options.merge(:interface => false))
+                parents.each { |p| source_model.provides(p) }
                 register_data_source(source_model)
                 source_model
             end
@@ -304,9 +304,10 @@ module Orocos
                 if has_data_source?(name)
                     raise ArgumentError, "there is already a device driver called #{name}"
                 end
-
-                model = ComBusDriver.new_submodel(name, options.merge(:system_model => self))
+                model = ComBusDriver.new_submodel(
+                    name, options.merge(:system_model => self))
                 register_data_source(model)
+                model
             end
 
             # Creates a new task context model in this system model

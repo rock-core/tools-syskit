@@ -61,7 +61,8 @@ module Orocos
             #   [service_model, port] => target_port
             attribute(:port_mappings) { Hash.new }
 
-            # Return the config type for the instances of this service, if any
+            # Return the config type for the instances of this service, if there
+            # is one
             def config_type
                 ancestors = self.ancestors
                 for klass in ancestors
@@ -72,18 +73,28 @@ module Orocos
                 type
             end
 
+            # Returns the string that should be used to display information
+            # about this model to the user
             def short_name
                 name.gsub('Orocos::RobyPlugin::', '')
             end
 
+            def to_s # :nodoc:
+                "#<DataService: #{short_name}>"
+            end
+
             # Creates a new DataServiceModel that is a submodel of +self+
-            def new_submodel(name, options = Hash.new)
+            def new_submodel(name, options = Hash.new, &block)
                 options = Kernel.validate_options options,
-                    :type => self.class, :interface => nil, :system_model => nil
+                    :type => self.class,
+                    :interface => nil,
+                    :system_model => system_model,
+                    :config_type => nil
 
                 model = options[:type].new
                 model.name = name.dup
                 model.system_model = options[:system_model]
+                model.config_type = options[:config_type]
 
                 child_spec = model.create_orogen_interface
                 if options[:interface]
@@ -91,13 +102,36 @@ module Orocos
                 end
                 model.instance_variable_set :@orogen_spec, child_spec
                 model.provides self
+
+                if block_given?
+                    model.apply_block(&block)
+                end
                 model
             end
 
+            # Internal class used to apply configuration blocks to data
+            # services. I.e. when one does
+            #
+            #   data_service_type 'Type' do
+            #     input_port ...
+            #   end
+            #
+            # The given block is applied on an instance of BlockInstanciator
+            # that forwards the calls to, in order of preference, the interface
+            # and then the service
+            #
+            # One should not use BlockInstanciator directly. Use
+            # DataServiceModel#apply_block
             class BlockInstanciator < BasicObject
-                def initialize(service)
+                attr_reader :name
+                def initialize(service, name = nil)
                     @service = service
+                    @name = name || service.name
                     @interface = service.interface
+
+                    if !@interface
+                        raise InternalError, "no interface for #{service.name}"
+                    end
                 end
 
                 def method_missing(m, *args, &block)
@@ -108,10 +142,24 @@ module Orocos
                 end
             end
 
-            def apply_block(&block)
-                BlockInstanciator.new(self).instance_eval(&block)
+            # Applies a setup block on a service model
+            #
+            # If +name+ is given, that string will be reported as the service
+            # name in the block, instead of the actual service name
+            def apply_block(name = nil, &block)
+                BlockInstanciator.new(self, name).instance_eval(&block)
             end
 
+            # Returns the set of port mappings needed between +service_type+ and
+            # +self+
+            #
+            # In other words, if one wants to link port A from +service_type+ on
+            # a task that provides a service of type +self+, it should actually
+            # link to
+            #
+            #   actual_port_name = (port_mappings_for(service_type)['A'] || 'A')
+            #
+            # Raises ArgumentError if +self+ does not provide +service_type+
             def port_mappings_for(service_type)
                 result = port_mappings[service_type]
                 if !result
@@ -120,7 +168,19 @@ module Orocos
                 result
             end
 
+            # Declares that this data service model provides the given service
+            # model
+            #
+            # If no port mappings are given, it will mean that the ports defined
+            # by +service_model+ should be added to this service's interface.
+            #
+            # If port mappings are given, they define the mapping between
+            # ports in +service_model+ and existing ports in +self+
             def provides(service_model, new_port_mappings = Hash.new)
+                if parent_models.include?(service_model)
+                    return
+                end
+
                 include service_model
                 parent_models << service_model
 
@@ -140,10 +200,13 @@ module Orocos
                 end
             end
 
+            # Creates a new Orocos::Spec::TaskContext object for this service
             def create_orogen_interface
                 RobyPlugin.create_orogen_interface(name)
             end
 
+            # The Orocos::Spec::TaskContext object that is used to describe this
+            # service's interface
             attr_reader :orogen_spec
 
             def interface
@@ -171,25 +234,148 @@ module Orocos
 
             include ComponentModel
 
+            # Create a task instance that can be used in a plan to represent
+            # this service
+            #
+            # The returned task instance is obviously an abstract one
             def instanciate(*args, &block)
                 task_model.instanciate(*args, &block)
             end
+        end
+        DataService  = DataServiceModel.new
 
+        class DataSourceModel < DataServiceModel
             def to_s # :nodoc:
-                "#<DataService: #{name}>"
+                "#<DataSource: #{name}>"
+            end
+
+            def new_submodel(model, options = Hash.new)
+                model = super(model, options)
+                if device_configuration_module
+                    model.device_configuration_module = Module.new
+                    model.device_configuration_module.include(device_configuration_module)
+                end
+                model
+            end
+
+            attribute(:device_configuration_module)
+
+            # Requires that the given block is used to add methods to the
+            # device configuration objects.
+            #
+            # I.e. if a data source type is defined with
+            #    data_source_type('Test').
+            #       extend_device_configuration do
+            #           def valid?; false end
+            #       end
+            #
+            # Then the #valid? method will be available on device instances
+            # of the Test type:
+            #
+            #   device(Type).valid? => false
+            #
+            def extend_device_configuration(&block)
+                if block
+                    self.device_configuration_module ||= Module.new
+                    device_configuration_module.class_eval(&block)
+                end
+                self
+            end
+
+            # Applies the configuration extensions declaredwith
+            # #extend_device_configuration to the provided class
+            def apply_device_configuration_extensions(device_instance)
+                if device_configuration_module
+                    device_instance.extend(device_configuration_module)
+                end
             end
         end
+        DataSource   = DataSourceModel.new
 
-        DataService  = DataServiceModel.new
-        DataSource   = DataServiceModel.new
-        ComBusDriver = DataServiceModel.new
+        class ComBusDriverModel < DataSourceModel
+            def initialize(*args, &block)
+                super
+                @override_policy = true
+            end
+
+            def new_submodel(model, options = Hash.new)
+                bus_options, options = Kernel.filter_options options,
+                    :override_policy => override_policy?, :message_type => message_type
+
+                if !bus_options[:message_type]
+                    raise ArgumentError, "com bus types must have a message_type argument"
+                end
+
+                model = super(model, options)
+                model.override_policy = bus_options[:override_policy]
+                model.message_type    = bus_options[:message_type]
+                if attached_device_configuration_module
+                    model.attached_device_configuration_module = Module.new
+                    model.attached_device_configuration_module.include(attached_device_configuration_module)
+                end
+                model
+            end
+
+            # If true, the com bus autoconnection code will override the
+            # input port default policies to needs_reliable_connection
+            #
+            # It is true by default
+            attr_predicate :override_policy?, true
+            # The message type name
+            attr_accessor :message_type
+
+            def to_s # :nodoc:
+                "#<ComBusDriver: #{short_name}>"
+            end
+
+            attribute(:attached_device_configuration_module) { Module.new }
+
+            # Requires that the given block is used to add methods to the
+            # device configuration objects.
+            #
+            # I.e. if a combus type is defined with
+            #    com_bus_type('canbus').
+            #       extend_attached_device_configuration do
+            #           def can_id(id, mask)
+            #               @id, @mask = id, mask
+            #           end
+            #       end
+            #
+            # Then the #can_id method will be available on device instances
+            # that are attached to a canbus device
+            #
+            #   device(Type).attach_to(can).can_id(0x10, 0x10)
+            #
+            def extend_attached_device_configuration(&block)
+                if block
+                    attached_device_configuration_module.class_eval(&block)
+                end
+                self
+            end
+
+            # Applies the configuration extensions declaredwith
+            # #extend_device_configuration to the provided class
+            def apply_attached_device_configuration_extensions(device_instance)
+                if attached_device_configuration_module
+                    device_instance.extend(attached_device_configuration_module)
+                end
+            end
+
+            # The output port name for the +bus_name+ device attached on this
+            # bus
+            def output_name_for(bus_name)
+                bus_name
+            end
+
+            # The input port name for the +bus_name+ device attached on this bus
+            def input_name_for(bus_name)
+                "w#{bus_name}"
+            end
+        end
+        ComBusDriver = ComBusDriverModel.new
 
         module DataService
             @name = "Orocos::RobyPlugin::DataService"
-
-            def to_short_s
-                to_s.gsub /Orocos::RobyPlugin::/, ''
-            end
 
             module ClassExtension
                 def find_data_services(&block)
@@ -280,6 +466,8 @@ module Orocos
                 end
             end
 
+            extend ClassExtension
+
             # Returns true if +self+ can replace +target_task+ in the plan. The
             # super() call checks graph-declared dependencies (i.e. that all
             # dependencies that +target_task+ meets are also met by +self+.
@@ -328,14 +516,22 @@ module Orocos
                     # in +merged_task+ into the ports in +self+. We do that by
                     # moving the connections explicitely from +merged_task+ onto
                     # +self+
-                    merged_mappings = other_service.port_mappings_for_task.dup
-                    new_mappings    = target_service.port_mappings_for_task.dup
+                    merged_service_to_task = other_service.port_mappings_for_task.dup
+                    target_to_task         = target_service.port_mappings_for(other_service.model)
 
-                    new_mappings.each do |from, to|
-                        from = merged_mappings.delete(from) || from
+                    Engine.debug do
+                        Engine.debug "mapping service #{merged_task}:#{other_service.name}"
+                        Engine.debug "  to #{self}:#{target_service.name}"
+                        Engine.debug "  from->from_task: #{merged_service_to_task}"
+                        Engine.debug "  from->to_task:   #{target_to_task}"
+                        break
+                    end
+
+                    target_to_task.each do |from, to|
+                        from = merged_service_to_task.delete(from) || from
                         connection_mappings[from] = to
                     end
-                    merged_mappings.each do |from, to|
+                    merged_service_to_task.each do |from, to|
                         connection_mappings[to] = from
                     end
                 end
@@ -432,17 +628,34 @@ module Orocos
                     yield(other_selection, other_service, available_services.map(&:last))
                 end
             end
-
-            extend ClassExtension
         end
 
-        # Module that represents the device drivers in the task models. It
-        # defines the methods that are available on task instances. For
-        # methods that are available at the task model level, see
-        # DataSource::ClassExtension
+        # Modelling and instance-level functionality for data sources
+        #
+        # Data sources are, in the Orocos/Roby plugin, the tools that allow to
+        # represent devices (actual or virtual)
+        #
+        # New specialization can either be created with
+        # source_model.new_submodel if the source should not be registered in
+        # the system model, or SystemModel#data_source_type if it should be
+        # registered
         module DataSource
             @name = "Orocos::RobyPlugin::DataSource"
+            include DataService
 
+            # This module is defined on DataSource objects to define new methods
+            # on the classes that provide these data sources.
+            #
+            # I.e. for instance, when one does
+            #
+            #   class OroGenProject::Task
+            #     driver_for 'device_type'
+            #   end
+            #
+            # then the methods defined in this module are available on
+            # OroGenProject::Task:
+            #
+            #   OroGenProject::Task.each_master_data_source
             module ClassExtension
                 # Enumerate all the data sources that are defined on this
                 # component model
@@ -562,14 +775,10 @@ module Orocos
                 result
             end
 
-            include DataService
-
-            def self.to_s # :nodoc:
-                "#<DataSource: #{name}>"
-            end
-
-            @name = "DataSource"
             module ModuleExtension
+                # Returns a task model that can be used to represent data
+                # sources of this type in the plan, when no concrete tasks have
+                # been selected yet
                 def task_model
                     model = super
                     model.name = "#{name}DataSourceTask"
@@ -584,33 +793,9 @@ module Orocos
         # that are added to the task models, see ComBus::ClassExtension
         module ComBusDriver
             @name = "Orocos::RobyPlugin::ComBusDriver"
-            # Communication busses are also device drivers
             include DataSource
 
-            def self.to_s # :nodoc:
-                "#<ComBusDriver: #{name}>"
-            end
-
             attribute(:port_to_device) { Hash.new { |h, k| h[k] = Array.new } }
-
-            def self.new_submodel(model, options = Hash.new)
-                bus_options, options = Kernel.filter_options options,
-                    :override_policy => true, :message_type => nil
-
-                model = super(model, options)
-                model.class_eval <<-EOD
-                module ModuleExtension
-                    def override_policy?
-                        #{bus_options[:override_policy]}
-                    end
-                    def message_type
-                        \"#{bus_options[:message_type]}\" || (super if defined? super)
-                    end
-                end
-                extend ModuleExtension
-                EOD
-                model
-            end
 
             def each_attached_device(&block)
                 result = ValueSet.new
@@ -660,17 +845,6 @@ module Orocos
                 end
 
                 result
-            end
-
-            # The output port name for the +bus_name+ device attached on this
-            # bus
-            def output_name_for(bus_name)
-                bus_name
-            end
-
-            # The input port name for the +bus_name+ device attached on this bus
-            def input_name_for(bus_name)
-                "w#{bus_name}"
             end
         end
     end

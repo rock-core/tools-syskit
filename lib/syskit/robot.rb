@@ -43,18 +43,23 @@ module Orocos
             # runtime to actually configure the task
             attr_reader :configuration_block
 
-            # Generic property map. The values are set with #set and can be
-            # retrieved by calling "self.property_name". The possible values are
-            # specific to the type of device
-            attr_reader :properties
-
             # Returns the names of the com busses this device instance is
             # connected to
-            def com_busses
+            def com_bus_names
                 @task_arguments.find_all do |arg_name, bus_name|
                     arg_name.to_s =~ /_com_bus$/ &&
                         bus_name
                 end.map(&:last)
+            end
+
+            # Attaches this device on the given communication bus
+            def attach_to(com_bus)
+                if !com_bus.kind_of?(CommunicationBus)
+                    com_bus = robot.com_busses[com_bus.to_str]
+                end
+                task_arguments["#{service.name}_com_bus"] = com_bus.name
+                com_bus.model.apply_attached_device_configuration_extensions(self)
+                self
             end
 
             # call-seq:
@@ -103,15 +108,6 @@ module Orocos
 
             def instanciate(engine, additional_arguments = Hash.new)
                 task_model.instanciate(engine, additional_arguments.merge(task_arguments))
-            end
-
-            def set(name, *values)
-                if values.size == 1
-                    properties[name.to_str] = values.first
-                else
-                    properties[name.to_str] = values
-                end
-                self
             end
 
             ##
@@ -178,6 +174,9 @@ module Orocos
                 end
             end
 
+            # Declares that this particular device might "every once in a while"
+            # sent bursts of data. This is used by the automatic connection code
+            # to compute buffer sizes
             dsl_attribute(:burst)   { |v| Integer(v) }
 
             def slave(slave_service, options = Hash.new)
@@ -197,14 +196,16 @@ module Orocos
                         task_model.each_multiplexed_driver.each do |model, specialization_block, _|
                             if model == slave_service
                                 if !task_model.private_specialization?
+                                    @task_model = task_model.specialize("#{task_model.name}<#{name}>")
                                     SystemModel.debug do
-                                        SystemModel.debug "creating specialized submodel of #{task_model.short_name} to dynamically create slave services on #{name}"
+                                        SystemModel.debug "created the specialized submodel #{task_model.short_name} of #{task_model.superclass.short_name} as a singleton model for the device #{name}"
                                         break
                                     end
-                                    @task_model = task_model.specialize(task_model.name + "_" + name)
                                 end
-                                specialization_block.call(task_model, options[:as])
-                                srv = task_model.data_service(model, :as => options[:as])
+
+                                service_model = model.new_submodel(name + "." + slave_service.short_name + "<" + options[:as] + ">")
+                                service_model.apply_block(options[:as], &specialization_block)
+                                srv = task_model.require_dynamic_service(service_model, :as => options[:as])
                                 break
                             end
                         end
@@ -214,10 +215,12 @@ module Orocos
                         end
 
                         SystemModel.debug do
-                            SystemModel.debug "dynamically created slave device instance #{name}.#{srv.name} of type #{srv.model.short_name}"
+                            SystemModel.debug "dynamically created slave service #{name}.#{srv.name} of type #{srv.model.short_name} from #{slave_service.short_name}"
                             break
                         end
-                        robot.devices["#{name}.#{srv.name}"] ||= SlaveDeviceInstance.new(self, srv)
+                        device_instance = SlaveDeviceInstance.new(self, srv)
+                        srv.model.apply_device_configuration_extensions(device_instance)
+                        robot.devices["#{name}.#{srv.name}"] = device_instance
                     end
                 else
                     raise ArgumentError, "expected #{slave_service} to be either a string or a data service model"
@@ -233,6 +236,12 @@ module Orocos
             attr_reader :master_device
             # The actual service on master_device's task model
             attr_reader :service
+
+            # The slave name. It is the same name than the corresponding service
+            # on the task model
+            def name
+                service.name
+            end
 
             def initialize(master_device, service)
                 @master_device = master_device
@@ -277,10 +286,16 @@ module Orocos
             attr_reader :robot
             # The bus name
             attr_reader :name
+            # The device instance object that drivers this communication bus
+            attr_reader :device_instance
+            # Returns the ComBusDriver submodel that models this
+            # communication bus
+            def model; device_instance.model end
 
-            def initialize(robot, name, options = Hash.new)
+            def initialize(robot, name, device, options = Hash.new)
                 @robot = robot
                 @name  = name
+                @device_instance = device
                 @options = options
             end
 
@@ -290,13 +305,9 @@ module Orocos
 
             # Used by the #through call to override com_bus specification.
             def device(type_name, options = Hash.new)
-                # Check that we do have the configuration data for that device,
-                # and declare it as being passing through us.
-                if options[:com_bus] || options['com_bus']
-                    raise SpecError, "cannot use the 'com_bus' option in a through block"
-                end
-                options[:com_bus] = self.name
-                robot.device(type_name, options)
+                device = robot.device(type_name, options)
+                device.attach_to(self)
+                device
             end
         end
 
@@ -320,15 +331,23 @@ module Orocos
                 engine.model
             end
 
-            # Declares a new communication bus. It is both seen as a device and
-            # as a com bus, and as such is registered in both the devices and
-            # com_busses hashes
-            def com_bus(type_name, options = Hash.new)
-                bus_options, _ = Kernel.filter_options options, :as => type_name
-                name = bus_options[:as].to_str
-                com_busses[name] = CommunicationBus.new(self, name, options)
+            # Declares a new communication bus
+            def com_bus(type_spec, options = Hash.new)
+                type =
+                    if type_spec.respond_to?(:to_str)
+                        system_model.data_source_model(type_spec.to_str)
+                    else type_spec
+                    end
 
-                device(type_name, options)
+                bus_options, _ = Kernel.filter_options options, :as => type.snakename
+                name = options[:as].to_str
+                if com_busses[name]
+                    raise ArgumentError, "there is already a communication bus called #{name}"
+                end
+
+                device = device(type, options)
+                com_busses[name] = CommunicationBus.new(self, bus_options[:as].to_str, device, options)
+                device
             end
 
             # Declares that all devices declared in the provided block are using
@@ -342,11 +361,11 @@ module Orocos
             #
             # is equivalent to
             #
-            #   m = device 'motors'
-            #   m.com_bus 'can0'
+            #   device('motors').
+            #       attach_to('can0')
             #
             def through(com_bus, &block)
-                bus = com_busses[com_bus]
+                bus = com_busses[com_bus.to_str]
                 if !bus
                     raise SpecError, "communication bus #{com_bus} does not exist"
                 end
@@ -376,65 +395,88 @@ module Orocos
             #
             # Returns the MasterDeviceInstance object that describes this device
             def device(device_model, options = Hash.new)
+                if device_model < DataService && !(device_model < DataSource)
+                    # Accept converting a data service to the corresponding data
+                    # source. This allows the DSL stuff to work properly
+                    device_model = device_model.name
+                end
                 if device_model.respond_to?(:to_str)
-                    device_model = system_model.data_source_model(device_model.to_str)
-                elsif device_model < DataService && !(device_model < DataSource)
-                    name = device_model.name
-                    if engine.model.has_data_source?(name)
-                        device_model = system_model.data_source_model(name)
-                    end
+                    device_model = system_model.
+                        data_source_model(device_model.to_str)
                 end
 
                 options, device_options = Kernel.filter_options options,
-                    :as => device_model.name.gsub(/.*::/, '').snakecase,
+                    :as => device_model.snakename,
+                    :using => nil,
                     :expected_model => DataSource
                 device_options, task_arguments = Kernel.filter_options device_options,
                     MasterDeviceInstance::KNOWN_PARAMETERS
 
+                # Check for duplicates
                 name = options[:as].to_str
                 if devices[name]
                     raise SpecError, "device #{name} is already defined"
                 end
 
+                # Verify that the provided device model matches what we expect
                 if !(device_model < options[:expected_model])
                     raise SpecError, "#{device_model} is not a #{options[:expected_model].name}"
                 end
 
-                # Since we want to drive a particular device, we actually need a
-                # concrete task model. So, search for one.
-                #
-                # Get all task models that implement this device
-                tasks = Roby.app.orocos_tasks.
-                    find_all { |_, t| t.fullfills?(device_model) }.
-                    map { |_, t| t }
-
-                # Now, get the most abstract ones
-                tasks.delete_if do |model|
-                    tasks.any? { |t| model < t }
+                # If the user gave us an explicit selection, honor it
+                explicit_selection = options[:using]
+                if explicit_selection.kind_of?(ProvidedDataService)
+                    task_model = explicit_selection.task_model
+                    service = explicit_selection
+                else
+                    task_model = explicit_selection
                 end
 
-                if tasks.size > 1
-                    raise Ambiguous, "#{tasks.map(&:name).join(", ")} can all handle '#{name}', please select one explicitely with the 'using' statement"
-                elsif tasks.empty?
-                    raise SpecError, "no task can handle devices of type '#{device_model}'"
+                if !task_model
+                    # Since we want to drive a particular device, we actually need a
+                    # concrete task model. So, search for one.
+                    #
+                    # Get all task models that implement this device
+                    tasks = Roby.app.orocos_tasks.
+                        find_all { |_, t| t.fullfills?(device_model) }.
+                        map { |_, t| t }
+
+                    # Now, get the most abstract ones
+                    tasks.delete_if do |model|
+                        tasks.any? { |t| model < t }
+                    end
+
+                    if tasks.size > 1
+                        raise Ambiguous, "#{tasks.map(&:short_name).join(", ")} can all handle '#{device_model.short_name}', please select one explicitely with the 'using' statement"
+                    elsif tasks.empty?
+                        raise SpecError, "no task can handle devices of type '#{device_model.short_name}'"
+                    end
+                    task_model = tasks.first
                 end
 
-                task_model = tasks.first
-                service = task_model.find_matching_service(device_model)
-                if !service
-                    raise ArgumentError, "#{task_model.short_name} has no service of type #{device_model.short_name}"
+                if service
+                    if !service.fullfills?(device_model)
+                        raise ArgumentError, "selected service #{service.name} from #{task_model.short_name} cannot handle devices of type #{device_model.short_name}"
+                    end
+                else
+                    service_candidates = task_model.find_all_services_from_type(device_model)
+                    if service_candidates.empty?
+                        raise ArgumentError, "#{task_model.short_name} has no service of type #{device_model.short_name}"
+                    elsif service_candidates.size > 1
+                        raise ArgumentError, "more than one service in #{task_model.short_name} provide #{device_model.short_name}, you need to select one with the 'using_service' statement"
+                    end
+                    service = service_candidates.first
                 end
 
-                root_task_arguments = {
-                    "#{service.name}_name" => name, 
-                    "#{service.name}_com_bus" => task_arguments[:com_bus]}.
+                root_task_arguments = { "#{service.name}_name" => name }.
                     merge(task_arguments)
-                root_task_arguments.delete :com_bus
 
                 devices[name] = MasterDeviceInstance.new(
                     self, name, device_model, device_options,
                     task_model, service, root_task_arguments)
+                device_model.apply_device_configuration_extensions(devices[name])
 
+                # And register all the slave services there is on the driver
                 task_model.each_slave_data_service(service) do |_, slave_service|
                     devices["#{name}.#{slave_service.name}"] =
                         SlaveDeviceInstance.new(devices[name], slave_service)
