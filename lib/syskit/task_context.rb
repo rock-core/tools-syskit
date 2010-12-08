@@ -336,7 +336,6 @@ module Orocos
                                     sample_count(task_minimal_period + trigger_latency)
                             end
 
-                        puts "period: #{period} port_model:#{port_model.period}"
                         dynamics.add_trigger(trigger_port_name, period * port_model.period, 1)
                         dynamics.add_trigger(trigger_port_name, 0, sample_count - 1)
                     end
