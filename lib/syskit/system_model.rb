@@ -256,6 +256,11 @@ module Orocos
                 model
             end
 
+            # Alias for data_source_type
+            def device_type(*args, &block)
+                data_source_type(*args, &block)
+            end
+
             # Create a new data source model
             #
             # The returned value is an instance of DataServiceModel in which
