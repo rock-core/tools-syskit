@@ -100,6 +100,10 @@ module Orocos
                 m
             end
 
+            MODEL_QUERY_METHODS =
+                { DataService => 'data_service_model',
+                  DataSource => 'data_source_model' }
+
             def data_service_model(name)
                 if !(m = data_service_models[name])
                     raise ArgumentError, "there is no data service model called #{name}"
@@ -176,6 +180,29 @@ module Orocos
                 end
             end
 
+            # If +name+ is a model object, returns it.
+            #
+            # If +name+ is a string, create a new model of type +expected_type+
+            # using +options+
+            #
+            # +expected_type+ is supposed to be the model's class, i.e. one of
+            # DataServiceModel, DataSourceModel or ComBusModel
+            def query_or_create_service_model(name, expected_type, options)
+                if name.respond_to?(:to_str)
+                    case expected_type.base_module
+                    when DataSourceModel
+                        data_source_type(name, options)
+                    when DataServiceModel
+                        data_service_type(name, options)
+                    when ComBusModel
+                        com_bus_type(name, options)
+                    else raise ArgumentError, "unexpected service type #{expected_type}"
+                    end
+                else
+                    Model.validate_service_model(name, self, expected_type.base_module)
+                end
+            end
+
             # Creates a new data service model
             #
             # The returned value is an instance of DataServiceModel
@@ -198,6 +225,8 @@ module Orocos
             # config_type::
             #   the type of the configuration data structures
             def data_service_type(name, options = Hash.new, &block)
+                name = Model.validate_model_name(name)
+
                 options = Kernel.validate_options options,
                     :child_of => nil,
                     :provides => nil,
@@ -246,6 +275,7 @@ module Orocos
             # If both provides and interface are provided, the interface must
             # match the data service's interface.
             def data_source_type(name, options = Hash.new)
+                name = Model.validate_model_name(name)
                 options, device_options = Kernel.filter_options options,
                     :provides => nil, :child_of => nil, :interface => nil
 
@@ -308,8 +338,7 @@ module Orocos
             # The returned value is an instance of DataServiceModel, in which
             # ComBus is included.
             def com_bus_type(name, options  = Hash.new)
-                name = name.to_str
-
+                name = Model.validate_model_name(name)
                 if has_data_source?(name)
                     raise ArgumentError, "there is already a device driver called #{name}"
                 end

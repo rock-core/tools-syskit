@@ -714,33 +714,20 @@ module Orocos
             # Component.data_service for the description of +arguments+
             def self.driver_for(model, arguments = Hash.new)
                 if model.respond_to?(:to_str)
-                    if system_model.has_data_source?(model)
-                        model = system_model.data_source_model(model)
-                    else
-                        device_arguments, arguments = Kernel.filter_options arguments,
-                            :provides => nil, :interface => nil, :config_type => nil
+                    service_options, model_options = Kernel.filter_options arguments, Component::DATA_SERVICE_ARGUMENTS
+                    model = system_model.query_or_create_service_model(
+                        model, DataSourceModel, model_options)
+                else
+                    service_options = arguments
+                end
 
-                        if !device_arguments[:provides] && !device_arguments[:interface]
-                            # Look for an existing data source that match the name.
-                            # If there is none, we will assume that +self+ describes
-                            # the interface of +model+
-                            if !system_model.has_data_service?(model)
-                                device_arguments[:interface] = self
-                            end
-                        end
-                        model = system_model.data_source_type model, device_arguments
-                        if !model.config_type
-                            model.config_type = config_type_from_properties
-                        end
-                    end
+                model = Model.validate_service_model(model, system_model, DataSource)
+                if !model.config_type
+                    model.config_type = config_type_from_properties
                 end
-                if !(model < DataSource)
-                    raise ArgumentError, "#{model} is not a device driver model"
-                end
-                dserv = data_service(model, arguments)
+                dserv = data_service(model, service_options)
                 argument "#{dserv.name}_name"
-
-                model
+                dserv
             end
 
             # Default implementation of the configure method.

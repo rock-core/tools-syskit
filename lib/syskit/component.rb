@@ -668,17 +668,7 @@ module Orocos
                 source_arguments, arguments = Kernel.filter_options arguments,
                     DATA_SERVICE_ARGUMENTS
 
-                if model.respond_to?(:to_str)
-                    if system_model.has_data_service?(model.to_str)
-                        model = system_model.data_service_model(model.to_str)
-                    else
-                        raise ArgumentError, "there is no data source type #{model}"
-                    end
-                end
-
-                if !(model < DataService)
-                    raise ArgumentError, "#{model} is not a data source model"
-                end
+                model = Model.validate_service_model(model, system_model, DataService)
 
                 # If true, the source will be marked as 'main', i.e. the port
                 # mapping between the source and the component will match plain

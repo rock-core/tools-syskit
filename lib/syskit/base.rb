@@ -104,6 +104,31 @@ module Orocos
                 klass
             end
 
+            def self.validate_service_model(model, system_model, expected_type = DataService)
+                if !model.kind_of?(DataServiceModel)
+                    raise ArgumentError, "expected a data service, source or combus model, got #{model} of type #{model.class}"
+                elsif !(model < expected_type)
+                    # Try harder. This is meant for DSL loading, as we define
+                    # data services for data sources and so on
+                    if query_method = SystemModel::MODEL_QUERY_METHODS[expected_type]
+                        model = system_model.send(query_method, model.name)
+                    end
+                    if !model
+                        raise ArgumentError, "expected a submodel of #{expected_type.short_name} but got #{model} of type #{model.class}"
+                    end
+                end
+                model
+            end
+
+            def self.validate_model_name(name)
+                if !name.respond_to?(:to_str)
+                    raise ArgumentError, "expected a string as a model name, got #{name}"
+                elsif !(name.camelcase(:upper) == name)
+                    raise ArgumentError, "#{name} is not a valid model name. Model names must start with an uppercase letter, and are usually written in UpperCamelCase"
+                end
+                name
+            end
+
             # Helper for #instance calls on components
             def self.filter_instanciation_arguments(options)
                 arguments, task_arguments = Kernel.filter_options(

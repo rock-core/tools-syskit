@@ -42,6 +42,14 @@ module Orocos
         # DataBus). Methods defined in this class are available on said
         # models (for instance DataSource.new_submodel)
         class DataServiceModel < Roby::TaskModelTag
+            class << self
+                # Each subclass of DataServiceModel maps to a "base" module that
+                # all instances of DataServiceModel include.
+                #
+                # For instance, for DataServiceModel itself, it is DataService
+                attr_accessor :base_module
+            end
+
             # The name of the model
             attr_accessor :name
             # The parent model, if any
@@ -243,6 +251,7 @@ module Orocos
             end
         end
         DataService  = DataServiceModel.new
+        DataServiceModel.base_module = DataService
 
         class DataSourceModel < DataServiceModel
             def to_s # :nodoc:
@@ -291,6 +300,7 @@ module Orocos
             end
         end
         DataSource   = DataSourceModel.new
+        DataSourceModel.base_module = DataSource
 
         class ComBusModel < DataSourceModel
             def initialize(*args, &block)
@@ -373,6 +383,7 @@ module Orocos
             end
         end
         ComBus = ComBusModel.new
+        ComBusModel.base_module = ComBus
 
         module DataService
             @name = "Orocos::RobyPlugin::DataService"
