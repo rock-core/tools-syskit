@@ -81,8 +81,6 @@ module Orocos
             def initialize(arguments = Hash.new)
                 super
 
-                @multiplexed_drivers = Array.new
-
                 start = event(:start)
                 def start.calling(context)
                     super if defined? super
@@ -688,22 +686,6 @@ module Orocos
                 if @state_reader
                     @state_reader.disconnect
                 end
-            end
-
-            inherited_enumerable(:multiplexed_driver, :multiplexed_drivers) { Array.new }
-
-            # Declares that this task context can be used to drive multiple
-            # devices at the same time
-            #
-            # The actual devices will be added at deployment time, based on the
-            # information contained in the robot description
-            def self.multiplexed_driver(model, arguments = Hash.new, &block)
-                if !block
-                    raise ArgumentError, "#multiplexed_driver requires a block to be given, of the signature block(task_model, new_service_name)"
-                end
-                source_model = system_model.data_source_type model, arguments
-                multiplexed_drivers << [source_model, block, model, arguments]
-                source_model
             end
 
             # Declares that this task context model can be used as a driver for

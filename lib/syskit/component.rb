@@ -37,6 +37,8 @@ module Orocos
                     else
                         name
                     end
+
+                @declared_dynamic_slaves = Array.new
             end
 
             def to_s
@@ -121,6 +123,47 @@ module Orocos
                     return subservice
                 end
                 super
+            end
+
+            attr_reader :declared_dynamic_slaves
+
+            def dynamic_slaves(model, options = Hash.new, &block)
+                if !block
+                    raise ArgumentError, "#dynamic_slaves requires a block to be given, of the signature block(task_model, new_service_name)"
+                end
+
+                source_model = component_model.system_model.
+                    query_or_create_service_model(model, self.model.class, options)
+
+                declared_dynamic_slaves << [source_model, block, model, options]
+                source_model
+            end
+
+            def require_dynamic_slave(required_service, service_name, reason)
+                model, specialization_block, _ =
+                    declared_dynamic_slaves.find do |model, specialization_block, _|
+                        model == required_service
+                    end
+
+                return if !model
+
+                component_model = self.component_model
+                if !component_model.private_specialization?
+                    component_model = component_model.
+                        specialize("#{component_model.name}<#{reason}>")
+
+                    SystemModel.debug do
+                        SystemModel.debug "created the specialized submodel #{component_model.short_name} of #{component_model.superclass.short_name} as a singleton model for #{reason}"
+                    end
+                end
+
+                service_model = required_service.
+                    new_submodel(component_model.name + "." + required_service.short_name + "<" + service_name + ">")
+
+                service_model.apply_block(service_name, &specialization_block)
+                srv = component_model.require_dynamic_service(service_model, :as => service_name)
+
+                return component_model, srv
             end
         end
 

@@ -197,26 +197,14 @@ module Orocos
                     srv = task_model.find_matching_service(slave_service, options[:as])
                     if !srv
                         options[:as] ||= slave_service.snakename
-                        task_model.each_multiplexed_driver.each do |model, specialization_block, _|
-                            if model == slave_service
-                                if !task_model.private_specialization?
-                                    @task_model = task_model.specialize("#{task_model.name}<#{name}>")
-                                    SystemModel.debug do
-                                        SystemModel.debug "created the specialized submodel #{task_model.short_name} of #{task_model.superclass.short_name} as a singleton model for the device #{name}"
-                                        break
-                                    end
-                                end
-
-                                service_model = model.new_submodel(name + "." + slave_service.short_name + "<" + options[:as] + ">")
-                                service_model.apply_block(options[:as], &specialization_block)
-                                srv = task_model.require_dynamic_service(service_model, :as => options[:as])
-                                break
-                            end
-                        end
+                        new_task_model, srv = self.service.
+                            require_dynamic_slave(slave_service, options[:as], name)
 
                         if !srv
                             raise ArgumentError, "there is no service in #{task_model.short_name} of type #{slave_service.short_name}"
                         end
+
+                        @task_model = new_task_model
 
                         SystemModel.debug do
                             SystemModel.debug "dynamically created slave service #{name}.#{srv.name} of type #{srv.model.short_name} from #{slave_service.short_name}"
