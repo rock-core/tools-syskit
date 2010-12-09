@@ -2054,7 +2054,7 @@ module Orocos
                     out_candidates.delete_if { |p| used_ports.include?(p.name) }
 
                     if in_candidates.size > 1
-                        raise Ambiguous, "ports #{in_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{bus_name}"
+                        raise Ambiguous, "could not find a connection to the bus #{bus_name} for the input ports #{in_candidates.map(&:name).join(", ")} of #{task}"
                     elsif in_candidates.size == 1
                         com_out_port = com_bus.model.output_name_for(generic_name)
                         com_bus_task.port_to_device[com_out_port].concat(task.each_device_name.map(&:last))
@@ -2062,7 +2062,7 @@ module Orocos
                     end
 
                     if out_candidates.size > 1
-                        raise Ambiguous, "ports #{out_candidates.map(&:name).join(", ")} are not used while connecting #{task} to #{bus_name}"
+                        raise Ambiguous, "could not find a connection to the bus #{bus_name} for the output ports #{out_candidates.map(&:name).join(", ")} of #{task}"
                     elsif out_candidates.size == 1
                         # One generic output port
                         com_in_port = com_bus_in || com_bus.model.input_name_for(generic_name)
