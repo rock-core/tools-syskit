@@ -57,90 +57,98 @@ module Orocos
                 @composition_specializations = Hash.new do |h, k|
                     h[k] = Hash.new { |a, b| a[b] = Hash.new }
                 end
+
+                @export = true
+                @data_service_models = Hash.new
+                @data_source_models = Hash.new
+                @composition_models = Hash.new
             end
 
-            if method(:const_defined?).arity == 1 # probably Ruby 1.8
+            attr_predicate :export?, true
+            attr_reader :data_service_models
+            attr_reader :data_source_models
+            attr_reader :composition_models
+
             def has_data_service?(name)
-                Orocos::RobyPlugin::DataServices.const_defined?(name.camelcase(:upper))
+                if data_service_models.has_key?(name)
+                    true
+                elsif data_service_models.has_key?(name.camelcase(:upper))
+                    raise
+                end
             end
+
             def has_data_source?(name)
-                Orocos::RobyPlugin::DataSources.const_defined?(name.camelcase(:upper))
+                if data_source_models.has_key?(name)
+                    true
+                elsif data_source_models.has_key?(name.camelcase(:upper))
+                    raise
+                end
             end
+
             def has_composition?(name)
-                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(:upper))
-            end
-            else
-            def has_data_service?(name)
-                Orocos::RobyPlugin::DataServices.const_defined?(name.camelcase(:upper), false)
-            end
-            def has_data_source?(name)
-                Orocos::RobyPlugin::DataSources.const_defined?(name.camelcase(:upper), false)
-            end
-            def has_composition?(name)
-                Orocos::RobyPlugin::Compositions.const_defined?(name.camelcase(:upper), false)
-            end
+                if composition_models.has_key?(name)
+                    true
+                elsif composition_models.has_key?(name.camelcase(true))
+                    raise
+                end
             end
 
             def data_source_model(name)
-                Orocos::RobyPlugin::DataSources.const_get(name.camelcase(:upper))
+                if !(m = data_source_models[name])
+                    raise ArgumentError, "there is no data source model called #{name}"
+                end
+                m
             end
 
             def data_service_model(name)
-                Orocos::RobyPlugin::DataServices.const_get(name.camelcase(:upper))
+                if !(m = data_service_models[name])
+                    raise ArgumentError, "there is no data service model called #{name}"
+                end
+                m
+            end
+
+            def composition_model(name)
+                if !(m = composition_models[name])
+                    raise ArgumentError, "there is no composition model called #{name}"
+                end
+                m
             end
 
             def register_data_service(model)
-                Orocos::RobyPlugin::DataServices.const_set(model.name.camelcase(:upper), model)
+                const_name = model.constant_name
+                data_service_models[const_name] = model
+                if export?
+                    Orocos::RobyPlugin::DataServices.const_set(const_name, model)
+                end
             end
 
             def register_data_source(model)
-                Orocos::RobyPlugin::DataSources.const_set(model.name.camelcase(:upper), model)
+                const_name = model.constant_name
+                data_source_models[const_name] = model
+                if export?
+                    Orocos::RobyPlugin::DataSources.const_set(const_name, model)
+                end
             end
 
             # Add a new composition model
             def register_composition(model)
-                Orocos::RobyPlugin::Compositions.const_set(model.name.gsub(/.*::/, ''), model)
+                const_name = model.constant_name
+                composition_models[const_name] = model
+                if export?
+                    Orocos::RobyPlugin::Compositions.const_set(const_name, model)
+                end
             end
 
             def each_data_service(&block)
-                if !block_given?
-                    return enum_for(:each_data_service)
-                end
-
-                Orocos::RobyPlugin::DataServices.constants.
-                    map { |name| Orocos::RobyPlugin::DataServices.const_get(name) }.
-                    find_all { |model| model.kind_of?(Module) && model < DataService }.
-                    each do |model|
-                        yield(model)
-                    end
+                data_service_models.each_value(&block)
             end
 
             def each_data_source(&block)
-                if !block_given?
-                    return enum_for(:each_data_source)
-                end
-
-                Orocos::RobyPlugin::DataSources.constants.
-                    map { |name| Orocos::RobyPlugin::DataSources.const_get(name) }.
-                    find_all { |model| model.kind_of?(Module) && model < DataSource }.
-                    each do |model|
-                        yield(model)
-                    end
+                data_source_models.each_value(&block)
             end
 
-            # Enumerate the composition models that are available
             def each_composition(&block)
-                if !block_given?
-                    return enum_for(:each_composition)
-                end
-
-                Orocos::RobyPlugin::Compositions.constants.
-                    map { |name| Orocos::RobyPlugin::Compositions.const_get(name) }.
-                    find_all { |model| model.kind_of?(Class) && model < Composition }.
-                    each do |model|
-                        yield(model)
-                        model.each_specialization(&block)
-                    end
+                composition_models.each_value(&block)
             end
 
             def each_task_model(&block)

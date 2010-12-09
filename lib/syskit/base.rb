@@ -79,6 +79,14 @@ module Orocos
                 name.gsub(/.*::/, '').snakecase
             end
 
+            # Returns a string suitable to reference +self+ as a constant
+            #
+            # This is for instance used by SystemModel to determine what name to
+            # use to export new models as constants:
+            def constant_name
+                name.gsub(/.*::/, '').camelcase(:upper)
+            end
+
             def to_s # :nodoc:
                 supermodels = ancestors.map(&:name)
                 i = supermodels.index("Orocos::RobyPlugin::Component")
