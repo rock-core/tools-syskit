@@ -292,7 +292,7 @@ module Orocos
         end
         DataSource   = DataSourceModel.new
 
-        class ComBusDriverModel < DataSourceModel
+        class ComBusModel < DataSourceModel
             def initialize(*args, &block)
                 super
                 @override_policy = true
@@ -325,7 +325,7 @@ module Orocos
             attr_accessor :message_type
 
             def to_s # :nodoc:
-                "#<ComBusDriver: #{short_name}>"
+                "#<ComBus: #{short_name}>"
             end
 
             attribute(:attached_device_configuration_module) { Module.new }
@@ -372,7 +372,7 @@ module Orocos
                 "w#{bus_name}"
             end
         end
-        ComBusDriver = ComBusDriverModel.new
+        ComBus = ComBusModel.new
 
         module DataService
             @name = "Orocos::RobyPlugin::DataService"
@@ -791,8 +791,8 @@ module Orocos
         # Module that represents the communication busses in the task models. It
         # defines the methods that are available on task instances. For methods
         # that are added to the task models, see ComBus::ClassExtension
-        module ComBusDriver
-            @name = "Orocos::RobyPlugin::ComBusDriver"
+        module ComBus
+            @name = "Orocos::RobyPlugin::ComBus"
             include DataSource
 
             attribute(:port_to_device) { Hash.new { |h, k| h[k] = Array.new } }

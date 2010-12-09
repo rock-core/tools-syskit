@@ -274,11 +274,12 @@ module Orocos
                     end
                 end
 
-                # Find which of DataSource and ComBusDriver should be our parent
+                # Find which of DataSource and ComBus should be our parent
                 # ...
                 parent_model, options =
-                    if com_bus = parents.find { |m| m < ComBusDriver }
-                        [ComBusDriver, { :message_type => com_bus.message_type, :override_policy => com_bus.override_policy? }]
+                    if com_bus = parents.find { |m| m < ComBus }
+                        [ComBus, { :message_type => com_bus.message_type,
+                            :override_policy => com_bus.override_policy? }]
                     else [DataSource, {}]
                     end
 
@@ -297,14 +298,15 @@ module Orocos
             #   com_bus 'can', :message_type => '/can/Message'
             #
             # The returned value is an instance of DataServiceModel, in which
-            # ComBusDriver is included.
+            # ComBus is included.
             def com_bus_type(name, options  = Hash.new)
                 name = name.to_str
 
                 if has_data_source?(name)
                     raise ArgumentError, "there is already a device driver called #{name}"
                 end
-                model = ComBusDriver.new_submodel(
+
+                model = ComBus.new_submodel(
                     name, options.merge(:system_model => self))
                 register_data_source(model)
                 model

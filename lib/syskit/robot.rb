@@ -288,7 +288,7 @@ module Orocos
             attr_reader :name
             # The device instance object that drivers this communication bus
             attr_reader :device_instance
-            # Returns the ComBusDriver submodel that models this
+            # Returns the ComBus submodel that models this
             # communication bus
             def model; device_instance.model end
 
