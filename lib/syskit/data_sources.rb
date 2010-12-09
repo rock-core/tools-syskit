@@ -72,13 +72,17 @@ module Orocos
             # Return the config type for the instances of this service, if there
             # is one
             def config_type
-                ancestors = self.ancestors
-                for klass in ancestors
-                    if type = klass.instance_variable_get(:@config_type)
-                        return type
+                if @config_type
+                    @config_type
+                else
+                    ancestors = self.ancestors
+                    for klass in ancestors
+                        if type = klass.instance_variable_get(:@config_type)
+                            return (@config_type = type)
+                        end
                     end
+                    nil
                 end
-                type
             end
 
             # Returns the string that should be used to display information
