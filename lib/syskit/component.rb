@@ -770,6 +770,7 @@ module Orocos
                     main_data_services << full_name
                     service.main = true
                 end
+
                 begin
                     new_port_mappings = compute_port_mappings(service, arguments)
                     service.port_mappings[model] = new_port_mappings

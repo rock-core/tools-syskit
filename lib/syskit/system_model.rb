@@ -313,7 +313,8 @@ module Orocos
                     if has_data_service?(name)
                         parents = [data_service_model(name)]
                     else
-                        parents = [self.data_service_type(name, :interface => options[:interface])]
+                        parents = [self.data_service_type(
+                            name, :interface => options[:interface])]
                     end
                 end
 
@@ -326,7 +327,8 @@ module Orocos
                     else [DataSource, {}]
                     end
 
-                source_model = parent_model.new_submodel(name, options.merge(:interface => false))
+                source_model = parent_model.
+                    new_submodel(name, options.merge(:interface => false))
                 parents.each { |p| source_model.provides(p) }
                 register_data_source(source_model)
                 source_model
