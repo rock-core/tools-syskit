@@ -83,6 +83,10 @@ module Orocos
                     if @configuration
                         yield(@configuration)
                     else
+                        if !service.config_type
+                            raise ArgumentError, "#configure called on #{self.name}, but there is no configuration type for this device"
+                        end
+
                         # Just verify that there is no error in
                         # configuration_block
                         yield(service.config_type.new)
