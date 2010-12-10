@@ -634,13 +634,17 @@ module Orocos
                     other_selection = other_task.selected_data_source(other_service)
 
                     self_selection = nil
-                    available_services = model.each_data_service.find_all do |self_name, self_service|
+                    available_services = []
+                    model.each_data_service.find_all do |self_name, self_service|
                         self_selection = selected_data_source(self_service)
-                        self_service.model.fullfills?(other_service.model) &&
+                        is_candidate = self_service.model.fullfills?(other_service.model) &&
                             (!self_selection || !other_selection || self_selection == other_selection)
+                        if is_candidate
+                            available_services << self_service
+                        end
                     end
 
-                    yield(other_selection, other_service, available_services.map(&:last))
+                    yield(other_selection, other_service, available_services)
                 end
             end
         end
@@ -675,10 +679,13 @@ module Orocos
                 # Enumerate all the data sources that are defined on this
                 # component model
                 def each_master_data_source(&block)
-                    each_root_data_service.
-                        find_all { |_, srv| srv.model < DataSource }.
-                        map(&:last).
-                        each(&block)
+                    result = []
+                    each_root_data_service.each do |_, srv|
+                        if srv.model < DataSource
+                            result << srv
+                        end
+                    end
+                    result.each(&block)
                 end
             end
 
@@ -768,7 +775,7 @@ module Orocos
 
                 Engine.debug do
                     Engine.debug "  is triggered internally"
-                    Engine.debug "  attached devices: #{triggering_devices.map(&:last).map(&:name).join(", ")}"
+                    Engine.debug "  attached devices: #{triggering_devices.map { |_, dev| dev.name }.join(", ")}"
                     break
                 end
 

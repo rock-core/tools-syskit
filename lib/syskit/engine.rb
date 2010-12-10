@@ -2057,7 +2057,11 @@ module Orocos
                         raise Ambiguous, "could not find a connection to the bus #{bus_name} for the input ports #{in_candidates.map(&:name).join(", ")} of #{task}"
                     elsif in_candidates.size == 1
                         com_out_port = com_bus.model.output_name_for(generic_name)
-                        com_bus_task.port_to_device[com_out_port].concat(task.each_device_name.map(&:last))
+                        task.each_device do |service, device|
+                            if device.attached_to?(bus_name)
+                                com_bus_task.port_to_device[com_out_port] << device.name
+                            end
+                        end
                         in_connections[ [com_out_port, in_candidates.first.name] ] = Hash.new
                     end
 
@@ -2066,7 +2070,11 @@ module Orocos
                     elsif out_candidates.size == 1
                         # One generic output port
                         com_in_port = com_bus_in || com_bus.model.input_name_for(generic_name)
-                        com_bus_task.port_to_device[com_in_port].concat(task.each_device_name.map(&:last))
+                        task.each_device do |service, device|
+                            if device.attached_to?(bus_name)
+                                com_bus_task.port_to_device[com_in_port] << device.name
+                            end
+                        end
                         out_connections[ [out_candidates.first.name, com_in_port] ] = Hash.new
                     end
                 end

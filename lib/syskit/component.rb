@@ -459,9 +459,13 @@ module Orocos
             # Returns the set of communication busses names that this task
             # needs.
             def com_busses
+                result = Set.new
                 arguments.find_all do |arg_name, bus_name| 
-                    bus_name && (arg_name.to_s =~ /_com_bus$/)
-                end.map(&:last).to_set
+                    if arg_name.to_s =~ /_com_bus$/
+                        result << bus_name
+                    end
+                end
+                result
             end
 
             def create_fresh_copy
