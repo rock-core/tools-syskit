@@ -744,7 +744,7 @@ module Orocos
                 end
 
                 # Then set per-source configuration options
-                if respond_to?(:each_device_name)
+                if respond_to?(:each_device)
                     each_device do |_, device|
                         if device.configuration
                             apply_configuration(device.configuration)
