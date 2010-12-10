@@ -2764,15 +2764,21 @@ module Orocos
 
                 handled_this_cycle = Array.new
                 next if !t.running?
-                while t.update_orogen_state
-                    state = t.orogen_state
-                    # Returns nil if we have a communication problem. In this
-                    # case, #update_orogen_state will have emitted the right
-                    # events for us anyway
-                    if state && !handled_this_cycle.include?(state)
-                        t.handle_state_changes
-                        handled_this_cycle << state
+
+                begin
+                    while t.update_orogen_state
+                        state = t.orogen_state
+
+                        # Returns nil if we have a communication problem. In this
+                        # case, #update_orogen_state will have emitted the right
+                        # events for us anyway
+                        if state && !handled_this_cycle.include?(state)
+                            t.handle_state_changes
+                            handled_this_cycle << state
+                        end
                     end
+                rescue Orocos::CORBA::ComError => e
+                    t.emit :aborted, e
                 end
             end
 

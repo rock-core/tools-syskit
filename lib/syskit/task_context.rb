@@ -459,15 +459,10 @@ module Orocos
                     end
                 end
 
-            rescue Orocos::CORBA::ComError => e
-                if running?
-                    emit :aborted, e
-                    @orogen_state = nil
-                elsif pending? || starting?
-                    event(:start).emit_failed e
-                    @orogen_state = nil
-                else
-                    raise
+            rescue Exception => e
+                @orogen_state = nil
+            end
+
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
             def ready_for_setup?
