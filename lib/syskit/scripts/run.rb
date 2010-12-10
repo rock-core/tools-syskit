@@ -1,29 +1,16 @@
 require 'roby'
-require 'optparse'
-require 'orocos'
-require 'orocos/roby'
-require 'orocos/roby/app'
+require 'orocos/roby/scripts/common'
+Scripts = Orocos::RobyPlugin::Scripts
 
-robot_type, robot_name = nil
-debug   = false
 dry_run = false
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate [options] deployment\nwhere 'deployment' is either the name of a deployment in config/deployments,\nor a file that should be loaded to get the desired deployment"
-    opt.on('-r NAME', '--robot=NAME[,TYPE]', String, 'the robot name used as context to the deployment') do |name|
-        robot_name, robot_type = name.split(',')
-        Roby.app.robot(name, robot_type||robot_name)
-    end
-    opt.on('--debug', "turn debugging output on") do
-        debug = true
-    end
     opt.on('--dry-run', "do not configure and start any module") do
         dry_run = true
     end
-    opt.on_tail('-h', '--help', 'this help message') do
-	STDERR.puts opt
-	exit
-    end
 end
+
+Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 if remaining.empty?
     STDERR.puts parser
@@ -32,19 +19,7 @@ end
 deployment_file     = remaining.shift
 additional_services = remaining.dup
 
-Roby.filter_backtrace do
-    Roby.app.filter_backtraces = !debug
-    Roby.app.using_plugins 'orocos'
-    Roby.app.setup
-    if debug
-        levels = Roby.app.log['levels']
-        if !levels || !levels['orocos/roby_plugin/engine']
-            Orocos::RobyPlugin::Engine.logger = Logger.new(STDOUT)
-            Orocos::RobyPlugin::Engine.logger.formatter = Roby.logger.formatter
-        end
-        Orocos::RobyPlugin::Engine.logger.level = Logger::DEBUG
-    end
-
+error = Scripts.run do
     Roby.app.run do
         Roby.execute do
             if deployment_file != '-'
@@ -62,8 +37,19 @@ Roby.filter_backtrace do
 
             tasks = Roby.plan.find_tasks(Orocos::RobyPlugin::Component).
                 roots(Roby::TaskStructure::Hierarchy).to_value_set
-            tasks.each { |t| Roby.plan.add_mission(t) }
+            tasks.each do |t|
+                puts "#{t}: #{t.execution_agent} #{t.each_executed_task.to_a}"
+                Roby.plan.add_mission(t)
+            end
+            tasks = Roby.plan.find_tasks(Orocos::RobyPlugin::Deployment)
+            tasks.each do |t|
+                puts "#{t}: #{t.execution_agent} #{t.each_executed_task.to_a}"
+            end
         end
     end
+end
+
+if error
+    exit(1)
 end
 
