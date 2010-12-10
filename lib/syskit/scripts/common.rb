@@ -1,4 +1,3 @@
-require 'roby/standalone'
 require 'optparse'
 require 'orocos'
 require 'orocos/roby'

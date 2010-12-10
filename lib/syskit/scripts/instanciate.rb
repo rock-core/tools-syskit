@@ -1,3 +1,4 @@
+require 'roby/standalone'
 require 'orocos/roby/scripts/common'
 Scripts = Orocos::RobyPlugin::Scripts
 
