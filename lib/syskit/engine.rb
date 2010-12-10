@@ -2746,7 +2746,8 @@ module Orocos
                 # if the remote process terminates in the middle of a remote
                 # call.
                 #
-                # Ignore tasks whose process is terminating
+                # Ignore tasks whose process is terminating to reduce the
+                # likelihood of that happening
 		if t.execution_agent.ready_to_die?
 		    next
 		end
