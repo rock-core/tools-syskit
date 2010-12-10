@@ -23,7 +23,8 @@ module Orocos
                 # A state_name => event_name mapping that maps the component's
                 # state names to the event names that should be emitted when it
                 # enters a new state.
-                attr_reader :state_events
+                attr_accessor :state_events
+
                 # A name => boolean mapping that says if the task named 'name'
                 # is configured
                 def configured; @@configured end
@@ -54,7 +55,8 @@ module Orocos
                     klass = new_submodel
                     klass.private_specialization = true
                     klass.name = name
-                    klass.orogen_spec = RobyPlugin.create_orogen_interface(self.name + "_" + name)
+                    klass.orogen_spec  = RobyPlugin.create_orogen_interface(self.name + "_" + name)
+                    klass.state_events = state_events.dup
                     RobyPlugin.merge_orogen_interfaces(klass.orogen_spec, [orogen_spec])
                     klass
                 end
