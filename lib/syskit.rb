@@ -13,6 +13,9 @@ require 'orocos/roby/compositions'
 require 'orocos/roby/deployment'
 require 'orocos/roby/task_context'
 
+require 'orocos/roby/exceptions'
+require 'orocos/roby/runtime_exceptions'
+
 require 'orocos/roby/system_model'
 require 'orocos/roby/robot'
 require 'orocos/roby/engine'

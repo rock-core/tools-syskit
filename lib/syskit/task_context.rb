@@ -390,28 +390,41 @@ module Orocos
                 true
             end
 
-            def input_port(name)
+            def find_input_port(name)
                 if !orogen_task
-                    raise ArgumentError, "#input_port called but we have no task handler yet"
+                    raise ArgumentError, "#find_input_port called but we have no task handler yet"
                 end
                 port = orogen_task.port(name)
-		if port.kind_of?(Orocos::OutputPort)
-		    raise ArgumentError, "port #{name} is an output of #{self}"
+		return if port.kind_of?(Orocos::OutputPort)
+		port
+
+            rescue Orocos::NotFound
+            end
+
+            def input_port(name)
+                if !(port = find_output_port(name))
+		    raise ArgumentError, "port #{name} is not an input port in #{self}"
 		end
 		port
+            end
+
+            def find_output_port(name)
+                if !orogen_task
+                    raise ArgumentError, "#find_output_port called but we have no task handler yet"
+                end
+                port = orogen_task.port(name)
+                return if port.kind_of?(Orocos::InputPort)
+                port
+
+            rescue Orocos::NotFound
             end
 
             def output_port(name)
-                if !orogen_task
-                    raise ArgumentError, "#output_port called but we have no task handler yet"
-                end
-                port = orogen_task.port(name)
-		if port.kind_of?(Orocos::InputPort)
-		    raise ArgumentError, "port #{name} is an input of #{self}"
+                if !(port = find_output_port(name))
+		    raise ArgumentError, "port #{name} is not an output port in #{self}"
 		end
 		port
             end
-
 
             # The Orocos::TaskContext instance that gives us access to the
             # remote task context. Note that it is set only when the task is

@@ -2633,9 +2633,19 @@ module Orocos
                             Engine.info "     with policy #{policy}"
                             break
                         end
-                        from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port), policy)
-                        ActualDataFlow.add_connections(from_task.orogen_task, to_task.orogen_task,
-                                                   [from_port, to_port] => policy)
+
+                        begin
+                            from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port), policy)
+                            ActualDataFlow.add_connections(from_task.orogen_task, to_task.orogen_task,
+                                                       [from_port, to_port] => policy)
+                        rescue Orocos::InterfaceObjectNotFound => e
+                            if e.task == from_task.orogen_task && e.name == from_port
+                                plan.engine.add_error(PortNotFound.new(from_task, from_port, :output))
+                            else
+                                plan.engine.add_error(PortNotFound.new(to_task, to_port, :input))
+                            end
+
+                        end
                     end
                 end
 
