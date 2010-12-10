@@ -2777,8 +2777,13 @@ module Orocos
             end
 
             tasks = Flows::DataFlow.modified_tasks
-            tasks.delete_if { |t| !t.plan || all_dead_deployments.include?(t.execution_agent) || t.transaction_proxy? }
             if !tasks.empty?
+                # If there are some tasks that have been GCed/killed, we still
+                # need to update the connection graph to remove the old
+                # connections.  However, we should remove these tasks now as they
+                # should not be passed to compute_connection_changes
+                tasks.delete_if { |t| !t.plan || all_dead_deployments.include?(t.execution_agent) }
+
                 main_tasks, proxy_tasks = tasks.partition { |t| t.plan.executable? }
                 main_tasks = main_tasks.to_value_set
                 if Flows::DataFlow.pending_changes

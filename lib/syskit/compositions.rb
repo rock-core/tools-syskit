@@ -2229,9 +2229,9 @@ module Orocos
             # It updates Flows::DataFlow.modified_tasks so that the engine can
             # update the underlying task's connections
             def added_child_object(child, relations, mappings) # :nodoc:
-                super
+                super if defined? super
 
-                if relations.include?(Flows::DataFlow)
+                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
                     dataflow_change_handler(child, mappings)
                 end
             end
@@ -2241,9 +2241,9 @@ module Orocos
             # It updates Flows::DataFlow.modified_tasks so that the engine can
             # update the underlying task's connections
             def removing_child_object(child, relations) # :nodoc:
-                super
+                super if defined? super
 
-                if relations.include?(Flows::DataFlow)
+                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
                     dataflow_change_handler(child, nil)
                 end
             end
