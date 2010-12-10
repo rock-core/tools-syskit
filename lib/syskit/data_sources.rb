@@ -758,7 +758,7 @@ module Orocos
             # name. It is optional only if there is only one device attached to
             # this component
             def robot_device(subname = nil)
-                devices = model.each_device.to_a
+                devices = each_device.to_a
                 if !subname
                     if devices.empty?
                         raise ArgumentError, "#{self} is not attached to any device"
