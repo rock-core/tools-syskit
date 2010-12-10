@@ -731,6 +731,26 @@ module Orocos
                 end
             end
 
+            # Enumerates the devices that are slaves to the service called
+            # +master_service_name+
+            def each_slave_device(master_service_name) # :yield:slave_service_name, slave_device
+                srv = model.find_data_service(master_service_name)
+                if !srv
+                    raise ArgumentError, "#{model.short_name} has no service called #{master_service_name}"
+                end
+
+                master_device_name = arguments["#{srv.name}_name"]
+                if master_device_name
+                    if !(master_device = robot.devices[master_device_name])
+                        raise SpecError, "#{self} attaches device #{device_name} to #{service.full_name}, but #{device_name} is not a known device"
+                    end
+
+                    master_device.each_slave do |slave_name, slave_device|
+                        yield("#{srv.name}.#{slave_name}", slave_device)
+                    end
+                end
+            end
+
             # Returns either the MasterDeviceInstance or SlaveDeviceInstance
             # that represents the device tied to this component.
             #

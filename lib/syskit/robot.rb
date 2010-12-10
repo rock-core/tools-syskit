@@ -15,6 +15,9 @@ module Orocos
             attr_reader :name
             # The device model, as a subclass of DataSource
             attr_reader :device_model
+            # The device slaves, as a mapping from the slave's name to the
+            # SlaveDeviceInstance object
+            attr_reader :slaves
 
             def model; device_model end
 
@@ -43,13 +46,31 @@ module Orocos
             # runtime to actually configure the task
             attr_reader :configuration_block
 
+            def initialize(robot, name, device_model, options,
+                           task_model, service, task_arguments)
+                @robot, @name, @device_model, @task_model, @service, @task_arguments =
+                    robot, name, device_model, task_model, service, task_arguments
+                @slaves      = Hash.new
+
+                burst   0
+            end
+
             # Returns the names of the com busses this device instance is
             # connected to
             def com_bus_names
-                @task_arguments.find_all do |arg_name, bus_name|
-                    arg_name.to_s =~ /_com_bus$/ &&
-                        bus_name
-                end.map(&:last)
+                result = []
+                @task_arguments.each do |arg_name, bus_name|
+                    if arg_name.to_s =~ /_com_bus$/ && bus_name
+                        result << bus_name
+                    end
+                end
+                result
+            end
+
+            # True if this device is attached to the given combus
+            def attached_to?(com_bus)
+                com_bus = com_bus.name if com_bus.respond_to?(:name)
+                task_arguments["#{service.name}_com_bus"] == com_bus
             end
 
             # Attaches this device on the given communication bus
@@ -97,19 +118,6 @@ module Orocos
             end
 
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
-            def initialize(robot, name, device_model, options,
-                           task_model, service, task_arguments)
-                @robot, @name, @device_model, @task_model, @service, @task_arguments =
-                    robot, name, device_model, task_model, service, task_arguments
-
-                @period      = options[:period] || 1
-                @sample_size = options[:sample_size] || 1
-                @device_id   = options[:device_id]
-
-                burst   0
-                @properties  = Hash.new
-            end
-
             def instanciate(engine, additional_arguments = Hash.new)
                 task_model.instanciate(engine, additional_arguments.merge(task_arguments))
             end
@@ -183,6 +191,12 @@ module Orocos
             # to compute buffer sizes
             dsl_attribute(:burst)   { |v| Integer(v) }
 
+            # Enumerates the slaves that are known for this device, as
+            # [slave_name, SlaveDeviceInstance object] pairs
+            def each_slave(&block)
+                slaves.each(&block)
+            end
+
             def slave(slave_service, options = Hash.new)
                 options = Kernel.validate_options options, :as => nil
 
@@ -211,6 +225,7 @@ module Orocos
                             break
                         end
                         device_instance = SlaveDeviceInstance.new(self, srv)
+                        slaves[srv.name] = device_instance
                         srv.model.apply_device_configuration_extensions(device_instance)
                         robot.devices["#{name}.#{srv.name}"] = device_instance
                     end
@@ -463,18 +478,20 @@ module Orocos
                 root_task_arguments = { "#{service.name}_name" => name }.
                     merge(task_arguments)
 
-                devices[name] = MasterDeviceInstance.new(
+                device_instance = MasterDeviceInstance.new(
                     self, name, device_model, device_options,
                     task_model, service, root_task_arguments)
+                devices[name] = device_instance
                 device_model.apply_device_configuration_extensions(devices[name])
 
                 # And register all the slave services there is on the driver
                 task_model.each_slave_data_service(service) do |_, slave_service|
+                    device_instance.slaves[slave_service_name] = slave_service
                     devices["#{name}.#{slave_service.name}"] =
                         SlaveDeviceInstance.new(devices[name], slave_service)
                 end
 
-                devices[name]
+                device_instance
             end
 
             # Enumerates all master devices that are available on this robot
