@@ -81,6 +81,8 @@ module Orocos
             def initialize(arguments = Hash.new)
                 super
 
+                self.executable = false
+
                 start = event(:start)
                 def start.calling(context)
                     super if defined? super
@@ -91,7 +93,7 @@ module Orocos
                         end
                     end
 
-                    if task.executable?(false) && !task.is_setup?
+                    if task.ready_for_setup? && !task.setup?
                         task.setup
                     end
                 end
@@ -178,18 +180,6 @@ module Orocos
                 new_task.orogen_task = orogen_task
                 new_task.orogen_spec = orogen_spec
                 new_task
-            end
-
-            def executable?(with_setup = true) # :nodoc:
-	    	if forced_executable?
-		    return true
-                elsif !@orogen_spec || !@orogen_task
-                    return false
-                end
-                if !super
-                    return false
-                end
-                true
             end
 
             # Value returned by TaskContext#distance_to when the tasks are in
@@ -476,18 +466,42 @@ module Orocos
                     @orogen_state = nil
                 else
                     raise
+            # Returns true if this component needs to be setup by calling the
+            # #setup method, or if it can be used as-is
+            def ready_for_setup?
+                if !orogen_spec || !orogen_task
+                    return false
                 end
+
+                state = begin read_current_state
+                        rescue CORBA::ComError
+                            return false
+                        end
+
+                if !state
+                    return false
+                elsif orogen_task.fatal_error_state?(state)
+                    return false
+                end
+                true
+            end
+
+            # Returns true if the underlying Orocos task has been configured and
+            # can be started
+            #
+            # The general protocol is:
+            #
+            #  if !setup? && ready_for_setup?
+            #      setup
+            #  end
+            #
+            def setup?
+                @setup ||= TaskContext.configured[orocos_name]
             end
 
             # Called to configure the component
             def setup
-                if TaskContext.configured[orocos_name]
-                    if !is_setup?
-                        TaskContext.configured.delete(orocos_name)
-                    else
-                        raise InternalError, "#{orocos_name} is already configured"
-                    end
-                end
+                super
 
                 if !orogen_task
                     raise InternalError, "#setup called but there is no orogen_task"
@@ -496,39 +510,27 @@ module Orocos
                 ::Robot.info "setting up #{self}"
                 state = read_current_state
 
+                if TaskContext.configured[orocos_name]
+                    if state == :PRE_OPERATIONAL
+                        TaskContext.configured.delete(orocos_name)
+                    else
+                        @setup = true
+                        self.executable = nil
+                        return
+                    end
+                end
+
                 if respond_to?(:configure)
                     configure
                 end
+
                 if !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
                     orogen_task.configure
                 end
+
                 TaskContext.configured[orocos_name] = true
-
-            rescue Exception => e
-                event(:start).emit_failed(e)
-            end
-
-            # Returns true if this component needs to be setup by calling the
-            # #setup method, or if it can be used as-is
-            def check_is_setup
-                if !orogen_task
-                    return false
-                end
-
-                state = read_current_state
-                if !state
-                    return false
-                elsif orogen_task.fatal_error_state?(state)
-                    return false
-                elsif !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
-                    return false
-                end
-
-                if respond_to?(:configure)
-                    return TaskContext.configured[orocos_name]
-                else
-                    true
-                end
+                @setup = true
+                self.executable = nil
             end
 
             ##

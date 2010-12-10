@@ -840,31 +840,18 @@ module Orocos
                 model
             end
 
-            def check_is_setup # :nodoc:
+            # Returns true if the underlying Orocos task is in a state that
+            # allows it to be configured
+            def ready_for_setup? # :nodoc:
                 true
             end
 
-            def is_setup?
-                @is_setup ||= check_is_setup
-            end
+            # Returns true if the underlying Orocos task has been properly
+            # configured
+            attr_predicate :setup?, true
 
-            def executable?(with_setup = true)
-	    	if forced_executable?
-		    return true
-                elsif !super()
-                    return false
-                end
-
-                if with_setup
-                    if !is_setup?
-                        return false
-                    end
-
-                    if pending?
-                        return Roby.app.orocos_engine.all_inputs_connected?(self, false)
-                    end
-                end
-                true
+            def setup
+                @setup = true
             end
 
             def user_required_model

@@ -2536,15 +2536,16 @@ module Orocos
                 # obviously between tasks that can be connected ;-)
                 new.each do |(source, sink), mappings|
                     if !dry_run?
-                        if !sink.executable?(false) || !sink.is_setup? ||
-                            !source.executable?(false) || !source.is_setup?
+                        if !sink.executable? || !source.executable?
                             Engine.debug do
                                 Engine.debug "cannot modify connections from #{source}"
                                 Engine.debug "  to #{sink}"
-                                Engine.debug "  source.executable?(false): #{source.executable?(false)}"
-                                Engine.debug "  sink.executable?(false):   #{sink.executable?(false)}"
-                                Engine.debug "  source.is_setup?:          #{source.is_setup?}"
-                                Engine.debug "  sink.is_setup?:            #{sink.is_setup?}"
+                                Engine.debug "  source.executable?:      #{source.executable?}"
+                                Engine.debug "  source.ready_for_setup?: #{source.ready_for_setup?}"
+                                Engine.debug "  source.setup?:           #{source.setup?}"
+                                Engine.debug "  sink.executable?:        #{sink.executable?}"
+                                Engine.debug "  sink.ready_for_setup?:   #{sink.ready_for_setup?}"
+                                Engine.debug "  sink.setup?:             #{sink.setup?}"
                                 break
                             end
                             throw :cancelled
@@ -2742,8 +2743,15 @@ module Orocos
 		    next
 		end
 
-                if !t.is_setup? && Roby.app.orocos_auto_configure?
-                    t.setup 
+                if !t.setup? 
+                    if t.ready_for_setup? && Roby.app.orocos_auto_configure?
+                        begin
+                            t.setup 
+                        rescue Exception => e
+                            t.event(:start).emit_failed(e)
+                        end
+                        next
+                    end
                 end
 
                 handled_this_cycle = Array.new
