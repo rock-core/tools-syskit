@@ -877,13 +877,13 @@ module Orocos
                 end
 
                 by_device = Hash.new
-                each_connected_device do |port, devices|
-                    dynamics = PortDynamics.new("#{self.orocos_name}.#{port}", devices.map(&:sample_size).inject(&:+))
+                each_connected_device do |port_name, devices|
+                    dynamics = PortDynamics.new("#{self.orocos_name}.#{port_name}", devices.map(&:sample_size).inject(&:+))
                     devices.each do |dev|
                         dynamics.add_trigger(dev.name, dev.period, 1)
                         dynamics.add_trigger(dev.name, dev.period * dev.burst, dev.burst)
                     end
-                    result[port] = dynamics
+                    result[port_name] = dynamics
                 end
 
                 result
