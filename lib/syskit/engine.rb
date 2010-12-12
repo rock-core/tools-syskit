@@ -50,7 +50,7 @@ module Orocos
 
             def initialize(name, sample_size = 1)
                 @name = name
-                @sample_size = sample_size
+                @sample_size = sample_size.to_int
                 @triggers = Array.new
             end
 
