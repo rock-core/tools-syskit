@@ -52,6 +52,7 @@ module Orocos
                     robot, name, device_model, task_model, service, task_arguments
                 @slaves      = Hash.new
 
+                sample_size 1
                 burst   0
             end
 
