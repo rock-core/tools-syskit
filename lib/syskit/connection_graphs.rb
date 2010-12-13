@@ -310,6 +310,28 @@ module Orocos
                 self
             end
 
+            # Returns true if all the declared connections to the inputs of +task+ have been applied.
+            # A given module won't be started until it is the case.
+            #
+            # If the +only_static+ flag is set to true, only ports that require
+            # static connections will be considered
+            def all_inputs_connected?(only_static)
+                each_concrete_input_connection do |source_task, source_port, sink_port, policy|
+                    if only_static && !find_input_port_model(sink_port).static?
+                        next
+                    end
+
+                    # Our source may not be initialized at all
+                    if !source_task.orogen_task
+                        return false
+                    end
+
+                    return false if !ActualDataFlow.linked?(source_task.orogen_task, orogen_task)
+                    mappings = source_task.orogen_task[orogen_task, ActualDataFlow]
+                    return false if !mappings.has_key?([source_port, sink_port])
+                end
+                true
+            end
         end
 
         module Flows

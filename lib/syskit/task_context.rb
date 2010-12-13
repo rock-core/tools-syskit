@@ -92,6 +92,10 @@ module Orocos
             def initialize(arguments = Hash.new)
                 super
 
+                # All tasks start with executable? and setup? set to false
+                #
+                # Then, the engine will call setup, which will do what it should
+                @setup = false
                 self.executable = false
             end
 
@@ -511,7 +515,18 @@ module Orocos
             #  end
             #
             def setup?
-                @setup ||= TaskContext.configured[orocos_name]
+                @setup
+            end
+
+            # Announces that the task is indeed setup
+            #
+            # This is meant for internal use. Don't use it unless you know what
+            # you are doing
+            def is_setup!
+                @setup = true
+                if all_inputs_connected?(true)
+                    self.executable = nil
+                end
             end
 
             # Called to configure the component
@@ -529,8 +544,7 @@ module Orocos
                     if state == :PRE_OPERATIONAL
                         TaskContext.configured.delete(orocos_name)
                     else
-                        @setup = true
-                        self.executable = nil
+                        is_setup!
                         return
                     end
                 end
@@ -544,8 +558,7 @@ module Orocos
                 end
 
                 TaskContext.configured[orocos_name] = true
-                @setup = true
-                self.executable = nil
+                is_setup!
             end
 
             ##
@@ -712,7 +725,6 @@ module Orocos
 
                 # Reset the is_setup flag, as the user might transition to
                 # PRE_OPERATIONAL
-                @is_setup = false
                 if @state_reader
                     @state_reader.disconnect
                 end

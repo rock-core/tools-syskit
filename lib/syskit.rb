@@ -18,6 +18,7 @@ require 'orocos/roby/runtime_exceptions'
 
 require 'orocos/roby/dataflow_dynamics'
 require 'orocos/roby/network_merge_solver'
+require 'orocos/roby/runtime_connection_management'
 
 require 'orocos/roby/system_model'
 require 'orocos/roby/robot'
