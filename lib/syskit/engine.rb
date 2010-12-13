@@ -1492,6 +1492,15 @@ module Orocos
                 nil
             end
 
+            # Returns true if +deployed_task+ should be completely ignored by
+            # the engine when deployed tasks are injected into the system
+            # deployer
+            #
+            # For now, the logger is hardcoded there
+            def ignored_deployed_task?(deployed_task)
+                Roby.app.orocos_tasks[deployed_task.task_model.name].name == "Orocos::RobyPlugin::Logger::Logger"
+            end
+
             # Instanciates all deployments that have been specified by the user.
             # Reuses deployments in the current plan manager's plan if possible
             def instanciate_required_deployments
@@ -1505,19 +1514,28 @@ module Orocos
                 deployments.each do |machine_name, deployment_names|
                     deployment_names.each do |deployment_name|
                         model = Roby.app.orocos_deployments[deployment_name]
+
                         task  = plan.find_tasks(model).
                             find { |t| t.arguments[:on] == machine_name }
                         task ||= model.new(:on => machine_name)
                         task.robot = robot
                         plan.add(task)
 
-                        # Now also import the deployment's 
-                        current_contexts = task.merged_relations(:each_executed_task, true).
-                            find_all { |t| !t.finishing? && !t.finished? }.
-                            map(&:orocos_name).to_set
+                        new_activities = Set.new
+                        task.orogen_spec.task_activities.each do |deployed_task|
+                            if ignored_deployed_task?(deployed_task)
+                                Engine.debug { "ignoring #{deployment_name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
+                            else
+                                new_activities << deployed_task.name
+                            end
+                        end
 
-                        new_activities = (task.orogen_spec.task_activities.
-                            map(&:name).to_set - current_contexts)
+                        task.merged_relations(:each_executed_task, true).each do |t|
+                            if !t.finishing? && !t.finished?
+                                new_activities.delete(t.orocos_name)
+                            end
+                        end
+
                         new_activities.each do |act_name|
                             new_task = task.task(act_name)
                             deployed_task = plan[new_task]
