@@ -22,6 +22,7 @@ module Orocos
             def initialize(arguments = Hash.new)
 	    	opts, task_arguments = Kernel.filter_options  arguments, :log => true
 		task_arguments[:log] = opts[:log]
+                @logged_ports = Set.new
                 super(task_arguments)
 	    end
 
@@ -57,6 +58,10 @@ module Orocos
 
             # The underlying Orocos::Process instance
             attr_reader :orogen_deployment
+
+            # The set of ports for which logging has already been set up, as a
+            # set of [task_name, port_name] pairs
+            attr_reader :logged_ports
 
             ##
             # :method: ready_event
@@ -214,6 +219,18 @@ module Orocos
                 end
             end
 
+            # Returns true if the orocos/roby plugin configuration requires
+            # +port+ to be logged
+            def log_port?(port)
+                result = !Roby::State.orocos.port_excluded_from_log?(self,
+                        Roby.app.orocos_tasks[port.task.name], port)
+
+                if !result
+                    Robot.info "not logging #{port.task.name}:#{port.name}"
+                end
+                result
+            end
+
             poll do
                 begin
                     next if ready?
@@ -223,21 +240,6 @@ module Orocos
                         orogen_spec.task_activities.each do |activity|
                             task_handles[activity.name] = 
                                 ::Orocos::TaskContext.get(activity.name)
-                        end
-
-                        if !arguments[:log] || Roby::State.orocos.deployment_excluded_from_log?(self)
-                            Robot.info "not automatically logging any port in deployment #{name}"
-                        else
-                            Orocos::Process.log_all_ports(orogen_deployment,
-                                        :log_dir => log_dir,
-                                        :remote => (machine != 'localhost')) do |port|
-
-                                result = !Roby::State.orocos.port_excluded_from_log?(self, Roby.app.orocos_tasks[port.task.model.name], port)
-                                if !result
-                                    Robot.info "not logging #{port.task.name}:#{port.name}"
-                                end
-                                result
-                            end
                         end
 
                         each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|

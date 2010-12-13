@@ -429,6 +429,14 @@ module Orocos
 		port
             end
 
+            def each_input_port(&block)
+                orogen_task.each_input_port(&block)
+            end
+
+            def each_output_port(&block)
+                orogen_task.each_output_port(&block)
+            end
+
             # The Orocos::TaskContext instance that gives us access to the
             # remote task context. Note that it is set only when the task is
             # started.

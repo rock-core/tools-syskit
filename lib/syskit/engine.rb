@@ -24,6 +24,52 @@ module Orocos
         end
         @current_color = 0
 
+        # Extension to the logger's task model for logging configuration
+        #
+        # It is automatically included in Engine#configure_logging
+        module LoggerConfigurationSupport
+            attr_reader :logged_ports
+
+            # True if this logger is its deployment's default logger
+            #
+            # In this case, it will set itself up using the deployment's logging
+            # configuration
+            attr_predicate :default_logger?, true
+
+            def initialize(arguments = Hash.new)
+                super
+                @logged_ports = Set.new
+            end
+
+            def createLoggingPort(port_name, port_type)
+                @create_port ||= operation('createLoggingPort')
+                @create_port.callop(port_name, port_type)
+                logged_ports << port_name
+            end
+
+            def configure
+                if default_logger?
+                    deployment = execution_agent
+                    if !deployment.arguments[:log] ||
+                        Roby::State.orocos.deployment_excluded_from_log?(deployment)
+                        Robot.info "not automatically logging any port in deployment #{name}"
+                    else
+                        # Only setup the logger
+                        deployment.orogen_deployment.setup_logger(
+                            :log_dir => deployment.log_dir,
+                            :remote => (deployment.machine != 'localhost'))
+                    end
+                end
+
+                super
+
+                each_input_connection do |source_task, source_port_name, sink_port_name, policy|
+                    source_port = source_task.model.find_output_port(source_port_name)
+                    createLoggingPort(sink_port_name, source_port.type.name)
+                end
+            end
+        end
+
         # Class that is used to represent a binding of a service model with an
         # actual task instance during the instanciation process
         class InstanciatedDataService
@@ -764,6 +810,8 @@ module Orocos
                         source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
                             output_ports[source_task] << source_port
                             input_ports[sink_task]    << sink_port
+                            source_port_id = source_port.gsub(/[^\w]/, '_')
+                            sink_port_id   = sink_port.gsub(/[^\w]/, '_')
 
                             policy_s = if policy.empty? then ""
                                        elsif policy[:type] == :data then 'data'
@@ -771,7 +819,7 @@ module Orocos
                                        else policy.to_s
                                        end
 
-                            result << "  #{source_task.dot_id}:#{source_port} -> #{sink_task.dot_id}:#{sink_port} [label=\"#{policy_s}\"];"
+                            result << "  #{source_task.dot_id}:#{source_port_id} -> #{sink_task.dot_id}:#{sink_port_id} [label=\"#{policy_s}\"];"
                         end
                     end
 
@@ -885,13 +933,13 @@ module Orocos
                 label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"#{task.kind_of?(Deployment) ? '0' : '1'}\" CELLSPACING=\"0\">\n"
                 if !inputs.empty?
                     label << inputs.map do |name|
-                        "    <TR><TD PORT=\"#{name}\">#{name} </TD></TR>\n"
+                        "    <TR><TD PORT=\"#{name.gsub(/[^\w]/, '_')}\">#{name} </TD></TR>\n"
                     end.join("")
                 end
                 label << "    <TR><TD ALIGN=\"LEFT\" PORT=\"main\">#{task_label} </TD></TR>\n"
                 if !outputs.empty?
                     label << outputs.map do |name|
-                        "    <TR><TD PORT=\"#{name}\">#{name} </TD></TR>\n"
+                        "    <TR><TD PORT=\"#{name.gsub(/[^\w]/, '_')}\">#{name} </TD></TR>\n"
                     end.join("")
                 end
                 label << "  </TABLE>"
@@ -1069,6 +1117,83 @@ module Orocos
                 end
             end
 
+            # The set of tasks that represent the running deployments
+            attr_reader :deployment_tasks
+
+            # A mapping of type
+            #
+            #   task_name => port_name => PortDynamics instance
+            #
+            # that represent the dynamics of the given ports. The PortDynamics
+            # instance might be nil, in which case it means some of the ports'
+            # dynamics could not be computed
+            attr_reader :port_dynamics
+
+            # Configures each running deployment's logger, based on the
+            # information in +port_dynamics+
+            #
+            # The "configuration" means that we create the necessary connections
+            # between each component's port and the logger
+            def configure_logging
+                Logger::Logger.include LoggerConfigurationSupport
+
+                deployment_tasks.each do |deployment|
+                    next if !deployment.plan
+
+                    logger_task = nil
+                    logger_task_name = "#{deployment.deployment_name}_Logger"
+
+                    required_logging_ports = Array.new
+                    required_connections   = Array.new
+                    deployment.each_executed_task do |t|
+                        if !logger_task && t.orocos_name == logger_task_name
+                            logger_task = t
+                            next
+                        elsif t.model.name == "Orocos::RobyPlugin::Logger::Logger"
+                            next
+                        end
+
+                        connections = Hash.new
+                        t.model.each_output_port do |p|
+                            next if !deployment.log_port?(p)
+
+                            log_port_name = "#{t.orocos_name}.#{p.name}"
+                            connections[[p.name, log_port_name]] = { :fallback_policy => { :type => :buffer, :size => 10 } }
+
+                            required_logging_ports << [log_port_name, p.type.name]
+                        end
+                        required_connections << [t, connections]
+                    end
+
+                    next if required_connections.empty?
+
+                    logger_task ||=
+                        begin
+                            deployment.task(logger_task_name)
+                        rescue ArgumentError
+                            Engine.warn "deployment #{deployment.deployment_name} has no logger (#{logger_task_name})"
+                            next
+                        end
+                    logger_task.default_logger = true
+
+                    if logger_task.setup?
+                        # The logger task is already configured. Add the ports
+                        # manually
+                        #
+                        # Otherwise, Logger#configure will take care of it for
+                        # us
+                        required_logging_ports.each do |port_name, port_type|
+                            if !logger_task.logged_ports.include?(port_name)
+                                logger_task.createLoggingPort(port_name, port_type)
+                            end
+                        end
+                    end
+                    required_connections.each do |task, connections|
+                        task.connect_ports(logger_task, connections)
+                    end
+                end
+            end
+
             # Generate the deployment according to the current requirements, and
             # merges it into the current plan
             #
@@ -1201,7 +1326,7 @@ module Orocos
                     end
 
                     if options[:compute_deployments]
-                        instanciate_required_deployments
+                        @deployment_tasks = instanciate_required_deployments
                         @network_merge_solver.merge_identical_tasks
                     end
 
@@ -1258,6 +1383,10 @@ module Orocos
                         if !t.transaction_proxy? && plan.permanent?(t)
                             plan.unmark_permanent(t)
                         end
+                    end
+
+                    if options[:compute_deployments]
+                        configure_logging
                     end
 
                     if options[:compute_policies]
@@ -1513,6 +1642,7 @@ module Orocos
                     break
                 end
 
+                deployment_tasks = Array.new
                 deployments.each do |machine_name, deployment_names|
                     deployment_names.each do |deployment_name|
                         model = Roby.app.orocos_deployments[deployment_name]
@@ -1522,6 +1652,7 @@ module Orocos
                         task ||= model.new(:on => machine_name)
                         task.robot = robot
                         plan.add(task)
+                        deployment_tasks << task
 
                         new_activities = Set.new
                         task.orogen_spec.task_activities.each do |deployed_task|
@@ -1553,6 +1684,8 @@ module Orocos
                     Engine.debug ""
                     break
                 end
+
+                deployment_tasks
             end
 
             # Load the given DSL file into this Engine instance

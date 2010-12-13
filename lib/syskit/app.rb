@@ -58,7 +58,7 @@ module Orocos
                     excluded_tasks << object
                 elsif object.kind_of?(Class) && object < RobyPlugin::Deployments
                     excluded_deployments << object
-                elsif object.respond_to?(Orocos::Generation::OutputPort)
+                elsif object.kind_of?(Orocos::Generation::OutputPort)
                     excluded_ports << object
                 else
                     excluded_names << object.to_str
@@ -86,7 +86,7 @@ module Orocos
             def port_excluded_from_log?(deployment, task_model, port)
                 if !log_enabled?
                     true
-                elsif excluded_ports.include?(port.model)
+                elsif excluded_ports.include?(port)
                     true
                 elsif excluded_tasks.include?(task_model)
                     true
