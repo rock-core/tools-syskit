@@ -231,8 +231,7 @@ module Orocos
                     end
                 end
 
-
-                # Finally, import in Orocos directly
+                # Finally, import in the Orocos namespace directly
                 const_name = name.camelcase(:upper)
                 if !orogen.self_tasks.empty?
                     Orocos.const_set(const_name, Orocos::RobyPlugin.const_get(const_name))
