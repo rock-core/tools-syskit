@@ -3,11 +3,20 @@ module Orocos
         # In the orocos/rtt, a task context is what is usually called a
         # component.
         #
-        # Subclasses of TaskContext represent these components in Roby plans,
-        # an TaskContext instances may be associated with a Deployment task, that
+        # Subclasses of TaskContext represent these components in Roby plans, an
+        # TaskContext instances may be associated with a Deployment task, that
         # represent the underlying deployment process. The link between a task
         # context and its deployment is usually represented by an executed_by
         # relation.
+        #
+        # The task configuration step is managed as follows:
+        #
+        # * all tasks start with executable? and setup? returning false
+        # * the engine will call #setup to configure the task if it is in the
+        #   main plan. If the actual orocos task was already setup, #setup will
+        #   actually do nothing. At this stage, executable? is still false
+        # * executable? will be true only if the task is configured *and* all
+        #   static inputs are connected.
         class TaskContext < Component
             abstract
             @name = "Orocos::RobyPlugin::TaskContext"
