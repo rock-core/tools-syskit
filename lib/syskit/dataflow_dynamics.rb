@@ -181,13 +181,21 @@ module Orocos
                         end
                     end
 
+                    missing = Hash.new { |h, k| h[k] = Array.new }
+                    remaining.each do |task|
+                        port_names = task.model.each_input_port.map(&:name) + task.model.each_output_port.map(&:name)
+                        port_names.each do |port_name|
+                            if !result[task].has_key?(port_name)
+                                missing[task] << port_name
+                                result[task][port_name] = nil
+                            end
+                        end
+                    end
+
                     if !did_something
                         Engine.info do
                             Engine.info "cannot compute port periods for:"
-                            remaining.each do |task|
-                                port_names = task.model.each_input_port.map(&:name) + task.model.each_output_port.map(&:name)
-                                port_names.delete_if { |port_name| result[task].has_key?(port_name) }
-
+                            missing.each do |task, port_names|
                                 Engine.info "    #{task}: #{port_names.join(", ")}"
                             end
                             break
@@ -210,6 +218,10 @@ module Orocos
                             next if !port_model.kind_of?(Orocos::Generation::OutputPort)
 
                             Engine.debug "  #{port_name}"
+                            if !dyn
+                                Engine.debug "    could not compute its dynamics"
+                                next
+                            end
                             Engine.debug "    period=#{dyn.minimal_period} sample_size=#{dyn.sample_size}"
                             dyn.triggers.each do |tr|
                                 Engine.debug "    trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
