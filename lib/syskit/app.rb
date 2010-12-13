@@ -481,6 +481,7 @@ module Orocos
                     ::Process.setpgrp
                     Orocos::ProcessServer.run(server_options, port)
                 end
+
                 # Wait for the server to be ready
                 client = nil
                 while !client
@@ -488,6 +489,12 @@ module Orocos
                         begin Orocos::ProcessClient.new
                         rescue Errno::ECONNREFUSED
                         end
+                end
+
+                # Verify that the server is actually ours (i.e. check that there
+                # was not one that was still running)
+                if client.server_pid != @server_pid
+                    raise Orocos::ProcessClient::StartupFailed, "failed to start the local process server. It seems that there is one still running as PID #{client.server_pid}"
                 end
 
                 # Do *not* manage the log directory for that one ...
