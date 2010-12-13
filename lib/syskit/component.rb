@@ -399,9 +399,9 @@ module Orocos
             #
             # One can then match if a given string (+name+) matches one of the
             # dynamic output port declarations using this predicate.
-            def has_dynamic_output_port?(name)
+            def has_dynamic_output_port?(name, type = nil)
                 return if !respond_to?(:orogen_spec)
-                orogen_spec.has_dynamic_output_port?(name)
+                orogen_spec.has_dynamic_output_port?(name, type)
             end
 
             # True if +name+ could be a dynamic input port name.
@@ -415,9 +415,9 @@ module Orocos
             #
             # One can then match if a given string (+name+) matches one of the
             # dynamic input port declarations using this predicate.
-            def has_dynamic_input_port?(name)
+            def has_dynamic_input_port?(name, type = nil)
                 return if !respond_to?(:orogen_spec)
-                orogen_spec.has_dynamic_input_port?(name)
+                orogen_spec.has_dynamic_input_port?(name, type)
             end
 
             # Generic instanciation of a component. 

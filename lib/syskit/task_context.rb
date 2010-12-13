@@ -849,6 +849,19 @@ module Orocos
             end
 
             def self.require_dynamic_service(service_model, options)
+                # Verify that there are dynamic ports in orogen_spec that match
+                # the ports in service_model.orogen_spec
+                service_model.each_input_port do |p|
+                    if !has_dynamic_input_port?(p.name, p.type)
+                        raise ArgumentError, "there are no dynamic input ports declared in #{short_name} that match #{p.name}:#{p.type_name}"
+                    end
+                end
+                service_model.each_output_port do |p|
+                    if !has_dynamic_output_port?(p.name, p.type)
+                        raise ArgumentError, "there are no dynamic output ports declared in #{short_name} that match #{p.name}:#{p.type_name}"
+                    end
+                end
+                
                 # Unlike #data_service, we need to add the service's interface
                 # to our own
                 RobyPlugin.merge_orogen_interfaces(orogen_spec, [service_model.orogen_spec])
