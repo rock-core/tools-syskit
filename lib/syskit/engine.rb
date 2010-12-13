@@ -371,8 +371,15 @@ module Orocos
             #   (i.e., the local machine)
             def use_deployment(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
-                server = process_server_for(options[:on])
+                server   = process_server_for(options[:on])
                 deployer = server.load_orogen_deployment(name)
+
+                deployer.used_typekits.each do |tk|
+                    next if tk.virtual?
+                    Orocos::CORBA.load_typekit(tk.name)
+                    server.preload_typekit(tk.name)
+                end
+
                 deployments[options[:on]] << name
                 self
             end
