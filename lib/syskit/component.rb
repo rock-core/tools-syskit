@@ -453,6 +453,8 @@ module Orocos
         class Component < ::Roby::Task
             extend ComponentModel
 
+            def inspect; to_s end
+
             # The Robot instance we are running on
             attr_accessor :robot
 
