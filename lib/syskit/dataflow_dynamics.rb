@@ -240,6 +240,8 @@ module Orocos
 
                 deployed_tasks.each do |source_task|
                     source_task.each_concrete_output_connection do |source_port_name, sink_port_name, sink_task, policy|
+                        fallback_policy = policy.delete(:fallback_policy)
+
                         # Don't do anything if the policy has already been set
                         if !policy.empty?
                             Engine.debug " #{source_task}:#{source_port_name} => #{sink_task}:#{sink_port_name} already connected with #{policy}"
@@ -269,31 +271,46 @@ module Orocos
 
                         # Compute the buffer size
                         input_dynamics = port_dynamics[source_task][source_port.name]
-                        if !input_dynamics || input_dynamics.empty?
-                            raise SpecError, "period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
+                        if input_dynamics.empty?
+                            input_dynamics = nil
                         end
 
                         reading_latency =
-                            if sink_task.model.triggered_by?(sink_port)
+                            if sink_port.trigger_port?
                                 sink_task.trigger_latency
                             elsif !sink_task.minimal_period
-                                raise SpecError, "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
+                                nil
                             else
                                 sink_task.minimal_period + sink_task.trigger_latency
                             end
 
-                        policy[:type] = :buffer
-                        policy[:size] = input_dynamics.queue_size(reading_latency)
-                        Engine.debug do
-                            Engine.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"
-                            Engine.debug "     sample_size:#{input_dynamics.sample_size}"
-                            input_dynamics.triggers.each do |tr|
-                                Engine.debug "     trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
+                        if !input_dynamics || !reading_latency
+                            if fallback_policy
+                                if !input_dynamics
+                                    Engine.warn "period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
+                                else
+                                    Engine.warn "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
+                                end
+                                policy.merge!(Port.validate_policy(fallback_policy))
+                            elsif !input_dynamics
+                                raise SpecError, "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
+                            else
+                                raise SpecError, "period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
                             end
-                            break
+                        else
+                            policy[:type] = :buffer
+                            policy[:size] = input_dynamics.queue_size(reading_latency)
+                            Engine.debug do
+                                Engine.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"
+                                Engine.debug "     sample_size:#{input_dynamics.sample_size}"
+                                input_dynamics.triggers.each do |tr|
+                                    Engine.debug "     trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
+                                end
+                                break
+                            end
+                            policy.merge! Port.validate_policy(policy)
+                            Engine.debug { "     result: #{policy}" }
                         end
-                        policy.merge! Port.validate_policy(policy)
-                        Engine.debug { "     result: #{policy}" }
                     end
                 end
             end
