@@ -331,6 +331,7 @@ module Orocos
                 self
             end
 
+            # Returns the process server object named +name+
             def process_server_for(name)
                 server = RobyPlugin.process_servers[name]
                 if !server
