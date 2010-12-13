@@ -136,12 +136,12 @@ module Orocos
                     # Then register the connections that will make one port be
                     # updated
                     task.orogen_spec.task_model.each_output_port do |port|
-                        port.port_triggers.each do |port_trigger_name|
+                        port.port_triggers.each do |port_trigger|
                             # No need to re-register if it already triggering
                             # the task
-                            next if task.model.triggered_by?(port_trigger_name)
+                            next if port_trigger.trigger_port?
 
-                            task.each_concrete_input_connection(port_trigger_name) do |from_task, from_port, to_port, _|
+                            task.each_concrete_input_connection(port_trigger) do |from_task, from_port, to_port, _|
                                 triggering_connections[task] << [from_task, from_port, to_port]
                                 triggering_dependencies[task] << from_task
                             end

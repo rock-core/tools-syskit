@@ -233,17 +233,6 @@ module Orocos
                 end
             end
 
-            # Predicate which returns true if the deployed component is
-            # triggered by data on the given port. +port+ is an
-            # Orocos::Generation::InputPort instance
-            def self.triggered_by?(port)
-                if port.respond_to?(:to_str)
-                    !!orogen_spec.find_event_port(port.to_str)
-                else
-                    !!orogen_spec.find_event_port(port.name)
-                end
-            end
-
             # The PortDynamics object that describes the dynamics of the task
             # itself.
             #
@@ -318,7 +307,7 @@ module Orocos
                     # ports that trigger this one
                     info_available = port_model.port_triggers.all? do |p|
                         result[p.name] &&
-                            (with_task_dynamics || model.triggered_by?(p.name))
+                            (with_task_dynamics || p.trigger_port?)
                     end
                     next if !info_available
 
@@ -336,7 +325,7 @@ module Orocos
                         period       = trigger_port_dynamics.minimal_period
 
                         sample_count =
-                            if model.triggered_by?(trigger_port_name)
+                            if trigger_port.trigger_port?
                                 # The task gets triggered by the input port. It
                                 # means that we will get 1 + (number of possible
                                 # input samples during trigger_latency) samples
@@ -367,7 +356,7 @@ module Orocos
 
                     # The source port is computed, save the period in the input
                     # ports's model
-                    if model.triggered_by?(to_port)
+                    if model.find_input_port(to_port).trigger_port?
                         task_dynamics.merge(out_dynamics)
                     end
 
