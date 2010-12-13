@@ -93,21 +93,6 @@ module Orocos
                 super
 
                 self.executable = false
-
-                start = event(:start)
-                def start.calling(context)
-                    super if defined? super
-
-                    if !task.orogen_task
-                        if task.execution_agent
-                            task.orogen_task = execution_agent.task_handles[task.orocos_name]
-                        end
-                    end
-
-                    if task.ready_for_setup? && !task.setup?
-                        task.setup
-                    end
-                end
             end
 
             # Creates a Ruby class which represents the set of properties that
