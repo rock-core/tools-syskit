@@ -40,6 +40,219 @@ module Orocos
             end
         end
 
+        # Representation of a task requirement. Used internally by Engine
+        class InstanciatedComponent
+            # The Engine instance
+            attr_reader :engine
+            # The name provided to Engine#add
+            attr_accessor :name
+            # The component model narrowed down from +base_model+ using
+            # +using_spec+
+            attr_reader :model
+            # The component model specified by #add
+            attr_reader :base_model
+            # The arguments that should be passed to the task's #instanciate
+            # method (and, in fine, to the component model)
+            attr_reader :arguments
+            # The actual selection given to Engine#add
+            attr_reader :using_spec
+            # The actual task. It is set after #resolve has been called
+            attr_accessor :task
+            ##
+            # :method: mission?
+            #
+            # True if the component should be marked as a mission in the
+            # plan manager. It is set to true by Engine#add_mission
+            attr_predicate :mission, true
+            # The task this new task replaces. It is set by Engine#replace
+            attr_accessor :replaces
+
+            def initialize(engine, name, model, arguments)
+                @engine    = engine
+                @name      = name
+                @model     = @base_model = model
+                @arguments = arguments
+                @using_spec = Hash.new
+            end
+
+            ##
+            # :call-seq:
+            #   use 'child_name' => 'component_model_or_device'
+            #   use 'child_name' => ComponentModel
+            #   use ChildModel => 'component_model_or_device'
+            #   use ChildModel => ComponentModel
+            #   use Model1, Model2, Model3
+            #
+            # Provides explicit selections for the children of compositions
+            #
+            # In the first two forms, provides an explicit selection for a
+            # given child. The selection can be given either by name (name
+            # of the model and/or of the selected device), or by directly
+            # giving the model object.
+            #
+            # In the second two forms, provides an explicit selection for
+            # any children that provide the given model. For instance,
+            #
+            #   use IMU => XsensImu::Task
+            #
+            # will select XsensImu::Task for any child that provides IMU
+            #
+            # Finally, the third form allows to specify preferences without
+            # being specific about where to put them. If ambiguities are
+            # found, and if only one of the possibility is listed there,
+            # then that possibility will be selected. It has a lower
+            # priority than the explicit selection.
+            #
+            # See also Composition#instanciate
+            def use(*mapping)
+                result = Hash.new
+                mapping.delete_if do |element|
+                    if element.kind_of?(Hash)
+                        result.merge!(element)
+                    else
+                        result[nil] ||= Array.new
+                        result[nil] << element
+                    end
+                end
+                using_spec.merge!(result)
+
+                narrow_model
+                self
+            end
+
+            # Computes the value of +model+ based on the current selection
+            # (in using_spec) and the base model specified in #add or
+            # #define
+            def narrow_model
+                Engine.debug do
+                    Engine.debug "narrowing model for #{name}"
+                    Engine.debug "  from #{base_model.short_name}"
+                    break
+                end
+                selection = Hash.new
+                using_spec.each_key do |key|
+                    if result = resolve_explicit_selection(using_spec[key])
+                        selection[key] = result
+                    end
+                end
+                candidates = base_model.narrow(selection)
+                @model =
+                    if candidates.size == 1
+                        candidates.find { true }
+                    else
+                        base_model
+                    end
+
+                Engine.debug do
+                    Engine.debug "  found #{@model.short_name}"
+                    break
+                end
+            end
+
+            # Resolves a selection given through the #use method
+            #
+            # It can take, as input, one of:
+            # 
+            # * an array, in which case it is called recursively on each of
+            #   the array's elements.
+            # * an InstanciatedComponent (returned by Engine#add)
+            # * a name
+            #
+            # In the latter case, the name refers either to a device name,
+            # or to the name given through the ':as' argument to Engine#add.
+            # A particular service can also be selected by adding
+            # ".service_name" to the component name.
+            #
+            # The returned value is either an array of resolved selections,
+            # a Component instance or an InstanciatedDataService instance.
+            def resolve_explicit_selection(value)
+                if value.kind_of?(MasterDeviceInstance) || value.kind_of?(SlaveDeviceInstance)
+                    value = value.name
+                end
+
+                if value.kind_of?(InstanciatedComponent)
+                    value.task
+                elsif value.respond_to?(:to_str)
+                    value = value.to_str
+                    if !(selected_object = engine.tasks[value])
+                        if selected_object = engine.robot.devices[value]
+                            # Do a weak selection and return the device's
+                            # task model
+                            return selected_object.task_model
+                        else
+                            raise SpecError, "#{value} does not refer to a known task or device"
+                        end
+                    end
+
+                    # Check if a service has explicitely been selected, and
+                    # if it is the case, return it instead of the complete
+                    # task
+                    service_names = value.split '.'
+                    service_names.shift # remove the task name
+                    if !selected_object.kind_of?(Component) || service_names.empty? 
+                        selected_object
+                    else
+                        candidate_service = selected_object.model.find_data_service(service_names.join("."))
+
+                        if !candidate_service && service_names.size == 1
+                            # Might still be a slave of a main service
+                            services = selected_object.model.each_data_service.
+                                find_all { |srv| !srv.master? && srv.master.main? && srv.name == service_names.first }
+
+                            if services.empty?
+                                raise SpecError, "#{value} is not a known device, or an instanciated composition"
+                            elsif services.size > 1
+                                raise SpecError, "#{value} can refer to multiple objects"
+                            end
+                            candidate_service = services.first
+                        end
+
+                        InstanciatedDataService.new(selected_object, candidate_service)
+                    end
+                elsif value.respond_to?(:to_ary)
+                    value.map(&method(:resolve_explicit_selection))
+                else
+                    value
+                end
+            end
+
+            def verify_result_in_transaction(key, result)
+                if result.respond_to?(:to_ary)
+                    result.each { |obj| verify_result_in_transaction(key, obj) }
+                    return
+                end
+
+                task = result
+                if result.respond_to?(:task)
+                    task = result.task
+                end
+                if task.respond_to?(:plan)
+                    if !task.plan
+                        if task.removed_at
+                            raise InternalError, "#{task}, which has been selected for #{key}, has been removed from its plan\n  Removed at\n    #{task.removed_at.join("\n    ")}"
+                        else
+                            raise InternalError, "#{task}, which has been selected for #{key}, is not included in any plan"
+                        end
+                    elsif !(task.plan == engine.plan)
+                        raise InternalError, "#{task}, which has been selected for #{key}, is not in #{engine.plan} (is in #{task.plan})"
+                    end
+                end
+            end
+
+            # Create a concrete task for this requirements
+            def instanciate(engine)
+                selection = engine.main_selection.merge(using_spec)
+                selection.each_key do |key|
+                    if result = resolve_explicit_selection(selection[key])
+                        verify_result_in_transaction(key, result)
+                        selection[key] = result
+                    end
+                end
+
+                @task = model.instanciate(engine, arguments.merge(:selection => selection))
+            end
+        end
+
         # The main deployment algorithm
         #
         # Engine instances are the objects that actually get deployment
@@ -188,219 +401,6 @@ module Orocos
                 @pending_removes = Hash.new
 
                 @dot_index = 0
-            end
-
-            # Representation of a task requirement. Used internally by Engine
-            class InstanciatedComponent
-                # The Engine instance
-                attr_reader :engine
-                # The name provided to Engine#add
-                attr_accessor :name
-                # The component model narrowed down from +base_model+ using
-                # +using_spec+
-                attr_reader :model
-                # The component model specified by #add
-                attr_reader :base_model
-                # The arguments that should be passed to the task's #instanciate
-                # method (and, in fine, to the component model)
-                attr_reader :arguments
-                # The actual selection given to Engine#add
-                attr_reader :using_spec
-                # The actual task. It is set after #resolve has been called
-                attr_accessor :task
-                ##
-                # :method: mission?
-                #
-                # True if the component should be marked as a mission in the
-                # plan manager. It is set to true by Engine#add_mission
-                attr_predicate :mission, true
-                # The task this new task replaces. It is set by Engine#replace
-                attr_accessor :replaces
-
-                def initialize(engine, name, model, arguments)
-                    @engine    = engine
-                    @name      = name
-                    @model     = @base_model = model
-                    @arguments = arguments
-                    @using_spec = Hash.new
-                end
-
-                ##
-                # :call-seq:
-                #   use 'child_name' => 'component_model_or_device'
-                #   use 'child_name' => ComponentModel
-                #   use ChildModel => 'component_model_or_device'
-                #   use ChildModel => ComponentModel
-                #   use Model1, Model2, Model3
-                #
-                # Provides explicit selections for the children of compositions
-                #
-                # In the first two forms, provides an explicit selection for a
-                # given child. The selection can be given either by name (name
-                # of the model and/or of the selected device), or by directly
-                # giving the model object.
-                #
-                # In the second two forms, provides an explicit selection for
-                # any children that provide the given model. For instance,
-                #
-                #   use IMU => XsensImu::Task
-                #
-                # will select XsensImu::Task for any child that provides IMU
-                #
-                # Finally, the third form allows to specify preferences without
-                # being specific about where to put them. If ambiguities are
-                # found, and if only one of the possibility is listed there,
-                # then that possibility will be selected. It has a lower
-                # priority than the explicit selection.
-                #
-                # See also Composition#instanciate
-                def use(*mapping)
-                    result = Hash.new
-                    mapping.delete_if do |element|
-                        if element.kind_of?(Hash)
-                            result.merge!(element)
-                        else
-                            result[nil] ||= Array.new
-                            result[nil] << element
-                        end
-                    end
-                    using_spec.merge!(result)
-
-                    narrow_model
-                    self
-                end
-
-                # Computes the value of +model+ based on the current selection
-                # (in using_spec) and the base model specified in #add or
-                # #define
-                def narrow_model
-                    Engine.debug do
-                        Engine.debug "narrowing model for #{name}"
-                        Engine.debug "  from #{base_model.short_name}"
-                        break
-                    end
-                    selection = Hash.new
-                    using_spec.each_key do |key|
-                        if result = resolve_explicit_selection(using_spec[key])
-                            selection[key] = result
-                        end
-                    end
-                    candidates = base_model.narrow(selection)
-                    @model =
-                        if candidates.size == 1
-                            candidates.find { true }
-                        else
-                            base_model
-                        end
-
-                    Engine.debug do
-                        Engine.debug "  found #{@model.short_name}"
-                        break
-                    end
-                end
-
-                # Resolves a selection given through the #use method
-                #
-                # It can take, as input, one of:
-                # 
-                # * an array, in which case it is called recursively on each of
-                #   the array's elements.
-                # * an InstanciatedComponent (returned by Engine#add)
-                # * a name
-                #
-                # In the latter case, the name refers either to a device name,
-                # or to the name given through the ':as' argument to Engine#add.
-                # A particular service can also be selected by adding
-                # ".service_name" to the component name.
-                #
-                # The returned value is either an array of resolved selections,
-                # a Component instance or an InstanciatedDataService instance.
-                def resolve_explicit_selection(value)
-                    if value.kind_of?(MasterDeviceInstance) || value.kind_of?(SlaveDeviceInstance)
-                        value = value.name
-                    end
-
-                    if value.kind_of?(InstanciatedComponent)
-                        value.task
-                    elsif value.respond_to?(:to_str)
-                        value = value.to_str
-                        if !(selected_object = engine.tasks[value])
-                            if selected_object = engine.robot.devices[value]
-                                # Do a weak selection and return the device's
-                                # task model
-                                return selected_object.task_model
-                            else
-                                raise SpecError, "#{value} does not refer to a known task or device"
-                            end
-                        end
-
-                        # Check if a service has explicitely been selected, and
-                        # if it is the case, return it instead of the complete
-                        # task
-                        service_names = value.split '.'
-                        service_names.shift # remove the task name
-                        if !selected_object.kind_of?(Component) || service_names.empty? 
-                            selected_object
-                        else
-                            candidate_service = selected_object.model.find_data_service(service_names.join("."))
-
-                            if !candidate_service && service_names.size == 1
-                                # Might still be a slave of a main service
-                                services = selected_object.model.each_data_service.
-                                    find_all { |srv| !srv.master? && srv.master.main? && srv.name == service_names.first }
-
-                                if services.empty?
-                                    raise SpecError, "#{value} is not a known device, or an instanciated composition"
-                                elsif services.size > 1
-                                    raise SpecError, "#{value} can refer to multiple objects"
-                                end
-                                candidate_service = services.first
-                            end
-
-                            InstanciatedDataService.new(selected_object, candidate_service)
-                        end
-                    elsif value.respond_to?(:to_ary)
-                        value.map(&method(:resolve_explicit_selection))
-                    else
-                        value
-                    end
-                end
-
-                def verify_result_in_transaction(key, result)
-                    if result.respond_to?(:to_ary)
-                        result.each { |obj| verify_result_in_transaction(key, obj) }
-                        return
-                    end
-
-                    task = result
-                    if result.respond_to?(:task)
-                        task = result.task
-                    end
-                    if task.respond_to?(:plan)
-                        if !task.plan
-                            if task.removed_at
-                                raise InternalError, "#{task}, which has been selected for #{key}, has been removed from its plan\n  Removed at\n    #{task.removed_at.join("\n    ")}"
-                            else
-                                raise InternalError, "#{task}, which has been selected for #{key}, is not included in any plan"
-                            end
-                        elsif !(task.plan == engine.plan)
-                            raise InternalError, "#{task}, which has been selected for #{key}, is not in #{engine.plan} (is in #{task.plan})"
-                        end
-                    end
-                end
-
-                # Create a concrete task for this requirements
-                def instanciate(engine)
-                    selection = engine.main_selection.merge(using_spec)
-                    selection.each_key do |key|
-                        if result = resolve_explicit_selection(selection[key])
-                            verify_result_in_transaction(key, result)
-                            selection[key] = result
-                        end
-                    end
-
-                    @task = model.instanciate(engine, arguments.merge(:selection => selection))
-                end
             end
 
             # The set of selections the user specified should be applied on
