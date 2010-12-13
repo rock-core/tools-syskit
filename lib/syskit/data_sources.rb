@@ -858,6 +858,8 @@ module Orocos
                 end
 
                 each_concrete_output_connection do |source_port, sink_port, sink_task|
+                    next if !port_to_device.has_key?(source_port)
+
                     devices = port_to_device[source_port].
                         map do |d_name|
                             if !(device = robot.devices[d_name])
@@ -866,7 +868,9 @@ module Orocos
                             device
                         end
 
-                    yield(source_port, devices)
+                    if !devices.empty?
+                        yield(source_port, devices)
+                    end
                 end
             end
 
