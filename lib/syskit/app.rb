@@ -35,6 +35,14 @@ module Orocos
                 @excluded_tasks = Set.new
                 @excluded_ports = Set.new
                 @excluded_names = Set.new
+
+                registry = Typelib::Registry.new
+                Typelib::Registry.add_standard_cxx_types(registry)
+                registry.each do |t|
+                    if t < Typelib::NumericType
+                        @excluded_names << t.name
+                    end
+                end
             end
 
             attr_reader :excluded_deployments
