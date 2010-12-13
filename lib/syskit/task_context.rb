@@ -429,12 +429,34 @@ module Orocos
 		port
             end
 
+            def input_port_model(name)
+                if !(p = orogen_task.input_port_model(name))
+                    raise ArgumentError, "there is no port #{name} on #{self}"
+                end
+                p
+            end
+
+            def output_port_model(name)
+                if !(p = orogen_task.output_port_model(name))
+                    raise ArgumentError, "there is no port #{name} on #{self}"
+                end
+                p
+            end
+
             def each_input_port(&block)
                 orogen_task.each_input_port(&block)
             end
 
             def each_output_port(&block)
                 orogen_task.each_output_port(&block)
+            end
+
+            def operation(name)
+                orogen_task.operation(name)
+            end
+
+            def property(name)
+                orogen_task.property(name)
             end
 
             # The Orocos::TaskContext instance that gives us access to the
