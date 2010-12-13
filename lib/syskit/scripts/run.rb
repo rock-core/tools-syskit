@@ -38,12 +38,7 @@ error = Scripts.run do
             tasks = Roby.plan.find_tasks(Orocos::RobyPlugin::Component).
                 roots(Roby::TaskStructure::Hierarchy).to_value_set
             tasks.each do |t|
-                puts "#{t}: #{t.execution_agent} #{t.each_executed_task.to_a}"
                 Roby.plan.add_mission(t)
-            end
-            tasks = Roby.plan.find_tasks(Orocos::RobyPlugin::Deployment)
-            tasks.each do |t|
-                puts "#{t}: #{t.execution_agent} #{t.each_executed_task.to_a}"
             end
         end
     end
