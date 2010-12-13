@@ -232,26 +232,21 @@ module Orocos
             end
 
             poll do
-                begin
-                    next if ready?
+                next if ready?
 
-                    if orogen_deployment.wait_running(0)
-                        @task_handles = Hash.new
-                        orogen_spec.task_activities.each do |activity|
-                            task_handles[activity.name] = 
-                                ::Orocos::TaskContext.get(activity.name)
-                        end
-
-                        each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                            task.orogen_task = task_handles[task.orocos_name]
-                            task.orogen_task.process = orogen_deployment
-                        end
-
-                        emit :ready
+                if orogen_deployment.wait_running(0)
+                    @task_handles = Hash.new
+                    orogen_spec.task_activities.each do |activity|
+                        task_handles[activity.name] = 
+                            ::Orocos::TaskContext.get(activity.name)
                     end
-                rescue Exception => e
-                    STDERR.puts e.message
-                    raise
+
+                    each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
+                        task.orogen_task = task_handles[task.orocos_name]
+                        task.orogen_task.process = orogen_deployment
+                    end
+
+                    emit :ready
                 end
             end
 
