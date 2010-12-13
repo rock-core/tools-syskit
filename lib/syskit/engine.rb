@@ -1043,15 +1043,15 @@ module Orocos
 
                 # Needed at least for now to merge together drivers that
                 # have multiple devices
-                merge_identical_tasks
+                @network_merge_solver.merge_identical_tasks
                 link_to_busses
-                merge_identical_tasks
-            end
-
-            def merge_identical_tasks
                 @network_merge_solver.merge_identical_tasks
             end
 
+            # Hook called by the merge algorithm
+            #
+            # It updates the +tasks+, robot.devices 'task' attribute and
+            # instances hashes
             def merged_tasks(merges)
                 tasks.each_key do |n|
                     if task = merges[tasks[n]]
@@ -1201,7 +1201,7 @@ module Orocos
 
                     if options[:compute_deployments]
                         instanciate_required_deployments
-                        merge_identical_tasks
+                        @network_merge_solver.merge_identical_tasks
                     end
 
                     # the tasks[] and devices mappings are updated during the
