@@ -108,6 +108,7 @@ module Orocos
             def self.compute_connection_policies(plan)
                 engine = DataFlowDynamics.new(plan)
                 engine.compute_connection_policies
+                engine.port_dynamics
             end
 
             # Compute the dataflow information along the connections that exist

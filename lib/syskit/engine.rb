@@ -1237,10 +1237,6 @@ module Orocos
                         validate_final_network(trsc, options)
                     end
 
-                    if options[:compute_policies]
-                        DataFlowDynamics.compute_connection_policies(plan)
-                    end
-
                     if options[:garbage_collect]
                         trsc.static_garbage_collect do |obj|
                             if obj.transaction_proxy?
@@ -1262,6 +1258,11 @@ module Orocos
                         if !t.transaction_proxy? && plan.permanent?(t)
                             plan.unmark_permanent(t)
                         end
+                    end
+
+                    if options[:compute_policies]
+                        @port_dynamics =
+                            DataFlowDynamics.compute_connection_policies(plan)
                     end
 
                     if dry_run?
