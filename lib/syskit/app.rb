@@ -156,11 +156,7 @@ module Orocos
             # subclass of Orocos::RobyPlugin::Deployment
             attribute(:orocos_deployments) { Hash.new }
 
-            attribute(:main_orogen_project) do
-                project = Orocos::Generation::Component.new
-                project.name 'roby'
-                project.extend MasterProjectHook
-            end
+            def main_orogen_project; Orocos.master_project end
 
             # The system model object
             attr_accessor :orocos_system_model
@@ -196,7 +192,6 @@ module Orocos
             # models. It also loads the projects this one depends on.
             def load_orogen_project(name, orogen = nil)
                 orogen ||= main_orogen_project.load_orogen_project(name)
-
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
                 # If it is a task library, register it on our main project
@@ -204,7 +199,6 @@ module Orocos
                     main_orogen_project.using_task_library(name)
                 end
 
-		Orocos.registry.merge(orogen.registry)
                 loaded_orogen_projects[name] = orogen
 
                 orogen.used_task_libraries.each do |lib|
@@ -277,7 +271,6 @@ module Orocos
 
                 Roby::State.orocos = Configuration.new
 
-                Orocos.master_project.extend(MasterProjectHook)
                 app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
                 Orocos.load
@@ -382,10 +375,7 @@ module Orocos
                     end
                 end
 
-                project = Orocos::Generation::Component.new
-                project.name 'roby'
-                @main_orogen_project = project
-                project.extend MasterProjectHook
+                Orocos.master_project.extend(MasterProjectHook)
             end
 
             def self.load_task_extension(file, app)
@@ -502,7 +492,6 @@ module Orocos
             end
 
             def self.register_process_server(name, client, log_dir)
-                client.master_project.extend MasterProjectHook
                 Orocos::RobyPlugin.process_servers[name] = [client, log_dir]
             end
 
