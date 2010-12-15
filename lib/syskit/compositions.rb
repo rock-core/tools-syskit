@@ -2104,7 +2104,9 @@ module Orocos
             # will return false if any of the children is not executable.
             def executable? # :nodoc:
                 if !super
-                    return
+                    return false
+                elsif @executable
+                    return true
                 end
 
                 each_child do |child_task, _|
