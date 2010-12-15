@@ -52,15 +52,15 @@ Roby.app.using_plugins 'orocos'
 Roby.app.orocos_only_load_models = true
 Roby.app.orocos_disables_local_process_server = true
 
+Scripts.tic
 error = Scripts.run do
     GC.start
 
-    Scripts.tic
     Roby.app.load_orocos_deployment(deployment_file)
     additional_services.each do |service_name|
         Roby.app.orocos_engine.add service_name
     end
-    Scripts.toc_tic "loaded deployment in %.3f seconds"
+    Scripts.toc_tic "initialized in %.3f seconds"
 
     Roby.app.orocos_engine.
         resolve(:export_plan_on_error => false,
