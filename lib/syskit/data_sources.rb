@@ -841,10 +841,26 @@ module Orocos
 
             def each_attached_device(&block)
                 result = ValueSet.new
-                each_connected_device do |_, devices|
+                each_device_connection do |_, devices|
                     result |= devices.to_value_set
                 end
                 result.each(&block)
+            end
+
+            def each_device_connection_helper(port_name) # :nodoc:
+                return if !port_to_device.has_key?(port_name)
+
+                devices = port_to_device[port_name].
+                    map do |d_name|
+                        if !(device = robot.devices[d_name])
+                            raise ArgumentError, "#{self} refers to device #{d_name} for port #{source_port}, but there is no such device"
+                        end
+                        device
+                    end
+
+                if !devices.empty?
+                    yield(port_name, devices)
+                end
             end
 
             # Finds out what output port serves what devices by looking at what
@@ -852,25 +868,16 @@ module Orocos
             #
             # Indeed, for communication busses, the device model is determined
             # by the sink port of output connections.
-            def each_connected_device(&block)
+            def each_device_connection(&block)
                 if !block_given?
-                    return enum_for(:each_connected_device)
+                    return enum_for(:each_device_connection)
                 end
 
+                each_concrete_input_connection do |source_task, source_port, sink_port|
+                    each_device_connection_helper(sink_port, &block)
+                end
                 each_concrete_output_connection do |source_port, sink_port, sink_task|
-                    next if !port_to_device.has_key?(source_port)
-
-                    devices = port_to_device[source_port].
-                        map do |d_name|
-                            if !(device = robot.devices[d_name])
-                                raise ArgumentError, "#{self} refers to device #{d_name} for port #{source_port}, but there is no such device"
-                            end
-                            device
-                        end
-
-                    if !devices.empty?
-                        yield(source_port, devices)
-                    end
+                    each_device_connection_helper(source_port, &block)
                 end
             end
 
@@ -881,7 +888,7 @@ module Orocos
                 end
 
                 by_device = Hash.new
-                each_connected_device do |port_name, devices|
+                each_device_connection do |port_name, devices|
                     dynamics = PortDynamics.new("#{self.orocos_name}.#{port_name}", devices.map(&:sample_size).inject(&:+))
                     devices.each do |dev|
                         dynamics.add_trigger(dev.name, dev.period, 1)
