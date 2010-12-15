@@ -556,17 +556,19 @@ module Orocos
                     raise InternalError, "#setup called but there is no orogen_task"
                 end
 
-                ::Robot.info "setting up #{self}"
                 state = read_current_state
 
                 if TaskContext.configured[orocos_name]
                     if state == :PRE_OPERATIONAL
                         TaskContext.configured.delete(orocos_name)
                     else
+                        Robot.info "#{self} was already configured"
                         is_setup!
                         return
                     end
                 end
+
+                ::Robot.info "setting up #{self}"
 
                 if respond_to?(:configure)
                     configure
