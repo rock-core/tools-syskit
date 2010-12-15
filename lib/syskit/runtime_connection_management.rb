@@ -285,6 +285,8 @@ module Orocos
                             from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port), policy)
                             ActualDataFlow.add_connections(from_task.orogen_task, to_task.orogen_task,
                                                        [from_port, to_port] => policy)
+                        rescue CORBA::ComError
+                            # The task will be aborted. Simply ignore
                         rescue Orocos::InterfaceObjectNotFound => e
                             if e.task == from_task.orogen_task && e.name == from_port
                                 plan.engine.add_error(PortNotFound.new(from_task, from_port, :output))
