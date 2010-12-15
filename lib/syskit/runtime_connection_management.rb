@@ -264,8 +264,11 @@ module Orocos
                         #
                         # It will break code that connects to input ports
                         # externally. This is not a common case however.
-                        if !ActualDataFlow.has_in_connections?(sink_task, sink_port)
-                            sink.disconnect_all
+                        begin
+                            if !ActualDataFlow.has_in_connections?(sink_task, sink_port)
+                                sink.disconnect_all
+                            end
+                        rescue CORBA::ComError => e
                         end
                     end
                 end
