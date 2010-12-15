@@ -1771,13 +1771,15 @@ module Orocos
 
             if !(query = plan.instance_variable_get :@orocos_update_query)
                 query = plan.find_tasks(Orocos::RobyPlugin::TaskContext).
-                    not_finished.not_failed
+                    not_finished
                 plan.instance_variable_set :@orocos_update_query, query
             end
 
             query.reset
             for t in query
+                # The task's deployment is not started yet
                 next if !t.orogen_task
+
                 # Some CORBA implementations (namely, omniORB) may behave weird
                 # if the remote process terminates in the middle of a remote
                 # call.
