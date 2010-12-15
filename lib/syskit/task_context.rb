@@ -653,6 +653,8 @@ module Orocos
                         end
                     elsif interrupt?
                         emit :interrupt
+                    elsif finishing?
+                        emit :stop
                     else
                         emit :success
                     end
