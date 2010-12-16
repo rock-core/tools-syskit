@@ -904,7 +904,7 @@ module Orocos
                 
                 task_label = 
                     if task.respond_to?(:proxied_data_services)
-                        task.proxied_data_services.map(&:model).map(&:short_name).join(", ") + task_flags
+                        task.proxied_data_services.map(&:short_name).join(", ") + task_flags
                     else
                         text = task.to_s
                         text = text.gsub('Orocos::RobyPlugin::', '').
