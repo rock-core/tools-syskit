@@ -114,11 +114,11 @@ module Orocos
                     new_mapping.each do |ports, new_policy|
                         if old_policy = old_mapping[ports]
                             if old_policy != new_policy
-                                new_connections[ports] = policy
+                                new_connections[ports] = new_policy
                                 removed_connections << ports
                             end
                         else
-                            new_connections[ports] = policy
+                            new_connections[ports] = new_policy
                         end
                     end
 
