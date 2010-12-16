@@ -271,7 +271,8 @@ module Orocos
                             if !ActualDataFlow.has_in_connections?(sink_task, sink_port)
                                 sink.disconnect_all
                             end
-                        rescue CORBA::ComError => e
+                        rescue Orocos::NotFound
+                        rescue CORBA::ComError
                         end
                     end
                 end
