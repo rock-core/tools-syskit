@@ -1191,6 +1191,8 @@ module Orocos
                             Engine.warn "deployment #{deployment.deployment_name} has no logger (#{logger_task_name})"
                             next
                         end
+
+                    plan.add_permanent(logger_task)
                     logger_task.default_logger = true
 
                     if logger_task.setup?
