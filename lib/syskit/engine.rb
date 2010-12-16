@@ -43,7 +43,9 @@ module Orocos
 
             def createLoggingPort(port_name, port_type)
                 @create_port ||= operation('createLoggingPort')
-                @create_port.callop(port_name, port_type)
+                if !@create_port.callop(port_name, port_type)
+                    raise ArgumentError, "cannot create a logger port of name #{port_name} and type #{port_type.name}"
+                end
                 logged_ports << port_name
             end
 
