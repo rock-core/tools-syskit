@@ -1517,6 +1517,7 @@ module Orocos
                 end
 
                 task.depends_on com_bus_task
+                task.start_event.ensure com_bus_task.start_event
 
                 com_bus_in = com_bus_task.model.each_input_port.
                     find_all { |p| p.type.name == message_type }
