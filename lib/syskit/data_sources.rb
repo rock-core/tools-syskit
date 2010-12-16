@@ -875,11 +875,19 @@ module Orocos
             attribute(:port_to_device) { Hash.new { |h, k| h[k] = Array.new } }
 
             def each_attached_device(&block)
-                result = ValueSet.new
-                each_device_connection do |_, devices|
-                    result |= devices.to_value_set
+                model.each_data_source do |name, ds|
+                    next if !ds.model.kind_of?(ComBusModel)
+
+                    combus = robot.devices[arguments["#{ds.name}_name"]]
+                    robot.devices.each_value do |dev|
+                        # Only master devices can be attached to a bus
+                        next if !dev.kind_of?(MasterDeviceInstance)
+
+                        if dev.attached_to?(combus)
+                            yield(dev)
+                        end
+                    end
                 end
-                result.each(&block)
             end
 
             def each_device_connection_helper(port_name) # :nodoc:
