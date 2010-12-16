@@ -118,6 +118,13 @@ module Orocos
                 if block_given?
                     model.apply_block(&block)
                 end
+
+                # Now initialize the port_mappings hash. We register our own
+                # ports as identity (from => from)
+                self_mappings = (model.port_mappings[model] ||= Hash.new)
+                model.each_input_port  { |port| self_mappings[port.name] = port.name }
+                model.each_output_port { |port| self_mappings[port.name] = port.name }
+
                 model
             end
 

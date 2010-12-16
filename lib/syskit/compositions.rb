@@ -1628,7 +1628,7 @@ module Orocos
             end
 
             def compute_service_selection(child_name, task_model, required_services, user_call)
-                result = []
+                result = Hash.new
                 required_services.each do |required|
                     next if !required.kind_of?(DataServiceModel)
                     candidate_services =
@@ -1648,7 +1648,7 @@ module Orocos
                         raise NoMatchingService.new(self, child_name, task_model, required),
                             "there is no service of #{task_model.name} that provide #{required.name}, for the child #{child_name} of #{self.name}"
                     end
-                    result << candidate_services.first
+                    result[required] = candidate_services.first
                 end
                 result
             end
@@ -1760,7 +1760,7 @@ module Orocos
                     raise ArgumentError, "invalid selection #{selected_object}: expected a device name, a task instance or a model"
                 end
 
-                return is_explicit, (selected_services || []), child_model, child_task
+                return is_explicit, (selected_services || Hash.new), child_model, child_task
             end
 
             # Verifies that +selected_model+ is an acceptable selection for
@@ -1823,8 +1823,8 @@ module Orocos
                     # selected task
                     port_mappings = Hash.new
                     if !selected_services.empty?
-                        selected_services.each do |srv|
-                            if existing_mappings = child_model.port_mappings_for(srv.model)
+                        selected_services.each do |expected, selected|
+                            if existing_mappings = selected.port_mappings_for(expected)
                                 port_mappings = SystemModel.merge_port_mappings(port_mappings, existing_mappings)
                             end
                         end
