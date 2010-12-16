@@ -794,7 +794,7 @@ module Orocos
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
-            def to_dot_dataflow(remove_compositions = false)
+            def to_dot_dataflow(remove_compositions = false, excluded_models = ValueSet.new)
                 result = []
                 result << "digraph {"
                 result << "  rankdir=LR"
@@ -807,6 +807,7 @@ module Orocos
 
                 plan.find_local_tasks(Component).each do |source_task|
                     next if remove_compositions && source_task.kind_of?(Composition)
+                    next if excluded_models.include?(source_task.model)
 
                     source_task.model.each_input_port do |port|
                         input_ports[source_task] << port.name
@@ -814,9 +815,12 @@ module Orocos
                     source_task.model.each_output_port do |port|
                         output_ports[source_task] << port.name
                     end
+
                     all_tasks << source_task
                     if !source_task.kind_of?(Composition)
                         source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
+                            next if excluded_models.include?(sink_task.model)
+
                             output_ports[source_task] << source_port
                             input_ports[sink_task]    << sink_port
                             source_port_id = source_port.gsub(/[^\w]/, '_')
@@ -835,6 +839,8 @@ module Orocos
                     if !remove_compositions
                         source_task.each_sink do |sink_task, connections|
                             next if !sink_task.kind_of?(Composition) && !source_task.kind_of?(Composition)
+                            next if excluded_models.include?(sink_task.model) || excluded_models.include?(source_task.model)
+
                             connections.each do |(source_port, sink_port), _|
                                 output_ports[source_task] << source_port
                                 input_ports[sink_task]    << sink_port

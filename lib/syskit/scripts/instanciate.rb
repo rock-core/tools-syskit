@@ -5,6 +5,7 @@ Scripts = Orocos::RobyPlugin::Scripts
 compute_policies    = true
 compute_deployments = true
 remove_compositions = false
+remove_loggers      = false
 validate_network    = true
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate [options] deployment [additional services]
@@ -18,6 +19,9 @@ parser = OptionParser.new do |opt|
     end
     opt.on('--no-deployments', "don't deploy") do
         compute_deployments = false
+    end
+    opt.on("--no-loggers", "remove all loggers from the generated data flow graph") do
+        remove_loggers = true
     end
     opt.on("--no-compositions", "remove all compositions from the generated data flow graph") do
         remove_compositions = true
@@ -74,6 +78,11 @@ if error
     exit(1)
 end
 
+excluded_tasks      = ValueSet.new
+if remove_loggers
+    excluded_tasks << Orocos::RobyPlugin::Logger::Logger
+end
+
 hierarchy_file = "#{output_file}-hierarchy.#{output_type}"
 dataflow_file = "#{output_file}-dataflow.#{output_type}"
 
@@ -85,11 +94,11 @@ when "dot"
         output_io.puts Roby.app.orocos_engine.to_dot_hierarchy
     end
     File.open(dataflow_file, 'w') do |output_io|
-        output_io.puts Roby.app.orocos_engine.to_dot_dataflow(remove_compositions)
+        output_io.puts Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks)
     end
 when "svg", "png"
     Tempfile.open('roby_orocos_instanciate') do |io|
-        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions)
+        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks)
         io.flush
 
         File.open(dataflow_file, 'w') do |output_io|
