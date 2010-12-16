@@ -201,6 +201,22 @@ module Orocos
                 add_sink(target_task, mappings)
             end
 
+            # Calls either #connect_ports or #forward_ports, depending on its
+            # arguments
+            #
+            # It calls #forward_ports only if one of [target_task, self] is a
+            # composition and the other is part of this composition. Otherwise,
+            # calls #connect_ports
+            def connect_or_forward_ports(target_task, mappings)
+                if kind_of?(Composition) && depends_on?(target_task, false)
+                    forward_ports(target_task, mappings)
+                elsif target_task.kind_of?(Composition) && target_task.depends_on?(self, false)
+                    forward_ports(target_task, mappings)
+                else
+                    connect_ports(target_task, mappings)
+                end
+            end
+
             # call-seq:
             #   sink_task.each_input_connection { |source_task, source_port_name, sink_port_name, policy| ...}
             #

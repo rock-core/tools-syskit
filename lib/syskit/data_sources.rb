@@ -558,8 +558,29 @@ module Orocos
                     end
                 end
 
+                # We have to move the connections in two steps
+                #
+                # We first compute the set of connections that have to be
+                # created on the final task, applying the port mappings to the
+                # existing connections on +merged_tasks+
+                #
+                # Then we remove all connections from +merged_task+ and merge
+                # the rest of the relations (calling super)
+                #
+                # Finally, we create the new connections
+                #
+                # This is needed as we can't forward ports between a task that
+                # is *not* part of a composition and this composition. We
+                # therefore have to merge the Dependency relation before we
+                # create the forwardings
+
+                # The set of connections that need to be recreated at the end of
+                # the method
+                moved_connections = Array.new
+
                 merged_task.each_source do |source_task|
                     connections = source_task[merged_task, Flows::DataFlow]
+
                     new_connections = Hash.new
                     connections.each do |(from, to), policy|
                         to = connection_mappings[to] || to
@@ -579,8 +600,10 @@ module Orocos
                         end
                         break
                     end
-                    source_task.connect_ports(self, new_connections)
+
+                    moved_connections << [source_task, self, new_connections]
                 end
+
                 merged_task.each_sink do |sink_task, connections|
                     new_connections = Hash.new
                     connections.each do |(from, to), policy|
@@ -603,11 +626,16 @@ module Orocos
                         end
                         break
                     end
-                    self.connect_ports(sink_task, new_connections)
+
+                    moved_connections << [self, sink_task, new_connections]
                 end
                 Flows::DataFlow.remove(merged_task)
 
                 super
+
+                moved_connections.each do |source_task, sink_task, mappings|
+                    source_task.connect_or_forward_ports(sink_task, mappings)
+                end
             end
 
             # Returns true if at least one port of the given service (designated
