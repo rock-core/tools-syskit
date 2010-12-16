@@ -1549,14 +1549,14 @@ module Orocos
                     if !in_ports.empty?
                         port = in_ports.first
                         used_ports << port.name
-                        com_out_port = com_bus.model.output_name_for(source_name)
+                        com_out_port = com_bus.model.output_name_for(device_spec.name)
                         com_bus_task.port_to_device[com_out_port] << device_spec.name
                         in_connections[ [com_out_port, port.name] ] = Hash.new
                     end
                     if !out_ports.empty?
                         port = out_ports.first
                         used_ports << port.name
-                        com_in_port = com_bus_in || com_bus.model.input_name_for(source_name)
+                        com_in_port = com_bus_in || com_bus.model.input_name_for(device_spec.name)
                         com_bus_task.port_to_device[com_in_port] << device_spec.name
                         out_connections[ [port.name, com_in_port] ] = Hash.new
                     end
