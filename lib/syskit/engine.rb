@@ -1791,6 +1791,10 @@ module Orocos
                 # The task's deployment is not started yet
                 next if !t.orogen_task
 
+                if !t.execution_agent
+                    raise NotImplementedError, "#{t} is still running, but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
+                end
+
                 # Some CORBA implementations (namely, omniORB) may behave weird
                 # if the remote process terminates in the middle of a remote
                 # call.
