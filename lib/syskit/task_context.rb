@@ -283,6 +283,16 @@ module Orocos
                 result
             end
 
+            def create_port_dynamics(result, port_model)
+                if dynamics = result[port_model.name]
+                    return dynamics
+                end
+                dynamics = PortDynamics.new("#{self.orocos_name}.#{port_model.name}",
+                                            port_model.sample_size)
+                dynamics.add_trigger("burst", port_model.burst_period, port_model.burst_size)
+                result[port_model.name] = dynamics
+            end
+
             ##
             # Propagate information from the input ports to the output ports,
             # using the output ports of +self+
@@ -312,10 +322,7 @@ module Orocos
                     next if !info_available
 
                     handled << port_model.name
-                    dynamics =
-                        (result[port_model.name] ||=
-                         PortDynamics.new("#{orocos_name}.#{port_model.name}",
-                                          port_model.sample_size))
+                    dynamics = create_port_dynamics(result, port_model)
 
                     # Compute how many samples we will have queued during
                     # +trigger_latency+
@@ -377,9 +384,7 @@ module Orocos
                 model.each_output_port do |port_model|
                     next if !port_model.triggered_on_update?
 
-                    dynamics =
-                        (result[self][port_model.name] ||=
-                         PortDynamics.new("#{self.orocos_name}.#{port_model.name}", port_model.sample_size))
+                    dynamics = create_port_dynamics(result[self], port_model)
 
                     triggered_once = port_model.triggered_once_per_update?
                     task_dynamics.triggers.each do |tr|
