@@ -269,6 +269,7 @@ module Orocos
                         # externally. This is not a common case however.
                         begin
                             if !ActualDataFlow.has_in_connections?(sink_task, sink_port)
+                                Engine.debug { "calling #disconnect_all on the input port #{sink_task.name}:#{sink_port} since it has no input connections anymore" }
                                 sink.disconnect_all
                             end
                         rescue Orocos::NotFound
