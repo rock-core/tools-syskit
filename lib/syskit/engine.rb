@@ -66,7 +66,7 @@ module Orocos
                 super
 
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|
-                    source_port = source_task.model.find_output_port(source_port_name)
+                    source_port = source_task.find_output_port_model(source_port_name)
                     createLoggingPort(sink_port_name, source_port.type.name)
                 end
             end
@@ -1171,12 +1171,21 @@ module Orocos
                         end
 
                         connections = Hash.new
+
+                        all_ports = []
+
                         t.model.each_output_port do |p|
+                            all_ports << [p.name, p]
+                        end
+                        t.instanciated_dynamic_outputs.each do |port_name, port_model|
+                            all_ports << [port_name, port_model]
+                        end
+
+                        all_ports.each do |port_name, p|
                             next if !deployment.log_port?(p)
 
-                            log_port_name = "#{t.orocos_name}.#{p.name}"
-                            connections[[p.name, log_port_name]] = { :fallback_policy => { :type => :buffer, :size => 10 } }
-
+                            log_port_name = "#{t.orocos_name}.#{port_name}"
+                            connections[[port_name, log_port_name]] = { :fallback_policy => { :type => :buffer, :size => 10 } }
                             required_logging_ports << [log_port_name, p.type.name]
                         end
                         required_connections << [t, connections]
