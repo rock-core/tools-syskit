@@ -119,7 +119,7 @@ module Orocos
                     attr_reader :property_names
 
                     task_model.orogen_spec.each_property do |p|
-                        property_type = p.typelib_type
+                        property_type = Orocos.typelib_type_for(p.type)
 		    	singleton_class.class_eval do
 			    attr_reader p.name
 			end
