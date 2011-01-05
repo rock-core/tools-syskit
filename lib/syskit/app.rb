@@ -205,6 +205,14 @@ module Orocos
                 end
 
 		Orocos.registry.merge(orogen.registry)
+                if tk = orogen.typekit
+                    Orocos.load_typekit(orogen.name)
+                end
+                orogen.used_typekits.each do |tk|
+                    if !tk.virtual?
+                        Orocos.load_typekit(tk.name)
+                    end
+                end
                 loaded_orogen_projects[name] = orogen
 
                 orogen.used_task_libraries.each do |lib|
