@@ -580,7 +580,7 @@ module Orocos
                 end
 
                 if !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
-                    orogen_task.configure
+                    orogen_task.configure(false)
                 end
 
                 TaskContext.configured[orocos_name] = true
@@ -604,7 +604,7 @@ module Orocos
 
                 if state != :STOPPED
                     if orogen_task.exception_state?(orogen_state)
-                        orogen_task.reset_exception
+                        orogen_task.reset_exception(false)
                     else
                         raise InternalError, "wrong state in start event: got #{state}, expected STOPPED"
                     end
@@ -626,7 +626,7 @@ module Orocos
                 # Call configure or start, depending on the current state
                 ::Robot.info "starting #{to_s}"
                 @last_orogen_state = nil
-                orogen_task.start
+                orogen_task.start(false)
                 emit :start
             end
 
@@ -636,7 +636,7 @@ module Orocos
                     @stopping_because_of_error = true
                     @stopping_origin = orogen_state
 		    begin
-		        orogen_task.reset_exception
+		        orogen_task.reset_exception(false)
 		    rescue Orocos::StateTransitionFailed => e
 			Robot.warn "cannot reset error on #{name}: #{e.message}"
 		    end
@@ -679,7 +679,7 @@ module Orocos
 		        emit :interrupt
 		        emit :aborted
 		    elsif execution_agent && !execution_agent.finishing?
-		        orogen_task.stop
+		        orogen_task.stop(false)
 		    end
                 rescue Orocos::CORBA::ComError
                     # We actually aborted
