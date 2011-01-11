@@ -41,7 +41,7 @@ module Orocos
 
                 def initialize(name, period, sample_count)
                     @name, @period, @sample_count =
-                        name, period, sample_count
+                        name.to_str, Integer(period), Integer(sample_count)
                 end
             end
 
