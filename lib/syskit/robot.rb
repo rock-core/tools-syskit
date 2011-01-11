@@ -245,6 +245,10 @@ module Orocos
             # The actual service on master_device's task model
             attr_reader :service
 
+            def device_model
+                service.model
+            end
+
             # The slave name. It is the same name than the corresponding service
             # on the task model
             def name
