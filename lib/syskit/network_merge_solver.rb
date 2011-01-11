@@ -369,25 +369,30 @@ module Orocos
 
                     # 1. use device and orogen names
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
+                        if !target_task.execution_agent
+                            Engine.debug do
+                                "cannot disambiguate using names: #{target_task} is not a deployed task"
+                                break
+                            end
+                            next
+                        end
+
                         Engine.debug do
                             Engine.debug "    trying to disambiguate using names: #{target_task}"
+                            Engine.debug "       #{target_task.orogen_name} #{target_task.execution_agent.deployment_name}"
                             task_set.each do |task|
-                                Engine.debug "        => #{task}"
+                                Engine.debug "        => #{task} #{task.each_device_name.map { |_, n| n }.join(", ")}"
                             end
                             break
                         end
 
-                        if target_task.respond_to?(:each_device_name)
-                            target_task.each_device_name do |_, dev_name|
-                                task_set.delete_if do |t|
-                                    !t.execution_agent ||
-                                        (
-                                            t.orogen_name !~ /#{dev_name}/ &&
-                                            t.execution_agent.deployment_name !~ /#{dev_name}/
-                                        )
-                                end
+                        task_set.find_all do |t|
+                            next if !t.respond_to?(:each_device_name)
+
+                            t.each_device_name.any? do |_, dev_name|
+                                target_task.orogen_name =~ /#{dev_name}/ ||
+                                target_task.execution_agent.deployment_name =~ /#{dev_name}/
                             end
-                            task_set
                         end
                     end
 
