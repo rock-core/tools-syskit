@@ -1,25 +1,12 @@
 require 'roby'
-require 'optparse'
-require 'orocos'
-require 'orocos/roby'
-require 'orocos/roby/app'
+require 'orocos/roby/scripts/common'
+Scripts = Orocos::RobyPlugin::Scripts
 
-robot_type, robot_name = nil
-debug = false
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/configure [options] deployment\nwhere 'deployment' is either the name of a deployment in config/deployments,\nor a file that should be loaded to get the desired deployment"
-    opt.on('-r NAME', '--robot=NAME[,TYPE]', String, 'the robot name used as context to the deployment') do |name|
-        robot_name, robot_type = name.split(',')
-        Roby.app.robot(name, robot_type||robot_name)
-    end
-    opt.on('--debug', "turn debugging output on") do
-        debug = true
-    end
-    opt.on_tail('-h', '--help', 'this help message') do
-	STDERR.puts opt
-	exit
-    end
 end
+
+Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 if remaining.empty?
     STDERR.puts parser
@@ -28,26 +15,15 @@ end
 deployment_file     = remaining.shift
 additional_services = remaining.dup
 
-Roby.filter_backtrace do
-    Roby.app.filter_backtraces = !debug
-    Roby.app.setup
-    Roby.app.using_plugins 'orocos'
-    if debug
-        Orocos::RobyPlugin::Engine.logger = Logger.new(STDOUT)
-        Orocos::RobyPlugin::Engine.logger.formatter = Roby.logger.formatter
-        Orocos::RobyPlugin::Engine.logger.level = Logger::DEBUG
-    end
-
-    Roby.app.orocos_auto_configure = false
-
-    # No need to run any scheduler. We will simply start all deployments, and
-    # when they are all started call the #configure methods
+error = Scripts.run do
     Roby.app.run do
         Roby.execute do
             Roby.engine.scheduler = nil
-            Roby.app.load_orocos_deployment(deployment_file)
+            if deployment_file != '-'
+                Roby.app.load_orocos_deployment(deployment_file)
+            end
             additional_services.each do |service_name|
-                Roby.app.orocos_engine.add service_name
+                Roby.app.orocos_engine.add_mission service_name
             end
             Roby.app.orocos_engine.resolve
 
@@ -83,16 +59,17 @@ Roby.filter_backtrace do
             ready_ev.on do |event|
                 Robot.info "all deployments are up and running"
 
+
                 failed = tasks.find_all do |t|
                     begin
-                        if t.respond_to?(:configure)
-                            Robot.info "calling #{t.class.name}#configure on #{t}, deployed in #{t.execution_agent.model.deployment_name}"
-                            t.configure
+                        if !t.setup?
+                            Robot.info "calling #{t.class.name}#setup on #{t}, deployed in #{t.execution_agent.model.deployment_name}"
+                            t.setup
                         end
                         false
                     rescue Exception => e
                         Robot.warn "#{t.class.name}#configure fails with"
-                        Roby.log_pp(e, Robot, :warn)
+                        Roby.display_exception(STDERR, e)
                         true
                     end
                 end
@@ -105,4 +82,9 @@ Roby.filter_backtrace do
         end
     end
 end
+
+if error
+    exit(1)
+end
+
 
