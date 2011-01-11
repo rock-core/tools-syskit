@@ -839,7 +839,9 @@ module Orocos
                 triggering_devices.each do |service, device|
                     Engine.debug { "  #{device.name}: #{device.period} #{device.burst}" }
                     device_dynamics = PortDynamics.new(device.name, 1)
-                    device_dynamics.add_trigger(device.name, device.period, 1)
+                    if device.period
+                        device_dynamics.add_trigger(device.name, device.period, 1)
+                    end
                     device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
 
                     task_dynamics.merge(device_dynamics)
