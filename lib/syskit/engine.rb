@@ -1028,7 +1028,7 @@ module Orocos
                     not_deployed = plan.find_local_tasks(TaskContext).
                         find_all { |t| !t.execution_agent }.
                         delete_if do |p|
-                            p.parent_objects(Roby::TaskStructure::Dependency).to_a.empty?
+                            p.abstract?
                         end
 
                     if !not_deployed.empty?
