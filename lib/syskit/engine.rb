@@ -42,11 +42,13 @@ module Orocos
             end
 
             def createLoggingPort(port_name, port_type)
+                return if logged_ports.include?([port_name, port_type])
+
                 @create_port ||= operation('createLoggingPort')
                 if !@create_port.callop(port_name, port_type)
-                    raise ArgumentError, "cannot create a logger port of name #{port_name} and type #{port_type.name}"
+                    raise ArgumentError, "cannot create a logger port of name #{port_name} and type #{port_type}"
                 end
-                logged_ports << port_name
+                logged_ports << [port_name, port_type]
             end
 
             def configure
@@ -1211,9 +1213,7 @@ module Orocos
                         # Otherwise, Logger#configure will take care of it for
                         # us
                         required_logging_ports.each do |port_name, port_type|
-                            if !logger_task.logged_ports.include?(port_name)
-                                logger_task.createLoggingPort(port_name, port_type)
-                            end
+                            logger_task.createLoggingPort(port_name, port_type)
                         end
                     end
                     required_connections.each do |task, connections|
