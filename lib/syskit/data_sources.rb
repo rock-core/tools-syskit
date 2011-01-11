@@ -768,7 +768,7 @@ module Orocos
 
             # Enumerates the devices that are slaves to the service called
             # +master_service_name+
-            def each_slave_device(master_service_name) # :yield:slave_service_name, slave_device
+            def each_slave_device(master_service_name, expected_device_model = nil) # :yield:slave_service_name, slave_device
                 srv = model.find_data_service(master_service_name)
                 if !srv
                     raise ArgumentError, "#{model.short_name} has no service called #{master_service_name}"
@@ -781,7 +781,9 @@ module Orocos
                     end
 
                     master_device.each_slave do |slave_name, slave_device|
-                        yield("#{srv.name}.#{slave_name}", slave_device)
+                        if !expected_device_model || slave_device.device_model.fullfills?(expected_device_model)
+                            yield("#{srv.name}.#{slave_name}", slave_device)
+                        end
                     end
                 end
             end
