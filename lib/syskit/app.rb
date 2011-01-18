@@ -64,7 +64,7 @@ module Orocos
             def exclude_from_log(object)
                 if object.kind_of?(Class) && object < RobyPlugin::TaskContext
                     excluded_tasks << object
-                elsif object.kind_of?(Class) && object < RobyPlugin::Deployments
+                elsif object.kind_of?(Class) && object < RobyPlugin::Deployment
                     excluded_deployments << object
                 elsif object.kind_of?(Orocos::Generation::OutputPort)
                     excluded_ports << object
