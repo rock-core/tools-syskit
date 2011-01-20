@@ -204,6 +204,7 @@ module Orocos
                     main_orogen_project.using_task_library(name)
                 end
 
+		Orocos.master_project.instance_variable_set :@opaques, main_orogen_project.opaques
 		Orocos.registry.merge(orogen.registry)
                 if tk = orogen.typekit
                     Orocos.load_typekit(orogen.name)
