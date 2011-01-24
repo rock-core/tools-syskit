@@ -380,7 +380,7 @@ module Orocos
 
                 deployer.used_typekits.each do |tk|
                     next if tk.virtual?
-                    Orocos::CORBA.load_typekit(tk.name)
+                    Orocos.load_typekit(tk.name)
                     if server.respond_to?(:preload_typekit)
                         server.preload_typekit(tk.name)
                     end
