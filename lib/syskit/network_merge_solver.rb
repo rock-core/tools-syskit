@@ -63,8 +63,7 @@ module Orocos
                     # replace new tasks in the transaction
                     next if task.transaction_proxy?
                     # We can only replace a deployed task by a non deployed
-                    # task if the deployed task is not running, and if it is
-                    # the case
+                    # task if the deployed task is not running
                     next if task.execution_agent && !task.pending?
 
                     query = @merging_candidates_queries[task.model]
