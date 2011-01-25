@@ -34,6 +34,11 @@ module Orocos
             # Will return -1 if +t1+ is a better merge candidate than +t2+, 1 on
             # the contrary and nil if they are not comparable.
             def merge_sort_order(t1, t2)
+                model_order = (t1.class <=> t2.class)
+                if model_order != 0
+                    return model_order
+                end
+
                 MERGE_SORT_TRUTH_TABLE[ [!t1.finished?, !t2.finished?] ] ||
                     MERGE_SORT_TRUTH_TABLE[ [t1.running?, t2.running?] ] ||
                     MERGE_SORT_TRUTH_TABLE[ [!t1.execution_agent, !t2.execution_agent] ] ||
