@@ -374,29 +374,39 @@ module Orocos
 
                     # 1. use device and orogen names
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
-                        if !target_task.execution_agent
+                        if !target_task.respond_to?(:each_device_name)
                             Engine.debug do
-                                "cannot disambiguate using names: #{target_task} is not a deployed task"
-                                break
+                                "cannot disambiguate using names: #{target_task} is no device driver"
+                            end
+                        end
+                        device_names = target_task.each_device_name.map { |_, dev_name| Regexp.new("^#{dev_name}") }
+                        if device_names.empty?
+                            Engine.debug do
+                                "cannot disambiguate using names: #{target_task} is a device driver, but it is attached to no devices"
+                            end
+                        end
+
+                        deployed = task_set.find_all(&:execution_agent)
+                        if deployed.empty?
+                            Engine.debug do
+                                "cannot disambiguate using names: no merge candidates of #{target_task} is deployed"
                             end
                             next
                         end
 
                         Engine.debug do
                             Engine.debug "    trying to disambiguate using names: #{target_task}"
-                            Engine.debug "       #{target_task.orogen_name} #{target_task.execution_agent.deployment_name}"
-                            task_set.each do |task|
-                                Engine.debug "        => #{task} #{task.each_device_name.map { |_, n| n }.join(", ")}"
+                            Engine.debug "    devices: #{device_names.join(", ")}"
+                            deployed.each do |task|
+                                Engine.debug "       #{task.orogen_name} #{task.execution_agent.deployment_name}"
                             end
                             break
                         end
 
                         task_set.find_all do |t|
-                            next if !t.respond_to?(:each_device_name)
-
-                            t.each_device_name.any? do |_, dev_name|
-                                target_task.orogen_name =~ /#{dev_name}/ ||
-                                target_task.execution_agent.deployment_name =~ /#{dev_name}/
+                            device_names.any? do |dev_name|
+                                t.orogen_name =~ dev_name ||
+                                t.execution_agent.deployment_name =~ dev_name
                             end
                         end
                     end
