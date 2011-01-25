@@ -231,6 +231,20 @@ module Orocos
             #   order. Select it.
             # * it is possible to disambiguate the parents using device and
             #   task names (for deployed tasks)
+            #
+            # +candidates+ is a set of +target_task+ tasks that need to be
+            # merged **into** other tasks. The tasks that it can be merged into
+            # are encoded as the parents of +target_task+ in +merge_graph+
+            #
+            # I.e. what this method tries to achieve is, for each task
+            # +target_task+ in +candidates+, to pick a task +parent_task+ in the
+            # parents of +target_task+ in +merge_graph+ and register the merge
+            # in +merges+
+            #
+            # It does some filtering on the possible merges and yields
+            # (target_task, parent_tasks) to a given block. The block should, if
+            # it can, return the set of tasks that should still be considered
+            # (i.e. remove some candidates from +parent_tasks+).
             def merge_allocation(candidates, merges, merge_graph)
                 leftovers = ValueSet.new
 
