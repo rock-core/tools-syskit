@@ -878,6 +878,11 @@ module Orocos
 
             attribute(:port_to_device) { Hash.new { |h, k| h[k] = Array.new } }
 
+            def merge(merged_task)
+                super
+                port_to_device.merge!(merged_task.port_to_device)
+            end
+
             def each_attached_device(&block)
                 model.each_data_source do |name, ds|
                     next if !ds.model.kind_of?(ComBusModel)
