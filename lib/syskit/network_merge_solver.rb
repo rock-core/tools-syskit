@@ -364,8 +364,8 @@ module Orocos
                             break
                         end
 
-                        task_set.delete_if do |candidate|
-                            task_set.any? do |possible_parent|
+                        task_set.find_all do |candidate|
+                            !task_set.any? do |possible_parent|
                                 possible_parent != candidate &&
                                     Roby::TaskStructure::Dependency.reachable?(possible_parent, candidate)
                             end
