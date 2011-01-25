@@ -31,8 +31,9 @@ module Orocos
                 [false, true] => 1,
                 [false, false] => nil }
 
-            # Will return -1 if +t1+ is a better merge candidate than +t2+, 1 on
-            # the contrary and nil if they are not comparable.
+            # Will return -1 if +t1+ is a better merge candidate than +t2+ --
+            # i.e. if the merge should keep t1, 1 on the contrary and nil if
+            # they are not comparable.
             def merge_sort_order(t1, t2)
                 model_order = (t1.class <=> t2.class)
                 if model_order != 0
@@ -40,11 +41,11 @@ module Orocos
                 end
 
                 MERGE_SORT_TRUTH_TABLE[ [!t1.finished?, !t2.finished?] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [t1.running?, t2.running?] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [!t1.execution_agent, !t2.execution_agent] ] ||
+                    MERGE_SORT_TRUTH_TABLE[ [!!t1.running?, !!t2.running?] ] ||
+                    MERGE_SORT_TRUTH_TABLE[ [!!t1.execution_agent, !!t2.execution_agent] ] ||
                     MERGE_SORT_TRUTH_TABLE[ [!t1.respond_to?(:proxied_data_services), !t2.respond_to?(:proxied_data_services)] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [t1.fully_instanciated?, t2.fully_instanciated?] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [t1.transaction_proxy?, t2.transaction_proxy?] ]
+                    MERGE_SORT_TRUTH_TABLE[ [!!t1.fully_instanciated?, !!t2.fully_instanciated?] ] ||
+                    MERGE_SORT_TRUTH_TABLE[ [!!t1.transaction_proxy?, !!t2.transaction_proxy?] ]
             end
 
             # Find merge candidates and returns them as a graph
