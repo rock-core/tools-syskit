@@ -156,7 +156,7 @@ module Orocos
             # See also Composition#instanciate
             def use(*mapping)
                 result = Hash.new
-                mapping.delete_if do |element|
+                mapping.each do |element|
                     if element.kind_of?(Hash)
                         result.merge!(element)
                     else
