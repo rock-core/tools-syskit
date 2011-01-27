@@ -262,6 +262,13 @@ module Orocos
             end
         end
         DataService  = DataServiceModel.new
+        DataService.name = "Orocos::RobyPlugin::DataService"
+        def DataService.orogen_spec
+            if !@orogen_spec
+                @orogen_spec = create_orogen_interface
+            end
+            @orogen_spec
+        end
         DataServiceModel.base_module = DataService
 
         class DataSourceModel < DataServiceModel
