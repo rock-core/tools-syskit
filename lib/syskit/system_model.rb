@@ -484,9 +484,51 @@ module Orocos
                 self
             end
 
+            def dot_iolabel(name, inputs, outputs)
+                label = "{{"
+                if !inputs.empty?
+                    label << inputs.sort.map do |port_name|
+                            "<#{port_name}> #{port_name}"
+                    end.join("|")
+                    label << "|"
+                end
+                label << "<main> #{name}"
+
+                if !outputs.empty?
+                    label << "|"
+                    label << outputs.sort.map do |port_name|
+                            "<#{port_name}> #{port_name}"
+                    end.join("|")
+                end
+                label << "}}"
+            end
+
+            def data_services_to_dot(io, models)
+                io << "subgraph cluster_data_services {"
+                io << "  label=\"DataServices\";"
+                io << "  fontsize=18;"
+                models.each do |m|
+                    id = m.object_id.abs
+                    inputs = m.orogen_spec.all_input_ports.map(&:name)
+                    outputs = m.orogen_spec.all_output_ports.map(&:name)
+                    label = dot_iolabel(m.constant_name, inputs, outputs)
+                    io << "  C#{id} [label=\"#{label}\",fontsize=15];"
+
+                    m.parent_models.each do |parent_m|
+                        parent_id = parent_m.object_id.abs
+                        (parent_m.each_input_port.to_a + parent_m.each_output_port.to_a).
+                            each do |parent_p|
+                                io << "  C#{parent_id}:#{parent_p.name} -> C#{id}:#{m.port_mappings_for(parent_m)[parent_p.name]};"
+                            end
+
+                    end
+                end
+                io << "}"
+            end
+
             # Internal helper for to_dot
             def composition_to_dot(io, model) # :nodoc:
-                id = model.object_id
+                id = model.object_id.abs
 
                 model.connections.each do |(source, sink), mappings|
                     mappings.each do |(source_port, sink_port), policy|
@@ -510,9 +552,23 @@ module Orocos
                 io << "subgraph cluster_#{id} {"
                 io << "  fontsize=18;"
                 io << "  C#{id} [style=invisible];"
+
+                if !model.exported_inputs.empty? || !model.exported_outputs.empty?
+                    inputs = model.exported_inputs.keys
+                    outputs = model.exported_outputs.keys
+                    label = dot_iolabel("Composition Interface", inputs, outputs)
+                    io << "  Cinterface#{id} [label=\"#{label}\",color=blue,fontsize=15];"
+                    
+                    model.exported_outputs.each do |exported_name, port|
+                        io << "C#{id}#{port.child.child_name}:#{port.port.name} -> Cinterface#{id}:#{exported_name} [style=dashed];"
+                    end
+                    model.exported_inputs.each do |exported_name, port|
+                        io << "Cinterface#{id}:#{exported_name} -> C#{id}#{port.child.child_name}:#{port.port.name} [style=dashed];"
+                    end
+                end
                 label = [model.short_name.dup]
                 provides = model.each_data_service.map do |name, type|
-                    "#{name}:#{type.name}"
+                    "#{name}:#{type.model.short_name}"
                 end
                 if model.abstract?
                     label << "Abstract"
@@ -527,32 +583,18 @@ module Orocos
                 model.each_child do |child_name, child_definition|
                     child_model = child_definition.models
 
-                    label = "{{"
                     task_label = child_model.map(&:short_name).join(',')
                     task_label = "#{child_name}[#{task_label}]"
-
                     inputs = child_model.map { |m| m.each_input_port.map(&:name) }.
-                        inject(&:concat).to_set
-                    if !inputs.empty?
-                        label << inputs.map do |port_name|
-                            "<#{port_name}> #{port_name}"
-                        end.join("|")
-                        label << "|"
-                    end
-                    label << "<main> #{task_label}"
-
+                        inject(&:concat).to_a
                     outputs = child_model.map { |m| m.each_output_port.map(&:name) }.
-                        inject(&:concat).to_set
-                    if !outputs.empty?
-                        label << "|"
-                        label << outputs.map do |port_name|
-                            "<#{port_name}> #{port_name}"
-                        end.join("|")
-                    end
-                    label << "}}"
+                        inject(&:concat).to_a
+                    label = dot_iolabel(task_label, inputs, outputs)
 
-                    io << "  C#{id}#{child_name} [label=\"#{label}\",fontsize=15];"
-                    #io << "  C#{id} -> C#{id}#{child_name}"
+                    if child_model.any? { |m| !(m <= Component) || m.abstract? }
+                        color = ", color=\"red\""
+                    end
+                    io << "  C#{id}#{child_name} [label=\"#{label}\"#{color},fontsize=15];"
                 end
                 io << "}"
             end
@@ -565,6 +607,8 @@ module Orocos
                 io << "  node [shape=record,height=.1];\n"
                 io << "  compound=true;\n"
                 io << "  rankdir=LR;"
+
+                data_services_to_dot(io, each_data_service)
 
                 models = each_composition.
                     find_all { |t| !t.is_specialization? }
