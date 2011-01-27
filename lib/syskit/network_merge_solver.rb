@@ -482,6 +482,12 @@ module Orocos
                 result
             end
 
+            def complete_merge_graph
+                all_tasks = plan.find_local_tasks(Orocos::RobyPlugin::Component).
+                    to_value_set
+                direct_merge_mappings(all_tasks)
+            end
+
             # Merges tasks that are equivalent in the current plan
             #
             # It is a BFS that follows the data flow. I.e., it computes the set

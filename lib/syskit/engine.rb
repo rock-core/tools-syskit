@@ -1043,7 +1043,8 @@ module Orocos
                         end
 
                     if !not_deployed.empty?
-                        raise MissingDeployments.new(not_deployed),
+                        remaining_merges = @network_merge_solver.complete_merge_graph
+                        raise MissingDeployments.new(not_deployed, remaining_merges),
                             "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
                     end
                 end

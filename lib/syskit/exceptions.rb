@@ -227,7 +227,7 @@ module Orocos
             # probably change afterwards
             attr_reader :tasks
 
-            def initialize(tasks)
+            def initialize(tasks, merge_graph)
                 @tasks = Hash.new
                 tasks.each do |task|
                     parents = task.
@@ -237,13 +237,19 @@ module Orocos
                                 Roby::TaskStructure::Dependency]
                             [options[:roles].to_a.first, parent_task]
                         end
-                    @tasks[task] = parents
+
+                    candidates = task.
+                        enum_parent_objects(merge_graph).
+                        find_all { |t| t.execution_agent }.
+                        map { |t| t.orogen_spec.name }
+
+                    @tasks[task] = [parents, candidates]
                 end
             end
 
             def pretty_print(pp)
-                pp.text "cannot find a deployment for the following tasks"
-                tasks.each do |task, parents|
+                pp.text "cannot deploy the following tasks"
+                tasks.each do |task, (parents, possible_deployments)|
                     pp.breakable
                     pp.text task.to_s
                     pp.nest(2) do
@@ -252,6 +258,15 @@ module Orocos
                             role, parent_task = parent_task
                             pp.text "child #{role} of #{parent_task}"
                         end
+                    end
+                end
+
+                tasks.each do |task, (parents, possible_deployments)|
+                    pp.breakable
+                    if possible_deployments.empty?
+                        pp.text "#{task}: no deployments available"
+                    else
+                        pp.text "#{task}: multiple possible deployments, #{possible_deployments.join(", ")}"
                     end
                 end
             end
