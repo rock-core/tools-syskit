@@ -247,7 +247,7 @@ module Orocos
                         raise ArgumentError, "parent model #{options[:provides]} does not exist"
                     end
                 end
-                model = parent_model.new_submodel(name,
+                model = parent_model.new_submodel("Orocos::RobyPlugin::DataServices::#{name}",
                         :system_model => self,
                         :interface => options[:interface],
                         :config_type => options[:config_type], &block)

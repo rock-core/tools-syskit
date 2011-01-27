@@ -410,7 +410,7 @@ module Orocos
                 if device_model < DataService && !(device_model < DataSource)
                     # Accept converting a data service to the corresponding data
                     # source. This allows the DSL stuff to work properly
-                    device_model = device_model.name
+                    device_model = device_model.constant_name
                 end
                 if device_model.respond_to?(:to_str)
                     device_model = system_model.
