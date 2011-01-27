@@ -1761,6 +1761,10 @@ module Orocos
                 end
             end
 
+            def load_system_model(file)
+                Roby.app.load_system_model(file)
+            end
+
             # Declare that the services listed in +names+ are available to
             # fullfill the +service+ model.
             #
