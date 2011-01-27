@@ -1160,6 +1160,15 @@ module Orocos
             # dynamics could not be computed
             attr_reader :port_dynamics
 
+            class << self
+                # The buffer size used to create connections to the logger in
+                # case the dataflow dynamics can't be computed
+                #
+                # Defaults to 25
+                attr_accessor :default_logging_buffer_size
+            end
+            @default_logging_buffer_size = 25
+
             # Configures each running deployment's logger, based on the
             # information in +port_dynamics+
             #
@@ -1199,7 +1208,7 @@ module Orocos
                             next if !deployment.log_port?(p)
 
                             log_port_name = "#{t.orocos_name}.#{port_name}"
-                            connections[[port_name, log_port_name]] = { :fallback_policy => { :type => :buffer, :size => 10 } }
+                            connections[[port_name, log_port_name]] = { :fallback_policy => { :type => :buffer, :size => Engine.default_logging_buffer_size } }
                             required_logging_ports << [log_port_name, p.type.name]
                         end
                         required_connections << [t, connections]
