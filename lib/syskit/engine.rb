@@ -841,6 +841,8 @@ module Orocos
                             source_port_id = source_port.gsub(/[^\w]/, '_')
                             sink_port_id   = sink_port.gsub(/[^\w]/, '_')
 
+                            policy = policy.dup
+                            policy.delete(:fallback_policy)
                             policy_s = if policy.empty? then ""
                                        elsif policy[:type] == :data then 'data'
                                        elsif policy[:type] == :buffer then  "buffer:#{policy[:size]}"
