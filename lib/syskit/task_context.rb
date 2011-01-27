@@ -69,6 +69,10 @@ module Orocos
                     RobyPlugin.merge_orogen_interfaces(klass.orogen_spec, [orogen_spec])
                     klass
                 end
+
+                def worstcase_processing_time(value)
+                    orogen_spec.worstcase_processing_time(value)
+                end
             end
             @@configured = Hash.new
 
