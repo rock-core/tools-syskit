@@ -291,15 +291,26 @@ module Orocos
 
             # Create a concrete task for this requirements
             def instanciate(engine)
-                selection = engine.main_selection.merge(using_spec)
-                selection.each_key do |key|
-                    if result = resolve_explicit_selection(selection[key])
-                        verify_result_in_transaction(key, result)
-                        selection[key] = result
+                result = Hash.new
+
+                using_spec.each do |key, selected|
+                    if resolved_selection = resolve_explicit_selection(selected)
+                        verify_result_in_transaction(key, resolved_selection)
+                        result[key] = resolved_selection
+                    end
+                end
+                implicit = result[nil] || []
+
+                engine.main_selection.each do |key, selected|
+                    next if implicit.any? { |t| t.fullfills?(key) }
+
+                    if resolved_selection = resolve_explicit_selection(selected)
+                        verify_result_in_transaction(key, resolved_selection)
+                        result[key] = resolved_selection
                     end
                 end
 
-                @task = model.instanciate(engine, arguments.merge(:selection => selection))
+                @task = model.instanciate(engine, arguments.merge(:selection => result))
             end
         end
 
