@@ -455,6 +455,14 @@ module Orocos
                             all_candidates.map(&:first)
                         end
                     end
+
+                    # 3. if target_task is not a device driver, pick one
+                    # randomly
+                    ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
+                        if !target_task.respond_to?(:each_device_name)
+                            [task_set.find { true }]
+                        end
+                    end
                 end
 
                 if respond_to?(:merged_tasks)
