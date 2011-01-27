@@ -237,7 +237,7 @@ module Orocos
 
                 const_name = name.camelcase(:upper)
                 if has_data_service?(name)
-                    raise ArgumentError, "there is already a data source named #{name}"
+                    raise ArgumentError, "there is already a data service type named #{name}"
                 end
 
                 parent_model = options[:provides]
