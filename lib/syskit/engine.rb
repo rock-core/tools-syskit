@@ -951,6 +951,8 @@ module Orocos
                         task_label = "#{task_label}"
                         task_label << " <BR/> [Process name: #{task.model.deployment_name}]"
                     end
+                elsif task.kind_of?(Composition)
+                    task_node_attributes << "color=\"blue\""
                 end
 
                 return task_label, task_node_attributes
