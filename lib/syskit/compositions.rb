@@ -1119,7 +1119,7 @@ module Orocos
                 if filtered_out && !filtered_out.empty?
                     return filtered_out.to_a
                 else
-                    return candidates
+                    return candidates.to_a
                 end
             end
 
