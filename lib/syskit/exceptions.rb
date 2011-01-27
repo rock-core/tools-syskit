@@ -217,6 +217,44 @@ module Orocos
             end
         end
 
+        # Exception raised when we could not find devices to allocate for tasks
+        # that are device drivers
+        class DeviceAllocationFailed < SpecError
+            # A task to parents mapping for the failed allocations
+            attr_reader :failed_tasks
+
+            def initialize(tasks)
+                @failed_tasks = Hash.new
+
+                tasks.each do |abstract_task|
+                    parents = abstract_task.
+                        enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
+                        map do |parent_task|
+                            options = parent_task[abstract_task,
+                                Roby::TaskStructure::Dependency]
+                            [options[:roles], parent_task]
+                        end
+                    failed_tasks[abstract_task] = parents
+                end
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot find a device to tie to #{failed_tasks.size} task(s)"
+
+                failed_tasks.each do |task, parents|
+                    pp.breakable
+                    pp.text "for #{task.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.seplist(parents) do |parent|
+                            role, parent = parent
+                            pp.text "child #{role.to_a.first} of #{parent.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                        end
+                    end
+                end
+            end
+        end
+
         # Exception raised at the end of #resolve if some tasks do not have a
         # deployed equivalent
         class MissingDeployments < SpecError

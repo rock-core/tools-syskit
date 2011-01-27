@@ -1012,12 +1012,23 @@ module Orocos
 
             def validate_generated_network(plan, options = Hash.new)
                 # Check for the presence of abstract tasks
-                still_abstract = plan.find_local_tasks(Component).
-                    abstract.to_a
+                all_tasks = plan.find_local_tasks(Component).
+                    to_a
 
+                still_abstract = all_tasks.find_all(&:abstract?)
                 if !still_abstract.empty?
                     raise TaskAllocationFailed.new(still_abstract),
                         "could not find implementation for the following abstract tasks: #{still_abstract}"
+                end
+
+                # Check that all data sources are properly assigned
+                missing_devices = all_tasks.find_all do |t|
+                    t.model < DataSource &&
+                        t.model.each_master_data_source.any? { |srv| !t.arguments["#{srv.name}_name"] }
+                end
+                if !missing_devices.empty?
+                    raise DeviceAllocationFailed.new(missing_devices),
+                        "could not allocate devices for the following tasks: #{missing_devices}"
                 end
             end
 
