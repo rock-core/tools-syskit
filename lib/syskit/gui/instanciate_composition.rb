@@ -156,7 +156,7 @@ module Ui
 
                         models =
                             if task.respond_to?(:proxied_data_services)
-                                task.proxied_data_services.map(&:model)
+                                task.proxied_data_services
                             else [task.model]
                             end
 
