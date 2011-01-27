@@ -472,6 +472,22 @@ module Orocos
                 children[name] = result
             end
 
+            # Overloads an existing child with a new model and/or options
+            #
+            # This is 100% equivalent to
+            #
+            #   add model, (:as => name).merge(options)
+            #
+            # The only (important) difference is that it checks that +name+ is
+            # indeed an existing child, and allows people that read the
+            # composition model to understand the intent
+            def overload(name, model, options = Hash.new)
+                if !find_child(name)
+                    raise ArgumentError, "#{name} is not an existing child of #{short_name}"
+                end
+                add(model, options.merge(:as => name))
+            end
+
             # Add an element in this composition.
             #
             # This method adds a new element from the given component or data
