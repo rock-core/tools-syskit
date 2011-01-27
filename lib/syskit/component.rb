@@ -161,7 +161,7 @@ module Orocos
                     new_submodel(component_model.name + "." + required_service.short_name + "<" + service_name + ">")
 
                 service_model.apply_block(service_name, &specialization_block)
-                srv = component_model.require_dynamic_service(service_model, :as => service_name)
+                srv = component_model.require_dynamic_service(service_model, :as => service_name, :slave_of => name)
 
                 return component_model, srv
             end
