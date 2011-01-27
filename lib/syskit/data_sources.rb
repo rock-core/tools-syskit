@@ -166,7 +166,13 @@ module Orocos
             # If +name+ is given, that string will be reported as the service
             # name in the block, instead of the actual service name
             def apply_block(name = nil, &block)
-                BlockInstanciator.new(self, name).instance_eval(&block)
+                search_path = [RobyPlugin,
+                    RobyPlugin::DataServices,
+                    RobyPlugin::DataSources,
+                    RobyPlugin::Compositions]
+                with_module(*search_path) do
+                    BlockInstanciator.new(self, name).instance_eval(&block)
+                end
             end
 
             # Returns the set of port mappings needed between +service_type+ and
