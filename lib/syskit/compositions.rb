@@ -1005,11 +1005,15 @@ module Orocos
                 result
             end
 
+            def find_all_selected_specializations(selection)
+                find_all_specializations(selection, true)
+            end
+
             # Returns the set of specializations that are valid for the provided
             # mapping
             #
             # The mapping must be a mapping from child name to a set of models
-            def find_all_specializations(selection)
+            def find_all_specializations(selection, only_explicit_selection = false)
                 candidates = ValueSet.new
                 specializations.each do |mapping, composition|
                     next if candidates.include?(composition)
@@ -1023,7 +1027,7 @@ module Orocos
                                 selected_m.fullfills?(child_models)
                             end
                         else
-                            true
+                            !only_explicit_selection
                         end
                     end
 
@@ -1049,7 +1053,7 @@ module Orocos
                     break
                 end
 
-                raw_candidates = find_all_specializations(selected_models)
+                raw_candidates = find_all_selected_specializations(selected_models)
                 candidates = raw_candidates.dup
                 raw_candidates.each do |m|
                     candidates -= m.parent_models
