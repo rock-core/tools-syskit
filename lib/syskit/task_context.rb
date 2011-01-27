@@ -768,11 +768,11 @@ module Orocos
             # It will create the corresponding device model if it does not
             # already exist, and return it. See the documentation of
             # Component.data_service for the description of +arguments+
-            def self.driver_for(model, arguments = Hash.new)
+            def self.driver_for(model, arguments = Hash.new, &block)
                 if model.respond_to?(:to_str)
                     service_options, model_options = Kernel.filter_options arguments, Component::DATA_SERVICE_ARGUMENTS
                     model = system_model.query_or_create_service_model(
-                        model, DataSourceModel, model_options)
+                        model, DataSourceModel, model_options, &block)
                 else
                     service_options = arguments
                 end

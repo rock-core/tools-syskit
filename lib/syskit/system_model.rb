@@ -187,15 +187,15 @@ module Orocos
             #
             # +expected_type+ is supposed to be the model's class, i.e. one of
             # DataServiceModel, DataSourceModel or ComBusModel
-            def query_or_create_service_model(name, expected_type, options)
+            def query_or_create_service_model(name, expected_type, options, &block)
                 if name.respond_to?(:to_str)
                     case expected_type.base_module
                     when DataSourceModel
-                        data_source_type(name, options)
+                        data_source_type(name, options, &block)
                     when DataServiceModel
-                        data_service_type(name, options)
+                        data_service_type(name, options, &block)
                     when ComBusModel
-                        com_bus_type(name, options)
+                        com_bus_type(name, options, &block)
                     else raise ArgumentError, "unexpected service type #{expected_type}"
                     end
                 else
@@ -279,7 +279,7 @@ module Orocos
             #
             # If both provides and interface are provided, the interface must
             # match the data service's interface.
-            def data_source_type(name, options = Hash.new)
+            def data_source_type(name, options = Hash.new, &block)
                 name = Model.validate_model_name(name)
                 options, device_options = Kernel.filter_options options,
                     :provides => nil, :child_of => nil, :interface => nil
@@ -328,7 +328,7 @@ module Orocos
                     end
 
                 source_model = parent_model.
-                    new_submodel(name, options.merge(:interface => false))
+                    new_submodel(name, options.merge(:interface => false), &block)
                 parents.each { |p| source_model.provides(p) }
                 register_data_source(source_model)
                 source_model
