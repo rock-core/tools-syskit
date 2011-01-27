@@ -205,12 +205,12 @@ module Orocos
 
                 abstract_tasks.each do |task, parents|
                     pp.breakable
-                    pp.text "for #{task}"
+                    pp.text "for #{task.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
                     pp.nest(2) do
                         pp.breakable
                         pp.seplist(parents) do |parent|
                             role, parent = parent
-                            pp.text "child #{role.to_a.first} of #{parent.to_short_s}"
+                            pp.text "child #{role.to_a.first} of #{parent.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
                         end
                     end
                 end
