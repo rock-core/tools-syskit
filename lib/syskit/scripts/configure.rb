@@ -63,10 +63,14 @@ error = Scripts.run do
                 failed = tasks.find_all do |t|
                     begin
                         if !t.setup?
-                            Robot.info "calling #{t.class.name}#setup on #{t}, deployed in #{t.execution_agent.model.deployment_name}"
+			    if t.execution_agent
+			    	Robot.info "calling #{t.class.name}#setup on #{t}, deployed in #{t.execution_agent.model.deployment_name}"
+			    else
+			    	Robot.info "calling #{t.class.name}#setup on #{t}"
+			    end
                             t.setup
                         end
-                        false
+			false
                     rescue Exception => e
                         Robot.warn "#{t.class.name}#configure fails with"
                         Roby.display_exception(STDERR, e)
