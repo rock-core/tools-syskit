@@ -126,7 +126,7 @@ module Orocos
                         new[[source_task, sink_task]] = new_connections
                     end
                     if !removed_connections.empty?
-                        removed[[source_task, sink_task]].merge(removed_connections)
+                        removed[[source_task.orogen_task, sink_task.orogen_task]] = removed_connections
                     end
                 end
 
