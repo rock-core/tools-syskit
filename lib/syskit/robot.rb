@@ -23,7 +23,7 @@ module Orocos
 
             # Defined to be consistent with task and data service models
             def short_name
-                name
+                "#{name}[#{model.short_name}]"
             end
 
             # The selected task model that allows to drive this device
