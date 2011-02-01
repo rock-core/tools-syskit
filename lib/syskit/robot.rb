@@ -255,6 +255,11 @@ module Orocos
                 service.name
             end
 
+            # Defined to be consistent with task and data service models
+            def short_name
+                "#{name}[#{service.model.short_name}]"
+            end
+
             def initialize(master_device, service)
                 @master_device = master_device
                 @service = service
