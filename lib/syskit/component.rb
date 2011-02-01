@@ -128,10 +128,6 @@ module Orocos
             attr_reader :declared_dynamic_slaves
 
             def dynamic_slaves(model, options = Hash.new, &block)
-                if !block
-                    raise ArgumentError, "#dynamic_slaves requires a block to be given, of the signature block(task_model, new_service_name)"
-                end
-
                 source_model = component_model.system_model.
                     query_or_create_service_model(model, self.model.class, options)
 
@@ -160,7 +156,9 @@ module Orocos
                 service_model = required_service.
                     new_submodel(component_model.name + "." + required_service.short_name + "<" + service_name + ">")
 
-                service_model.apply_block(service_name, &specialization_block)
+                if specialization_block
+                    service_model.apply_block(service_name, &specialization_block)
+                end
                 srv = component_model.require_dynamic_service(service_model, :as => service_name, :slave_of => name)
 
                 return component_model, srv
