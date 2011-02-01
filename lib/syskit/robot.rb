@@ -213,7 +213,7 @@ module Orocos
                     if !srv
                         options[:as] ||= slave_service.snakename
                         new_task_model, srv = self.service.
-                            require_dynamic_slave(slave_service, options[:as], name)
+                            require_dynamic_slave(slave_service, options[:as], name, task_model)
 
                         if !srv
                             raise ArgumentError, "there is no service in #{task_model.short_name} of type #{slave_service.short_name}"

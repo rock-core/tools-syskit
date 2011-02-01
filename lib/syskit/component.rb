@@ -139,7 +139,7 @@ module Orocos
                 source_model
             end
 
-            def require_dynamic_slave(required_service, service_name, reason)
+            def require_dynamic_slave(required_service, service_name, reason, component_model = nil)
                 model, specialization_block, _ =
                     declared_dynamic_slaves.find do |model, specialization_block, _|
                         model == required_service
@@ -147,7 +147,7 @@ module Orocos
 
                 return if !model
 
-                component_model = self.component_model
+                component_model ||= self.component_model
                 if !component_model.private_specialization?
                     component_model = component_model.
                         specialize("#{component_model.name}<#{reason}>")
