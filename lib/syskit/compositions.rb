@@ -1759,12 +1759,20 @@ module Orocos
                     selected_object = dependent_model.first
                 end
 
+                selected_services = Hash.new
                 if selected_object.kind_of?(InstanciatedDataService)
-                    selected_service = selected_object.provided_service_model
+                    if !selected_object.provided_service_model
+                        raise InternalError, "#{selected_object} has no provided service model"
+                    end
+                    dependent_model.each do |required|
+                        selected_services[required] = selected_object.provided_service_model
+                    end
                     child_task       = selected_object.task
                     child_model      = child_task.model
                 elsif selected_object.kind_of?(ProvidedDataService)
-                    selected_service = selected_object
+                    dependent_model.each do |required|
+                        selected_services[required] = selected_object
+                    end
                     child_model      = selected_object.component_model
                 elsif selected_object.kind_of?(DataServiceModel)
                     child_model = selected_object.task_model

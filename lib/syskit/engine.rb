@@ -226,9 +226,9 @@ module Orocos
                     value = value.to_str
                     if !(selected_object = engine.tasks[value])
                         if selected_object = engine.robot.devices[value]
-                            # Do a weak selection and return the device's
-                            # task model
-                            return selected_object.task_model
+                            # Return the service that corresponds to the device
+                            # name
+                            return selected_object.service
                         else
                             raise SpecError, "#{value} does not refer to a known task or device"
                         end
@@ -247,14 +247,14 @@ module Orocos
                         if !candidate_service && service_names.size == 1
                             # Might still be a slave of a main service
                             services = selected_object.model.each_data_service.
-                                find_all { |srv| !srv.master? && srv.master.main? && srv.name == service_names.first }
+                                find_all { |_, srv| !srv.master? && srv.master.main? && srv.name == service_names.first }
 
                             if services.empty?
                                 raise SpecError, "#{value} is not a known device, or an instanciated composition"
                             elsif services.size > 1
                                 raise SpecError, "#{value} can refer to multiple objects"
                             end
-                            candidate_service = services.first
+                            candidate_service = services.first.last
                         end
 
                         InstanciatedDataService.new(selected_object, candidate_service)

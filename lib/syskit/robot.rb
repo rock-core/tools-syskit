@@ -245,6 +245,10 @@ module Orocos
             # The actual service on master_device's task model
             attr_reader :service
 
+            def task_model
+                master_device.task_model
+            end
+
             def device_model
                 service.model
             end
