@@ -83,6 +83,12 @@ module Orocos
             attr_reader :task
             def initialize(task, provided_service_model)
                 @task, @provided_service_model = task, provided_service_model
+                if !task.kind_of?(Component)
+                    raise "expected a task instance, got #{task}"
+                end
+                if !provided_service_model.kind_of?(ProvidedDataService)
+                    raise "expected a provided service, got #{provided_service_model}"
+                end
             end
 
             def fullfills?(*args)

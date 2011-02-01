@@ -209,6 +209,15 @@ module Orocos
                 include service_model
                 parent_models << service_model
 
+                new_port_mappings.each do |service_name, self_name|
+                    if !service_model.find_port(service_name)
+                        raise SpecError, "#{service_name} is not a port of #{service_model.short_name}"
+                    end
+                    if !find_port(self_name)
+                        raise SpecError, "#{self_name} is not a port of #{short_name}"
+                    end
+                end
+
                 service_model.port_mappings.each do |original_service, mappings|
                     updated_mappings = Hash.new
                     mappings.each do |from, to|
