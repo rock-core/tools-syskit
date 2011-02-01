@@ -168,7 +168,7 @@ module Ui
 
                         device_candidates =
                             window.robot.devices.values.find_all do |dev|
-                                dev.model.fullfills?(models)
+                                dev.service.fullfills?(models)
                             end.to_value_set
 
                         system_candidates = 
