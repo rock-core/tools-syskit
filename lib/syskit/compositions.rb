@@ -1930,8 +1930,8 @@ module Orocos
             # hash which maps a child selector to a selected model.
             #
             # The selected model can be:
-            # * a task, a data service or a data source
-            # * a device name
+            # * a task model, a data service model or a device model
+            # * a device name as declared on Robot.devices
             # * a task name as given to Engine#add
             #
             # In any case, the selected model must be compatible with the

@@ -13,7 +13,7 @@ module Orocos
             attr_reader :robot
             # The device name
             attr_reader :name
-            # The device model, as a subclass of DataSource
+            # The device model, as a subclass of Device
             attr_reader :device_model
             # The device slaves, as a mapping from the slave's name to the
             # SlaveDeviceInstance object
@@ -356,7 +356,7 @@ module Orocos
             def com_bus(type_spec, options = Hash.new)
                 type =
                     if type_spec.respond_to?(:to_str)
-                        system_model.data_source_model(type_spec.to_str)
+                        system_model.device_model(type_spec.to_str)
                     else type_spec
                     end
 
@@ -405,31 +405,38 @@ module Orocos
             # with:
             #
             #   class Hokuyo
-            #       driver_for 'hokuyo'
+            #       driver_for 'Devices::Hokuyo'
             #   end
             #
             # the newly declared device type can then be accessed as a
-            # constant with DataSources::Hokuyo or as a name:
+            # constant with Devices::Hokuyo. I.e.
             #
-            #   robot.device 'hokuyo'
-            #   robot.device DataSources::Hokuyo
+            #   Devices::Hokuyo
             #
-            # Returns the MasterDeviceInstance object that describes this device
+            # is the subclass of DeviceModel that describes this device type.
+            # It can then be used to declare devices on a robot with
+            #
+            #   Robot.devices do
+            #     device Devices::Hokuyo
+            #   end
+            #
+            # This method returns the MasterDeviceInstance instance that
+            # describes the actual device
             def device(device_model, options = Hash.new)
-                if device_model < DataService && !(device_model < DataSource)
+                if device_model < DataService && !(device_model < Device)
                     # Accept converting a data service to the corresponding data
                     # source. This allows the DSL stuff to work properly
                     device_model = device_model.constant_name
                 end
                 if device_model.respond_to?(:to_str)
                     device_model = system_model.
-                        data_source_model(device_model.to_str)
+                        device_model(device_model.to_str)
                 end
 
                 options, device_options = Kernel.filter_options options,
                     :as => device_model.snakename,
                     :using => nil,
-                    :expected_model => DataSource
+                    :expected_model => Device
                 device_options, task_arguments = Kernel.filter_options device_options,
                     MasterDeviceInstance::KNOWN_PARAMETERS
 

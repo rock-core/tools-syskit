@@ -39,9 +39,9 @@ module Orocos
         # Shortcut for Devices
         Dev = Devices
 
-        # Base type for data service models (DataService, DataSource,
-        # DataBus). Methods defined in this class are available on said
-        # models (for instance DataSource.new_submodel)
+        # Base type for data service models (DataService, Devices,
+        # ComBus). Methods defined in this class are available on said
+        # models (for instance Device.new_submodel)
         class DataServiceModel < Roby::TaskModelTag
             class << self
                 # Each subclass of DataServiceModel maps to a "base" module that
@@ -283,13 +283,13 @@ module Orocos
         end
         DataServiceModel.base_module = DataService
 
-        class DataSourceModel < DataServiceModel
+        class DeviceModel < DataServiceModel
             def to_s # :nodoc:
-                "#<DataSource: #{name}>"
+                "#<Device: #{name}>"
             end
 
-            def new_submodel(model, options = Hash.new)
-                model = super(model, options)
+            def new_submodel(model, options = Hash.new, &block)
+                model = super(model, options, &block)
                 if device_configuration_module
                     model.device_configuration_module = Module.new
                     model.device_configuration_module.include(device_configuration_module)
@@ -302,16 +302,20 @@ module Orocos
             # Requires that the given block is used to add methods to the
             # device configuration objects.
             #
-            # I.e. if a data source type is defined with
-            #    data_source_type('Test').
+            # I.e. if a device type is defined with
+            #    device_type('Hokuyo').
             #       extend_device_configuration do
-            #           def valid?; false end
+            #           def enable_remanence_values; @remanence = true; self end
+            #           def remanence_values_enabled?; @remanence end
             #       end
             #
-            # Then the #valid? method will be available on device instances
-            # of the Test type:
+            # Then the methods are made available on the corresponding
+            # MasterDeviceInstance instances:
             #
-            #   device(Type).valid? => false
+            #   Robot.devices do
+            #     device(Devices::Hokuyo).
+            #       enable_remanence_values
+            #   end
             #
             def extend_device_configuration(&block)
                 if block
@@ -329,24 +333,25 @@ module Orocos
                 end
             end
         end
-        DataSource   = DataSourceModel.new
-        DataSourceModel.base_module = DataSource
+        Device   = DeviceModel.new
+        Device.name = "Orocos::RobyPlugin::Device"
+        DeviceModel.base_module = Device
 
-        class ComBusModel < DataSourceModel
+        class ComBusModel < DeviceModel
             def initialize(*args, &block)
                 super
                 @override_policy = true
             end
 
-            def new_submodel(model, options = Hash.new)
+            def new_submodel(model, options = Hash.new, &block)
                 bus_options, options = Kernel.filter_options options,
                     :override_policy => override_policy?, :message_type => message_type
 
+                model = super(model, options, &block)
                 if !bus_options[:message_type]
                     raise ArgumentError, "com bus types must have a message_type argument"
                 end
 
-                model = super(model, options)
                 model.override_policy = bus_options[:override_policy]
                 model.message_type    = bus_options[:message_type]
                 if attached_device_configuration_module
@@ -413,18 +418,17 @@ module Orocos
             end
         end
         ComBus = ComBusModel.new
+        ComBus.name = "Orocos::RobyPlugin::ComBus"
         ComBusModel.base_module = ComBus
 
         module DataService
-            @name = "Orocos::RobyPlugin::DataService"
-
             module ClassExtension
                 def find_data_services(&block)
                     each_data_service.find_all(&block)
                 end
 
-                def each_data_source(&block)
-                    each_data_service.find_all { |_, srv| srv.model < DataSource }.
+                def each_device(&block)
+                    each_data_service.find_all { |_, srv| srv.model < Device }.
                         each(&block)
                 end
 
@@ -678,19 +682,18 @@ module Orocos
                 false
             end
 
-            # Finds the data sources on +other_task+ that have been selected
-            # (i.e. the sources that have been assigned to a particular source
-            # on the system). Yields it along with a data source on +self+ in
-            # which it can be merged, either because the source is assigned as
-            # well to the same device, or because it is not assigned yet
+            # Finds the services on +other_task+ that have been selected Yields
+            # it along with a data source on +self+ in which it can be merged,
+            # either because the source is assigned as well to the same device,
+            # or because it is not assigned yet
             def each_service_merge_candidate(other_task) # :nodoc:
                 other_task.model.each_root_data_service do |name, other_service|
-                    other_selection = other_task.selected_data_source(other_service)
+                    other_selection = other_task.selected_device(other_service)
 
                     self_selection = nil
                     available_services = []
                     model.each_data_service.find_all do |self_name, self_service|
-                        self_selection = selected_data_source(self_service)
+                        self_selection = selected_device(self_service)
                         is_candidate = self_service.model.fullfills?(other_service.model) &&
                             (!self_selection || !other_selection || self_selection == other_selection)
                         if is_candidate
@@ -703,39 +706,41 @@ module Orocos
             end
         end
 
-        # Modelling and instance-level functionality for data sources
+        # Modelling and instance-level functionality for devices
         #
-        # Data sources are, in the Orocos/Roby plugin, the tools that allow to
-        # represent devices (actual or virtual)
+        # Devices are, in the Orocos/Roby plugin, the tools that allow to
+        # represent the inputs and outputs of your component network, i.e. the
+        # components that are tied to "something" (usually hardware) that is
+        # not represented in the component network.
         #
-        # New specialization can either be created with
-        # source_model.new_submodel if the source should not be registered in
-        # the system model, or SystemModel#data_source_type if it should be
+        # New devices can either be created with
+        # device_model.new_submodel if the source should not be registered in
+        # the system model, or SystemModel#device_type if it should be
         # registered
-        module DataSource
-            @name = "Orocos::RobyPlugin::DataSource"
+        module Device
             include DataService
 
-            # This module is defined on DataSource objects to define new methods
-            # on the classes that provide these data sources.
+            # This module is defined on Device objects to define new methods
+            # on the classes that provide these devices
             #
             # I.e. for instance, when one does
             #
             #   class OroGenProject::Task
-            #     driver_for 'device_type'
+            #     driver_for 'Devices::DeviceType'
             #   end
             #
             # then the methods defined in this module are available on
             # OroGenProject::Task:
             #
-            #   OroGenProject::Task.each_master_data_source
+            #   OroGenProject::Task.each_master_device
+            #
             module ClassExtension
-                # Enumerate all the data sources that are defined on this
+                # Enumerate all the devices that are defined on this
                 # component model
-                def each_master_data_source(&block)
+                def each_master_device(&block)
                     result = []
                     each_root_data_service.each do |_, srv|
-                        if srv.model < DataSource
+                        if srv.model < Device
                             result << srv
                         end
                     end
@@ -752,7 +757,7 @@ module Orocos
                 end
 
                 seen = Set.new
-                model.each_master_data_source do |srv|
+                model.each_master_device do |srv|
                     # Slave devices have the same name than the master device,
                     # so no need to list them
                     next if !srv.master?
@@ -827,8 +832,8 @@ module Orocos
                         raise ArgumentError, "there is no data service called #{subname} on #{self}"
                     end
                 end
-                data_source, device = devices.first
-                device
+                service, device_instance = devices.first
+                device_instance
             end
 
             def initial_ports_dynamics
@@ -837,7 +842,7 @@ module Orocos
                     result.merge(super)
                 end
 
-                Engine.debug { "initial port dynamics on #{self} (data source)" }
+                Engine.debug { "initial port dynamics on #{self} (device)" }
 
                 internal_trigger_activity =
                     (orogen_spec.activity_type.name == "FileDescriptorActivity")
@@ -881,7 +886,7 @@ module Orocos
                 # been selected yet
                 def task_model
                     model = super
-                    model.name = "#{name}DataSourceTask"
+                    model.name = "#{name}DeviceTask"
                     model
                 end
             end
@@ -892,8 +897,7 @@ module Orocos
         # defines the methods that are available on task instances. For methods
         # that are added to the task models, see ComBus::ClassExtension
         module ComBus
-            @name = "Orocos::RobyPlugin::ComBus"
-            include DataSource
+            include Device
 
             attribute(:port_to_device) { Hash.new { |h, k| h[k] = Array.new } }
 
@@ -903,7 +907,7 @@ module Orocos
             end
 
             def each_attached_device(&block)
-                model.each_data_source do |name, ds|
+                model.each_device do |name, ds|
                     next if !ds.model.kind_of?(ComBusModel)
 
                     combus = robot.devices[arguments["#{ds.name}_name"]]

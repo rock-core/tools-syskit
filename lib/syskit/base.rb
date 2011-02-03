@@ -109,7 +109,7 @@ module Orocos
                     raise ArgumentError, "expected a data service, source or combus model, got #{model} of type #{model.class}"
                 elsif !(model < expected_type)
                     # Try harder. This is meant for DSL loading, as we define
-                    # data services for data sources and so on
+                    # data services for devices and so on
                     if query_method = SystemModel::MODEL_QUERY_METHODS[expected_type]
                         model = system_model.send(query_method, model.name)
                     end

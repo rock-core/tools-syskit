@@ -20,7 +20,7 @@ module Orocos
         # Engine uses the TaskContext#initial_ports_dynamics,
         # TaskContext#propagate_ports_dynamics and
         # TaskContext#propagate_ports_dynamics methods implemented by the tasks
-        # and data sources
+        # and devices
         #
         class PortDynamics
             # The name of the port we are computing dynamics for. This is used

@@ -60,13 +60,13 @@ module Orocos
 
                 @export = true
                 @data_service_models = Hash.new
-                @data_source_models = Hash.new
+                @device_models = Hash.new
                 @composition_models = Hash.new
             end
 
             attr_predicate :export?, true
             attr_reader :data_service_models
-            attr_reader :data_source_models
+            attr_reader :device_models
             attr_reader :composition_models
 
             def has_data_service?(name)
@@ -77,10 +77,10 @@ module Orocos
                 end
             end
 
-            def has_data_source?(name)
-                if data_source_models.has_key?(name)
+            def has_device?(name)
+                if device_models.has_key?(name)
                     true
-                elsif data_source_models.has_key?(name.camelcase(:upper))
+                elsif device_models.has_key?(name.camelcase(:upper))
                     raise
                 end
             end
@@ -93,16 +93,16 @@ module Orocos
                 end
             end
 
-            def data_source_model(name)
-                if !(m = data_source_models[name])
-                    raise ArgumentError, "there is no data source model called #{name}"
+            def device_model(name)
+                if !(m = device_models[name])
+                    raise ArgumentError, "there is no device model called #{name}"
                 end
                 m
             end
 
             MODEL_QUERY_METHODS =
                 { DataService => 'data_service_model',
-                  DataSource => 'data_source_model' }
+                  Device => 'device_model' }
 
             def data_service_model(name)
                 if !(m = data_service_models[name])
@@ -126,11 +126,11 @@ module Orocos
                 end
             end
 
-            def register_data_source(model)
+            def register_device(model)
                 const_name = model.constant_name
-                data_source_models[const_name] = model
+                device_models[const_name] = model
                 if export?
-                    Orocos::RobyPlugin::DataSources.const_set(const_name, model)
+                    Orocos::RobyPlugin::Devices.const_set(const_name, model)
                 end
             end
 
@@ -147,8 +147,8 @@ module Orocos
                 data_service_models.each_value(&block)
             end
 
-            def each_data_source(&block)
-                data_source_models.each_value(&block)
+            def each_device(&block)
+                device_models.each_value(&block)
             end
 
             def each_composition(&block)
@@ -166,7 +166,7 @@ module Orocos
 
             # Load a system model file
             #
-            # System model files contain data service, data sources and
+            # System model files contain data service, devices and
             # composition definitions.
             def load_system_model(name)
                 Roby.app.load_system_model(name)
@@ -186,12 +186,12 @@ module Orocos
             # using +options+
             #
             # +expected_type+ is supposed to be the model's class, i.e. one of
-            # DataServiceModel, DataSourceModel or ComBusModel
+            # DataServiceModel, DeviceModel or ComBusModel
             def query_or_create_service_model(name, expected_type, options, &block)
                 if name.respond_to?(:to_str)
                     case expected_type.base_module
-                    when DataSourceModel
-                        data_source_type(name, options, &block)
+                    when DeviceModel
+                        device_type(name, options, &block)
                     when DataServiceModel
                         data_service_type(name, options, &block)
                     when ComBusModel
@@ -225,7 +225,7 @@ module Orocos
             # config_type::
             #   the type of the configuration data structures
             def data_service_type(name, options = Hash.new, &block)
-                name = Model.validate_model_name(name)
+                name = Model.validate_model_name("DataService", name)
 
                 options = Kernel.validate_options options,
                     :child_of => nil,
@@ -256,16 +256,13 @@ module Orocos
                 model
             end
 
-            # Alias for data_source_type
-            def device_type(*args, &block)
-                data_source_type(*args, &block)
-            end
-
             # Create a new data source model
             #
             # The returned value is an instance of DataServiceModel in which
             # DataSource has been included.
             #
+            def device_type(name, options = Hash.new, &block)
+                name = Model.validate_model_name("Devices", name)
             # The following options are available:
             #
             # provides::
@@ -279,8 +276,6 @@ module Orocos
             #
             # If both provides and interface are provided, the interface must
             # match the data service's interface.
-            def data_source_type(name, options = Hash.new, &block)
-                name = Model.validate_model_name(name)
                 options, device_options = Kernel.filter_options options,
                     :provides => nil, :child_of => nil, :interface => nil
 
@@ -336,7 +331,7 @@ module Orocos
 
             # Creates a new communication bus model
             #
-            # It accepts the same arguments than data_source. In addition, the
+            # It accepts the same arguments than device_type. In addition, the
             # 'message_type' option must be used to specify what data type is
             # used to represent the bus messages:
             #
@@ -344,8 +339,8 @@ module Orocos
             #
             # The returned value is an instance of DataServiceModel, in which
             # ComBus is included.
-            def com_bus_type(name, options  = Hash.new)
-                name = Model.validate_model_name(name)
+            def com_bus_type(name, options  = Hash.new, &block)
+                name = Model.validate_model_name("Devices", name)
                 if has_data_source?(name)
                     raise ArgumentError, "there is already a device driver called #{name}"
                 end

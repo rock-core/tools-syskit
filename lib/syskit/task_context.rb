@@ -772,12 +772,12 @@ module Orocos
                 if model.respond_to?(:to_str)
                     service_options, model_options = Kernel.filter_options arguments, Component::DATA_SERVICE_ARGUMENTS
                     model = system_model.query_or_create_service_model(
-                        model, DataSourceModel, model_options, &block)
+                        model, DeviceModel, model_options, &block)
                 else
                     service_options = arguments
                 end
 
-                model = Model.validate_service_model(model, system_model, DataSource)
+                model = Model.validate_service_model(model, system_model, Device)
                 if !model.config_type
                     model.config_type = config_type_from_properties
                 end

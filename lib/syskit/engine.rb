@@ -1031,10 +1031,10 @@ module Orocos
                         "could not find implementation for the following abstract tasks: #{still_abstract}"
                 end
 
-                # Check that all data sources are properly assigned
+                # Check that all devices are properly assigned
                 missing_devices = all_tasks.find_all do |t|
-                    t.model < DataSource &&
-                        t.model.each_master_data_source.any? { |srv| !t.arguments["#{srv.name}_name"] }
+                    t.model < Device &&
+                        t.model.each_master_device.any? { |srv| !t.arguments["#{srv.name}_name"] }
                 end
                 if !missing_devices.empty?
                     raise DeviceAllocationFailed.new(missing_devices),
@@ -1586,7 +1586,7 @@ module Orocos
 
                 task.model.each_root_data_service do |source_name, source_service|
                     source_model = source_service.model
-                    next if !(source_model < DataSource)
+                    next if !(source_model < Device)
                     device_spec = robot.devices[task.arguments["#{source_name}_name"]]
                     next if !device_spec || !device_spec.com_bus_names.include?(bus_name)
                     
@@ -1618,7 +1618,7 @@ module Orocos
                     end
                 end
 
-                # if there are some unconnected data sources, search for
+                # if there are some unconnected devices, search for
                 # generic ports (input and/or output) on the task, and link
                 # to it.
                 if handled.values.any? { |v| v == [false, false] }
@@ -1677,7 +1677,7 @@ module Orocos
             # Creates communication busses and links the tasks to them
             def link_to_busses
                 # Get all the tasks that need at least one communication bus
-                candidates = plan.find_local_tasks(Orocos::RobyPlugin::DataSource).
+                candidates = plan.find_local_tasks(Orocos::RobyPlugin::Device).
                     inject(Hash.new) do |h, t|
                         required_busses = t.com_busses
                         if !required_busses.empty?

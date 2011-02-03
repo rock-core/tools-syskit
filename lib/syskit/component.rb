@@ -231,9 +231,9 @@ module Orocos
             ##
             # :method: each_main_data_service
             # :call-seq:
-            #   each_main_data_service { |source_name| }
+            #   each_main_data_service { |service_name| ... }
             #
-            # Enumerates the name of all the main data sources that are provided
+            # Enumerates the name of all the main data services that are provided
             # by this component model. Unlike #main_data_services, it enumerates
             # both the sources added at this level of the model hierarchy and
             # the ones that are provided by the model's parents.
@@ -244,8 +244,8 @@ module Orocos
 
             ## :attr_reader:main_data_services
             #
-            # The names of the main data sources that are provided by this
-            # particular component model. This only includes new sources that
+            # The names of the main data services that are provided by this
+            # particular component model. This only includes new services that
             # have been added at this level of the component hierarchy, not the
             # ones that have already been added to the model parents.
             #
@@ -256,9 +256,9 @@ module Orocos
             ##
             # :method: each_data_service
             # :call-seq:
-            #     each_data_service { |service| }
+            #     each_data_service { |service_name, service| }
             #
-            # Enumerates all the data sources that are provided by this
+            # Enumerates all the data services that are provided by this
             # component model, as pairs of source name and DataService instances.
             # Unlike #data_services, it enumerates both the sources added at
             # this level of the model hierarchy and the ones that are provided
@@ -282,7 +282,7 @@ module Orocos
 
             ## :attr_reader: data_services
             #
-            # The data sources that are provided by this particular component
+            # The data services that are provided by this particular component
             # model, as a hash mapping the source name to the corresponding
             # DataService instance. This only includes new sources that have been
             # added at this level of the component hierarchy, not the ones that
@@ -437,12 +437,13 @@ module Orocos
         # ComponentModel). See the documentation of Model for an explanation of
         # this.
         #
-        # Components may be data source providers. Two types of data sources exist:
-        # * main sources are root data services that can be provided
-        # independently
-        # * slave sources are data services that depend on a main one. For
-        # instance, an ImageProvider source of a StereoCamera task would be
-        # slave of the main PointCloudProvider source.
+        # Components may be data service providers. Two types of data sources
+        # exist:
+        # * main servicesare root data services that can be provided
+        #   independently
+        # * slave sources are data services that depend on another service. For
+        #   instance, an ImageProvider source of a StereoCamera task could be
+        #   slave of the main PointCloudProvider source.
         #
         # Data services are referred to by name. In the case of a main service,
         # its name is the name used during the declaration. In the case of slave
@@ -754,7 +755,7 @@ module Orocos
                 if has_data_service?(name)
                     parent_type = data_service_type(name)
                     if !(model <= parent_type)
-                        raise SpecError, "#{self} has a data source named #{name} of type #{parent_type}, which is not a parent type of #{model}"
+                        raise SpecError, "#{self} has a data service named #{name} of type #{parent_type}, which is not a parent type of #{model}"
                     end
                 end
 
@@ -802,44 +803,50 @@ module Orocos
             end
 
 
-            # Return the selected name for the given data source, or nil if none
-            # is selected yet (or if the service is not a source)
-            def selected_data_source(data_service)
+            # Return the device instance name that is tied to the given provided
+            # data service
+            #
+            # +data_service+ is a ProvidedDataService instance, i.e. a value
+            # returned by e.g. Component.find_data_service, or the name of a
+            # service declared on this component. This service should be a
+            # device model. The value returned by this function is then the
+            # name of the robot's device which is tied to this service
+            def selected_device(data_service)
                 if data_service.respond_to?(:to_str)
                     data_service = model.find_data_service(data_service)
                 end
 
                 if data_service.master
-                    parent_source_name = selected_data_source(data_service.master)
-                    "#{parent_source_name}.#{data_service.name}"
+                    parent_service_name = selected_device(data_service.master)
+                    "#{parent_service_name}.#{data_service.name}"
                 else
                     arguments["#{data_service.name}_name"]
                 end
             end
 
-            # Returns the data service model for the given source name
+            # Returns the data service model for the given service name
             #
-            # Raises ArgumentError if source_name is not a data source name on
-            # this component model.
-            def data_service_type(source_name)
-                source_name = source_name.to_str
-                root_source_name = source_name.gsub /\..*$/, ''
+            # Raises ArgumentError if service_name is not the name of a data
+            # service name declared on this component model.
+            def data_service_type(service_name)
+                service_name = service_name.to_str
+                root_service_name = service_name.gsub /\..*$/, ''
                 root_source = model.each_root_data_service.find do |name, source|
-                    arguments[:"#{name}_name"] == root_source_name
+                    arguments[:"#{name}_name"] == root_service_name
                 end
 
                 if !root_source
-                    raise ArgumentError, "there is no source named #{root_source_name}"
+                    raise ArgumentError, "there is no source named #{root_service_name}"
                 end
-                if root_source_name == source_name
+                if root_service_name == service_name
                     return root_source.last.model
                 end
 
-                subname = source_name.gsub /^#{root_source_name}\./, ''
+                subname = service_name.gsub /^#{root_service_name}\./, ''
 
                 model = self.model.data_service_type("#{root_source.first}.#{subname}")
                 if !model
-                    raise ArgumentError, "#{subname} is not a slave source of #{root_source_name} (#{root_source.first}) in #{self.model.name}"
+                    raise ArgumentError, "#{subname} is not a slave source of #{root_service_name} (#{root_source.first}) in #{self.model.name}"
                 end
                 model
             end
