@@ -226,107 +226,36 @@ module Orocos
             #   the type of the configuration data structures
             def data_service_type(name, options = Hash.new, &block)
                 name = Model.validate_model_name("DataService", name)
-
                 options = Kernel.validate_options options,
-                    :child_of => nil,
-                    :provides => nil,
-                    :interface => nil,
                     :config_type => nil
-
-                options[:provides] ||= (options[:child_of] || DataService)
 
                 const_name = name.camelcase(:upper)
                 if has_data_service?(name)
                     raise ArgumentError, "there is already a data service type named #{name}"
                 end
 
-                parent_model = options[:provides]
-                if parent_model.respond_to?(:to_str)
-                    parent_model = data_service_model(parent_model)
-                    if !parent_model
-                        raise ArgumentError, "parent model #{options[:provides]} does not exist"
-                    end
-                end
-                model = parent_model.new_submodel("Orocos::RobyPlugin::DataServices::#{name}",
+                model = DataService.new_submodel("Orocos::RobyPlugin::DataServices::#{name}",
                         :system_model => self,
-                        :interface => options[:interface],
                         :config_type => options[:config_type], &block)
 
                 register_data_service(model)
                 model
             end
 
-            # Create a new data source model
+            # Creates a new device model
             #
-            # The returned value is an instance of DataServiceModel in which
-            # DataSource has been included.
+            # The returned value is an instance of DeviceModel in which
+            # Device has been included.
             #
             def device_type(name, options = Hash.new, &block)
                 name = Model.validate_model_name("Devices", name)
-            # The following options are available:
-            #
-            # provides::
-            #   a data service this data source provides. If it is not set, a
-            #   data service will either be created with the same name than the
-            #   data source, or it will be reused if a service already exists
-            #   with that name.
-            # interface::
-            #   an instance of Orocos::Generation::TaskContext that represents
-            #   the data source interface.
-            #
-            # If both provides and interface are provided, the interface must
-            # match the data service's interface.
-                options, device_options = Kernel.filter_options options,
-                    :provides => nil, :child_of => nil, :interface => nil
-
-                if options[:provides].nil?
-                    options[:provides] = options[:child_of]
-                end
-
-                if has_data_source?(name)
+                if has_device?(name)
                     raise ArgumentError, "there is already a device type #{name}"
                 end
 
-                if parents = options[:provides]
-                    parents = [*parents].map do |parent|
-                        if parent.respond_to?(:to_str)
-                            data_service_model(parent)
-                        else
-                            parent
-                        end
-                    end
-                    parents.delete_if do |parent|
-                        parents.any? { |p| p < parent }
-                    end
-
-                    bad_models = parents.find_all { |p| !(p < DataService) }
-                    if !bad_models.empty?
-                        raise ArgumentError, "#{bad_models.map(&:name).join(", ")} are not interface models"
-                    end
-
-                elsif options[:provides].nil?
-                    if has_data_service?(name)
-                        parents = [data_service_model(name)]
-                    else
-                        parents = [self.data_service_type(
-                            name, :interface => options[:interface])]
-                    end
-                end
-
-                # Find which of DataSource and ComBus should be our parent
-                # ...
-                parent_model, options =
-                    if com_bus = parents.find { |m| m < ComBus }
-                        [ComBus, { :message_type => com_bus.message_type,
-                            :override_policy => com_bus.override_policy? }]
-                    else [DataSource, {}]
-                    end
-
-                source_model = parent_model.
-                    new_submodel(name, options.merge(:interface => false), &block)
-                parents.each { |p| source_model.provides(p) }
-                register_data_source(source_model)
-                source_model
+                model = Device.new_submodel(name, options.merge(:system_model => self), &block)
+                register_device(model)
+                model
             end
 
             # Creates a new communication bus model
@@ -341,13 +270,12 @@ module Orocos
             # ComBus is included.
             def com_bus_type(name, options  = Hash.new, &block)
                 name = Model.validate_model_name("Devices", name)
-                if has_data_source?(name)
+                if has_device?(name)
                     raise ArgumentError, "there is already a device driver called #{name}"
                 end
 
-                model = ComBus.new_submodel(
-                    name, options.merge(:system_model => self))
-                register_data_source(model)
+                model = ComBus.new_submodel(name, options.merge(:system_model => self), &block)
+                register_device(model)
                 model
             end
 

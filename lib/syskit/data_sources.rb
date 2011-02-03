@@ -199,6 +199,13 @@ module Orocos
             # If port mappings are given, they define the mapping between
             # ports in +service_model+ and existing ports in +self+
             def provides(service_model, new_port_mappings = Hash.new)
+                # A device can provide either a device or a data service, but
+                # not a combus. Idem for data service: only other data services
+                # can be provided
+                if !kind_of?(service_model.class)
+                    raise ArgumentError, "a #{self.class.name} cannot provide a #{service_model.class.name}. If this is really what you mean, declare #{self.name} as a #{service_model.class.name} first"
+                end
+
                 if parent_models.include?(service_model)
                     return
                 end
@@ -348,17 +355,40 @@ module Orocos
                     :override_policy => override_policy?, :message_type => message_type
 
                 model = super(model, options, &block)
-                if !bus_options[:message_type]
-                    raise ArgumentError, "com bus types must have a message_type argument"
+                model.override_policy = bus_options[:override_policy]
+                if bus_options[:message_type]
+                    if model.message_type && model.message_type != bus_options[:message_type]
+                        raise ArgumentError, "cannot override message types. The current message type of #{name} is #{message_type}, which might come from another provided com bus"
+                    elsif !model.message_type
+                        model.message_type    = bus_options[:message_type]
+                    end
+                end
+                if !bus_options[:message_type] && !model.message_type
+                    raise ArgumentError, "com bus types must either have a message_type or provide another com bus type that does"
                 end
 
-                model.override_policy = bus_options[:override_policy]
-                model.message_type    = bus_options[:message_type]
                 if attached_device_configuration_module
                     model.attached_device_configuration_module = Module.new
                     model.attached_device_configuration_module.include(attached_device_configuration_module)
                 end
                 model
+            end
+
+            def provides(service_model, new_port_mappings = Hash.new)
+                if service_model.respond_to?(:message_type)
+                    if message_type && message_type != service_model.message_type
+                        raise ArgumentError, "#{self.name} cannot provide #{service_model.name} as their message type differs (resp. #{message_type} and #{service_model.message_type}"
+                    end
+                end
+
+                super
+
+                puts service_model.name
+                puts (service_model.respond_to?(:message_type) && !message_type)
+                if service_model.respond_to?(:message_type) && !message_type
+                    @message_type = service_model.message_type
+                    puts @message_type
+                end
             end
 
             # If true, the com bus autoconnection code will override the
