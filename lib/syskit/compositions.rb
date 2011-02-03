@@ -2281,6 +2281,15 @@ module Orocos
                 end
             end
 
+            def self.method_missing(m, *args, &block)
+                if args.empty?
+                    name = m.to_s
+                    if has_child?(name)
+                        return CompositionChild.new(self, name)
+                    end
+                end
+                super
+            end
         end
     end
 end
