@@ -120,7 +120,19 @@ module Orocos
                 model
             end
 
-            def self.validate_model_name(name)
+            PREFIX_SHORTCUTS =
+                { 'Devices' => %w{Devices Dev},
+                  'DataService' => %w{DataService Srv} }
+
+            def self.validate_model_name(prefix, user_name)
+                name = user_name.dup
+                PREFIX_SHORTCUTS[prefix].each do |str|
+                    name.gsub!(/^#{str}::/, '')
+                end
+                if name =~ /::/
+                    raise ArgumentError, "model names cannot have sub-namespaces"
+                end
+
                 if !name.respond_to?(:to_str)
                     raise ArgumentError, "expected a string as a model name, got #{name}"
                 elsif !(name.camelcase(:upper) == name)
