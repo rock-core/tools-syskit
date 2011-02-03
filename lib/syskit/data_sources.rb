@@ -34,9 +34,10 @@ module Orocos
         module Devices
         end
 
-        DataSources = Devices
-        DServ = DataServices
-        DSrc  = DataSources
+        # Shortcut for DataServices
+        Srv = DataServices
+        # Shortcut for Devices
+        Dev = Devices
 
         # Base type for data service models (DataService, DataSource,
         # DataBus). Methods defined in this class are available on said
@@ -166,11 +167,7 @@ module Orocos
             # If +name+ is given, that string will be reported as the service
             # name in the block, instead of the actual service name
             def apply_block(name = nil, &block)
-                search_path = [RobyPlugin,
-                    RobyPlugin::DataServices,
-                    RobyPlugin::DataSources,
-                    RobyPlugin::Compositions]
-                with_module(*search_path) do
+                with_module(*RobyPlugin.constant_search_path) do
                     BlockInstanciator.new(self, name).instance_eval(&block)
                 end
             end

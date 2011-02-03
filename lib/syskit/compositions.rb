@@ -2092,6 +2092,9 @@ module Orocos
             end
         end
 
+        # Alias for Compositions
+        Cmp = Compositions
+
         # Compositions, i.e. grouping of components and/or other compositions
         # that perform a given function.
         #

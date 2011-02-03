@@ -137,7 +137,7 @@ module Orocos
 
                 def devices(&block)
                     if block
-                        Kernel.dsl_exec(Roby.app.orocos_engine.robot, [DataSources], !Roby.app.filter_backtraces?, &block)
+                        Kernel.dsl_exec(Roby.app.orocos_engine.robot, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?, &block)
                     else
                         each_device
                     end
@@ -174,16 +174,6 @@ module Orocos
                 app.orocos_load_component_extensions = true
 
                 ::Robot.extend Application::RobotExtension
-                mod = Module.new do
-                    def self.method_missing(m, *args, &block)
-                        Roby.app.orocos_engine.robot.send(m, *args, &block)
-                    end
-
-                    def self.const_missing(const_name)
-                        Application.resolve_constants(const_name, DataSources, [DataSources])
-                    end
-                end
-                ::Robot.const_set 'Devices', mod
 
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROGEN_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(File.expand_path('..', File.dirname(__FILE__))))
@@ -323,7 +313,9 @@ module Orocos
             def self.require_models(app)
                 Orocos.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
                 Orocos.const_set('DataServices', Orocos::RobyPlugin::DataServices)
-                Orocos.const_set('DataSources',  Orocos::RobyPlugin::DataSources)
+                Orocos.const_set('Srv',          Orocos::RobyPlugin::DataServices)
+                Orocos.const_set('Devices',      Orocos::RobyPlugin::Devices)
+                Orocos.const_set('Dev',          Orocos::RobyPlugin::Devices)
                 Orocos.const_set('Compositions', Orocos::RobyPlugin::Compositions)
 
                 # Load the data services and task models
@@ -385,7 +377,7 @@ module Orocos
                     end
                 end
 
-                [DataServices, Compositions, DataSources].each do |mod|
+                [DataServices, Compositions, Devices].each do |mod|
                     mod.constants.each do |const_name|
                         mod.send(:remove_const, const_name)
                     end
@@ -398,11 +390,7 @@ module Orocos
             end
 
             def self.load_task_extension(file, app)
-                search_path = [RobyPlugin,
-                    RobyPlugin::DataServices,
-                    RobyPlugin::DataSources,
-                    RobyPlugin::Compositions]
-                if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, search_path, !Roby.app.filter_backtraces?)
+                if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
                     RobyPlugin.info "loaded #{file}"
                 end
             end
