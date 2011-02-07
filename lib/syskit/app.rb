@@ -224,9 +224,16 @@ module Orocos
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
                 if orocos_load_component_extensions?
-                    file = File.join('tasks', 'components', "#{name}.rb")
+                    file = File.join('tasks', 'orogen', "#{name}.rb")
                     if File.exists?(file)
                         Application.load_task_extension(file, self)
+                    else
+                        file = File.join('tasks', 'components', "#{name}.rb")
+                        if File.exists?(file)
+                            RobyPlugin.warn "putting orogen-specific models in tasks/components/ is deprecated"
+                            RobyPlugin.warn "move #{file} to #{file.gsub(/\/components\//, '/orogen/')}"
+                            Application.load_task_extension(file, self)
+                        end
                     end
                 end
 
