@@ -383,11 +383,8 @@ module Orocos
 
                 super
 
-                puts service_model.name
-                puts (service_model.respond_to?(:message_type) && !message_type)
                 if service_model.respond_to?(:message_type) && !message_type
                     @message_type = service_model.message_type
-                    puts @message_type
                 end
             end
 
@@ -893,10 +890,6 @@ module Orocos
             # periodically
             def initial_port_dynamics_periodic_triggering(triggering_devices, result, period)
                 Engine.debug { "  is triggered with a period of #{period} seconds" }
-
-                model.each_data_service do |name, srv|
-                    puts "#{name} #{srv}"
-                end
 
                 triggering_devices.each do |service, device|
                     Engine.debug { "  #{device.name}: #{device.period} #{device.burst}" }
