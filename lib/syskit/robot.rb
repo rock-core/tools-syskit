@@ -423,10 +423,8 @@ module Orocos
             # This method returns the MasterDeviceInstance instance that
             # describes the actual device
             def device(device_model, options = Hash.new)
-                if device_model < DataService && !(device_model < Device)
-                    # Accept converting a data service to the corresponding data
-                    # source. This allows the DSL stuff to work properly
-                    device_model = device_model.constant_name
+                if !(device_model < Device)
+                    raise ArgumentError, "expected a device model, got #{device_model} of class #{device_model.class.name}"
                 end
                 if device_model.respond_to?(:to_str)
                     device_model = system_model.

@@ -41,6 +41,12 @@ module Orocos
                 @declared_dynamic_slaves = Array.new
             end
 
+            def overload(new_component_model)
+                result = dup
+                result.instance_variable_set :@component_model, new_component_model
+                result
+            end
+
             def to_s
                 "#<ProvidedDataService: #{component_model.short_name} #{full_name}>"
             end
@@ -76,44 +82,60 @@ module Orocos
             # underlying task. I.e. applies the port mappings to the service
             # definition
             def each_input_port
-                if block_given?
-                    port_mappings = port_mappings_for(model)
-                    model.each_input_port do |input_port|
-                        port_name = input_port.name
-                        if mapped_port = port_mappings[port_name]
-                            port_name = mapped_port
-                        end
-                        p = component_model.find_input_port(port_name)
-                        if !p
-                            raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
-                        end
-                        yield(p)
+                if !block_given?
+                    return enum_for(:each_input_port, with_slaves)
+                end
+
+                port_mappings = port_mappings_for(model)
+                model.each_input_port do |input_port|
+                    port_name = input_port.name
+                    if mapped_port = port_mappings[port_name]
+                        port_name = mapped_port
                     end
-                else
-                    enum_for(:each_input_port)
+                    p = component_model.find_input_port(port_name)
+                    if !p
+                        raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
+                    end
+                    yield(p)
+                end
+
+                if with_slaves
+                    each_slave do |name, srv|
+                        srv.each_input_port(true, &block)
+                    end
                 end
             end
 
             # Yields the port models for this service's output, applied on the
             # underlying task. I.e. applies the port mappings to the service
             # definition
-            def each_output_port
-                if block_given?
-                    port_mappings = port_mappings_for(model)
-                    model.each_output_port do |output_port|
-                        port_name = output_port.name
-                        if mapped_port = port_mappings[port_name]
-                            port_name = mapped_port
-                        end
-                        p = component_model.find_output_port(port_name)
-                        if !p
-                            raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
-                        end
-                        yield(p)
-                    end
-                else
-                    enum_for(:each_output_port)
+            def each_output_port(with_slaves = false, &block)
+                if !block_given?
+                    return enum_for(:each_output_port, with_slaves)
                 end
+
+                port_mappings = port_mappings_for(model)
+                model.each_output_port do |output_port|
+                    port_name = output_port.name
+                    if mapped_port = port_mappings[port_name]
+                        port_name = mapped_port
+                    end
+                    p = component_model.find_output_port(port_name)
+                    if !p
+                        raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
+                    end
+                    yield(p)
+                end
+
+                if with_slaves
+                    each_slave do |name, srv|
+                        srv.each_output_port(true, &block)
+                    end
+                end
+            end
+
+            def each_slave(&block)
+                component_model.each_slave_data_service(self, &block)
             end
 
             # If an unknown method is called on this object, try to return the
@@ -766,6 +788,14 @@ module Orocos
                         raise SpecError, "master source #{master_source} is not registered on #{self}"
                     end
                     master = find_data_service(master_source)
+                    if master.component_model != self
+                        # Need to create an overload at this level of the
+                        # hierarchy, or one will not be able to enumerate the
+                        # slaves by using the service's ProvidedDataService
+                        # object
+                        master = master.overload(self)
+                        data_services[master.full_name] = master
+                    end
                 end
 
                 service = ProvidedDataService.new(name, self, master, model, Hash.new)
