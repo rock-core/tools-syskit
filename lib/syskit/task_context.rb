@@ -367,7 +367,7 @@ module Orocos
 
                     # The source port is computed, save the period in the input
                     # ports's model
-                    if model.find_input_port(to_port).trigger_port?
+                    if orogen_spec.trigger_port?(model.find_input_port(to_port))
                         task_dynamics.merge(out_dynamics)
                     end
 
