@@ -172,6 +172,7 @@ module Orocos
 
                     SystemModel.debug do
                         SystemModel.debug "created the specialized submodel #{component_model.short_name} of #{component_model.superclass.short_name} as a singleton model for #{reason}"
+                        break
                     end
                 end
 
