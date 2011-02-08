@@ -276,10 +276,10 @@ module Orocos
 
                 result = Hash.new
                 if defined? super
-                    result.merge(super)
+                    result.merge!(super)
                 end
 
-                if orogen_spec.activity_type == 'PeriodicActivity'
+                if orogen_spec.activity_type.name == 'Periodic'
                     Engine.debug { "  adding periodic trigger #{orogen_spec.period} 1" }
                     task_dynamics.add_trigger("main-period", orogen_spec.period, 1)
                 end

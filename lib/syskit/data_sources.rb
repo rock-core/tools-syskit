@@ -866,29 +866,10 @@ module Orocos
                 device_instance
             end
 
-            def initial_ports_dynamics
-                result = Hash.new
-                if defined? super
-                    result.merge(super)
-                end
-
-                Engine.debug { "initial port dynamics on #{self} (device)" }
-
-                internal_trigger_activity =
-                    (orogen_spec.activity_type.name == "FileDescriptorActivity")
-
-                if !internal_trigger_activity
-                    Engine.debug "  is NOT triggered internally"
-                    return result
-                end
-
-                triggering_devices = each_device.to_a
-
-                Engine.debug do
-                    Engine.debug "  is triggered internally"
-                    Engine.debug "  attached devices: #{triggering_devices.map { |_, dev| dev.name }.join(", ")}"
-                    break
-                end
+            # Computes the initial port dynamics when the task gets triggered by
+            # the devices it is attached to
+            def initial_port_dynamics_internal_triggering(triggering_devices, result)
+                Engine.debug "  is triggered internally"
 
                 triggering_devices.each do |service, device|
                     Engine.debug { "  #{device.name}: #{device.period} #{device.burst}" }
@@ -899,14 +880,64 @@ module Orocos
                     device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
 
                     task_dynamics.merge(device_dynamics)
-                    service.each_output_port do |out_port|
+                    service.each_output_port(true) do |out_port|
                         out_port.triggered_on_update = false
                         port_name = out_port.name
                         port_dynamics = (result[port_name] ||= PortDynamics.new("#{self.orocos_name}.#{out_port.name}", out_port.sample_size))
                         port_dynamics.merge(device_dynamics)
                     end
                 end
+            end
 
+            # Computes the initial port dynamics when the task is triggered
+            # periodically
+            def initial_port_dynamics_periodic_triggering(triggering_devices, result, period)
+                Engine.debug { "  is triggered with a period of #{period} seconds" }
+
+                model.each_data_service do |name, srv|
+                    puts "#{name} #{srv}"
+                end
+
+                triggering_devices.each do |service, device|
+                    Engine.debug { "  #{device.name}: #{device.period} #{device.burst}" }
+                    device_dynamics = PortDynamics.new(device.name, 1)
+                    if device.period
+                        device_dynamics.add_trigger(device.name, device.period, 1)
+                    end
+                    device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
+
+                    ports = ValueSet.new
+                    service.each_output_port(true) do |out_port|
+                        out_port.triggered_on_update = false
+                        port_name = out_port.name
+                        port_dynamics = (result[port_name] ||= PortDynamics.new("#{self.orocos_name}.#{out_port.name}", out_port.sample_size))
+                        port_dynamics.add_trigger(device.name, period, device_dynamics.queue_size(period))
+                    end
+                end
+            end
+
+            def initial_ports_dynamics
+                result = Hash.new
+                if defined? super
+                    result.merge!(super)
+                end
+
+                triggering_devices = each_device.to_a
+
+                Engine.debug do
+                    Engine.debug "initial port dynamics on #{self} (device)"
+                    Engine.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(", ")}"
+                    break
+                end
+
+                case orogen_spec.activity_type.name
+                when "Periodic"
+                    initial_port_dynamics_periodic_triggering(triggering_devices.to_a,
+                                                              result, orogen_spec.period)
+                when "FileDescriptorActivity"
+                    initial_port_dynamics_internal_triggering(triggering_devices.to_a,
+                                                              result)
+                end
                 result
             end
 
