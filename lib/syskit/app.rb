@@ -602,13 +602,16 @@ module Orocos
                 stop_process_servers
             end
 
+            def cleanup
+                Application.stop_local_process_server
+            end
+
             def stop_process_servers
                 Application.stop_process_servers
             end
             
             def self.stop_process_servers
                 # Stop the local process server if we started it ourselves
-                stop_local_process_server
                 Orocos::RobyPlugin.process_servers.each_value do |client, options|
                     client.disconnect
                 end
