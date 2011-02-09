@@ -414,7 +414,7 @@ module Orocos
             end
 
             def input_port(name)
-                if !(port = find_output_port(name))
+                if !(port = find_input_port(name))
 		    raise ArgumentError, "port #{name} is not an input port in #{self}"
 		end
 		port
