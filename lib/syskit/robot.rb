@@ -5,10 +5,51 @@ module Orocos
         #
         # It is returned by Robot.device
         class DeviceInstance
+            ##
+            # :method:period
+            #
+            # call-seq:
+            #   period(new_period) => new_period
+            #   period => current_period or nil
+            #
+            # Gets or sets the device period
+            #
+            # The device period is the amount of time there is between two
+            # samples coming from the device. The value is a floating-point
+            # value in seconds.
+            dsl_attribute(:period) { |v| Float(v) }
+
+            ## 
+            # :method:sample_size
+            #
+            # call-seq:
+            #   sample_size(size)
+            #   sample_size => current_size
+            #
+            # If this device is on a communication bus, the sample_size
+            # statement specifies how many messages on the bus are required to
+            # form one of the device sample.
+            #
+            # For instance, if four motor controllers are modelled as one device
+            # on a CAN bus, and if each of them require one message, then the
+            # following would be used to declare the device:
+            #
+            #   device(Motors).
+            #       device_id(0x0, 0x700).
+            #       period(0.001).sample_size(4)
+            #
+            # It is unused for devices that don't communicate through a bus.
+            #
+            dsl_attribute(:sample_size) { |v| Integer(v) }
+
+            # Declares that this particular device might "every once in a while"
+            # sent bursts of data. This is used by the automatic connection code
+            # to compute buffer sizes
+            dsl_attribute(:burst)   { |v| Integer(v) }
         end
 
         # Specialization of MasterDeviceInstance used to represent root devices
-        class MasterDeviceInstance
+        class MasterDeviceInstance < DeviceInstance
             # The RobotDefinition instance we are built upon
             attr_reader :robot
             # The device name
@@ -123,43 +164,6 @@ module Orocos
                 task_model.instanciate(engine, additional_arguments.merge(task_arguments))
             end
 
-            ##
-            # :method:period
-            #
-            # call-seq:
-            #   period(new_period) => new_period
-            #   period => current_period or nil
-            #
-            # Gets or sets the device period
-            #
-            # The device period is the amount of time there is between two
-            # samples coming from the device. The value is a floating-point
-            # value in seconds.
-            dsl_attribute(:period) { |v| Float(v) }
-
-            ## 
-            # :method:sample_size
-            #
-            # call-seq:
-            #   sample_size(size)
-            #   sample_size => current_size
-            #
-            # If this device is on a communication bus, the sample_size
-            # statement specifies how many messages on the bus are required to
-            # form one of the device sample.
-            #
-            # For instance, if four motor controllers are modelled as one device
-            # on a CAN bus, and if each of them require one message, then the
-            # following would be used to declare the device:
-            #
-            #   device(Motors).
-            #       device_id(0x0, 0x700).
-            #       period(0.001).sample_size(4)
-            #
-            # It is unused for devices that don't communicate through a bus.
-            #
-            dsl_attribute(:sample_size) { |v| Integer(v) }
-
             ## 
             # :method:device_id
             #
@@ -186,11 +190,6 @@ module Orocos
                     values.first
                 end
             end
-
-            # Declares that this particular device might "every once in a while"
-            # sent bursts of data. This is used by the automatic connection code
-            # to compute buffer sizes
-            dsl_attribute(:burst)   { |v| Integer(v) }
 
             # Enumerates the slaves that are known for this device, as
             # [slave_name, SlaveDeviceInstance object] pairs
@@ -239,11 +238,15 @@ module Orocos
         # A SlaveDeviceInstance represents slave devices, i.e. data services
         # that are provided by other devices. For instance, a camera image from
         # a stereocamera device.
-        class SlaveDeviceInstance
+        class SlaveDeviceInstance < DeviceInstance
             # The MasterDeviceInstance that we depend on
             attr_reader :master_device
             # The actual service on master_device's task model
             attr_reader :service
+
+            def robot
+                master_device.robot
+            end
 
             def task_model
                 master_device.task_model
@@ -271,31 +274,25 @@ module Orocos
 
             def task; master_device.task end
 
-            def period;      master_device.period end
-            def sample_size; master_device.sample_size end
-
-            ## 
-            # :method:slave_id
-            #
-            # call-seq:
-            #   slave_id(slave_id, definition)
-            #   slave_id => current_id or nil
-            #
-            # Configuration information for the slave of a particular device.
-            # This is mainly used for so-called multiplexed drivers.
-            #
-            # For instance, the Hbridge driver can mux and demux groups of
-            # actual hbridge devices. To configure these groups, one uses slave
-            # devices and multiplexed drivers, and configures one group with
-            #
-            #   device(HbridgeSet).
-            #       slave(Hbridge).slave_id(0, 1, 2, 3)
-            #
-            dsl_attribute(:device_id) do |*values|
-                if values.size > 1
-                    values
+            def period(*args)
+                if args.empty?
+                    super || master_device.period
                 else
-                    values.first
+                    super
+                end
+            end
+            def sample_size(*args)
+                if args.empty?
+                    super || master_device.sample_size
+                else
+                    super
+                end
+            end
+            def burst(*args)
+                if args.empty?
+                    super || master_device.burst
+                else
+                    super
                 end
             end
         end
