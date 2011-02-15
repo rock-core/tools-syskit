@@ -1034,7 +1034,7 @@ module Orocos
                 # Check that all devices are properly assigned
                 missing_devices = all_tasks.find_all do |t|
                     t.model < Device &&
-                        !t.model.each_master_device.any? { |srv| t.arguments["#{srv.name}_name"] }
+                        t.model.each_master_device.any? { |srv| !t.arguments["#{srv.name}_name"] }
                 end
                 if !missing_devices.empty?
                     raise DeviceAllocationFailed.new(missing_devices),
