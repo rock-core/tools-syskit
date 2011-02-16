@@ -324,6 +324,7 @@ module Orocos
                 Orocos.const_set('Devices',      Orocos::RobyPlugin::Devices)
                 Orocos.const_set('Dev',          Orocos::RobyPlugin::Devices)
                 Orocos.const_set('Compositions', Orocos::RobyPlugin::Compositions)
+                Orocos.const_set('Cmp', Orocos::RobyPlugin::Compositions)
 
                 # Load the data services and task models
                 %w{data_services compositions}.each do |category|
