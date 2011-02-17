@@ -368,6 +368,12 @@ module Orocos
                 device
             end
 
+            # Returns true if +name+ is the name of a device registered on this
+            # robot model
+            def has_device?(name)
+                devices.has_key?(name.to_str)
+            end
+
             # Declares that all devices declared in the provided block are using
             # the given bus
             #

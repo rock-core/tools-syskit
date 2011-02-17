@@ -559,6 +559,12 @@ module Orocos
                 instance
             end
 
+            # Returns true if +name+ is the name of a definition added with
+            # #define
+            def has_definition?(name)
+                defines.has_key?(name.to_str)
+            end
+
             # Replace all running services that fullfill +model+ by the +name+
             # definition (added with #define). If none is running, +name+ is
             # simply added

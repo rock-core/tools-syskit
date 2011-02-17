@@ -30,6 +30,16 @@ module Orocos
                 tic
             end
 
+            def self.resolve_service_name(service)
+                engine = Roby.app.orocos_engine
+                if !engine.robot.has_device?(service) && !engine.has_definition?(service)
+                    if engine.model.has_composition?(service)
+                        service = engine.model.composition_model(service)
+                    end
+                end
+                service
+            end
+
             def self.common_options(opt, with_output = false)
                 opt.on('--debug', "turn debugging output on") do
                     Scripts.debug = true
