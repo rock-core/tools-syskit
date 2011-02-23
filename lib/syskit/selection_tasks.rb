@@ -126,6 +126,42 @@ module Orocos
             end
         end
 
+        # Requirement modification task that allows to add a single definition
+        # or task to the requirements and inject the result into the plan
+        class SingleRequirementTask < RequirementModificationTask
+            # Creates the subplan required to add the given task to the plan
+            def self.subplan(new_spec, *args)
+                if !new_spec.respond_to?(:to_str)
+                    definition_name = "single_requirement_#{object_id}"
+                    Roby.app.orocos_engine.
+                        define(definition_name, new_spec, *args)
+                elsif !args.empty?
+                    definition_name = new_spec
+                else
+                    raise ArgumentError, "expected SingleRequirementTask.subplan(definition_name) or SingleRequirementTask.subplan(component_model)"
+                end
+
+                defn = Roby.app.orocos_engine.
+                    instanciated_component_from_name(definition_name)
+                if !defn
+                    raise ArgumentError, "#{defn} is not a valid definition"
+                end
+
+                root = defn.base_model.new
+                root.executable = false
+                planner = new(:name => definition_name)
+                root.planned_by(planner)
+                root
+            end
+
+            # The name of the selected task in the engine
+            argument :name
+
+            implementation do |engine|
+                engine.add(arguments[:name])
+            end
+        end
+
         # Type of task that allows to select a particular modality. I.e., it
         # removes any running instance of a particular service and replaces it
         # with the defined modality given to 'selected_modality'
