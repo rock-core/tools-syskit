@@ -1910,7 +1910,10 @@ module Orocos
                     end
 
                     Engine.debug do
-                        "  selected #{selected_child.child_task || selected_child.child_model.name} (#{port_mappings}) for #{child_name} (#{required_model.map(&:name).join(",")})"
+                        Engine.debug "  selected #{selected_child.child_task || selected_child.child_model.name} (#{port_mappings}) for #{child_name} (#{required_model.map(&:name).join(",")})"
+                        Engine.debug "    using #{selected_child.using_spec}"
+                        Engine.debug "    arguments #{selected_child.arguments}"
+                        break
                     end
 
                     selected_child.port_mappings = port_mappings
