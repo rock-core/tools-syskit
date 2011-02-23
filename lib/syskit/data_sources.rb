@@ -574,7 +574,7 @@ module Orocos
                     if self_services.empty?
                         raise SpecError, "trying to merge #{merged_task} into #{self}, but that seems to not be possible"
                     elsif self_services.size > 1
-                        raise Ambiguous, "merging #{self} and #{merged_task} is ambiguous: the #{self_services.map(&:short_name).join(", ")} data services could be used"
+                        raise AmbiguousImplicitServiceSelection.new(self, merged_task, other_service, self_services), "merging #{self} and #{merged_task} is ambiguous: the #{self_services.map(&:short_name).join(", ")} data services could be used"
                     end
 
                     # "select" one service to use to handle other_name

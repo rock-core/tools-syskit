@@ -141,6 +141,38 @@ module Orocos
             end
         end
 
+        # Exception raised during the merge steps, if a merge is possible (i.e.
+        # a task provides the required service), but ambiguous
+        class AmbiguousImplicitServiceSelection < AmbiguousServiceSelection
+            attr_reader :task
+            attr_reader :merged_task
+            attr_reader :compositions
+
+            def initialize(task, merged_task, required_service, candidates)
+                super(task.model, required_service, candidates)
+
+                @task = task
+                @merged_task = merged_task
+                @compositions = merged_task.parent_objects(Roby::TaskStructure::Dependency).
+                    map { |parent| [parent, parent[merged_task, Roby::TaskStructure::Dependency].dup] }
+            end
+
+            def pretty_print(pp)
+                pp.text "error while trying to use #{task} instead of #{merged_task}"
+                pp.breakable
+                pp.text "#{merged_task} is part of the following compositions:"
+                pp.nest(2) do
+                    pp.seplist(compositions) do |parent|
+                        parent_task, dependency_options = *parent
+                        pp.breakable
+                        pp.text "child #{dependency_options[:roles].to_a.join(", ")} of #{parent_task}"
+                    end
+                end
+                pp.breakable
+                super
+            end
+        end
+
         # Exception raised when selection facets lead to a specialization
         # selection that is incompatible
         class IncompatibleFacetedSelection < Ambiguous
