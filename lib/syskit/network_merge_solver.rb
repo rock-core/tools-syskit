@@ -458,11 +458,15 @@ module Orocos
                         end
                     end
 
-                    # 3. if target_task is not a device driver, pick one
-                    # randomly
+                    # 3. if target_task is not a device driver and possible
+                    # merges have the same model, pick one randomly
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                         if !target_task.respond_to?(:each_device_name)
-                            [task_set.find { true }]
+                            candidate = task_set.find { true }
+                            if task_set.all? { |t| t.model == candidate.model }
+                                Engine.debug { "randomly picking #{candidate}" }
+                                [candidate]
+                            end
                         end
                     end
                 end
