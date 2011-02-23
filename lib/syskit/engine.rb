@@ -610,11 +610,17 @@ module Orocos
                 implicit = using_spec[nil] || []
 
                 main_selection.each do |key, selected|
-                    next if implicit.any? { |t| t.fullfills?(key) }
+                    if key
+                        next if implicit.any? { |t| t.fullfills?(key) }
+                    end
 
                     if resolved_selection = resolve_explicit_selection(selected)
                         verify_result_in_transaction(key, resolved_selection)
-                        using_spec[key] = resolved_selection
+                        if resolved_selection.respond_to?(:to_ary) && !implicit.empty?
+                            using_spec[nil].concat(resolved_selection)
+                        else
+                            using_spec[key] = resolved_selection
+                        end
                     end
                 end
                 using_spec
