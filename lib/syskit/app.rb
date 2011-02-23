@@ -349,7 +349,8 @@ module Orocos
                     end
                 end
 
-                # Finally, we load the configuration file ourselves
+                # Finally, we load the configuration file ourselves using the
+                # #load_system_model call
                 if file = app.robotfile(APP_DIR, 'config', "ROBOT.rb")
                     app.load_system_model file
                 end
