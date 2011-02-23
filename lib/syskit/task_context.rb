@@ -63,6 +63,7 @@ module Orocos
                     end
                     klass = new_submodel
                     klass.private_specialization = true
+                    klass.private_model
                     klass.name = name
                     klass.orogen_spec  = RobyPlugin.create_orogen_interface(self.name + "_" + name)
                     klass.state_events = state_events.dup
