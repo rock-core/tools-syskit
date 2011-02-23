@@ -316,9 +316,7 @@ module Orocos
                         start_local_process_server(:redirect => app.redirect_local_process_server?)
                     end
                 end
-            end
 
-            def self.require_models(app)
                 Orocos.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
                 Orocos.const_set('DataServices', Orocos::RobyPlugin::DataServices)
                 Orocos.const_set('Srv',          Orocos::RobyPlugin::DataServices)
@@ -326,7 +324,9 @@ module Orocos
                 Orocos.const_set('Dev',          Orocos::RobyPlugin::Devices)
                 Orocos.const_set('Compositions', Orocos::RobyPlugin::Compositions)
                 Orocos.const_set('Cmp', Orocos::RobyPlugin::Compositions)
+            end
 
+            def self.require_models(app)
                 # Load the data services and task models
                 %w{data_services compositions}.each do |category|
                     all_files = app.list_dir(APP_DIR, "tasks", category).to_a +
