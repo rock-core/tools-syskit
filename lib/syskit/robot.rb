@@ -160,8 +160,13 @@ module Orocos
             end
 
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
-            def instanciate(engine, additional_arguments = Hash.new)
-                task_model.instanciate(engine, additional_arguments.merge(task_arguments))
+
+            def instanciate(engine, options = Hash.new)
+                task = task_model.instanciate(engine, options)
+                task_arguments.each do |name, value|
+                    task.arguments[name] = value
+                end
+                task
             end
 
             ## 

@@ -141,12 +141,6 @@ module Orocos
                 name
             end
 
-            # Helper for #instance calls on components
-            def self.filter_instanciation_arguments(options)
-                arguments, task_arguments = Kernel.filter_options(
-                    options, :selection => Hash.new, :as => nil)
-            end
-
             def short_name
                 name.gsub('Orocos::RobyPlugin::', '')
             end
@@ -178,6 +172,18 @@ module Orocos
             end
         end
 
+        def self.validate_using_spec(*mappings)
+            result = Hash.new
+            mappings.each do |element|
+                if element.kind_of?(Hash)
+                    result.merge!(element)
+                else
+                    result[nil] ||= Array.new
+                    result[nil] << element
+                end
+            end
+            result
+        end
     end
 end
 

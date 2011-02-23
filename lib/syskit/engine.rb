@@ -100,6 +100,7 @@ module Orocos
         class InstanciatedComponent
             # The Engine instance
             attr_reader :engine
+
             # The name provided to Engine#add
             attr_accessor :name
             # The component model narrowed down from +base_model+ using
@@ -107,8 +108,7 @@ module Orocos
             attr_reader :model
             # The component model specified by #add
             attr_reader :base_model
-            # The arguments that should be passed to the task's #instanciate
-            # method (and, in fine, to the component model)
+            # Required arguments on the final task
             attr_reader :arguments
             # The actual selection given to Engine#add
             attr_reader :using_spec
@@ -123,11 +123,11 @@ module Orocos
             # The task this new task replaces. It is set by Engine#replace
             attr_accessor :replaces
 
-            def initialize(engine, name, model, arguments)
+            def initialize(engine, name, model)
                 @engine    = engine
                 @name      = name
                 @model     = @base_model = model
-                @arguments = arguments
+                @arguments = Hash.new
                 @using_spec = Hash.new
             end
 
@@ -160,20 +160,23 @@ module Orocos
             # priority than the explicit selection.
             #
             # See also Composition#instanciate
-            def use(*mapping)
-                result = Hash.new
-                mapping.each do |element|
-                    if element.kind_of?(Hash)
-                        result.merge!(element)
-                    else
-                        result[nil] ||= Array.new
-                        result[nil] << element
-                    end
+            def use(*mappings)
+                if !(base_model <= Composition)
+                    raise ArgumentError, "#use is available only for compositions"
                 end
-                using_spec.merge!(result)
 
-                narrow_model
+                mappings = RobyPlugin.validate_using_spec(*mappings)
+                using_spec.merge!(mappings)
+
+                if engine
+                    narrow_model
+                end
                 self
+            end
+
+            # Specifies new arguments that must be set to the instanciated task
+            def with_arguments(arguments)
+                @arguments.merge!(arguments)
             end
 
             # Computes the value of +model+ based on the current selection
@@ -185,12 +188,15 @@ module Orocos
                     Engine.debug "  from #{base_model.short_name}"
                     break
                 end
+
                 selection = Hash.new
                 using_spec.each_key do |key|
-                    if result = resolve_explicit_selection(using_spec[key])
+                    if result = engine.resolve_explicit_selection(using_spec[key])
                         selection[key] = result
                     end
                 end
+                engine.add_default_selections(using_spec)
+
                 candidates = base_model.narrow(selection)
                 @model =
                     if candidates.size == 1
@@ -205,118 +211,17 @@ module Orocos
                 end
             end
 
-            # Resolves a selection given through the #use method
-            #
-            # It can take, as input, one of:
-            # 
-            # * an array, in which case it is called recursively on each of
-            #   the array's elements.
-            # * an InstanciatedComponent (returned by Engine#add)
-            # * a name
-            #
-            # In the latter case, the name refers either to a device name,
-            # or to the name given through the ':as' argument to Engine#add.
-            # A particular service can also be selected by adding
-            # ".service_name" to the component name.
-            #
-            # The returned value is either an array of resolved selections,
-            # a Component instance or an InstanciatedDataService instance.
-            def resolve_explicit_selection(value)
-                if value.kind_of?(MasterDeviceInstance) || value.kind_of?(SlaveDeviceInstance)
-                    value = value.name
-                end
-
-                if value.kind_of?(InstanciatedComponent)
-                    value.task
-                elsif value.respond_to?(:to_str)
-                    value = value.to_str
-                    if !(selected_object = engine.tasks[value])
-                        if selected_object = engine.robot.devices[value]
-                            # Return the service that corresponds to the device
-                            # name
-                            return selected_object.service
-                        else
-                            raise SpecError, "#{value} does not refer to a known task or device"
-                        end
-                    end
-
-                    # Check if a service has explicitely been selected, and
-                    # if it is the case, return it instead of the complete
-                    # task
-                    service_names = value.split '.'
-                    service_names.shift # remove the task name
-                    if !selected_object.kind_of?(Component) || service_names.empty? 
-                        selected_object
-                    else
-                        candidate_service = selected_object.model.find_data_service(service_names.join("."))
-
-                        if !candidate_service && service_names.size == 1
-                            # Might still be a slave of a main service
-                            services = selected_object.model.each_data_service.
-                                find_all { |_, srv| !srv.master? && srv.master.main? && srv.name == service_names.first }
-
-                            if services.empty?
-                                raise SpecError, "#{value} is not a known device, or an instanciated composition"
-                            elsif services.size > 1
-                                raise SpecError, "#{value} can refer to multiple objects"
-                            end
-                            candidate_service = services.first.last
-                        end
-
-                        InstanciatedDataService.new(selected_object, candidate_service)
-                    end
-                elsif value.respond_to?(:to_ary)
-                    value.map(&method(:resolve_explicit_selection))
-                else
-                    value
-                end
-            end
-
-            def verify_result_in_transaction(key, result)
-                if result.respond_to?(:to_ary)
-                    result.each { |obj| verify_result_in_transaction(key, obj) }
-                    return
-                end
-
-                task = result
-                if result.respond_to?(:task)
-                    task = result.task
-                end
-                if task.respond_to?(:plan)
-                    if !task.plan
-                        if task.removed_at
-                            raise InternalError, "#{task}, which has been selected for #{key}, has been removed from its plan\n  Removed at\n    #{task.removed_at.join("\n    ")}"
-                        else
-                            raise InternalError, "#{task}, which has been selected for #{key}, is not included in any plan"
-                        end
-                    elsif !(task.plan == engine.plan)
-                        raise InternalError, "#{task}, which has been selected for #{key}, is not in #{engine.plan} (is in #{task.plan})"
-                    end
-                end
-            end
-
             # Create a concrete task for this requirements
             def instanciate(engine)
-                result = Hash.new
-
-                using_spec.each do |key, selected|
-                    if resolved_selection = resolve_explicit_selection(selected)
-                        verify_result_in_transaction(key, resolved_selection)
-                        result[key] = resolved_selection
-                    end
-                end
-                implicit = result[nil] || []
-
-                engine.main_selection.each do |key, selected|
-                    next if implicit.any? { |t| t.fullfills?(key) }
-
-                    if resolved_selection = resolve_explicit_selection(selected)
-                        verify_result_in_transaction(key, resolved_selection)
-                        result[key] = resolved_selection
-                    end
+                if self.engine && self.engine != engine
+                    raise ArgumentError, "cannot instanciate on a different engine that the one set"
                 end
 
-                @task = model.instanciate(engine, arguments.merge(:selection => result))
+                result = engine.resolve_explicit_selections(using_spec)
+                engine.add_default_selections(result)
+
+                @task = model.instanciate(engine, :as => name, :selection => result)
+                @task
             end
         end
 
@@ -492,7 +397,8 @@ module Orocos
             #
             # This is akin to dependency injection at the system level. See
             # InstanciatedComponent#use for details.
-            def use(mappings)
+            def use(*mappings)
+                mappings = RobyPlugin.validate_using_spec(*mappings)
                 mappings.each do |model, definition|
                     main_user_selection[model] = definition
                 end
@@ -508,12 +414,11 @@ module Orocos
 
             # Helper method that creates an instance of InstanciatedComponent
             # and registers it
-            def create_instanciated_component(model, arguments = Hash.new) # :nodoc:
+            def self.create_instanciated_component(engine, name, model) # :nodoc:
                 if !model.kind_of?(MasterDeviceInstance) && !(model.kind_of?(Class) && model < Component)
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
                 end
-                arguments, task_arguments = Kernel.filter_options arguments, :as => nil
-                instance = InstanciatedComponent.new(self, arguments[:as], model, task_arguments)
+                InstanciatedComponent.new(engine, name, model)
             end
 
             # Define a component instanciation specification, without adding it
@@ -521,19 +426,13 @@ module Orocos
             #
             # The definition can later be used in #add:
             #
-            #   define 'piv_control', Control,
-            #       'control' => PIVController::Task
+            #   define('piv_control', Control).
+            #       use('control' => PIVController::Task)
             #
             #   ...
             #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
-                # Set the name to 'name' by default, unless the user provided an
-                # 'as' argument explicitely
-                name_arg, _ = Kernel.filter_options arguments.dup, :as => nil
-                if !name_arg.has_key?(:name)
-                    arguments[:as] = name
-                end
-                defines[name] = create_instanciated_component(model, arguments)
+                defines[name] = Engine.create_instanciated_component(self, name, model)
             end
 
             # Add a new component requirement to the current deployment
@@ -544,15 +443,19 @@ module Orocos
             # +arguments+ is a hash that can contain explicit child selection
             # specification (if +model+ is a composition).
             def add(model, arguments = Hash.new)
+                arguments = Kernel.validate_options arguments, :as => nil
+
                 if model.respond_to?(:to_str)
-                    if device = instance = robot.devices[model.to_str]
-                        instance = create_instanciated_component(device, arguments)
+                    if device = robot.devices[model.to_str]
+                        instance = Engine.create_instanciated_component(self, arguments[:as] || model, device)
+                    elsif (instance = defines[model.to_str])
+                        instance = instance.dup
+                        instance.name = arguments[:as] || instance.name
                     elsif !(instance = defines[model.to_str])
                         raise ArgumentError, "#{model} is not a valid instance definition added with #define"
                     end
-                    instance = instance.dup
                 else
-                    instance = create_instanciated_component(model, arguments)
+                    instance = Engine.create_instanciated_component(self, arguments[:as], model)
                 end
                 @modified = true
                 instances << instance
@@ -696,6 +599,124 @@ module Orocos
                     pending_removes[instance] = false
                 end
                 @modified = true
+            end
+
+            # Add the global selections to +using_spec+
+            def add_default_selections(using_spec)
+                implicit = using_spec[nil] || []
+
+                main_selection.each do |key, selected|
+                    next if implicit.any? { |t| t.fullfills?(key) }
+
+                    if resolved_selection = resolve_explicit_selection(selected)
+                        verify_result_in_transaction(key, resolved_selection)
+                        using_spec[key] = resolved_selection
+                    end
+                end
+                using_spec
+            end
+
+            def resolve_explicit_selections(using_spec)
+                result = Hash.new
+                using_spec.each do |key, selected|
+                    if resolved_selection = resolve_explicit_selection(selected)
+                        verify_result_in_transaction(key, resolved_selection)
+                        result[key] = resolved_selection
+                    end
+                end
+                result
+            end
+
+            # Resolves a selection given through the #use method
+            #
+            # It can take, as input, one of:
+            # 
+            # * an array, in which case it is called recursively on each of
+            #   the array's elements.
+            # * an InstanciatedComponent (returned by Engine#add)
+            # * a name
+            #
+            # In the latter case, the name refers either to a device name,
+            # or to the name given through the ':as' argument to Engine#add.
+            # A particular service can also be selected by adding
+            # ".service_name" to the component name.
+            #
+            # The returned value is either an array of resolved selections,
+            # a Component instance or an InstanciatedDataService instance.
+            def resolve_explicit_selection(value)
+                if value.kind_of?(MasterDeviceInstance) || value.kind_of?(SlaveDeviceInstance)
+                    value = value.name
+                end
+
+                if value.kind_of?(InstanciatedComponent)
+                    value
+                elsif value.respond_to?(:to_str)
+                    value = value.to_str
+                    if !(selected_object = tasks[value])
+                        if selected_object = robot.devices[value]
+                            # Return the service that corresponds to the device
+                            # name
+                            return selected_object.service
+                        elsif selected_object = defines[value]
+                            return selected_object
+                        else
+                            raise SpecError, "#{value} does not refer to a known task or device"
+                        end
+                    end
+
+                    # Check if a service has explicitely been selected, and
+                    # if it is the case, return it instead of the complete
+                    # task
+                    service_names = value.split '.'
+                    service_names.shift # remove the task name
+                    if !selected_object.kind_of?(Component) || service_names.empty? 
+                        selected_object
+                    else
+                        candidate_service = selected_object.model.find_data_service(service_names.join("."))
+
+                        if !candidate_service && service_names.size == 1
+                            # Might still be a slave of a main service
+                            services = selected_object.model.each_data_service.
+                                find_all { |_, srv| !srv.master? && srv.master.main? && srv.name == service_names.first }
+
+                            if services.empty?
+                                raise SpecError, "#{value} is not a known device, or an instanciated composition"
+                            elsif services.size > 1
+                                raise SpecError, "#{value} can refer to multiple objects"
+                            end
+                            candidate_service = services.first.last
+                        end
+
+                        InstanciatedDataService.new(selected_object, candidate_service)
+                    end
+                elsif value.respond_to?(:to_ary)
+                    value.map(&method(:resolve_explicit_selection))
+                else
+                    value
+                end
+            end
+
+            def verify_result_in_transaction(key, result)
+                if result.respond_to?(:to_ary)
+                    result.each { |obj| verify_result_in_transaction(key, obj) }
+                    return
+                end
+
+                task = result
+                if result.respond_to?(:task)
+                    task = result.task
+                end
+                if task.respond_to?(:plan)
+                    if !task.plan
+                        if task.removed_at
+                            raise InternalError, "#{task}, which has been selected for #{key}, has been removed from its plan\n  Removed at\n    #{task.removed_at.join("\n    ")}"
+                        else
+                            raise InternalError, "#{task}, which has been selected for #{key}, is not included in any plan"
+                        end
+                    elsif !(task.plan == plan)
+                        raise InternalError, "#{task}, which has been selected for #{key}, is not in #{plan} (is in #{task.plan})"
+                    end
+                end
             end
 
             # Create the task instances that are currently required by the

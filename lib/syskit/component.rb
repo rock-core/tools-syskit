@@ -246,6 +246,23 @@ module Orocos
             end
         end
 
+        # Base class to specify constraints on a component instance
+        class ComponentInstanceSpec
+            def self.resolve_using_spec(using_spec)
+                result = Hash.new
+                using_spec.each do |key, value|
+                    if value.respond_to?(:to_ary)
+                        result[key] = value.map do |v|
+                            yield(key, v)
+                        end.compact
+                    elsif filtered = yield(key, value)
+                        result[key] = filtered
+                    end
+                end
+                result
+            end
+        end
+
         # Definition of model-level methods for the Component models. See the
         # documentation of Model for an explanation of this.
         module ComponentModel
@@ -446,8 +463,7 @@ module Orocos
             # It creates a new task from the component model using
             # Component.new, adds it to the engine's plan and returns it.
             def instanciate(engine, arguments = Hash.new)
-                _, task_arguments = Model.filter_instanciation_arguments(arguments)
-                engine.plan.add(task = new(task_arguments))
+                engine.plan.add(task = new)
                 task.robot = engine.robot
                 task
             end
