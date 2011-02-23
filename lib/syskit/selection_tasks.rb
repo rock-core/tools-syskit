@@ -24,18 +24,7 @@ module Orocos
                 modalities.each do |name|
                     describe "selects #{name} for #{service.name}"
                     method(name) do
-                        selection = Orocos::RobyPlugin::ModalitySelectionTask.new(
-                            :service_model => service,
-                            :selected_modality => name)
-
-                        if service < Roby::Task
-                            main = service.new
-                            main.executable = false
-                        else
-                            main = service.task_model.new
-                        end
-                        main.planned_by selection
-                        main
+                        Orocos::RobyPlugin::ModalitySelectionTask.subplan(service, name)
                     end
                 end
             end
@@ -155,6 +144,22 @@ module Orocos
 
             implementation do |engine|
                 engine.set(service_model, selected_modality)
+            end
+
+            # Creates the subplan required to select the given modality
+            def self.subplan(service, name)
+                selection = ModalitySelectionTask.new(
+                    :service_model => service,
+                    :selected_modality => name)
+
+                if service < Roby::Task
+                    main = service.new
+                    main.executable = false
+                else
+                    main = service.task_model.new
+                end
+                main.planned_by selection
+                main
             end
         end
     end
