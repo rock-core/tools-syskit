@@ -359,6 +359,10 @@ module Orocos
                 orocos_engine.use_deployments_from(*args)
             end
 
+            def using_task_library(name)
+                Roby.app.orocos_system_model.using_task_library(name)
+            end
+
             def orocos_clear_models
                 projects = Set.new
 
