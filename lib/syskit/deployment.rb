@@ -108,6 +108,10 @@ module Orocos
                 task.orogen_spec = activity
                 if ready?
                     task.orogen_task = task_handles[name]
+                    # Override the base model with the new one. The new model
+                    # may have been specialized, for instance to handle dynamic
+                    # slave creation
+                    task.orogen_task.instance_variable_set(:@model, task.orogen_spec)
                     task.orogen_task.process = orogen_deployment
                 end
                 task
