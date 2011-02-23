@@ -312,7 +312,7 @@ module Orocos
                         Orocos.initialize
                     end
 
-                    if !app.orocos_disables_local_process_server?
+                    if !app.shell? && !app.orocos_disables_local_process_server?
                         start_local_process_server(:redirect => app.redirect_local_process_server?)
                     end
                 end
