@@ -1132,18 +1132,44 @@ module Orocos
                     end
                     all_models << composition_model
                 end
-                model.each_task_model do |task_model|
-                    if !task_model.abstract?
-                        all_concrete_models << task_model
+                deployments.each do |machine_name, deployment_names|
+                    deployment_names.each do |deployment_name|
+                        model = Roby.app.orocos_deployments[deployment_name]
+                        model.orogen_spec.task_activities.each do |deployed_task|
+                            all_concrete_models << Roby.app.orocos_tasks[deployed_task.task_model.name]
+                        end
+                        all_concrete_models << model
                     end
-                    all_models << task_model
+                end
+                robot.devices.each do |name, device|
+                    all_concrete_models << device.service
                 end
 
                 service_allocation_candidates.clear
                 result = Hash.new
                 model.each_data_service do |service|
                     candidates = all_concrete_models.
-                        find_all { |m| m.fullfills?(service) }
+                        find_all { |m| m.fullfills?(service) }.
+                        to_value_set
+
+                    # If there are multiple candidates, remove the subclasses
+                    candidates.delete_if do |candidate_model|
+                        if candidate_model.kind_of?(ProvidedDataService)
+                            # Data services are the most precise selection that
+                            # we can do ... so no way it is redundant !
+                            next
+                        end
+
+                        candidates.any? do |other_model|
+                            if other_model.kind_of?(Class)
+                                other_model != candidate_model && candidate_model <= other_model
+                            elsif other_model.kind_of?(ProvidedDataService) && candidate_model == other_model.component_model
+                                all_services = candidate_model.find_all_services_from_type(other_model.model)
+                                all_services.size == 1
+                            end
+                        end
+                    end
+
                     if candidates.size == 1
                         result[service] = candidates.to_a.first
                     end
