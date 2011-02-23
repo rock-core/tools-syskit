@@ -81,6 +81,13 @@ module Orocos
                         next
                     end
 
+                    Engine.debug do
+                        candidates.each do |target_task|
+                            Engine.debug "    RAW #{task} => #{target_task}"
+                        end
+                        break
+                    end
+
                     # Used only if +task+ is a composition and we find a merge
                     # candidate that is also a composition
                     task_children = nil
@@ -513,6 +520,14 @@ module Orocos
                 # they all implement the Orocos::RobyPlugin::Component model
                 all_tasks = plan.find_local_tasks(Orocos::RobyPlugin::Component).
                     to_value_set
+
+                Engine.debug do
+                    Engine.debug "-- Tasks in plan"
+                    all_tasks.each do |t|
+                        Engine.debug "    #{t}"
+                    end
+                    break
+                end
 
                 # The first pass of the algorithm looks that the tasks that have
                 # the same inputs, checks if they can be merged and do so if
