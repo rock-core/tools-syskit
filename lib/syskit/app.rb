@@ -20,10 +20,10 @@ module Orocos
 
         # Orocos engine configuration interface
         #
-        # The main instance of this object can be accessed as State.orocos. For
+        # The main instance of this object can be accessed as Roby::Conf.orocos. For
         # instance,
         #
-        #   State.orocos.disable_logging
+        #   Roby::Conf.orocos.disable_logging
         #
         # will completely disable logging (not recommended !)
         class Configuration
@@ -281,7 +281,8 @@ module Orocos
                     end
                 end
 
-                Roby::State.orocos = Configuration.new
+                Roby::Conf.orocos = Configuration.new
+                Roby::State.orocos = Roby::Conf.orocos # for backward compatibility
 
                 Orocos.master_project.extend(MasterProjectHook)
                 app.orocos_auto_configure = true
