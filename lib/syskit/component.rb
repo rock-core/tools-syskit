@@ -51,6 +51,10 @@ module Orocos
                 "#<ProvidedDataService: #{component_model.short_name} #{full_name}>"
             end
 
+            def short_name
+                "#{component_model.short_name}:#{full_name}"
+            end
+
             def fullfills?(model)
                 self.model.fullfills?(model)
             end
