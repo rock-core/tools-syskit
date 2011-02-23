@@ -131,6 +131,10 @@ module Orocos
                 @using_spec = Hash.new
             end
 
+            def fullfills?(model)
+                self.model.fullfills?(model)
+            end
+
             ##
             # :call-seq:
             #   use 'child_name' => 'component_model_or_device'
