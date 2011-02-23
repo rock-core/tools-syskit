@@ -48,7 +48,7 @@ module Orocos
             dsl_attribute(:burst)   { |v| Integer(v) }
         end
 
-        # Specialization of MasterDeviceInstance used to represent root devices
+        # Subclass of DeviceInstance used to represent root devices
         class MasterDeviceInstance < DeviceInstance
             # The RobotDefinition instance we are built upon
             attr_reader :robot
