@@ -547,8 +547,10 @@ module Orocos
             # This method checks that +target_task+ and +self+ do not represent
             # two different data services
             def can_merge?(target_task)
-                return false if !super
-                return if !target_task.kind_of?(DataService)
+                if !(super_result = super)
+                    return super_result
+                end
+                return false if !target_task.kind_of?(DataService)
 
                 # Check that for each data service in +target_task+, we can
                 # allocate a corresponding service in +self+

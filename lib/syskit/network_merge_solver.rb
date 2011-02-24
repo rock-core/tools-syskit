@@ -48,11 +48,17 @@ module Orocos
                     MERGE_SORT_TRUTH_TABLE[ [!!t1.transaction_proxy?, !!t2.transaction_proxy?] ]
             end
 
+            # call-seq:
+            #   direct_merge_mappings(task_set, possible_cycles) => merge_graph
+            #
             # Find merge candidates and returns them as a graph
             #
             # In the graph, an edge 'a' => 'b' means that we can use a to
             # replace b, i.e. a.merge(b) is valid
-            def direct_merge_mappings(task_set)
+            #
+            # +possible_cycles+ is a set of task pairs that might be merges,
+            # pending resolutio of cycles in the dataflow graph.
+            def direct_merge_mappings(task_set, possible_cycles = nil)
                 # In the loop, we list the possible merge candidates for that
                 # task. What we are looking for are tasks that can be used to
                 # replace +task+
@@ -108,7 +114,19 @@ module Orocos
                             next if task_children != target_children
                         end
                         # Finally, call #can_merge?
-                        next if !target_task.can_merge?(task)
+                        can_merge = target_task.can_merge?(task)
+                        if can_merge.nil?
+                            # Not a direct merge, but might be a cycle
+                            Engine.debug do
+                                "    possible cycle merge for #{task} => #{target_task}"
+                            end
+                            if possible_cycles
+                                possible_cycles << [task, target_task]
+                            end
+                            next
+                        elsif !can_merge
+                            next
+                        end
 
                         Engine.debug do
                             "    #{task} => #{target_task}"
@@ -116,7 +134,7 @@ module Orocos
                         merge_graph.link(target_task, task, nil)
                     end
                 end
-                merge_graph
+                return merge_graph
             end
 
             def do_merge(task, target_task, all_merges, graph)
@@ -341,7 +359,7 @@ module Orocos
                 end
             end
 
-            # Apply merges computed by filter_direct_merge_mappings
+            # Apply merges computed by direct_merge_mappings
             #
             # It actually takes the tasks and calls #merge according to the
             # information in +mappings+. It also updates the underlying Roby
@@ -501,6 +519,42 @@ module Orocos
                 direct_merge_mappings(all_tasks)
             end
 
+            # Checks if +from+ can be merged into +to+, taking into account
+            # possible dataflow cycles that might exist between these tasks
+            def can_merge_cycle?(possible_cycles, from, to, mappings = Hash.new)
+                # Note: we do take into account that we already called
+                # #can_merge? on the from => to merge. I.e. we don't have to do
+                # all the sanity checks that is already done there. Checking the
+                # connections paths is enough
+                mappings = mappings.merge(from => to)
+
+                self_inputs = Hash.new
+                from.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
+                    self_inputs[sink_port] = [source_task, source_port]
+                end
+
+                to.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
+                    if !(conn = self_inputs[sink_port])
+                        next
+                    end
+
+                    same_port = (conn[1] == source_port)
+                    same_source = (conn[0] == source_task || mappings[conn[0]] == source_task)
+
+                    if !same_port
+                        return false
+                    elsif !same_source
+                        if mappings.has_key?(conn[0])
+                            return false
+                        elsif !possible_cycles.include?([conn[0], source_task])
+                            return false
+                        elsif !can_merge_cycle?(possible_cycles, conn[0], source_task, mappings)
+                            return false
+                        end
+                    end
+                end
+            end
+
             # Merges tasks that are equivalent in the current plan
             #
             # It is a BFS that follows the data flow. I.e., it computes the set
@@ -539,17 +593,46 @@ module Orocos
                 candidates = all_tasks.dup
 
                 merged_tasks = ValueSet.new
+                possible_cycles = Set.new
                 while !candidates.empty?
                     merged_tasks.clear
+                    possible_cycles.clear
 
                     while !candidates.empty?
                         Engine.debug "  -- Raw merge candidates (a => b merges 'a' into 'b')"
-                        merges = direct_merge_mappings(candidates)
+                        merges = direct_merge_mappings(candidates, possible_cycles)
+
+                        if merges.empty?
+                            possible_cycles = possible_cycles.to_a
+
+                            # Resolve one cycle. As soon as we solved one, cycle in the
+                            # normal procedure (resolving one task should break the
+                            # cycle)
+                            while !possible_cycles.empty?
+                                cycle = possible_cycles.shift
+                                next if !can_merge_cycle?(possible_cycles, *cycle)
+
+                                Engine.debug do
+                                    "    found cycle merge for #{cycle[0]} => #{cycle[1]}"
+                                end
+                                merges.link(cycle[0], cycle[1], nil)
+                                if possible_cycles.include?([cycle[1], cycle[0]])
+                                    merges.link(cycle[1], cycle[0], nil)
+                                end
+                                break
+                            end
+                            possible_cycles.clear
+                        end
+                        if merges.empty?
+                            candidates.clear
+                            break 
+                        end
+
                         candidates = apply_merge_mappings(merges)
                         merged_tasks.merge(candidates)
-
                         candidates = merge_tasks_next_step(candidates)
                     end
+
 
                     Engine.debug "  -- Parents"
                     for t in merged_tasks

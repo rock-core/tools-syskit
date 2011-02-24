@@ -930,7 +930,9 @@ module Orocos
             end
 
             def can_merge?(target_task)
-                return false if !super
+                if !(super_result = super)
+                    return super_result
+                end
 
                 # The orocos bindings are a special case: if +target_task+ is
                 # abstract, it means that it is a proxy task for data
@@ -955,18 +957,29 @@ module Orocos
                     end
                     self_inputs[sink_port] = [source_task, source_port, policy]
                 end
+
+                might_be_cycle = false
                 target_task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     if conn = self_inputs[sink_port]
-                        same_source = (conn[0] == source_task && conn[1] == source_port)
-                        if !same_source
+                        same_port   = (conn[1] == source_port)
+                        same_source = (conn[0] == source_task && same_port)
+                        if !policy.empty? && (RobyPlugin.update_connection_policy(conn[2], policy) != policy)
                             return false
-                        elsif !policy.empty? && (RobyPlugin.update_connection_policy(conn[2], policy) != policy)
-                            return false
+                        elsif !same_source
+                            if same_port && Flows::DataFlow.reachable?(self, conn[0]) && Flows::DataFlow.reachable?(target_task, source_task)
+                                might_be_cycle = true
+                            else
+                                return false
+                            end
                         end
                     end
                 end
 
-                true
+                if might_be_cycle
+                    return nil # undecided
+                else
+                    return true
+                end
             end
 
             def merge(merged_task)
