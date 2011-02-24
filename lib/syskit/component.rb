@@ -962,11 +962,13 @@ module Orocos
                 target_task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     if conn = self_inputs[sink_port]
                         same_port   = (conn[1] == source_port)
-                        same_source = (conn[0] == source_task && same_port)
-                        if !policy.empty? && (RobyPlugin.update_connection_policy(conn[2], policy) != policy)
+                        same_source = (conn[0] == source_task)
+                        if !same_port
+                            return false
+                        elsif !policy.empty? && (RobyPlugin.update_connection_policy(conn[2], policy) != policy)
                             return false
                         elsif !same_source
-                            if same_port && Flows::DataFlow.reachable?(self, conn[0]) && Flows::DataFlow.reachable?(target_task, source_task)
+                            if Flows::DataFlow.reachable?(self, conn[0]) && Flows::DataFlow.reachable?(target_task, source_task)
                                 might_be_cycle = true
                             else
                                 return false
