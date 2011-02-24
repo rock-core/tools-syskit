@@ -1,4 +1,3 @@
-require 'roby/standalone'
 require 'orocos/roby/scripts/common'
 Scripts = Orocos::RobyPlugin::Scripts
 
@@ -7,6 +6,7 @@ compute_deployments = true
 remove_compositions = false
 remove_loggers      = false
 validate_network    = true
+test = false
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate [options] deployment [additional services]
    'deployment' is either the name of a deployment in config/deployments,
@@ -29,6 +29,9 @@ parser = OptionParser.new do |opt|
     opt.on("--dont-validate", "do not validate the generate system network") do
         validate_network = false
     end
+    opt.on('--test', 'test mode: instanciates everything defined in the given file') do
+        test = true
+    end
 end
 
 Scripts.common_options(parser, true)
@@ -37,8 +40,77 @@ if remaining.empty?
     STDERR.puts parser
     exit(1)
 end
-deployment_file     = remaining.shift
-additional_services = remaining.dup
+
+if test
+    test_file = remaining.shift
+    test_setup = YAML.load(File.read(test_file))
+
+    outdir = File.join(File.dirname(test_file), 'results', 'instanciate')
+    FileUtils.mkdir_p(outdir)
+
+    config = test_setup.delete('configuration') || %w{--no-loggers --no-compositions -osvg}
+
+    default_deployment = test_setup.delete('default_deployment') || '-'
+    default_robot = test_setup.delete('default_robot')
+    default_def = { 'deployment' => default_deployment, 'robot' => default_robot, 'services' => [] }
+
+    output_option, config = config.partition { |s| s =~ /^-o(\w+)$/ }
+    output_option = output_option.first
+    if !output_option
+        output_option = "-osvg"
+    end
+
+    simple_tests = test_setup.delete('simple_tests') || []
+    simple_tests.each do |name|
+        test_setup[name] = [name]
+    end
+
+    test_setup.each do |test_name, test_def|
+        if test_def.respond_to?(:to_ary)
+            test_def = { 'services' => test_def }
+        elsif test_def.respond_to?(:to_str)
+            test_def = { 'services' => [test_def] }
+        end
+
+        test_def = default_def.merge(test_def)
+
+        cmdline = []
+        cmdline.concat(config)
+        cmdline << output_option + ":#{test_name}"
+        if test_def['robot']
+            cmdline << "-r#{test_def['robot']}"
+        end
+        cmdline << test_def['deployment']
+        cmdline.concat(test_def['services'])
+
+        txtlog = File.join(outdir, "#{test_name}-out.txt")
+        shellcmd = "#{$0} '#{cmdline.join("' '")}' >> #{txtlog} 2>&1"
+        File.open(txtlog, 'w') do |io|
+            io.puts test_name
+            io.puts shellcmd
+            io.puts
+        end
+
+        STDERR.print "running test #{test_name}... "
+        `#{shellcmd}`
+        if $?.exitstatus != 0
+            if $?.exitstatus == 2
+                STDERR.puts "deployment successful, but dot failed to generate the resulting network"
+            else
+                STDERR.puts "failed"
+            end
+        else
+            STDERR.puts "success"
+        end
+    end
+    exit(0)
+
+else
+    deployment_file     = remaining.shift
+    additional_services = remaining.dup
+end
+
+require 'roby/standalone'
 
 # Generate a default name if the output file name has not been given
 output_type, output_file = Scripts.output_type, Scripts.output_file
@@ -121,7 +193,7 @@ when "svg", "png"
             output_io.puts(`dot -T#{Scripts.output_type} #{io.path}`)
             if $?.exitstatus != 0
                 STDERR.puts "dot failed to generate the network"
-                exit(1)
+                exit(2)
             end
         end
     end
@@ -133,7 +205,7 @@ when "svg", "png"
             output_io.puts(`dot -T#{Scripts.output_type} #{io.path}`)
             if $?.exitstatus != 0
                 STDERR.puts "dot failed to generate the network"
-                exit(1)
+                exit(2)
             end
         end
     end
