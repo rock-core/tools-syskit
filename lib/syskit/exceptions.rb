@@ -173,6 +173,38 @@ module Orocos
             end
         end
 
+        # Exception raised when multiple selections are valid candidates for the
+        # same task/service
+        class AmbiguousExplicitSelection < Ambiguous
+            attr_reader :composition
+            attr_reader :child_name
+            attr_reader :candidates
+
+            def initialize(composition, child_name, candidates)
+                @composition = composition
+                @child_name = child_name
+                @candidates = candidates
+            end
+
+            def pretty_print(pp)
+                pp.text "multiple selections apply when selecting the child #{child_name} of #{composition.short_name}"
+                pp.breakable
+                pp.text "the required model(s) are: #{composition.find_child(child_name).models.map(&:short_name).join(", ")}"
+                pp.breakable
+                pp.text "candidates:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(candidates) do |sel|
+                        if sel.respond_to?(:short_name)
+                            pp.text sel.short_name
+                        else
+                            pp.text sel.to_s
+                        end
+                    end
+                end
+            end
+        end
+
         # Exception raised when selection facets lead to a specialization
         # selection that is incompatible
         class IncompatibleFacetedSelection < Ambiguous

@@ -1651,7 +1651,8 @@ module Orocos
                 if candidates.size < 2 || !selection.has_key?(nil)
                     return candidates
                 end
-                result = candidates.find_all { |task| selection.include?(task) || selection.include?(task.model) }
+
+                result = candidates.find_all { |task| selection.include?(task) }
                 if result.empty?
                     candidates
                 else
@@ -1813,7 +1814,7 @@ module Orocos
                     candidates = filter_ambiguities(candidates, selection)
                     if candidates.size > 1
                         throw :invalid_selection if !user_call
-                        raise Ambiguous, "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
+                        raise AmbiguousExplicitSelection.new(self, child_name, candidates), "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
                     end
 
                     if selected_object = candidates.first
