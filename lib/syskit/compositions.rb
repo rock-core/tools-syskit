@@ -685,9 +685,7 @@ module Orocos
                 # Find out which of our specializations already apply for the
                 # given mapping. Apply the specializations only on those
                 matching_specializations = find_all_specializations(new_spec)
-                if matching_specializations.empty?
-                    matching_specializations << self
-                end
+                matching_specializations << self
 
                 # Remove the candidates that are filtered out by the :not option
                 if !options[:not].empty?
