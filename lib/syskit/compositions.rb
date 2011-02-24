@@ -598,6 +598,30 @@ module Orocos
                 CompositionChild.new(self, options[:as])
             end
 
+            # Returns this composition's main task
+            #
+            # The main task is the task that performs the composition's main
+            # goal (if there is one). The composition will terminate
+            # successfully whenever the main task finishes successfully.
+            def main_task
+                if @main_task then @main_task
+                elsif superclass.respond_to?(:main_task)
+                    superclass.main_task
+                end
+            end
+
+            # Adds the given child, and marks it as the task that provides the
+            # main composition's functionality.
+            #
+            # What is means in practice is that the composition will terminate
+            # successfully when this child terminates successfully
+            def add_main_task(models, options = Hash.new)
+                if main_task
+                    raise ArgumentError, "this composition already has a main task child"
+                end
+                @main_task = add(models, options)
+            end
+
             # Requires the specified child to be of the given models. It is
             # mainly used in an abstract compostion definition to force the user
             # to select a specific child model.
@@ -2159,6 +2183,9 @@ module Orocos
                             break
                         end
                         self_task.depends_on(child_task, dependency_options)
+                        if (main = main_task) && (main.child_name == child_name)
+                            child_task.success_event.forward_to self_task.success_event
+                        end
                         true # it has been processed, delete from selected_models
                     end
                 end
