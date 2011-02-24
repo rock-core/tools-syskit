@@ -119,6 +119,10 @@ when "svg", "png"
 
         File.open(dataflow_file, 'w') do |output_io|
             output_io.puts(`dot -T#{Scripts.output_type} #{io.path}`)
+            if $?.exitstatus != 0
+                STDERR.puts "dot failed to generate the network"
+                exit(1)
+            end
         end
     end
     Tempfile.open('roby_orocos_instanciate') do |io|
@@ -127,6 +131,10 @@ when "svg", "png"
 
         File.open(hierarchy_file, 'w') do |output_io|
             output_io.puts(`dot -T#{Scripts.output_type} #{io.path}`)
+            if $?.exitstatus != 0
+                STDERR.puts "dot failed to generate the network"
+                exit(1)
+            end
         end
     end
 end
