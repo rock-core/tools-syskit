@@ -45,9 +45,11 @@ output_type, output_file = Scripts.output_type, Scripts.output_file
 if output_type != 'txt' && !output_file
     output_file =
         if base_name = (Scripts.robot_name || Scripts.robot_type)
-            "#{base_name}.#{output_type}"
+            base_name
+        elsif deployment_file != '-'
+            deployment_file
         else
-            "system_model.#{output_type}"
+            "instanciate"
         end
 end
 
