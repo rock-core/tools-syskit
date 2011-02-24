@@ -512,6 +512,11 @@ module Orocos
                 result
             end
 
+            def initialize(options = Hash.new)
+                super
+                @state_copies = Array.new
+            end
+
             def create_fresh_copy
                 new_task = super
                 new_task.robot = robot
@@ -1085,6 +1090,23 @@ module Orocos
                 data_readers << result
                 result
             end
+
+            on :start do |event|
+                @state_copies.each do |setup|
+                    setup.reader = data_reader(setup.port_name)
+                end
+            end
+
+            poll do
+                @state_copies.each do |setup|
+                    if sample = setup.reader.read_new
+                        base = setup.state_path[0..-2].inject(State) do |s, m|
+                            s.send(m)
+                        end
+                        base.send("#{setup.state_path[-1]}=", sample)
+                    end
+                end
+            end
             
             on :stop do |event|
                 data_writers.each do |writer|
@@ -1097,6 +1119,14 @@ module Orocos
                         reader.disconnect
                     end
                 end
+            end
+
+            StateCopySetup = Struct.new(:port_name, :state_path, :reader)
+
+            # Asks Roby to copy the values that come out of the +port_name+ port
+            # into the given value in State
+            def copy_to_state(port_name, *state_path)
+                @state_copies << StateCopySetup.new(port_name, state_path, nil)
             end
         end
     end
