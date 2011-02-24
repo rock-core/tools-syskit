@@ -101,6 +101,17 @@ when "dot"
     File.open(dataflow_file, 'w') do |output_io|
         output_io.puts Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks)
     end
+when "x11"
+    output_file  = nil
+    Tempfile.open('roby_orocos_instanciate') do |io|
+        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks)
+        io.flush
+        `dot -Tx11 #{io.path}`
+        if $?.exitstatus != 0
+            STDERR.puts "dot failed to display the network"
+        end
+    end
+
 when "svg", "png"
     Tempfile.open('roby_orocos_instanciate') do |io|
         io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks)
