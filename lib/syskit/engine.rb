@@ -136,6 +136,17 @@ module Orocos
                 self.model.fullfills?(model)
             end
 
+            # Declares that this component should be deployed on the given
+            # machine.
+            #
+            # The expected hostname is the name of the process server
+            def on_machine(hostname)
+                if !(@model <= TaskContext)
+                    raise ArgumentError, "#on_machine can be used only on task contexts (not on compositions)"
+                end
+                @required_host = hostname
+            end
+
             ##
             # :call-seq:
             #   use 'child_name' => 'component_model_or_device'
@@ -223,6 +234,10 @@ module Orocos
                 end
 
                 result = engine.resolve_explicit_selections(using_spec)
+                if @required_host
+                    result.required_host = @required_host
+                end
+
                 engine.add_default_selections(result)
 
                 @task = model.instanciate(engine, :as => name, :selection => result)

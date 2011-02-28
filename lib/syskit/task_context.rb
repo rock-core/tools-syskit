@@ -101,8 +101,13 @@ module Orocos
                 #
                 # Then, the engine will call setup, which will do what it should
                 @setup = false
+                @required_host = nil
                 self.executable = false
             end
+
+            # If set, this is the name of the process server that should be
+            # selected to run this task
+            attr_accessor :required_host
 
             # Creates a Ruby class which represents the set of properties that
             # the task context has. The returned class will initialize its
@@ -223,6 +228,22 @@ module Orocos
                 end
             end
 
+            # Reimplemented from Component
+            #
+            # It verifies that the host constraint (i.e. on which host should
+            # this task be started) matches
+            def can_merge?(other_task) # :nodoc:
+                if !(super_result = super)
+                    return super_result
+                end
+
+                # Verify the host constraints (i.e. can't merge other_task in
+                # +self+ if both have constraints on which host they should run,
+                # and that constraint does not match)
+                !other_task.respond_to?(:required_host) ||
+                    !required_host || !other_task.required_host ||
+                    required_host == other_task.required_host
+            end
 
             def added_child_object(child, relations, info) # :nodoc:
                 super if defined? super
