@@ -142,7 +142,7 @@ module Orocos
             def update_restart_set(set, source_task, sink_task, mappings)
                 if !set.include?(source_task)
                     needs_restart = mappings.any? do |source_port, sink_port|
-                        source_task.output_port_model(source_port).static? && source_task.running?
+                        source_task.running? && source_task.output_port_model(source_port).static?
                     end
                     if needs_restart
                         set << source_task
@@ -151,7 +151,7 @@ module Orocos
 
                 if !set.include?(sink_task)
                     needs_restart =  mappings.any? do |source_port, sink_port|
-                        sink_task.input_port_model(sink_port).static? && sink_task.running?
+                        sink_task.running? && sink_task.input_port_model(sink_port).static?
                     end
 
                     if needs_restart
