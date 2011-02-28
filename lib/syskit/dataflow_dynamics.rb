@@ -283,7 +283,7 @@ module Orocos
 
                         # Compute the buffer size
                         input_dynamics = port_dynamics[source_task][source_port.name]
-                        if input_dynamics.empty?
+                        if input_dynamics && input_dynamics.empty?
                             input_dynamics = nil
                         end
 
