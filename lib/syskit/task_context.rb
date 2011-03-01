@@ -227,6 +227,9 @@ module Orocos
                 super if defined? super
                 if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
                     Flows::DataFlow.modified_tasks << self
+		    if child.kind_of?(Orocos::RobyPlugin::TaskContext)
+			Flows::DataFlow.modified_tasks << child
+		    end
                 end
             end
 
@@ -234,6 +237,9 @@ module Orocos
                 super if defined? super
                 if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
                     Flows::DataFlow.modified_tasks << self
+		    if child.kind_of?(Orocos::RobyPlugin::TaskContext)
+			Flows::DataFlow.modified_tasks << child
+		    end
                 end
             end
 
