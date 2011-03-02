@@ -77,6 +77,13 @@ module Orocos
             end
             @@configured = Hash.new
 
+            # Returns the thread ID of the thread running this task
+            #
+            # Beware, the thread might be on a remote machine !
+            def tid
+                orogen_task.tid
+            end
+
             # Returns the event name that maps to the given component state name
             def state_event(name)
                 model.state_events[name]

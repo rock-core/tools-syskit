@@ -35,6 +35,11 @@ module Orocos
             end
             @@all_deployments = Hash.new
 
+            # The PID of this process
+            def pid
+                @pid ||= orogen_deployment.pid
+            end
+
             # Returns the name of this particular deployment instance
             def self.deployment_name
                 orogen_spec.name
