@@ -2031,7 +2031,7 @@ module Orocos
                 end
 
                 if missing_child_instanciation
-                    next
+                    return
                 end
 
                 child_selection.merge!(selected_child.using_spec)
