@@ -35,6 +35,8 @@ module Orocos
                 if !engine.robot.has_device?(service) && !engine.has_definition?(service)
                     if engine.model.has_composition?(service)
                         service = engine.model.composition_model(service)
+                    elsif model = Roby.app.orocos_tasks[service]
+                        service = model
                     end
                 end
                 service
