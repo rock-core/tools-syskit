@@ -227,6 +227,16 @@ module Orocos
                 end
             end
 
+            def create_placeholder_task
+                if model.respond_to?(:new)
+                    task = model.new
+                elsif model.respond_to?(:model) # probably a device
+                    task = model.task_model.new
+                end
+                task.executable = false
+                task
+            end
+
             # Create a concrete task for this requirements
             def instanciate(engine)
                 if self.engine && self.engine != engine
@@ -473,6 +483,27 @@ module Orocos
                 defines[name] = Engine.create_instanciated_component(self, name, model)
             end
 
+            # Returns the InstanciatedComponent object that represents the given
+            # name.
+            #
+            # The name can be a deployment definition (created with #define) or
+            # a device name
+            def instanciated_component_from_name(name, instance_name = name)
+                name = name.to_str
+                instance_name = instance_name.to_str
+
+                if device = robot.devices[name]
+                    instance = Engine.create_instanciated_component(self, instance_name, device)
+                elsif (instance = defines[name])
+                    instance = instance.dup
+                    instance.name = instance_name
+                else
+                    raise ArgumentError, "#{name} is not a valid instance definition added with #define"
+                end
+
+                instance
+            end
+
             # Add a new component requirement to the current deployment
             #
             # +model+ can either be the name of a definition (see Engine#define)
@@ -483,18 +514,13 @@ module Orocos
             def add(model, arguments = Hash.new)
                 arguments = Kernel.validate_options arguments, :as => nil
 
-                if model.respond_to?(:to_str)
-                    if device = robot.devices[model.to_str]
-                        instance = Engine.create_instanciated_component(self, arguments[:as] || model, device)
-                    elsif (instance = defines[model.to_str])
-                        instance = instance.dup
-                        instance.name = arguments[:as] || instance.name
-                    elsif !(instance = defines[model.to_str])
-                        raise ArgumentError, "#{model} is not a valid instance definition added with #define"
+                instance =
+                    if model.respond_to?(:to_str)
+                        instanciated_component_from_name(model, arguments[:as] || model)
+                    else
+                        Engine.create_instanciated_component(self, arguments[:as], model)
                     end
-                else
-                    instance = Engine.create_instanciated_component(self, arguments[:as], model)
-                end
+
                 @modified = true
                 instances << instance
                 instance

@@ -135,7 +135,7 @@ module Orocos
                     definition_name = "single_requirement_#{object_id}"
                     Roby.app.orocos_engine.
                         define(definition_name, new_spec, *args)
-                elsif !args.empty?
+                elsif args.empty?
                     definition_name = new_spec
                 else
                     raise ArgumentError, "expected SingleRequirementTask.subplan(definition_name) or SingleRequirementTask.subplan(component_model)"
@@ -147,8 +147,7 @@ module Orocos
                     raise ArgumentError, "#{defn} is not a valid definition"
                 end
 
-                root = defn.base_model.new
-                root.executable = false
+                root = defn.create_placeholder_task
                 planner = new(:name => definition_name)
                 root.planned_by(planner)
                 root
@@ -160,6 +159,10 @@ module Orocos
             implementation do |engine|
                 engine.add(arguments[:name])
             end
+        end
+
+        def self.require_task(name_or_model)
+            SingleRequirementTask.subplan(name_or_model)
         end
 
         # Type of task that allows to select a particular modality. I.e., it
