@@ -112,14 +112,19 @@ module Orocos
                 task.executed_by self
                 task.orogen_spec = activity
                 if ready?
-                    task.orogen_task = task_handles[name]
-                    # Override the base model with the new one. The new model
-                    # may have been specialized, for instance to handle dynamic
-                    # slave creation
-                    task.orogen_task.instance_variable_set(:@model, task.orogen_spec)
-                    task.orogen_task.process = orogen_deployment
+                    initialize_running_task(name, task)
                 end
                 task
+            end
+
+            # Internal helper to set the #orogen_task and 
+            def initialize_running_task(name, task)
+                task.orogen_task = task_handles[name]
+                task.orogen_task.process = orogen_deployment
+                # Override the base model with the new one. The new model
+                # may have been specialized, for instance to handle dynamic
+                # slave creation
+                # task.orogen_task.instance_variable_set(:@model, task.model.orogen_spec)
             end
 
             ##
@@ -251,8 +256,7 @@ module Orocos
                     end
 
                     each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                        task.orogen_task = task_handles[task.orocos_name]
-                        task.orogen_task.process = orogen_deployment
+                        initialize_running_task(task.orocos_name, task)
                     end
 
                     emit :ready
