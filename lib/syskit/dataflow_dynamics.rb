@@ -1,5 +1,30 @@
 module Orocos
     module RobyPlugin
+        class << self
+            # Margin that should be added to the computed buffer sizes. It is a
+            # ratio of the optimal buffer size
+            #
+            # I.e. if a connection requires 5 buffers and that value is 0.1,
+            # then the actual buffer size will be 6 (it is rounded upwards).
+            #
+            # If the buffer size is 400, then 440 will be used in the end
+            #
+            # The default is 0.1 (10%)
+            attr_reader :buffer_size_margin
+
+            # Sets the margin that should be added to the computed buffer sizes
+            #
+            # See #buffer_size_margin for more explanations
+            def buffer_size_margin=(value)
+                value = Float(value)
+                if value < 0
+                    raise ArgumentError, "only positive values can be used as buffer_size_margin, got #{value}"
+                end
+                @buffer_size_margin = Float(value)
+            end
+        end
+        self.buffer_size_margin = 0.1
+
         # A representation of the actual dynamics of a port
         #
         # At the last stages, the Engine object will try to create and update
@@ -311,7 +336,8 @@ module Orocos
                             end
                         else
                             policy[:type] = :buffer
-                            policy[:size] = input_dynamics.queue_size(reading_latency)
+                            size = (1.0 + Orocos::RobyPlugin.buffer_size_margin) * input_dynamics.queue_size(reading_latency)
+                            policy[:size] = Integer(size) + 1
                             Engine.debug do
                                 Engine.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"
                                 Engine.debug "     sample_size:#{input_dynamics.sample_size}"
