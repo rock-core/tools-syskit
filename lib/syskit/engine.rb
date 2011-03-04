@@ -1843,6 +1843,10 @@ module Orocos
 
                         task  = plan.find_tasks(model).
                             find { |t| t.arguments[:on] == machine_name }
+                        if task && !task.reusable?
+                            task = nil
+                        end
+
                         task ||= model.new(:on => machine_name)
                         task.robot = robot
                         plan.add(task)
@@ -1857,8 +1861,12 @@ module Orocos
                             end
                         end
 
-                        task.merged_relations(:each_executed_task, true).each do |t|
-                            if !t.finishing? && !t.finished?
+                        task.merged_relations(:each_executed_task, false).each do |_, t|
+                            if t.reusable?
+                                # Make sure that the task gets added in the
+                                # transaction
+                                plan[t]
+                                # And do not instanciate it
                                 new_activities.delete(t.orocos_name)
                             end
                         end
