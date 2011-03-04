@@ -1098,7 +1098,7 @@ module Orocos
 			task.output_port(port_name)
                     else
                         port_name = args.first
-                        output_port(port_name)
+                        find_output_port(port_name)
                     end
 
                 result = port.reader(policy)
