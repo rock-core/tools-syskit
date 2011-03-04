@@ -2353,7 +2353,7 @@ module Orocos
                     return
                 end
 
-                port_name = exported_port.port_name
+                port_name = exported_port.actual_name
                 if task.kind_of?(Composition)
                     if exported_port.kind_of?(CompositionChildOutputPort)
                         return task.resolve_output_port(port_name)
