@@ -728,7 +728,7 @@ module Orocos
 		    # ALL THE LOGIC BELOW must use the state returned by
 		    # read_current_state. Do NOT call other state-related
 		    # methods like #state as they will read the state port
-                    if (state = read_current_state) && (state != :RUNNING)
+                    if (state = orogen_task.peek_current_state) && (state != :RUNNING)
                         # Nothing to do, the poll block will finalize the task
                     else
                         raise
