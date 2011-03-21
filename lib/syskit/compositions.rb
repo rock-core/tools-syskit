@@ -2030,23 +2030,25 @@ module Orocos
 
             # Instanciates a task for the required child
             def instanciate_child(engine, self_task, self_arguments, child_name, selected_child, child_user_selection) # :nodoc:
-                child_selection = nil
-                missing_child_instanciation = catch(:missing_child_instanciation) do
-                    child_selection = ComponentInstanceSpec.resolve_using_spec(find_child(child_name).using_spec) do |key, sel|
+                child_selection = catch(:missing_child_instanciation) do
+                    ComponentInstanceSpec.resolve_using_spec(find_child(child_name).using_spec) do |key, sel|
                         if sel.kind_of?(CompositionChild)
                             task = self_task.child_from_role(sel.child_name)
                             if !task
-                                throw :missing_child_instanciation, true
+                                # The using spec of this child refers to another
+                                # task's child, but that other child is not
+                                # instanciated yet. Pass on, and get called
+                                # later
+                                throw :missing_child_instanciation
                             end
                             task
                         else
                             sel
                         end
                     end
-                    false
                 end
 
-                if missing_child_instanciation
+                if !child_selection
                     return
                 end
 
