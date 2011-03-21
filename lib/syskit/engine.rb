@@ -92,7 +92,7 @@ module Orocos
             end
 
             def fullfills?(*args)
-                provided_service_model.model.fullfills?(*args)
+                provided_service_model.fullfills?(*args)
             end
         end
 

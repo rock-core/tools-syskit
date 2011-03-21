@@ -1741,6 +1741,7 @@ module Orocos
                 attr_accessor :arguments
                 attr_accessor :using_spec
                 attr_accessor :port_mappings
+                attr_accessor :selected_models
 
                 def initialize
                     @is_explicit = false
@@ -1750,6 +1751,7 @@ module Orocos
                     @arguments = Hash.new
                     @using_spec = Hash.new
                     @port_mappings = Hash.new
+                    @selected_models = nil
                 end
             end
             
@@ -1841,6 +1843,7 @@ module Orocos
 
                 if selected_object.kind_of?(InstanciatedComponent)
                     result.child_model = selected_object.model
+                    result.selected_models = [child_model]
                     result.using_spec  = selected_object.using_spec
                     result.arguments   = selected_object.arguments
                 
@@ -1851,21 +1854,26 @@ module Orocos
                     required_model.each do |required|
                         result.selected_services[required] = selected_object.provided_service_model
                     end
-                    result.child_task       = selected_object.task
-                    result.child_model      = child_task.model
+                    result.child_task     = selected_object.task
+                    result.child_model    = selected_object.task.model
+                    result.selected_models = [selected_object.provided_service_model]
                 elsif selected_object.kind_of?(ProvidedDataService)
                     required_model.each do |required|
                         result.selected_services[required] = selected_object
                     end
                     result.child_model      = selected_object.component_model
+                    result.selected_models   = [selected_object]
                 elsif selected_object.kind_of?(DataServiceModel)
                     result.child_model = selected_object.task_model
+                    result.selected_models = [selected_object]
                 elsif selected_object.kind_of?(Component)
                     result.child_task  = selected_object # selected an instance explicitely
                     result.child_model = selected_object.model
                     result.selected_services = compute_service_selection(child_name, result.child_model, required_model, user_call)
+                    result.selected_models = [selected_object.model]
                 elsif selected_object < Component
                     result.child_model = selected_object
+                    result.selected_models = [selected_object]
                     result.selected_services = compute_service_selection(child_name, result.child_model, required_model, user_call)
                 else
                     throw :invalid_selection if !user_call
@@ -1988,7 +1996,7 @@ module Orocos
                 user_selection, _ = find_children_models_and_tasks(using_spec)
 
                 spec = Hash.new
-                user_selection.each { |name, selection| spec[name] = [selection.child_model] }
+                user_selection.each { |name, selection| spec[name] = selection.selected_models }
                 find_specializations(spec)
             end
 
@@ -2123,7 +2131,7 @@ module Orocos
 
                 # Find the specializations that apply
                 find_specialization_spec = Hash.new
-                user_selection.each { |name, sel| find_specialization_spec[name] = [sel.child_model] }
+                user_selection.each { |name, sel| find_specialization_spec[name] = sel.selected_models }
                 candidates = find_specializations(find_specialization_spec)
 
                 # Now, check if some of our specializations apply to

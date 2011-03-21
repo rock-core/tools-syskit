@@ -55,8 +55,13 @@ module Orocos
                 "#{component_model.short_name}:#{full_name}"
             end
 
-            def fullfills?(model)
-                self.model.fullfills?(model)
+            def fullfills?(models)
+                if !models.respond_to?(:each)
+                    models = [models]
+                end
+                components, services = models.partition { |m| m <= Component }
+                (components.empty? || self.component_model.fullfills?(components)) &&
+                    (services.empty? || self.model.fullfills?(services))
             end
 
             def port_mappings_for_task
@@ -68,6 +73,14 @@ module Orocos
                     raise ArgumentError, "#{service_model} is not provided by #{model.short_name}"
                 end
                 result
+            end
+
+            def find_all_services_from_type(m)
+                if self.model.fullfills?(m)
+                    [self]
+                else
+                    []
+                end
             end
 
             def config_type
