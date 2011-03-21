@@ -2019,7 +2019,7 @@ module Orocos
             attr_predicate :strict_specialization_selection, true
 
             # Instanciates a task for the required child
-            def instanciate_child(engine, self_task, self_arguments, child_name, selected_child) # :nodoc:
+            def instanciate_child(engine, self_task, self_arguments, child_name, selected_child, child_user_selection) # :nodoc:
                 child_selection = nil
                 missing_child_instanciation = catch(:missing_child_instanciation) do
                     child_selection = ComponentInstanceSpec.resolve_using_spec(find_child(child_name).using_spec) do |key, sel|
@@ -2041,6 +2041,7 @@ module Orocos
                 end
 
                 child_selection.merge!(selected_child.using_spec)
+                child_selection.merge!(child_user_selection)
                 child_selection = engine.resolve_explicit_selections(child_selection)
                 # From this level's arguments, only forward the
                 # selections that have explicitely given for our
@@ -2097,11 +2098,11 @@ module Orocos
             #
             def instanciate(engine, arguments = Hash.new)
                 arguments = Kernel.validate_options arguments, :as => nil, :selection => Hash.new
-                user_selection = arguments[:selection]
+                raw_user_selection = arguments[:selection]
 
                 Engine.debug do
                     Engine.debug "instanciating #{name} with"
-                    user_selection.each do |from, to|
+                    raw_user_selection.each do |from, to|
                         from =
                             if from.respond_to?(:short_name)
                                 from.short_name
@@ -2118,7 +2119,7 @@ module Orocos
                 end
 
                 # Apply the selection to our children
-                user_selection, selected_models = find_children_models_and_tasks(user_selection)
+                user_selection, selected_models = find_children_models_and_tasks(raw_user_selection)
 
                 # Find the specializations that apply
                 find_specialization_spec = Hash.new
@@ -2149,7 +2150,17 @@ module Orocos
                 while !selected_models.empty?
                     selected_models.delete_if do |child_name, selected_child|
                         if !(child_task = selected_child.child_task)
-                            child_task = instanciate_child(engine, self_task, arguments, child_name, selected_child)
+                            # Get out of +user_selection+ the parts that are
+                            # relevant for our child. We only pass on the
+                            # <child_name>.blablabla form, everything else is
+                            # removed
+                            child_user_selection = Hash.new
+                            raw_user_selection.each do |name, sel|
+                                if name =~ /^#{child_name}\.(.*)$/
+                                    child_user_selection[$1] = sel
+                                end
+                            end
+                            child_task = instanciate_child(engine, self_task, arguments, child_name, selected_child, child_user_selection)
                         end
 
                         if !selected_child.port_mappings.empty?
