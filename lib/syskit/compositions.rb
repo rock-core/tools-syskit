@@ -1952,6 +1952,7 @@ module Orocos
 
                     Engine.debug do
                         Engine.debug "  selected #{selected_child.child_task || selected_child.child_model.name} (#{port_mappings}) for #{child_name} (#{required_model.map(&:name).join(",")})"
+                        Engine.debug "    services: #{selected_child.selected_services}"
                         Engine.debug "    using #{selected_child.using_spec}"
                         Engine.debug "    arguments #{selected_child.arguments}"
                         break
