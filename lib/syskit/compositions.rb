@@ -1069,20 +1069,27 @@ module Orocos
                 specializations.each do |mapping, composition|
                     next if candidates.include?(composition)
 
-                    valid = mapping.all? do |child_name, child_models|
+                    valid = true
+                    has_explicit_selection = false
+                    mapping.each do |child_name, child_models|
                         selected_models = selection[child_name]
                         if selected_models
                             # There is an explicit selection on +self+. Make
                             # sure that the specialization covers it
-                            selected_models.all? do |selected_m|
+                            matches = selected_models.all? do |selected_m|
                                 selected_m.fullfills?(child_models)
                             end
-                        else
-                            !only_explicit_selection
+
+                            if !matches
+                                valid = false
+                                break
+                            else
+                                has_explicit_selection = true
+                            end
                         end
                     end
 
-                    if valid
+                    if valid && (has_explicit_selection || !only_explicit_selection)
                         candidates << composition
                     end
                 end
