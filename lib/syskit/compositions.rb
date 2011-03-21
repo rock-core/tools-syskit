@@ -2272,6 +2272,36 @@ module Orocos
             # Inputs imported from this composition
             inherited_enumerable(:exported_input, :exported_inputs, :map => true)  { Hash.new }
 
+            # Reimplemented from Roby::Task to take into account the multiple
+            # inheritance mechanisms that is the composition specializations
+            def fullfills?(models, args = Hash.new) # :nodoc:
+                models = [models] if !models.respond_to?(:each)
+                compo, normal = models.partition { |m| m <= Composition }
+                if !super(normal, args)
+                    return false
+                elsif compo.empty?
+                    return true
+                else
+                    (self.model <= compo.first) ||
+                        compo.first.parent_model_of?(self.model)
+                end
+            end
+
+            # Reimplemented from Roby::Task to take into account the multiple
+            # inheritance mechanisms that is the composition specializations
+            def self.fullfills?(models) # :nodoc:
+                models = [models] if !models.respond_to?(:each)
+                compo, normal = models.partition { |m| m <= Composition }
+                if !super(normal)
+                    return false
+                elsif compo.empty?
+                    return true
+                else
+                    (self <= compo.first) ||
+                        compo.first.parent_model_of?(self)
+                end
+            end
+
             # Overriden from Roby::Task
             #
             # will return false if any of the children is not executable.
