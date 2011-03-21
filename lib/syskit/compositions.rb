@@ -1111,16 +1111,14 @@ module Orocos
                     break
                 end
 
-                raw_candidates = find_all_specializations(selected_models, false)
-                candidates = raw_candidates.dup
-                raw_candidates.each do |m|
-                    candidates -= m.parent_models
-                end
+                raw_candidates = find_all_specializations(selected_models, true)
+                raw_candidates << self
+                candidates = find_most_specialized_compositions(raw_candidates, selected_models.keys)
 
                 Engine.debug do
                     Engine.debug "  initial results:"
                     raw_candidates.each do |m|
-                        Engine.debug "    #{m.short_name} (leaf=#{candidates.include?(m)})"
+                        Engine.debug "    #{m.short_name} (selected=#{candidates.include?(m)})"
                     end
                     break
                 end
