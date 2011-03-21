@@ -1140,6 +1140,13 @@ module Orocos
                     end
 
                     if !preferred_models.empty?
+                        Engine.debug do
+                            Engine.debug "  faceted selection on #{child_name} narrows down to"
+                            preferred_models.each do |m|
+                                Engine.debug "    #{m.short_name}"
+                            end
+                            break
+                        end
                         all_filtered_results[child_name] = preferred_models.to_value_set
                     end
                 end
@@ -1155,6 +1162,13 @@ module Orocos
                         end
                         raise IncompatibleFacetedSelection.new(self, facets, all_filtered_results), "inconsistent use of faceted selection"
                     end
+                    Engine.debug do
+                        Engine.debug "  #{filtered_out.size} candidates after facet filtering"
+                        filtered_out.each do |m|
+                            Engine.debug "    #{m.short_name}"
+                        end
+                        break
+                    end
                     candidates = filtered_out
                 end
 
@@ -1166,6 +1180,13 @@ module Orocos
                     end
 
                     if !preferred_models.empty?
+                        Engine.debug do
+                            Engine.debug "  default specialization selection on #{child_name} narrows down to"
+                            preferred_models.each do |m|
+                                Engine.debug "    #{m.short_name}"
+                            end
+                            break
+                        end
                         all_filtered_results[child_name] = preferred_models.to_value_set
                     end
                 end
