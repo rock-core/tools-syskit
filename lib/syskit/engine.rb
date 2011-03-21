@@ -714,11 +714,13 @@ module Orocos
             # The returned value is either an array of resolved selections,
             # a Component instance or an InstanciatedDataService instance.
             def resolve_explicit_selection(value)
-                if value.kind_of?(MasterDeviceInstance) || value.kind_of?(SlaveDeviceInstance)
-                    value = value.name
-                end
+                if value.kind_of?(DeviceInstance)
+                    if !value.task
+                        raise InternalError, "device #{value.name} selected, but it has not been instanciated. This should not happen"
+                    end
 
-                if value.kind_of?(InstanciatedComponent)
+                    InstanciatedDataService.new(value.task, value.service)
+                elsif value.kind_of?(InstanciatedComponent)
                     value
                 elsif value.respond_to?(:to_str)
                     value = value.to_str
@@ -726,7 +728,7 @@ module Orocos
                         if selected_object = robot.devices[value]
                             # Return the service that corresponds to the device
                             # name
-                            return selected_object.service
+                            return resolve_explicit_selection(selected_object)
                         elsif selected_object = defines[value]
                             return selected_object
                         else
