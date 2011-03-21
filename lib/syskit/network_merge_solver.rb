@@ -68,6 +68,9 @@ module Orocos
                     # We never replace a transaction proxy. We only use them to
                     # replace new tasks in the transaction
                     next if task.transaction_proxy?
+                    # Don't do service allocation at this stage. It should be
+                    # done at the specification stage already
+                    next if task.kind_of?(DataServiceProxy)
                     # We can only replace a deployed task by a non deployed
                     # task if the deployed task is not running
                     next if task.execution_agent && !task.pending?
@@ -83,6 +86,7 @@ module Orocos
                     # this set can be replaced by +task+
                     candidates = query.to_value_set & task_set
                     candidates.delete(task)
+                    candidates.delete_if { |t| t.kind_of?(DataServiceProxy) }
                     if candidates.empty?
                         next
                     end
@@ -111,8 +115,9 @@ module Orocos
                         if task.kind_of?(Composition) && target_task.kind_of?(Composition)
                             task_children   ||= task.merged_relations(:each_child, true, false).to_value_set
                             target_children = target_task.merged_relations(:each_child, true, false).to_value_set
-                            next if task_children != target_children
+                            next if task_children != target_children || task_children.any? { |t| t.kind_of?(DataServiceProxy) }
                         end
+
                         # Finally, call #can_merge?
                         can_merge = target_task.can_merge?(task)
                         if can_merge.nil?
