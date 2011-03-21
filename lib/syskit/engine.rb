@@ -1261,6 +1261,8 @@ module Orocos
                 else
                     @main_selection = result.merge(main_user_selection)
                 end
+
+                @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
             end
 
             # Compute in #plan the network needed to fullfill the requirements
