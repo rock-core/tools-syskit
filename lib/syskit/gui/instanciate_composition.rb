@@ -136,8 +136,12 @@ module Ui
         def update
             return if updates_disabled?
 
-            compute
-            update_view
+            begin
+                compute
+                update_view
+            rescue Exception => e
+                display_error("Failed to deploy the required system network", e)
+            end
             emit updated()
         end
 

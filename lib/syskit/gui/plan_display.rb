@@ -69,7 +69,7 @@ module Ui
                 @error_text = Qt::GraphicsTextItem.new
                 scene.add_item(error_text)
             end
-            error_text.plain_text = message + "\n\n" + Roby.format_exception(error).join("\n")
+            error_text.plain_text = message + "\n\n" + Roby.format_exception(error).join("\n") + "\n" + error.backtrace.join("\n")
             error_text.default_text_color = Qt::Color.new('red')
         end
 
