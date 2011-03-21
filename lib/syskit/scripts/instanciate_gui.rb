@@ -13,6 +13,11 @@ end
 Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
+# We don't need the process server, win some startup time
+Roby.app.using_plugins 'orocos'
+Roby.app.orocos_only_load_models = true
+Roby.app.orocos_disables_local_process_server = true
+
 error = Scripts.run do
     app  = Qt::Application.new(ARGV)
     main = Qt::Widget.new
