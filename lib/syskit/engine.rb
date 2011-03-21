@@ -91,6 +91,10 @@ module Orocos
                 end
             end
 
+            def short_name
+                "#{task}:#{provided_service_model.name}"
+            end
+
             def fullfills?(*args)
                 provided_service_model.fullfills?(*args)
             end
