@@ -2098,6 +2098,40 @@ module Orocos
                 child_task
             end
 
+            # Finds the most specialized composition model that is parent of a
+            # set of composition models
+            def find_common_parent(candidates)
+                if candidates.empty?
+                    raise ArgumentError, "empty set"
+                elsif candidates.size == 1
+                    return candidates.first
+                end
+
+                # Generate the set of common parents for the models in
+                # +candidates+
+                all_parents = Array.new
+                candidates.each do |model|
+                    all = ValueSet.new
+                    all << model
+                    queue = model.parent_models
+                    while !queue.empty?
+                        all.merge(queue)
+                        queue = queue.inject(ValueSet.new) { |result, c| result | c.parent_models }
+                        queue -= all
+                    end
+                    all_parents << all
+                end
+
+                common_parents = all_parents.inject(:&)
+                common_parents.delete_if do |model|
+                    common_parents.any? { |c| c.parent_models.include?(model) }
+                end
+                if common_parents.size != 1
+                    raise InternalError, "found #{common_parents.size} common parents, expected a single one. Found #{common_parents.map(&:short_name).join(", ")} as parents of #{candidates.map(&:short_name).join(", ")}"
+                end
+                common_parents.find { true }
+            end
+
             # Returns a Composition task with instanciated children. If
             # specializations have been specified on this composition, the
             # return task will be of the most specialized model that matches the
@@ -2160,8 +2194,24 @@ module Orocos
                 if Composition.strict_specialization_selection? && candidates.size > 1
                     raise AmbiguousSpecialization.new(self, user_selection, candidates)
                 elsif !candidates.empty?
-                    Engine.debug { "using specialization #{candidates[0].short_name} of #{short_name}" }
-                    return candidates[0].instanciate(engine, arguments)
+                    Engine.debug do
+                        if candidates.size > 1
+                            Engine.debug "  #{candidates.size} candidates remaining"
+                            candidates.each do |m|
+                                Engine.debug "    #{m.short_name}"
+                            end
+                            Engine.debug "  continuing as strict_specialization_selection? is not set"
+                        end
+                        break
+                    end
+
+                    candidate = find_common_parent(candidates)
+                    Engine.debug do
+                        Engine.debug "using specialization #{candidate.short_name} of #{short_name}"
+                    end
+                    if candidate != self
+                        return candidate.instanciate(engine, arguments)
+                    end
                 end
 
                 # First of all, add the task for +self+
