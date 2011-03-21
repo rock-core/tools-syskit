@@ -197,10 +197,18 @@ module Orocos
 		Orocos.master_project.instance_variable_set :@opaques, main_orogen_project.opaques
 		Orocos.registry.merge(orogen.registry)
                 if tk = orogen.typekit
-                    Orocos.load_typekit(orogen.name)
+                    if orocos_only_load_models?
+                        Orocos.load_typekit_registry(orogen.name)
+                    else
+                        Orocos.load_typekit(orogen.name)
+                    end
                 end
                 orogen.used_typekits.each do |tk|
-                    if !tk.virtual?
+                    next if tk.virtual?
+
+                    if orocos_only_load_models?
+                        Orocos.load_typekit_registry(tk.name)
+                    else
                         Orocos.load_typekit(tk.name)
                     end
                 end

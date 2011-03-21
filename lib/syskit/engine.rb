@@ -354,7 +354,11 @@ module Orocos
 
                 deployer.used_typekits.each do |tk|
                     next if tk.virtual?
-                    Orocos.load_typekit(tk.name)
+                    if Roby.app.orocos_only_load_models?
+                        Orocos.load_typekit_registry(tk.name)
+                    else
+                        Orocos.load_typekit(tk.name)
+                    end
                     if server.respond_to?(:preload_typekit)
                         server.preload_typekit(tk.name)
                     end
