@@ -1214,7 +1214,6 @@ module Orocos
                         model.orogen_spec.task_activities.each do |deployed_task|
                             all_concrete_models << Roby.app.orocos_tasks[deployed_task.task_model.name]
                         end
-                        all_concrete_models << model
                     end
                 end
                 robot.devices.each do |name, device|
