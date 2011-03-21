@@ -24,6 +24,12 @@ module Ui
             @robot = robot
             @plan   = Roby::Plan.new
             @engine = Orocos::RobyPlugin::Engine.new(plan, system_model, robot)
+
+            Roby.app.orocos_engine.deployments.each do |host, names|
+                names.each do |n|
+                    @engine.use_deployment(n, :on => host)
+                end
+            end
         end
 
         def root_task
