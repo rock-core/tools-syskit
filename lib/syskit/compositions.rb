@@ -223,9 +223,6 @@ module Orocos
 
             # The root composition model in the specialization chain
             attr_accessor :root_model
-            # The set of children that have been specialized to go from
-            # +root_model+ to +self+
-            attribute(:specialized_children) { Hash.new }
             # The set of definition blocks that have been applied on +self+ in
             # the process of specializing +root_model+
             attribute(:definition_blocks) { Array.new }
@@ -240,25 +237,6 @@ module Orocos
                 end
 
                 "#{root_model.short_name}/#{specializations}"
-            end
-
-            # Returns true if this composition model is a model created by
-            # specializing another one on +child_name+ with +child_model+
-            #
-            # For instance:
-            #
-            #   composition 'Compo' do
-            #       add Source
-            #       add Sink
-            #
-            #       submodel = specialize Sink, Logger
-            #
-            #       submodel.specialized_on?('Sink', Logger) # => true
-            #       submodel.specialized_on?('Sink', Test) # => false
-            #       submodel.specialized_on?('Source', Logger) # => false
-            #   end
-            def specialized_on?(child_name, child_model)
-                specialized_children[child_name].include?(child_model)
             end
 
             # Applies the specialization block +block+ on +self+. If +recursive+
@@ -308,9 +286,6 @@ module Orocos
             # The composition model name
             attr_accessor :name
 
-            # The root composition model in the specialization hierarchy
-            def root_model; self end
-
             # Creates a submodel of this model, in the frame of the given
             # SystemModel instance.
             def new_submodel(name, system_model)
@@ -333,6 +308,37 @@ module Orocos
             # #specialize for more details
             attribute(:specializations) { Hash.new }
 
+            # The root composition model in the specialization hierarchy
+            def root_model; self end
+
+            ##
+            # :attr: specialized_children
+            #
+            # The set of specializations that are applied from the root of the
+            # model graph up to this model
+            #
+            # It is empty for composition models that are not specializations
+            attribute(:specialized_children) { Hash.new }
+
+            # Returns true if this composition model is a model created by
+            # specializing another one on +child_name+ with +child_model+
+            #
+            # For instance:
+            #
+            #   composition 'Compo' do
+            #       add Source
+            #       add Sink
+            #
+            #       submodel = specialize Sink, Logger
+            #
+            #       submodel.specialized_on?('Sink', Logger) # => true
+            #       submodel.specialized_on?('Sink', Test) # => false
+            #       submodel.specialized_on?('Source', Logger) # => false
+            #   end
+            def specialized_on?(child_name, child_model)
+                specialized_children.has_key?(child_name) &&
+                    specialized_children[child_name].include?(child_model)
+            end
             # Enumerates all the specializations of this model that are direct
             # children of it
             def each_direct_specialization(&block)
