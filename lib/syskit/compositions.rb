@@ -1806,24 +1806,6 @@ module Orocos
                     result.is_explicit = true
                 end
 
-                # Now, check that if there is an explicit selection for a
-                # child's child (i.e. starting with child_name.). In that
-                # case, search for a matching composition
-                if !selected_object
-                    matching_compositions = find_selected_compositions(child_name, selection)
-                    matching_compositions = filter_ambiguities(matching_compositions, selection)
-                    if matching_compositions.size > 1
-                        selection = selection.dup
-                        selection.delete_if { |name, model| name !~ /^#{Regexp.quote("#{child_name}.")}/ }
-                        throw :invalid_selection if !user_call
-                        raise AmbiguousIndirectCompositionSelection.new(self, child_name, selection, matching_compositions),
-                            "the following compositions match for #{child_name}: #{matching_compositions.map(&:to_s).join(", ")}"
-                    end
-                    if selected_object = matching_compositions.first
-                        result.is_explicit = true
-                    end
-                end
-
                 # Second, look into the child model
                 if !selected_object
                     # Search for candidates in the user selection, from the
