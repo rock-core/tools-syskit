@@ -1217,6 +1217,8 @@ module Orocos
                     all_concrete_models << device.service
                 end
 
+                all_models.merge(all_concrete_models)
+
                 service_allocation_candidates.clear
                 result = Hash.new
                 model.each_data_service do |service|
