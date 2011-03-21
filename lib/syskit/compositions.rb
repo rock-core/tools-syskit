@@ -339,6 +339,13 @@ module Orocos
                 specialized_children.has_key?(child_name) &&
                     specialized_children[child_name].include?(child_model)
             end
+
+            # Returns true if +self+ is a parent model of +child_model+
+            def parent_model_of?(child_model)
+                (child_model < self) ||
+                    specializations.values.include?(child_model)
+            end
+
             # Enumerates all the specializations of this model that are direct
             # children of it
             def each_direct_specialization(&block)
@@ -1019,46 +1026,33 @@ module Orocos
             def find_most_specialized_compositions(model_set, children_names)
                 return model_set if children_names.empty?
 
-                result = model_set.dup
+                has_improvement = Hash.new
+                is_improvement  = Hash.new(true)
 
-                # Remove +composition+ if there is a specialized model in
-                # +result+
-                result.delete_if do |composition|
-                    result.any? do |other_composition|
-                        next if composition == other_composition
-
-                        children = (composition.all_children.keys & other_composition.all_children.keys) | children_names
-
-                        is_specialized = false
-                        children.each do |child_name|
-                            comparison = system_model.compare_composition_child(
-                                child_name, composition, other_composition)
-
-                            this_child = composition.find_child(child_name)
-                            other_child = other_composition.find_child(child_name)
-                            if !comparison
-                                is_specialized = false
-                                break
-                            elsif comparison == 1
-                                is_specialized = true
-                            end
+                # We remove a model from +model_set+ iff
+                # * one of its specialization is also in +result+ *and*
+                # * this specialization is specialized on one of the children
+                #   listed in +children_names+
+                model_set.each do |m|
+                    has_improvement[m] = false
+                    m.specializations.each do |specialized_on, specialization|
+                        specialization_is_improvement = model_set.include?(specialization) &&
+                            children_names.any? { |child| specialized_on[child] != m.specialized_children[child] }
+                        if specialization_is_improvement
+                            has_improvement[m] = true
+                            is_improvement[specialization] = true
+                        else
+                            is_improvement[specialization] = false
                         end
-
-                        is_specialized
                     end
                 end
 
-                # Now unconditionally remove specializations that have their
-                # parents in +result+. Note that it is different from the
-                # previous filtering as, unlike there, we don't look at specific
-                # children
-                result.delete_if do |composition|
-                    next(false) if !composition.is_specialization?
-                    result.any? do |model|
-                        composition < model
-                    end
+                result = model_set.find_all do |m|
+                    !has_improvement[m] && is_improvement[m]
                 end
-                
+                result.delete_if do |m|
+                    result.any? { |parent_m| parent_m.parent_model_of?(m) }
+                end
                 result
             end
 
