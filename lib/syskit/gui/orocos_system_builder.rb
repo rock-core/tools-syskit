@@ -19,9 +19,6 @@ module Ui
 
             @system_model = system_model
             @robot        = robot
-            robot.devices.each do |name, d|
-                puts "device: #{name} #{d}"
-            end
             @plan   = Roby::Plan.new
             @engine = Orocos::RobyPlugin::Engine.new(plan, system_model, robot)
 
