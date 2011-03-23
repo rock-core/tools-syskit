@@ -84,8 +84,12 @@ module Ui
                 selection.name
             when String
                 selection
+            when NilClass
+                'nil'
+            when Array
+                "[#{selection.map { |s| selection_to_string(s) }.join(", ")}]"
             else
-                raise NotImplementedError
+                raise NotImplementedError, "cannot convert #{selection.class} to a Ruby syntax"
             end
         end
 
