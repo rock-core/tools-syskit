@@ -723,11 +723,12 @@ module Orocos
             # a Component instance or an InstanciatedDataService instance.
             def resolve_explicit_selection(value)
                 if value.kind_of?(DeviceInstance)
-                    if !value.task
-                        raise InternalError, "device #{value.name} selected, but it has not been instanciated. This should not happen"
+                    if value.task
+                        InstanciatedDataService.new(value.task, value.service)
+                    else
+                        value.service
                     end
-
-                    InstanciatedDataService.new(value.task, value.service)
+                        
                 elsif value.kind_of?(InstanciatedComponent)
                     value
                 elsif value.respond_to?(:to_str)

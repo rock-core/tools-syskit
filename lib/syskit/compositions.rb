@@ -1845,7 +1845,7 @@ module Orocos
 
                 if selected_object.kind_of?(InstanciatedComponent)
                     result.child_model = selected_object.model
-                    result.selected_models = [child_model]
+                    result.selected_models = [result.child_model]
                     result.using_spec  = selected_object.using_spec
                     result.arguments   = selected_object.arguments
                 
