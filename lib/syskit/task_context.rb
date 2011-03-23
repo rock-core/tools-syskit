@@ -936,6 +936,10 @@ module Orocos
             def proxied_data_services
                 self.model.proxied_data_services
             end
+
+            def self.provided_services
+                proxied_data_services
+            end
         end
     end
 end
