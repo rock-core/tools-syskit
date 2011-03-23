@@ -1714,7 +1714,7 @@ module Orocos
                 model.abstract
                 name = "#{short_name}::#{child_name.camelcase(:upper)}Proxy"
                 orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
-                model.name        = name
+                model.name        = "#{name}::ProxyTask"
                 model.instance_variable_set(:@orogen_spec, orogen_spec)
                 RobyPlugin.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
                 models.each do |m|
