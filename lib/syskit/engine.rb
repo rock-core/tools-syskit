@@ -1166,6 +1166,7 @@ module Orocos
                 if options[:compute_deployments]
                     # Check for the presence of non-deployed tasks
                     not_deployed = plan.find_local_tasks(TaskContext).
+                        not_finished.
                         find_all { |t| !t.execution_agent }.
                         delete_if do |p|
                             p.abstract?
