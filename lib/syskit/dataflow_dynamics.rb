@@ -273,7 +273,13 @@ module Orocos
                 port_dynamics = propagate(deployed_tasks)
                 @port_dynamics = port_dynamics
 
-                Engine.debug "computing connections"
+                Engine.debug do
+                    Engine.debug "computing connections"
+                    deployed_tasks.each do |t|
+                        Engine.debug "  #{t}"
+                    end
+                    break
+                end
 
                 deployed_tasks.each do |source_task|
                     source_task.each_concrete_output_connection do |source_port_name, sink_port_name, sink_task, policy|
