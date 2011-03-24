@@ -287,7 +287,12 @@ module Orocos
                             rescue ArgumentError => e
                                 raise SpecError, "incompatible policies in output chain for #{self}:#{source_port}: #{e.message}"
                             end
+                            policy_copy = this_policy.dup
                             yield(source_port, sink_port, sink_task, this_policy)
+                            if policy_copy != this_policy
+                                connection_policy.clear
+                                connection_policy.merge!(this_policy)
+                            end
                         end
                     else
                         yield(source_port, sink_port, sink_task, policy)
