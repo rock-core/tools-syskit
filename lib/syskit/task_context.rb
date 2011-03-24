@@ -662,7 +662,6 @@ module Orocos
                     end
                 end
 
-                # Call configure or start, depending on the current state
                 ::Robot.info "starting #{to_s} (#{orocos_name})"
                 @last_orogen_state = nil
                 orogen_task.start(false)
