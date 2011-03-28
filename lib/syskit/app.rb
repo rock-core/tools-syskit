@@ -553,7 +553,7 @@ module Orocos
             #
             # If 'host' is set to localhost, it disables the automatic startup
             # of the local process server (i.e. sets
-            # disable_local_process_server to false)
+            # orocos_disables_local_process_server to false)
             def orocos_process_server(name, host, options = Hash.new)
                 if local_only? && host != 'localhost'
                     raise ArgumentError, "in local only mode"
@@ -577,6 +577,7 @@ module Orocos
                 Application.register_process_server(name, client, options[:log_dir] || 'log')
             end
 
+            ##
             # :attr: orocos_only_load_models?
             #
             # In normal operations, the plugin initializes the CORBA layer,
@@ -588,6 +589,7 @@ module Orocos
             # Set this value to true to avoid initializing the CORBA layer
             attr_predicate :orocos_only_load_models?, true
 
+            ##
             # :attr: orocos_disables_local_process_server?
             #
             # In normal operations, a local proces server called 'localhost' is
