@@ -504,7 +504,7 @@ module Orocos
                 client = nil
                 while !client
                     client =
-                        begin Orocos::ProcessClient.new
+                        begin Orocos::ProcessClient.new('localhost', port)
                         rescue Errno::ECONNREFUSED
                         end
                 end
@@ -568,7 +568,7 @@ module Orocos
                 end
 
                 if host == 'localhost'
-                    self.disable_local_process_server = true
+                    self.orocos_disables_local_process_server = true
                 end
 
                 client = Orocos::ProcessClient.new(host, port)
