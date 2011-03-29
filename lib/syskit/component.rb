@@ -1161,6 +1161,23 @@ module Orocos
 
             # Asks Roby to copy the values that come out of the +port_name+ port
             # into the given value in State
+            #
+            # For instance, if one does
+            #
+            #   imu_task.copy_to_state('orientation_samples', 'imu', 'orientation')
+            #
+            # then, at each Roby execution cycle, the value of
+            # State.imu.orientation will be the last sample that ever got pushed
+            # on the orientation_samples port.
+            #
+            # Moreover, a filter block can be provided. For instance, if one
+            # wants only the IMU-provided quaternion to be copied in State, one
+            # would do:
+            #
+            #   imu_task.copy_to_state('orientation_samples', 'imu', 'orientation') do |sample|
+            #       sample.orientation
+            #   end
+            #
             def copy_to_state(port_name, *state_path, &filter_block)
                 @state_copies << StateCopySetup.new(port_name, state_path, nil, filter_block)
             end
