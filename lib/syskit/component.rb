@@ -1133,6 +1133,9 @@ module Orocos
                         setup.reader = data_reader(setup.port_name)
                     end
                     if sample = setup.reader.read_new
+                        if setup.filter_block
+                            sample = setup.filter_block[sample]
+                        end
                         base = setup.state_path[0..-2].inject(State) do |s, m|
                             s.send(m)
                         end
@@ -1154,12 +1157,12 @@ module Orocos
                 end
             end
 
-            StateCopySetup = Struct.new(:port_name, :state_path, :reader)
+            StateCopySetup = Struct.new(:port_name, :state_path, :reader, :filter_block)
 
             # Asks Roby to copy the values that come out of the +port_name+ port
             # into the given value in State
-            def copy_to_state(port_name, *state_path)
-                @state_copies << StateCopySetup.new(port_name, state_path, nil)
+            def copy_to_state(port_name, *state_path, &filter_block)
+                @state_copies << StateCopySetup.new(port_name, state_path, nil, filter_block)
             end
         end
     end
