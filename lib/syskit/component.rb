@@ -1127,6 +1127,11 @@ module Orocos
 
             poll do
                 @state_copies.each do |setup|
+                    # Allow the user to add new state copies while the task is
+                    # running
+                    if !setup.reader
+                        setup.reader = data_reader(setup.port_name)
+                    end
                     if sample = setup.reader.read_new
                         base = setup.state_path[0..-2].inject(State) do |s, m|
                             s.send(m)
