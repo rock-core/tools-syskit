@@ -929,7 +929,7 @@ module Orocos
                 when "Periodic"
                     initial_port_dynamics_periodic_triggering(triggering_devices.to_a,
                                                               result, orogen_spec.period)
-                when "FileDescriptorActivity"
+                else
                     initial_port_dynamics_internal_triggering(triggering_devices.to_a,
                                                               result)
                 end
