@@ -536,6 +536,10 @@ module Orocos
                 new_task
             end
 
+            def self.as_plan
+                Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
+            end
+
             # This is documented on ComponentModel
             inherited_enumerable(:main_data_service, :main_data_services) { Set.new }
             # This is documented on ComponentModel

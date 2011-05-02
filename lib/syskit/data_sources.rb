@@ -279,6 +279,27 @@ module Orocos
             def instanciate(*args, &block)
                 task_model.instanciate(*args, &block)
             end
+
+            # Helper class used by DataServices#modality
+            class SelectedModality # :nodoc:
+                attr_reader :model
+                attr_reader :name
+                def initialize(model, name)
+                    @model, @name = model, name
+                end
+
+                def as_plan
+                    Orocos::RobyPlugin::ModalitySelectionTask.
+                        subplan(model, name)
+                end
+            end
+
+            # Defined to be able to use, when building plans:
+            #
+            #   task.depends_on(Srv::Service.modality('modality'))
+            def modality(modality_name)
+                SelectedModality.new(self, modality_name)
+            end
         end
         DataService  = DataServiceModel.new
         DataService.name = "Orocos::RobyPlugin::DataService"
