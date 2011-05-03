@@ -439,18 +439,25 @@ module Orocos
                 orocos_engine.load(file)
             end
 
+            # Looks for a deployment called +name+ in the current installation
+            def find_orocos_deployment(name)
+                if File.file?(name)
+                    name
+		elsif file = robotfile('config', 'ROBOT', 'deployments', "#{name}.rb")
+		    file
+		elsif File.file?(file = File.join('config', 'deployments', "#{name}.rb"))
+		    file
+		end
+            end
+
             # Loads the specified orocos deployment file
             #
             # The deployment can either be a file name in
             # config/deployments/, config/ROBOT/deployments or a full path to a
             # separate deployment file.
             def load_orocos_deployment(name)
-                if File.file?(name)
-                    load_system_definition(name)
-		elsif file = robotfile('config', 'ROBOT', 'deployments', "#{name}.rb")
-		    load_system_definition(file)
-		elsif File.file?(file = File.join('config', 'deployments', "#{name}.rb"))
-		    load_system_definition(file)
+                if file = find_orocos_deployment(name)
+                    load_system_definition(file)
 		else
 		    raise ArgumentError, "cannot find a deployment named '#{name}'"
 		end
