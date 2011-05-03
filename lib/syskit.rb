@@ -23,5 +23,6 @@ require 'orocos/roby/runtime_connection_management'
 require 'orocos/roby/system_model'
 require 'orocos/roby/robot'
 require 'orocos/roby/engine'
+require 'orocos/roby/shell'
 
 require 'orocos/roby/selection_tasks'
