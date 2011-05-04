@@ -626,7 +626,7 @@ module Orocos
                 stop_process_servers
             end
 
-            def cleanup
+            def self.cleanup(app)
                 Application.stop_local_process_server
             end
 
