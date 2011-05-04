@@ -155,6 +155,10 @@ module Orocos
                 composition_models.each_value(&block)
             end
 
+            def each_deployment_model(&block)
+                Roby.app.orocos_deployments.each_value(&block)
+            end
+
             def each_task_model(&block)
                 Roby.app.orocos_tasks.each_value(&block)
             end
