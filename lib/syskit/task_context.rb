@@ -104,6 +104,8 @@ module Orocos
             def initialize(arguments = Hash.new)
                 super
 
+                @allow_automatic_setup = true
+
                 # All tasks start with executable? and setup? set to false
                 #
                 # Then, the engine will call setup, which will do what it should
@@ -548,10 +550,14 @@ module Orocos
                 @orogen_state = nil
             end
 
+            attr_predicate :allow_automatic_setup?, true
+
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
             def ready_for_setup?
-                if !orogen_spec || !orogen_task
+                if !@allow_automatic_setup
+                    return false
+                elsif !orogen_spec || !orogen_task
                     return false
                 end
 

@@ -365,7 +365,7 @@ module Orocos
                 end
 
                 deployments[options[:on]] << name
-                self
+                Roby.app.orocos_deployments[name]
             end
 
             # Returns the process server object named +name+
@@ -388,12 +388,14 @@ module Orocos
                 options = Kernel.validate_options options, :on => 'localhost'
                 server = process_server_for(options[:on])
                 orogen = server.load_orogen_project(project_name)
+
+                result = []
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
-                        use_deployment(deployment_def.name, options)
+                        result << use_deployment(deployment_def.name, options)
                     end
                 end
-                self
+                result
             end
 
             # Describes the robot. Example:

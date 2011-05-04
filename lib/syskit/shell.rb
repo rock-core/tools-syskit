@@ -1,4 +1,5 @@
 require 'roby/interface'
+require 'roby/robot'
 module Orocos
     module RobyPlugin
         class ShellInterface < Roby::ShellInterface
@@ -18,9 +19,9 @@ module Orocos
     end
 end
 
-class Roby::Interface
-    def orocos
-        @orocos_interface ||= Orocos::RobyPlugin::ShellInterface.new(engine)
+module Robot
+    def self.orocos
+        @orocos_interface ||= Orocos::RobyPlugin::ShellInterface.new(Roby.engine)
     end
 end
 

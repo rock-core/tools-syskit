@@ -521,6 +521,10 @@ module Orocos
                 device_instance
             end
 
+            def each_device(&block)
+                devices.each(&block)
+            end
+
             # Enumerates all master devices that are available on this robot
             def each_master_device(&block)
                 devices.find_all { |name, instance| instance.kind_of?(MasterDeviceInstance) }.
