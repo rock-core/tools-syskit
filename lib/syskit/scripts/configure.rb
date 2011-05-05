@@ -44,6 +44,8 @@ end
 deployment_file     = remaining.shift
 additional_services = remaining.dup
 
+Orocos::ConfigurationManager.make_own_logger(Logger::INFO)
+
 error = Scripts.run do
     Roby.app.run do
         Roby.execute do
