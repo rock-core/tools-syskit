@@ -59,6 +59,9 @@ error = Scripts.run do
                 deployments = deployments.map do |name|
                     Roby.app.orocos_deployments[name]
                 end
+                if deployments.empty?
+                    raise ArgumentError, "no deployments are matching the required names"
+                end
 
                 deployments.each do |deployment_model|
                     Roby.plan.add(deployment_task = deployment_model.new)
