@@ -1,4 +1,5 @@
 require 'utilrb/kernel/load_dsl_file'
+require 'roby/state/state'
 
 require 'typelib'
 module Typelib
@@ -26,8 +27,10 @@ module Orocos
         #   Roby::Conf.orocos.disable_logging
         #
         # will completely disable logging (not recommended !)
-        class Configuration
+        class Configuration < Roby::ExtendedStruct
             def initialize
+                super
+
                 @log_enabled = true
                 @redirect_local_process_server = true
 
@@ -296,6 +299,14 @@ module Orocos
                 app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
                 Orocos.load
+
+                if File.directory?(dir = File.join(APP_DIR, 'config', 'orogen'))
+                    Orocos.conf.load_dir(dir)
+                end
+                if File.directory?(dir = File.join(APP_DIR, 'config', app.robot_name, 'orogen'))
+                    Orocos.conf.load_dir(dir)
+                end
+
 
                 app.orocos_clear_models
                 app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext

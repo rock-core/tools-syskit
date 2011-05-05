@@ -21,6 +21,8 @@ module Orocos
             abstract
             @name = "Orocos::RobyPlugin::TaskContext"
 
+            argument :conf, :default => ['default']
+
             extend Model
 
             class << self
@@ -834,13 +836,19 @@ module Orocos
             #
             # It then sets the task properties using the values found there
             def configure
-                # First, set configuration stored in State.config
-                if Roby::State.config.send("#{orogen_name}?")
-                    config = Roby::State.config.send(orogen_name)
+                # First, set configuration from the configuration files
+                # Note: it can only set properties
+                if Orocos.conf.apply(orogen_task, self.conf, true)
+                    Robot.info "applied configuration #{self.conf} to #{orogen_task.name}"
+                end
+
+                # Then set configuration stored in Conf.orocos
+                if Roby::Conf.orocos.send("#{orogen_name}?")
+                    config = Roby::Conf.orocos.send(orogen_name)
                     apply_configuration(config)
                 end
 
-                # Then set per-source configuration options
+                # Then set per-device configuration options
                 if respond_to?(:each_device)
                     each_device do |_, device|
                         if device.configuration
