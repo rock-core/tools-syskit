@@ -1054,53 +1054,7 @@ module Orocos
                     break
                 end
 
-
                 all_filtered_results = Hash.new
-
-                # First, filter on the facets. If the user provides a facet, it
-                # means we should prefer the required specialization.
-                selected_models.each do |child_name, selected_child_model|
-                    selected_child_model = selected_child_model.first
-                    next if !selected_child_model.respond_to?(:selected_facet)
-
-                    selected_facet = selected_child_model.selected_facet
-
-                    preferred_models = candidates.find_all do |composition_model|
-                        composition_model.specialized_on?(child_name, selected_facet)
-                    end
-
-                    if !preferred_models.empty?
-                        Engine.debug do
-                            Engine.debug "  faceted selection on #{child_name} narrows down to"
-                            preferred_models.each do |m|
-                                Engine.debug "    #{m.short_name}"
-                            end
-                            break
-                        end
-                        all_filtered_results[child_name] = preferred_models.to_value_set
-                    end
-                end
-
-                if !all_filtered_results.empty?
-                    filtered_out = all_filtered_results.values.inject(&:&)
-                    if filtered_out.size == 1
-                        return filtered_out.to_a
-                    elsif filtered_out.empty?
-                        facets = selected_models.dup
-                        facets.delete_if do |name, child_model|
-                            !child_model.first.respond_to?(:selected_facet)
-                        end
-                        raise IncompatibleFacetedSelection.new(self, facets, all_filtered_results), "inconsistent use of faceted selection"
-                    end
-                    Engine.debug do
-                        Engine.debug "  #{filtered_out.size} candidates after facet filtering"
-                        filtered_out.each do |m|
-                            Engine.debug "    #{m.short_name}"
-                        end
-                        break
-                    end
-                    candidates = filtered_out
-                end
 
                 # We now look at default specializations. Compositions that have
                 # certain specializations are preferred over other.
@@ -1583,17 +1537,6 @@ module Orocos
                     return result
                 end
 
-                # First of all, check if we can disambiguate by using the
-                # selection facets (see FacetedModelSelection and
-                # ComponentModel#as)
-                subselection.each do |child_name, selected_child_model|
-                    next if !selected_child_model.respond_to?(:selected_facet)
-                    result.delete_if do |model|
-                        (child_model = model.find_child(child_name).models.to_a) &&
-                            !child_model.any? { |m| m.fullfills?(selected_child_model.selected_facet) }
-                    end
-                end
-
                 default_model = find_default_specialization(child_name)
                 if default_model
                     default_selection = result.find_all { |model| model.fullfills?(default_model) }
@@ -1662,11 +1605,6 @@ module Orocos
                     next if !required.kind_of?(DataServiceModel)
                     candidate_services =
                         task_model.find_all_services_from_type(required)
-
-                    if task_model.respond_to?(:selected_facet)
-                        subselection = task_model.selected_facet
-                        candidate_services.delete_if { |m| !m.fullfills?(subselection) }
-                    end
 
                     if candidate_services.size > 1
                         throw :invalid_selection if !user_call

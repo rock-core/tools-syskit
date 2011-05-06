@@ -244,37 +244,6 @@ module Orocos
             #--
             # This is defined on Component using inherited_enumerable
 
-            # During instanciation, the data services that this component
-            # provides are used to specialize the compositions and/or for data
-            # source selection.
-            #
-            # It is sometimes beneficial to narrow the possible selections,
-            # because one wants some specializations to be explicitely selected.
-            # This is what this method does.
-            #
-            # For instance, if a task model is defined with
-            #
-            #   class OrocosTask
-            #       provides Service
-            #       provides Service1
-            #   end
-            #
-            # then
-            #   
-            #   add MyComposition, 
-            #       "task" => OrocosTask
-            #
-            # will consider both data services for specialization purposes, whereas
-            #
-            #   add MyComposition, 
-            #       "task" => OrocosTask.as(Service)
-            #
-            # will only consider specializations that apply on Service instances
-            # (i.e. ignore Service1)
-            def as(model)
-                FacetedModelSelection.new(self, model)
-            end
-
             # Returns the port object that maps to the given name, or nil if it
             # does not exist.
             def find_port(name)

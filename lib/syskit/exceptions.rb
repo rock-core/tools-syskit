@@ -205,44 +205,6 @@ module Orocos
             end
         end
 
-        # Exception raised when selection facets lead to a specialization
-        # selection that is incompatible
-        class IncompatibleFacetedSelection < Ambiguous
-            # The composition that is being selected
-            attr_reader :composition
-            # A mapping from a child name to its selected facet
-            attr_reader :faceted_children
-            # The selected specializations for each of the children, as a
-            # mapping from the child name to a set of composition models
-            attr_reader :specializations
-
-            def initialize(composition, faceted_children, specializations)
-                @composition, @faceted_children, @specializations =
-                    composition, faceted_children.dup, specializations.dup
-            end
-
-            def pretty_print(pp) # :nodoc:
-                pp.text "a set of explicit facet selections requires incompatible specializations to be selected"
-                pp.breakable
-                pp.text "while looking for specializations of #{composition.name}"
-                pp.breakable
-                pp.nest(2) do
-                    pp.seplist(faceted_children) do |child_name, child_model|
-                        pp.breakable
-                        pp.text "child #{child_name} is using the facet #{child_model.first.selected_facet.name} of #{child_model.first.name}"
-                        pp.breakable
-                        pp.text "which leads to the following selected specialization(s)"
-                        pp.nest(2) do
-                            pp.seplist(specializations[child_name]) do |model|
-                                pp.breakable
-                                pp.text model.name
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
         # Exception raised when we could not find concrete implementations for
         # abstract tasks that are in the plan
         class TaskAllocationFailed < SpecError
