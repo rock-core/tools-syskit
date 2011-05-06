@@ -823,7 +823,7 @@ module Orocos
                 if !model.config_type
                     model.config_type = config_type_from_properties
                 end
-                dserv = data_service(model, service_options)
+                dserv = provides(model, service_options)
                 argument "#{dserv.name}_name"
                 dserv
             end
@@ -928,7 +928,7 @@ module Orocos
                 RobyPlugin.merge_orogen_interfaces(orogen_spec, [service_model.orogen_spec])
 
                 # Then we can add the service
-                data_service(service_model, options)
+                provides(service_model, options)
             end
         end
 

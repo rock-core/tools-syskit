@@ -10,91 +10,82 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
     needs_no_orogen_projects
 
     def test_data_service_type
-        model = sys_model.data_service_type("image")
+        model = sys_model.data_service_type("Image")
         assert_equal(sys_model, model.system_model)
         assert_kind_of(DataServiceModel, model)
         assert(model < DataService)
 
-        assert(sys_model.has_data_service?('image'))
-        assert(!sys_model.has_composition?('image'))
-        assert(!sys_model.has_data_source?('image'))
-        assert_equal("image", model.name)
-        assert_equal("#<DataService: image>", model.to_s)
-        assert_same(model, DServ::Image)
+        assert(sys_model.has_data_service?('Image'))
+        assert_equal("Orocos::RobyPlugin::DataServices::Image", model.name)
+        assert_same(model, Srv::Image)
+    end
+
+    def test_data_service_type_requires_constant_name
+        assert_raises(ArgumentError) { sys_model.data_service_type("image") }
     end
 
     def test_data_service_task_model
-        model = sys_model.data_service_type("image")
+        model = sys_model.data_service_type("Image")
         task  = model.task_model
         assert_same(task, model.task_model)
         assert(task.fullfills?(model))
     end
 
-    def test_data_service_submodel
-        parent_model = sys_model.data_service_type("test")
-        model = sys_model.data_service_type("image", :child_of => "test")
-        assert_same(sys_model, model.system_model)
-        assert_same(model, DServ::Image)
-        assert_equal 'image', model.name
-        assert_kind_of(DataServiceModel, model)
-        assert(model < parent_model)
-        assert_same parent_model, model.parent_model
+    def test_data_service_provides
+        parent_model = sys_model.data_service_type("Test")
+        model = sys_model.data_service_type("Image")
+        model.provides parent_model
+        assert(model.fullfills?(parent_model))
     end
 
-    def test_data_service_interface_name
-        Roby.app.load_orogen_project "system_test"
-        model = sys_model.data_service_type("camera", :interface => "system_test::CameraDriver")
-        assert_same(SystemTest::CameraDriver.orogen_spec, model.task_model.orogen_spec)
-    end
-
-    def test_data_service_interface_model
-        Roby.app.load_orogen_project "system_test"
-        model = sys_model.data_service_type("camera", :interface => SystemTest::CameraDriver)
-        assert_same(SystemTest::CameraDriver.orogen_spec, model.task_model.orogen_spec)
-    end
-
-    def test_data_service_interface_definition
-        Roby.app.load_orogen_project "system_test"
-        model = sys_model.data_service_type("camera") do
-            output_port 'image', 'camera/Image'
+    def test_data_service_provides_ports
+        parent_model = sys_model.data_service_type("Test") do
+            output_port "out", "/int"
         end
-        assert_equal 'camera', model.name
-        assert(model.interface)
-        assert(model.output_port('image'))
+        model = sys_model.data_service_type("Image")
+        model.provides parent_model
+        assert(model.find_output_port("out"))
+        assert(model.fullfills?(parent_model))
     end
 
-    def test_data_service_submodel_interface
-        Roby.app.load_orogen_project "system_test"
-        parent_model = sys_model.data_service_type("image", :interface => SystemTest::CameraDriver)
-
-        model = sys_model.data_service_type("imageFilter", :child_of => "image")
-
-        assert(model <= parent_model)
-        assert(model.interface)
-        assert_same(parent_model.interface, model.interface.superclass)
-        assert(model.output_port('image'))
-        assert_equal 'imageFilter', model.name
-
-        model.interface do
-            input_port 'image_in', 'camera/Image'
+    def test_data_service_provides_with_port_mappings
+        parent_model = sys_model.data_service_type("Test") do
+            output_port "out", "/int"
         end
-        assert(model.input_port('image_in'))
+        model = sys_model.data_service_type("Image") do
+            output_port "new_out", "/int"
+        end
+        model.provides parent_model, 'out' => 'new_out'
+        assert(!model.find_output_port("out"))
+        assert(model.find_output_port("new_out"))
+        assert(model.fullfills?(parent_model))
     end
 
-    def test_data_service_submodel_interface_validation
-        Roby.app.load_orogen_project "system_test"
-        parent_model = sys_model.data_service_type("image") do
-            output_port 'image', 'camera/Image'
+    def test_data_service_provides_validates_port_mappings
+        parent_model = sys_model.data_service_type("Test") do
+            output_port "out", "/int"
         end
 
-        assert_raises(SpecError) do
-            sys_model.data_service_type("imageFilter", :child_of => "image", :interface => SystemTest::CameraFilter)
+        model = sys_model.data_service_type("WrongMapping") do
+            output_port "new_out", "/double"
         end
+        assert_raises(SpecError) { model.provides(parent_model, 'out' => 'new_out') }
+
+        model = sys_model.data_service_type("WrongType") do
+            output_port "out", "/double"
+        end
+        assert_raises(SpecError) { model.provides parent_model }
+
+        model = sys_model.data_service_type("WrongClass") do
+            input_port "out", "/int"
+        end
+        assert_raises(SpecError) { model.provides parent_model }
     end
 
-    def test_data_source_type
-        model = sys_model.data_source_type("camera")
-        assert(sys_model.has_data_source?('camera'))
+
+    def test_device_type
+        model = sys_model.device_type("Camera")
+        assert(sys_model.has_device?('Camera'))
         assert_same(model, DataSources::Camera)
         assert_equal("camera", model.name)
         assert_equal("#<DataSource: camera>", model.to_s)
@@ -106,331 +97,180 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         assert(model < DataService)
     end
 
-    def test_data_source_type_reuses_data_service
-        source = sys_model.data_service_type("camera") do
-            output_port 'test', 'int'
-        end
-
-        model  = sys_model.data_source_type("camera")
-        assert(model < source)
-        assert_same(source, DServ::Camera)
+    def test_device_type_requires_proper_constant_name
+        assert_raises(ArgumentError) { sys_model.device_type("camera") }
     end
-
-    def test_data_source_type_disabled_provides
-        sys_model.data_source_type("camera", :provides => false)
-        assert(!sys_model.has_data_service?('camera'))
-    end
-
-    def test_data_source_type_explicit_provides_as_object
-        source = sys_model.data_service_type("image") do
-            output_port 'test', 'int'
-        end
-        model  = sys_model.data_source_type("camera", :provides => source)
-        assert(model < source)
-        assert(! sys_model.has_data_service?('camera'))
-    end
-
-    def test_data_source_type_explicit_provides_as_string
-        source = sys_model.data_service_type("image")
-        model  = sys_model.data_source_type("camera", :provides => 'image')
-        assert(model < source)
-        assert(! sys_model.has_data_service?('camera'))
-    end
-
 
     def test_task_data_service_declaration_using_type
-        source_model = sys_model.data_service_type 'image'
+        source_model = sys_model.data_service_type 'Image'
         task_model   = sys_model.task_context do
-            data_service source_model
+            provides source_model
         end
-        assert_raises(ArgumentError) { task_model.data_service('image') }
 
         assert(task_model.has_data_service?('image'))
         srv_image = task_model.find_data_service('image')
-        assert(srv_image.main?)
 
-        assert(task_model < source_model)
+        assert(task_model.fullfills?(source_model))
         assert_equal(task_model, srv_image.component_model)
         assert_equal(source_model, srv_image.model)
-        assert_equal(source_model, task_model.data_service_type('image'))
 
         root_services = task_model.each_root_data_service.map(&:last)
         assert_equal(["image"], root_services.map(&:name))
         assert_equal([source_model], root_services.map(&:model))
     end
 
-    def test_task_data_service_declaration_default_name
-        source_model = sys_model.data_service_type 'image'
-        task_model   = sys_model.task_context do
-            data_service 'image'
+    def test_task_data_service_declaration_overloading
+        parent_model = sys_model.data_service_type 'Parent'
+        child_model  = sys_model.data_service_type 'Child' do
+            provides parent_model
         end
-        assert_raises(ArgumentError) { task_model.data_service('image') }
-
-        assert(task_model.has_data_service?('image'))
-        srv_image = task_model.find_data_service('image')
-        assert(srv_image.main?)
-
-        assert(task_model < source_model)
-        assert_equal(task_model, srv_image.component_model)
-        assert_equal(source_model, srv_image.model)
-        assert_equal(source_model, task_model.data_service_type('image'))
-
-        root_services = task_model.each_root_data_service.to_a
-        assert_equal(["image"], root_services.map(&:first))
-        assert_equal([source_model], root_services.map(&:last).map(&:model))
-    end
-
-    def test_task_data_service_declaration_specific_name
-        source_model       = sys_model.data_service_type 'image'
-        task_model   = sys_model.task_context do
-            data_service 'image', :as => 'left_image'
-        end
-        assert_raises(ArgumentError) { task_model.data_service('image', :as => 'left_image') }
-
-        assert(!task_model.has_data_service?('image'))
-        assert(task_model.has_data_service?('left_image'))
-        assert_raises(ArgumentError) { task_model.data_service_type('image') }
-
-        assert(task_model.fullfills?(source_model))
-        assert_equal(source_model, task_model.data_service_type('left_image'))
-
-        root_services = task_model.each_root_data_service.to_a
-        assert_equal(["left_image"], root_services.map(&:first))
-        assert_equal([source_model], root_services.map(&:last).map(&:model))
-    end
-
-    def test_task_data_service_specific_model
-        source_model = sys_model.data_service_type 'image'
-        other_source = sys_model.data_service_type 'image2'
-        task_model   = sys_model.task_context do
-            data_service other_source, :as => 'left_image'
-        end
-        assert_same(other_source, task_model.data_service_type('left_image'))
-        assert(!(task_model < source_model))
-        assert(task_model < other_source)
-    end
-
-    def test_task_data_service_declaration_inheritance
-        parent_model = sys_model.data_service_type 'parent'
-        child_model  = sys_model.data_service_type 'child', :child_of => parent_model
-        unrelated_model = sys_model.data_service_type 'unrelated'
+        unrelated_model = sys_model.data_service_type 'Unrelated'
 
         parent_task = sys_model.task_context do
-            data_service 'parent'
-            data_service 'parent', :as => 'specific_name'
+            provides parent_model, :as => 'service'
+            provides parent_model, :as => 'parent_service'
         end
         child_task = sys_model.task_context(:child_of => parent_task)
-        assert_raises(SpecError) { child_task.data_service(unrelated_model, :as => 'specific_name') }
+        assert_raises(SpecError) do
+            child_task.provides(unrelated_model, :as => 'service')
+        end
 
-        child_task.data_service('child')
-        child_task.data_service('child', :as => 'specific_name')
+        child_task.provides child_model, :as => 'child_service'
+        child_task.provides child_model, :as => 'service'
 
-        assert_equal [['parent', child_model], ['specific_name', child_model]],
-            child_task.each_data_service.map { |_, ds| [ds.name, ds.model] }
+        assert_equal [['service', child_model], ['parent_service', parent_model], ['child_service', child_model]].to_set,
+            child_task.each_data_service.map { |_, ds| [ds.name, ds.model] }.to_set
 
         assert(parent_task.fullfills?(parent_model))
         assert(!parent_task.fullfills?(child_model))
+
         assert(child_task.fullfills?(parent_model))
         assert(child_task.fullfills?(child_model))
     end
 
-    def test_task_data_service_overriden_by_data_source
-        source_model = sys_model.data_service_type 'image'
-        driver_model = sys_model.data_source_type 'camera', :provides => 'image'
-
-        parent_model   = sys_model.task_context do
-            data_service 'image', :as => 'left_image'
-        end
-        task_model = sys_model.task_context(:child_of => parent_model)
-        task_model.driver_for('camera', :as => 'left_image')
-
-        assert(task_model.has_data_service?('left_image'))
-        # The data source has been explicitely defined, no config type
-        assert(!task_model.find_data_service('left_image').config_type)
-
-        assert(task_model.fullfills?(source_model))
-        assert(task_model.fullfills?(driver_model))
-        assert_equal(driver_model, task_model.data_service_type('left_image'))
-
-        all_services = task_model.each_data_service.map(&:last)
-        assert_equal(["left_image"], all_services.map(&:name))
-        assert_equal([driver_model], all_services.map(&:model))
-
-        root_services = task_model.each_root_data_service.map(&:last)
-        assert_equal(["left_image"], root_services.map(&:name))
-        assert_equal([driver_model], root_services.map(&:model))
-    end
-
     def test_task_driver_for_declares_driver
-        image_model = sys_model.data_service_type 'image'
+        image_model = sys_model.data_service_type 'Image'
+        model = sys_model.task_context("CameraDriverTask")
+        firewire_camera = model.driver_for('FirewireCamera') do
+            provides Srv::Image
+        end
+        firewire_camera_model = firewire_camera.model
 
-        fake_spec = Roby.app.main_orogen_project.task_context 'FakeSpec'
-        model   = sys_model.task_context
-        model.instance_variable_set(:@orogen_spec, fake_spec)
+        assert_same(Orocos::RobyPlugin::Devices::FirewireCamera, firewire_camera_model)
+        assert(firewire_camera.fullfills?(image_model))
+        assert(model.fullfills?(firewire_camera_model))
 
-        firewire_camera = model.driver_for('FirewireCamera', :provides => image_model, :as => 'left_image')
-
-        assert_same(Orocos::RobyPlugin::DataSources::FirewireCamera, firewire_camera)
-        assert(firewire_camera < image_model)
-        assert(model < firewire_camera)
-
-        motors_model = model.driver_for('Motors')
-        assert_same(Orocos::RobyPlugin::DataSources::Motors, motors_model)
-        assert_equal(model.orogen_spec, motors_model.orogen_spec.superclass)
+        motors_service = model.driver_for('Motors')
+        motors_model = motors_service.model
+        assert_same(Orocos::RobyPlugin::Devices::Motors, motors_model)
         assert_equal(model.config_type_from_properties, motors_model.config_type)
     end
 
     def define_stereocamera
         Roby.app.load_orogen_project "system_test"
-        stereo_processing =
-            sys_model.data_service_type 'stereoprocessing'
-        stereo_cam = sys_model.data_source_type 'stereocam',
-                :interface => SystemTest::StereoCamera,
-                :provides => stereo_processing
-        image  = sys_model.data_service_type 'image',
-            :interface => SystemTest::CameraDriver
-        task_model   = SystemTest::StereoCamera
-        task_model.driver_for stereo_cam, :as => 'stereo', :main => true
-        task_model.data_service DServ::Image, :as => 'left',  :slave_of => 'stereo'
-        task_model.data_service DServ::Image, :as => 'right', :slave_of => 'stereo'
 
-        return stereo_processing, stereo_cam, image, task_model
+        sys_model.data_service_type 'StereoProvider' do
+            output_port 'disparity', 'camera/Image'
+            output_port 'cloud', 'base/PointCloud3D'
+        end
+        sys_model.device_type 'StereoCam' do
+            provides Srv::StereoProvider
+            output_port 'image1', 'camera::Image'
+            output_port 'image2', 'camera::Image'
+        end
+        sys_model.data_service_type 'Image' do
+            output_port 'image', 'camera::Image'
+        end
+        sys_model.device_type 'Camera' do
+            provides Srv::Image
+        end
+
+        task_model = SystemTest::StereoCamera
+        task_model.driver_for Dev::StereoCam, :as => 'stereo', 'image1' => 'leftImage', 'image2' => 'rightImage'
+        task_model.provides Srv::Image, :as => 'left',  :slave_of => 'stereo'
+        task_model.provides Srv::Image, :as => 'right', :slave_of => 'stereo'
+
+        task_model = SystemTest::StereoProcessing
+        task_model.provides Srv::StereoProvider, :as => 'stereo'
+
+        SystemTest::CameraDriver.provides Dev::Camera, :as => 'camera'
+
+        task_model
     end
 
     def test_slave_data_service_declaration
-        stereo_processing, stereo_cam, image, task_model = define_stereocamera
+        define_stereocamera
 
-        assert_raises(SpecError) { task_model.data_service 'image', :slave_of => 'bla' }
+        task_model = SystemTest::StereoCamera
+
+        assert_raises(SpecError) { task_model.provides Srv::Image, :slave_of => 'bla' }
 
         srv_left_image = task_model.find_data_service('stereo.left')
-        assert_equal(image, srv_left_image.model)
+        assert_equal(Srv::Image, srv_left_image.model)
         assert_equal(task_model.find_data_service('stereo'), srv_left_image.master)
-        assert_equal([], srv_left_image.each_input.to_a)
-        assert_equal([task_model.output_port('leftImage')], srv_left_image.each_output.to_a)
+        assert_equal([], srv_left_image.each_input_port.to_a)
+        assert_equal([task_model.find_output_port('leftImage')], srv_left_image.each_output_port.to_a)
 
-        assert(task_model.fullfills?(image))
-        assert_equal(image, task_model.data_service_type('stereo.left'))
-        assert_equal(image, task_model.data_service_type('stereo.right'))
+        assert(task_model.fullfills?(Srv::Image))
+        assert_equal(Srv::Image, task_model.find_data_service('stereo.left').model)
+        assert_equal(Srv::Image, task_model.find_data_service('stereo.right').model)
     end
 
     def test_slave_data_service_enumeration
-        stereo_processing, stereo_cam, image_model, task_model = define_stereocamera
+        define_stereocamera
+        task_model = SystemTest::StereoCamera
 
         service_set = lambda do |enumerated_services|
             enumerated_services.map { |name, ds| [name, ds.model] }.to_set
         end
         srv_stereo = task_model.find_data_service('stereo')
-        assert_equal([["left", image_model], ["right", image_model]].to_set,
+        assert_equal([["left", Srv::Image], ["right", Srv::Image]].to_set,
                      service_set[task_model.each_slave_data_service(srv_stereo)])
 
-        stereo_driver_model = Orocos::RobyPlugin::DataSources::Stereocam
         expected = [
-            ["stereo", stereo_driver_model],
-            ["stereo.left", image_model],
-            ["stereo.right", image_model]
+            ["stereo", Dev::StereoCam],
+            ["stereo.left", Srv::Image],
+            ["stereo.right", Srv::Image]
         ]
         assert_equal(expected.to_set, service_set[task_model.each_data_service])
-        assert_equal([["stereo", stereo_driver_model]].to_set,
+        assert_equal([["stereo", Dev::StereoCam]].to_set,
                      service_set[task_model.each_root_data_service])
-        assert_equal([:stereo_name], task_model.arguments.to_a)
+        assert_equal([:stereo_name, :conf], task_model.arguments.to_a)
     end
 
-    def test_data_service_find_matching_service
-        stereo_processing, stereo_cam, image_model, task_model = define_stereocamera
-
-        srv_stereo    = task_model.find_data_service('stereo')
-        srv_img_left  = task_model.find_data_service('stereo.left')
-        srv_img_right = task_model.find_data_service('stereo.right')
-
-        assert_equal srv_stereo,   task_model.find_matching_service(stereo_cam)
-        assert_equal srv_stereo,   task_model.find_matching_service(stereo_processing)
-        assert_raises(Ambiguous) { task_model.find_matching_service(image_model) }
-        assert_equal srv_img_left, task_model.find_matching_service(image_model, "left")
-        assert_equal srv_img_left, task_model.find_matching_service(image_model, "stereo.left")
-
-        # Add fakes to trigger disambiguation by main/non-main
-        srv_left = task_model.data_service DServ::Image, :as => 'left', 'image' => 'leftImage'
-        assert_equal srv_left, task_model.find_matching_service(image_model)
-        task_model.data_service DServ::Image, :as => 'right', 'image' => 'rightImage'
-        assert_raises(Ambiguous) { task_model.find_matching_service(image_model) }
-        assert_equal srv_left, task_model.find_matching_service(image_model, "left")
-        assert_equal srv_img_left, task_model.find_matching_service(image_model, "stereo.left")
-    end
-
-    def test_data_service_guess
-        Roby.app.load_orogen_project 'system_test'
-        model0 = sys_model.data_service_type 'model0' do
-            output_port 'image', 'camera/Image'
-            output_port 'other', 'camera/Image'
-        end
-
-        model1 = sys_model.data_service_type 'model1' do
-            output_port 'image', 'camera/Image'
-        end
-        assert !model0.guess_source_name(model1)
-
-        model1.interface do
-            output_port 'wrong', 'camera/Image'
-        end
-        assert !model0.guess_source_name(model1)
-
-        model1.interface do
-            output_port 'other', 'camera/Image'
-        end
-        assert_equal [''], model0.guess_source_name(model1)
-
-        model1.interface do
-            output_port 'leftImage', 'camera/Image'
-
-            output_port 'imageRight', 'camera/Image'
-            output_port 'otherRight', 'camera/Image'
-        end
-        assert_equal ['', 'right'], model0.guess_source_name(model1)
-
-        model1.interface do
-            output_port 'otherLeft', 'camera/Image'
-        end
-        assert_equal ['', 'left', 'right'], model0.guess_source_name(model1)
-    end
-
-    def test_data_source_instance
+    def test_provides_validates_ambiguities
         Roby.app.load_orogen_project "system_test"
-        stereo_model = sys_model.data_service_type 'stereocam', :interface => SystemTest::StereoCamera
-        task_model   = SystemTest::StereoCamera
-        task_model.data_service DServ::Stereocam, :as => 'stereo', :main => true
-        task = task_model.new 'stereo_name' => 'front_stereo'
-
-        source = task_model.find_data_service('stereo')
-        assert_equal("front_stereo", task.selected_data_source(source))
-        assert_equal(stereo_model, task.data_service_type('front_stereo'))
-    end
-
-    def test_data_service_instance_validation
-        Roby.app.load_orogen_project "system_test"
-        stereo_model = sys_model.data_service_type 'stereocam', :interface => SystemTest::StereoCamera
+        stereo_model = sys_model.data_service_type 'StereoCam' do
+            output_port 'image', 'camera::Image'
+        end
         assert_raises(InvalidProvides) do
-            SystemTest::CameraDriver.data_service DServ::Stereocam, :as => 'stereo'
+            SystemTest::StereoProcessing.provides Srv::StereoCam
+        end
+    end
+
+    def test_provides_validates_missing_ports
+        Roby.app.load_orogen_project "system_test"
+        stereo_model = sys_model.data_service_type 'StereoCam' do
+            output_port 'image', '/double'
+        end
+        assert_raises(InvalidProvides) do
+            SystemTest::StereoProcessing.provides Srv::StereoCam
         end
     end
 
     def test_data_service_can_merge
-        Roby.app.load_orogen_project 'system_test'
-        task_model = SystemTest::StereoProcessing
+        define_stereocamera
+        task_model = SystemTest::StereoCamera
 
-        stereo_model = sys_model.data_service_type 'stereocam' do
-            output_port 'disparity', 'camera/Image'
-            output_port 'cloud', 'base/PointCloud3D'
-        end
-        dummy_task_model = stereo_model.task_model
-        task_model.driver_for 'Stereocam', :as => 'stereo', :main => true
+        dummy_task_model = Dev::StereoCam.task_model
 
         plan.add(parent = Roby::Task.new)
         task0 = task_model.new 'stereo_name' => 'front_stereo'
         task1 = task_model.new
         dummy_task = dummy_task_model.new
-        parent.depends_on task0, :model => DServ::Stereocam
-        parent.depends_on task1, :model => DServ::Stereocam
-        parent.depends_on dummy_task, :model => DServ::Stereocam
+        parent.depends_on task0, :model => Dev::StereoCam
+        parent.depends_on task1, :model => Dev::StereoCam
+        parent.depends_on dummy_task, :model => Dev::StereoCam
 
         assert(task0.can_merge?(dummy_task))
         assert(task1.can_merge?(dummy_task))
@@ -443,22 +283,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
     end
 
     def test_using_data_service
-        Roby.app.load_orogen_project 'system_test'
-
-        sys_model.data_service_type 'stereocam' do
-            output_port 'disparity', 'camera/Image'
-            output_port 'cloud', 'base/PointCloud3D'
-        end
-        stereo_model = sys_model.data_service_type 'stereoprocessing',
-            :child_of => 'stereocam' do
-            input_port 'leftImage',  'camera/Image'
-            input_port 'rightImage', 'camera/Image'
-        end
-        camera_model = sys_model.data_service_type 'camera' do
-            output_port 'image', 'camera/Image'
-        end
-        SystemTest::StereoProcessing.data_service DServ::Stereoprocessing, :as => 'stereo', :main => true
-        SystemTest::CameraDriver.data_service DServ::Camera
+        define_stereocamera
 
         plan.add(stereo = SystemTest::StereoProcessing.new)
         assert(!stereo.using_data_service?('stereo'))
@@ -466,7 +291,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         plan.add(camera = SystemTest::CameraDriver.new)
         camera.connect_ports stereo, ['image', 'leftImage'] => Hash.new
         assert(camera.using_data_service?('camera'))
-        assert(stereo.using_data_service?('stereo'))
+        assert(!stereo.using_data_service?('stereo'))
 
         plan.remove_object(camera)
         plan.add(dem = SystemTest::DemBuilder.new)
@@ -477,132 +302,82 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
 
     def test_data_service_merge_data_flow
         Roby.app.load_orogen_project 'system_test'
+        define_stereocamera
 
-        sys_model.data_service_type 'camera', :interface => SystemTest::CameraDriver
-        sys_model.data_service_type 'stereo', :interface => SystemTest::Stereo
-        SystemTest::StereoCamera.data_service DServ::Stereo
-        SystemTest::StereoCamera.data_service DServ::Camera, :as => 'left', :slave_of => 'stereo'
-        SystemTest::StereoCamera.data_service DServ::Camera, :as => 'right', :slave_of => 'stereo'
         stereo_model = SystemTest::StereoCamera
-
-        SystemTest::CameraDriver.data_service DServ::Camera
-        camera_model = DServ::Camera.task_model
+        camera_model = Srv::Image.task_model
 
         plan.add(parent = Roby::Task.new)
         task0 = stereo_model.new 'stereo_name' => 'front_stereo'
-        task1 = camera_model.new 'camera_name' => 'front_stereo.left'
-        parent.depends_on task0, :model => DServ::Camera
-        parent.depends_on task1, :model => DServ::Camera
+        task1 = camera_model.new
+        task2 = SystemTest::CameraDriver.new 'camera_name' => 'front_camera'
+        task3 = SystemTest::CameraDriver.new 'camera_name' => 'bottom_camera'
+        parent.depends_on task0, :model => Srv::Image
+        parent.depends_on task1, :model => Srv::Image
+        parent.depends_on task2, :model => Srv::Image
+        parent.depends_on task3, :model => Srv::Image
 
-        assert_raises(NotImplementedError) { assert(task0.can_merge?(task1)) }
+        # This one is ambiguous
+        assert(!task0.can_merge?(task1))
+        assert_raises(AmbiguousImplicitServiceSelection) { task0.merge(task1) }
+        # This one is plainly impossible
         assert(!task1.can_merge?(task0))
-        # Complex merge of data flow is actually not implemented. Make sure we
-        # won't do anything stupid and clearly tell that to the user.
-        assert_raises(NotImplementedError) { task0.merge(task1) }
+        assert_raises(SpecError) { task1.merge(task0) }
+        # This one cannot (device into service)
+        assert(!task1.can_merge?(task2))
+        assert_raises(SpecError) { task1.merge(task0) }
+        # Cannot override arguments
+        assert(!task3.can_merge?(task2))
+        assert_raises(SpecError) { task1.merge(task0) }
+
+        # Finally, one that is possible
+        assert(task2.can_merge?(task1))
+        task2.merge(task1)
     end
 
     def test_data_service_merge_arguments
-        Roby.app.load_orogen_project 'system_test'
-
-        stereo_model = sys_model.data_service_type 'camera', :interface => SystemTest::CameraDriver
-        stereo_model = sys_model.data_service_type 'stereo', :interface => SystemTest::Stereo
-        SystemTest::StereoCamera.class_eval do
-            data_service 'stereo'
-            data_service 'camera', :as => 'left', :slave_of => 'stereo'
-            data_service 'camera', :as => 'right', :slave_of => 'stereo'
-        end
+        define_stereocamera
         task_model = SystemTest::StereoCamera
 
         plan.add(parent = Roby::Task.new)
         task0 = task_model.new 'stereo_name' => 'front_stereo'
         task1 = task_model.new
-        parent.depends_on task0, :model => DServ::Stereo
-        parent.depends_on task1, :model => DServ::Stereo
+        parent.depends_on task0, :model => Srv::StereoProvider
+        parent.depends_on task1, :model => Srv::StereoProvider
 
         task0.merge(task1)
-        assert_equal({ :stereo_name => "front_stereo" }, task0.arguments)
+        assert_equal("front_stereo", task0.arguments['stereo_name'])
 
         plan.add(parent = Roby::Task.new)
         task0 = task_model.new 'stereo_name' => 'front_stereo'
         task1 = task_model.new
-        parent.depends_on task0, :model => DServ::Stereo
-        parent.depends_on task1, :model => DServ::Stereo
+        parent.depends_on task0, :model => Srv::StereoProvider
+        parent.depends_on task1, :model => Srv::StereoProvider
 
         task1.merge(task0)
-        assert_equal({ :stereo_name => "front_stereo" }, task1.arguments)
-    end
-
-    def test_slave_data_service_instance
-        stereo_model = sys_model.data_service_type 'stereocam'
-        image_model  = sys_model.data_service_type 'image'
-
-        srv_stereo, srv_img_left, srv_img_right = nil
-        task_model   = sys_model.task_context do
-            srv_stereo    = data_service 'stereocam', :as => 'stereo'
-            srv_img_left  = data_service 'image', :as => 'left', :slave_of => 'stereo'
-            srv_img_right = data_service 'image', :as => 'right', :slave_of => 'stereo'
-        end
-        task = task_model.new 'stereo_name' => 'front_stereo'
-
-        assert_same srv_stereo, srv_img_left.master
-        assert_same srv_stereo, srv_img_right.master
-
-        assert_equal("front_stereo",       task.selected_data_source('stereo'))
-        assert_equal("front_stereo.left",  task.selected_data_source('stereo.left'))
-        assert_equal("front_stereo.right", task.selected_data_source('stereo.right'))
-
-        assert_equal("front_stereo",       task.selected_data_source(srv_stereo))
-        assert_equal("front_stereo.left",  task.selected_data_source(srv_img_left))
-        assert_equal("front_stereo.right", task.selected_data_source(srv_img_right))
-        assert_equal(srv_stereo.model, task.data_service_type('front_stereo'))
-        assert_equal(srv_img_left.model, task.data_service_type("front_stereo.left"))
-        assert_equal(srv_img_right.model, task.data_service_type("front_stereo.right"))
-    end
-
-    def test_driver_for
-        Roby.app.load_orogen_project "system_test"
-        image_model  = sys_model.data_service_type 'image' do
-            output_port 'image', 'camera/Image'
-        end
-        device_model = sys_model.data_source_type 'camera', :provides => 'image'
-
-        SystemTest::CameraDriver.driver_for 'camera'
-        data_source = SystemTest::CameraDriver
-
-        assert(data_source.fullfills?(device_model))
-        assert(data_source < image_model)
-        assert(data_source.fullfills?(image_model))
-        assert(data_source.has_data_service?('camera'))
-        assert_equal(device_model, data_source.data_service_type('camera'))
+        assert_equal("front_stereo" , task1.arguments['stereo_name'])
     end
 
     def test_com_bus
-        model = sys_model.com_bus_type 'can', :message_type => '/can/Message'
+        model = sys_model.com_bus_type 'Can', :message_type => '/can/Message'
         assert_same sys_model, model.system_model
-        assert_equal 'can', model.name
+        assert_equal 'Orocos::RobyPlugin::Devices::Can', model.name
         assert_equal '/can/Message', model.message_type
 
-        instance_model = sys_model.task_context
-        instance_model.driver_for 'can'
+        instance_model = sys_model.task_context('CanDriver')
+        can_service = instance_model.driver_for Dev::Can
         instance = instance_model.new
-        assert_equal '/can/Message', instance.model.message_type
+        assert_equal '/can/Message', can_service.model.message_type
     end
 
     def test_port_mapping
-        Roby.app.load_orogen_project 'system_test'
-        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
-        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+        define_stereocamera
 
-        camera_service = sys_model.data_service_model 'camera'
+        left  = SystemTest::StereoCamera.stereo.left
+        right = SystemTest::StereoCamera.stereo.right
 
-        SystemTest::StereoCamera.driver_for 'stereo'
-        left = SystemTest::StereoCamera.data_service 'camera',
-                :as => 'left', :slave_of => 'stereo'
-        right = SystemTest::StereoCamera.data_service 'camera',
-                :as => 'right', :slave_of => 'stereo'
-
-        assert_equal({'image' => 'leftImage'}, left.port_mappings)
-        assert_equal({'image' => 'rightImage'}, right.port_mappings)
+        assert_equal({'image' => 'leftImage'}, left.port_mappings_for_task)
+        assert_equal({'image' => 'rightImage'}, right.port_mappings_for_task)
     end
 end
 

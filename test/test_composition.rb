@@ -7,68 +7,72 @@ require 'flexmock'
 class TC_RobySpec_Composition < Test::Unit::TestCase
     include RobyPluginCommonTest
 
-    needs_orogen_projects 'simple_source', 'simple_sink', 'system_test'
+    needs_no_orogen_projects
 
-    def teardown
-        super
-        sys_model.composition_specializations.clear
+    def define_stereocamera
+        Roby.app.load_orogen_project "system_test"
+
+        sys_model.data_service_type 'StereoProvider' do
+            output_port 'disparity', 'camera/Image'
+            output_port 'cloud', 'base/PointCloud3D'
+        end
+        sys_model.device_type 'StereoCam' do
+            provides Srv::StereoProvider
+            output_port 'image1', 'camera::Image'
+            output_port 'image2', 'camera::Image'
+        end
+        sys_model.data_service_type 'Image' do
+            output_port 'image', 'camera::Image'
+        end
+        sys_model.device_type 'Camera' do
+            provides Srv::Image
+        end
+
+        task_model = SystemTest::StereoCamera
+        task_model.driver_for Dev::StereoCam, :as => 'stereo', 'image1' => 'leftImage', 'image2' => 'rightImage'
+        task_model.provides Srv::Image, :as => 'left',  :slave_of => 'stereo'
+        task_model.provides Srv::Image, :as => 'right', :slave_of => 'stereo'
+
+        task_model = SystemTest::StereoProcessing
+        task_model.provides Srv::StereoProvider, :as => 'stereo'
+
+        SystemTest::CameraDriver.provides Dev::Camera, :as => 'camera'
+
+        task_model
     end
 
     def simple_composition
-        Roby.app.load_orogen_project "echo"
-        sys_model.composition "simple" do
-            add SimpleSource::Source, :as => 'source'
-            add SimpleSink::Sink, :as => 'sink'
+        define_stereocamera
+        sys_model.composition "StereoProcessing" do
+            add Srv::Image, :as => 'image1'
+            add Srv::Image, :as => 'image2'
+            main = add_main_task SystemTest::StereoProcessing, :as => 'processing'
 
-            add Echo::Echo
-            add Echo::Echo, :as => 'echo'
+            export main.disparity
+            export main.cloud
+            provides Srv::StereoProvider
         end
     end
 
     def test_add
         subsys = simple_composition
 
-        assert_equal sys_model, subsys.system
+        assert_equal sys_model, subsys.system_model
         assert(subsys < Orocos::RobyPlugin::Composition)
-        assert_equal "Orocos::RobyPlugin::Compositions::Simple", subsys.name
+        assert_same Cmp::StereoProcessing, Orocos::RobyPlugin::Compositions::StereoProcessing
+        assert_equal "Orocos::RobyPlugin::Compositions::StereoProcessing", subsys.name
 
-        assert_equal ['Echo', 'echo', 'source', 'sink'].to_set,
+        assert_equal ['image1', 'image2', 'processing'].to_set,
             subsys.children.keys.to_set
 
-        expected_models = [Echo::Echo, Echo::Echo,
-            SimpleSource::Source, SimpleSink::Sink]
+        expected_models = [Srv::Image, Srv::Image, SystemTest::StereoProcessing]
         assert_equal expected_models.map { |m| [m] }.to_set,
             subsys.children.values.map(&:models).map(&:to_a).to_set
     end
 
-    def test_add_refuses_duplicates
-        subsys = simple_composition
-        assert_raises(ArgumentError) { subsys.add Echo::Echo }
-    end
-
-    def test_instanciate
-        subsys_model = simple_composition
-
-        subsys_task = subsys_model.instanciate(orocos_engine)
-        assert_kind_of(subsys_model, subsys_task)
-
-        children = subsys_task.each_child.to_a
-        assert_equal(4, children.size)
-
-        echo0  = subsys_task.child_from_role('Echo')
-        assert(echo0)
-        echo1  = subsys_task.child_from_role('echo')
-        assert(echo1)
-        source = subsys_task.child_from_role('source')
-        assert(source)
-        sink   = subsys_task.child_from_role('sink')
-        assert(sink)
-
-        children = children.map(&:first).to_value_set
-        assert_equal(children, [echo0, echo1, source, sink].to_value_set)
-    end
-
     def test_export
+        Roby.app.load_orogen_project "simple_source"
+        Roby.app.load_orogen_project "simple_sink"
         source, sink1, sink2 = nil
         subsys = sys_model.composition("source_sink0") do
             source = add SimpleSource::Source, :as => 'source'
@@ -77,14 +81,15 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
             
         subsys.export sink1.cycle
-        assert_equal(sink1.cycle, subsys.port('cycle'))
+        assert_equal(sink1.cycle, subsys.find_input_port('cycle'))
         assert_raises(ArgumentError) { subsys.export(sink2.cycle) }
         
         subsys.export sink2.cycle, :as => 'cycle2'
-        assert_equal(sink1.cycle, subsys.port('cycle'))
-        assert_equal(sink2.cycle, subsys.port('cycle2'))
+        assert_equal(sink1.cycle, subsys.find_input_port('cycle'))
+        assert_equal(sink2, subsys.find_input_port('cycle2').child)
+        assert_equal(sink2.cycle.port, subsys.find_input_port('cycle2').port)
         assert_equal(sink1.cycle, subsys.cycle)
-        assert_equal(sink2.cycle, subsys.cycle2)
+        assert_equal(subsys.find_input_port('cycle2'), subsys.cycle2)
     end
 
     def test_compute_autoconnection

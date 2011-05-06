@@ -74,50 +74,15 @@ module Orocos
             end
         end
 
-        # Class that is used to represent a binding of a service model with an
-        # actual task instance during the instanciation process
-        class InstanciatedDataService
-            # The ProvidedDataService instance that represents the data service
-            attr_reader :provided_service_model
-            # The task instance we are bound to
-            attr_reader :task
-            def initialize(task, provided_service_model)
-                @task, @provided_service_model = task, provided_service_model
-                if !task.kind_of?(Component)
-                    raise "expected a task instance, got #{task}"
-                end
-                if !provided_service_model.kind_of?(ProvidedDataService)
-                    raise "expected a provided service, got #{provided_service_model}"
-                end
-            end
-
-            def short_name
-                "#{task}:#{provided_service_model.name}"
-            end
-
-            def fullfills?(*args)
-                provided_service_model.fullfills?(*args)
-            end
-        end
-
-        # Representation of a task requirement. Used internally by Engine
-        class InstanciatedComponent
-            # The Engine instance
-            attr_reader :engine
-
-            # The name provided to Engine#add
+        # Represents a requirement created by Engine#add or Engine#define
+        class EngineRequirement < ComponentInstance
+            # The name as give  to Engine#add or Engine#define
             attr_accessor :name
-            # The component model narrowed down from +base_model+ using
-            # +using_spec+
-            attr_reader :model
-            # The component model specified by #add
-            attr_reader :base_model
-            # Required arguments on the final task
-            attr_reader :arguments
-            # The actual selection given to Engine#add
-            attr_reader :using_spec
             # The actual task. It is set after #resolve has been called
             attr_accessor :task
+            # A set of ports on the task that should be automatically copied to
+            # the State object
+            attr_reader :state_copies
             ##
             # :method: mission?
             #
@@ -127,138 +92,31 @@ module Orocos
             # The task this new task replaces. It is set by Engine#replace
             attr_accessor :replaces
 
-            def initialize(engine, name, model)
-                @engine    = engine
-                @name      = name
-                @model     = @base_model = model
-                @arguments = Hash.new
-                @using_spec = Hash.new
+            def initialize(engine, name, models)
+                super(engine, models)
+                @name = name
                 @state_copies = Array.new
             end
 
-            def fullfills?(model)
-                self.model.fullfills?(model)
+            def initialize_copy(old)
+                super
+                @state_copies = old.state_copies.dup
             end
 
-            # Declares that this component should be deployed on the given
-            # machine.
-            #
-            # The expected hostname is the name of the process server
-            def on_machine(hostname)
-                if !(@model <= TaskContext)
-                    raise ArgumentError, "#on_machine can be used only on task contexts (not on compositions)"
-                end
-                @required_host = hostname
-            end
-
-            ##
-            # :call-seq:
-            #   use 'child_name' => 'component_model_or_device'
-            #   use 'child_name' => ComponentModel
-            #   use ChildModel => 'component_model_or_device'
-            #   use ChildModel => ComponentModel
-            #   use Model1, Model2, Model3
-            #
-            # Provides explicit selections for the children of compositions
-            #
-            # In the first two forms, provides an explicit selection for a
-            # given child. The selection can be given either by name (name
-            # of the model and/or of the selected device), or by directly
-            # giving the model object.
-            #
-            # In the second two forms, provides an explicit selection for
-            # any children that provide the given model. For instance,
-            #
-            #   use IMU => XsensImu::Task
-            #
-            # will select XsensImu::Task for any child that provides IMU
-            #
-            # Finally, the third form allows to specify preferences without
-            # being specific about where to put them. If ambiguities are
-            # found, and if only one of the possibility is listed there,
-            # then that possibility will be selected. It has a lower
-            # priority than the explicit selection.
-            #
-            # See also Composition#instanciate
-            def use(*mappings)
-                if !(base_model <= Composition)
-                    raise ArgumentError, "#use is available only for compositions"
-                end
-
-                mappings = RobyPlugin.validate_using_spec(*mappings)
-                using_spec.merge!(mappings)
-
-                if engine
-                    narrow_model
-                end
-                self
-            end
-
-            # Specifies new arguments that must be set to the instanciated task
-            def with_arguments(arguments)
-                @arguments.merge!(arguments)
-            end
-
-            # Computes the value of +model+ based on the current selection
-            # (in using_spec) and the base model specified in #add or
-            # #define
-            def narrow_model
-                Engine.debug do
-                    Engine.debug "narrowing model for #{name}"
-                    Engine.debug "  from #{base_model.short_name}"
-                    break
-                end
-
-                selection = Hash.new
-                using_spec.each_key do |key|
-                    if result = engine.resolve_explicit_selection(using_spec[key])
-                        selection[key] = result
-                    end
-                end
-                engine.add_default_selections(using_spec)
-
-                candidates = base_model.narrow(selection)
-                @model =
-                    if candidates.size == 1
-                        candidates.find { true }
-                    else
-                        base_model
-                    end
-
-                Engine.debug do
-                    Engine.debug "  found #{@model.short_name}"
-                    break
-                end
-            end
-
-            def create_placeholder_task
-                if model.respond_to?(:new)
-                    task = model.new
-                elsif model.respond_to?(:model) # probably a device
-                    task = model.task_model.new
-                end
-                task.executable = false
-                task
-            end
-
-            # Create a concrete task for this requirements
             def instanciate(engine)
-                if self.engine && self.engine != engine
-                    raise ArgumentError, "cannot instanciate on a different engine that the one set"
-                end
-
-                result = engine.resolve_explicit_selections(using_spec)
-                if @required_host
-                    result.required_host = @required_host
-                end
-
-                engine.add_default_selections(result)
-
-                @task = model.instanciate(engine, :as => name, :selection => result)
+                task = super
                 @state_copies.each do |port_name, state_path, filter_block|
                     @task.copy_to_state(port_name, *state_path, &filter_block)
                 end
-                @task
+                task
+            end
+
+            def placeholder_task(engine)
+                if models.size == 1 && models.find { true }.kind_of?(MasterDeviceInstance)
+                    models.find { true }.task
+                else
+                    instanciate(engine)
+                end
             end
 
             # Requires that the values that are output on +port_name+ on this
@@ -297,7 +155,7 @@ module Orocos
             #
             # See #add and #remove
             attr_reader :instances
-            # Prepared InstanciatedComponent instances.
+            # Prepared EngineRequirement instances.
             #
             # See #define
             attr_reader :defines
@@ -444,7 +302,7 @@ module Orocos
             end
 
             # The set of selections the user specified should be applied on
-            # every compositions. See Engine#use and InstanciatedComponent#use
+            # every compositions. See Engine#use and EngineRequirement#use
             # for more details on the format
             attr_reader :main_user_selection
 
@@ -454,7 +312,7 @@ module Orocos
             # Provides system-level selection.
             #
             # This is akin to dependency injection at the system level. See
-            # InstanciatedComponent#use for details.
+            # EngineRequirement#use for details.
             def use(*mappings)
                 mappings = RobyPlugin.validate_using_spec(*mappings)
                 mappings.each do |model, definition|
@@ -470,13 +328,13 @@ module Orocos
                 instance
             end
 
-            # Helper method that creates an instance of InstanciatedComponent
+            # Helper method that creates an instance of EngineRequirement
             # and registers it
             def self.create_instanciated_component(engine, name, model) # :nodoc:
                 if !model.kind_of?(MasterDeviceInstance) && !(model.kind_of?(Class) && model < Component)
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
                 end
-                InstanciatedComponent.new(engine, name, model)
+                EngineRequirement.new(engine, name, [model])
             end
 
             # Define a component instanciation specification, without adding it
@@ -493,7 +351,7 @@ module Orocos
                 defines[name] = Engine.create_instanciated_component(self, name, model)
             end
 
-            # Returns the InstanciatedComponent object that represents the given
+            # Returns the EngineRequirement object that represents the given
             # name.
             #
             # The name can be a deployment definition (created with #define) or
@@ -592,7 +450,7 @@ module Orocos
             # * a task model, in which case all components that match this model
             #   will be removed
             def remove(task, force = false)
-                if task.kind_of?(InstanciatedComponent)
+                if task.kind_of?(EngineRequirement)
                     removed_instances = instances.find_all { |t| t == task }
                 elsif task.kind_of?(Roby::Task)
                     removed_instances = instances.find_all { |t| t.task == task }
@@ -641,7 +499,7 @@ module Orocos
                 tasks[name] = task
                 task.model.each_data_service do |_, srv|
                     tasks["#{name}.#{srv.full_name}"] = task
-                    if !srv.master? && srv.master.main?
+                    if !srv.master?
                         tasks["#{name}.#{srv.name}"] = task
                     end
                 end
@@ -713,7 +571,7 @@ module Orocos
             # 
             # * an array, in which case it is called recursively on each of
             #   the array's elements.
-            # * an InstanciatedComponent (returned by Engine#add)
+            # * an EngineRequirement (returned by Engine#add)
             # * a name
             #
             # In the latter case, the name refers either to a device name,
@@ -731,7 +589,7 @@ module Orocos
                         value.service
                     end
                         
-                elsif value.kind_of?(InstanciatedComponent)
+                elsif value.kind_of?(EngineRequirement)
                     value
                 elsif value.respond_to?(:to_str)
                     value = value.to_str
@@ -760,7 +618,7 @@ module Orocos
                         if !candidate_service && service_names.size == 1
                             # Might still be a slave of a main service
                             services = selected_object.model.each_data_service.
-                                find_all { |_, srv| !srv.master? && srv.master.main? && srv.name == service_names.first }
+                                find_all { |_, srv| !srv.master? && srv.name == service_names.first }
 
                             if services.empty?
                                 raise SpecError, "#{value} is not a known device, or an instanciated composition"
@@ -770,7 +628,7 @@ module Orocos
                             candidate_service = services.first.last
                         end
 
-                        InstanciatedDataService.new(selected_object, candidate_service)
+                        DataServiceInstance.new(selected_object, candidate_service)
                     end
                 elsif value.respond_to?(:to_ary)
                     value.map(&method(:resolve_explicit_selection))
@@ -835,12 +693,7 @@ module Orocos
                 end
 
                 instances.each do |instance|
-                    task =
-                        if instance.model.kind_of?(MasterDeviceInstance)
-                            instance.model.task
-                        else
-                            instance.instanciate(self)
-                        end
+                    task = instance.placeholder_task(self)
                     instance.task = plan[task]
 
                     if name = instance.name

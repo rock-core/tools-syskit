@@ -2,11 +2,10 @@ module Orocos
     module RobyPlugin
         # Used by Composition to define its children. Values returned by
         # Composition#find_child(name) are instances of that class.
-        class CompositionChildDefinition
+        class CompositionChildDefinition < ComponentInstance
             # The set of models that this child should fullfill. It is a
             # ValueSet which contains at most one Component model and any number
             # of data service models 
-            attr_accessor :models
             attr_accessor :dependency_options
             attr_accessor :port_mappings
 
@@ -14,83 +13,15 @@ module Orocos
             attr_reader :arguments
 
             def initialize(models = ValueSet.new, dependency_options = Hash.new)
-                @models = models
+                super(nil, models)
                 @dependency_options = dependency_options
-                @using_spec = Hash.new
                 @port_mappings = Hash.new
-                @arguments = Hash.new
             end
 
             def initialize_copy(old)
-                @models = old.models.dup
+                super
                 @dependency_options = old.dependency_options.dup
-                @using_spec = old.using_spec.dup
                 @port_mappings = old.port_mappings.dup
-            end
-
-            # Return true if this child provides all of the required models
-            def fullfills?(required_models)
-                if !required_models.respond_to?(:each)
-                    required_models = [required_models]
-                end
-                required_models.all? do |req_m|
-                    models.any? { |m| m.fullfills?(req_m) }
-                end
-            end
-
-            # Adds specific arguments that should be passed to the child at
-            # instanciation time
-            #
-            # This can be used to require a specific child configuration
-            def with_arguments(arguments)
-                @arguments = @arguments.merge(arguments)
-            end
-
-            # If this child is a composition, narrow its model based on the
-            # provided selection specification.
-            #
-            # If the selection is enough to narrow down the model, return the
-            # new model. Otherwise, return nil
-            def use(*spec)
-                spec = RobyPlugin.validate_using_spec(*spec)
-
-                # Check that this child is a composition. Note that we have the
-                # guarantee that there is at most one subclass of Composition in
-                # models, as it is not allowed to have multiple classes in there
-                composition_model = models.find { |m| m < Composition }
-                if !composition_model
-                    raise ArgumentError, "#use can be called only on children that are compositions"
-                end
-
-                SystemModel.debug do
-                    SystemModel.debug "narrowing #{composition_model.short_name}"
-                    spec_txt = spec.map do |name, models|
-                        if name
-                            "#{name} => #{models}"
-                        else
-                            "default selection: #{models.map(&:to_s).join(", ")}"
-                        end
-                    end
-                    SystemModel.log_array :debug, "  on ", "     ", spec_txt
-                    break
-                end
-
-                # Now update the spec and check if we can narrow down the model
-                @using_spec = using_spec.merge(spec)
-                candidates = composition_model.narrow(using_spec)
-                if candidates.size == 1
-                    new_model = candidates.find { true }
-                    models.delete(composition_model)
-                    models << new_model
-                    SystemModel.debug do
-                        SystemModel.debug "  found #{new_model.short_name}"
-                        break
-                    end
-                    new_model
-                else
-                    SystemModel.debug "  cannot narrow it further"
-                    nil
-                end
             end
         end
 
@@ -481,7 +412,7 @@ module Orocos
                 # Delete from +parent_model+ everything that is already included
                 # in +child_model+
                 result = parent_model.dup
-                result.models.delete_if do |parent_m|
+                result.base_models.delete_if do |parent_m|
                     replaced_by = child_model.find_all { |child_m| child_m < parent_m }
                     if !replaced_by.empty?
                         mappings = replaced_by.inject(Hash.new) do |mappings, m|
@@ -494,7 +425,7 @@ module Orocos
                         end
                     end
                 end
-                result.models |= child_model.to_value_set
+                result.add_models(child_model.to_value_set)
                 result.dependency_options = result.dependency_options.merge(dependency_options)
 
                 SystemModel.debug do
@@ -1843,13 +1774,16 @@ module Orocos
                     selected_object = required_model.first
                 end
 
-                if selected_object.kind_of?(InstanciatedComponent)
-                    result.child_model = selected_object.model
+                if selected_object.kind_of?(ComponentInstance)
+                    if selected_object.models.size != 1
+                        raise SpecError, "cannot use #{selected_object} for #{child_name} in #{short_name}: it is a compound specification"
+                    end
+                    result.child_model = selected_object.models.find { true }
                     result.selected_models = [result.child_model]
                     result.using_spec  = selected_object.using_spec
                     result.arguments   = selected_object.arguments
                 
-                elsif selected_object.kind_of?(InstanciatedDataService)
+                elsif selected_object.kind_of?(DataServiceInstance)
                     if !selected_object.provided_service_model
                         raise InternalError, "#{selected_object} has no provided service model"
                     end
@@ -2032,7 +1966,7 @@ module Orocos
             # Instanciates a task for the required child
             def instanciate_child(engine, self_task, self_arguments, child_name, selected_child, child_user_selection) # :nodoc:
                 child_selection = catch(:missing_child_instanciation) do
-                    ComponentInstanceSpec.resolve_using_spec(find_child(child_name).using_spec) do |key, sel|
+                    ComponentInstance.resolve_using_spec(find_child(child_name).using_spec) do |key, sel|
                         if sel.kind_of?(CompositionChild)
                             task = self_task.child_from_role(sel.child_name)
                             if !task
@@ -2263,6 +2197,7 @@ module Orocos
                             Engine.info "   options; #{dependency_options}"
                             break
                         end
+
                         self_task.depends_on(child_task, dependency_options)
                         if (main = main_task) && (main.child_name == child_name)
                             child_task.success_event.forward_to self_task.success_event

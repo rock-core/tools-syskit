@@ -244,6 +244,8 @@ module Orocos
                             RobyPlugin.warn "putting orogen-specific models in tasks/components/ is deprecated"
                             RobyPlugin.warn "move #{file} to #{file.gsub(/\/components\//, '/orogen/')}"
                             Application.load_task_extension(file, self)
+                        elsif model_file = Application.find_in_model_path("orogen", "#{name}.rb")
+                            Application.load_task_extension(model_file, self)
                         end
                     end
                 end
@@ -255,6 +257,24 @@ module Orocos
                 end
 
                 orogen
+            end
+
+            # Searches for the given file in OROCOS_ROBY_MODEL_PATH, if the
+            # environment variable is set.
+            #
+            # Returns the first file found, if there is one, and otherwise
+            # returns nil
+            def self.find_in_model_path(*basename)
+                if path = ENV['OROCOS_ROBY_MODEL_PATH']
+                    path = path.split(':')
+                    path.each do |p|
+                        p = File.join(p, *basename)
+                        if File.readable?(p)
+                            return p
+                        end
+                    end
+                    nil
+                end
             end
 
             def get_orocos_task_model(spec)
@@ -303,10 +323,9 @@ module Orocos
                 if File.directory?(dir = File.join(APP_DIR, 'config', 'orogen'))
                     Orocos.conf.load_dir(dir)
                 end
-                if File.directory?(dir = File.join(APP_DIR, 'config', app.robot_name, 'orogen'))
+                if app.robot_name && File.directory?(dir = File.join(APP_DIR, 'config', app.robot_name, 'orogen'))
                     Orocos.conf.load_dir(dir)
                 end
-
 
                 app.orocos_clear_models
                 app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext

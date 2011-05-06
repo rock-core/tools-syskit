@@ -9,6 +9,7 @@ require 'orocos/roby/component'
 require 'orocos/roby/connection_graphs'
 require 'orocos/roby/data_sources'
 
+require 'orocos/roby/instance_spec'
 require 'orocos/roby/compositions'
 require 'orocos/roby/deployment'
 require 'orocos/roby/task_context'

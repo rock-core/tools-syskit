@@ -34,8 +34,6 @@ module RobyPluginCommonTest
         @old_loglevel = Orocos.logger.level
         super
 
-        @update_handler = engine.each_cycle(&Orocos::RobyPlugin.method(:update))
-
         FileUtils.mkdir_p Roby.app.log_dir
         @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
         ENV['PKG_CONFIG_PATH'] = File.join(WORK_DIR, "prefix", 'lib', 'pkgconfig')
@@ -64,6 +62,7 @@ module RobyPluginCommonTest
 
         @sys_model = Orocos::RobyPlugin::SystemModel.new
         @orocos_engine = Engine.new(plan, sys_model)
+        @update_handler = engine.each_cycle(&Orocos::RobyPlugin.method(:update))
     end
 
     def teardown

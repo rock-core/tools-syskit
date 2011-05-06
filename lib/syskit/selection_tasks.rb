@@ -16,8 +16,8 @@ module Orocos
                     if !definition
                         raise ArgumentError, "#{name} is not a know definition"
                     end
-                    if !definition.model.fullfills?(service)
-                        raise ArgumentError, "the model of #{name} (#{service}) does not provide the required service, #{service}"
+                    if !definition.fullfills?(service)
+                        raise ArgumentError, "the model of #{name} (#{definition.base_models.map(&:short_name).join(", ")}) does not provide the required service, #{service}"
                     end
                 end
 
