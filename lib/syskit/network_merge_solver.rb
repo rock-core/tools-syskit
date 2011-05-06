@@ -424,7 +424,7 @@ module Orocos
                             end
                             next
                         end
-                        device_names = target_task.each_device_name.map { |_, dev_name| Regexp.new("^#{dev_name}") }
+                        device_names = target_task.each_device_name.map { |_, dev_name| Regexp.new("^#{dev_name}$") }
                         if device_names.empty?
                             Engine.debug do
                                 "cannot disambiguate using names: #{target_task} is a device driver, but it is attached to no devices"
