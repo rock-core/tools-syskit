@@ -58,6 +58,7 @@ module Orocos
             # See CompositionChildDefinition#use
             def use(*spec)
                 composition.find_child(child_name).use(*spec)
+                self
             end
 
             # Checks if this child fullfills the given model
@@ -71,6 +72,14 @@ module Orocos
             # See CompositionChildDefinition#with_arguments
             def with_arguments(spec)
                 composition.find_child(child_name).with_arguments(spec)
+                self
+            end
+
+            # Specifies the configuration that should be used on the specified
+            # child
+            def use_conf(*conf)
+                composition.find_child(child_name).use_conf(*conf)
+                self
             end
 
             # Returns a CompositionChildPort instance if +name+ is a valid port
@@ -216,6 +225,9 @@ module Orocos
 
             # The composition model name
             attr_accessor :name
+
+            # The set of configurations declared with #conf
+            attr_reader :conf
 
             # Creates a submodel of this model, in the frame of the given
             # SystemModel instance.
@@ -1902,7 +1914,7 @@ module Orocos
             attr_predicate :strict_specialization_selection, true
 
             # Instanciates a task for the required child
-            def instanciate_child(engine, self_task, self_arguments, child_name, selected_child, child_user_selection) # :nodoc:
+            def instanciate_child(engine, self_task, self_arguments, child_name, selected_child, child_user_selection, conf) # :nodoc:
                 child_selection = catch(:missing_child_instanciation) do
                     ComponentInstance.resolve_using_spec(find_child(child_name).using_spec) do |key, sel|
                         if sel.kind_of?(CompositionChild)
@@ -1942,6 +1954,9 @@ module Orocos
                 child_task = selected_child.child_model.instanciate(engine, :selection => child_selection)
 
                 child_arguments = find_child(child_name).arguments.dup
+                if conf[child_name]
+                    child_arguments[:conf] = conf[child_name]
+                end
                 child_arguments.merge!(selected_child.arguments)
                 child_arguments.each do |key, value|
                     if value.respond_to?(:resolve)
@@ -2016,7 +2031,7 @@ module Orocos
             #   children of +self+ whose definition matches the given model.
             #
             def instanciate(engine, arguments = Hash.new)
-                arguments = Kernel.validate_options arguments, :as => nil, :selection => Hash.new
+                arguments = Kernel.validate_options arguments, :as => nil, :selection => Hash.new, :task_arguments => Hash.new
                 raw_user_selection = arguments[:selection]
 
                 Engine.debug do
@@ -2071,8 +2086,13 @@ module Orocos
                 end
 
                 # First of all, add the task for +self+
-                engine.plan.add(self_task = new)
+                engine.plan.add(self_task = new(arguments[:task_arguments]))
                 self_task.robot = engine.robot
+
+                conf = if self_task.has_argument?(:conf)
+                           self_task.conf(self_task.arguments[:conf])
+                       else Hash.new
+                       end
 
                 # The set of connections we must create on our children. This is
                 # self.connections on which port mappings rules have been
@@ -2095,7 +2115,7 @@ module Orocos
                                     child_user_selection[$1] = sel
                                 end
                             end
-                            child_task = instanciate_child(engine, self_task, arguments, child_name, selected_child, child_user_selection)
+                            child_task = instanciate_child(engine, self_task, arguments, child_name, selected_child, child_user_selection, conf)
                         end
 
                         if !selected_child.port_mappings.empty?
@@ -2221,6 +2241,66 @@ module Orocos
             inherited_enumerable(:exported_output, :exported_outputs, :map => true)  { Hash.new }
             # Inputs imported from this composition
             inherited_enumerable(:exported_input, :exported_inputs, :map => true)  { Hash.new }
+            # Configurations defined on this composition model
+            inherited_enumerable(:configuration, :configurations, :map => true)  { Hash.new }
+
+            # Declares a composition configuration
+            #
+            # Composition configurations are named selections of configurations.
+            #
+            # For instance, if
+            #
+            #   conf 'narrow',
+            #       'monitoring' => ['default', 'narrow_window'],
+            #       'sonar' => ['default', 'narrow_window']
+            #
+            # is declared, and the composition is instanciated with
+            #
+            #   Cmp::SonarMonitoring.use_conf('narrow')
+            #
+            # Then the composition children called 'monitoring' and 'sonar' will
+            # be both instanciated with ['default', 'narrow_window']
+            def self.conf(name, mappings = Hash.new)
+                configurations[name] = mappings
+            end
+
+            # Returns the configuration definition for the given
+            # configuration(s)
+            #
+            # Note that unlike ConfigurationManager, only one configuration
+            # can be selected (they cannot be overlaid on top of each other)
+            #
+            # The returned value is a mapping from child names to the
+            # configurations that should be applied to them, i.e. for the
+            # 'narrow' configuration used as an example in Composition.conf,
+            #
+            #   conf(['narrow'])
+            #
+            # would return
+            #
+            #   'monitoring' => ['default', 'narrow_window'],
+            #   'sonar' => ['default', 'narrow_window']
+            def conf(names)
+                if names.size != 1
+                    raise ArgumentError, "unlike with ConfigurationManager, only one  configuration can be selected on compositions"
+                end
+
+                result = Hash.new
+                found_something = false
+                model.each_configuration(names.first.to_s, false) do |values|
+                    found_something = true
+                    result = values.merge(result)
+                end
+                if !found_something
+                    if names == ['default']
+                        ConfigurationManager.info "required default configuration on composition #{task}, but #{task.model.short_name} has no registered default configurations"
+                        return result
+                    else
+                        raise ArgumentError, "#{self} has no declared configuration called #{names.join(", ")}"
+                    end
+                end
+                result
+            end
 
             # Reimplemented from Roby::Task to take into account the multiple
             # inheritance mechanisms that is the composition specializations

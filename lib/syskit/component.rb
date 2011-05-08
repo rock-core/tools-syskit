@@ -350,6 +350,30 @@ module Orocos
                 task.robot = engine.robot
                 task
             end
+
+            # This returns an InstanciatedComponent object that can be used in
+            # other #use statements in the deployment spec
+            #
+            # For instance,
+            #
+            #   add(Cmp::CorridorServoing).
+            #       use(Cmp::Odometry.with_arguments('special_behaviour' => true))
+            #
+            def with_arguments(*spec, &block)
+                Engine.create_instanciated_component(nil, nil, self).with_arguments(*spec, &block)
+            end
+
+            # This returns an InstanciatedComponent object that can be used in
+            # other #use statements in the deployment spec
+            #
+            # For instance,
+            #
+            #   add(Cmp::CorridorServoing).
+            #       use(Cmp::Odometry.use_conf('special_conf'))
+            #
+            def use_conf(*spec, &block)
+                Engine.create_instanciated_component(nil, nil, self).use_conf(*spec, &block)
+            end
         end
 
         # Base class for models that represent components (TaskContext,

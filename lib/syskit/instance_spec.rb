@@ -126,12 +126,14 @@ module Orocos
             # Specifies new arguments that must be set to the instanciated task
             def with_arguments(arguments)
                 @arguments.merge!(arguments)
+                self
             end
 
             # Specifies that the task that is represented by this requirement
             # should use the given configuration
             def use_conf(*conf)
                 @arguments[:conf] = conf
+                self
             end
 
             # Computes the value of +model+ based on the current selection
@@ -208,11 +210,14 @@ module Orocos
                 result = engine.resolve_explicit_selections(using_spec)
                 engine.add_default_selections(result)
 
+                arguments = Kernel.validate_options arguments, :task_arguments => nil
                 instanciate_arguments = {
                     :as => name,
                     :selection => result,
                     :task_arguments => self.arguments }
-                instanciate_arguments[:task_arguments].merge!(arguments[:task_arguments])
+                if arguments[:task_arguments]
+                    instanciate_arguments[:task_arguments].merge!(arguments[:task_arguments])
+                end
 
                 @task = task_model.instanciate(engine, instanciate_arguments)
                 if !task_model.fullfills?(base_models)
