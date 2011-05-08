@@ -21,7 +21,7 @@ module Orocos
             abstract
             @name = "Orocos::RobyPlugin::TaskContext"
 
-            argument :conf, :default => ['default']
+            argument :conf
 
             extend Model
 
@@ -838,8 +838,9 @@ module Orocos
             def configure
                 # First, set configuration from the configuration files
                 # Note: it can only set properties
-                if Orocos.conf.apply(orogen_task, self.conf, true)
-                    Robot.info "applied configuration #{self.conf} to #{orogen_task.name}"
+                conf = self.conf || ['default']
+                if Orocos.conf.apply(orogen_task, conf, true)
+                    Robot.info "applied configuration #{conf} to #{orogen_task.name}"
                 end
 
                 # Then set configuration stored in Conf.orocos

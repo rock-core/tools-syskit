@@ -92,9 +92,17 @@ module Orocos
                 @robot, @name, @device_model, @task_model, @service, @task_arguments =
                     robot, name, device_model, task_model, service, task_arguments
                 @slaves      = Hash.new
+                @conf = Array.new
 
                 sample_size 1
                 burst   0
+            end
+
+            # Declares that the following configuration chain should be used for
+            # this device
+            def use_conf(*conf)
+                task_arguments[:conf] = conf
+                self
             end
 
             # Returns the names of the com busses this device instance is
@@ -162,11 +170,8 @@ module Orocos
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
 
             def instanciate(engine, options = Hash.new)
-                task = task_model.instanciate(engine, options)
-                task_arguments.each do |name, value|
-                    task.arguments[name] = value
-                end
-                task
+                options[:task_arguments] = task_arguments.merge(options[:task_arguments] || Hash.new)
+                task_model.instanciate(engine, options)
             end
 
             ## 

@@ -344,7 +344,9 @@ module Orocos
             # It creates a new task from the component model using
             # Component.new, adds it to the engine's plan and returns it.
             def instanciate(engine, arguments = Hash.new)
-                engine.plan.add(task = new)
+                task_arguments, instanciate_arguments = Kernel.
+                    filter_options arguments, :task_arguments => Hash.new
+                engine.plan.add(task = new(task_arguments[:task_arguments]))
                 task.robot = engine.robot
                 task
             end

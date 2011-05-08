@@ -2121,6 +2121,9 @@ module Orocos
                         dependent_arguments = dependent_models.inject(Hash.new) do |result, m|
                             result.merge(m.meaningful_arguments(child_task.arguments))
                         end
+                        if child_task.has_argument?(:conf)
+                            dependent_arguments[:conf] = child_task.arguments[:conf]
+                        end
                         if dependent_models.size == 1
                             dependent_models = dependent_models.first
                         end
