@@ -1569,27 +1569,24 @@ module Orocos
                 end
             end
 
-            def apply_port_mappings(connections, child_name, port_mappings) # :nodoc:
-                connections.each do |(out_name, in_name), mappings|
-                    mapped_connections = Hash.new
-
-                    if out_name == child_name
-                        mappings.delete_if do |(out_port, in_port), options|
-                            if mapped_port = port_mappings[out_port]
-                                mapped_connections[ [mapped_port, in_port] ] = options
-                            end
-                        end
-
-                    elsif in_name == child_name
-                        mappings.delete_if do |(out_port, in_port), options|
-                            if mapped_port = port_mappings[in_port]
-                                mapped_connections[ [out_port, mapped_port] ] = options
-                            end
-                        end
+            def apply_port_mappings_on_inputs(connections, port_mappings)
+                mapped_connections = Hash.new
+                connections.delete_if do |(out_port, in_port), options|
+                    if mapped_port = port_mappings[in_port]
+                        mapped_connections[ [out_port, mapped_port] ] = options
                     end
-                    mappings.merge!(mapped_connections)
                 end
-                connections
+                connections.merge!(mapped_connections)
+            end
+
+            def apply_port_mappings_on_outputs(connections, port_mappings)
+                mapped_connections = Hash.new
+                connections.delete_if do |(out_port, in_port), options|
+                    if mapped_port = port_mappings[out_port]
+                        mapped_connections[ [mapped_port, in_port] ] = options
+                    end
+                end
+                connections.merge!(mapped_connections)
             end
 
             # Returns the set of constraints that exist for the given child.
@@ -1945,7 +1942,7 @@ module Orocos
                     # selected task
                     port_mappings = Hash.new
                     selected_child.selected_services.each do |expected, selected|
-                        if expected.kind_of?(DataServiceModel) && existing_mappings = selected.port_mappings_for(expected)
+                        if expected.kind_of?(DataServiceModel) && (existing_mappings = selected.port_mappings_for(expected))
                             port_mappings = SystemModel.merge_port_mappings(port_mappings, existing_mappings)
                         end
                     end
@@ -2204,8 +2201,18 @@ module Orocos
 
                 # The set of connections we must create on our children. This is
                 # self.connections on which port mappings rules have been
-                # applied
+                # applied. Idem for exported inputs and outputs
                 connections = self.connections
+                exported_outputs = Hash.new { |h, k| h[k] = Hash.new }
+                each_exported_output do |output_name, port|
+                    exported_outputs[ port.child.child_name ].
+                        merge!([port.actual_name, output_name] => Hash.new)
+                end
+                exported_inputs = Hash.new { |h, k| h[k] = Hash.new }
+                each_exported_input do |input_name, port|
+                    exported_inputs[ port.child.child_name ].
+                        merge!([input_name, port.actual_name] => Hash.new)
+                end
 
                 # Finally, instanciate the missing tasks and add them to our
                 # children
@@ -2227,14 +2234,28 @@ module Orocos
                         end
 
                         if !selected_child.port_mappings.empty?
+                            port_mappings = selected_child.port_mappings
                             Engine.debug do
                                 Engine.debug "applying port mappings for #{child_name}"
-                                selected_child.port_mappings.each do |from, to|
+                                port_mappings.each do |from, to|
                                     Engine.debug "  #{from} => #{to}"
                                 end
                                 break
                             end
-                            apply_port_mappings(connections, child_name, selected_child.port_mappings)
+                            connections.each do |(out_name, in_name), mappings|
+                                if out_name == child_name
+                                    apply_port_mappings_on_outputs(mappings, port_mappings)
+                                elsif in_name == child_name
+                                    apply_port_mappings_on_inputs(mappings, port_mappings)
+                                end
+                            end
+                            if exported_inputs.has_key?(child_name)
+                                apply_port_mappings_on_inputs(exported_inputs[child_name], port_mappings)
+                            end
+                            if exported_outputs.has_key?(child_name)
+                                apply_port_mappings_on_outputs(exported_outputs[child_name], port_mappings)
+                            end
+
                         else
                             Engine.debug do
                                 Engine.debug "no port mappings for #{child_name}"
@@ -2271,21 +2292,10 @@ module Orocos
                     end
                 end
 
-                output_connections = Hash.new { |h, k| h[k] = Hash.new }
-                each_exported_output do |output_name, port|
-                    output_connections[ port.child.child_name ].
-                        merge!([port.actual_name, output_name] => Hash.new)
-                end
-                output_connections.each do |child_name, mappings|
+                exported_outputs.each do |child_name, mappings|
                     children_tasks[child_name].forward_ports(self_task, mappings)
                 end
-
-                input_connections = Hash.new { |h, k| h[k] = Hash.new }
-                each_exported_input do |input_name, port|
-                    input_connections[ port.child.child_name ].
-                        merge!([input_name, port.actual_name] => Hash.new)
-                end
-                input_connections.each do |child_name, mappings|
+                exported_inputs.each do |child_name, mappings|
                     self_task.forward_ports(children_tasks[child_name], mappings)
                 end
 
