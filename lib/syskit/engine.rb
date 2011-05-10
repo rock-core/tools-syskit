@@ -464,13 +464,7 @@ module Orocos
                     end
                 elsif task < Roby::Task || task.kind_of?(Roby::TaskModelTag)
                     removed_instances = instances.find_all do |t|
-                        model =
-                            if t.model.kind_of?(MasterDeviceInstance)
-                                t.model.task_model
-                            else
-                                t.model
-                            end
-                        model <= task
+                        t.fullfills?([task])
                     end
                     if removed_instances.empty?
                         raise ArgumentError, "no task matching #{task} have been instanciated through Engine#add"
