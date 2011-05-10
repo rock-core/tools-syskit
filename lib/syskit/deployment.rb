@@ -121,6 +121,9 @@ module Orocos
             def initialize_running_task(name, task)
                 task.orogen_task = task_handles[name]
                 task.orogen_task.process = orogen_deployment
+                if Conf.orocos.conf_log_enabled?
+                    task.orogen_task.log_all_configuration(Orocos.configuration_log)
+                end
                 # Override the base model with the new one. The new model
                 # may have been specialized, for instance to handle dynamic
                 # slave creation

@@ -32,6 +32,7 @@ module Orocos
                 super
 
                 @log_enabled = true
+                @conf_log_enabled = true
                 @redirect_local_process_server = true
 
                 @excluded_deployments = Set.new
@@ -81,6 +82,10 @@ module Orocos
             attr_predicate :log_enabled?
             def enable_logging; @log_enabled = true end
             def disable_logging; @log_enabled = false end
+
+            attr_predicate :conf_log_enabled?
+            def enable_conf_logging; @conf_log_enabled = true end
+            def disable_conf_logging; @conf_log_enabled = false end
 
             def deployment_excluded_from_log?(deployment)
                 if !log_enabled?
@@ -315,6 +320,7 @@ module Orocos
                 Roby::Conf.orocos = Configuration.new
                 Roby::State.orocos = Roby::Conf.orocos # for backward compatibility
 
+                Orocos.configuration_log_name = File.join(app.log_dir, 'properties')
                 Orocos.master_project.extend(MasterProjectHook)
                 app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
