@@ -316,7 +316,7 @@ module Orocos
                 # executable and all_inputs_connected? returns true, set their
                 # executable flag to nil
                 pending_tasks.each do |t|
-                    if t.all_inputs_connected?(true)
+                    if t.all_inputs_connected?
                         t.executable = nil
                     end
                 end

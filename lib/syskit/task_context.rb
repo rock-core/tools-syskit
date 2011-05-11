@@ -595,7 +595,7 @@ module Orocos
             # you are doing
             def is_setup!
                 @setup = true
-                if all_inputs_connected?(true)
+                if all_inputs_connected?
                     self.executable = nil
                 end
             end
