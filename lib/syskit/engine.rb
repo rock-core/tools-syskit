@@ -1461,6 +1461,15 @@ module Orocos
                             end
                     end
 
+                    # Finally, select 'default' as configuration for all
+                    # remaining tasks that do not have a 'conf' argument set
+                    trsc.find_local_tasks(Component).
+                        each do |task|
+                            if !task.arguments[:conf]
+                                task.arguments[:conf] = ['default']
+                            end
+                        end
+
                     if options[:save_plans]
                         output_path = autosave_plan_to_dot
                         Engine.info "saved generated plan into #{output_path}"
