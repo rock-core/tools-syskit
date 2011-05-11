@@ -149,6 +149,8 @@ module Orocos
 
                 root = defn.create_placeholder_task
                 planner = new(:name => definition_name)
+                root.should_start_after(planner)
+                planner.schedule_as(root)
                 root.planned_by(planner)
                 root
             end
@@ -197,6 +199,8 @@ module Orocos
                 else
                     main = service.task_model.new
                 end
+                main.should_start_after(selection)
+                selection.schedule_as(main)
                 main.planned_by selection
                 main
             end
