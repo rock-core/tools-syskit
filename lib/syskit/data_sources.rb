@@ -277,8 +277,7 @@ module Orocos
             # data services
             def self.proxy_task_model(service_models)
                 name = "Orocos::RobyPlugin::PlaceholderTasks::#{service_models.map(&:short_name).sort.join("_").gsub(/:/, '_')}"
-                task_model = Orocos::RobyPlugin.placeholder_model_for(name, service_models)
-                task_model
+                Orocos::RobyPlugin.placeholder_model_for(name, service_models)
             end
 
             include ComponentModel
