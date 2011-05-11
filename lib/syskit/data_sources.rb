@@ -93,7 +93,7 @@ module Orocos
             end
 
             def to_s # :nodoc:
-                "#<DataService: #{short_name}>"
+                "#<#{self.class.name}: #{name}>"
             end
 
             # Creates a new DataServiceModel that is a submodel of +self+
@@ -276,15 +276,8 @@ module Orocos
             # Returns a subclass of Roby::Task that implements the given set of
             # data services
             def self.proxy_task_model(service_models)
-                task_model = Class.new(DataServiceProxy)
-                task_model.orogen_spec  = RobyPlugin.create_orogen_interface(service_models.map(&:name).sort.join("_").gsub(/:/, '_'))
-                task_model.abstract
-                task_model.fullfilled_model = [Roby::Task, service_models, {}]
-                task_model.name = name
-                service_models.each do |m|
-                    RobyPlugin.merge_orogen_interfaces(task_model.orogen_spec, [m.orogen_spec])
-                    task_model.provides m
-                end
+                name = "Orocos::RobyPlugin::PlaceholderTasks::#{service_models.map(&:short_name).sort.join("_").gsub(/:/, '_')}"
+                task_model = Orocos::RobyPlugin.placeholder_model_for(name, service_models)
                 task_model
             end
 

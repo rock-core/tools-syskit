@@ -1582,32 +1582,8 @@ module Orocos
                     return m
                 end
 
-                if task_model = models.find { |t| t < Roby::Task }
-                    model = task_model.specialize("proxy_" + models.map(&:short_name).join("_"))
-                    model.abstract
-                    model.class_eval do
-                        @proxied_data_services = [task_model, *models]
-                        def self.proxied_data_services
-                            @proxied_data_services
-                        end
-                        def proxied_data_services
-                            self.model.proxied_data_services
-                        end
-                    end
-                else
-                    model = Class.new(DataServiceProxy)
-                end
-                model.abstract
-                name = "#{short_name}::#{child_name.camelcase(:upper)}Proxy"
-                orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
-                model.name        = "#{name}::ProxyTask"
-                model.instance_variable_set(:@orogen_spec, orogen_spec)
-                RobyPlugin.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
-                models.each do |m|
-                    if m.kind_of?(DataServiceModel)
-                        model.data_service m
-                    end
-                end
+                name = "#{name}::#{child_name.camelcase(:upper)}::PlaceholderTask"
+                model = Orocos::RobyPlugin.placeholder_model_for(name, models)
                 child_proxy_models[child_name] = model
             end
 

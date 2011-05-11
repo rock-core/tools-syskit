@@ -45,9 +45,9 @@ module Orocos
                             "#{name}[#{srv.model.short_name}]"
                     end.join(", ")
                     if private_specialization?
-                        "#<TaskContext: specialized from #{superclass.name} services: #{services}>"
+                        "#<specialized from #{superclass.name} services: #{services}>"
                     else
-                        "#<TaskContext: #{name} services: #{services}>"
+                        "#<#{name} services: #{services}>"
                     end
                 end
 
@@ -944,6 +944,16 @@ module Orocos
             end
             @name = "Orocos::RobyPlugin::DataServiceProxy"
 
+            def self.new_submodel(name, models = [])
+                Class.new(self) do
+                    abstract
+                    class << self
+                        attr_accessor :name
+                    end
+                    @name = name
+                end
+            end
+
             def self.proxied_data_services
                 data_services.values.map(&:model)
             end
@@ -954,6 +964,43 @@ module Orocos
             def self.provided_services
                 proxied_data_services
             end
+        end
+
+        module ComponentModelProxy
+            attr_accessor :proxied_data_services
+            def self.proxied_data_services
+                @proxied_data_services
+            end
+            def proxied_data_services
+                self.model.proxied_data_services
+            end
+        end
+
+        def self.placeholder_model_for(name, models)
+            # If all that is required is a proper task model, just return it
+            if models.size == 1 && (models.find { true } <= Roby::Task)
+                return models.find { true }
+            end
+
+            if task_model = models.find { |t| t < Roby::Task }
+                model = task_model.specialize("placeholder_model_for_" + name.gsub(/[^\w]/, '_'))
+                model.name = name
+                model.abstract
+                model.include ComponentModelProxy
+                model.proxied_data_services = models.dup
+            else
+                model = DataServiceProxy.new_submodel(name)
+            end
+
+            orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
+            model.instance_variable_set(:@orogen_spec, orogen_spec)
+            RobyPlugin.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
+            models.each do |m|
+                if m.kind_of?(DataServiceModel)
+                    model.provides m
+                end
+            end
+            model
         end
     end
 end
