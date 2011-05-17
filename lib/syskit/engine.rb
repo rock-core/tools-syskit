@@ -1800,9 +1800,8 @@ module Orocos
                         if existing_task.conf != task.conf
                             existing_task.needs_reconfiguration!
                         end
-
-                        result << existing_task
                     end
+                    result << existing_deployment_task
                 end
                 result
             end
