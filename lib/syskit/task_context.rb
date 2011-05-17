@@ -600,6 +600,20 @@ module Orocos
                 end
             end
 
+            # If true, #configure must be called on this task before it is
+            # started. This flag is reset after #configure has been called
+            def needs_reconfiguration?
+                @needs_reconfiguration
+            end
+
+            # Make sure that #configure will be called on this task before it
+            # gets started
+            #
+            # See also #setup and #needs_reconfiguration?
+            def needs_reconfiguration!
+                @needs_reconfiguration = true
+            end
+
             # Called to configure the component
             def setup
                 super
@@ -610,8 +624,21 @@ module Orocos
 
                 state = read_current_state
 
-                if TaskContext.configured[orocos_name]
-                    if state == :PRE_OPERATIONAL
+                if needs_reconfiguration?
+                    ::Robot.info "reconfiguring #{self}: the task is marked as needing reconfiguration"
+                    if state == :STOPPED && orogen_spec.needs_configuration?
+                        cleanup
+                    end
+                    TaskContext.configured.delete(orocos_name)
+                    @needs_reconfiguration = false
+                elsif (current_conf = TaskContext.configured[orocos_name])
+                    if current_conf != self.conf
+                        ::Robot.info "reconfiguring #{self}: configuration changed"
+                        if state == :STOPPED && orogen_spec.needs_configuration?
+                            cleanup
+                        end
+                        TaskContext.configured.delete(orocos_name)
+                    elsif state == :PRE_OPERATIONAL
                         TaskContext.configured.delete(orocos_name)
                     else
                         Robot.info "#{self} was already configured"
@@ -630,7 +657,7 @@ module Orocos
                     orogen_task.configure(false)
                 end
 
-                TaskContext.configured[orocos_name] = true
+                TaskContext.configured[orocos_name] = self.conf.dup
                 is_setup!
             end
 

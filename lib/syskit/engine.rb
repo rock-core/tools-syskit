@@ -1383,8 +1383,9 @@ module Orocos
                     end
 
                     if options[:compute_deployments]
-                        @deployment_tasks = instanciate_required_deployments
+                        instanciate_required_deployments
                         @network_merge_solver.merge_identical_tasks
+                        @deployment_tasks = finalize_deployed_tasks
                     end
 
                     # the tasks[] and devices mappings are updated during the
@@ -1709,21 +1710,16 @@ module Orocos
                     break
                 end
 
-                deployment_tasks = Array.new
+                deployment_tasks = Hash.new
+                deployed_tasks = Hash.new
+
                 deployments.each do |machine_name, deployment_names|
                     deployment_names.each do |deployment_name|
                         model = Roby.app.orocos_deployments[deployment_name]
-
-                        task  = plan.find_tasks(model).
-                            find { |t| t.arguments[:on] == machine_name }
-                        if task && !task.reusable?
-                            task = nil
-                        end
-
-                        task ||= model.new(:on => machine_name)
-                        task.robot = robot
+                        task = model.new(:on => machine_name)
                         plan.add(task)
-                        deployment_tasks << task
+                        task.robot = robot
+                        deployment_tasks[deployment_name] = task
 
                         new_activities = Set.new
                         task.orogen_spec.task_activities.each do |deployed_task|
@@ -1734,22 +1730,13 @@ module Orocos
                             end
                         end
 
-                        task.merged_relations(:each_executed_task, false).each do |_, t|
-                            if t.reusable?
-                                # Make sure that the task gets added in the
-                                # transaction
-                                plan[t]
-                                # And do not instanciate it
-                                new_activities.delete(t.orocos_name)
-                            end
-                        end
-
                         new_activities.each do |act_name|
                             new_task = task.task(act_name)
                             deployed_task = plan[new_task]
                             Engine.debug do
                                 "  #{deployed_task.orogen_name} on #{task.deployment_name}[machine=#{task.machine}] is represented by #{deployed_task}"
                             end
+                            deployed_tasks[act_name] = deployed_task
                         end
                     end
                 end
@@ -1760,7 +1747,54 @@ module Orocos
                     break
                 end
 
-                deployment_tasks
+                return deployment_tasks, deployed_tasks
+            end
+
+            def finalize_deployed_tasks
+                # We finally have a deployed system, using the deployments
+                # specified by the user
+                #
+                # However, it is not yet *the* deployed sytem, as we have to
+                # check how to play well with currently running tasks.
+                #
+                # That's what this method does
+                deployments = plan.find_local_tasks(Orocos::RobyPlugin::Deployment).to_value_set
+                existing_deployments = plan.find_tasks(Orocos::RobyPlugin::Deployment).to_value_set - deployments
+
+                result = ValueSet.new
+                deployments.each do |deployment_task|
+                    # Check for the corresponding task in the plan
+                    existing_deployment_task = (plan.find_tasks(deployment_task.model).to_value_set & existing_deployments).
+                        find { |t| t.deployment_name == deployment_task.deployment_name }
+
+                    if !existing_deployment_task
+                        result << deployment_task
+                        next
+                    end
+
+                    existing_tasks = Hash.new
+                    existing_deployment_task.each_executed_task do |t|
+                        existing_tasks[t.orogen_name] = t
+                    end
+
+                    deployment_task.each_executed_task do |task|
+                        existing_task = existing_tasks[task.orogen_name]
+                        if !existing_task || !existing_task.can_reuse? || !existing_task.can_merge?(task)
+                            new_task = plan[existing_deployment_task.task(task.orogen_name)]
+                            if existing_task
+                                new_task.start_event.should_emit_after(existing_task.stop_event)
+                            end
+                            existing_task = new_task
+                        end
+                        existing_task.merge(task)
+                        if existing_task.conf != task.conf
+                            existing_task.needs_reconfiguration!
+                        end
+
+                        result << existing_task
+                    end
+                end
+                result
             end
 
             # Load the given DSL file into this Engine instance

@@ -418,12 +418,21 @@ module Orocos
             def initialize(options = Hash.new)
                 super
                 @state_copies = Array.new
+                @can_reuse = true
             end
 
             def create_fresh_copy
                 new_task = super
                 new_task.robot = robot
                 new_task
+            end
+
+            def reusable?
+                super && @can_reuse
+            end
+
+            def do_not_reuse
+                @can_reuse = false
             end
 
             def self.as_plan
