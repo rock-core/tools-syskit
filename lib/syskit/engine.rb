@@ -1789,7 +1789,7 @@ module Orocos
 
                     deployment_task.each_executed_task do |task|
                         existing_task = existing_tasks[task.orogen_name]
-                        if !existing_task || !existing_task.can_reuse? || !existing_task.can_merge?(task)
+                        if !existing_task || !existing_task.reusable? || !existing_task.can_merge?(task)
                             new_task = plan[existing_deployment_task.task(task.orogen_name)]
                             if existing_task
                                 new_task.start_event.should_emit_after(existing_task.stop_event)

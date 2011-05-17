@@ -418,7 +418,7 @@ module Orocos
             def initialize(options = Hash.new)
                 super
                 @state_copies = Array.new
-                @can_reuse = true
+                @reusable = true
             end
 
             def create_fresh_copy
@@ -428,11 +428,11 @@ module Orocos
             end
 
             def reusable?
-                super && @can_reuse
+                super && @reusable
             end
 
             def do_not_reuse
-                @can_reuse = false
+                @reusable = false
             end
 
             def self.as_plan
