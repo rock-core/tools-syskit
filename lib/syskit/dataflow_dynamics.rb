@@ -278,6 +278,11 @@ module Orocos
                     deployed_tasks.each do |t|
                         Engine.debug "  #{t}"
                     end
+
+                    Engine.debug "available information for"
+                    port_dynamics.each do |task, ports|
+                        Engine.debug "  #{task}: #{ports.keys.join(", ")}"
+                    end
                     break
                 end
 

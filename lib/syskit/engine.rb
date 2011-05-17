@@ -1336,7 +1336,15 @@ module Orocos
 
                     compute_system_network
 
+                    # Now compute a deployment for the resulting network
+                    if options[:compute_deployments]
+                        instanciate_required_deployments
+                        @network_merge_solver.merge_identical_tasks
+                    end
+
                     used_tasks = trsc.find_local_tasks(Component).
+                        to_value_set
+                    used_deployments = trsc.find_local_tasks(Deployment).
                         to_value_set
 
                     # This must be done *after* #compute_system_network,
@@ -1351,51 +1359,12 @@ module Orocos
                         task
                     end.to_value_set
 
-                    all_tasks = trsc.find_tasks(Component).to_value_set
-                    all_tasks.delete_if do |t|
-                        if t.finishing? || t.finished?
-                            Engine.debug { "clearing the relations of the finished task #{t}" }
-                            t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
-                            t.remove_relations(Roby::TaskStructure::Dependency)
-                            true
-                        elsif t.transaction_proxy?
-                            # Check if the task is a placeholder for a
-                            # requirement modification
-                            planner = t.__getobj__.planning_task
-                            if planner.kind_of?(RequirementModificationTask) && !planner.finished?
-                                trsc.remove_object(t)
-                                true
-                            end
-                        end
-                    end
-
-                    (all_tasks - used_tasks).each do |t|
-                        Engine.debug { "clearing the relations of #{t}" }
-                        t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
-                    end
-
-                    if options[:garbage_collect]
-                        trsc.static_garbage_collect do |obj|
-                            if obj.transaction_proxy?
-                                # Clear up the dependency relations for the
-                                # obsolete tasks that are in the plan
-                                obj.remove_relations(Roby::TaskStructure::Dependency)
-                            else
-                                # Remove tasks that we just added and are not
-                                # useful anymore
-                                trsc.remove_object(obj)
-                            end
-                        end
+                    if options[:compute_deployments]
+                        @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
                     end
 
                     if options[:garbage_collect] && options[:validate_network]
                         validate_generated_network(trsc, options)
-                    end
-
-                    if options[:compute_deployments]
-                        instanciate_required_deployments
-                        @network_merge_solver.merge_identical_tasks
-                        @deployment_tasks = finalize_deployed_tasks
                     end
 
                     # the tasks[] and devices mappings are updated during the
@@ -1760,7 +1729,49 @@ module Orocos
                 return deployment_tasks, deployed_tasks
             end
 
-            def finalize_deployed_tasks
+            def finalize_deployed_tasks(used_tasks, used_deployments, garbage_collect)
+                all_tasks = plan.find_tasks(Component).to_value_set
+                all_tasks.delete_if do |t|
+                    if t.finishing? || t.finished?
+                        Engine.debug { "clearing the relations of the finished task #{t}" }
+                        t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
+                        t.remove_relations(Roby::TaskStructure::Dependency)
+                        true
+                    elsif t.transaction_proxy?
+                        # Check if the task is a placeholder for a
+                        # requirement modification
+                        planner = t.__getobj__.planning_task
+                        if planner.kind_of?(RequirementModificationTask) && !planner.finished?
+                            plan.remove_object(t)
+                            true
+                        end
+                    end
+                end
+
+                (all_tasks - used_tasks).each do |t|
+                    Engine.debug { "clearing the relations of #{t}" }
+                    t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
+                end
+
+                if garbage_collect
+                    used_deployments.each do |task|
+                        plan.unmark_permanent(task)
+                    end
+
+                    plan.static_garbage_collect do |obj|
+                        used_deployments.delete(obj)
+                        if obj.transaction_proxy?
+                            # Clear up the dependency relations for the
+                            # obsolete tasks that are in the plan
+                            obj.remove_relations(Roby::TaskStructure::Dependency)
+                        else
+                            # Remove tasks that we just added and are not
+                            # useful anymore
+                            plan.remove_object(obj)
+                        end
+                    end
+                end
+
                 # We finally have a deployed system, using the deployments
                 # specified by the user
                 #
@@ -1768,16 +1779,27 @@ module Orocos
                 # check how to play well with currently running tasks.
                 #
                 # That's what this method does
-                deployments = plan.find_local_tasks(Orocos::RobyPlugin::Deployment).to_value_set
+                deployments = used_deployments
                 existing_deployments = plan.find_tasks(Orocos::RobyPlugin::Deployment).to_value_set - deployments
+
+                Engine.debug do
+                    Engine.debug "mapping deployments in the network to the existing ones"
+                    Engine.debug "network deployments:"
+                    deployments.each { |dep| Engine.debug "  #{dep}" }
+                    Engine.debug "existing deployments:"
+                    existing_deployments.each { |dep| Engine.debug "  #{dep}" }
+                    break
+                end
 
                 result = ValueSet.new
                 deployments.each do |deployment_task|
+                    Engine.debug { "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})" }
                     # Check for the corresponding task in the plan
                     existing_deployment_task = (plan.find_tasks(deployment_task.model).to_value_set & existing_deployments).
                         find { |t| t.deployment_name == deployment_task.deployment_name }
 
                     if !existing_deployment_task
+                        Engine.debug { "  #{deployment_task.deployment_name} has not yet been deployed" }
                         result << deployment_task
                         next
                     end
@@ -1789,18 +1811,30 @@ module Orocos
 
                     deployment_task.each_executed_task do |task|
                         existing_task = existing_tasks[task.orogen_name]
+                        if !existing_task
+                            Engine.debug { "  task #{task.orogen_name} has not yet been deployed" }
+                        elsif !existing_task.reusable?
+                            Engine.debug { "  task #{task.orogen_name} has been deployed, but the deployment is not reusable" }
+                        elsif !existing_task.can_merge?(task)
+                            Engine.debug { "  task #{task.orogen_name} has been deployed, but I can't merge with the existing deployment" }
+                        end
+
                         if !existing_task || !existing_task.reusable? || !existing_task.can_merge?(task)
                             new_task = plan[existing_deployment_task.task(task.orogen_name)]
+                            Engine.debug { "  creating #{new_task} for #{task} (#{task.orogen_name})" }
                             if existing_task
                                 new_task.start_event.should_emit_after(existing_task.stop_event)
                             end
                             existing_task = new_task
                         end
                         existing_task.merge(task)
+                        Engine.debug { "  using #{existing_task} for #{task} (#{task.orogen_name})" }
+                        plan.remove_object(task)
                         if existing_task.conf != task.conf
                             existing_task.needs_reconfiguration!
                         end
                     end
+                    plan.remove_object(deployment_task)
                     result << existing_deployment_task
                 end
                 result
