@@ -331,10 +331,20 @@ module Orocos
             # Helper method that creates an instance of EngineRequirement
             # and registers it
             def self.create_instanciated_component(engine, name, model) # :nodoc:
-                if !model.kind_of?(MasterDeviceInstance) && !(model.kind_of?(Class) && model < Component)
+                if model.kind_of?(DeviceInstance)
+                    if model.kind_of?(SlaveDeviceInstance)
+                        model = model.master_device
+                    end
+
+                    requirements = EngineRequirement.new(engine, name, [model.task_model])
+                    requirements.with_arguments(model.task_arguments)
+                    requirements.with_arguments("#{model.service.name}_name" => model.name)
+                    requirements
+                elsif model.kind_of?(Class) && model < Component
+                    EngineRequirement.new(engine, name, [model])
+                else
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
                 end
-                EngineRequirement.new(engine, name, [model])
             end
 
             # Define a component instanciation specification, without adding it
