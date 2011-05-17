@@ -1809,7 +1809,8 @@ module Orocos
                         existing_tasks[t.orogen_name] = t
                     end
 
-                    deployment_task.each_executed_task do |task|
+                    deployed_tasks = deployment_task.each_executed_task.to_value_set
+                    deployed_tasks.each do |task|
                         existing_task = existing_tasks[task.orogen_name]
                         if !existing_task
                             Engine.debug { "  task #{task.orogen_name} has not yet been deployed" }
