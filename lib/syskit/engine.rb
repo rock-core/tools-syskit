@@ -677,43 +677,24 @@ module Orocos
                 end
 
                 robot.each_master_device do |name, device_instance|
-                    task =
-                        if device_instance.task && device_instance.task.plan == plan.real_plan && !device_instance.task.finished?
-                            device_instance.task
-                        else
-                            device_instance.instanciate(self)
-                        end
-
-                    # Wrap it if it is already in the main plan
-                    task = plan[task]
-                    # Register it
+                    plan.add(task = device_instance.instanciate(self))
                     device_instance.task = task
                     register_task(name, task)
                 end
 
-
                 instances.each do |instance|
-                    instance.task = nil
-                end
-
-                instances.each do |instance|
-                    task = instance.placeholder_task(self)
-                    instance.task = plan[task]
-
+                    plan.add(task = instance.placeholder_task(self))
+                    instance.task = task
                     if name = instance.name
                         register_task(name, task)
                     end
 
-                    if instance.mission?
-                        plan.add_mission(task)
-                    else
-                        # This is important here, as #resolve uses
-                        # static_garbage_collect to clear up the plan
-                        #
-                        # However, the permanent flag will be removed at the end
-                        # of #resolve
-                        plan.add_permanent(task)
-                    end
+                    # This is important here, as #resolve uses
+                    # static_garbage_collect to clear up the plan
+                    #
+                    # However, the permanent flag will be removed at the end
+                    # of #resolve
+                    plan.add_permanent(task)
                 end
             end
 
@@ -1232,7 +1213,11 @@ module Orocos
                         required_connections << [t, connections]
                     end
 
-                    next if required_connections.empty?
+                    if required_connections.empty?
+                        # Keep loggers alive even if not needed
+                        plan.add_permanent(logger_task)
+                        next 
+                    end
 
                     logger_task ||=
                         begin
@@ -1241,7 +1226,6 @@ module Orocos
                             Engine.warn "deployment #{deployment.deployment_name} has no logger (#{logger_task_name})"
                             next
                         end
-
                     plan.add_permanent(logger_task)
                     logger_task.default_logger = true
 
@@ -1324,10 +1308,8 @@ module Orocos
                     begin
                     @plan = trsc
 
-                    deleted_tasks = ValueSet.new
                     instances.delete_if do |instance|
                         if (pending_removes.has_key?(instance.task) || pending_removes.has_key?(instance))
-                            deleted_tasks << instance.task if instance.task && instance.task.plan
                             true
                         else
                             false
@@ -1347,20 +1329,9 @@ module Orocos
                     used_deployments = trsc.find_local_tasks(Deployment).
                         to_value_set
 
-                    # This must be done *after* #compute_system_network,
-                    # and the computation of #used_tasks otherwise the deleted
-                    # tasks will end up in used_tasks
-                    deleted_tasks = deleted_tasks.map do |task|
-		        Engine.debug { "removed #{task}, removing mission and/or permanent" }
-                        task = plan[task]
-                        plan.unmark_mission(task)
-                        plan.unmark_permanent(task)
-                        task.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
-                        task
-                    end.to_value_set
-
                     if options[:compute_deployments]
                         @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
+                        @network_merge_solver.merge_identical_tasks
                     end
 
                     if options[:garbage_collect] && options[:validate_network]
@@ -1400,12 +1371,15 @@ module Orocos
                     end
 
                     if options[:garbage_collect]
+                        Engine.debug "final garbage collection pass"
                         trsc.static_garbage_collect do |obj|
                             if obj.transaction_proxy?
+                                Engine.debug { "  removing dependency relations from #{obj}" }
                                 # Clear up the dependency relations for the
                                 # obsolete tasks that are in the plan
                                 obj.remove_relations(Roby::TaskStructure::Dependency)
                             else
+                                Engine.debug { "  removing #{obj}" }
                                 # Remove tasks that we just added and are not
                                 # useful anymore
                                 trsc.remove_object(obj)
@@ -1413,13 +1387,23 @@ module Orocos
                         end
                     end
 
-                    # Remove the permanent flag from all the new tasks. We
-                    # originally mark them as permanent to protect them from
-                    # #static_garbage_collect
-                    plan.find_tasks.permanent.each do |t|
-                        if !t.transaction_proxy? && plan.permanent?(t)
-                            plan.unmark_permanent(t)
+                    # Remove the permanent and mission flags from all the tasks.
+                    # We then re-add them only for the ones that are marked as
+                    # mission in the engine requirements
+                    required_tasks = ValueSet.new
+                    trsc.find_tasks.permanent.each do |t|
+                        trsc.unmark_permanent(t)
+                    end
+                    instances.each do |instance|
+                        old_task = state_backup.instance_tasks[instance]
+                        new_task = instance.task
+                        if old_task && old_task.plan && old_task != new_task
+                            trsc.replace(trsc[old_task], trsc[new_task])
                         end
+                        if instance.mission?
+                            trsc.add_mission(trsc[new_task])
+                        end
+                        required_tasks << trsc[new_task]
                     end
 
                     if options[:compute_deployments]
@@ -1428,7 +1412,7 @@ module Orocos
 
                     if options[:compute_policies]
                         @port_dynamics =
-                            DataFlowDynamics.compute_connection_policies(plan)
+                            DataFlowDynamics.compute_connection_policies(trsc)
                     end
 
                     if dry_run?
@@ -1703,7 +1687,7 @@ module Orocos
                         new_activities = Set.new
                         task.orogen_spec.task_activities.each do |deployed_task|
                             if ignored_deployed_task?(deployed_task)
-                                Engine.debug { "ignoring #{deployment_name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
+                                Engine.debug { "  ignoring #{deployment_name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
                             else
                                 new_activities << deployed_task.name
                             end
@@ -1795,18 +1779,25 @@ module Orocos
                 deployments.each do |deployment_task|
                     Engine.debug { "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})" }
                     # Check for the corresponding task in the plan
-                    existing_deployment_task = (plan.find_tasks(deployment_task.model).to_value_set & existing_deployments).
-                        find { |t| t.deployment_name == deployment_task.deployment_name }
+                    existing_deployment_tasks = (plan.find_tasks(deployment_task.model).not_finished.to_value_set & existing_deployments).
+                        find_all { |t| t.deployment_name == deployment_task.deployment_name }
 
-                    if !existing_deployment_task
+                    if existing_deployment_tasks.empty?
                         Engine.debug { "  #{deployment_task.deployment_name} has not yet been deployed" }
                         result << deployment_task
                         next
+                    elsif existing_deployment_tasks.size != 1
+                        raise InternalError, "more than one task for #{existing_deployment_task} present in the plan"
                     end
+                    existing_deployment_task = existing_deployment_tasks.find { true }
 
                     existing_tasks = Hash.new
                     existing_deployment_task.each_executed_task do |t|
-                        existing_tasks[t.orogen_name] = t
+                        if t.running?
+                            existing_tasks[t.orogen_name] = t
+                        elsif t.pending?
+                            existing_tasks[t.orogen_name] ||= t
+                        end
                     end
 
                     deployed_tasks = deployment_task.each_executed_task.to_value_set
@@ -1825,6 +1816,18 @@ module Orocos
                             Engine.debug { "  creating #{new_task} for #{task} (#{task.orogen_name})" }
                             if existing_task
                                 new_task.start_event.should_emit_after(existing_task.stop_event)
+
+                                # The trick with allow_automatic_setup is to
+                                # force the sequencing of stop / configure /
+                                # start
+                                #
+                                # So we wait for the existing task to either be
+                                # finished or finalized, and only then do we
+                                # allow the system to configure +new_task+
+                                new_task.allow_automatic_setup = false
+                                existing_task.stop_event.when_unreachable do |reason|
+                                    new_task.allow_automatic_setup = true
+                                end
                             end
                             existing_task = new_task
                         end
@@ -1937,7 +1940,7 @@ module Orocos
 		    next
 		end
 
-                if !t.setup? 
+                if t.pending? && !t.setup? 
                     if t.ready_for_setup? && Roby.app.orocos_auto_configure?
                         begin
                             t.setup 
