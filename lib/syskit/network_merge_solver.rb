@@ -102,7 +102,12 @@ module Orocos
                     # candidate that is also a composition
                     task_children = nil
 
+                    # This loop checks in +candidates+ for the tasks that can be
+                    # merged INTO +target_task+
                     for target_task in candidates
+                        # Cannot merge into target_task if it is marked as not
+                        # being usable
+                        next if !target_task.reusable?
                         # We can not replace a non-abstract task with an
                         # abstract one
                         next if (!task.abstract? && target_task.abstract?)
