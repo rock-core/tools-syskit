@@ -19,14 +19,11 @@ module Orocos
 
             def mark_changed_configuration_as_not_reusable(changed)
                 Roby.execute do
-                    changed.each do |model_name, changed_sections|
-                        task_model = Roby.app.orocos_tasks[model_name]
-                        Roby.plan.find_tasks(task_model).each do |task|
-                            if task.conf.any? { |section_name| changed_sections.include?(section_name) }
-                                Robot.info "marking #{task} as not reusable as the configuration changed"
-                                task.do_not_reuse
-                                TaskContext.configured.delete(task.orocos_name)
-                            end
+                    TaskContext.configured.each do |task_name, (orogen_model, current_conf)|
+                        changed_conf = changed[orogen_model.name]
+                        if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
+                            Robot.info "task #{task_name} needs reconfiguration"
+                            TaskContext.needs_reconfiguration << task_name
                         end
                     end
                 end

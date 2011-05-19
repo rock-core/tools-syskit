@@ -36,9 +36,17 @@ module Orocos
                 # enters a new state.
                 attr_accessor :state_events
 
-                # A name => boolean mapping that says if the task named 'name'
-                # is configured
+                # A name => [orogen_model, current_conf] mapping that says if
+                # the task named 'name' is configured
+                #
+                # orogen_model is the model for +name+ and +current_conf+ an
+                # array of configuration sections as expected by #conf. It
+                # represents the last configuration applied on +name+
                 def configured; @@configured end
+
+                # A set of names that says if the task named 'name' should be
+                # reconfigured the next time
+                def needs_reconfiguration; @@needs_reconfiguration end
 
                 def to_s
                     services = each_data_service.map do |name, srv|
@@ -78,6 +86,7 @@ module Orocos
                 end
             end
             @@configured = Hash.new
+            @@needs_reconfiguration = Set.new
 
             # Returns the thread ID of the thread running this task
             #
@@ -603,7 +612,9 @@ module Orocos
             # If true, #configure must be called on this task before it is
             # started. This flag is reset after #configure has been called
             def needs_reconfiguration?
-                @needs_reconfiguration
+                if orogen_spec
+                    TaskContext.needs_reconfiguration.include?(orocos_name)
+                end
             end
 
             # Make sure that #configure will be called on this task before it
@@ -611,7 +622,13 @@ module Orocos
             #
             # See also #setup and #needs_reconfiguration?
             def needs_reconfiguration!
-                @needs_reconfiguration = true
+                if orogen_spec
+                    TaskContext.needs_reconfiguration << orocos_name
+                end
+            end
+
+            def reusable?
+                super && !needs_reconfiguration?
             end
 
             # Called to configure the component
@@ -624,27 +641,30 @@ module Orocos
 
                 state = read_current_state
 
-                if needs_reconfiguration?
+                needs_reconf = false
+                if state == :PRE_OPERATIONAL
+                    needs_reconf = true
+                elsif needs_reconfiguration?
                     ::Robot.info "reconfiguring #{self}: the task is marked as needing reconfiguration"
-                    if state == :STOPPED && orogen_spec.needs_configuration?
-                        cleanup
-                    end
-                    TaskContext.configured.delete(orocos_name)
-                    @needs_reconfiguration = false
-                elsif (current_conf = TaskContext.configured[orocos_name])
-                    if current_conf != self.conf
+                    needs_reconf = true
+                else
+                    _, current_conf = TaskContext.configured[orocos_name]
+                    if !current_conf
+                        needs_reconf = true
+                    elsif current_conf != self.conf
                         ::Robot.info "reconfiguring #{self}: configuration changed"
-                        if state == :STOPPED && orogen_spec.needs_configuration?
-                            cleanup
-                        end
-                        TaskContext.configured.delete(orocos_name)
-                    elsif state == :PRE_OPERATIONAL
-                        TaskContext.configured.delete(orocos_name)
-                    else
-                        Robot.info "#{self} was already configured"
-                        is_setup!
-                        return
+                        needs_reconf = true
                     end
+                end
+
+                if !needs_reconf
+                    Robot.info "#{self} was already configured"
+                    is_setup!
+                    return
+                end
+                if state == :STOPPED && orogen_task.model.needs_configuration?
+                    ::Robot.info "cleaning up #{self}"
+                    orogen_task.cleanup
                 end
 
                 ::Robot.info "setting up #{self}"
@@ -652,12 +672,11 @@ module Orocos
                 if respond_to?(:configure)
                     configure
                 end
-
                 if !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
                     orogen_task.configure(false)
                 end
-
-                TaskContext.configured[orocos_name] = self.conf.dup
+                TaskContext.needs_reconfiguration.delete(orocos_name)
+                TaskContext.configured[orocos_name] = [orogen_task.model, self.conf.dup]
                 is_setup!
             end
 
