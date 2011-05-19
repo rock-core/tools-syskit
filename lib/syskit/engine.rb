@@ -1832,6 +1832,11 @@ module Orocos
                             existing_task = new_task
                         end
                         existing_task.merge(task)
+                        instances.each do |instance|
+                            if instance.task == task
+                                instance.task = existing_task
+                            end
+                        end
                         Engine.debug { "  using #{existing_task} for #{task} (#{task.orogen_name})" }
                         plan.remove_object(task)
                         if existing_task.conf != task.conf
