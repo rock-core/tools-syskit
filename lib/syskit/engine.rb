@@ -1125,6 +1125,15 @@ module Orocos
                 @network_merge_solver.merge_identical_tasks
                 link_to_busses
                 @network_merge_solver.merge_identical_tasks
+
+                # Finally, select 'default' as configuration for all
+                # remaining tasks that do not have a 'conf' argument set
+                plan.find_local_tasks(Component).
+                    each do |task|
+                        if !task.arguments[:conf]
+                            task.arguments[:conf] = ['default']
+                        end
+                    end
             end
 
             # Hook called by the merge algorithm
@@ -1424,15 +1433,6 @@ module Orocos
                                 end
                             end
                     end
-
-                    # Finally, select 'default' as configuration for all
-                    # remaining tasks that do not have a 'conf' argument set
-                    trsc.find_local_tasks(Component).
-                        each do |task|
-                            if !task.arguments[:conf]
-                                task.arguments[:conf] = ['default']
-                            end
-                        end
 
                     if options[:save_plans]
                         output_path = autosave_plan_to_dot
