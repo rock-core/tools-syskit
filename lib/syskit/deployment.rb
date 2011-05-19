@@ -100,14 +100,21 @@ module Orocos
 
             # Returns an task instance that represents the given task in this
             # deployment.
-            def task(name)
+            def task(name, model = nil)
                 activity = orogen_spec.task_activities.find { |act| name == act.name }
                 if !activity
                     raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}"
                 end
 
-                klass = Roby.app.orocos_tasks[activity.context.name]
-                plan.add(task = klass.new)
+                activity_model = Roby.app.orocos_tasks[activity.context.name]
+                if model
+                    if !(model <= activity_model)
+                        raise ArgumentError, "incompatible explicit selection #{model} for the model of #{name} in #{self}"
+                    end
+                else
+                    model = activity_model
+                end
+                plan.add(task = model.new)
                 task.robot = robot
                 task.executed_by self
                 task.orogen_spec = activity

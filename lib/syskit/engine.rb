@@ -1812,7 +1812,7 @@ module Orocos
                         end
 
                         if !existing_task || !existing_task.reusable? || !existing_task.can_merge?(task)
-                            new_task = plan[existing_deployment_task.task(task.orogen_name)]
+                            new_task = plan[existing_deployment_task.task(task.orogen_name, task.model)]
                             Engine.debug { "  creating #{new_task} for #{task} (#{task.orogen_name})" }
                             if existing_task
                                 new_task.start_event.should_emit_after(existing_task.stop_event)
