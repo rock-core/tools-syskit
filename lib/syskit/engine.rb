@@ -1254,6 +1254,15 @@ module Orocos
                         task.connect_ports(logger_task, connections)
                     end
                 end
+
+                # Finally, select 'default' as configuration for all
+                # remaining tasks that do not have a 'conf' argument set
+                plan.find_local_tasks(Orocos::RobyPlugin::Logger::Logger).
+                    each do |task|
+                        if !task.arguments[:conf]
+                            task.arguments[:conf] = ['default']
+                        end
+                    end
             end
 
             # Generate the deployment according to the current requirements, and
