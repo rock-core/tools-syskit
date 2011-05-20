@@ -642,7 +642,11 @@ module Orocos
                 state = read_current_state
 
                 needs_reconf = false
-                if state == :PRE_OPERATIONAL
+                if orogen_task.exception_state?(state)
+                    ::Robot.info "reconfiguring #{self}: the task was in exception state"
+                    orogen_task.reset_exception(false)
+                    needs_reconf = true
+                elsif state == :PRE_OPERATIONAL
                     needs_reconf = true
                 elsif needs_reconfiguration?
                     ::Robot.info "reconfiguring #{self}: the task is marked as needing reconfiguration"
@@ -694,14 +698,6 @@ module Orocos
             event :start do |context|
                 # We're not running yet, so we have to read the state ourselves.
                 state = read_current_state
-
-                if state != :STOPPED
-                    if orogen_task.exception_state?(orogen_state)
-                        orogen_task.reset_exception(false)
-                    else
-                        raise InternalError, "wrong state in start event: got #{state}, expected STOPPED"
-                    end
-                end
 
                 # At this point, we should have already created all the dynamic
                 # ports that are required ... check that
