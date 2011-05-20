@@ -1223,8 +1223,10 @@ module Orocos
                     end
 
                     if required_connections.empty?
-                        # Keep loggers alive even if not needed
-                        plan.add_permanent(logger_task)
+                        if logger_task
+                            # Keep loggers alive even if not needed
+                            plan.add_mission(logger_task)
+                        end
                         next 
                     end
 
