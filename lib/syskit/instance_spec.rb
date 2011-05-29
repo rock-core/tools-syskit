@@ -141,24 +141,32 @@ module Orocos
             # #define
             def narrow_model
                 composition_model = base_models.find { |m| m <= Composition }
-                if !engine || !composition_model
+                if !composition_model
+                    Engine.debug "not narrowing as this selection is not a composition"
                     @models = @base_models
                     return
                 end
 
                 Engine.debug do
-                    Engine.debug "narrowing model for #{name}"
+                    Engine.debug "narrowing model"
                     Engine.debug "  from #{composition_model.short_name}"
                     break
                 end
 
                 selection = Hash.new
-                using_spec.each_key do |key|
-                    if result = engine.resolve_explicit_selection(using_spec[key])
-                        selection[key] = result
+                begin
+                    using_spec.each_key do |key|
+                        if result = self.class.resolve_explicit_selection(using_spec[key], engine)
+                            selection[key] = result
+                        end
                     end
+                    if engine
+                        engine.add_default_selections(selection)
+                    end
+                rescue ArgumentError => e
+                    Engine.debug { "not narrowing as the selection can not yet be resolved: #{e.message}" }
+                    return
                 end
-                engine.add_default_selections(selection)
 
                 candidates = composition_model.narrow(selection)
                 result =
@@ -238,6 +246,43 @@ module Orocos
                     end
                 end
                 result
+            end
+
+            # Resolves a selection given through the #use method
+            #
+            # It can take, as input, one of:
+            # 
+            # * an array, in which case it is called recursively on each of
+            #   the array's elements.
+            # * an EngineRequirement (returned by Engine#add)
+            # * a name
+            #
+            # In the latter case, the name refers either to a device name,
+            # or to the name given through the ':as' argument to Engine#add.
+            # A particular service can also be selected by adding
+            # ".service_name" to the component name.
+            #
+            # The returned value is either an array of resolved selections,
+            # a Component instance or an InstanciatedDataService instance.
+            def self.resolve_explicit_selection(value, engine)
+                if value.kind_of?(DeviceInstance)
+                    if value.task
+                        InstanciatedDataService.new(value.task, value.service)
+                    else
+                        value.service
+                    end
+                        
+                elsif value.kind_of?(EngineRequirement)
+                    value
+                elsif value.respond_to?(:to_ary)
+                    value.map { |v| resolve_explicit_selection(v, engine) }
+                elsif value.kind_of?(Class) && value <= Component
+                    value
+                elsif value.kind_of?(ProvidedDataService)
+                    value
+                else
+                    raise ArgumentError, "#{value} is not a valid explicit selection"
+                end
             end
         end
 

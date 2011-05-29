@@ -119,6 +119,51 @@ module Orocos
                 end
             end
 
+            def self.resolve_explicit_selection(value, engine)
+                if engine && value.respond_to?(:to_str)
+                    value = value.to_str
+                    if !(selected_object = engine.tasks[value])
+                        if selected_object = engine.robot.devices[value]
+                            # Return the service that corresponds to the device
+                            # name
+                            return resolve_explicit_selection(selected_object, engine)
+                        elsif selected_object = defines[value]
+                            return selected_object
+                        else
+                            raise SpecError, "#{value} does not refer to a known task or device"
+                        end
+                    end
+
+                    # Check if a service has explicitely been selected, and
+                    # if it is the case, return it instead of the complete
+                    # task
+                    service_names = value.split '.'
+                    service_names.shift # remove the task name
+                    if !selected_object.kind_of?(Component) || service_names.empty? 
+                        selected_object
+                    else
+                        candidate_service = selected_object.model.find_data_service(service_names.join("."))
+
+                        if !candidate_service && service_names.size == 1
+                            # Might still be a slave of a main service
+                            services = selected_object.model.each_data_service.
+                                find_all { |_, srv| !srv.master? && srv.name == service_names.first }
+
+                            if services.empty?
+                                raise SpecError, "#{value} is not a known device, or an instanciated composition"
+                            elsif services.size > 1
+                                raise SpecError, "#{value} can refer to multiple objects"
+                            end
+                            candidate_service = services.first.last
+                        end
+
+                        DataServiceInstance.new(selected_object, candidate_service)
+                    end
+                else
+                    super(value, engine)
+                end
+            end
+
             # Requires that the values that are output on +port_name+ on this
             # deployed component are copied onto the State object
             #
@@ -546,7 +591,7 @@ module Orocos
                         next if implicit.any? { |t| t.fullfills?(key) }
                     end
 
-                    if resolved_selection = resolve_explicit_selection(selected)
+                    if resolved_selection = EngineRequirement.resolve_explicit_selection(selected, self)
                         verify_result_in_transaction(key, resolved_selection)
                         if resolved_selection.respond_to?(:to_ary) && !implicit.empty?
                             using_spec[nil].concat(resolved_selection)
@@ -561,84 +606,12 @@ module Orocos
             def resolve_explicit_selections(using_spec)
                 result = Hash.new
                 using_spec.each do |key, selected|
-                    if resolved_selection = resolve_explicit_selection(selected)
+                    if resolved_selection = EngineRequirement.resolve_explicit_selection(selected, self)
                         verify_result_in_transaction(key, resolved_selection)
                         result[key] = resolved_selection
                     end
                 end
                 result
-            end
-
-            # Resolves a selection given through the #use method
-            #
-            # It can take, as input, one of:
-            # 
-            # * an array, in which case it is called recursively on each of
-            #   the array's elements.
-            # * an EngineRequirement (returned by Engine#add)
-            # * a name
-            #
-            # In the latter case, the name refers either to a device name,
-            # or to the name given through the ':as' argument to Engine#add.
-            # A particular service can also be selected by adding
-            # ".service_name" to the component name.
-            #
-            # The returned value is either an array of resolved selections,
-            # a Component instance or an InstanciatedDataService instance.
-            def resolve_explicit_selection(value)
-                if value.kind_of?(DeviceInstance)
-                    if value.task
-                        InstanciatedDataService.new(value.task, value.service)
-                    else
-                        value.service
-                    end
-                        
-                elsif value.kind_of?(EngineRequirement)
-                    value
-                elsif value.respond_to?(:to_str)
-                    value = value.to_str
-                    if !(selected_object = tasks[value])
-                        if selected_object = robot.devices[value]
-                            # Return the service that corresponds to the device
-                            # name
-                            return resolve_explicit_selection(selected_object)
-                        elsif selected_object = defines[value]
-                            return selected_object
-                        else
-                            raise SpecError, "#{value} does not refer to a known task or device"
-                        end
-                    end
-
-                    # Check if a service has explicitely been selected, and
-                    # if it is the case, return it instead of the complete
-                    # task
-                    service_names = value.split '.'
-                    service_names.shift # remove the task name
-                    if !selected_object.kind_of?(Component) || service_names.empty? 
-                        selected_object
-                    else
-                        candidate_service = selected_object.model.find_data_service(service_names.join("."))
-
-                        if !candidate_service && service_names.size == 1
-                            # Might still be a slave of a main service
-                            services = selected_object.model.each_data_service.
-                                find_all { |_, srv| !srv.master? && srv.name == service_names.first }
-
-                            if services.empty?
-                                raise SpecError, "#{value} is not a known device, or an instanciated composition"
-                            elsif services.size > 1
-                                raise SpecError, "#{value} can refer to multiple objects"
-                            end
-                            candidate_service = services.first.last
-                        end
-
-                        DataServiceInstance.new(selected_object, candidate_service)
-                    end
-                elsif value.respond_to?(:to_ary)
-                    value.map(&method(:resolve_explicit_selection))
-                else
-                    value
-                end
             end
 
             def verify_result_in_transaction(key, result)
