@@ -19,11 +19,6 @@ module Orocos
             # to in the task model
             attr_reader :full_name
 
-            # :attr: main?
-            #
-            # True if this service is a main service. See
-            # ComponentModel.data_service for more information
-            attr_predicate :main, true
             # True if this service is not a slave service
             def master?; !@master end
 
@@ -98,7 +93,7 @@ module Orocos
             # Yields the port models for this service's input, applied on the
             # underlying task. I.e. applies the port mappings to the service
             # definition
-            def each_input_port
+            def each_input_port(with_slaves = false, &block)
                 if !block_given?
                     return enum_for(:each_input_port, with_slaves)
                 end
@@ -205,110 +200,10 @@ module Orocos
             end
         end
 
-        # Value returned by ComponentModel#as(model). It is used only in the
-        # context of model instanciation.
-        #
-        # It is used to represent that a given model should be narrowed down to
-        # a given specific model, and is used during composition instanciation
-        # to limit the search scope.
-        #
-        # For instance, if a task model is defined with
-        #
-        #   class OrocosTask
-        #       provides Service
-        #       provides Service1
-        #   end
-        #
-        # then
-        #   
-        #   add MyComposition, 
-        #       "task" => OrocosTask
-        #
-        # will consider both data services for specialization purposes, whereas
-        #
-        #   add MyComposition, 
-        #       "task" => OrocosTask.as(Service)
-        #
-        # will only consider specializations that apply on Service instances
-        # (i.e. ignore Service1)
-        class FacetedModelSelection < BasicObject
-            # The underlying model
-            attr_reader :model
-            # The model that has been selected
-            attr_reader :selected_facet
-
-            def respond_to?(name) # :nodoc:
-                if name == :selected_facet
-                    true
-                else
-                    super
-                end
-            end
-
-            def initialize(model, facet)
-                @model = model
-                @selected_facet = facet
-            end
-
-            def short_name
-                to_s
-            end
-
-            def to_s
-                "#{model.short_name}.as(#{selected_facet.short_name})"
-            end
-
-            def method_missing(*args, &block) # :nodoc:
-                model.send(*args, &block)
-            end
-        end
-
-        # Base class to specify constraints on a component instance
-        class ComponentInstanceSpec
-            def self.resolve_using_spec(using_spec)
-                result = Hash.new
-                using_spec.each do |key, value|
-                    if value.respond_to?(:to_ary)
-                        result[key] = value.map do |v|
-                            yield(key, v)
-                        end.compact
-                    elsif filtered = yield(key, value)
-                        result[key] = filtered
-                    end
-                end
-                result
-            end
-        end
-
         # Definition of model-level methods for the Component models. See the
         # documentation of Model for an explanation of this.
         module ComponentModel
             include Model
-
-            ##
-            # :method: each_main_data_service
-            # :call-seq:
-            #   each_main_data_service { |service_name| ... }
-            #
-            # Enumerates the name of all the main data services that are provided
-            # by this component model. Unlike #main_data_services, it enumerates
-            # both the sources added at this level of the model hierarchy and
-            # the ones that are provided by the model's parents.
-            #
-            # See also #provides
-            #--
-            # This is defined on Component using inherited_enumerable
-
-            ## :attr_reader:main_data_services
-            #
-            # The names of the main data services that are provided by this
-            # particular component model. This only includes new services that
-            # have been added at this level of the component hierarchy, not the
-            # ones that have already been added to the model parents.
-            #
-            # See also #provides
-            #--
-            # This is defined on Component using inherited_enumerable
 
             ##
             # :method: each_data_service
@@ -348,37 +243,6 @@ module Orocos
             # See also #provides
             #--
             # This is defined on Component using inherited_enumerable
-
-            # During instanciation, the data services that this component
-            # provides are used to specialize the compositions and/or for data
-            # source selection.
-            #
-            # It is sometimes beneficial to narrow the possible selections,
-            # because one wants some specializations to be explicitely selected.
-            # This is what this method does.
-            #
-            # For instance, if a task model is defined with
-            #
-            #   class OrocosTask
-            #       provides Service
-            #       provides Service1
-            #   end
-            #
-            # then
-            #   
-            #   add MyComposition, 
-            #       "task" => OrocosTask
-            #
-            # will consider both data services for specialization purposes, whereas
-            #
-            #   add MyComposition, 
-            #       "task" => OrocosTask.as(Service)
-            #
-            # will only consider specializations that apply on Service instances
-            # (i.e. ignore Service1)
-            def as(model)
-                FacetedModelSelection.new(self, model)
-            end
 
             # Returns the port object that maps to the given name, or nil if it
             # does not exist.
@@ -480,9 +344,35 @@ module Orocos
             # It creates a new task from the component model using
             # Component.new, adds it to the engine's plan and returns it.
             def instanciate(engine, arguments = Hash.new)
-                engine.plan.add(task = new)
+                task_arguments, instanciate_arguments = Kernel.
+                    filter_options arguments, :task_arguments => Hash.new
+                engine.plan.add(task = new(task_arguments[:task_arguments]))
                 task.robot = engine.robot
                 task
+            end
+
+            # This returns an InstanciatedComponent object that can be used in
+            # other #use statements in the deployment spec
+            #
+            # For instance,
+            #
+            #   add(Cmp::CorridorServoing).
+            #       use(Cmp::Odometry.with_arguments('special_behaviour' => true))
+            #
+            def with_arguments(*spec, &block)
+                Engine.create_instanciated_component(nil, nil, self).with_arguments(*spec, &block)
+            end
+
+            # This returns an InstanciatedComponent object that can be used in
+            # other #use statements in the deployment spec
+            #
+            # For instance,
+            #
+            #   add(Cmp::CorridorServoing).
+            #       use(Cmp::Odometry.use_conf('special_conf'))
+            #
+            def use_conf(*spec, &block)
+                Engine.create_instanciated_component(nil, nil, self).use_conf(*spec, &block)
             end
         end
 
@@ -495,7 +385,7 @@ module Orocos
         #
         # Components may be data service providers. Two types of data sources
         # exist:
-        # * main servicesare root data services that can be provided
+        # * main services are root data services that can be provided
         #   independently
         # * slave sources are data services that depend on another service. For
         #   instance, an ImageProvider source of a StereoCamera task could be
@@ -528,6 +418,7 @@ module Orocos
             def initialize(options = Hash.new)
                 super
                 @state_copies = Array.new
+                @reusable = true
             end
 
             def create_fresh_copy
@@ -536,12 +427,18 @@ module Orocos
                 new_task
             end
 
+            def reusable?
+                super && @reusable
+            end
+
+            def do_not_reuse
+                @reusable = false
+            end
+
             def self.as_plan
                 Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
             end
 
-            # This is documented on ComponentModel
-            inherited_enumerable(:main_data_service, :main_data_services) { Set.new }
             # This is documented on ComponentModel
             inherited_enumerable(:data_service, :data_services, :map => true) { Hash.new }
 
@@ -602,12 +499,7 @@ module Orocos
                 instanciated_dynamic_outputs[name] = port
             end
 
-            DATA_SERVICE_ARGUMENTS = { :as => nil, :slave_of => nil, :main => nil, :config_type => nil }
-
-            # Alias for data_service
-            def self.provides(*args)
-                data_service(*args)
-            end
+            DATA_SERVICE_ARGUMENTS = { :as => nil, :slave_of => nil, :config_type => nil }
 
             # Helper method for compute_port_mappings
             def self.compute_directional_port_mappings(result, service, direction, explicit_mappings) # :nodoc:
@@ -768,46 +660,12 @@ module Orocos
             #   case (i.e. stereo_camera for StereoCamera)
             # slave_of::
             #   creates a data service that is slave from another data service.
-            # main::
-            #   creates a main data service. For main data services, the
-            #   component port names must strictly match the ones defined in the
-            #   data service interface. Otherwise, the port names can be
-            #   prefixed or postfixed by the data service name. Data services
-            #   for which the 'as' argument is not specified are main by
-            #   default.
             #
-            # +provides+ is an alias for this call
-            def self.data_service(model, arguments = Hash.new)
+            def self.provides(model, arguments = Hash.new)
                 source_arguments, arguments = Kernel.filter_options arguments,
                     DATA_SERVICE_ARGUMENTS
 
                 model = Model.validate_service_model(model, system_model, DataService)
-
-                # If true, the source will be marked as 'main', i.e. the port
-                # mapping between the source and the component will match plain
-                # port names (without the source name prefixed/postfixed)
-                main_data_service = if source_arguments.has_key?(:main)
-                                       source_arguments[:main]
-                                   else !source_arguments[:as]
-                                   end
-
-                # In case no name has been given, check if our parent models
-                # already have a source which we could specialize. In that case,
-                # reuse their name
-                if !source_arguments[:as]
-                    if respond_to?(:each_main_data_service)
-                        candidates = each_main_data_service.find_all do |source|
-                            !data_services[source] &&
-                                model <= data_service_type(source)
-                        end
-
-                        if candidates.size > 1
-                            candidates = candidates.map { |name, _| name }
-                            raise Ambiguous, "this definition could overload the following services: #{candidates.join(", ")}. Select one with the :as option"
-                        end
-                        source_arguments[:as] = candidates.first
-                    end
-                end
 
                 # Get the source name and the source model
                 name = (source_arguments[:as] || model.name.gsub(/^.+::/, '').snakecase).to_str
@@ -818,13 +676,11 @@ module Orocos
                 # If a source with the same name exists, verify that the user is
                 # trying to specialize it
                 if has_data_service?(name)
-                    parent_type = data_service_type(name)
+                    parent_type = find_data_service(name).model
                     if !(model <= parent_type)
                         raise SpecError, "#{self} has a data service named #{name} of type #{parent_type}, which is not a parent type of #{model}"
                     end
                 end
-
-                include model
 
                 if master_source = source_arguments[:slave_of]
                     if !has_data_service?(master_source.to_str)
@@ -841,13 +697,11 @@ module Orocos
                     end
                 end
 
+                include model
+
                 service = ProvidedDataService.new(name, self, master, model, Hash.new)
                 full_name = service.full_name
                 data_services[full_name] = service
-                if main_data_service
-                    main_data_services << full_name
-                    service.main = true
-                end
 
                 begin
                     new_port_mappings = compute_port_mappings(service, arguments)

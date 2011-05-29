@@ -106,8 +106,17 @@ if test
     exit(0)
 
 else
-    deployment_file     = remaining.shift
-    additional_services = remaining.dup
+    passes = [[remaining.shift, []]]
+    pass = 0
+    while name = remaining.shift
+        puts name.inspect
+        if name == "/"
+            pass += 1
+            passes[pass] = [remaining.shift, []]
+        else
+            passes[pass][1] << name
+        end
+    end
 end
 
 require 'roby/standalone'
@@ -134,21 +143,23 @@ Scripts.tic
 error = Scripts.run do
     GC.start
 
-    if deployment_file != '-'
-        Roby.app.load_orocos_deployment(deployment_file)
-    end
-    additional_services.each do |service_name|
-        service_name = Scripts.resolve_service_name(service_name)
-        Roby.app.orocos_engine.add service_name
-    end
-    Scripts.toc_tic "initialized in %.3f seconds"
+    passes.each do |deployment_file, additional_services|
+        if deployment_file != '-'
+            Roby.app.load_orocos_deployment(deployment_file)
+        end
+        additional_services.each do |service_name|
+            service_name = Scripts.resolve_service_name(service_name)
+            Roby.app.orocos_engine.add service_name
+        end
+        Scripts.toc_tic "initialized in %.3f seconds"
 
-    Roby.app.orocos_engine.
-        resolve(:export_plan_on_error => false,
-            :compute_policies => compute_policies,
-            :compute_deployments => compute_deployments,
-            :validate_network => validate_network)
-    Scripts.toc_tic "computed deployment in %.3f seconds"
+        Roby.app.orocos_engine.
+            resolve(:export_plan_on_error => false,
+                :compute_policies => compute_policies,
+                :compute_deployments => compute_deployments,
+                :validate_network => validate_network)
+        Scripts.toc_tic "computed deployment in %.3f seconds"
+    end
 end
 
 if error

@@ -155,6 +155,10 @@ module Orocos
                 composition_models.each_value(&block)
             end
 
+            def each_deployment_model(&block)
+                Roby.app.orocos_deployments.each_value(&block)
+            end
+
             def each_task_model(&block)
                 Roby.app.orocos_tasks.each_value(&block)
             end
@@ -229,7 +233,6 @@ module Orocos
                 options = Kernel.validate_options options,
                     :config_type => nil
 
-                const_name = name.camelcase(:upper)
                 if has_data_service?(name)
                     raise ArgumentError, "there is already a data service type named #{name}"
                 end
@@ -253,7 +256,7 @@ module Orocos
                     raise ArgumentError, "there is already a device type #{name}"
                 end
 
-                model = Device.new_submodel(name, options.merge(:system_model => self), &block)
+                model = Device.new_submodel("Orocos::RobyPlugin::Devices::#{name}", options.merge(:system_model => self), &block)
                 register_device(model)
                 model
             end
@@ -274,7 +277,7 @@ module Orocos
                     raise ArgumentError, "there is already a device driver called #{name}"
                 end
 
-                model = ComBus.new_submodel(name, options.merge(:system_model => self), &block)
+                model = ComBus.new_submodel("Orocos::RobyPlugin::Devices::#{name}", options.merge(:system_model => self), &block)
                 register_device(model)
                 model
             end
@@ -290,10 +293,13 @@ module Orocos
 
                 klass = Class.new(options[:child_of])
                 klass.instance_variable_set :@system_model, system_model
+                if name
+                    klass.orogen_spec  = RobyPlugin.create_orogen_interface(name)
+                end
 
                 if name
                     namespace, basename = name.split '::'
-                    if !namespace
+                    if !basename
                         namespace, basename = nil, namespace
                     end
 

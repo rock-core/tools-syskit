@@ -93,7 +93,7 @@ module Orocos
             end
 
             def to_s # :nodoc:
-                "#<DataService: #{short_name}>"
+                "#<#{self.class.name}: #{name}>"
             end
 
             # Creates a new DataServiceModel that is a submodel of +self+
@@ -210,15 +210,24 @@ module Orocos
                     return
                 end
 
-                include service_model
-                parent_models << service_model
-
                 new_port_mappings.each do |service_name, self_name|
-                    if !service_model.find_port(service_name)
+                    if !(source_port = service_model.find_port(service_name))
                         raise SpecError, "#{service_name} is not a port of #{service_model.short_name}"
                     end
-                    if !find_port(self_name)
+                    if !(target_port = find_port(self_name))
                         raise SpecError, "#{self_name} is not a port of #{short_name}"
+                    end
+                    if target_port.type != source_port.type
+                        raise SpecError, "invalid port mapping #{service_name} => #{self_name} in #{self.name}.provides(#{service_model.name}): port #{source_port.name} is of type #{source_port.type.name} and #{target_port.name} is of type #{target_port.type.name}"
+                    end
+                end
+                service_model.each_port do |p|
+                    if self_p = find_port(p.name)
+                        if self_p.type != p.type
+                            raise SpecError, "#{self.name} does not provide #{service_model.name}: port #{p.name} is of type #{p.type.name} on the former and an #{self_p.type.name} on the latter"
+                        elsif self_p.class != p.class
+                            raise SpecError, "#{self.name} does not provide #{service_model.name}: port #{p.name} is an #{p.class.name} on the former and an #{self_p.class.name} on the latter"
+                        end
                     end
                 end
 
@@ -236,6 +245,9 @@ module Orocos
                 if service_model.interface
                     RobyPlugin.merge_orogen_interfaces(interface, [service_model.interface], new_port_mappings)
                 end
+
+                include service_model
+                parent_models << service_model
             end
 
             # Creates a new Orocos::Spec::TaskContext object for this service
@@ -254,20 +266,18 @@ module Orocos
                 orogen_spec
             end
 
-            # Returns the most generic task model that implements +self+. If
-            # more than one task model is found, raises Ambiguous
             def task_model
                 if @task_model
                     return @task_model
                 end
+                @task_model = DataServiceModel.proxy_task_model([self])
+            end
 
-                @task_model = Class.new(DataServiceProxy)
-                @task_model.abstract
-                @task_model.fullfilled_model = [Roby::Task, [self], {}]
-                @task_model.instance_variable_set(:@orogen_spec, orogen_spec)
-                @task_model.name = name
-                @task_model.data_service self
-                @task_model
+            # Returns a subclass of Roby::Task that implements the given set of
+            # data services
+            def self.proxy_task_model(service_models)
+                name = "Orocos::RobyPlugin::PlaceholderTasks::#{service_models.map(&:short_name).sort.join("_").gsub(/:/, '_')}"
+                Orocos::RobyPlugin.placeholder_model_for(name, service_models)
             end
 
             include ComponentModel
@@ -363,6 +373,12 @@ module Orocos
         end
         Device   = DeviceModel.new
         Device.name = "Orocos::RobyPlugin::Device"
+        def Device.orogen_spec
+            if !@orogen_spec
+                @orogen_spec = create_orogen_interface
+            end
+            @orogen_spec
+        end
         DeviceModel.base_module = Device
 
         class ComBusModel < DeviceModel
@@ -467,6 +483,12 @@ module Orocos
         end
         ComBus = ComBusModel.new
         ComBus.name = "Orocos::RobyPlugin::ComBus"
+        def ComBus.orogen_spec
+            if !@orogen_spec
+                @orogen_spec = create_orogen_interface
+            end
+            @orogen_spec
+        end
         ComBusModel.base_module = ComBus
 
         module DataService
@@ -521,17 +543,6 @@ module Orocos
                     selected
                 end
 
-                # Returns the type of the given data service, or raises
-                # ArgumentError if no such service is declared on this model
-                def data_service_type(name)
-                    service = find_data_service(name)
-                    if service
-                        return service.model
-                    end
-                    raise ArgumentError, "no service #{name} is declared on #{self}"
-                end
-
-
                 # call-seq:
                 #   TaskModel.each_slave_data_service do |name, service|
                 #   end
@@ -579,6 +590,14 @@ module Orocos
                     if self_services.empty?
                         Engine.debug "cannot merge #{target_task} into #{self} as"
                         Engine.debug "  no candidates for #{other_service}"
+                        return false
+                    elsif self_services.size > 1
+                        Engine.debug "cannot merge #{target_task} into #{self} as"
+                        Engine.debug "  ambiguous service selection for #{other_service}"
+                        Engine.debug "  candidates:"
+                        self_services.map(&:to_s).each do |name|
+                            Engine.debug "    #{name}"
+                        end
                         return false
                     end
                 end

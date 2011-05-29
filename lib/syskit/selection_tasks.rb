@@ -16,8 +16,8 @@ module Orocos
                     if !definition
                         raise ArgumentError, "#{name} is not a know definition"
                     end
-                    if !definition.model.fullfills?(service)
-                        raise ArgumentError, "the model of #{name} (#{service}) does not provide the required service, #{service}"
+                    if !definition.fullfills?(service)
+                        raise ArgumentError, "the model of #{name} (#{definition.base_models.map(&:short_name).join(", ")}) does not provide the required service, #{service}"
                     end
                 end
 
@@ -149,6 +149,8 @@ module Orocos
 
                 root = defn.create_placeholder_task
                 planner = new(:name => definition_name)
+                root.should_start_after(planner)
+                planner.schedule_as(root)
                 root.planned_by(planner)
                 root
             end
@@ -197,6 +199,8 @@ module Orocos
                 else
                     main = service.task_model.new
                 end
+                main.should_start_after(selection)
+                selection.schedule_as(main)
                 main.planned_by selection
                 main
             end

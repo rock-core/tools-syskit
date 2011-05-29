@@ -2,11 +2,10 @@ module Orocos
     module RobyPlugin
         # Used by Composition to define its children. Values returned by
         # Composition#find_child(name) are instances of that class.
-        class CompositionChildDefinition
+        class CompositionChildDefinition < ComponentInstance
             # The set of models that this child should fullfill. It is a
             # ValueSet which contains at most one Component model and any number
             # of data service models 
-            attr_accessor :models
             attr_accessor :dependency_options
             attr_accessor :port_mappings
 
@@ -14,83 +13,15 @@ module Orocos
             attr_reader :arguments
 
             def initialize(models = ValueSet.new, dependency_options = Hash.new)
-                @models = models
+                super(nil, models)
                 @dependency_options = dependency_options
-                @using_spec = Hash.new
                 @port_mappings = Hash.new
-                @arguments = Hash.new
             end
 
             def initialize_copy(old)
-                @models = old.models.dup
+                super
                 @dependency_options = old.dependency_options.dup
-                @using_spec = old.using_spec.dup
                 @port_mappings = old.port_mappings.dup
-            end
-
-            # Return true if this child provides all of the required models
-            def fullfills?(required_models)
-                if !required_models.respond_to?(:each)
-                    required_models = [required_models]
-                end
-                required_models.all? do |req_m|
-                    models.any? { |m| m.fullfills?(req_m) }
-                end
-            end
-
-            # Adds specific arguments that should be passed to the child at
-            # instanciation time
-            #
-            # This can be used to require a specific child configuration
-            def with_arguments(arguments)
-                @arguments = @arguments.merge(arguments)
-            end
-
-            # If this child is a composition, narrow its model based on the
-            # provided selection specification.
-            #
-            # If the selection is enough to narrow down the model, return the
-            # new model. Otherwise, return nil
-            def use(*spec)
-                spec = RobyPlugin.validate_using_spec(*spec)
-
-                # Check that this child is a composition. Note that we have the
-                # guarantee that there is at most one subclass of Composition in
-                # models, as it is not allowed to have multiple classes in there
-                composition_model = models.find { |m| m < Composition }
-                if !composition_model
-                    raise ArgumentError, "#use can be called only on children that are compositions"
-                end
-
-                SystemModel.debug do
-                    SystemModel.debug "narrowing #{composition_model.short_name}"
-                    spec_txt = spec.map do |name, models|
-                        if name
-                            "#{name} => #{models}"
-                        else
-                            "default selection: #{models.map(&:to_s).join(", ")}"
-                        end
-                    end
-                    SystemModel.log_array :debug, "  on ", "     ", spec_txt
-                    break
-                end
-
-                # Now update the spec and check if we can narrow down the model
-                @using_spec = using_spec.merge(spec)
-                candidates = composition_model.narrow(using_spec)
-                if candidates.size == 1
-                    new_model = candidates.find { true }
-                    models.delete(composition_model)
-                    models << new_model
-                    SystemModel.debug do
-                        SystemModel.debug "  found #{new_model.short_name}"
-                        break
-                    end
-                    new_model
-                else
-                    SystemModel.debug "  cannot narrow it further"
-                    nil
-                end
             end
         end
 
@@ -127,6 +58,7 @@ module Orocos
             # See CompositionChildDefinition#use
             def use(*spec)
                 composition.find_child(child_name).use(*spec)
+                self
             end
 
             # Checks if this child fullfills the given model
@@ -140,6 +72,14 @@ module Orocos
             # See CompositionChildDefinition#with_arguments
             def with_arguments(spec)
                 composition.find_child(child_name).with_arguments(spec)
+                self
+            end
+
+            # Specifies the configuration that should be used on the specified
+            # child
+            def use_conf(*conf)
+                composition.find_child(child_name).use_conf(*conf)
+                self
             end
 
             # Returns a CompositionChildPort instance if +name+ is a valid port
@@ -285,6 +225,9 @@ module Orocos
 
             # The composition model name
             attr_accessor :name
+
+            # The set of configurations declared with #conf
+            attr_reader :conf
 
             # Creates a submodel of this model, in the frame of the given
             # SystemModel instance.
@@ -481,7 +424,7 @@ module Orocos
                 # Delete from +parent_model+ everything that is already included
                 # in +child_model+
                 result = parent_model.dup
-                result.models.delete_if do |parent_m|
+                result.base_models.delete_if do |parent_m|
                     replaced_by = child_model.find_all { |child_m| child_m < parent_m }
                     if !replaced_by.empty?
                         mappings = replaced_by.inject(Hash.new) do |mappings, m|
@@ -494,7 +437,7 @@ module Orocos
                         end
                     end
                 end
-                result.models |= child_model.to_value_set
+                result.add_models(child_model.to_value_set)
                 result.dependency_options = result.dependency_options.merge(dependency_options)
 
                 SystemModel.debug do
@@ -1123,53 +1066,7 @@ module Orocos
                     break
                 end
 
-
                 all_filtered_results = Hash.new
-
-                # First, filter on the facets. If the user provides a facet, it
-                # means we should prefer the required specialization.
-                selected_models.each do |child_name, selected_child_model|
-                    selected_child_model = selected_child_model.first
-                    next if !selected_child_model.respond_to?(:selected_facet)
-
-                    selected_facet = selected_child_model.selected_facet
-
-                    preferred_models = candidates.find_all do |composition_model|
-                        composition_model.specialized_on?(child_name, selected_facet)
-                    end
-
-                    if !preferred_models.empty?
-                        Engine.debug do
-                            Engine.debug "  faceted selection on #{child_name} narrows down to"
-                            preferred_models.each do |m|
-                                Engine.debug "    #{m.short_name}"
-                            end
-                            break
-                        end
-                        all_filtered_results[child_name] = preferred_models.to_value_set
-                    end
-                end
-
-                if !all_filtered_results.empty?
-                    filtered_out = all_filtered_results.values.inject(&:&)
-                    if filtered_out.size == 1
-                        return filtered_out.to_a
-                    elsif filtered_out.empty?
-                        facets = selected_models.dup
-                        facets.delete_if do |name, child_model|
-                            !child_model.first.respond_to?(:selected_facet)
-                        end
-                        raise IncompatibleFacetedSelection.new(self, facets, all_filtered_results), "inconsistent use of faceted selection"
-                    end
-                    Engine.debug do
-                        Engine.debug "  #{filtered_out.size} candidates after facet filtering"
-                        filtered_out.each do |m|
-                            Engine.debug "    #{m.short_name}"
-                        end
-                        break
-                    end
-                    candidates = filtered_out
-                end
 
                 # We now look at default specializations. Compositions that have
                 # certain specializations are preferred over other.
@@ -1649,17 +1546,6 @@ module Orocos
                     return result
                 end
 
-                # First of all, check if we can disambiguate by using the
-                # selection facets (see FacetedModelSelection and
-                # ComponentModel#as)
-                subselection.each do |child_name, selected_child_model|
-                    next if !selected_child_model.respond_to?(:selected_facet)
-                    result.delete_if do |model|
-                        (child_model = model.find_child(child_name).models.to_a) &&
-                            !child_model.any? { |m| m.fullfills?(selected_child_model.selected_facet) }
-                    end
-                end
-
                 default_model = find_default_specialization(child_name)
                 if default_model
                     default_selection = result.find_all { |model| model.fullfills?(default_model) }
@@ -1693,32 +1579,8 @@ module Orocos
                     return m
                 end
 
-                if task_model = models.find { |t| t < Roby::Task }
-                    model = task_model.specialize("proxy_" + models.map(&:short_name).join("_"))
-                    model.abstract
-                    model.class_eval do
-                        @proxied_data_services = [task_model, *models]
-                        def self.proxied_data_services
-                            @proxied_data_services
-                        end
-                        def proxied_data_services
-                            self.model.proxied_data_services
-                        end
-                    end
-                else
-                    model = Class.new(DataServiceProxy)
-                end
-                model.abstract
-                name = "#{short_name}::#{child_name.camelcase(:upper)}Proxy"
-                orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
-                model.name        = "#{name}::ProxyTask"
-                model.instance_variable_set(:@orogen_spec, orogen_spec)
-                RobyPlugin.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
-                models.each do |m|
-                    if m.kind_of?(DataServiceModel)
-                        model.data_service m
-                    end
-                end
+                name = "#{name}::#{child_name.camelcase(:upper)}::PlaceholderTask"
+                model = Orocos::RobyPlugin.placeholder_model_for(name, models)
                 child_proxy_models[child_name] = model
             end
 
@@ -1728,11 +1590,6 @@ module Orocos
                     next if !required.kind_of?(DataServiceModel)
                     candidate_services =
                         task_model.find_all_services_from_type(required)
-
-                    if task_model.respond_to?(:selected_facet)
-                        subselection = task_model.selected_facet
-                        candidate_services.delete_if { |m| !m.fullfills?(subselection) }
-                    end
 
                     if candidate_services.size > 1
                         throw :invalid_selection if !user_call
@@ -1840,13 +1697,16 @@ module Orocos
                     selected_object = required_model.first
                 end
 
-                if selected_object.kind_of?(InstanciatedComponent)
-                    result.child_model = selected_object.model
+                if selected_object.kind_of?(ComponentInstance)
+                    if selected_object.models.size != 1
+                        raise SpecError, "cannot use #{selected_object} for #{child_name} in #{short_name}: it is a compound specification"
+                    end
+                    result.child_model = selected_object.models.find { true }
                     result.selected_models = [result.child_model]
                     result.using_spec  = selected_object.using_spec
                     result.arguments   = selected_object.arguments
                 
-                elsif selected_object.kind_of?(InstanciatedDataService)
+                elsif selected_object.kind_of?(DataServiceInstance)
                     if !selected_object.provided_service_model
                         raise InternalError, "#{selected_object} has no provided service model"
                     end
@@ -2027,9 +1887,9 @@ module Orocos
             attr_predicate :strict_specialization_selection, true
 
             # Instanciates a task for the required child
-            def instanciate_child(engine, self_task, self_arguments, child_name, selected_child, child_user_selection) # :nodoc:
+            def instanciate_child(engine, self_task, self_arguments, child_name, selected_child, child_user_selection, conf) # :nodoc:
                 child_selection = catch(:missing_child_instanciation) do
-                    ComponentInstanceSpec.resolve_using_spec(find_child(child_name).using_spec) do |key, sel|
+                    ComponentInstance.resolve_using_spec(find_child(child_name).using_spec) do |key, sel|
                         if sel.kind_of?(CompositionChild)
                             task = self_task.child_from_role(sel.child_name)
                             if !task
@@ -2067,6 +1927,9 @@ module Orocos
                 child_task = selected_child.child_model.instanciate(engine, :selection => child_selection)
 
                 child_arguments = find_child(child_name).arguments.dup
+                if conf[child_name]
+                    child_arguments[:conf] = conf[child_name]
+                end
                 child_arguments.merge!(selected_child.arguments)
                 child_arguments.each do |key, value|
                     if value.respond_to?(:resolve)
@@ -2141,7 +2004,7 @@ module Orocos
             #   children of +self+ whose definition matches the given model.
             #
             def instanciate(engine, arguments = Hash.new)
-                arguments = Kernel.validate_options arguments, :as => nil, :selection => Hash.new
+                arguments = Kernel.validate_options arguments, :as => nil, :selection => Hash.new, :task_arguments => Hash.new
                 raw_user_selection = arguments[:selection]
 
                 Engine.debug do
@@ -2196,8 +2059,13 @@ module Orocos
                 end
 
                 # First of all, add the task for +self+
-                engine.plan.add(self_task = new)
+                engine.plan.add(self_task = new(arguments[:task_arguments]))
                 self_task.robot = engine.robot
+
+                conf = if self_task.has_argument?(:conf)
+                           self_task.conf(self_task.arguments[:conf])
+                       else Hash.new
+                       end
 
                 # The set of connections we must create on our children. This is
                 # self.connections on which port mappings rules have been
@@ -2230,7 +2098,7 @@ module Orocos
                                     child_user_selection[$1] = sel
                                 end
                             end
-                            child_task = instanciate_child(engine, self_task, arguments, child_name, selected_child, child_user_selection)
+                            child_task = instanciate_child(engine, self_task, arguments, child_name, selected_child, child_user_selection, conf)
                         end
 
                         if !selected_child.port_mappings.empty?
@@ -2270,6 +2138,9 @@ module Orocos
                         dependent_arguments = dependent_models.inject(Hash.new) do |result, m|
                             result.merge(m.meaningful_arguments(child_task.arguments))
                         end
+                        if child_task.has_argument?(:conf)
+                            dependent_arguments[:conf] = child_task.arguments[:conf]
+                        end
                         if dependent_models.size == 1
                             dependent_models = dependent_models.first
                         end
@@ -2284,6 +2155,7 @@ module Orocos
                             Engine.info "   options; #{dependency_options}"
                             break
                         end
+
                         self_task.depends_on(child_task, dependency_options)
                         if (main = main_task) && (main.child_name == child_name)
                             child_task.success_event.forward_to self_task.success_event
@@ -2355,6 +2227,66 @@ module Orocos
             inherited_enumerable(:exported_output, :exported_outputs, :map => true)  { Hash.new }
             # Inputs imported from this composition
             inherited_enumerable(:exported_input, :exported_inputs, :map => true)  { Hash.new }
+            # Configurations defined on this composition model
+            inherited_enumerable(:configuration, :configurations, :map => true)  { Hash.new }
+
+            # Declares a composition configuration
+            #
+            # Composition configurations are named selections of configurations.
+            #
+            # For instance, if
+            #
+            #   conf 'narrow',
+            #       'monitoring' => ['default', 'narrow_window'],
+            #       'sonar' => ['default', 'narrow_window']
+            #
+            # is declared, and the composition is instanciated with
+            #
+            #   Cmp::SonarMonitoring.use_conf('narrow')
+            #
+            # Then the composition children called 'monitoring' and 'sonar' will
+            # be both instanciated with ['default', 'narrow_window']
+            def self.conf(name, mappings = Hash.new)
+                configurations[name] = mappings
+            end
+
+            # Returns the configuration definition for the given
+            # configuration(s)
+            #
+            # Note that unlike ConfigurationManager, only one configuration
+            # can be selected (they cannot be overlaid on top of each other)
+            #
+            # The returned value is a mapping from child names to the
+            # configurations that should be applied to them, i.e. for the
+            # 'narrow' configuration used as an example in Composition.conf,
+            #
+            #   conf(['narrow'])
+            #
+            # would return
+            #
+            #   'monitoring' => ['default', 'narrow_window'],
+            #   'sonar' => ['default', 'narrow_window']
+            def conf(names)
+                if names.size != 1
+                    raise ArgumentError, "unlike with ConfigurationManager, only one  configuration can be selected on compositions"
+                end
+
+                result = Hash.new
+                found_something = false
+                model.each_configuration(names.first.to_s, false) do |values|
+                    found_something = true
+                    result = values.merge(result)
+                end
+                if !found_something
+                    if names == ['default']
+                        ConfigurationManager.info "required default configuration on composition #{task}, but #{task.model.short_name} has no registered default configurations"
+                        return result
+                    else
+                        raise ArgumentError, "#{self} has no declared configuration called #{names.join(", ")}"
+                    end
+                end
+                result
+            end
 
             # Reimplemented from Roby::Task to take into account the multiple
             # inheritance mechanisms that is the composition specializations

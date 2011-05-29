@@ -21,6 +21,8 @@ module Orocos
             abstract
             @name = "Orocos::RobyPlugin::TaskContext"
 
+            argument :conf
+
             extend Model
 
             class << self
@@ -34,18 +36,26 @@ module Orocos
                 # enters a new state.
                 attr_accessor :state_events
 
-                # A name => boolean mapping that says if the task named 'name'
-                # is configured
+                # A name => [orogen_model, current_conf] mapping that says if
+                # the task named 'name' is configured
+                #
+                # orogen_model is the model for +name+ and +current_conf+ an
+                # array of configuration sections as expected by #conf. It
+                # represents the last configuration applied on +name+
                 def configured; @@configured end
+
+                # A set of names that says if the task named 'name' should be
+                # reconfigured the next time
+                def needs_reconfiguration; @@needs_reconfiguration end
 
                 def to_s
                     services = each_data_service.map do |name, srv|
                             "#{name}[#{srv.model.short_name}]"
                     end.join(", ")
                     if private_specialization?
-                        "#<TaskContext: specialized from #{superclass.name} services: #{services}>"
+                        "#<specialized from #{superclass.name} services: #{services}>"
                     else
-                        "#<TaskContext: #{name} services: #{services}>"
+                        "#<#{name} services: #{services}>"
                     end
                 end
 
@@ -76,6 +86,7 @@ module Orocos
                 end
             end
             @@configured = Hash.new
+            @@needs_reconfiguration = Set.new
 
             # Returns the thread ID of the thread running this task
             #
@@ -103,6 +114,8 @@ module Orocos
 
             def initialize(arguments = Hash.new)
                 super
+
+                @allow_automatic_setup = true
 
                 # All tasks start with executable? and setup? set to false
                 #
@@ -548,10 +561,14 @@ module Orocos
                 @orogen_state = nil
             end
 
+            attr_predicate :allow_automatic_setup?, true
+
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
             def ready_for_setup?
-                if !orogen_spec || !orogen_task
+                if !@allow_automatic_setup
+                    return false
+                elsif !orogen_spec || !orogen_task
                     return false
                 end
 
@@ -587,9 +604,31 @@ module Orocos
             # you are doing
             def is_setup!
                 @setup = true
-                if all_inputs_connected?(true)
+                if all_inputs_connected?
                     self.executable = nil
                 end
+            end
+
+            # If true, #configure must be called on this task before it is
+            # started. This flag is reset after #configure has been called
+            def needs_reconfiguration?
+                if orogen_spec
+                    TaskContext.needs_reconfiguration.include?(orocos_name)
+                end
+            end
+
+            # Make sure that #configure will be called on this task before it
+            # gets started
+            #
+            # See also #setup and #needs_reconfiguration?
+            def needs_reconfiguration!
+                if orogen_spec
+                    TaskContext.needs_reconfiguration << orocos_name
+                end
+            end
+
+            def reusable?
+                super && !needs_reconfiguration?
             end
 
             # Called to configure the component
@@ -602,14 +641,34 @@ module Orocos
 
                 state = read_current_state
 
-                if TaskContext.configured[orocos_name]
-                    if state == :PRE_OPERATIONAL
-                        TaskContext.configured.delete(orocos_name)
-                    else
-                        Robot.info "#{self} was already configured"
-                        is_setup!
-                        return
+                needs_reconf = false
+                if orogen_task.exception_state?(state)
+                    ::Robot.info "reconfiguring #{self}: the task was in exception state"
+                    orogen_task.reset_exception(false)
+                    needs_reconf = true
+                elsif state == :PRE_OPERATIONAL
+                    needs_reconf = true
+                elsif needs_reconfiguration?
+                    ::Robot.info "reconfiguring #{self}: the task is marked as needing reconfiguration"
+                    needs_reconf = true
+                else
+                    _, current_conf = TaskContext.configured[orocos_name]
+                    if !current_conf
+                        needs_reconf = true
+                    elsif current_conf != self.conf
+                        ::Robot.info "reconfiguring #{self}: configuration changed"
+                        needs_reconf = true
                     end
+                end
+
+                if !needs_reconf
+                    Robot.info "#{self} was already configured"
+                    is_setup!
+                    return
+                end
+                if state == :STOPPED && orogen_task.model.needs_configuration?
+                    ::Robot.info "cleaning up #{self}"
+                    orogen_task.cleanup
                 end
 
                 ::Robot.info "setting up #{self}"
@@ -617,12 +676,11 @@ module Orocos
                 if respond_to?(:configure)
                     configure
                 end
-
                 if !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
                     orogen_task.configure(false)
                 end
-
-                TaskContext.configured[orocos_name] = true
+                TaskContext.needs_reconfiguration.delete(orocos_name)
+                TaskContext.configured[orocos_name] = [orogen_task.model, self.conf.dup]
                 is_setup!
             end
 
@@ -640,14 +698,6 @@ module Orocos
             event :start do |context|
                 # We're not running yet, so we have to read the state ourselves.
                 state = read_current_state
-
-                if state != :STOPPED
-                    if orogen_task.exception_state?(orogen_state)
-                        orogen_task.reset_exception(false)
-                    else
-                        raise InternalError, "wrong state in start event: got #{state}, expected STOPPED"
-                    end
-                end
 
                 # At this point, we should have already created all the dynamic
                 # ports that are required ... check that
@@ -815,7 +865,7 @@ module Orocos
                 if !model.config_type
                     model.config_type = config_type_from_properties
                 end
-                dserv = data_service(model, service_options)
+                dserv = provides(model, service_options)
                 argument "#{dserv.name}_name"
                 dserv
             end
@@ -828,13 +878,20 @@ module Orocos
             #
             # It then sets the task properties using the values found there
             def configure
-                # First, set configuration stored in State.config
-                if Roby::State.config.send("#{orogen_name}?")
-                    config = Roby::State.config.send(orogen_name)
+                # First, set configuration from the configuration files
+                # Note: it can only set properties
+                conf = self.conf || ['default']
+                if Orocos.conf.apply(orogen_task, conf, true)
+                    Robot.info "applied configuration #{conf} to #{orogen_task.name}"
+                end
+
+                # Then set configuration stored in Conf.orocos
+                if Roby::Conf.orocos.send("#{orogen_name}?")
+                    config = Roby::Conf.orocos.send(orogen_name)
                     apply_configuration(config)
                 end
 
-                # Then set per-source configuration options
+                # Then set per-device configuration options
                 if respond_to?(:each_device)
                     each_device do |_, device|
                         if device.configuration
@@ -914,7 +971,7 @@ module Orocos
                 RobyPlugin.merge_orogen_interfaces(orogen_spec, [service_model.orogen_spec])
 
                 # Then we can add the service
-                data_service(service_model, options)
+                provides(service_model, options)
             end
         end
 
@@ -929,6 +986,16 @@ module Orocos
             end
             @name = "Orocos::RobyPlugin::DataServiceProxy"
 
+            def self.new_submodel(name, models = [])
+                Class.new(self) do
+                    abstract
+                    class << self
+                        attr_accessor :name
+                    end
+                    @name = name
+                end
+            end
+
             def self.proxied_data_services
                 data_services.values.map(&:model)
             end
@@ -939,6 +1006,43 @@ module Orocos
             def self.provided_services
                 proxied_data_services
             end
+        end
+
+        module ComponentModelProxy
+            attr_accessor :proxied_data_services
+            def self.proxied_data_services
+                @proxied_data_services
+            end
+            def proxied_data_services
+                self.model.proxied_data_services
+            end
+        end
+
+        def self.placeholder_model_for(name, models)
+            # If all that is required is a proper task model, just return it
+            if models.size == 1 && (models.find { true } <= Roby::Task)
+                return models.find { true }
+            end
+
+            if task_model = models.find { |t| t < Roby::Task }
+                model = task_model.specialize("placeholder_model_for_" + name.gsub(/[^\w]/, '_'))
+                model.name = name
+                model.abstract
+                model.include ComponentModelProxy
+                model.proxied_data_services = models.dup
+            else
+                model = DataServiceProxy.new_submodel(name)
+            end
+
+            orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
+            model.instance_variable_set(:@orogen_spec, orogen_spec)
+            RobyPlugin.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
+            models.each do |m|
+                if m.kind_of?(DataServiceModel)
+                    model.provides m
+                end
+            end
+            model
         end
     end
 end
