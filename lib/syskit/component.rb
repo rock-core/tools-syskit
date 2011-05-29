@@ -723,6 +723,15 @@ module Orocos
                     raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
                 end
 
+                Engine.debug do
+                    Engine.debug "#{short_name} provides #{model.short_name}"
+                    Engine.debug "port mappings"
+                    service.port_mappings.each do |m, mappings|
+                        Engine.debug "  #{m.short_name}: #{mappings}"
+                    end
+                    break
+                end
+
                 arguments.each do |key, value|
                     send("#{key}=", value)
                 end
