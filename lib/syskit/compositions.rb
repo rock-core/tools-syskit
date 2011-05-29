@@ -1701,12 +1701,12 @@ module Orocos
                     if selected_object.models.size != 1
                         raise SpecError, "cannot use #{selected_object} for #{child_name} in #{short_name}: it is a compound specification"
                     end
-                    result.child_model = selected_object.models.find { true }
-                    result.selected_models = [result.child_model]
                     result.using_spec  = selected_object.using_spec
                     result.arguments   = selected_object.arguments
+                    selected_object = selected_object.models.find { true }
+                end
                 
-                elsif selected_object.kind_of?(DataServiceInstance)
+                if selected_object.kind_of?(DataServiceInstance)
                     if !selected_object.provided_service_model
                         raise InternalError, "#{selected_object} has no provided service model"
                     end
