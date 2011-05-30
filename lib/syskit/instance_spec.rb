@@ -265,23 +265,28 @@ module Orocos
             # The returned value is either an array of resolved selections,
             # a Component instance or an InstanciatedDataService instance.
             def self.resolve_explicit_selection(value, engine)
-                if value.kind_of?(DeviceInstance)
+                case value
+                when DeviceInstance
                     if value.task
                         InstanciatedDataService.new(value.task, value.service)
                     else
                         value.service
                     end
                         
-                elsif value.kind_of?(EngineRequirement)
+                when EngineRequirement, ProvidedDataService, Roby::Task, CompositionChild
                     value
-                elsif value.respond_to?(:to_ary)
-                    value.map { |v| resolve_explicit_selection(v, engine) }
-                elsif value.kind_of?(Class) && value <= Component
-                    value
-                elsif value.kind_of?(ProvidedDataService)
-                    value
+                when Class
+                    if value <= Component
+                        value
+                    else
+                        raise ArgumentError, "#{value} is not a valid explicit selection"
+                    end
                 else
-                    raise ArgumentError, "#{value} is not a valid explicit selection"
+                    if value.respond_to?(:to_ary)
+                        value.map { |v| resolve_explicit_selection(v, engine) }
+                    else
+                        raise ArgumentError, "#{value} is not a valid explicit selection"
+                    end
                 end
             end
         end
