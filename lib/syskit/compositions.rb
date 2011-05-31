@@ -2334,8 +2334,12 @@ module Orocos
                 end
 
                 each_child do |child_task, _|
-                    if child_task.kind_of?(TaskContext) && Roby.orocos_engine.dry_run?
+                    if child_task.kind_of?(TaskContext)
                         if !child_task.orogen_task
+                            return false
+                        end
+                    elsif child_task.kind_of?(Component)
+                        if !child_task.executable?
                             return false
                         end
                     end
