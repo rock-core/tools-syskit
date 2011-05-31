@@ -2338,8 +2338,6 @@ module Orocos
                         if !child_task.orogen_task
                             return false
                         end
-                    elsif !child_task.executable?
-                        return false
                     end
                 end
                 return true
