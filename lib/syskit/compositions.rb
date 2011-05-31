@@ -2158,6 +2158,11 @@ module Orocos
 
                         self_task.depends_on(child_task, dependency_options)
                         if (main = main_task) && (main.child_name == child_name)
+                            child_task.each_event do |ev|
+                                if !ev.terminal? && ev.symbol != :start && self_task.has_event?(ev.symbol)
+                                    child_task.event(ev.symbol).forward_to self_task.event(ev.symbol)
+                                end
+                            end
                             child_task.success_event.forward_to self_task.success_event
                         end
                         true # it has been processed, delete from selected_models
