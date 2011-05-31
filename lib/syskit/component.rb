@@ -933,7 +933,7 @@ module Orocos
 			if !task
 			    raise ArgumentError, "#{self} has no child with role #{role_name}"
 			end
-			task.input_port(port_name)
+			task.find_input_port(port_name)
                     else
                         port_name = args.first
                         input_port(port_name)
@@ -975,7 +975,7 @@ module Orocos
 			if !task
 			    raise ArgumentError, "#{self} has no child with role #{role_name}"
 			end
-			task.output_port(port_name)
+			task.find_output_port(port_name)
                     else
                         port_name = args.first
                         find_output_port(port_name)
