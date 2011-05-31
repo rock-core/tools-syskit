@@ -129,10 +129,15 @@ module Orocos
         # Requirement modification task that allows to add a single definition
         # or task to the requirements and inject the result into the plan
         class SingleRequirementTask < RequirementModificationTask
+            def self.allocate_id
+                @@single_requirement_id += 1
+            end
+            @@single_requirement_id = 0
+
             # Creates the subplan required to add the given task to the plan
             def self.subplan(new_spec, *args)
                 if !new_spec.respond_to?(:to_str)
-                    definition_name = "single_requirement_#{object_id}"
+                    definition_name = "single_requirement_#{allocate_id}"
                     Roby.app.orocos_engine.
                         define(definition_name, new_spec, *args)
                 elsif args.empty?
