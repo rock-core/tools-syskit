@@ -127,7 +127,7 @@ module Orocos
                             # Return the service that corresponds to the device
                             # name
                             return resolve_explicit_selection(selected_object, engine)
-                        elsif selected_object = defines[value]
+                        elsif selected_object = engine.defines[value]
                             return selected_object
                         else
                             raise SpecError, "#{value} does not refer to a known task or device"
