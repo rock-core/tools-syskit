@@ -639,10 +639,10 @@ module Orocos
                     raise InternalError, "#setup called but there is no orogen_task"
                 end
 
-                state = read_current_state
+                state = orogen_task.rtt_state
 
                 needs_reconf = false
-                if orogen_task.exception_state?(state)
+                if state == :EXCEPTION
                     ::Robot.info "reconfiguring #{self}: the task was in exception state"
                     orogen_task.reset_exception(false)
                     needs_reconf = true
@@ -677,7 +677,7 @@ module Orocos
                 if respond_to?(:configure)
                     configure
                 end
-                if !Roby.app.orocos_engine.dry_run? && (cleaned_up || orogen_task.rtt_state == :PRE_OPERATIONAL)
+                if !Roby.app.orocos_engine.dry_run? && (cleaned_up || state == :PRE_OPERATIONAL)
                     orogen_task.configure(false)
                 end
                 TaskContext.needs_reconfiguration.delete(orocos_name)
