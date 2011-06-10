@@ -289,6 +289,10 @@ module Orocos
                     end
                 end
             end
+
+            def as_plan
+                Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
+            end
         end
 
     end
