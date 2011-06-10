@@ -387,6 +387,8 @@ module Orocos
                     requirements
                 elsif model.kind_of?(Class) && model < Component
                     EngineRequirement.new(engine, name, [model])
+                elsif model.kind_of?(EngineRequirement)
+                    model
                 else
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
                 end
