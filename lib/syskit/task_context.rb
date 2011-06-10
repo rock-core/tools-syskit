@@ -668,6 +668,7 @@ module Orocos
                 end
                 if state == :STOPPED && orogen_task.model.needs_configuration?
                     ::Robot.info "cleaning up #{self}"
+                    cleaned_up = true
                     orogen_task.cleanup
                 end
 
@@ -676,7 +677,7 @@ module Orocos
                 if respond_to?(:configure)
                     configure
                 end
-                if !Roby.app.orocos_engine.dry_run? && state == :PRE_OPERATIONAL
+                if !Roby.app.orocos_engine.dry_run? && (cleaned_up || orogen_task.rtt_state == :PRE_OPERATIONAL)
                     orogen_task.configure(false)
                 end
                 TaskContext.needs_reconfiguration.delete(orocos_name)
