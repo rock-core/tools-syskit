@@ -193,12 +193,12 @@ module Orocos
             def create_placeholder_task
                 task_model = models.find { |m| m <= Roby::Task }
                 if task_model
-                    task = task_model.new
+                    task = task_model.new(@arguments)
                 else 
                     if !@task_model || @task_model.fullfilled_model[1].to_set != models.to_set
                         @task_model = DataServiceModel.proxy_task_model(models)
                     end
-                    task = @task_model.new
+                    task = @task_model.new(@arguments)
                 end
                 task.executable = false
                 task
