@@ -288,7 +288,9 @@ module Orocos
                 if task_handles
                     task_handles.each_value do |t|
                         if t.rtt_state != :PRE_OPERATIONAL
-                            t.cleanup
+                            begin t.cleanup
+                            rescue Exception
+                            end
                         end
                     end
                 end
