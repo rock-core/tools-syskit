@@ -315,6 +315,14 @@ module Orocos
                 # Check tasks for which we created an input. If they are not
                 # executable and all_inputs_connected? returns true, set their
                 # executable flag to nil
+                Engine.info do
+                    Engine.info "#{pending_tasks.size} pending tasks"
+                    pending_tasks.each do |t|
+                        Engine.info "  #{t}: all_inputs_connected=#{t.all_inputs_connected?} executable=#{t.executable?}"
+                    end
+                    break
+                end
+
                 pending_tasks.each do |t|
                     if t.all_inputs_connected?
                         t.executable = nil
