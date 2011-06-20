@@ -724,6 +724,16 @@ module Orocos
 
             # Handle a state transition by emitting the relevant events
             def handle_state_changes # :nodoc:
+                # If we are starting, we should ignore all states until a
+                # runtime state is found
+                if !@got_running_state
+                    if orogen_task.runtime_state?(orogen_state)
+                        @got_running_state = true
+                    else
+                        return
+                    end
+                end
+
                 if orogen_task.exception_state?(orogen_state)
                     @stopping_because_of_error = true
                     @stopping_origin = orogen_state
