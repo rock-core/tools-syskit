@@ -566,23 +566,26 @@ module Orocos
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
             def ready_for_setup?
+                # @allow_automatic_setup is being used to sequence the end of a
+                # running task with the reconfiguration of the a new one.
+                #
+                # It MUST be kept here
                 if !@allow_automatic_setup
                     return false
                 elsif !orogen_spec || !orogen_task
                     return false
                 end
 
-                state = begin read_current_state
+                state = begin orogen_task.rtt_state
                         rescue CORBA::ComError
                             return false
                         end
 
-                if !state
-                    return false
-                elsif orogen_task.fatal_error_state?(state)
-                    return false
+                if state == :FATAL_ERROR
+                    STDERR.puts "ready_for_setup? #{self}: fatal error"
                 end
-                true
+
+                return (state == :EXCEPTION || state == :STOPPED || state == :PRE_OPERATIONAL)
             end
 
             # Returns true if the underlying Orocos task has been configured and
