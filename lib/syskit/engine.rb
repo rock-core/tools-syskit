@@ -1169,6 +1169,10 @@ module Orocos
                     required_logging_ports = Array.new
                     required_connections   = Array.new
                     deployment.each_executed_task do |t|
+                        if t.finishing? || t.finished?
+                            next
+                        end
+
                         if !logger_task && t.orocos_name == logger_task_name
                             logger_task = t
                             next
@@ -1797,7 +1801,7 @@ module Orocos
                             Engine.debug { "  task #{task.orogen_name} has been deployed, but I can't merge with the existing deployment" }
                         end
 
-                        if !existing_task || !existing_task.reusable? || !existing_task.can_merge?(task)
+                        if !existing_task || existing_task.finishing? || !existing_task.reusable? || !existing_task.can_merge?(task)
                             new_task = plan[existing_deployment_task.task(task.orogen_name, task.model)]
                             Engine.debug { "  creating #{new_task} for #{task} (#{task.orogen_name})" }
                             if existing_task
