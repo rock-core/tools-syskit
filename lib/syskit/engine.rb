@@ -1950,7 +1950,8 @@ module Orocos
                 next if !t.running?
 
                 begin
-                    while t.update_orogen_state
+                    state = nil
+                    while (!state || t.orogen_task.runtime_state?(state)) && t.update_orogen_state
                         state = t.orogen_state
 
                         # Returns nil if we have a communication problem. In this
