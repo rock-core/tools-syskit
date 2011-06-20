@@ -927,16 +927,17 @@ module Orocos
                 policy.merge!(other_policy)
 
                 port =
-                    if args.size == 2
-                        role_name, port_name = *args
-                        task = child_from_role(role_name)
+                    if args.size > 1
+                        port_name = args.pop
+                        role_path = args
+                        task = resolve_role_path(role_path)
 			if !task
 			    raise ArgumentError, "#{self} has no child with role #{role_name}"
 			end
 			task.find_input_port(port_name)
                     else
                         port_name = args.first
-                        input_port(port_name)
+                        find_input_port(port_name)
                     end
 
                 result = port.writer(policy)
@@ -969,9 +970,10 @@ module Orocos
                 policy.merge!(other_policy)
 
                 port =
-                    if args.size == 2
-                        role_name, port_name = *args
-                        task = child_from_role(role_name)
+                    if args.size > 1
+                        port_name = args.pop
+                        role_path = args
+                        task = resolve_role_path(role_path)
 			if !task
 			    raise ArgumentError, "#{self} has no child with role #{role_name}"
 			end
