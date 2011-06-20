@@ -644,6 +644,10 @@ module Orocos
 
                 state = orogen_task.rtt_state
 
+                if ![:EXCEPTION, :PRE_OPERATIONAL, :STOPPED].include?(state)
+                    raise InternalError, "wrong state in #setup for #{orogen_task}: got #{state}, but only EXCEPTION, PRE_OPERATIONAL and STOPPED are available"
+                end
+
                 needs_reconf = false
                 if state == :EXCEPTION
                     ::Robot.info "reconfiguring #{self}: the task was in exception state"
