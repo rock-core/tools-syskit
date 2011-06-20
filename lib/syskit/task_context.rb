@@ -737,11 +737,6 @@ module Orocos
                 if orogen_task.exception_state?(orogen_state)
                     @stopping_because_of_error = true
                     @stopping_origin = orogen_state
-		    begin
-		        orogen_task.reset_exception(false)
-		    rescue Orocos::StateTransitionFailed => e
-			Robot.warn "cannot reset error on #{name}: #{e.message}"
-		    end
                 elsif orogen_task.fatal_error_state?(orogen_state)
                     if event = state_event(orogen_state)
                         emit event
