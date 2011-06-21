@@ -268,7 +268,7 @@ module Orocos
                 case value
                 when DeviceInstance
                     if value.task
-                        InstanciatedDataService.new(value.task, value.service)
+                        DataServiceInstance.new(value.task, value.service)
                     else
                         value.service
                     end
@@ -281,6 +281,8 @@ module Orocos
                     else
                         raise ArgumentError, "#{value} is not a valid explicit selection"
                     end
+                when DataServiceInstance
+                    return value
                 else
                     if value.respond_to?(:to_ary)
                         value.map { |v| resolve_explicit_selection(v, engine) }
