@@ -1540,10 +1540,21 @@ module Orocos
                     device_spec = robot.devices[task.arguments["#{source_name}_name"]]
                     next if !device_spec || !device_spec.com_bus_names.include?(bus_name)
                     
-                    in_ports  = in_candidates.
-                        find_all { |p| p.name =~ /#{source_name}/i }
-                    out_ports = out_candidates.
-                        find_all { |p| p.name =~ /#{source_name}/i }
+                    in_ports =
+                        if in_candidates.size > 1
+                            in_candidates.
+                                find_all { |p| p.name =~ /#{source_name}/i }
+                        else
+                            in_candidates
+                        end
+
+                    out_ports =
+                        if out_candidates.size > 1
+                            out_candidates.
+                                find_all { |p| p.name =~ /#{source_name}/i }
+                        else
+                            out_candidates
+                        end
 
                     if in_ports.size > 1
                         raise Ambiguous, "there are multiple options to connect #{bus_name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
