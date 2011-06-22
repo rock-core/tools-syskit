@@ -396,6 +396,7 @@ module Orocos
             # definition at this level of the model hierarchy:
             def add_child(name, child_model, dependency_options)
                 name = name.to_str
+                dependency_options = Roby::TaskStructure::Dependency.validate_options(dependency_options)
 
                 # We do NOT check for an already existing definition. The reason
                 # is that specialization (among other) will add a default child,
