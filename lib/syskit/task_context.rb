@@ -739,8 +739,10 @@ module Orocos
                 end
 
                 if orogen_task.exception_state?(orogen_state)
-                    @stopping_because_of_error = true
-                    @stopping_origin = orogen_state
+                    if event = state_event(orogen_state)
+                        emit event
+                    else emit :exception
+                    end
                 elsif orogen_task.fatal_error_state?(orogen_state)
                     if event = state_event(orogen_state)
                         emit event
@@ -751,13 +753,7 @@ module Orocos
                     emit :running
 
                 elsif orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
-                    if @stopping_because_of_error
-                        if event = state_event(@stopping_origin)
-                            emit event
-                        else
-                            emit :failed
-                        end
-                    elsif interrupt?
+                    if interrupt?
                         emit :interrupt
                     elsif finishing?
                         emit :stop
