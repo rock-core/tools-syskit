@@ -186,7 +186,7 @@ module Ui
 
             items = Hash.new
             engine.defines.each_value do |instance|
-                item = add(instance.model, instance.using_spec)
+                item = add(instance.base_models.to_a.first, instance.using_spec)
                 item.set_check_state(0, Qt::Unchecked)
                 item.name = instance.name
                 item.update_text
@@ -198,8 +198,8 @@ module Ui
                 if item = items[instance.name]
                     item.set_check_state(0, Qt::Checked)
                     select(item)
-                else
-                    item = add(instance.model, instance.using_spec)
+                elsif composition = instance.base_models.find { |model| model <= Orocos::RobyPlugin::Compositon }
+                    item = add(composition, instance.using_spec)
                     item.name = instance.name
                     items[item.name] = item
                     item.update_text
