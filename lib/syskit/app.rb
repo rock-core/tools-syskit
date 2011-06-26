@@ -644,7 +644,9 @@ module Orocos
             attr_predicate :orocos_disables_local_process_server?, true
 
             def self.run(app)
-                handler_id = Roby.engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
+                handler_ids = []
+                handler_ids << Roby.engine.add_propagation_handler(:type => :external_events, &Orocos::RobyPlugin.method(:update_task_states))
+                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &Orocos::RobyPlugin.method(:apply_requirement_modifications))
 
                 yield
 
@@ -655,7 +657,7 @@ module Orocos
                     Orocos::Process.kill(remaining)
                 end
 
-                if handler_id
+                handler_ids.each do |handler_id|
                     Roby.engine.remove_propagation_handler(handler_id)
                 end
 
