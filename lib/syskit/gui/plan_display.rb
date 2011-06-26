@@ -32,7 +32,7 @@ module Ui
             end
 
             engine.to_svg('hierarchy', 'hierarchy.svg')
-            engine.to_svg('dataflow', 'dataflow.svg', true)
+            engine.to_svg('dataflow', 'dataflow.svg', false)
 
             @task_from_id = Hash.new
             plan.each_task do |task|
