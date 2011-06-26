@@ -113,7 +113,7 @@ module Orocos
             def use(*mappings)
                 composition_model = base_models.find { |m| m <= Composition }
                 if !composition_model
-                    raise ArgumentError, "#use is available only for compositions"
+                    raise ArgumentError, "#use is available only for compositions, got #{base_models.map(&:short_name).join(", ")}"
                 end
 
                 mappings = RobyPlugin.validate_using_spec(*mappings)
