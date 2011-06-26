@@ -2158,6 +2158,7 @@ module Orocos
                         end
 
                         self_task.depends_on(child_task, dependency_options)
+                        self_task.child_selection[child_name] = selected_child
                         if (main = main_task) && (main.child_name == child_name)
                             child_task.each_event do |ev|
                                 if !ev.terminal? && ev.symbol != :start && self_task.has_event?(ev.symbol)
@@ -2213,6 +2214,15 @@ module Orocos
             @strict_specialization_selection = true
 
             terminates
+
+            def initialize(options = Hash.new)
+                @child_selection = Hash.new
+                super
+            end
+
+            # A name => SelectedChild mapping of the selection result during
+            # #instanciate
+            attr_reader :child_selection
 
             inherited_enumerable(:child, :children, :map => true) { Hash.new }
             inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
@@ -2422,6 +2432,16 @@ module Orocos
                     end
                 else
                     return task, port_name
+                end
+            end
+
+            def map_child_port(child_name, port_name)
+                if mapped = model.find_child(child_name).port_mappings[port_name]
+                    return mapped
+                elsif mapped = child_selection[child_name].port_mappings[port_name]
+                    return mapped
+                else
+                    port_name
                 end
             end
 

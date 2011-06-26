@@ -906,6 +906,29 @@ module Orocos
             # them when the task stops
             attribute(:data_writers) { Array.new }
 
+            # Common implementation of port search for #data_reader and
+            # #data_writer
+            def data_accessor(*args) # :nodoc:
+                policy = Hash.new
+                if args.last.respond_to?(:to_hash)
+                    policy = args.pop
+                end
+
+                port_name = args.pop
+                if !args.empty?
+                    role_path = args
+                    parent = resolve_role_path(role_path[0..-2])
+                    task   = parent.child_from_role(role_path.last)
+                    if parent.respond_to?(:map_child_port)
+                        port_name = parent.map_child_port(role_path.last, port_name)
+                    end
+                else
+                    task = self
+                end
+
+                return task, port_name, policy
+            end
+
             # call-seq:
             #   data_writer 'port_name'[, policy]
             #   data_writer 'role_name', 'port_name'[, policy]
@@ -923,26 +946,13 @@ module Orocos
             #
             # The writer is automatically disconnected when the task quits
             def data_writer(*args)
-                policy = Hash.new
-                if args.last.respond_to?(:to_hash)
-                    policy = args.pop
-                end
-                policy, other_policy = Kernel.filter_options policy, :pull => true
-                policy.merge!(other_policy)
+                task, port_name, policy = data_accessor(*args)
 
-                port =
-                    if args.size > 1
-                        port_name = args.pop
-                        role_path = args
-                        task = resolve_role_path(role_path)
-			if !task
-			    raise ArgumentError, "#{self} has no child with role #{role_name}"
-			end
-			task.find_input_port(port_name)
-                    else
-                        port_name = args.first
-                        find_input_port(port_name)
-                    end
+                puts "looking for #{port_name} on #{task}"
+                port = task.find_input_port(port_name)
+                if !port
+                    raise ArgumentError, "#{task} has no input port #{port_name}"
+                end
 
                 result = port.writer(policy)
                 data_writers << result
@@ -966,26 +976,14 @@ module Orocos
             #
             # The reader is automatically disconnected when the task quits
             def data_reader(*args)
-                policy = Hash.new
-                if args.last.respond_to?(:to_hash)
-                    policy = args.pop
-                end
+                task, port_name, policy = data_accessor(*args)
                 policy, other_policy = Kernel.filter_options policy, :pull => true
                 policy.merge!(other_policy)
 
-                port =
-                    if args.size > 1
-                        port_name = args.pop
-                        role_path = args
-                        task = resolve_role_path(role_path)
-			if !task
-			    raise ArgumentError, "#{self} has no child with role #{role_name}"
-			end
-			task.find_output_port(port_name)
-                    else
-                        port_name = args.first
-                        find_output_port(port_name)
-                    end
+                port = task.find_output_port(port_name)
+                if !port
+                    raise ArgumentError, "#{task} has no input port #{port_name}"
+                end
 
                 result = port.reader(policy)
                 data_readers << result
