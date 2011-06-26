@@ -891,6 +891,9 @@ module Orocos
                     task_node_attributes << "color=\"blue\""
                 end
 
+                roles = task.roles
+                task_label << " <BR/> roles:#{roles.to_a.sort.join(",")}"
+
                 return task_label, task_node_attributes
             end
 
