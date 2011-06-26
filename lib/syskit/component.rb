@@ -1052,6 +1052,22 @@ module Orocos
             def copy_to_state(port_name, *state_path, &filter_block)
                 @state_copies << StateCopySetup.new(port_name, state_path, nil, filter_block)
             end
+
+            def method_missing(m, *args, &block)
+                if args.empty? && !block
+                    if m.to_s =~ /^(\w+)_port/
+                        port_name = $1
+                        if port = find_input_port(port_name)
+                            return port
+                        elsif port = find_output_port(port_name)
+                            return port
+                        else
+                            raise NoMethodError, "#{self} has no port called #{port_name}"
+                        end
+                    end
+                end
+                super
+            end
         end
     end
 end

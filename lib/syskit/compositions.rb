@@ -2513,6 +2513,43 @@ module Orocos
                 end
                 super
             end
+
+            # Proxy returned by the child_name_child handler
+            #
+            # This is used to perform port mapping if needed
+            class CompositionChildInstance
+                def initialize(composition_task, child_name, child_task)
+                    @composition_task, @child_name, @child_task = composition_task, child_name, child_task
+                end
+                def as_plan
+                    @child_task
+                end
+                def method_missing(m, *args, &block)
+                    if m.to_s =~ /^(\w+)_port$/
+                        port_name = $1
+                        mapped_port_name = @composition_task.map_child_port(@child_name, port_name)
+                        if port = @child_task.find_input_port(mapped_port_name)
+                            return port
+                        elsif port = @child_task.find_output_port(mapped_port_name)
+                            return port
+                        else raise NoMethodError, "task #{@child_task}, child #{@child_name} of #{@composition_task}, as no port called #{port_name}"
+                        end
+                    end
+                    @child_task.send(m, *args, &block)
+                end
+            end
+
+            def method_missing(m, *args, &block)
+                if args.empty? && !block
+                    if m.to_s =~ /^(\w+)_child$/
+                        child_name = $1
+                        # Verify that the child exists
+                        child_task = child_from_role(child_name)
+                        return CompositionChildInstance.new(self, child_name, child_task)
+                    end
+                end
+                super
+            end
         end
     end
 end
