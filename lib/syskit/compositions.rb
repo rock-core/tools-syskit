@@ -567,12 +567,17 @@ module Orocos
                 end
             end
 
+            # DEPRECATED. Use #add_main instead.
+            def add_main_task(models, options = Hash.new) # :nodoc:
+                add_main(models, options)
+            end
+
             # Adds the given child, and marks it as the task that provides the
             # main composition's functionality.
             #
             # What is means in practice is that the composition will terminate
             # successfully when this child terminates successfully
-            def add_main_task(models, options = Hash.new)
+            def add_main(models, options = Hash.new)
                 if main_task
                     raise ArgumentError, "this composition already has a main task child"
                 end
