@@ -200,7 +200,7 @@ module Orocos
                     end
                     task = @task_model.new(@arguments)
                 end
-                task.executable = false
+                task.abstract = true
                 task
             end
 
