@@ -405,6 +405,11 @@ module Orocos
             #   ...
             #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
+                if !::MainPlanner.has_method?(name)
+                    ::MainPlanner.method(name) do
+                        Orocos::RobyPlugin.require_task name
+                    end
+                end
                 defines[name] = Engine.create_instanciated_component(self, name, model)
             end
 
