@@ -154,7 +154,11 @@ module Orocos
         # Specialization of CompositionChildPort for output ports
         class CompositionChildOutputPort < CompositionChildPort; end
         # Specialization of CompositionChildPort for input ports
-        class CompositionChildInputPort  < CompositionChildPort; end
+        class CompositionChildInputPort  < CompositionChildPort
+            def multiplexes?
+                false
+            end
+        end
 
         # Additional methods that are mixed in composition specialization
         # models. I.e. composition models created by CompositionModel#specialize
