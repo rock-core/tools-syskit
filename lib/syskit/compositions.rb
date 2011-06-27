@@ -1945,6 +1945,7 @@ module Orocos
                     end
                 end
 
+                child_task.required_host = find_child(child_name).required_host || self_task.required_host
                 child_task
             end
 

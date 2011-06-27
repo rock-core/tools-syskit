@@ -102,6 +102,8 @@ module Orocos
 
             def merge(merged_task)
                 super
+                self.required_host ||= merged_task.required_host
+
                 if merged_task.orogen_spec && !orogen_spec
                     self.orogen_spec = merged_task.orogen_spec
                 end
@@ -124,10 +126,6 @@ module Orocos
                 @required_host = nil
                 self.executable = false
             end
-
-            # If set, this is the name of the process server that should be
-            # selected to run this task
-            attr_accessor :required_host
 
             # Creates a Ruby class which represents the set of properties that
             # the task context has. The returned class will initialize its
@@ -224,6 +222,11 @@ module Orocos
             # Maximum distance value
             D_MAX          = 2
 
+            # Returns true if +self+ and +task+ are on the same process server
+            def on_same_server?(task)
+                distance_to(task) != D_DIFFERENT_MACHINES
+            end
+
             # Returns a value that represents how the two task contexts are far
             # from each other. The possible return values are:
             #
@@ -260,9 +263,9 @@ module Orocos
                 # Verify the host constraints (i.e. can't merge other_task in
                 # +self+ if both have constraints on which host they should run,
                 # and that constraint does not match)
-                !other_task.respond_to?(:required_host) ||
-                    !required_host || !other_task.required_host ||
-                    required_host == other_task.required_host
+                other_task.respond_to?(:required_host) &&
+                    (!required_host || !other_task.required_host ||
+                    required_host == other_task.required_host)
             end
 
             def added_child_object(child, relations, info) # :nodoc:

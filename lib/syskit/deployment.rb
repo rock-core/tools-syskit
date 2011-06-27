@@ -92,6 +92,12 @@ module Orocos
                 orogen_spec.task_activities
             end
 
+            # Returns true if +self+ and +task+ are running on the same process
+            # server
+            def on_same_server?(task)
+                task == self || machine == task.machine
+            end
+
             def instanciate_all_tasks
                 orogen_spec.task_activities.map do |act|
                     task(act.name)

@@ -188,6 +188,15 @@ module Orocos
                 return result
             end
 
+            attr_reader :required_host
+
+            # Requires that this spec runs on the given process server, i.e.
+            # that all the corresponding tasks are running on that process
+            # server
+            def on_server(name)
+                @required_host = name
+            end
+
             # Returns a task that can be used in the plan as a placeholder for
             # this instance
             def create_placeholder_task
@@ -200,6 +209,7 @@ module Orocos
                     end
                     task = @task_model.new(@arguments)
                 end
+                task.required_host = self.required_host
                 task.abstract = true
                 task
             end
@@ -231,6 +241,11 @@ module Orocos
                 if !task_model.fullfills?(base_models)
                     raise InternalError, "instanciated task #{@task} does not provide the required models #{base_models.map(&:short_name).join(", ")}"
                 end
+
+                if required_host && task.respond_to?(:required_host=)
+                    task.required_host = required_host
+                end
+
                 @task
             end
 

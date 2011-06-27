@@ -403,6 +403,13 @@ module Orocos
             # The Robot instance we are running on
             attr_accessor :robot
 
+            # The name of the process server that should run this component
+            #
+            # On regular task contexts, it is the host on which the task is
+            # required to run. On compositions, it affects the composition's
+            # children
+            attr_accessor :required_host
+
             # Returns the set of communication busses names that this task
             # needs.
             def com_busses
