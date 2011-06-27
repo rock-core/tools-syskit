@@ -219,9 +219,9 @@ module Orocos
                     all_stopped = Roby::AndGenerator.new
 
                     restart_tasks.each do |task|
-                        Engine.info { "restarting #{task}" }
+                        Engine.debug { "restarting #{task}" }
                         replacement = plan.recreate(task)
-                        Engine.info { "  replaced by #{replacement}" }
+                        Engine.debug { "  replaced by #{replacement}" }
                         new_tasks << replacement
                         all_stopped << task.stop_event
                     end
@@ -234,9 +234,9 @@ module Orocos
                 # Remove connections first
                 removed.each do |(source_task, sink_task), mappings|
                     mappings.each do |source_port, sink_port|
-                        Engine.info do
-                            Engine.info "disconnecting #{source_task}:#{source_port}"
-                            Engine.info "     => #{sink_task}:#{sink_port}"
+                        Engine.debug do
+                            Engine.debug "disconnecting #{source_task}:#{source_port}"
+                            Engine.debug "     => #{sink_task}:#{sink_port}"
                             break
                         end
 
@@ -282,10 +282,10 @@ module Orocos
                 pending_tasks = ValueSet.new
                 new.each do |(from_task, to_task), mappings|
                     mappings.each do |(from_port, to_port), policy|
-                        Engine.info do
-                            Engine.info "connecting #{from_task}:#{from_port}"
-                            Engine.info "     => #{to_task}:#{to_port}"
-                            Engine.info "     with policy #{policy}"
+                        Engine.debug do
+                            Engine.debug "connecting #{from_task}:#{from_port}"
+                            Engine.debug "     => #{to_task}:#{to_port}"
+                            Engine.debug "     with policy #{policy}"
                             break
                         end
 
@@ -315,10 +315,10 @@ module Orocos
                 # Check tasks for which we created an input. If they are not
                 # executable and all_inputs_connected? returns true, set their
                 # executable flag to nil
-                Engine.info do
-                    Engine.info "#{pending_tasks.size} pending tasks"
+                Engine.debug do
+                    Engine.debug "#{pending_tasks.size} pending tasks"
                     pending_tasks.each do |t|
-                        Engine.info "  #{t}: all_inputs_connected=#{t.all_inputs_connected?} executable=#{t.executable?}"
+                        Engine.debug "  #{t}: all_inputs_connected=#{t.all_inputs_connected?} executable=#{t.executable?}"
                     end
                     break
                 end
@@ -347,27 +347,27 @@ module Orocos
                         main_tasks.merge(Flows::DataFlow.pending_changes.first)
                     end
 
-                    Engine.info do
-                        Engine.info "computing data flow update from modified tasks"
+                    Engine.debug do
+                        Engine.debug "computing data flow update from modified tasks"
                         for t in main_tasks
-                            Engine.info "  #{t}"
+                            Engine.debug "  #{t}"
                         end
                         break
                     end
 
                     new, removed = compute_connection_changes(main_tasks)
                     if new
-                        Engine.info do
-                            Engine.info "  new connections:"
+                        Engine.debug do
+                            Engine.debug "  new connections:"
                             new.each do |(from_task, to_task), mappings|
-                                Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
-                                Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
+                                Engine.debug "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
+                                Engine.debug "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
                                 mappings.each do |(from_port, to_port), policy|
-                                    Engine.info "      #{from_port}:#{to_port} #{policy}"
+                                    Engine.debug "      #{from_port}:#{to_port} #{policy}"
                                 end
                             end
-                            Engine.info "  removed connections:"
-                            Engine.info "  disable debug display because it is unstable in case of process crashes"
+                            Engine.debug "  removed connections:"
+                            Engine.debug "  disable debug display because it is unstable in case of process crashes"
                             #removed.each do |(from_task, to_task), mappings|
                             #    Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
                             #    Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
@@ -388,35 +388,35 @@ module Orocos
                         Flows::DataFlow.modified_tasks.clear
                         Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_value_set)
                     else
-                        Engine.info "cannot compute changes, keeping the tasks queued"
+                        Engine.debug "cannot compute changes, keeping the tasks queued"
                     end
                 end
 
                 if Flows::DataFlow.pending_changes
                     _, new, removed, pending_replacement = Flows::DataFlow.pending_changes
                     if pending_replacement && !pending_replacement.happened? && !pending_replacement.unreachable?
-                        Engine.info "waiting for replaced tasks to stop"
+                        Engine.debug "waiting for replaced tasks to stop"
                     else
                         if pending_replacement
-                            Engine.info "successfully started replaced tasks, now applying pending changes"
+                            Engine.debug "successfully started replaced tasks, now applying pending changes"
                             pending_replacement.clear_vertex
                             plan.unmark_permanent(pending_replacement)
                         end
 
                         pending_replacement = catch :cancelled do
-                            Engine.info "applying pending changes from the data flow graph"
+                            Engine.debug "applying pending changes from the data flow graph"
                             apply_connection_changes(new, removed)
                             Flows::DataFlow.pending_changes = nil
                         end
 
                         if !Flows::DataFlow.pending_changes
-                            Engine.info "successfully applied pending changes"
+                            Engine.debug "successfully applied pending changes"
                         elsif pending_replacement
-                            Engine.info "waiting for replaced tasks to stop"
+                            Engine.debug "waiting for replaced tasks to stop"
                             plan.add_permanent(pending_replacement)
                             Flows::DataFlow.pending_changes[3] = pending_replacement
                         else
-                            Engine.info "failed to apply pending changes"
+                            Engine.debug "failed to apply pending changes"
                         end
                     end
                 end
