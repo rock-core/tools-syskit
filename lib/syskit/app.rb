@@ -400,6 +400,10 @@ module Orocos
                 end
             end
 
+            def use_deployment(*args)
+                orocos_engine.use_deployment(*args)
+            end
+
             def use_deployments_from(*args)
                 orocos_engine.use_deployments_from(*args)
             end
