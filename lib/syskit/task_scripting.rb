@@ -51,7 +51,6 @@ module Orocos
                     when /^write_(\w+)$/
                         name = $1.to_sym
                         if writer = data_writers[name]
-                            puts "writing #{writer[2]} on #{writer[1]}"
                             writer[1].write(writer[2])
                         else
                             raise NoMethodError, "no data writer called #{name} defined: got #{data_writers.keys.map(&:inspect).join(", ")}"
