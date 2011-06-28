@@ -76,7 +76,7 @@ if test
 
         cmdline = []
         cmdline.concat(config)
-        cmdline << output_option + ":#{test_name}"
+        cmdline << output_option + ":#{File.join(outdir, test_name)}"
         if test_def['robot']
             cmdline << "-r#{test_def['robot']}"
         end
