@@ -198,6 +198,14 @@ module Orocos
 
                 return component_model, srv
             end
+
+            def each_fullfilled_model
+                model.ancestors.each do |m|
+                    if m <= Component || m <= DataService
+                        yield(m)
+                    end
+                end
+            end
         end
 
         # Definition of model-level methods for the Component models. See the
@@ -444,6 +452,18 @@ module Orocos
 
             def self.as_plan
                 Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
+            end
+
+            def self.each_fullfilled_model
+                ancestors.each do |m|
+                    if m <= Component || m <= DataService
+                        yield(m)
+                    end
+                end
+            end
+
+            def each_fullfilled_model(&block)
+                model.each_fullfilled_model(&block)
             end
 
             # This is documented on ComponentModel

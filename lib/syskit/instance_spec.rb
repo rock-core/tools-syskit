@@ -225,8 +225,8 @@ module Orocos
                     raise ArgumentError, "cannot call #instanciate on a composite model"
                 end
 
-                result = engine.resolve_explicit_selections(using_spec)
-                engine.add_default_selections(result)
+                result = self.class.resolve_explicit_selections(using_spec, engine)
+                result = engine.add_default_selections(result)
 
                 arguments = Kernel.validate_options arguments, :task_arguments => nil
                 instanciate_arguments = {
@@ -247,6 +247,75 @@ module Orocos
                 end
 
                 @task
+            end
+
+            def self.resolve_explicit_selections(using_spec, engine = nil)
+                result = Hash.new
+                using_spec.each do |key, selected|
+                    if resolved_selection = resolve_explicit_selection(selected, engine)
+                        result[key] = resolved_selection
+                    end
+                end
+
+                result = resolve_default_selections(result)
+                resolve_recursive_selection(result)
+            end
+
+            # This method checks if there are default selections (which are
+            # saved as nil => [selection_list]. If there are some, they get
+            # mapped to service => selection entries
+            def self.resolve_default_selections(using_spec)
+                default_selections = using_spec[nil]
+                if !default_selections
+                    return using_spec
+                end
+
+                Engine.debug do
+                    Engine.debug "resolving default selections"
+                    default_selections.each do |sel|
+                        Engine.debug "  #{sel}"
+                    end
+                    break
+                end
+
+                result = using_spec.dup
+                result.delete(nil)
+
+                ambiguous_default_selections = ValueSet.new
+                resolved_default_selections = Hash.new
+
+                default_selections.each do |selection|
+                    selection.each_fullfilled_model do |m|
+                        if using_spec[m]
+                            Engine.debug do
+                                Engine.debug "  rejected #{selection} for #{m}: already explicitely selected"
+                                break
+                            end
+                        elsif ambiguous_default_selections.include?(m)
+                            Engine.debug do
+                                Engine.debug "  rejected #{selection} for #{m}: ambiguous"
+                                break
+                            end
+                        elsif resolved_default_selections[m]
+                            ambiguous_default_selections << m
+                            removed = resolved_default_selections.delete(m)
+                            Engine.debug do
+                                Engine.debug "  rejected #{removed} for #{m}: ambiguous"
+                                Engine.debug "  rejected #{selection} for #{m}: ambiguous"
+                                break
+                            end
+                        elsif selection != m
+                            resolved_default_selections[m] = selection
+                        end
+                    end
+                end
+                Engine.debug do
+                    resolved_default_selections.each do |key, sel|
+                        Engine.debug "  #{key.respond_to?(:short_name) ? key.short_name : key}: #{sel}"
+                    end
+                    break
+                end
+                result.merge!(resolved_default_selections)
             end
 
             def self.resolve_using_spec(using_spec)
@@ -307,9 +376,40 @@ module Orocos
                 end
             end
 
+            def self.resolve_recursive_selection(using_spec)
+                result = Hash.new
+                using_spec.each do |key, value|
+                    result[key] = resolve_single_recursive_selection(value, using_spec)
+                end
+                result
+            end
+
+            def self.resolve_single_recursive_selection(value, using_spec)
+                resolved_value = value
+                while (new_value = using_spec[resolved_value])
+                    resolved_value = new_value
+                end
+                resolved_value
+            end
+
+            def each_fullfilled_model(&block)
+                models.each do |m|
+                    m.each_fullfilled_model(&block)
+                end
+            end
+
             def as_plan
                 Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
             end
+
+            def to_s
+                result = "#<#{self.class}: #{models.map(&:short_name).join(", ")}"
+                if using_spec
+                    result << " using(#{using_spec})"
+                end
+                result << ">"
+            end
+
         end
 
     end

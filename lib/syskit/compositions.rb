@@ -1991,7 +1991,7 @@ module Orocos
 
                 child_selection.merge!(selected_child.using_spec)
                 child_selection.merge!(child_user_selection)
-                child_selection = engine.resolve_explicit_selections(child_selection)
+                child_selection = EngineRequirement.resolve_explicit_selections(child_selection, engine)
                 # From this level's arguments, only forward the
                 # selections that have explicitely given for our
                 # children

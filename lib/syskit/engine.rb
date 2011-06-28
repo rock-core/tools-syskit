@@ -363,6 +363,7 @@ module Orocos
                 mappings.each do |model, definition|
                     main_user_selection[model] = definition
                 end
+                @main_user_selection = EngineRequirement.resolve_recursive_selection(main_user_selection)
             end
 
             # Require a new composition/service, and specify that it should be
@@ -410,7 +411,7 @@ module Orocos
                         Orocos::RobyPlugin.require_task name
                     end
                 end
-                defines[name] = Engine.create_instanciated_component(self, name, model)
+                defines[name] = Engine.create_instanciated_component(self, name, main_user_selection[model] || model)
             end
 
             # Returns the EngineRequirement object that represents the given
@@ -448,7 +449,7 @@ module Orocos
                     if model.respond_to?(:to_str)
                         instanciated_component_from_name(model, arguments[:as] || model)
                     else
-                        Engine.create_instanciated_component(self, arguments[:as], model)
+                        Engine.create_instanciated_component(self, arguments[:as], main_user_selection[model] || model)
                     end
 
                 @modified = true
@@ -592,8 +593,14 @@ module Orocos
             # Add the global selections to +using_spec+
             def add_default_selections(using_spec)
                 implicit = using_spec[nil] || []
+                Engine.debug "adding default selections"
 
                 main_selection.each do |key, selected|
+                    Engine.debug do
+                        Engine.debug "  #{key} => #{selected}"
+                        break
+                    end
+
                     if key
                         next if implicit.any? { |t| t.fullfills?(key) }
                     end
@@ -603,22 +610,12 @@ module Orocos
                         if resolved_selection.respond_to?(:to_ary) && !implicit.empty?
                             using_spec[nil].concat(resolved_selection)
                         else
-                            using_spec[key] = resolved_selection
+                            using_spec[key] ||= resolved_selection
                         end
                     end
                 end
-                using_spec
-            end
 
-            def resolve_explicit_selections(using_spec)
-                result = Hash.new
-                using_spec.each do |key, selected|
-                    if resolved_selection = EngineRequirement.resolve_explicit_selection(selected, self)
-                        verify_result_in_transaction(key, resolved_selection)
-                        result[key] = resolved_selection
-                    end
-                end
-                result
+                EngineRequirement.resolve_recursive_selection(using_spec)
             end
 
             def verify_result_in_transaction(key, result)
@@ -1093,6 +1090,7 @@ module Orocos
                 else
                     @main_selection = result.merge(main_user_selection)
                 end
+                @main_selection = EngineRequirement.resolve_recursive_selection(@main_selection)
 
                 @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
             end
