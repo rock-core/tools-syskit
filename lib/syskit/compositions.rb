@@ -995,34 +995,24 @@ module Orocos
             def find_most_specialized_compositions(model_set, children_names)
                 return model_set if children_names.empty?
 
-                has_improvement = Hash.new
-                is_improvement  = Hash.new(true)
+                relations = BGL::Graph.new
 
                 # We remove a model from +model_set+ iff
                 # * one of its specialization is also in +result+ *and*
                 # * this specialization is specialized on one of the children
                 #   listed in +children_names+
                 model_set.each do |m|
-                    has_improvement[m] = false
+                    m.extend BGL::Vertex
                     m.specializations.each do |specialized_on, specialization|
-                        specialization_is_improvement = model_set.include?(specialization) &&
-                            children_names.any? { |child| specialized_on[child] != m.specialized_children[child] }
-                        if specialization_is_improvement
-                            has_improvement[m] = true
-                            is_improvement[specialization] = true
-                        else
-                            is_improvement[specialization] = false
+                        next if !model_set.include?(specialization)
+
+                        if children_names.any? { |child| specialized_on[child] != m.specialized_children[child] }
+                            relations.link(m, specialization, nil)
                         end
                     end
                 end
 
-                result = model_set.find_all do |m|
-                    !has_improvement[m] && is_improvement[m]
-                end
-                result.delete_if do |m|
-                    result.any? { |parent_m| parent_m.parent_model_of?(m) }
-                end
-                result
+                model_set.find_all { |m| m.leaf?(relations) }
             end
 
             def find_all_selected_specializations(selection)
