@@ -82,6 +82,22 @@ module Orocos
                 self
             end
 
+            def each_input_port(&block)
+                composition.find_child(child_name).models.each do |child_model|
+                    child_model.each_input_port do |p|
+                        yield(CompositionChildInputPort.new(self, p, p.name))
+                    end
+                end
+            end
+
+            def each_output_port(&block)
+                composition.find_child(child_name).models.each do |child_model|
+                    child_model.each_output_port do |p|
+                        yield(CompositionChildOutputPort.new(self, p, p.name))
+                    end
+                end
+            end
+
             # Returns a CompositionChildPort instance if +name+ is a valid port
             # name
             def method_missing(name, *args) # :nodoc:
@@ -1199,46 +1215,71 @@ module Orocos
                     break
                 end
 
-                result = Hash.new { |h, k| h[k] = Hash.new }
-
                 # First, gather per-type available inputs and outputs. Both
                 # hashes are:
                 #
                 #   port_type_name => [[child_name, child_port_name], ...]
-                child_inputs  = Hash.new { |h, k| h[k] = Array.new }
-                child_outputs = Hash.new { |h, k| h[k] = Array.new }
+                child_inputs  = Array.new
+                child_outputs = Array.new
                 children_names.each do |name|
-                    dependent_models = find_child(name).models
+                    child = CompositionChild.new(self, name)
                     seen = Set.new
-                    dependent_models.each do |sys|
-                        sys.each_input_port do |in_port|
-                            next if seen.include?(in_port.name)
-                            next if exported_port?(in_port)
-                            next if autoconnect_ignores.include?([name, in_port.name])
+                    child.each_output_port do |out_port|
+                        next if seen.include?(out_port.name)
+                        next if exported_port?(out_port)
+                        next if autoconnect_ignores.include?([name, out_port.name])
 
-                            child_inputs[in_port.type_name] << [name, in_port.name]
-                            seen << in_port.name
-                        end
-
-                        sys.each_output_port do |out_port|
-                            next if seen.include?(out_port.name)
-                            next if exported_port?(out_port)
-                            next if autoconnect_ignores.include?([name, out_port.name])
-
-                            child_outputs[out_port.type_name] << [name, out_port.name]
-                            seen << out_port.name
-                        end
+                        child_outputs << out_port
+                        seen << out_port.name
+                    end
+                    child.each_input_port do |in_port|
+                        next if seen.include?(in_port.name)
+                        next if exported_port?(in_port)
+                        next if autoconnect_ignores.include?([name, in_port.name])
+                        child_inputs << in_port
+                        seen << in_port.name
                     end
                 end
 
+                result = autoconnect_children(child_outputs, child_inputs, each_explicit_connection.to_a + parent_autoconnections.to_a)
+                self.automatic_connections = result.merge(parent_autoconnections)
+            end
 
+            # Autoconnects the outputs listed in +child_outputs+ to the inputs
+            # in child_inputs. +exclude_connections+ is a list of connections
+            # whose input ports should be ignored in the autoconnection process.
+            #
+            # +child_outputs+ and +child_inputs+ are mappings of the form
+            #
+            #   type_name => [child_name, port_name]
+            #
+            # +exclude_connections+ is using the same format than the values
+            # returned by each_explicit_connection (i.e. how connections are
+            # stored in the DataFlow graph), namely a mapping of the form
+            #
+            #   (child_out_name, child_in_name) => mappings
+            #
+            # Where +mappings+ is
+            #
+            #   [port_out, port_in] => connection_policy
+            #
+            def autoconnect_children(child_output_ports, child_input_ports, exclude_connections)
+                result = Hash.new { |h, k| h[k] = Hash.new }
+
+                child_outputs = Hash.new { |h, k| h[k] = Array.new }
+                child_output_ports.each do |p|
+                    child_outputs[p.type_name] << [p.child.child_name, p.name]
+                end
+                child_inputs = Hash.new { |h, k| h[k] = Array.new }
+                child_input_ports.each do |p|
+                    child_inputs[p.type_name] << [p.child.child_name, p.name]
+                end
                 existing_inbound_connections = Set.new
-                (each_explicit_connection.to_a + parent_autoconnections.to_a).
-                    each do |(_, child_in), mappings|
-                        mappings.each_key do |_, port_in|
-                            existing_inbound_connections << [child_in, port_in]
-                        end
+                exclude_connections.each do |(_, child_in), mappings|
+                    mappings.each_key do |_, port_in|
+                        existing_inbound_connections << [child_in, port_in]
                     end
+                end
 
                 # Now create the connections
                 child_inputs.each do |typename, in_ports|
@@ -1298,8 +1339,7 @@ module Orocos
                     end
                     break
                 end
-
-                self.automatic_connections = result.merge(parent_autoconnections)
+                result
             end
 
             # Returns the set of connections that should be created during the
@@ -1466,13 +1506,42 @@ module Orocos
                     options = Kernel.validate_options options, Orocos::Port::CONNECTION_POLICY_OPTIONS
                 end
                 mappings.each do |out_p, in_p|
-                    if !out_p.kind_of?(CompositionChildOutputPort)
+                    child_inputs  = Array.new
+                    child_outputs = Array.new
+
+                    case out_p
+                    when CompositionChildOutputPort
+                        child_outputs << out_p
+                    when CompositionChild
+                        out_p.each_output_port do |p|
+                            child_outputs << p
+                        end
+                    when CompositionChildInputPort
                         raise ArgumentError, "#{out_p.name} is an input port of #{out_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    else
+                        raise ArgumentError, "#{out_p} is neither an input or output port. The correct syntax is 'connect output => input'"
                     end
-                    if !in_p.kind_of?(CompositionChildInputPort)
-                        raise ArgumentError, "#{in_p.name} is an input port of #{in_p.child.child_name}. The correct syntax is 'connect output => input'"
+
+                    case in_p
+                    when CompositionChildInputPort
+                        child_inputs << in_p
+                    when CompositionChild
+                        in_p.each_input_port do |p|
+                            if !in_p
+                                raise
+                            end
+                            child_inputs << p
+                        end
+                    when CompositionChildOutputPort
+                        raise ArgumentError, "#{in_p.name} is an output port of #{in_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    else
+                        raise ArgumentError, "#{in_p} is neither an input or output port. The correct syntax is 'connect output => input'"
                     end
-                    unmapped_explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.name, in_p.name] ] = options
+
+                    result = autoconnect_children(child_outputs, child_inputs, each_explicit_connection.to_a)
+                    unmapped_explicit_connections.merge!(result) do |k, v1, v2|
+                        v1.merge!(v2)
+                    end
                 end
             end
 
