@@ -655,6 +655,7 @@ module Orocos
                 if state == :EXCEPTION
                     ::Robot.info "reconfiguring #{self}: the task was in exception state"
                     orogen_task.reset_exception(false)
+                    state = orogen_task.rtt_state
                     needs_reconf = true
                 elsif state == :PRE_OPERATIONAL
                     needs_reconf = true
