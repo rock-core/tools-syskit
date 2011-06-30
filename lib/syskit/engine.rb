@@ -377,6 +377,10 @@ module Orocos
             # Helper method that creates an instance of EngineRequirement
             # and registers it
             def self.create_instanciated_component(engine, name, model) # :nodoc:
+                if model.respond_to?(:to_str)
+                    model = engine.instanciated_component_from_name(model, name || model)
+                end
+
                 if model.kind_of?(DeviceInstance)
                     if model.kind_of?(SlaveDeviceInstance)
                         model = model.master_device
@@ -445,12 +449,7 @@ module Orocos
             def add(model, arguments = Hash.new)
                 arguments = Kernel.validate_options arguments, :as => nil
 
-                instance =
-                    if model.respond_to?(:to_str)
-                        instanciated_component_from_name(model, arguments[:as] || model)
-                    else
-                        Engine.create_instanciated_component(self, arguments[:as], main_user_selection[model] || model)
-                    end
+                instance = Engine.create_instanciated_component(self, arguments[:as], main_user_selection[model] || model)
 
                 @modified = true
                 instances << instance
