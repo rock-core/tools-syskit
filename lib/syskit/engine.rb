@@ -399,6 +399,11 @@ module Orocos
                 end
             end
 
+            # Returns a instanciation specification for the given device
+            def device(name)
+                instanciated_component_from_name(name, name)
+            end
+
             # Define a component instanciation specification, without adding it
             # to the current deployment.
             #
