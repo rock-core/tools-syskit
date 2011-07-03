@@ -98,6 +98,12 @@ module Orocos
                 task == self || machine == task.machine
             end
 
+            def self.instanciate(engine, arguments = Hash.new)
+                task = new(arguments)
+                task.robot = engine.robot
+                task
+            end
+
             def instanciate_all_tasks
                 orogen_spec.task_activities.map do |act|
                     task(act.name)

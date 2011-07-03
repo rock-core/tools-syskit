@@ -730,7 +730,8 @@ module Orocos
                     all_deployment_names = app.orocos_engine.deployments.values.map(&:to_a).flatten
                     Roby.execute do
                         all_deployment_names.each do |name|
-                            Roby.plan.add_permanent(Roby.app.orocos_deployments[name])
+                            task = Roby.app.orocos_deployments[name].instanciate(Roby.app.orocos_engine)
+                            Roby.plan.add_permanent(task)
                         end
                     end
                 end
