@@ -675,7 +675,9 @@ module Orocos
                     raise ArgumentError, "there is already a process server called #{name} running"
                 end
 
-                port = ProcessServer::DEFAULT_PORT
+                options = Kernel.validate_options options, :port => ProcessServer::DEFAULT_PORT, :log_dir => 'log', :result_dir => 'results'
+
+                port = options[:port]
                 if host =~ /^(.*):(\d+)$/
                     host = $1
                     port = Integer($2)
@@ -686,9 +688,9 @@ module Orocos
                 end
 
                 client = Orocos::ProcessClient.new(host, port)
-                client.save_log_dir(options[:log_dir] || 'log', options[:result_dir] || 'results')
-                client.create_log_dir(options[:log_dir] || 'log', Roby.app.time_tag)
-                Application.register_process_server(name, client, options[:log_dir] || 'log')
+                client.save_log_dir(options[:log_dir], options[:result_dir])
+                client.create_log_dir(options[:log_dir], Roby.app.time_tag)
+                Application.register_process_server(name, client, options[:log_dir])
             end
 
             ##
