@@ -1403,6 +1403,9 @@ module Orocos
                     trsc.find_tasks.permanent.each do |t|
                         trsc.unmark_permanent(t)
                     end
+                    trsc.find_tasks(Deployment).each do |t|
+                        trsc.add_permanent(t)
+                    end
                     instances.each do |instance|
                         old_task = state_backup.instance_tasks[instance]
                         new_task = instance.task
