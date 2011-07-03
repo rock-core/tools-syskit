@@ -18,6 +18,76 @@ module Orocos
                 Roby.app.load_orogen_project(name)
             end
         end
+        
+        class LogGroup
+            def load(&block)
+                instance_eval(&block)
+            end
+
+            def initialize(enabled = true)
+                @deployments = Set.new
+                @tasks = Set.new
+                @ports = Set.new
+                @names = Set.new
+                @enabled = enabled
+            end
+
+            attr_reader :deployments
+            attr_reader :tasks
+            attr_reader :ports
+            attr_reader :names
+
+            attr_predicate :enabled? , true
+
+            # Adds +object+ to this logging group
+            #
+            # +object+ can be
+            # * a deployment model, in which case no task  in this deployment
+            #   will be logged
+            # * a task model, in which case no port of any task of this type
+            #   will be logged
+            # * a [task_model, port_name] pair
+            # * a string. It can then either be a task name, a port name or a type
+            #   name
+            def add(object, subname = nil)
+                if object.kind_of?(Class) && object < RobyPlugin::DataService
+                    if subname
+                        ports << [object, subname]
+                    else
+                        tasks << object
+                    end
+                elsif object.kind_of?(Class) && object < RobyPlugin::Deployment
+                    deployments << object
+                else
+                    names << object.to_str
+                end
+            end
+
+            def matches_deployment?(deployment)
+                if deployments.include?(deployment.model)
+                    true
+                elsif names.include?(deployment.name)
+                    true
+                else
+                    false
+                end
+            end
+
+            def matches_port?(deployment, task_model, port)
+                if ports.any? { |model, port_name| port.name == port_name && task_model.fullfills?(model) }
+                    true
+                elsif tasks.include?(task_model)
+                    true
+                elsif deployments.include?(deployment.model)
+                    true
+                else
+                    names.include?(port.type_name) ||
+                        names.include?(port.task.name) ||
+                        names.include?(port.name) ||
+                        names.include?("#{port.task.name}.#{port.name}")
+                end
+            end
+        end
 
         # Orocos engine configuration interface
         #
@@ -35,24 +105,28 @@ module Orocos
                 @conf_log_enabled = true
                 @redirect_local_process_server = true
 
-                @excluded_deployments = Set.new
-                @excluded_tasks = Set.new
-                @excluded_ports = Set.new
-                @excluded_names = Set.new
+                @log_groups = { nil => LogGroup.new(false) }
 
                 registry = Typelib::Registry.new
                 Typelib::Registry.add_standard_cxx_types(registry)
                 registry.each do |t|
                     if t < Typelib::NumericType
-                        @excluded_names << t.name
+                        main_group.names << t.name
                     end
                 end
             end
 
-            attr_reader :excluded_deployments
-            attr_reader :excluded_tasks
-            attr_reader :excluded_ports
-            attr_reader :excluded_names
+            attr_reader :log_groups
+
+            def main_group
+                log_groups[nil]
+            end
+
+            def log_group(name, &block)
+                group = LogGroup.new
+                group.load(&block)
+                log_groups[name.to_str] = group
+            end
 
             # Exclude +object+ from the logging system
             #
@@ -65,16 +139,16 @@ module Orocos
             #   (regardless of which task it is on)
             # * a string. It can then either be a task name, a port name or a type
             #   name
-            def exclude_from_log(object)
-                if object.kind_of?(Class) && object < RobyPlugin::TaskContext
-                    excluded_tasks << object
-                elsif object.kind_of?(Class) && object < RobyPlugin::Deployment
-                    excluded_deployments << object
-                elsif object.kind_of?(Orocos::Generation::OutputPort)
-                    excluded_ports << object
-                else
-                    excluded_names << object.to_str
-                end
+            def exclude_from_log(object, subname = nil)
+                main_group.add(object, subname)
+            end
+
+            def enable_log_group(name)
+                log_groups[name].enabled = true
+            end
+
+            def disable_log_group(name)
+                log_groups[name].enabled = false
             end
 
             attr_predicate :redirect_local_process_server?, true
@@ -90,29 +164,18 @@ module Orocos
             def deployment_excluded_from_log?(deployment)
                 if !log_enabled?
                     true
-                elsif excluded_deployments.include?(deployment.model)
-                    true
-                elsif excluded_names.include?(deployment.name)
-                    true
                 else
-                    false
+                    matches = log_groups.find_all { |_, group| group.matches_deployment?(deployment) }
+                    matches.all? { |_, group| !group.enabled? }
                 end
             end
 
             def port_excluded_from_log?(deployment, task_model, port)
                 if !log_enabled?
                     true
-                elsif excluded_ports.include?(port)
-                    true
-                elsif excluded_tasks.include?(task_model)
-                    true
-                elsif excluded_deployments.include?(deployment.model)
-                    true
                 else
-                    excluded_names.include?(port.type_name) ||
-                        excluded_names.include?(port.task.name) ||
-                        excluded_names.include?(port.name) ||
-                        excluded_names.include?("#{port.task.name}.#{port.name}")
+                    matches = log_groups.find_all { |_, group| group.matches_port?(deployment, task_mode, port) }
+                    matches.all? { |_, group| !group.enabled? }
                 end
             end
         end
