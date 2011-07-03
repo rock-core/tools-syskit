@@ -365,11 +365,56 @@ module Orocos
                 @modified_tasks ||= ValueSet.new
             end
 
+            def DataFlow.add_relation(from, to, info)
+                if !info.kind_of?(Hash)
+                    raise ArgumentError, "the DataFlow relation requires a hash as info object"
+                end
+
+                super
+
+                if !from.transaction_proxy? && !to.transaction_proxy?
+                    if from.kind_of?(Orocos::RobyPlugin::TaskContext)
+                        modified_tasks << from
+                    end
+		    if to.kind_of?(Orocos::RobyPlugin::TaskContext)
+			modified_tasks << to
+		    end
+                end
+            end
+
+            def DataFlow.remove_relation(from, to)
+                super
+
+                if !from.transaction_proxy? && !to.transaction_proxy?
+                    if from.kind_of?(Orocos::RobyPlugin::TaskContext)
+                        modified_tasks << from
+                    end
+		    if to.kind_of?(Orocos::RobyPlugin::TaskContext)
+			modified_tasks << to
+		    end
+                end
+            end
+
             # Called by the relation graph management to update the DataFlow
             # edge information when connections are added or removed.
             def DataFlow.merge_info(source, sink, current_mappings, additional_mappings)
+                super
+
                 current_mappings.merge(additional_mappings) do |(from, to), old_options, new_options|
                     RobyPlugin.update_connection_policy(old_options, new_options)
+                end
+            end
+
+            def DataFlow.updated_info(source, sink, mappings)
+                super
+
+                if !source.transaction_proxy? && !sink.transaction_proxy?
+                    if source.kind_of?(Orocos::RobyPlugin::TaskContext)
+                        modified_tasks << source
+                    end
+		    if sink.kind_of?(Orocos::RobyPlugin::TaskContext)
+			modified_tasks << sink
+		    end
                 end
             end
         end

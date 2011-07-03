@@ -268,26 +268,6 @@ module Orocos
                     required_host == other_task.required_host)
             end
 
-            def added_child_object(child, relations, info) # :nodoc:
-                super if defined? super
-                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
-                    Flows::DataFlow.modified_tasks << self
-		    if child.kind_of?(Orocos::RobyPlugin::TaskContext)
-			Flows::DataFlow.modified_tasks << child
-		    end
-                end
-            end
-
-            def removed_child_object(child, relations) # :nodoc:
-                super if defined? super
-                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
-                    Flows::DataFlow.modified_tasks << self
-		    if child.kind_of?(Orocos::RobyPlugin::TaskContext)
-			Flows::DataFlow.modified_tasks << child
-		    end
-                end
-            end
-
             # The PortDynamics object that describes the dynamics of the task
             # itself.
             #
