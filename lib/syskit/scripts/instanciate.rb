@@ -45,9 +45,6 @@ if test
     test_file = remaining.shift
     test_setup = YAML.load(File.read(test_file))
 
-    outdir = File.join(File.dirname(test_file), 'results', 'instanciate')
-    FileUtils.mkdir_p(outdir)
-
     config = test_setup.delete('configuration') || %w{--no-loggers --no-compositions -osvg}
 
     default_deployment = test_setup.delete('default_deployment') || '-'
@@ -73,6 +70,13 @@ if test
         end
 
         test_def = default_def.merge(test_def)
+
+        dirname = "instanciate"
+        if test_def['robot']
+            dirname << "-#{test_def['robot']}"
+        end
+        outdir = File.join(File.dirname(test_file), 'results', dirname)
+        FileUtils.mkdir_p(outdir)
 
         cmdline = []
         cmdline.concat(config)
