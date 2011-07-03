@@ -317,6 +317,10 @@ module Orocos
                     end
                 end
 
+                if app.shell?
+                    return
+                end
+
                 Roby::Conf.orocos = Configuration.new
                 Roby::State.orocos = Roby::Conf.orocos # for backward compatibility
 
