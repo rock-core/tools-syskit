@@ -647,10 +647,26 @@ module Orocos
             # See also #orocos_process_server
             attr_predicate :orocos_disables_local_process_server?, true
 
+            # If true, all deployments declared with use_deployment or
+            # use_deployments_from are getting started at the very beginning of
+            # the execution
+            #
+            # This greatly reduces latency during operations
+            attr_predicate :orocos_start_all_deployments?, true
+
             def self.run(app)
                 handler_ids = []
                 handler_ids << Roby.engine.add_propagation_handler(:type => :external_events, &Orocos::RobyPlugin.method(:update_task_states))
                 handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &Orocos::RobyPlugin.method(:apply_requirement_modifications))
+
+                if app.orocos_start_all_deployments?
+                    all_deployment_names = app.orocos_engine.deployments.values.map(&:to_a).flatten
+                    Roby.execute do
+                        all_deployment_names.each do |name|
+                            Roby.plan.add_permanent(Roby.app.orocos_deployments[name])
+                        end
+                    end
+                end
 
                 yield
 
