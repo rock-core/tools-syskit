@@ -524,7 +524,7 @@ module Orocos
             # task.
             def update_orogen_state # :nodoc:
                 if orogen_spec.context.extended_state_support?
-                    @state_reader ||= orogen_task.state_reader(:type => :buffer, :size => 10)
+                    @state_reader ||= orogen_task.state_reader(:type => :buffer, :size => 30)
                 end
 
                 if @state_reader
