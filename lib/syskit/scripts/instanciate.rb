@@ -142,7 +142,7 @@ end
 Roby.app.using_plugins 'orocos'
 Roby.app.orocos_only_load_models = true
 Roby.app.orocos_disables_local_process_server = true
-
+Roby.app.single
 Scripts.tic
 error = Scripts.run do
     GC.start

@@ -669,6 +669,15 @@ module Orocos
             # of the local process server (i.e. sets
             # orocos_disables_local_process_server to false)
             def orocos_process_server(name, host, options = Hash.new)
+                if single?
+                    if orocos_disables_local_process_server?
+                        return
+                    else
+                        client = Orocos::ProcessClient.new('localhost')
+                        return Application.register_process_server(name, client, Roby.app.log_dir)
+                    end
+                end
+
                 if local_only? && host != 'localhost'
                     raise ArgumentError, "in local only mode"
                 elsif Orocos::RobyPlugin.process_servers[name]
