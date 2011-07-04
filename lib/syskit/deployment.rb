@@ -297,17 +297,19 @@ module Orocos
             # Stops all tasks that are running on top of this deployment, and
             # kill the deployment
             event :stop do |context|
-                if task_handles
-                    task_handles.each_value do |t|
-                        if t.rtt_state != :PRE_OPERATIONAL
-                            begin t.cleanup
-                            rescue Exception
+                begin
+                    if task_handles
+                        task_handles.each_value do |t|
+                            if t.rtt_state == :STOPPED
+                                t.cleanup
                             end
                         end
                     end
+                    ready_to_die!
+                    orogen_deployment.kill(false)
+                rescue CORBA::ComError
+                    # Assume that the process is killed as it is not reachable
                 end
-		ready_to_die!
-                orogen_deployment.kill(false)
             end
 
             # Creates a subclass of Deployment that represents the deployment
