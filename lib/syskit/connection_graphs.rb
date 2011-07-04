@@ -425,6 +425,7 @@ module Orocos
 
         RequiredDataFlow = ConnectionGraph.new
         RequiredDataFlow.name = "Orocos::RobyPlugin::RequiredDataFlow"
+        RequiredDataFlow.extend Roby::Distributed::DRobyConstant::Dump
     end
 end
 
