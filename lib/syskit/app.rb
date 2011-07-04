@@ -166,7 +166,7 @@ module Orocos
                     true
                 else
                     matches = log_groups.find_all { |_, group| group.matches_deployment?(deployment) }
-                    matches.all? { |_, group| !group.enabled? }
+                    !matches.empty? && matches.all? { |_, group| !group.enabled? }
                 end
             end
 
@@ -175,7 +175,7 @@ module Orocos
                     true
                 else
                     matches = log_groups.find_all { |_, group| group.matches_port?(deployment, task_mode, port) }
-                    matches.all? { |_, group| !group.enabled? }
+                    !matches.empty? && matches.all? { |_, group| !group.enabled? }
                 end
             end
         end
