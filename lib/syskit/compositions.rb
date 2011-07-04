@@ -2448,6 +2448,7 @@ module Orocos
             def find_output_port(name)
                 real_task, real_port = resolve_output_port(name)
                 real_task.find_output_port(real_port)
+            rescue ArgumentError
             end
 
             # Helper method for #output_port and #resolve_port
@@ -2465,6 +2466,7 @@ module Orocos
             def find_input_port(name)
                 real_task, real_port = resolve_input_port(name)
                 real_task.find_input_port(real_port)
+            rescue ArgumentError
             end
 
             # Helper method for #output_port and #resolve_port
