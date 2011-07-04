@@ -2598,7 +2598,7 @@ module Orocos
                             return port
                         elsif port = @child_task.find_output_port(mapped_port_name)
                             return port
-                        else raise NoMethodError, "task #{@child_task}, child #{@child_name} of #{@composition_task}, as no port called #{port_name}"
+                        else raise NoMethodError, "task #{@child_task}, child #{@child_name} of #{@composition_task}, has no port called #{port_name}"
                         end
                     end
                     @child_task.send(m, *args, &block)
