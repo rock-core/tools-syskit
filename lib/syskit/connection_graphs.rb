@@ -8,6 +8,10 @@ module Orocos
         # Orocos::RobyPlugin::ActualDataFlow is the actual global graph instance
         # in which the overall system connections are maintained in practice
         class ConnectionGraph < BGL::Graph
+            # Needed for Roby's marshalling (so that we can dump the connection
+            # graph as a constant)
+            attr_accessor :name
+
             def add_connections(source_task, sink_task, mappings) # :nodoc:
                 if mappings.empty?
                     raise ArgumentError, "the connection set is empty"
@@ -420,6 +424,7 @@ module Orocos
         end
 
         RequiredDataFlow = ConnectionGraph.new
+        RequiredDataFlow.name = "Orocos::RobyPlugin::RequiredDataFlow"
     end
 end
 
