@@ -655,6 +655,18 @@ module Orocos
                 Orocos::RobyPlugin.process_servers.delete('localhost')
             end
 
+            def require_planners
+                super
+
+                orocos_engine.defines.each do |name, _|
+                    if !::MainPlanner.has_method?(name)
+                        ::MainPlanner.method(name) do
+                            Orocos::RobyPlugin.require_task name
+                        end
+                    end
+                end
+            end
+
             ##
             # :attr: local_only?
             #
