@@ -93,7 +93,7 @@ module Orocos
 
                     Engine.debug do
                         candidates.each do |target_task|
-                            Engine.debug "    RAW #{task} => #{target_task}"
+                            Engine.debug "    RAW #{target_task}.merge(#{task})"
                         end
                         break
                     end
@@ -128,7 +128,7 @@ module Orocos
                         if can_merge.nil?
                             # Not a direct merge, but might be a cycle
                             Engine.debug do
-                                "    possible cycle merge for #{task} => #{target_task}"
+                                "    possible cycle merge for #{target_task}.merge(#{task})"
                             end
                             if possible_cycles
                                 possible_cycles << [task, target_task]
@@ -139,7 +139,7 @@ module Orocos
                         end
 
                         Engine.debug do
-                            "    #{task} => #{target_task}"
+                            "    #{target_task}.merge(#{task})"
                         end
                         merge_graph.link(target_task, task, nil)
                     end
@@ -152,7 +152,7 @@ module Orocos
                     raise "trying to merge a task onto itself: #{task}"
                 end
 
-                Engine.debug { "    #{target_task} => #{task}" }
+                Engine.debug { "    #{task}.merge(#{target_task})" }
                 if task.respond_to?(:merge)
                     task.merge(target_task)
                 else
@@ -171,7 +171,7 @@ module Orocos
                 task_children.each do |child|
                     if !task.can_merge?(child)
                         Engine.debug do
-                            "      #{child} => #{task} is not a valid merge anymore, updating merge graph"
+                            "      #{task}.merge(#{child}) is not a valid merge anymore, updating merge graph"
                         end
                         graph.unlink(task, child)
                         modified_task_children << child
@@ -218,18 +218,18 @@ module Orocos
                     parents.each do |parent|
                         if target_task.child_vertex?(parent, merge_graph)
                             order = merge_sort_order(parent, target_task)
-                            if order == 1
+                            if order == -1
                                 Engine.debug do
-                                    "     picking up #{parent} => #{target_task} for local cycle"
+                                    "     picking up #{task}.merge(#{parent}) for local cycle"
                                 end
                                 merge_graph.unlink(parent, target_task)
                                 parent_count -= 1
                                 next
                             end
 
-                            if order == -1
+                            if order == 1
                                 Engine.debug do
-                                    "     picking up #{target_task} => #{parent} for local cycle"
+                                    "     picking up #{target_task}.merge(#{parent}) for local cycle"
                                 end
                                 merge_graph.unlink(target_task, parent)
                             end
@@ -330,7 +330,7 @@ module Orocos
                     if !parent_removal.empty?
                         parent_removal.each do |removed_parent|
                             Engine.debug do
-                                "    #{removed_parent} => #{task}"
+                                "    removing #{task}.merge(#{removed_parent})"
                             end
                             merge_graph.unlink(removed_parent, task)
                         end
@@ -358,11 +358,11 @@ module Orocos
 
 
             def display_merge_graph(title, merge_graph)
-                Engine.debug "  -- #{title} (a => b merges 'a' into 'b') "
+                Engine.debug "  -- #{title}"
                 Engine.debug do
                     merge_graph.each_vertex do |vertex|
                         vertex.each_child_vertex(merge_graph) do |child|
-                            Engine.debug "    #{child} => #{vertex}"
+                            Engine.debug "    #{vertex}.merge(#{child})"
                         end
                     end
                     break
@@ -383,12 +383,12 @@ module Orocos
                     if one_parent.empty?
                         break if cycles.empty?
 
-                        Engine.debug "  -- Breaking simple cycles (a => b removes the merge of 'a' into 'b') "
+                        Engine.debug "  -- Breaking simple cycles"
                         break_simple_cycles(merge_graph, cycles)
                         next
                     end
 
-                    Engine.debug "  -- Applying simple merges (a => b merges 'a' into 'b') "
+                    Engine.debug "  -- Applying simple merges"
                     apply_simple_merges(one_parent, merges, merge_graph)
                     break if cycles.empty?
                 end
@@ -396,7 +396,7 @@ module Orocos
                 
                 display_merge_graph("Merge graph after first pass", merge_graph)
 
-                Engine.debug "  -- Applying complex merges (a => b merges 'a' into 'b') "
+                Engine.debug "  -- Applying complex merges"
                 while merges.size != merges_size && !ambiguous.empty?
                     merges_size = merges.size
 
@@ -609,7 +609,7 @@ module Orocos
                     possible_cycles.clear
 
                     while !candidates.empty?
-                        Engine.debug "  -- Raw merge candidates (a => b merges 'a' into 'b')"
+                        Engine.debug "  -- Raw merge candidates"
                         merges = direct_merge_mappings(candidates, possible_cycles)
 
                         if merges.empty?
@@ -623,7 +623,7 @@ module Orocos
                                 next if !can_merge_cycle?(possible_cycles, *cycle)
 
                                 Engine.debug do
-                                    "    found cycle merge for #{cycle[0]} => #{cycle[1]}"
+                                    "    found cycle merge for #{cycle[1]}.merge(#{cycle[1]})"
                                 end
                                 merges.link(cycle[0], cycle[1], nil)
                                 if possible_cycles.include?([cycle[1], cycle[0]])

@@ -1793,8 +1793,10 @@ module Orocos
                 deployments.each do |deployment_task|
                     Engine.debug { "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})" }
                     # Check for the corresponding task in the plan
+		    Engine.debug deployment_task.deployment_name
                     existing_deployment_tasks = (plan.find_tasks(deployment_task.model).not_finished.to_value_set & existing_deployments).
                         find_all { |t| t.deployment_name == deployment_task.deployment_name }
+		    Engine.debug deployment_task.deployment_name
 
                     if existing_deployment_tasks.empty?
                         Engine.debug { "  #{deployment_task.deployment_name} has not yet been deployed" }
@@ -1803,6 +1805,7 @@ module Orocos
                     elsif existing_deployment_tasks.size != 1
                         raise InternalError, "more than one task for #{existing_deployment_task} present in the plan"
                     end
+		    Engine.debug deployment_task.deployment_name
                     existing_deployment_task = existing_deployment_tasks.find { true }
 
                     existing_tasks = Hash.new
@@ -1813,6 +1816,8 @@ module Orocos
                             existing_tasks[t.orogen_name] ||= t
                         end
                     end
+
+		    Engine.debug existing_tasks
 
                     deployed_tasks = deployment_task.each_executed_task.to_value_set
                     deployed_tasks.each do |task|
