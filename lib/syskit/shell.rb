@@ -50,21 +50,13 @@ module Orocos
             end
 
             def enable_logging_of(string)
-                if Conf.orocos.log_groups.has_key?(string)
-                    Conf.orocos.enable_log_group(string)
-                else
-                    Conf.orocos.excluded_names.delete(string)
-                end
+		Conf.orocos.enable_log_group(string)
                 Roby.app.orocos_engine.modified!
                 nil
             end
 
             def disable_logging_of(string)
-                if Conf.orocos.log_groups.has_key?(string)
-                    Conf.orocos.disable_log_group(string)
-                else
-                    Conf.orocos.exclude_from_log(string)
-                end
+                Conf.orocos.disable_log_group(string)
                 Roby.app.orocos_engine.modified!
                 nil
             end

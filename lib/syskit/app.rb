@@ -144,10 +144,18 @@ module Orocos
             end
 
             def enable_log_group(name)
+	        name = name.to_s
+	        if !log_groups.has_key?(name)
+		    raise ArgumentError, "no such log group #{name}. Available groups are: #{log_groups.keys.join(", ")}"
+		end
                 log_groups[name].enabled = true
             end
 
             def disable_log_group(name)
+	        name = name.to_s
+	        if !log_groups.has_key?(name)
+		    raise ArgumentError, "no such log group #{name}. Available groups are: #{log_groups.keys.join(", ")}"
+		end
                 log_groups[name].enabled = false
             end
 
