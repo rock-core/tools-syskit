@@ -231,18 +231,18 @@ module Orocos
                     parents.each do |parent|
                         if target_task.child_vertex?(parent, merge_graph)
                             order = merge_sort_order(parent, target_task)
-                            if order == -1
+                            if order == 1
                                 Engine.debug do
-                                    "     picking up #{task}.merge(#{parent}) for local cycle"
+                                    "     picking up #{target_task}.merge(#{parent}) for local cycle"
                                 end
                                 merge_graph.unlink(parent, target_task)
                                 parent_count -= 1
                                 next
                             end
 
-                            if order == 1
+                            if order == -1
                                 Engine.debug do
-                                    "     picking up #{target_task}.merge(#{parent}) for local cycle"
+                                    "     picking up #{parent}.merge(#{target_task}) for local cycle"
                                 end
                                 merge_graph.unlink(target_task, parent)
                             end
