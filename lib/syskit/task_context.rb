@@ -614,7 +614,7 @@ module Orocos
             end
 
             def reusable?
-                super && !needs_reconfiguration?
+                super && (!setup? || !needs_reconfiguration?)
             end
 
             # Called to configure the component
