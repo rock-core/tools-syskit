@@ -149,6 +149,11 @@ module Orocos
                     other.port == port &&
                     other.name == name
             end
+        
+            # Return true if the underlying port multiplexes
+            def multiplexes?
+               @port.multiplexes?
+            end
         end
 
         # Specialization of CompositionChildPort for output ports
