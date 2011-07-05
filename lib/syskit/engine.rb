@@ -1119,6 +1119,15 @@ module Orocos
                             task.arguments[:conf] = ['default']
                         end
                     end
+
+                # Cleanup the remainder of the tasks that are of no use right
+                # now (mostly devices)
+                plan.static_garbage_collect do |obj|
+                    Engine.debug { "  removing #{obj}" }
+                    # Remove tasks that we just added and are not
+                    # useful anymore
+                    plan.remove_object(obj)
+                end
             end
 
             # Hook called by the merge algorithm
