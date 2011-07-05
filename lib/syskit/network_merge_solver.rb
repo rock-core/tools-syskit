@@ -107,20 +107,32 @@ module Orocos
                     for target_task in candidates
                         # Cannot merge into target_task if it is marked as not
                         # being usable
-                        next if !target_task.reusable?
+                        if !target_task.reusable?
+			    Engine.debug { "    rejecting #{target_task}.merge(#{task}) as receiver is not reusable" }
+			    next
+			end
                         # We can not replace a non-abstract task with an
                         # abstract one
-                        next if (!task.abstract? && target_task.abstract?)
+                        if (!task.abstract? && target_task.abstract?)
+			    Engine.debug { "    rejecting #{target_task}.merge(#{task}) as abstract attribute mismatches" }
+			    next
+			end
                         # Merges involving a deployed task can only involve a
                         # non-deployed task as well
-                        next if (task.execution_agent && target_task.execution_agent)
+                        if (task.execution_agent && target_task.execution_agent)
+			    Engine.debug { "    rejecting #{target_task}.merge(#{task}) as deployment attribute mismatches" }
+			    next
+			end
 
                         # If both tasks are compositions, merge only if +task+
                         # has the same child set than +target+
                         if task.kind_of?(Composition) && target_task.kind_of?(Composition)
                             task_children   ||= task.merged_relations(:each_child, true, false).to_value_set
                             target_children = target_task.merged_relations(:each_child, true, false).to_value_set
-                            next if task_children != target_children || task_children.any? { |t| t.kind_of?(DataServiceProxy) }
+                            if task_children != target_children || task_children.any? { |t| t.kind_of?(DataServiceProxy) }
+			        Engine.debug { "    rejecting #{target_task}.merge(#{task}) as composition have different children" }
+			        next
+			    end
                         end
 
                         # Finally, call #can_merge?
@@ -135,6 +147,7 @@ module Orocos
                             end
                             next
                         elsif !can_merge
+			    Engine.debug { "    rejected because #{target_task}.can_merge?(#{task}) returned false" }
                             next
                         end
 
