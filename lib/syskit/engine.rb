@@ -1960,7 +1960,9 @@ module Orocos
 
                 begin
                     state = nil
+                    state_count = 0
                     while (!state || t.orogen_task.runtime_state?(state)) && t.update_orogen_state
+                        state_count += 1
                         state = t.orogen_state
 
                         # Returns nil if we have a communication problem. In this
@@ -1971,6 +1973,12 @@ module Orocos
                             handled_this_cycle << state
                         end
                     end
+
+
+                    if state_count >= TaskContext::STATE_READER_BUFFER_SIZE
+                        Engine.warn "got #{state_count} state updates for #{t}, we might have lost some state updates in the process"
+                    end
+
                 rescue Orocos::CORBA::ComError => e
                     t.emit :aborted, e
                 end

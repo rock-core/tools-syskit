@@ -520,11 +520,39 @@ module Orocos
                 @orogen_state
             end
 
+            STATE_READER_BUFFER_SIZE = 100
+
+            attr_predicate :validate_orogen_states, true
+
+            def validate_orogen_state_from_rtt_state
+                orogen_state = orogen_state
+                rtt_state    = orogen_task.rtt_state
+                mismatch =
+                    case rtt_state
+                    when :RUNNING
+                        !orogen_task.runtime_state?(orogen_state)
+                    when :STOPPED
+                        orogen_state != :STOPPED
+                    when :RUNTIME_ERROR
+                        !orogen_task.error_state?(orogen_state)
+                    when :FATAL_ERROR
+                        !orogen_task.fatal_error_state?(orogen_state)
+                    when :EXCEPTION
+                        !orogen_task.exception_state?(orogen_state)
+                    end
+
+                if mismatch
+                    Engine.warn "state mismatch on #{self} between state=#{orogen_state} and rtt_state=#{rtt_state}"
+                    @orogen_state = rtt_state
+                    handle_state_changes
+                end
+            end
+
             # Called at each cycle to update the orogen_state attribute for this
             # task.
             def update_orogen_state # :nodoc:
                 if orogen_spec.context.extended_state_support?
-                    @state_reader ||= orogen_task.state_reader(:type => :buffer, :size => 30)
+                    @state_reader ||= orogen_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE)
                 end
 
                 if @state_reader
