@@ -15,6 +15,7 @@ remaining = parser.parse(ARGV)
 
 # We don't need the process server, win some startup time
 Roby.app.using_plugins 'orocos'
+Roby.app.single
 Roby.app.orocos_only_load_models = true
 Roby.app.orocos_disables_local_process_server = true
 
