@@ -217,6 +217,7 @@ module Orocos
                 def devices(&block)
                     if block
                         Kernel.dsl_exec(Roby.app.orocos_engine.robot, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?, &block)
+			Roby.app.orocos_engine.export_devices_to_planner(::MainPlanner)
                     else
                         each_device
                     end
@@ -666,13 +667,8 @@ module Orocos
             def require_planners
                 super
 
-                orocos_engine.defines.each do |name, _|
-                    if !::MainPlanner.has_method?(name)
-                        ::MainPlanner.method(name) do
-                            Orocos::RobyPlugin.require_task name
-                        end
-                    end
-                end
+		orocos_engine.export_defines_to_planner(::MainPlanner)
+		orocos_engine.export_devices_to_planner(::MainPlanner)
             end
 
             ##

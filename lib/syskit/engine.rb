@@ -404,6 +404,51 @@ module Orocos
                 instanciated_component_from_name(name, name)
             end
 
+	    def export_defines_to_planner(planner)
+	    	defines.each do |name|
+		    export_define_to_planner(planner, name)
+		end
+	    end
+
+	    def export_devices_to_planner(planner)
+	    	robot.devices.each do |name, device|
+		    if device.kind_of?(MasterDeviceInstance)
+		        export_device_to_planner(planner, name)
+		    end
+		end
+	    end
+
+	    def export_define_to_planner(planner, name)
+	    	puts name.to_s
+	        if !defines.has_key?(name)
+		    raise ArgumentError, "no define called #{name} on #{self}"
+		end
+                if !planner.has_method?(name)
+                    planner.method(name) do
+                        Orocos::RobyPlugin.require_task name
+                    end
+                end
+	    end
+
+	    def export_device_to_planner(planner, name)
+	    	device = robot.devices[name]
+		if !device.kind_of?(MasterDeviceInstance)
+		    raise ArgumentError, "cannot export a non-master device"
+		end
+
+puts "trying to export #{name} on #{planner}"
+		if !planner.has_method?("#{device.name}_device")
+puts "exporting #{name} on #{planner}"
+		    planner.method("#{device.name}_device") do
+		        spec = Roby.orocos_engine.device(device.name)
+		        if arguments[:conf]
+		            spec.use_conf(*arguments[:conf])
+		        end
+		        spec.as_plan
+		    end
+		end
+	    end
+
             # Define a component instanciation specification, without adding it
             # to the current deployment.
             #
@@ -415,12 +460,9 @@ module Orocos
             #   ...
             #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
-                if !::MainPlanner.has_method?(name)
-                    ::MainPlanner.method(name) do
-                        Orocos::RobyPlugin.require_task name
-                    end
-                end
                 defines[name] = Engine.create_instanciated_component(self, name, main_user_selection[model] || model)
+                export_define_to_planner(::MainPlanner, name)
+		defines[name]
             end
 
             # Returns the EngineRequirement object that represents the given
