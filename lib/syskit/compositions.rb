@@ -2591,6 +2591,15 @@ module Orocos
                     @child_task
                 end
 
+                def connect_ports(target_task, mappings)
+                    mapped_connections = Hash.new
+                    mappings.map do |(source, sink), policy|
+                        source = find_output_port(source).name
+                        mapped_connections[[source, sink]] = policy
+                    end
+                    @child_task.connect_ports(target_task, mapped_connections)
+                end
+
                 def disconnect_ports(target_task, mappings)
                     mappings = mappings.map do |source, sink|
                         source = find_output_port(source).name
