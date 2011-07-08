@@ -2590,6 +2590,25 @@ module Orocos
                 def as_plan
                     @child_task
                 end
+
+                def disconnect_ports(target_task, mappings)
+                    mappings = mappings.map do |source, sink|
+                        source = find_output_port(source).name
+                        [source, sink]
+                    end
+                    @child_task.disconnect_ports(target_task, mappings)
+                end
+
+                def find_input_port(port_name)
+                    mapped_port_name = @composition_task.map_child_port(@child_name, port_name)
+                    @child_task.find_input_port(mapped_port_name)
+                end
+
+                def find_output_port(port_name)
+                    mapped_port_name = @composition_task.map_child_port(@child_name, port_name)
+                    @child_task.find_output_port(mapped_port_name)
+                end
+
                 def method_missing(m, *args, &block)
                     if m.to_s =~ /^(\w+)_port$/
                         port_name = $1

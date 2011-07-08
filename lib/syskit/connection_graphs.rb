@@ -205,6 +205,27 @@ module Orocos
                 add_sink(target_task, mappings)
             end
 
+            def disconnect_ports(target_task, mappings)
+                if target_task.respond_to?(:as_plan)
+                    mappings = mappings.map do |source, sink|
+                        sink = target_task.find_input_port(sink)
+                        [source, sink.name]
+                    end
+                    target_task = target_task.as_plan
+                end
+
+                if !Flows::DataFlow.linked?(self, target_task)
+                    return
+                end
+
+                connections = self[target_task, Flows::DataFlow]
+
+                mappings.each do |port_pair|
+                    connections.delete(port_pair)
+                end
+                Flows::DataFlow.modified_tasks << self << target_task
+            end
+
             # Calls either #connect_ports or #forward_ports, depending on its
             # arguments
             #
