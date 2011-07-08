@@ -224,15 +224,20 @@ module Orocos
                 end
 
                 if !Flows::DataFlow.linked?(self, target_task)
-                    return
+                    raise ArgumentError, "no such connections #{mappings} for #{self} => #{target_task}"
                 end
 
                 connections = self[target_task, Flows::DataFlow]
 
-                mappings.each do |port_pair|
-                    connections.delete(port_pair)
+                result = Hash.new
+                mappings.delete_if do |port_pair|
+                    result[port_pair] = connections.delete(port_pair)
+                end
+                if !mappings.empty?
+                    raise ArgumentError, "no such connections #{mappings} for #{self} => #{target_task}"
                 end
                 Flows::DataFlow.modified_tasks << self << target_task
+                result
             end
 
             # Calls either #connect_ports or #forward_ports, depending on its
