@@ -405,7 +405,7 @@ module Orocos
             end
 
 	    def export_defines_to_planner(planner)
-	    	defines.each do |name|
+	    	defines.each_key do |name|
 		    export_define_to_planner(planner, name)
 		end
 	    end
