@@ -520,7 +520,7 @@ module Orocos
                 @orogen_state
             end
 
-            STATE_READER_BUFFER_SIZE = 100
+            STATE_READER_BUFFER_SIZE = 200
 
             attr_predicate :validate_orogen_states, true
 
