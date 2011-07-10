@@ -51,7 +51,9 @@ module Orocos
                 logged_ports << [port_name, port_type]
             end
 
-            def configure
+            def setup
+                super
+
                 if default_logger?
                     deployment = execution_agent
                     if !deployment.arguments[:log] ||
