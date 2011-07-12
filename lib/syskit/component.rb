@@ -198,6 +198,14 @@ module Orocos
 
                 return component_model, srv
             end
+
+            def each_fullfilled_model
+                model.ancestors.each do |m|
+                    if m <= Component || m <= DataService
+                        yield(m)
+                    end
+                end
+            end
         end
 
         # Definition of model-level methods for the Component models. See the
@@ -403,6 +411,13 @@ module Orocos
             # The Robot instance we are running on
             attr_accessor :robot
 
+            # The name of the process server that should run this component
+            #
+            # On regular task contexts, it is the host on which the task is
+            # required to run. On compositions, it affects the composition's
+            # children
+            attr_accessor :required_host
+
             # Returns the set of communication busses names that this task
             # needs.
             def com_busses
@@ -437,6 +452,18 @@ module Orocos
 
             def self.as_plan
                 Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
+            end
+
+            def self.each_fullfilled_model
+                ancestors.each do |m|
+                    if m <= Component || m <= DataService
+                        yield(m)
+                    end
+                end
+            end
+
+            def each_fullfilled_model(&block)
+                model.each_fullfilled_model(&block)
             end
 
             # This is documented on ComponentModel
@@ -906,6 +933,29 @@ module Orocos
             # them when the task stops
             attribute(:data_writers) { Array.new }
 
+            # Common implementation of port search for #data_reader and
+            # #data_writer
+            def data_accessor(*args) # :nodoc:
+                policy = Hash.new
+                if args.last.respond_to?(:to_hash)
+                    policy = args.pop
+                end
+
+                port_name = args.pop
+                if !args.empty?
+                    role_path = args
+                    parent = resolve_role_path(role_path[0..-2])
+                    task   = parent.child_from_role(role_path.last)
+                    if parent.respond_to?(:map_child_port)
+                        port_name = parent.map_child_port(role_path.last, port_name)
+                    end
+                else
+                    task = self
+                end
+
+                return task, port_name, policy
+            end
+
             # call-seq:
             #   data_writer 'port_name'[, policy]
             #   data_writer 'role_name', 'port_name'[, policy]
@@ -923,26 +973,13 @@ module Orocos
             #
             # The writer is automatically disconnected when the task quits
             def data_writer(*args)
-                policy = Hash.new
-                if args.last.respond_to?(:to_hash)
-                    policy = args.pop
-                end
-                policy, other_policy = Kernel.filter_options policy, :pull => true
-                policy.merge!(other_policy)
+                task, port_name, policy = data_accessor(*args)
 
-                port =
-                    if args.size > 1
-                        port_name = args.pop
-                        role_path = args
-                        task = resolve_role_path(role_path)
-			if !task
-			    raise ArgumentError, "#{self} has no child with role #{role_name}"
-			end
-			task.find_input_port(port_name)
-                    else
-                        port_name = args.first
-                        find_input_port(port_name)
-                    end
+                puts "looking for #{port_name} on #{task}"
+                port = task.find_input_port(port_name)
+                if !port
+                    raise ArgumentError, "#{task} has no input port #{port_name}"
+                end
 
                 result = port.writer(policy)
                 data_writers << result
@@ -966,26 +1003,14 @@ module Orocos
             #
             # The reader is automatically disconnected when the task quits
             def data_reader(*args)
-                policy = Hash.new
-                if args.last.respond_to?(:to_hash)
-                    policy = args.pop
-                end
+                task, port_name, policy = data_accessor(*args)
                 policy, other_policy = Kernel.filter_options policy, :pull => true
                 policy.merge!(other_policy)
 
-                port =
-                    if args.size > 1
-                        port_name = args.pop
-                        role_path = args
-                        task = resolve_role_path(role_path)
-			if !task
-			    raise ArgumentError, "#{self} has no child with role #{role_name}"
-			end
-			task.find_output_port(port_name)
-                    else
-                        port_name = args.first
-                        find_output_port(port_name)
-                    end
+                port = task.find_output_port(port_name)
+                if !port
+                    raise ArgumentError, "#{task} has no input port #{port_name}"
+                end
 
                 result = port.reader(policy)
                 data_readers << result
@@ -1053,6 +1078,22 @@ module Orocos
             #
             def copy_to_state(port_name, *state_path, &filter_block)
                 @state_copies << StateCopySetup.new(port_name, state_path, nil, filter_block)
+            end
+
+            def method_missing(m, *args, &block)
+                if args.empty? && !block
+                    if m.to_s =~ /^(\w+)_port/
+                        port_name = $1
+                        if port = find_input_port(port_name)
+                            return port
+                        elsif port = find_output_port(port_name)
+                            return port
+                        else
+                            raise NoMethodError, "#{self} has no port called #{port_name}"
+                        end
+                    end
+                end
+                super
             end
         end
     end

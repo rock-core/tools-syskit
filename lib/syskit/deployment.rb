@@ -92,6 +92,18 @@ module Orocos
                 orogen_spec.task_activities
             end
 
+            # Returns true if +self+ and +task+ are running on the same process
+            # server
+            def on_same_server?(task)
+                task == self || machine == task.machine
+            end
+
+            def self.instanciate(engine, arguments = Hash.new)
+                task = new(arguments)
+                task.robot = engine.robot
+                task
+            end
+
             def instanciate_all_tasks
                 orogen_spec.task_activities.map do |act|
                     task(act.name)
@@ -285,17 +297,19 @@ module Orocos
             # Stops all tasks that are running on top of this deployment, and
             # kill the deployment
             event :stop do |context|
-                if task_handles
-                    task_handles.each_value do |t|
-                        if t.rtt_state != :PRE_OPERATIONAL
-                            begin t.cleanup
-                            rescue Exception
+                begin
+                    if task_handles
+                        task_handles.each_value do |t|
+                            if t.rtt_state == :STOPPED
+                                t.cleanup
                             end
                         end
                     end
+                    ready_to_die!
+                    orogen_deployment.kill(false)
+                rescue CORBA::ComError
+                    # Assume that the process is killed as it is not reachable
                 end
-		ready_to_die!
-                orogen_deployment.kill(false)
             end
 
             # Creates a subclass of Deployment that represents the deployment

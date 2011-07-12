@@ -18,6 +18,76 @@ module Orocos
                 Roby.app.load_orogen_project(name)
             end
         end
+        
+        class LogGroup
+            def load(&block)
+                instance_eval(&block)
+            end
+
+            def initialize(enabled = true)
+                @deployments = Set.new
+                @tasks = Set.new
+                @ports = Set.new
+                @names = Set.new
+                @enabled = enabled
+            end
+
+            attr_reader :deployments
+            attr_reader :tasks
+            attr_reader :ports
+            attr_reader :names
+
+            attr_predicate :enabled? , true
+
+            # Adds +object+ to this logging group
+            #
+            # +object+ can be
+            # * a deployment model, in which case no task  in this deployment
+            #   will be logged
+            # * a task model, in which case no port of any task of this type
+            #   will be logged
+            # * a [task_model, port_name] pair
+            # * a string. It can then either be a task name, a port name or a type
+            #   name
+            def add(object, subname = nil)
+                if object.kind_of?(Class) && object < RobyPlugin::DataService
+                    if subname
+                        ports << [object, subname]
+                    else
+                        tasks << object
+                    end
+                elsif object.kind_of?(Class) && object < RobyPlugin::Deployment
+                    deployments << object
+                else
+                    names << object.to_str
+                end
+            end
+
+            def matches_deployment?(deployment)
+                if deployments.include?(deployment.model)
+                    true
+                elsif names.include?(deployment.name)
+                    true
+                else
+                    false
+                end
+            end
+
+            def matches_port?(deployment, task_model, port)
+                if ports.any? { |model, port_name| port.name == port_name && task_model.fullfills?(model) }
+                    true
+                elsif tasks.include?(task_model)
+                    true
+                elsif deployments.include?(deployment.model)
+                    true
+                else
+                    names.include?(port.type_name) ||
+                        names.include?(port.task.name) ||
+                        names.include?(port.name) ||
+                        names.include?("#{port.task.name}.#{port.name}")
+                end
+            end
+        end
 
         # Orocos engine configuration interface
         #
@@ -35,24 +105,28 @@ module Orocos
                 @conf_log_enabled = true
                 @redirect_local_process_server = true
 
-                @excluded_deployments = Set.new
-                @excluded_tasks = Set.new
-                @excluded_ports = Set.new
-                @excluded_names = Set.new
+                @log_groups = { nil => LogGroup.new(false) }
 
                 registry = Typelib::Registry.new
                 Typelib::Registry.add_standard_cxx_types(registry)
                 registry.each do |t|
                     if t < Typelib::NumericType
-                        @excluded_names << t.name
+                        main_group.names << t.name
                     end
                 end
             end
 
-            attr_reader :excluded_deployments
-            attr_reader :excluded_tasks
-            attr_reader :excluded_ports
-            attr_reader :excluded_names
+            attr_reader :log_groups
+
+            def main_group
+                log_groups[nil]
+            end
+
+            def log_group(name, &block)
+                group = LogGroup.new
+                group.load(&block)
+                log_groups[name.to_str] = group
+            end
 
             # Exclude +object+ from the logging system
             #
@@ -65,16 +139,24 @@ module Orocos
             #   (regardless of which task it is on)
             # * a string. It can then either be a task name, a port name or a type
             #   name
-            def exclude_from_log(object)
-                if object.kind_of?(Class) && object < RobyPlugin::TaskContext
-                    excluded_tasks << object
-                elsif object.kind_of?(Class) && object < RobyPlugin::Deployment
-                    excluded_deployments << object
-                elsif object.kind_of?(Orocos::Generation::OutputPort)
-                    excluded_ports << object
-                else
-                    excluded_names << object.to_str
-                end
+            def exclude_from_log(object, subname = nil)
+                main_group.add(object, subname)
+            end
+
+            def enable_log_group(name)
+	        name = name.to_s
+	        if !log_groups.has_key?(name)
+		    raise ArgumentError, "no such log group #{name}. Available groups are: #{log_groups.keys.join(", ")}"
+		end
+                log_groups[name].enabled = true
+            end
+
+            def disable_log_group(name)
+	        name = name.to_s
+	        if !log_groups.has_key?(name)
+		    raise ArgumentError, "no such log group #{name}. Available groups are: #{log_groups.keys.join(", ")}"
+		end
+                log_groups[name].enabled = false
             end
 
             attr_predicate :redirect_local_process_server?, true
@@ -90,29 +172,18 @@ module Orocos
             def deployment_excluded_from_log?(deployment)
                 if !log_enabled?
                     true
-                elsif excluded_deployments.include?(deployment.model)
-                    true
-                elsif excluded_names.include?(deployment.name)
-                    true
                 else
-                    false
+                    matches = log_groups.find_all { |_, group| group.matches_deployment?(deployment) }
+                    !matches.empty? && matches.all? { |_, group| !group.enabled? }
                 end
             end
 
             def port_excluded_from_log?(deployment, task_model, port)
                 if !log_enabled?
                     true
-                elsif excluded_ports.include?(port)
-                    true
-                elsif excluded_tasks.include?(task_model)
-                    true
-                elsif excluded_deployments.include?(deployment.model)
-                    true
                 else
-                    excluded_names.include?(port.type_name) ||
-                        excluded_names.include?(port.task.name) ||
-                        excluded_names.include?(port.name) ||
-                        excluded_names.include?("#{port.task.name}.#{port.name}")
+                    matches = log_groups.find_all { |_, group| group.matches_port?(deployment, task_mode, port) }
+                    !matches.empty? && matches.all? { |_, group| !group.enabled? }
                 end
             end
         end
@@ -146,6 +217,7 @@ module Orocos
                 def devices(&block)
                     if block
                         Kernel.dsl_exec(Roby.app.orocos_engine.robot, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?, &block)
+			Roby.app.orocos_engine.export_devices_to_planner(::MainPlanner)
                     else
                         each_device
                     end
@@ -317,6 +389,10 @@ module Orocos
                     end
                 end
 
+                if app.shell?
+                    return
+                end
+
                 Roby::Conf.orocos = Configuration.new
                 Roby::State.orocos = Roby::Conf.orocos # for backward compatibility
 
@@ -398,6 +474,10 @@ module Orocos
                 if file = app.robotfile(APP_DIR, 'config', "ROBOT.rb")
                     app.load_system_model file
                 end
+            end
+
+            def use_deployment(*args)
+                orocos_engine.use_deployment(*args)
             end
 
             def use_deployments_from(*args)
@@ -584,6 +664,13 @@ module Orocos
                 Orocos::RobyPlugin.process_servers.delete('localhost')
             end
 
+            def require_planners
+                super
+
+		orocos_engine.export_defines_to_planner(::MainPlanner)
+		orocos_engine.export_devices_to_planner(::MainPlanner)
+            end
+
             ##
             # :attr: local_only?
             #
@@ -598,13 +685,24 @@ module Orocos
             # of the local process server (i.e. sets
             # orocos_disables_local_process_server to false)
             def orocos_process_server(name, host, options = Hash.new)
+                if single?
+                    if orocos_disables_local_process_server?
+                        return
+                    else
+                        client = Orocos::ProcessClient.new('localhost')
+                        return Application.register_process_server(name, client, Roby.app.log_dir)
+                    end
+                end
+
                 if local_only? && host != 'localhost'
                     raise ArgumentError, "in local only mode"
                 elsif Orocos::RobyPlugin.process_servers[name]
                     raise ArgumentError, "there is already a process server called #{name} running"
                 end
 
-                port = ProcessServer::DEFAULT_PORT
+                options = Kernel.validate_options options, :port => ProcessServer::DEFAULT_PORT, :log_dir => 'log', :result_dir => 'results'
+
+                port = options[:port]
                 if host =~ /^(.*):(\d+)$/
                     host = $1
                     port = Integer($2)
@@ -615,9 +713,9 @@ module Orocos
                 end
 
                 client = Orocos::ProcessClient.new(host, port)
-                client.save_log_dir(options[:log_dir] || 'log', options[:result_dir] || 'results')
-                client.create_log_dir(options[:log_dir] || 'log', Roby.app.time_tag)
-                Application.register_process_server(name, client, options[:log_dir] || 'log')
+                client.save_log_dir(options[:log_dir], options[:result_dir])
+                client.create_log_dir(options[:log_dir], Roby.app.time_tag)
+                Application.register_process_server(name, client, options[:log_dir])
             end
 
             ##
@@ -643,8 +741,27 @@ module Orocos
             # See also #orocos_process_server
             attr_predicate :orocos_disables_local_process_server?, true
 
+            # If true, all deployments declared with use_deployment or
+            # use_deployments_from are getting started at the very beginning of
+            # the execution
+            #
+            # This greatly reduces latency during operations
+            attr_predicate :orocos_start_all_deployments?, true
+
             def self.run(app)
-                handler_id = Roby.engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
+                handler_ids = []
+                handler_ids << Roby.engine.add_propagation_handler(:type => :external_events, &Orocos::RobyPlugin.method(:update_task_states))
+                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &Orocos::RobyPlugin.method(:apply_requirement_modifications))
+
+                if app.orocos_start_all_deployments?
+                    all_deployment_names = app.orocos_engine.deployments.values.map(&:to_a).flatten
+                    Roby.execute do
+                        all_deployment_names.each do |name|
+                            task = Roby.app.orocos_deployments[name].instanciate(Roby.app.orocos_engine)
+                            Roby.plan.add_permanent(task)
+                        end
+                    end
+                end
 
                 yield
 
@@ -655,7 +772,7 @@ module Orocos
                     Orocos::Process.kill(remaining)
                 end
 
-                if handler_id
+                handler_ids.each do |handler_id|
                     Roby.engine.remove_propagation_handler(handler_id)
                 end
 

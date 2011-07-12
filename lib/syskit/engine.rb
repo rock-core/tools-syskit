@@ -51,7 +51,9 @@ module Orocos
                 logged_ports << [port_name, port_type]
             end
 
-            def configure
+            def setup
+                super
+
                 if default_logger?
                     deployment = execution_agent
                     if !deployment.arguments[:log] ||
@@ -275,7 +277,7 @@ module Orocos
             def process_server_for(name)
                 server = RobyPlugin.process_servers[name]
                 if !server
-                    if name == 'localhost'
+                    if name == 'localhost' || Roby.app.single?
                         return Roby.app.main_orogen_project
                     end
                     raise ArgumentError, "there is no registered process server called #{name}"
@@ -363,6 +365,7 @@ module Orocos
                 mappings.each do |model, definition|
                     main_user_selection[model] = definition
                 end
+                @main_user_selection = EngineRequirement.resolve_recursive_selection(main_user_selection)
             end
 
             # Require a new composition/service, and specify that it should be
@@ -376,6 +379,10 @@ module Orocos
             # Helper method that creates an instance of EngineRequirement
             # and registers it
             def self.create_instanciated_component(engine, name, model) # :nodoc:
+                if model.respond_to?(:to_str)
+                    model = engine.instanciated_component_from_name(model, name || model)
+                end
+
                 if model.kind_of?(DeviceInstance)
                     if model.kind_of?(SlaveDeviceInstance)
                         model = model.master_device
@@ -394,6 +401,56 @@ module Orocos
                 end
             end
 
+            # Returns a instanciation specification for the given device
+            def device(name)
+                instanciated_component_from_name(name, name)
+            end
+
+	    def export_defines_to_planner(planner)
+	    	defines.each_key do |name|
+		    export_define_to_planner(planner, name)
+		end
+	    end
+
+	    def export_devices_to_planner(planner)
+	    	robot.devices.each do |name, device|
+		    if device.kind_of?(MasterDeviceInstance)
+		        export_device_to_planner(planner, name)
+		    end
+		end
+	    end
+
+	    def export_define_to_planner(planner, name)
+	    	puts name.to_s
+	        if !defines.has_key?(name)
+		    raise ArgumentError, "no define called #{name} on #{self}"
+		end
+                if !planner.has_method?(name)
+                    planner.method(name) do
+                        Orocos::RobyPlugin.require_task name
+                    end
+                end
+	    end
+
+	    def export_device_to_planner(planner, name)
+	    	device = robot.devices[name]
+		if !device.kind_of?(MasterDeviceInstance)
+		    raise ArgumentError, "cannot export a non-master device"
+		end
+
+puts "trying to export #{name} on #{planner}"
+		if !planner.has_method?("#{device.name}_device")
+puts "exporting #{name} on #{planner}"
+		    planner.method("#{device.name}_device") do
+		        spec = Roby.orocos_engine.device(device.name)
+		        if arguments[:conf]
+		            spec.use_conf(*arguments[:conf])
+		        end
+		        spec.as_plan
+		    end
+		end
+	    end
+
             # Define a component instanciation specification, without adding it
             # to the current deployment.
             #
@@ -405,7 +462,9 @@ module Orocos
             #   ...
             #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
-                defines[name] = Engine.create_instanciated_component(self, name, model)
+                defines[name] = Engine.create_instanciated_component(self, name, main_user_selection[model] || model)
+                export_define_to_planner(::MainPlanner, name)
+		defines[name]
             end
 
             # Returns the EngineRequirement object that represents the given
@@ -439,12 +498,7 @@ module Orocos
             def add(model, arguments = Hash.new)
                 arguments = Kernel.validate_options arguments, :as => nil
 
-                instance =
-                    if model.respond_to?(:to_str)
-                        instanciated_component_from_name(model, arguments[:as] || model)
-                    else
-                        Engine.create_instanciated_component(self, arguments[:as], model)
-                    end
+                instance = Engine.create_instanciated_component(self, arguments[:as], main_user_selection[model] || model)
 
                 @modified = true
                 instances << instance
@@ -587,8 +641,14 @@ module Orocos
             # Add the global selections to +using_spec+
             def add_default_selections(using_spec)
                 implicit = using_spec[nil] || []
+                Engine.debug "adding default selections"
 
                 main_selection.each do |key, selected|
+                    Engine.debug do
+                        Engine.debug "  #{key} => #{selected}"
+                        break
+                    end
+
                     if key
                         next if implicit.any? { |t| t.fullfills?(key) }
                     end
@@ -598,22 +658,12 @@ module Orocos
                         if resolved_selection.respond_to?(:to_ary) && !implicit.empty?
                             using_spec[nil].concat(resolved_selection)
                         else
-                            using_spec[key] = resolved_selection
+                            using_spec[key] ||= resolved_selection
                         end
                     end
                 end
-                using_spec
-            end
 
-            def resolve_explicit_selections(using_spec)
-                result = Hash.new
-                using_spec.each do |key, selected|
-                    if resolved_selection = EngineRequirement.resolve_explicit_selection(selected, self)
-                        verify_result_in_transaction(key, resolved_selection)
-                        result[key] = resolved_selection
-                    end
-                end
-                result
+                EngineRequirement.resolve_recursive_selection(using_spec)
             end
 
             def verify_result_in_transaction(key, result)
@@ -886,6 +936,9 @@ module Orocos
                     task_node_attributes << "color=\"blue\""
                 end
 
+                roles = task.roles
+                task_label << " <BR/> roles:#{roles.to_a.sort.join(",")}"
+
                 return task_label, task_node_attributes
             end
 
@@ -1085,6 +1138,7 @@ module Orocos
                 else
                     @main_selection = result.merge(main_user_selection)
                 end
+                @main_selection = EngineRequirement.resolve_recursive_selection(@main_selection)
 
                 @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
             end
@@ -1109,6 +1163,15 @@ module Orocos
                             task.arguments[:conf] = ['default']
                         end
                     end
+
+                # Cleanup the remainder of the tasks that are of no use right
+                # now (mostly devices)
+                plan.static_garbage_collect do |obj|
+                    Engine.debug { "  removing #{obj}" }
+                    # Remove tasks that we just added and are not
+                    # useful anymore
+                    plan.remove_object(obj)
+                end
             end
 
             # Hook called by the merge algorithm
@@ -1392,6 +1455,9 @@ module Orocos
                     required_tasks = ValueSet.new
                     trsc.find_tasks.permanent.each do |t|
                         trsc.unmark_permanent(t)
+                    end
+                    trsc.find_tasks(Deployment).each do |t|
+                        trsc.add_permanent(t)
                     end
                     instances.each do |instance|
                         old_task = state_backup.instance_tasks[instance]
@@ -1780,8 +1846,10 @@ module Orocos
                 deployments.each do |deployment_task|
                     Engine.debug { "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})" }
                     # Check for the corresponding task in the plan
+		    Engine.debug deployment_task.deployment_name
                     existing_deployment_tasks = (plan.find_tasks(deployment_task.model).not_finished.to_value_set & existing_deployments).
                         find_all { |t| t.deployment_name == deployment_task.deployment_name }
+		    Engine.debug deployment_task.deployment_name
 
                     if existing_deployment_tasks.empty?
                         Engine.debug { "  #{deployment_task.deployment_name} has not yet been deployed" }
@@ -1790,6 +1858,7 @@ module Orocos
                     elsif existing_deployment_tasks.size != 1
                         raise InternalError, "more than one task for #{existing_deployment_task} present in the plan"
                     end
+		    Engine.debug deployment_task.deployment_name
                     existing_deployment_task = existing_deployment_tasks.find { true }
 
                     existing_tasks = Hash.new
@@ -1800,6 +1869,8 @@ module Orocos
                             existing_tasks[t.orogen_name] ||= t
                         end
                     end
+
+		    Engine.debug existing_tasks
 
                     deployed_tasks = deployment_task.each_executed_task.to_value_set
                     deployed_tasks.each do |task|
@@ -1879,29 +1950,7 @@ module Orocos
 
         # This method is called at the beginning of each execution cycle, and
         # updates the running TaskContext tasks.
-        def self.update(plan) # :nodoc:
-            tasks = plan.find_tasks(RequirementModificationTask).running.to_a
-            
-            if Roby.app.orocos_engine.modified?
-                # We assume that all requirement modification have been applied
-                # by the RequirementModificationTask instances. They therefore
-                # take the blame if something fails, and announce a success
-                begin
-                    Roby.app.orocos_engine.resolve
-                    tasks.each do |t|
-                        t.emit :success
-                    end
-                rescue Exception => e
-                    if tasks.empty?
-                        # No task to take the blame ... we'll have to shut down
-                        raise 
-                    end
-                    tasks.each do |t|
-                        t.emit(:failed, e)
-                    end
-                end
-            end
-
+        def self.update_task_states(plan) # :nodoc:
             all_dead_deployments = ValueSet.new
             for name, server in Orocos::RobyPlugin.process_servers
                 server = server.first
@@ -1934,6 +1983,8 @@ module Orocos
 
                 if !t.execution_agent
                     raise NotImplementedError, "#{t} is still running, but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
+                elsif !t.execution_agent.ready?
+                    raise InternalError, "orogen_task != nil on #{t}, but #{t.execution_agent} is not ready yet"
                 end
 
                 # Some CORBA implementations (namely, omniORB) may behave weird
@@ -1962,7 +2013,9 @@ module Orocos
 
                 begin
                     state = nil
+                    state_count = 0
                     while (!state || t.orogen_task.runtime_state?(state)) && t.update_orogen_state
+                        state_count += 1
                         state = t.orogen_state
 
                         # Returns nil if we have a communication problem. In this
@@ -1973,12 +2026,42 @@ module Orocos
                             handled_this_cycle << state
                         end
                     end
+
+
+                    if state_count >= TaskContext::STATE_READER_BUFFER_SIZE
+                        Engine.warn "got #{state_count} state updates for #{t}, we might have lost some state updates in the process"
+                    end
+
                 rescue Orocos::CORBA::ComError => e
                     t.emit :aborted, e
                 end
             end
 
             RuntimeConnectionManagement.update(plan, all_dead_deployments)
+        end
+
+        def self.apply_requirement_modifications(plan)
+            tasks = plan.find_tasks(RequirementModificationTask).running.to_a
+            
+            if Roby.app.orocos_engine.modified?
+                # We assume that all requirement modification have been applied
+                # by the RequirementModificationTask instances. They therefore
+                # take the blame if something fails, and announce a success
+                begin
+                    Roby.app.orocos_engine.resolve
+                    tasks.each do |t|
+                        t.emit :success
+                    end
+                rescue Exception => e
+                    if tasks.empty?
+                        # No task to take the blame ... we'll have to shut down
+                        raise 
+                    end
+                    tasks.each do |t|
+                        t.emit(:failed, e)
+                    end
+                end
+            end
         end
     end
 end

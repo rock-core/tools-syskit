@@ -102,6 +102,8 @@ module Orocos
 
             def merge(merged_task)
                 super
+                self.required_host ||= merged_task.required_host
+
                 if merged_task.orogen_spec && !orogen_spec
                     self.orogen_spec = merged_task.orogen_spec
                 end
@@ -124,10 +126,6 @@ module Orocos
                 @required_host = nil
                 self.executable = false
             end
-
-            # If set, this is the name of the process server that should be
-            # selected to run this task
-            attr_accessor :required_host
 
             # Creates a Ruby class which represents the set of properties that
             # the task context has. The returned class will initialize its
@@ -224,6 +222,11 @@ module Orocos
             # Maximum distance value
             D_MAX          = 2
 
+            # Returns true if +self+ and +task+ are on the same process server
+            def on_same_server?(task)
+                distance_to(task) != D_DIFFERENT_MACHINES
+            end
+
             # Returns a value that represents how the two task contexts are far
             # from each other. The possible return values are:
             #
@@ -260,29 +263,9 @@ module Orocos
                 # Verify the host constraints (i.e. can't merge other_task in
                 # +self+ if both have constraints on which host they should run,
                 # and that constraint does not match)
-                !other_task.respond_to?(:required_host) ||
-                    !required_host || !other_task.required_host ||
-                    required_host == other_task.required_host
-            end
-
-            def added_child_object(child, relations, info) # :nodoc:
-                super if defined? super
-                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
-                    Flows::DataFlow.modified_tasks << self
-		    if child.kind_of?(Orocos::RobyPlugin::TaskContext)
-			Flows::DataFlow.modified_tasks << child
-		    end
-                end
-            end
-
-            def removed_child_object(child, relations) # :nodoc:
-                super if defined? super
-                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
-                    Flows::DataFlow.modified_tasks << self
-		    if child.kind_of?(Orocos::RobyPlugin::TaskContext)
-			Flows::DataFlow.modified_tasks << child
-		    end
-                end
+                other_task.respond_to?(:required_host) &&
+                    (!required_host || !other_task.required_host ||
+                    required_host == other_task.required_host)
             end
 
             # The PortDynamics object that describes the dynamics of the task
@@ -537,11 +520,39 @@ module Orocos
                 @orogen_state
             end
 
+            STATE_READER_BUFFER_SIZE = 200
+
+            attr_predicate :validate_orogen_states, true
+
+            def validate_orogen_state_from_rtt_state
+                orogen_state = orogen_state
+                rtt_state    = orogen_task.rtt_state
+                mismatch =
+                    case rtt_state
+                    when :RUNNING
+                        !orogen_task.runtime_state?(orogen_state)
+                    when :STOPPED
+                        orogen_state != :STOPPED
+                    when :RUNTIME_ERROR
+                        !orogen_task.error_state?(orogen_state)
+                    when :FATAL_ERROR
+                        !orogen_task.fatal_error_state?(orogen_state)
+                    when :EXCEPTION
+                        !orogen_task.exception_state?(orogen_state)
+                    end
+
+                if mismatch
+                    Engine.warn "state mismatch on #{self} between state=#{orogen_state} and rtt_state=#{rtt_state}"
+                    @orogen_state = rtt_state
+                    handle_state_changes
+                end
+            end
+
             # Called at each cycle to update the orogen_state attribute for this
             # task.
             def update_orogen_state # :nodoc:
                 if orogen_spec.context.extended_state_support?
-                    @state_reader ||= orogen_task.state_reader(:type => :buffer, :size => 10)
+                    @state_reader ||= orogen_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE)
                 end
 
                 if @state_reader
@@ -631,7 +642,7 @@ module Orocos
             end
 
             def reusable?
-                super && !needs_reconfiguration?
+                super && (!setup? || !needs_reconfiguration?)
             end
 
             # Called to configure the component
@@ -652,6 +663,7 @@ module Orocos
                 if state == :EXCEPTION
                     ::Robot.info "reconfiguring #{self}: the task was in exception state"
                     orogen_task.reset_exception(false)
+                    state = orogen_task.rtt_state
                     needs_reconf = true
                 elsif state == :PRE_OPERATIONAL
                     needs_reconf = true

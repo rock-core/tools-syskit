@@ -26,4 +26,6 @@ require 'orocos/roby/robot'
 require 'orocos/roby/engine'
 require 'orocos/roby/shell'
 
+require 'orocos/roby/task_scripting'
+
 require 'orocos/roby/selection_tasks'

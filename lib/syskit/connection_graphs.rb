@@ -8,6 +8,10 @@ module Orocos
         # Orocos::RobyPlugin::ActualDataFlow is the actual global graph instance
         # in which the overall system connections are maintained in practice
         class ConnectionGraph < BGL::Graph
+            # Needed for Roby's marshalling (so that we can dump the connection
+            # graph as a constant)
+            attr_accessor :name
+
             def add_connections(source_task, sink_task, mappings) # :nodoc:
                 if mappings.empty?
                     raise ArgumentError, "the connection set is empty"
@@ -193,12 +197,47 @@ module Orocos
             #
             # Raises ArgumentError if one of the ports do not exist.
             def connect_ports(target_task, mappings)
+                if target_task.respond_to?(:as_plan)
+                    mapped_connections = Hash.new
+                    mappings.map do |(source, sink), policy|
+                        sink = target_task.find_input_port(sink).name
+                        mapped_connections[[source, sink]] = policy
+                    end
+                    target_task = target_task.as_plan
+                end
+
                 mappings.each do |(out_port, in_port), options|
                     ensure_has_output_port(out_port)
                     target_task.ensure_has_input_port(in_port)
                 end
 
                 add_sink(target_task, mappings)
+            end
+
+            def disconnect_ports(target_task, mappings)
+                if target_task.respond_to?(:as_plan)
+                    mappings = mappings.map do |source, sink|
+                        sink = target_task.find_input_port(sink)
+                        [source, sink.name]
+                    end
+                    target_task = target_task.as_plan
+                end
+
+                if !Flows::DataFlow.linked?(self, target_task)
+                    raise ArgumentError, "no such connections #{mappings} for #{self} => #{target_task}"
+                end
+
+                connections = self[target_task, Flows::DataFlow]
+
+                result = Hash.new
+                mappings.delete_if do |port_pair|
+                    result[port_pair] = connections.delete(port_pair)
+                end
+                if !mappings.empty?
+                    raise ArgumentError, "no such connections #{mappings} for #{self} => #{target_task}"
+                end
+                Flows::DataFlow.modified_tasks << self << target_task
+                result
             end
 
             # Calls either #connect_ports or #forward_ports, depending on its
@@ -365,16 +404,63 @@ module Orocos
                 @modified_tasks ||= ValueSet.new
             end
 
+            def DataFlow.add_relation(from, to, info)
+                if !info.kind_of?(Hash)
+                    raise ArgumentError, "the DataFlow relation requires a hash as info object"
+                end
+
+                super
+
+                if !from.transaction_proxy? && !to.transaction_proxy?
+                    if from.kind_of?(Orocos::RobyPlugin::TaskContext)
+                        modified_tasks << from
+                    end
+		    if to.kind_of?(Orocos::RobyPlugin::TaskContext)
+			modified_tasks << to
+		    end
+                end
+            end
+
+            def DataFlow.remove_relation(from, to)
+                super
+
+                if !from.transaction_proxy? && !to.transaction_proxy?
+                    if from.kind_of?(Orocos::RobyPlugin::TaskContext)
+                        modified_tasks << from
+                    end
+		    if to.kind_of?(Orocos::RobyPlugin::TaskContext)
+			modified_tasks << to
+		    end
+                end
+            end
+
             # Called by the relation graph management to update the DataFlow
             # edge information when connections are added or removed.
             def DataFlow.merge_info(source, sink, current_mappings, additional_mappings)
+                super
+
                 current_mappings.merge(additional_mappings) do |(from, to), old_options, new_options|
                     RobyPlugin.update_connection_policy(old_options, new_options)
+                end
+            end
+
+            def DataFlow.updated_info(source, sink, mappings)
+                super
+
+                if !source.transaction_proxy? && !sink.transaction_proxy?
+                    if source.kind_of?(Orocos::RobyPlugin::TaskContext)
+                        modified_tasks << source
+                    end
+		    if sink.kind_of?(Orocos::RobyPlugin::TaskContext)
+			modified_tasks << sink
+		    end
                 end
             end
         end
 
         RequiredDataFlow = ConnectionGraph.new
+        RequiredDataFlow.name = "Orocos::RobyPlugin::RequiredDataFlow"
+        RequiredDataFlow.extend Roby::Distributed::DRobyConstant::Dump
     end
 end
 

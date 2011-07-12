@@ -440,12 +440,14 @@ module Orocos
                             if key.respond_to?(:short_name)
                                 key = key.short_name
                             end
-                            value = value[0]
-                            if value.respond_to?(:short_name)
-                                value = value.short_name
+                            value = value.selected_models
+                            value = value.map do |v|
+                                if v.respond_to?(:short_name) then v.short_name
+                                else v.to_s
+                                end
                             end
 
-                            pp.text "#{key} => #{value}"
+                            pp.text "#{key} => #{value.join(",")}"
                         end
                     end
                 end

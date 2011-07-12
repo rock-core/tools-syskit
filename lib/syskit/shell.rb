@@ -48,6 +48,18 @@ module Orocos
                 Roby.app.orocos_engine.modified!
                 nil
             end
+
+            def enable_logging_of(string)
+		Conf.orocos.enable_log_group(string)
+                Roby.app.orocos_engine.modified!
+                nil
+            end
+
+            def disable_logging_of(string)
+                Conf.orocos.disable_log_group(string)
+                Roby.app.orocos_engine.modified!
+                nil
+            end
         end
     end
 end

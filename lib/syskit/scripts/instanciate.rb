@@ -45,9 +45,6 @@ if test
     test_file = remaining.shift
     test_setup = YAML.load(File.read(test_file))
 
-    outdir = File.join(File.dirname(test_file), 'results', 'instanciate')
-    FileUtils.mkdir_p(outdir)
-
     config = test_setup.delete('configuration') || %w{--no-loggers --no-compositions -osvg}
 
     default_deployment = test_setup.delete('default_deployment') || '-'
@@ -74,9 +71,16 @@ if test
 
         test_def = default_def.merge(test_def)
 
+        dirname = "instanciate"
+        if test_def['robot']
+            dirname << "-#{test_def['robot']}"
+        end
+        outdir = File.join(File.dirname(test_file), 'results', dirname)
+        FileUtils.mkdir_p(outdir)
+
         cmdline = []
         cmdline.concat(config)
-        cmdline << output_option + ":#{test_name}"
+        cmdline << output_option + ":#{File.join(outdir, test_name)}"
         if test_def['robot']
             cmdline << "-r#{test_def['robot']}"
         end
@@ -138,7 +142,7 @@ end
 Roby.app.using_plugins 'orocos'
 Roby.app.orocos_only_load_models = true
 Roby.app.orocos_disables_local_process_server = true
-
+Roby.app.single
 Scripts.tic
 error = Scripts.run do
     GC.start

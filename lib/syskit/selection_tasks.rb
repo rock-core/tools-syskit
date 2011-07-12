@@ -114,11 +114,13 @@ module Orocos
 
                     # When the result task either finishes or is finalized,
                     # remove the corresponding instance from the requirements
-                    result_task.on :stop do |event|
-                        Roby.app.orocos_engine.removed(@result)
+                    result_task.on :stop, :on_replace => :copy do |event|
+                        if @result.task == event.task
+                            Roby.app.orocos_engine.removed(@result)
+                        end
                     end
-                    result_task.when_finalized do
-                        if result_task.pending?
+                    result_task.when_finalized :on_replace => :copy do |task|
+                        if result_task.pending? && @result.task == task
                             Roby.app.orocos_engine.removed(@result)
                         end
                     end

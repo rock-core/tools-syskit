@@ -82,6 +82,22 @@ module Orocos
                 self
             end
 
+            def each_input_port(&block)
+                composition.find_child(child_name).models.each do |child_model|
+                    child_model.each_input_port do |p|
+                        yield(CompositionChildInputPort.new(self, p, p.name))
+                    end
+                end
+            end
+
+            def each_output_port(&block)
+                composition.find_child(child_name).models.each do |child_model|
+                    child_model.each_output_port do |p|
+                        yield(CompositionChildOutputPort.new(self, p, p.name))
+                    end
+                end
+            end
+
             # Returns a CompositionChildPort instance if +name+ is a valid port
             # name
             def method_missing(name, *args) # :nodoc:
@@ -159,7 +175,11 @@ module Orocos
         # Specialization of CompositionChildPort for output ports
         class CompositionChildOutputPort < CompositionChildPort; end
         # Specialization of CompositionChildPort for input ports
-        class CompositionChildInputPort  < CompositionChildPort; end
+        class CompositionChildInputPort  < CompositionChildPort
+            def multiplexes?
+                false
+            end
+        end
 
         # Additional methods that are mixed in composition specialization
         # models. I.e. composition models created by CompositionModel#specialize
@@ -572,12 +592,17 @@ module Orocos
                 end
             end
 
+            # DEPRECATED. Use #add_main instead.
+            def add_main_task(models, options = Hash.new) # :nodoc:
+                add_main(models, options)
+            end
+
             # Adds the given child, and marks it as the task that provides the
             # main composition's functionality.
             #
             # What is means in practice is that the composition will terminate
             # successfully when this child terminates successfully
-            def add_main_task(models, options = Hash.new)
+            def add_main(models, options = Hash.new)
                 if main_task
                     raise ArgumentError, "this composition already has a main task child"
                 end
@@ -975,34 +1000,24 @@ module Orocos
             def find_most_specialized_compositions(model_set, children_names)
                 return model_set if children_names.empty?
 
-                has_improvement = Hash.new
-                is_improvement  = Hash.new(true)
+                relations = BGL::Graph.new
 
                 # We remove a model from +model_set+ iff
                 # * one of its specialization is also in +result+ *and*
                 # * this specialization is specialized on one of the children
                 #   listed in +children_names+
                 model_set.each do |m|
-                    has_improvement[m] = false
+                    m.extend BGL::Vertex
                     m.specializations.each do |specialized_on, specialization|
-                        specialization_is_improvement = model_set.include?(specialization) &&
-                            children_names.any? { |child| specialized_on[child] != m.specialized_children[child] }
-                        if specialization_is_improvement
-                            has_improvement[m] = true
-                            is_improvement[specialization] = true
-                        else
-                            is_improvement[specialization] = false
+                        next if !model_set.include?(specialization)
+
+                        if children_names.any? { |child| specialized_on[child] != m.specialized_children[child] }
+                            relations.link(m, specialization, nil)
                         end
                     end
                 end
 
-                result = model_set.find_all do |m|
-                    !has_improvement[m] && is_improvement[m]
-                end
-                result.delete_if do |m|
-                    result.any? { |parent_m| parent_m.parent_model_of?(m) }
-                end
-                result
+                model_set.find_all { |m| m.leaf?(relations) }
             end
 
             def find_all_selected_specializations(selection)
@@ -1195,46 +1210,71 @@ module Orocos
                     break
                 end
 
-                result = Hash.new { |h, k| h[k] = Hash.new }
-
                 # First, gather per-type available inputs and outputs. Both
                 # hashes are:
                 #
                 #   port_type_name => [[child_name, child_port_name], ...]
-                child_inputs  = Hash.new { |h, k| h[k] = Array.new }
-                child_outputs = Hash.new { |h, k| h[k] = Array.new }
+                child_inputs  = Array.new
+                child_outputs = Array.new
                 children_names.each do |name|
-                    dependent_models = find_child(name).models
+                    child = CompositionChild.new(self, name)
                     seen = Set.new
-                    dependent_models.each do |sys|
-                        sys.each_input_port do |in_port|
-                            next if seen.include?(in_port.name)
-                            next if exported_port?(in_port)
-                            next if autoconnect_ignores.include?([name, in_port.name])
+                    child.each_output_port do |out_port|
+                        next if seen.include?(out_port.name)
+                        next if exported_port?(out_port)
+                        next if autoconnect_ignores.include?([name, out_port.name])
 
-                            child_inputs[in_port.type_name] << [name, in_port.name]
-                            seen << in_port.name
-                        end
-
-                        sys.each_output_port do |out_port|
-                            next if seen.include?(out_port.name)
-                            next if exported_port?(out_port)
-                            next if autoconnect_ignores.include?([name, out_port.name])
-
-                            child_outputs[out_port.type_name] << [name, out_port.name]
-                            seen << out_port.name
-                        end
+                        child_outputs << out_port
+                        seen << out_port.name
+                    end
+                    child.each_input_port do |in_port|
+                        next if seen.include?(in_port.name)
+                        next if exported_port?(in_port)
+                        next if autoconnect_ignores.include?([name, in_port.name])
+                        child_inputs << in_port
+                        seen << in_port.name
                     end
                 end
 
+                result = autoconnect_children(child_outputs, child_inputs, each_explicit_connection.to_a + parent_autoconnections.to_a)
+                self.automatic_connections = result.merge(parent_autoconnections)
+            end
 
+            # Autoconnects the outputs listed in +child_outputs+ to the inputs
+            # in child_inputs. +exclude_connections+ is a list of connections
+            # whose input ports should be ignored in the autoconnection process.
+            #
+            # +child_outputs+ and +child_inputs+ are mappings of the form
+            #
+            #   type_name => [child_name, port_name]
+            #
+            # +exclude_connections+ is using the same format than the values
+            # returned by each_explicit_connection (i.e. how connections are
+            # stored in the DataFlow graph), namely a mapping of the form
+            #
+            #   (child_out_name, child_in_name) => mappings
+            #
+            # Where +mappings+ is
+            #
+            #   [port_out, port_in] => connection_policy
+            #
+            def autoconnect_children(child_output_ports, child_input_ports, exclude_connections)
+                result = Hash.new { |h, k| h[k] = Hash.new }
+
+                child_outputs = Hash.new { |h, k| h[k] = Array.new }
+                child_output_ports.each do |p|
+                    child_outputs[p.type_name] << [p.child.child_name, p.name]
+                end
+                child_inputs = Hash.new { |h, k| h[k] = Array.new }
+                child_input_ports.each do |p|
+                    child_inputs[p.type_name] << [p.child.child_name, p.name]
+                end
                 existing_inbound_connections = Set.new
-                (each_explicit_connection.to_a + parent_autoconnections.to_a).
-                    each do |(_, child_in), mappings|
-                        mappings.each_key do |_, port_in|
-                            existing_inbound_connections << [child_in, port_in]
-                        end
+                exclude_connections.each do |(_, child_in), mappings|
+                    mappings.each_key do |_, port_in|
+                        existing_inbound_connections << [child_in, port_in]
                     end
+                end
 
                 # Now create the connections
                 child_inputs.each do |typename, in_ports|
@@ -1294,8 +1334,7 @@ module Orocos
                     end
                     break
                 end
-
-                self.automatic_connections = result.merge(parent_autoconnections)
+                result
             end
 
             # Returns the set of connections that should be created during the
@@ -1462,13 +1501,42 @@ module Orocos
                     options = Kernel.validate_options options, Orocos::Port::CONNECTION_POLICY_OPTIONS
                 end
                 mappings.each do |out_p, in_p|
-                    if !out_p.kind_of?(CompositionChildOutputPort)
+                    child_inputs  = Array.new
+                    child_outputs = Array.new
+
+                    case out_p
+                    when CompositionChildOutputPort
+                        child_outputs << out_p
+                    when CompositionChild
+                        out_p.each_output_port do |p|
+                            child_outputs << p
+                        end
+                    when CompositionChildInputPort
                         raise ArgumentError, "#{out_p.name} is an input port of #{out_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    else
+                        raise ArgumentError, "#{out_p} is neither an input or output port. The correct syntax is 'connect output => input'"
                     end
-                    if !in_p.kind_of?(CompositionChildInputPort)
-                        raise ArgumentError, "#{in_p.name} is an input port of #{in_p.child.child_name}. The correct syntax is 'connect output => input'"
+
+                    case in_p
+                    when CompositionChildInputPort
+                        child_inputs << in_p
+                    when CompositionChild
+                        in_p.each_input_port do |p|
+                            if !in_p
+                                raise
+                            end
+                            child_inputs << p
+                        end
+                    when CompositionChildOutputPort
+                        raise ArgumentError, "#{in_p.name} is an output port of #{in_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    else
+                        raise ArgumentError, "#{in_p} is neither an input or output port. The correct syntax is 'connect output => input'"
                     end
-                    unmapped_explicit_connections[[out_p.child.child_name, in_p.child.child_name]][ [out_p.name, in_p.name] ] = options
+
+                    result = autoconnect_children(child_outputs, child_inputs, each_explicit_connection.to_a)
+                    unmapped_explicit_connections.merge!(result) do |k, v1, v2|
+                        v1.merge!(v2)
+                    end
                 end
             end
 
@@ -1918,7 +1986,7 @@ module Orocos
 
                 child_selection.merge!(selected_child.using_spec)
                 child_selection.merge!(child_user_selection)
-                child_selection = engine.resolve_explicit_selections(child_selection)
+                child_selection = EngineRequirement.resolve_explicit_selections(child_selection, engine)
                 # From this level's arguments, only forward the
                 # selections that have explicitely given for our
                 # children
@@ -1945,6 +2013,7 @@ module Orocos
                     end
                 end
 
+                child_task.required_host = find_child(child_name).required_host || self_task.required_host
                 child_task
             end
 
@@ -2163,6 +2232,7 @@ module Orocos
                         end
 
                         self_task.depends_on(child_task, dependency_options)
+                        self_task.child_selection[child_name] = selected_child
                         if (main = main_task) && (main.child_name == child_name)
                             child_task.each_event do |ev|
                                 if !ev.terminal? && ev.symbol != :start && self_task.has_event?(ev.symbol)
@@ -2218,6 +2288,15 @@ module Orocos
             @strict_specialization_selection = true
 
             terminates
+
+            def initialize(options = Hash.new)
+                @child_selection = Hash.new
+                super
+            end
+
+            # A name => SelectedChild mapping of the selection result during
+            # #instanciate
+            attr_reader :child_selection
 
             inherited_enumerable(:child, :children, :map => true) { Hash.new }
             inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
@@ -2374,6 +2453,7 @@ module Orocos
             def find_output_port(name)
                 real_task, real_port = resolve_output_port(name)
                 real_task.find_output_port(real_port)
+            rescue ArgumentError
             end
 
             # Helper method for #output_port and #resolve_port
@@ -2391,6 +2471,7 @@ module Orocos
             def find_input_port(name)
                 real_task, real_port = resolve_input_port(name)
                 real_task.find_input_port(real_port)
+            rescue ArgumentError
             end
 
             # Helper method for #output_port and #resolve_port
@@ -2430,12 +2511,24 @@ module Orocos
                 end
             end
 
+            def map_child_port(child_name, port_name)
+                if mapped = model.find_child(child_name).port_mappings[port_name]
+                    return mapped
+                elsif mapped = child_selection[child_name].port_mappings[port_name]
+                    return mapped
+                else
+                    port_name
+                end
+            end
+
             # Helper for #added_child_object and #removing_child_object
             #
             # It adds the task to Flows::DataFlow.modified_tasks whenever the
             # DataFlow relations is changed in a way that could require changing
             # the underlying Orocos components connections.
             def dataflow_change_handler(child, mappings) # :nodoc:
+                return if !plan.real_plan.executable?
+
                 if child.kind_of?(TaskContext)
                     Flows::DataFlow.modified_tasks << child
                 elsif child_object?(child, Roby::TaskStructure::Dependency)
@@ -2487,6 +2580,71 @@ module Orocos
                     name = m.to_s
                     if has_child?(name)
                         return CompositionChild.new(self, name)
+                    end
+                end
+                super
+            end
+
+            # Proxy returned by the child_name_child handler
+            #
+            # This is used to perform port mapping if needed
+            class CompositionChildInstance
+                def initialize(composition_task, child_name, child_task)
+                    @composition_task, @child_name, @child_task = composition_task, child_name, child_task
+                end
+                def as_plan
+                    @child_task
+                end
+
+                def connect_ports(target_task, mappings)
+                    mapped_connections = Hash.new
+                    mappings.map do |(source, sink), policy|
+                        source = find_output_port(source).name
+                        mapped_connections[[source, sink]] = policy
+                    end
+                    @child_task.connect_ports(target_task, mapped_connections)
+                end
+
+                def disconnect_ports(target_task, mappings)
+                    mappings = mappings.map do |source, sink|
+                        source = find_output_port(source).name
+                        [source, sink]
+                    end
+                    @child_task.disconnect_ports(target_task, mappings)
+                end
+
+                def find_input_port(port_name)
+                    mapped_port_name = @composition_task.map_child_port(@child_name, port_name)
+                    @child_task.find_input_port(mapped_port_name)
+                end
+
+                def find_output_port(port_name)
+                    mapped_port_name = @composition_task.map_child_port(@child_name, port_name)
+                    @child_task.find_output_port(mapped_port_name)
+                end
+
+                def method_missing(m, *args, &block)
+                    if m.to_s =~ /^(\w+)_port$/
+                        port_name = $1
+                        mapped_port_name = @composition_task.map_child_port(@child_name, port_name)
+                        if port = @child_task.find_input_port(mapped_port_name)
+                            return port
+                        elsif port = @child_task.find_output_port(mapped_port_name)
+                            return port
+                        else raise NoMethodError, "task #{@child_task}, child #{@child_name} of #{@composition_task}, has no port called #{port_name}"
+                        end
+                    end
+                    @child_task.send(m, *args, &block)
+                end
+            end
+
+            def method_missing(m, *args, &block)
+                if args.empty? && !block
+                    if m.to_s =~ /^(\w+)_child$/
+                        child_name = $1
+                        # Verify that the child exists
+                        child_task = child_from_role(child_name)
+                        return CompositionChildInstance.new(self, child_name, child_task)
                     end
                 end
                 super
