@@ -22,6 +22,10 @@ module Orocos
                 "#{task}:#{provided_service_model.name}"
             end
 
+	    def each_fullfilled_model(&block)
+		provided_service_model.component_model.each_fullfilled_model(&block)
+	    end
+
             def fullfills?(*args)
                 provided_service_model.fullfills?(*args)
             end
