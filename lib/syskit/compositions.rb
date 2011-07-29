@@ -2527,7 +2527,7 @@ module Orocos
             # DataFlow relations is changed in a way that could require changing
             # the underlying Orocos components connections.
             def dataflow_change_handler(child, mappings) # :nodoc:
-                return if !plan.real_plan.executable?
+                return if !plan || !plan.real_plan.executable?
 
                 if child.kind_of?(TaskContext)
                     Flows::DataFlow.modified_tasks << child
