@@ -168,7 +168,7 @@ module Orocos
                         engine.add_default_selections(selection)
                     end
                 rescue ArgumentError => e
-                    Engine.debug { "not narrowing as the selection can not yet be resolved: #{e.message}" }
+                    Engine.debug { "not narrowing as some of the selections can only be resolved at runtime: #{e.message}" }
                     return
                 end
 
@@ -181,7 +181,11 @@ module Orocos
                     end
 
                 Engine.debug do
-                    Engine.debug "  found #{result.short_name}"
+                    if candidates.size > 1
+                        Engine.debug "  found multiple candidates, using default model #{result.short_name}"
+                    else
+                        Engine.debug "  using #{result.short_name}"
+                    end
                     break
                 end
 
