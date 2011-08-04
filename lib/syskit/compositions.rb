@@ -1017,7 +1017,15 @@ module Orocos
                     end
                 end
 
-                model_set.find_all { |m| m.leaf?(relations) }
+                candidates = model_set.find_all { |m| m.leaf?(relations) }
+		candidates.delete_if do |model|
+		    candidates.any? do |parent_model|
+			parent_model.specializations.any? do |_, m|
+			    m == model
+		        end
+		    end
+		end
+		candidates
             end
 
             def find_all_selected_specializations(selection)
