@@ -160,7 +160,14 @@ module Orocos
                 RobyPlugin.info { "starting deployment #{model.deployment_name} on #{host}" }
 
                 process_server, log_dir = Orocos::RobyPlugin.process_servers[host]
-                @orogen_deployment = process_server.start(model.deployment_name, :working_directory => log_dir, :output => "%m-%p.txt", :wait => false)
+                options = nil
+                options = { :prefix => Roby.app.prefix } if Roby.app.prefix
+                @orogen_deployment = process_server.start(model.deployment_name, 
+                                                          :working_directory => log_dir, 
+                                                          :output => "%m-%p.txt", 
+                                                          :wait => false,
+                                                          :cmdline_args => options)
+
                 Deployment.all_deployments[@orogen_deployment] = self
                 emit :start
             end
