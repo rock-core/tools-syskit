@@ -287,37 +287,6 @@ module Orocos
                 orogen_spec.worstcase_trigger_latency
             end
 
-            ##
-            #:call-seq:
-            #   initial_ports_dynamics => { port_name => port_dynamic, ... }
-            #
-            # Computes the initial port dynamics, i.e. the dynamics that are not
-            # due to an external trigger.
-            #
-            # The information comes from the activity (in case it is a periodic
-            # activity) and device models.
-            #
-            # Returns a mapping from the task's port name to the corresponding
-            # instance of PortDynamics, for the ports for which we have some
-            # information
-            #
-            # Also creates and updates the #task_dynamics object
-            def initial_ports_dynamics
-                @task_dynamics = PortDynamics.new("#{orocos_name}.main")
-
-                result = Hash.new
-                if defined? super
-                    result.merge!(super)
-                end
-
-                if orogen_spec.activity_type.name == 'Periodic'
-                    Engine.debug { "  adding periodic trigger #{orogen_spec.period} 1" }
-                    task_dynamics.add_trigger("main-period", orogen_spec.period, 1)
-                end
-
-                result
-            end
-
             def create_port_dynamics(result, port_model)
                 if dynamics = result[port_model.name]
                     return dynamics

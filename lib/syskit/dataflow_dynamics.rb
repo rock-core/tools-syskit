@@ -100,6 +100,12 @@ module Orocos
                 triggers.map(&:period).min
             end
 
+            def sampled_at(duration)
+                result = PortDynamics.new(name, sample_size)
+                result.add_trigger("resample=#{duration}", duration, queue_size(duration))
+                result
+            end
+
             def sample_count(duration)
                 triggers.map do |trigger|
                     if trigger.period == 0
@@ -120,11 +126,10 @@ module Orocos
         # The main task of this class is to compute the update rates and the
         # default policies for each of the existing connections in +plan+. The
         # resulting information is stored in #dynamics
-        class DataFlowDynamics
+        class DataFlowDynamics < DataFlowComputation
             attr_reader :plan
 
-            # The result of #propagate is stored in this attribute
-            attr_reader :port_dynamics
+            attr_reader :triggers
 
             def initialize(plan)
                 @plan = plan
@@ -133,135 +138,272 @@ module Orocos
             def self.compute_connection_policies(plan)
                 engine = DataFlowDynamics.new(plan)
                 engine.compute_connection_policies
-                engine.port_dynamics
+                engine.result
             end
 
-            # Compute the dataflow information along the connections that exist
-            # in the plan
-            def propagate(deployed_tasks)
-                # Get the periods from the activities themselves directly (i.e.
-                # not taking into account the port-driven behaviour)
-                #
-                # We also precompute relevant connections, as they won't change
-                # during the computation
-                result = Hash.new
-                triggering_connections  = Hash.new { |h, k| h[k] = Array.new }
-                triggering_dependencies = Hash.new { |h, k| h[k] = ValueSet.new }
-                deployed_tasks.each do |task|
-                    result[task] = task.initial_ports_dynamics
+            def propagate(tasks)
+                @triggers = Hash.new { |h, k| h[k] = Set.new }
+                super
+            end
 
-                    # First, add all connections that will trigger the target
-                    # task
-                    task.orogen_spec.task_model.each_event_port do |port|
-                        task.each_concrete_input_connection(port.name) do |from_task, from_port, to_port, _|
-                            triggering_connections[task] << [from_task, from_port, to_port]
-                            triggering_dependencies[task] << from_task
-                        end
-                    end
-                    
-                    # Then register the connections that will make one port be
-                    # updated
-                    task.orogen_spec.task_model.each_output_port do |port|
-                        port.port_triggers.each do |port_trigger|
-                            # No need to re-register if it already triggering
-                            # the task
-                            next if port_trigger.trigger_port?
+            def has_information_for_task?(task)
+                has_information_for_port?(task, nil)
+            end
 
-                            task.each_concrete_input_connection(port_trigger) do |from_task, from_port, to_port, _|
-                                triggering_connections[task] << [from_task, from_port, to_port]
-                                triggering_dependencies[task] << from_task
-                            end
-                       end
-                    end
+            def has_final_information_for_task?(task)
+                has_final_information_for_port?(task, nil)
+            end
+
+            def add_task_trigger(task, name, period, burst)
+                add_port_trigger(task, nil, name, period, burst)
+            end
+
+            def add_task_info(task, info)
+                add_port_info(task, nil, info)
+            end
+
+            def task_info(task)
+                port_info(task, nil)
+            end
+
+            def done_task_info(task)
+                done_port_info(task, nil)
+            end
+
+            def create_port_info(task, port_name)
+                port_model = task.model.find_port(port_name)
+                dynamics = PortDynamics.new("#{task.orocos_name}.#{port_model.name}",
+                                        port_model.sample_size)
+                dynamics.add_trigger("burst", port_model.burst_period, port_model.burst_size)
+                set_port_info(task, port_name, dynamics)
+                dynamics
+            end
+
+            def add_port_trigger(task, port_name, name, period, burst)
+                if has_information_for_port?(task, port_name)
+                    @result[task][port_name].add_trigger(name, period, burst)
+                else
+                    info = create_port_info(task, port_name)
+                    info.add_trigger(name, period, burst)
+                    info
                 end
+            end
 
-                remaining = deployed_tasks.dup
-                propagated_port_to_port = Hash.new { |h, k| h[k] = Set.new }
-                while !remaining.empty?
-                    remaining = remaining.
-                        sort_by { |t| triggering_dependencies[t].size }
-
-                    did_something = false
-                    remaining.delete_if do |task|
-                        old_size = result[task].size
-                        finished = task.
-                            propagate_ports_dynamics(triggering_connections[task], result)
-                        if finished
-                            did_something = true
-                            task.propagate_ports_dynamics_on_outputs(result[task], propagated_port_to_port[task], true)
-                            triggering_dependencies.delete(task)
-                        elsif result[task].size != old_size
-                            did_something = true
-                        end
-                        finished
-                    end
-
-                    if !did_something
-                        # If we are blocked unfinished, try to propagate some
-                        # port-to-port information to see if it unblocks the
-                        # thing.
-                        remaining.each do |task|
-                            did_something ||= task.
-                                propagate_ports_dynamics_on_outputs(result[task], propagated_port_to_port[task], false)
-                        end
-                    end
-
-                    missing = Hash.new { |h, k| h[k] = Array.new }
-                    remaining.each do |task|
-                        port_names = task.model.each_input_port.map(&:name) + task.model.each_output_port.map(&:name)
-                        port_names.each do |port_name|
-                            if !result[task].has_key?(port_name)
-                                missing[task] << port_name
-                                result[task][port_name] = nil
-                            end
-                        end
-                    end
-
-                    if !did_something
-                        Engine.info do
-                            Engine.info "cannot compute port periods for:"
-                            missing.each do |task, port_names|
-                                Engine.info "    #{task}: #{port_names.join(", ")}"
-                            end
-                            break
-                        end
-                        break
-                    end
-                end
-
+            # Adds triggering information from the attached devices to +task+'s ports
+            def initial_device_information(task)
+                triggering_devices = task.each_device.to_a
                 Engine.debug do
-                    result.each do |task, ports|
-                        Engine.debug "#{task.name}:"
-                        if dyn = task.task_dynamics
-                            Engine.debug "  period=#{dyn.minimal_period}"
-                            dyn.triggers.each do |tr|
-                                Engine.debug "  trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
-                            end
-                        end
-                        ports.each do |port_name, dyn|
-                            port_model = task.model.find_port(port_name)
-                            next if !port_model.kind_of?(Orocos::Generation::OutputPort)
-
-                            Engine.debug "  #{port_name}"
-                            if !dyn
-                                Engine.debug "    could not compute its dynamics"
-                                next
-                            end
-                            Engine.debug "    period=#{dyn.minimal_period} sample_size=#{dyn.sample_size}"
-                            dyn.triggers.each do |tr|
-                                Engine.debug "    trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
-                            end
-                        end
-                    end
+                    Engine.debug "initial port dynamics on #{task} (device)"
+                    Engine.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(", ")}"
                     break
                 end
 
+                activity_type = task.orogen_spec.activity_type.name
+                case activity_type
+                when "Periodic"
+                    initial_device_information_periodic_triggering(
+                        task, triggering_devices.to_a, task.orogen_spec.period)
+                else
+                    initial_device_information_internal_triggering(
+                        task, triggering_devices.to_a)
+                end
+            end
+
+            # Common external loop for adding initial device information in
+            # #initial_device_information. It is used by
+            # initial_device_information_periodic_triggering and
+            # initial_device_information_internal_triggering
+            def initial_device_information_common(task, triggering_devices)
+                triggering_devices.each do |service, device|
+                    Engine.debug { "  #{device.name}: #{device.period} #{device.burst}" }
+                    device_dynamics = PortDynamics.new(device.name, 1)
+                    if device.period
+                        device_dynamics.add_trigger(device.name, device.period, 1)
+                    end
+                    device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
+
+                    yield(service, device, device_dynamics)
+                end
+            end
+
+            # Computes the initial port dynamics due to devices when the task
+            # gets triggered by the devices it is attached to
+            def initial_device_information_internal_triggering(task, triggering_devices)
+                Engine.debug "  is triggered internally"
+
+                initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
+                    add_task_info(task, device_dynamics)
+                    service.each_output_port(true) do |out_port|
+                        out_port.triggered_on_update = false
+                        add_port_info(task, out_port.name, device_dynamics)
+                        done_port_info(task, out_port.name)
+                    end
+                end
+            end
+
+            # Computes the initial port dynamics due to devices when the task is
+            # triggered periodically
+            def initial_device_information_periodic_triggering(task, triggering_devices, period)
+                Engine.debug { "  is triggered with a period of #{period} seconds" }
+
+                initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
+                    service.each_output_port(true) do |out_port|
+                        out_port.triggered_on_update = false
+                        add_port_trigger(task, out_port.name,
+                            device.name, period, device_dynamics.queue_size(period))
+                        done_port_info(task, out_port.name)
+                    end
+                end
+            end
+
+            # Computes the initial port dynamics due to the devices that go
+            # through a communication bus.
+            def initial_combus_information(task)
+                by_device = Hash.new
+                task.each_device_connection do |port_name, devices|
+                    if task.find_input_port_model(port_name)
+                        next
+                    end
+
+                    dynamics = PortDynamics.new("#{task.orocos_name}.#{port_name}", devices.map(&:sample_size).inject(&:+))
+                    devices.each do |dev|
+                        dynamics.add_trigger(dev.name, dev.period, 1)
+                        dynamics.add_trigger(dev.name, dev.period * dev.burst, dev.burst)
+                    end
+                    add_port_info(task, port_name, dynamics)
+                    done_port_info(task, port_name)
+                end
+            end
+
+            # Computes the initial port dynamics, i.e. the dynamics that can be
+            # computed without knowing anything about the dataflow
+            def initial_information(task)
+                set_port_info(task, nil, PortDynamics.new("#{task.orocos_name}.main"))
+                task.model.each_output_port do |port|
+                    create_port_info(task, port.name)
+                end
+
+                if task.kind_of?(Device)
+                    initial_device_information(task)
+                end
+                if task.kind_of?(ComBus)
+                    initial_combus_information(task)
+                end
+
+                activity_type = task.orogen_spec.activity_type.name
+                if activity_type == "Periodic"
+                    Engine.debug { "  adding periodic trigger #{task.orogen_spec.period} 1" }
+                    add_task_trigger(task, "main-period", task.orogen_spec.period, 1)
+                    done_task_info(task)
+                else
+                    if !task.orogen_spec.task_model.each_event_port.find { true }
+                        done_task_info(task)
+                    end
+                end
+            end
+
+            # Computes the set of input ports in +task+ that are used during the
+            # information propagation
+            def triggering_inputs(task)
+                all_triggers = ValueSet.new
+                @triggers[[task, nil]] = Set.new
+                task.orogen_spec.task_model.each_event_port.map do |port|
+                    all_triggers << port
+                    @triggers[[task, nil]] << [task, port.name]
+                end
+                task.model.each_output_port do |port|
+                    if port.triggered_on_update?
+                        @triggers[[task, port.name]] << [task, nil]
+                    end
+                    port.port_triggers.each do |trigger_port|
+                        @triggers[[task, port.name]] << [task, trigger_port.name]
+                        all_triggers << trigger_port
+                    end
+                end
+                task.model.each_output_port do |port|
+                    if !@triggers.has_key?([task, port.name])
+                        done_port_info(task, port.name)
+                    end
+                end
+
+                all_triggers
+            end
+
+            # Returns the set of objects for which information is required as an
+            # output of the algorithm
+            #
+            # The returned value is a map:
+            #
+            #   task => ports
+            #
+            # Where +ports+ is the set of port names that are required on
+            # +task+. +nil+ can be used to denote the task itself.
+            def required_information(tasks)
+                result = Hash.new
+                tasks.each do |t|
+                    ports = t.model.each_output_port.find_all do |p|
+                        t.each_concrete_output_connection(p.name).find { true }
+                    end
+                    if !ports.empty?
+                        result[t] = ports.map(&:name).to_set
+                        result[t] << nil
+                    end
+                end
                 result
             end
 
+            # Try to compute the information for the given task and port (or, if
+            # port_name is nil, for the task). Returns true if the required
+            # information could be computed as requested, and false otherwise.
+            def compute_info_for(task, port_name)
+                triggers = @triggers[[task, port_name]].map do |trigger_task, trigger_port|
+                    if has_final_information_for_port?(trigger_task, trigger_port)
+                        port_info(trigger_task, trigger_port)
+                    else
+                        Engine.debug do
+                            Engine.debug "  missing info on #{trigger_task}.#{trigger_port} to compute #{task}.#{port_name}"
+                            break
+                        end
+                        return false
+                    end
+                end
+
+                if task.orogen_spec.activity_type.name == "Periodic"
+                    triggers = triggers.map do |trigger_info|
+                        trigger_info.sampled_at(task.orogen_spec.period)
+                    end
+                end
+
+                triggers.each do |trigger_info|
+                    add_port_info(task, port_name, trigger_info)
+                end
+                done_port_info(task, port_name)
+                return true
+            end
+
+            def propagate_task(task)
+                if !missing_ports.has_key?(task)
+                    return true
+                end
+
+                Engine.debug do
+                    Engine.debug "trying to compute dataflow dynamics for #{task}"
+                    break
+                end
+
+                done = true
+                required = missing_ports[task].dup
+                required.each do |missing|
+                    if !compute_info_for(task, missing)
+                        done = false
+                    end
+                end
+                done
+            end
+
             # Computes desired connection policies, based on the port dynamics
-            # (computed by #port_dynamics) and the oroGen's input port
-            # specifications. See the user's guide for more details
+            # and the oroGen's input port specifications. See the user's guide
+            # for more details
             #
             # It directly modifies the policies in the data flow graph
             def compute_connection_policies
@@ -270,8 +412,7 @@ module Orocos
                 deployed_tasks = plan.find_local_tasks(TaskContext).
                     find_all(&:execution_agent)
                 
-                port_dynamics = propagate(deployed_tasks)
-                @port_dynamics = port_dynamics
+                propagate(deployed_tasks)
 
                 Engine.debug do
                     Engine.debug "computing connections"
@@ -280,7 +421,7 @@ module Orocos
                     end
 
                     Engine.debug "available information for"
-                    port_dynamics.each do |task, ports|
+                    result.each do |task, ports|
                         Engine.debug "  #{task}: #{ports.keys.join(", ")}"
                     end
                     break
@@ -318,18 +459,17 @@ module Orocos
                         end
 
                         # Compute the buffer size
-                        input_dynamics = port_dynamics[source_task][source_port.name]
-                        if input_dynamics && input_dynamics.empty?
-                            input_dynamics = nil
-                        end
+                        input_dynamics = port_info(source_task, source_port.name)
+                        task_dynamics  =
+                            if has_information_for_task?(source_task)
+                                task_info(source_task)
+                            end
 
                         reading_latency =
                             if sink_port.trigger_port?
                                 sink_task.trigger_latency
-                            elsif !sink_task.minimal_period
-                                nil
-                            else
-                                sink_task.minimal_period + sink_task.trigger_latency
+                            elsif task_dynamics && task_dynamics.minimal_period
+                                task_dynamics.minimal_period + sink_task.trigger_latency
                             end
 
                         if !input_dynamics || !reading_latency
@@ -341,9 +481,9 @@ module Orocos
                                 end
                                 policy.merge!(Port.validate_policy(fallback_policy))
                             elsif !input_dynamics
-                                raise SpecError, "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
-                            else
                                 raise SpecError, "period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
+                            else
+                                raise SpecError, "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
                             end
                         else
                             policy[:type] = :buffer

@@ -905,77 +905,6 @@ module Orocos
                 device_instance
             end
 
-            # Computes the initial port dynamics when the task gets triggered by
-            # the devices it is attached to
-            def initial_port_dynamics_internal_triggering(triggering_devices, result)
-                Engine.debug "  is triggered internally"
-
-                triggering_devices.each do |service, device|
-                    Engine.debug { "  #{device.name}: #{device.period} #{device.burst}" }
-                    device_dynamics = PortDynamics.new(device.name, 1)
-                    if device.period
-                        device_dynamics.add_trigger(device.name, device.period, 1)
-                    end
-                    device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
-
-                    task_dynamics.merge(device_dynamics)
-                    service.each_output_port(true) do |out_port|
-                        out_port.triggered_on_update = false
-                        port_name = out_port.name
-                        port_dynamics = (result[port_name] ||= PortDynamics.new("#{self.orocos_name}.#{out_port.name}", out_port.sample_size))
-                        port_dynamics.merge(device_dynamics)
-                    end
-                end
-            end
-
-            # Computes the initial port dynamics when the task is triggered
-            # periodically
-            def initial_port_dynamics_periodic_triggering(triggering_devices, result, period)
-                Engine.debug { "  is triggered with a period of #{period} seconds" }
-
-                triggering_devices.each do |service, device|
-                    Engine.debug { "  #{device.name}: #{device.period} #{device.burst}" }
-                    device_dynamics = PortDynamics.new(device.name, 1)
-                    if device.period
-                        device_dynamics.add_trigger(device.name, device.period, 1)
-                    end
-                    device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
-
-                    ports = ValueSet.new
-                    service.each_output_port(true) do |out_port|
-                        out_port.triggered_on_update = false
-                        port_name = out_port.name
-                        port_dynamics = (result[port_name] ||= PortDynamics.new("#{self.orocos_name}.#{out_port.name}", out_port.sample_size))
-                        port_dynamics.add_trigger(device.name, period, device_dynamics.queue_size(period))
-                    end
-                end
-            end
-
-            def initial_ports_dynamics
-                result = Hash.new
-                if defined? super
-                    result.merge!(super)
-                end
-
-                triggering_devices = each_device.to_a
-
-                Engine.debug do
-                    Engine.debug "initial port dynamics on #{self} (device)"
-                    Engine.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(", ")}"
-                    break
-                end
-
-                case orogen_spec.activity_type.name
-                when "Periodic"
-                    initial_port_dynamics_periodic_triggering(triggering_devices.to_a,
-                                                              result, orogen_spec.period)
-                else
-                    initial_port_dynamics_internal_triggering(triggering_devices.to_a,
-                                                              result)
-                end
-                result
-            end
-
             module ModuleExtension
                 # Returns a task model that can be used to represent data
                 # sources of this type in the plan, when no concrete tasks have
@@ -1050,25 +979,6 @@ module Orocos
                 each_concrete_output_connection do |source_port, sink_port, sink_task|
                     each_device_connection_helper(source_port, &block)
                 end
-            end
-
-            def initial_ports_dynamics
-                result = Hash.new
-                if defined? super
-                    result = super
-                end
-
-                by_device = Hash.new
-                each_device_connection do |port_name, devices|
-                    dynamics = PortDynamics.new("#{self.orocos_name}.#{port_name}", devices.map(&:sample_size).inject(&:+))
-                    devices.each do |dev|
-                        dynamics.add_trigger(dev.name, dev.period, 1)
-                        dynamics.add_trigger(dev.name, dev.period * dev.burst, dev.burst)
-                    end
-                    result[port_name] = dynamics
-                end
-
-                result
             end
         end
     end

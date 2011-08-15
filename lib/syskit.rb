@@ -17,6 +17,7 @@ require 'orocos/roby/task_context'
 require 'orocos/roby/exceptions'
 require 'orocos/roby/runtime_exceptions'
 
+require 'orocos/roby/dataflow_computation'
 require 'orocos/roby/dataflow_dynamics'
 require 'orocos/roby/network_merge_solver'
 require 'orocos/roby/runtime_connection_management'
