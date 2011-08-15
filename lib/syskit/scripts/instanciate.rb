@@ -76,6 +76,7 @@ if test
             dirname << "-#{test_def['robot']}"
         end
         outdir = File.join(File.dirname(test_file), 'results', dirname)
+        outdir = File.expand_path(outdir)
         FileUtils.mkdir_p(outdir)
 
         cmdline = []
