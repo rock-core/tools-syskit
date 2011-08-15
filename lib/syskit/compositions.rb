@@ -1973,15 +1973,14 @@ module Orocos
                 child_selection = catch(:missing_child_instanciation) do
                     ComponentInstance.resolve_using_spec(find_child(child_name).using_spec) do |key, sel|
                         if sel.kind_of?(CompositionChild)
-                            task = self_task.child_from_role(sel.child_name)
-                            if !task
+                            begin self_task.child_from_role(sel.child_name)
+                            rescue ArgumentError
                                 # The using spec of this child refers to another
                                 # task's child, but that other child is not
                                 # instanciated yet. Pass on, and get called
                                 # later
                                 throw :missing_child_instanciation
                             end
-                            task
                         else
                             sel
                         end
@@ -2182,6 +2181,12 @@ module Orocos
                                 end
                             end
                             child_task = instanciate_child(engine, self_task, arguments, child_name, selected_child, child_user_selection, conf)
+                            if !child_task
+                                # Cannot instanciate yet, probably because the
+                                # instantiation of this child depends on other
+                                # children that are not yet instanciated
+                                next(false)
+                            end
                         end
 
                         if !selected_child.port_mappings.empty?
