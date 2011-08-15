@@ -308,16 +308,20 @@ module Orocos
                 all_triggers = ValueSet.new
                 @triggers[[task, nil]] = Set.new
                 task.orogen_spec.task_model.each_event_port.map do |port|
-                    all_triggers << port
-                    @triggers[[task, nil]] << [task, port.name]
+                    if task.has_concrete_input_connection?(port.name)
+                        all_triggers << port
+                        @triggers[[task, nil]] << [task, port.name]
+                    end
                 end
                 task.model.each_output_port do |port|
                     if port.triggered_on_update?
                         @triggers[[task, port.name]] << [task, nil]
                     end
                     port.port_triggers.each do |trigger_port|
-                        @triggers[[task, port.name]] << [task, trigger_port.name]
-                        all_triggers << trigger_port
+                        if task.has_concrete_input_connection?(trigger_port.name)
+                            @triggers[[task, port.name]] << [task, trigger_port.name]
+                            all_triggers << trigger_port
+                        end
                     end
                 end
                 task.model.each_output_port do |port|
@@ -459,7 +463,11 @@ module Orocos
                         end
 
                         # Compute the buffer size
-                        input_dynamics = port_info(source_task, source_port.name)
+                        input_dynamics =
+                            if has_information_for_port?(source_task, source_port.name)
+                                port_info(source_task, source_port.name)
+                            end
+
                         task_dynamics  =
                             if has_information_for_task?(source_task)
                                 task_info(source_task)

@@ -312,6 +312,11 @@ module Orocos
                 self
             end
 
+            def has_concrete_input_connection?(required_port)
+                each_concrete_input_connection(required_port) { return true }
+                false
+            end
+
             def each_concrete_output_connection(required_port = nil)
                 if !block_given?
                     return enum_for(:each_concrete_output_connection, required_port)
@@ -338,6 +343,11 @@ module Orocos
                     end
                 end
                 self
+            end
+
+            def has_concrete_output_connection?(required_port)
+                each_concrete_output_connection(required_port) { return true }
+                false
             end
 
             # call-seq:
