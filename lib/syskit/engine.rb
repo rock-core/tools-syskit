@@ -438,9 +438,7 @@ module Orocos
 		    raise ArgumentError, "cannot export a non-master device"
 		end
 
-puts "trying to export #{name} on #{planner}"
 		if !planner.has_method?("#{device.name}_device")
-puts "exporting #{name} on #{planner}"
 		    planner.method("#{device.name}_device") do
 		        spec = Roby.orocos_engine.device(device.name)
 		        if arguments[:conf]
