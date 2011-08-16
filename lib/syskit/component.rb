@@ -898,8 +898,8 @@ module Orocos
             def merge(merged_task)
                 # Copy arguments of +merged_task+ that are not yet assigned in
                 # +self+
-                merged_task.arguments.each do |key, value|
-                    arguments[key] ||= value if !arguments.has_key?(key)
+                merged_task.arguments.each_static do |key, value|
+                    arguments[key] = value if !arguments.set?(key)
                 end
 
                 # Instanciate missing dynamic ports

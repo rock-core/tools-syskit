@@ -2006,21 +2006,20 @@ module Orocos
                 engine.add_default_selections(child_selection)
 
                 Engine.debug { "instanciating model #{selected_child.child_model.short_name} for child #{child_name}" }
-                child_task = selected_child.child_model.instanciate(engine, :selection => child_selection)
 
                 child_arguments = find_child(child_name).arguments.dup
                 if conf[child_name]
                     child_arguments[:conf] = conf[child_name]
                 end
                 child_arguments.merge!(selected_child.arguments)
-                child_arguments.each do |key, value|
+                child_arguments.each_key do |key|
+		    value = child_arguments[key]
                     if value.respond_to?(:resolve)
-                        child_task.arguments[key] = value.resolve(self)
-                    else
-                        child_task.arguments[key] = value
+                        child_arguments[key] = value.resolve(self)
                     end
                 end
 
+                child_task = selected_child.child_model.instanciate(engine, :selection => child_selection, :task_arguments => child_arguments)
                 child_task.required_host = find_child(child_name).required_host || self_task.required_host
                 child_task
             end
