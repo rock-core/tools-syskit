@@ -975,7 +975,6 @@ module Orocos
             def data_writer(*args)
                 task, port_name, policy = data_accessor(*args)
 
-                puts "looking for #{port_name} on #{task}"
                 port = task.find_input_port(port_name)
                 if !port
                     raise ArgumentError, "#{task} has no input port #{port_name}"

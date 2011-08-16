@@ -421,7 +421,6 @@ module Orocos
 	    end
 
 	    def export_define_to_planner(planner, name)
-	    	puts name.to_s
 	        if !defines.has_key?(name)
 		    raise ArgumentError, "no define called #{name} on #{self}"
 		end
