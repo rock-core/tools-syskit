@@ -1377,6 +1377,10 @@ module Orocos
 
                     compute_system_network
 
+                    if options[:garbage_collect] && options[:validate_network]
+                        validate_generated_network(trsc, options)
+                    end
+
                     # Now compute a deployment for the resulting network
                     if options[:compute_deployments]
                         instanciate_required_deployments
@@ -1391,10 +1395,6 @@ module Orocos
                     if options[:compute_deployments]
                         @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
                         @network_merge_solver.merge_identical_tasks
-                    end
-
-                    if options[:garbage_collect] && options[:validate_network]
-                        validate_generated_network(trsc, options)
                     end
 
                     # the tasks[] and devices mappings are updated during the
