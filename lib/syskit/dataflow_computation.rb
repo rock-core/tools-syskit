@@ -26,7 +26,7 @@ module Orocos
             end
 
             def has_final_information_for_port?(task, port_name)
-                done_ports[task].include?(port_name)
+                done_ports[task].include?(port_name) && has_information_for_port?(task, port_name)
             end
 
             def port_info(task, port_name)
