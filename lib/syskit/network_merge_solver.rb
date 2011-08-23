@@ -522,7 +522,12 @@ module Orocos
                 if respond_to?(:merged_tasks)
                     merged_tasks(merges)
                 end
-                merges.values.to_value_set
+
+                resulting_merge_graph = BGL::Graph.new
+                merges.each do |replaced_task, task|
+                    resulting_merge_graph.link(replaced_task, task, nil)
+                end
+                resulting_merge_graph
             end
 
             # Propagation step in the BFS of merge_identical_tasks
@@ -651,8 +656,13 @@ module Orocos
                             break 
                         end
 
-                        candidates = apply_merge_mappings(merges)
+                        applied_merges = apply_merge_mappings(merges)
+                        candidates = ValueSet.new
+                        applied_merges.each_vertex do |task|
+                            candidates << task if task.leaf?
+                        end
                         merged_tasks.merge(candidates)
+
                         Engine.debug do
                             Engine.debug "  -- Merged tasks during this pass"
                             for t in candidates
@@ -661,6 +671,21 @@ module Orocos
                             break
                         end
                         candidates = merge_tasks_next_step(candidates)
+
+                        possible_cycles.each do |from, to|
+                            applied_merges.each_dfs(from, BGL::Graph::ALL) do |_, task, _|
+                                if task.leaf?
+                                    candidates << task
+                                end
+                            end
+                            applied_merges.each_dfs(to, BGL::Graph::ALL) do |_, task, _|
+                                if task.leaf?
+                                    candidates << task
+                                end
+                            end
+                        end
+                        possible_cycles.clear
+
                         Engine.debug do
                             Engine.debug "  -- Candidates for next pass"
                             for t in candidates
