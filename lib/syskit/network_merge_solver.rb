@@ -653,7 +653,21 @@ module Orocos
 
                         candidates = apply_merge_mappings(merges)
                         merged_tasks.merge(candidates)
+                        Engine.debug do
+                            Engine.debug "  -- Merged tasks during this pass"
+                            for t in candidates
+                                Engine.debug "    #{t}"
+                            end
+                            break
+                        end
                         candidates = merge_tasks_next_step(candidates)
+                        Engine.debug do
+                            Engine.debug "  -- Candidates for next pass"
+                            for t in candidates
+                                Engine.debug "    #{t}"
+                            end
+                            break
+                        end
                     end
 
 

@@ -634,10 +634,10 @@ module Orocos
                     target_to_task         = target_service.port_mappings_for(other_service.model)
 
                     Engine.debug do
-                        Engine.debug "mapping service #{merged_task}:#{other_service.name}"
-                        Engine.debug "  to #{self}:#{target_service.name}"
-                        Engine.debug "  from->from_task: #{merged_service_to_task}"
-                        Engine.debug "  from->to_task:   #{target_to_task}"
+                        Engine.debug "      mapping service #{merged_task}:#{other_service.name}"
+                        Engine.debug "        to #{self}:#{target_service.name}"
+                        Engine.debug "        from->from_task: #{merged_service_to_task}"
+                        Engine.debug "        from->to_task:   #{target_to_task}"
                         break
                     end
 
@@ -679,16 +679,16 @@ module Orocos
                         new_connections[[from, to]] = policy
                     end
                     Engine.debug do
-                        Engine.debug "moving input connections of #{merged_task}"
-                        Engine.debug "  => #{source_task} onto #{self}"
-                        Engine.debug "  mappings: #{connection_mappings}"
-                        Engine.debug "  old:"
+                        Engine.debug "      moving input connections of #{merged_task}"
+                        Engine.debug "        => #{source_task} onto #{self}"
+                        Engine.debug "        mappings: #{connection_mappings}"
+                        Engine.debug "        old:"
                         connections.each do |(from, to), policy|
-                            Engine.debug "    #{from} => #{to} (#{policy})"
+                            Engine.debug "          #{from} => #{to} (#{policy})"
                         end
-                        Engine.debug "  new:"
+                        Engine.debug "        new:"
                         new_connections.each do |(from, to), policy|
-                            Engine.debug "    #{from} => #{to} (#{policy})"
+                            Engine.debug "          #{from} => #{to} (#{policy})"
                         end
                         break
                     end
@@ -704,17 +704,17 @@ module Orocos
                     end
 
                     Engine.debug do
-                        Engine.debug "moving output connections of #{merged_task}"
-                        Engine.debug "  => #{sink_task}"
-                        Engine.debug "  onto #{self}"
-                        Engine.debug "  mappings: #{connection_mappings}"
-                        Engine.debug "  old:"
+                        Engine.debug "      moving output connections of #{merged_task}"
+                        Engine.debug "        => #{sink_task}"
+                        Engine.debug "        onto #{self}"
+                        Engine.debug "        mappings: #{connection_mappings}"
+                        Engine.debug "        old:"
                         connections.each do |(from, to), policy|
-                            Engine.debug "    #{from} => #{to} (#{policy})"
+                            Engine.debug "          #{from} => #{to} (#{policy})"
                         end
-                        Engine.debug "  new:"
+                        Engine.debug "        new:"
                         new_connections.each do |(from, to), policy|
-                            Engine.debug "    #{from} => #{to} (#{policy})"
+                            Engine.debug "          #{from} => #{to} (#{policy})"
                         end
                         break
                     end
