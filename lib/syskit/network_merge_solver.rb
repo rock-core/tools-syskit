@@ -333,42 +333,58 @@ module Orocos
                 leftovers
             end
 
-            def break_simple_cycles(merge_graph, cycles)
-                cycles.delete_if do |task|
-                    parent_removal =
-                        task.enum_for(:each_parent_vertex, merge_graph).find_all do |parent|
-                            cycles.include?(parent)
-                        end
-
-                    if !parent_removal.empty?
-                        parent_removal.each do |removed_parent|
-                            Engine.debug do
-                                "    removing #{task}.merge(#{removed_parent})"
-                            end
-                            merge_graph.unlink(removed_parent, task)
-                        end
-                        next(true)
+            # This tries to break cycles found in the merge graph
+            def break_simple_merge_cycles(merge_graph, cycles)
+                cycles = cycles.map do |task|
+                    reachable = ValueSet.new
+                    reachable << task
+                    to_remove = Array.new
+                    Engine.debug do
+                        Engine.debug "  from #{task}"
+                        break
                     end
 
-                    child_removal =
-                        task.enum_for(:each_child_vertex, merge_graph).find_all do |child|
-                            cycles.include?(child)
-                        end
-                    if !child_removal.empty?
-                        child_removal.each do |removed_child|
-                            Engine.debug do
-                                "    #{task} => #{removed_child}"
-                            end
-                            merge_graph.unlink(task, removed_child)
-                            next(true)
+                    merge_graph.each_dfs(task, BGL::Graph::ALL) do |edge_from, edge_to, _|
+                        if reachable.include?(edge_to)
+                            Engine.debug { "    remove #{edge_from}.merge(#{edge_to})" }
+                            to_remove << [edge_from, edge_to]
+                        else
+                            Engine.debug { "    keep #{edge_from}.merge(#{edge_to})" }
+                            reachable << edge_to
                         end
                     end
 
-                    false
+                    Engine.debug do
+                        Engine.debug "    reachable:"
+                        reachable.each do |t|
+                            Engine.debug "      #{t}"
+                        end
+                        break
+                    end
+
+                    [task, reachable, to_remove]
+                end
+                cycles = cycles.sort_by { |_, reachable, _| -reachable.size }
+
+                ignored = ValueSet.new
+                while !cycles.empty?
+                    task, reachable, to_remove = cycles.shift
+                    to_remove.each do |edge_from, edge_to|
+                        Engine.debug do
+                            Engine.debug "  removing #{edge_from}.merge(#{edge_to})"
+                            break
+                        end
+                        merge_graph.unlink(edge_from, edge_to)
+                    end
+                    ignored = ignored.merge(reachable)
+                    cycles.delete_if do |task, reachable, _|
+                        if ignored.include?(task)
+                            ignored = ignored.merge(reachable)
+                            true
+                        end
+                    end
                 end
             end
-
-
 
             def display_merge_graph(title, merge_graph)
                 Engine.debug "  -- #{title}"
@@ -396,8 +412,8 @@ module Orocos
                     if one_parent.empty?
                         break if cycles.empty?
 
-                        Engine.debug "  -- Breaking simple cycles"
-                        break_simple_cycles(merge_graph, cycles)
+                        Engine.debug "  -- Breaking simple cycles in the merge graph"
+                        break_simple_merge_cycles(merge_graph, cycles)
                         next
                     end
 
