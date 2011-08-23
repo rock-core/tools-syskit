@@ -237,10 +237,8 @@ module Orocos
                                 end
                                 merge_graph.unlink(parent, target_task)
                                 parent_count -= 1
-                                next
-                            end
 
-                            if order == -1
+                            elsif order == -1
                                 Engine.debug do
                                     "     picking up #{parent}.merge(#{target_task}) for local cycle"
                                 end
