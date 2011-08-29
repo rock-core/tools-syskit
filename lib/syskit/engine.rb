@@ -297,7 +297,11 @@ module Orocos
                 result = []
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
-                        result << use_deployment(deployment_def.name, options)
+                        # Currently, the supervision cannot handle orogen_default tasks 
+                        # properly, thus filtering them out for now 
+                        if not /^orogen_default/ =~ "#{deployment_def.name}"
+                            result << use_deployment(deployment_def.name, options)
+                        end
                     end
                 end
                 result
