@@ -800,6 +800,7 @@ module Orocos
     Roby::Application.register_plugin('orocos', Orocos::RobyPlugin::Application) do
         require 'orocos/roby'
         require 'orocos/process_server'
+        Orocos.load_orogen_plugins('roby')
     end
 end
 
