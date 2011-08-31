@@ -30,3 +30,4 @@ require 'orocos/roby/shell'
 require 'orocos/roby/task_scripting'
 
 require 'orocos/roby/selection_tasks'
+require 'orocos/roby/graphviz'

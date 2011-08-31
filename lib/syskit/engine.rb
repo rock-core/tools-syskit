@@ -726,246 +726,22 @@ puts "exporting #{name} on #{planner}"
             # Generate a svg file representing the current state of the
             # deployment
             def to_svg(kind, filename = nil, *additional_args)
-                # For backward compatibility reasons
-                if !filename
-                    filename = kind
-                    kind = 'dataflow'
-                end
-
-                Tempfile.open('roby_orocos_deployment') do |io|
-                    io.write send("to_dot_#{kind}", *additional_args)
-                    io.flush
-
-                    File.open(filename, 'w') do |output_io|
-                        output_io.puts(`dot -Tsvg #{io.path}`)
-                    end
-                end
+                Graphviz.new(plan, self).to_file(kind, 'svg', filename, *additional_args)
             end
 
-            # Generates a dot graph that represents the task hierarchy in this
-            # deployment
             def to_dot_hierarchy
-                result = []
-                result << "digraph {"
-                result << "  rankdir=TB"
-                result << "  node [shape=record,height=.1,fontname=\"Arial\"];"
-
-                all_tasks = ValueSet.new
-
-                plan.find_local_tasks(Composition).each do |task|
-                    all_tasks << task
-                    task.each_child do |child_task, _|
-                        all_tasks << child_task
-                        result << "  #{task.dot_id} -> #{child_task.dot_id};"
-                    end
-                end
-
-                plan.find_local_tasks(Deployment).each do |task|
-                    all_tasks << task
-                    task.each_executed_task do |component|
-                        all_tasks << component
-                        result << "  #{component.dot_id} -> #{task.dot_id} [color=\"blue\"];"
-                    end
-                end
-
-                all_tasks.each do |task|
-                    task_label, attributes = format_task_label(task)
-                    attributes << "label=<#{task_label}>"
-                    if task.abstract?
-                        attributes << " color=\"red\""
-                    end
-
-                    result << "  #{task.dot_id} [#{attributes.join(" ")}];"
-                end
-
-                result << "};"
-                result.join("\n")
+                Graphviz.new(plan, self).hierarchy
             end
 
-            def to_dot
-                to_dot_dataflow
+            def to_dot_dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = ["connection_policy"])
+                gen = Graphviz.new(plan, self)
+                annotations.each do |ann|
+                    gen.send("add_#{ann}_annotations")
+                end
+                gen.dataflow(remove_compositions, excluded_models)
             end
 
-            # Generates a dot graph that represents the task dataflow in this
-            # deployment
-            def to_dot_dataflow(remove_compositions = false, excluded_models = ValueSet.new)
-                result = []
-                result << "digraph {"
-                result << "  rankdir=LR"
-                result << "  node [shape=none,margin=0,height=.1,fontname=\"Arial\"];"
-
-                output_ports = Hash.new { |h, k| h[k] = Set.new }
-                input_ports  = Hash.new { |h, k| h[k] = Set.new }
-
-                all_tasks = plan.find_local_tasks(Deployment).to_value_set
-
-                plan.find_local_tasks(Component).each do |source_task|
-                    next if remove_compositions && source_task.kind_of?(Composition)
-                    next if excluded_models.include?(source_task.model)
-
-                    source_task.model.each_input_port do |port|
-                        input_ports[source_task] << port.name
-                    end
-                    source_task.model.each_output_port do |port|
-                        output_ports[source_task] << port.name
-                    end
-
-                    all_tasks << source_task
-                    if !source_task.kind_of?(Composition)
-                        source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                            next if excluded_models.include?(sink_task.model)
-
-                            output_ports[source_task] << source_port
-                            input_ports[sink_task]    << sink_port
-                            source_port_id = source_port.gsub(/[^\w]/, '_')
-                            sink_port_id   = sink_port.gsub(/[^\w]/, '_')
-
-                            policy = policy.dup
-                            policy.delete(:fallback_policy)
-                            policy_s = if policy.empty? then ""
-                                       elsif policy[:type] == :data then 'data'
-                                       elsif policy[:type] == :buffer then  "buffer:#{policy[:size]}"
-                                       else policy.to_s
-                                       end
-
-                            result << "  #{source_task.dot_id}:#{source_port_id} -> #{sink_task.dot_id}:#{sink_port_id} [label=\"#{policy_s}\"];"
-                        end
-                    end
-
-                    if !remove_compositions
-                        source_task.each_sink do |sink_task, connections|
-                            next if !sink_task.kind_of?(Composition) && !source_task.kind_of?(Composition)
-                            next if excluded_models.include?(sink_task.model) || excluded_models.include?(source_task.model)
-
-                            connections.each do |(source_port, sink_port), _|
-                                output_ports[source_task] << source_port
-                                input_ports[sink_task]    << sink_port
-
-                                result << "  #{source_task.dot_id}:#{source_port} -> #{sink_task.dot_id}:#{sink_port} [style=dashed];"
-                            end
-                        end
-                    end
-                end
-
-                clusters = Hash.new { |h, k| h[k] = Array.new }
-                all_tasks.each do |task|
-                    if !task.kind_of?(Deployment)
-                        clusters[task.execution_agent] << task
-                    end
-                end
-
-                # Allocate one color for each task. The ideal would be to do a
-                # graph coloring so that two related tasks don't get the same
-                # color, but that's TODO
-                task_colors = Hash.new
-                used_deployments = all_tasks.map(&:execution_agent).to_value_set
-                used_deployments.each do |task|
-                    task_colors[task] = RobyPlugin.allocate_color
-                end
-
-                clusters.each do |deployment, task_contexts|
-                    if deployment
-                        result << "  subgraph cluster_#{deployment.dot_id} {"
-                        result << "    #{dot_task_attributes(deployment, Array.new, Array.new, task_colors, remove_compositions).join(";\n     ")};"
-                    end
-
-                    task_contexts.each do |task|
-                        if !task
-                            raise "#{task} #{deployment} #{task_contexts.inspect}"
-                        end
-                        attributes = dot_task_attributes(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort, task_colors, remove_compositions)
-                        result << "    #{task.dot_id} [#{attributes.join(",")}];"
-                    end
-
-                    if deployment
-                        result << "  };"
-                    end
-                end
-
-                result << "};"
-                result.join("\n")
-            end
-
-            def format_task_label(task, task_colors = Hash.new)
-                task_node_attributes = []
-                task_flags = []
-                #task_flags << "E" if task.executable?
-                #task_flags << "A" if task.abstract?
-                #task_flags << "C" if task.kind_of?(Composition)
-                task_flags =
-                    if !task_flags.empty?
-                        "[#{task_flags.join(",")}]"
-                    else ""
-                    end
-                
-                task_label = 
-                    if task.respond_to?(:proxied_data_services)
-                        task.proxied_data_services.map(&:short_name).join(", ") + task_flags
-                    else
-                        text = task.to_s
-                        text = text.gsub('Orocos::RobyPlugin::', '').
-                            gsub(/\s+/, '').gsub('=>', ':').tr('<>', '[]')
-                        result =
-                            if text =~ /(.*)\/\[(.*)\](:0x[0-9a-f]+)/
-                                # It is a specialization, move the
-                                # specialization specification below the model
-                                # name
-                                name = $1
-                                specializations = $2
-                                id  = $3
-                                name + task_flags +
-                                    "<BR/>" + specializations.gsub('),', ')<BR/>')
-                            else
-                                text.gsub /:0x[0-9a-f]+/, ''
-                            end
-                        result.gsub(/\s+/, '').gsub('=>', ':').
-                            gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '<BR/>')
-                    end
-                task_label.tr('<>', '[]')
-
-                if task.kind_of?(Deployment)
-                    if task_colors[task]
-                        task_node_attributes << "color=\"#{task_colors[task]}\""
-                        task_label = "<FONT COLOR=\"#{task_colors[task]}\">#{task_label}"
-                        task_label << " <BR/> [Process name: #{task.model.deployment_name}]</FONT>"
-                    else
-                        task_label = "#{task_label}"
-                        task_label << " <BR/> [Process name: #{task.model.deployment_name}]"
-                    end
-                elsif task.kind_of?(Composition)
-                    task_node_attributes << "color=\"blue\""
-                end
-
-                roles = task.roles
-                task_label << " <BR/> roles:#{roles.to_a.sort.join(",")}"
-
-                return task_label, task_node_attributes
-            end
-
-            # Helper method for the to_dot methods
-            def dot_task_attributes(task, inputs, outputs, task_colors, remove_compositions = false) # :nodoc:
-                task_label, task_dot_attributes = format_task_label(task, task_colors)
-
-                label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"#{task.kind_of?(Deployment) ? '0' : '1'}\" CELLSPACING=\"0\">\n"
-                if !inputs.empty?
-                    label << inputs.map do |name|
-                        "    <TR><TD PORT=\"#{name.gsub(/[^\w]/, '_')}\">#{name} </TD></TR>\n"
-                    end.join("")
-                end
-                label << "    <TR><TD ALIGN=\"LEFT\" PORT=\"main\">#{task_label} </TD></TR>\n"
-                if !outputs.empty?
-                    label << outputs.map do |name|
-                        "    <TR><TD PORT=\"#{name.gsub(/[^\w]/, '_')}\">#{name} </TD></TR>\n"
-                    end.join("")
-                end
-                label << "  </TABLE>"
-
-                task_dot_attributes << "label=< #{label} >"
-                if task.abstract?
-                    task_dot_attributes << "color=\"red\""
-                end
-                task_dot_attributes
-            end
+            def to_dot; to_dot_dataflow end
 
             def pretty_print(pp) # :nodoc:
                 pp.text "-- Tasks"
@@ -1148,6 +924,9 @@ puts "exporting #{name} on #{planner}"
             # This network is neither validated nor tied to actual deployments
             def compute_system_network
                 instanciate
+                Engine.instanciation_postprocessing.each do |block|
+                    block.call(self)
+                end
 
                 # Needed at least for now to merge together drivers that
                 # have multiple devices
@@ -1164,6 +943,10 @@ puts "exporting #{name} on #{planner}"
                         end
                     end
 
+                Engine.system_network_postprocessing.each do |block|
+                    block.call(self)
+                end
+
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
                 plan.static_garbage_collect do |obj|
@@ -1172,6 +955,58 @@ puts "exporting #{name} on #{planner}"
                     # useful anymore
                     plan.remove_object(obj)
                 end
+            end
+
+            class << self
+                # Set of blocks registered with
+                # register_instanciation_postprocessing
+                attr_reader :instanciation_postprocessing
+
+                # Set of blocks registered with
+                # register_system_network_postprocessing
+                attr_reader :system_network_postprocessing
+
+                # Set of blocks registered with
+                # register_deployment_postprocessing
+                attr_reader :deployment_postprocessing
+            end
+            @instanciation_postprocessing = Array.new
+            @system_network_postprocessing = Array.new
+            @deployment_postprocessing = Array.new
+
+            # Registers a system-wide post-processing stage for the instanciation
+            # stage. This post-processing block is meant to add new tasks and
+            # new relations in the graph.
+            #
+            # Postprocessing stages that configures the task(s) automatically
+            # should be registered with #register_system_network_postprocessing
+            def self.register_instanciation_postprocessing(&block)
+                instanciation_postprocessing << block
+            end
+
+            # Registers a system-wide post-processing stage for the system
+            # network (i.e. the complete network before it gets merged with
+            # deployed tasks). This post-processing block is meant to
+            # automatically configure the tasks and/or dataflow, but not change
+            # the task graph
+            #
+            # Postprocessing stages that change the task graph should be
+            # registered with #register_instanciation_postprocessing
+            def self.register_system_network_postprocessing(&block)
+                system_network_postprocessing << block
+            end
+
+            # Registers a system-wide post-processing stage for the deployed
+            # network. This post-processing block is meant to automatically
+            # configure the tasks and/or dataflow, but not change the task
+            # graph. Unlike in #register_system_network_postprocessing, it has
+            # access to information that deployment provides (as e.g. port
+            # dynamics).
+            #
+            # Postprocessing stages that change the task graph should be
+            # registered with #register_instanciation_postprocessing
+            def self.register_deployment_postprocessing(&block)
+                deployment_postprocessing << block
             end
 
             # Hook called by the merge algorithm
@@ -1378,26 +1213,47 @@ puts "exporting #{name} on #{planner}"
                         end
                     end
 
+                    # We first generate a non-deployed network that fits all
+                    # requirements. This can fail if some service cannot be
+                    # allocated to tasks, and if some drivers cannot be
+                    # allocated to devices.
                     compute_system_network
 
-                    # Now compute a deployment for the resulting network
+                    if options[:garbage_collect] && options[:validate_network]
+                        validate_generated_network(trsc, options)
+                    end
+
+                    # Now, deploy the network by matching the available
+                    # deployments to the one in the generated network. Note that
+                    # these deployments are *not* yet the running tasks.
+                    #
+                    # The mapping from this deployed network to the running
+                    # tasks is done in #finalize_deployed_tasks
                     if options[:compute_deployments]
                         instanciate_required_deployments
                         @network_merge_solver.merge_identical_tasks
                     end
 
-                    used_tasks = trsc.find_local_tasks(Component).
-                        to_value_set
-                    used_deployments = trsc.find_local_tasks(Deployment).
-                        to_value_set
-
-                    if options[:compute_deployments]
-                        @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
-                        @network_merge_solver.merge_identical_tasks
+                    # Now that we have a deployed network, we can compute the
+                    # connection policies and the port dynamics, and call the
+                    # registered postprocessing blocks
+                    if options[:compute_policies]
+                        @port_dynamics = DataFlowDynamics.compute_connection_policies(trsc)
+                    end
+                    Engine.deployment_postprocessing.each do |block|
+                        block.call(self)
                     end
 
-                    if options[:garbage_collect] && options[:validate_network]
-                        validate_generated_network(trsc, options)
+                    # Finally, we map the deployed network to the currently
+                    # running tasks
+                    if options[:compute_deployments]
+                        used_tasks = trsc.find_local_tasks(Component).
+                            to_value_set
+                        used_deployments = trsc.find_local_tasks(Deployment).
+                            to_value_set
+
+                        @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
+                        @network_merge_solver.merge_identical_tasks
                     end
 
                     # the tasks[] and devices mappings are updated during the
@@ -1473,11 +1329,6 @@ puts "exporting #{name} on #{planner}"
 
                     if options[:compute_deployments]
                         configure_logging
-                    end
-
-                    if options[:compute_policies]
-                        @port_dynamics =
-                            DataFlowDynamics.compute_connection_policies(trsc)
                     end
 
                     if dry_run?

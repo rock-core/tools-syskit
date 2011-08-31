@@ -1,12 +1,17 @@
 require 'orocos/roby/scripts/common'
 Scripts = Orocos::RobyPlugin::Scripts
 
+Roby.app.using_plugins 'orocos'
+available_annotations = Orocos::RobyPlugin::Graphviz.available_annotations
+
 compute_policies    = true
 compute_deployments = true
 remove_compositions = false
 remove_loggers      = false
 validate_network    = true
 test = false
+annotations = Set.new
+
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate [options] deployment [additional services]
    'deployment' is either the name of a deployment in config/deployments,
@@ -14,6 +19,18 @@ parser = OptionParser.new do |opt|
     'additional services', if given, refers to services defined with
     'define' that should be added
     "
+
+    opt.on('--annotate=LIST', Array, "comma-separated list of annotations that should be added to the output (defaults to connection_policy). Available annotations: #{available_annotations.to_a.sort.join(", ")}") do |ann|
+        ann.each do |name|
+            if !available_annotations.include?(name)
+                STDERR.puts "#{name} is not a known annotation. Known annotations are: #{available_annotations.join(", ")}"
+                exit 1
+            end
+        end
+
+        annotations |= ann.to_set
+    end
+
     opt.on('--no-policies', "don't compute the connection policies") do
         compute_policies = false
     end
@@ -140,7 +157,6 @@ if output_type != 'txt' && !output_file
 end
 
 # We don't need the process server, win some startup time
-Roby.app.using_plugins 'orocos'
 Roby.app.orocos_only_load_models = true
 Roby.app.orocos_disables_local_process_server = true
 Roby.app.single
@@ -187,12 +203,12 @@ when "dot"
         output_io.puts Roby.app.orocos_engine.to_dot_hierarchy
     end
     File.open(dataflow_file, 'w') do |output_io|
-        output_io.puts Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks)
+        output_io.puts Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks, annotations)
     end
 when "x11"
     output_file  = nil
     Tempfile.open('roby_orocos_instanciate') do |io|
-        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks)
+        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks, annotations)
         io.flush
         `dot -Tx11 #{io.path}`
         if $?.exitstatus != 0
@@ -202,7 +218,7 @@ when "x11"
 
 when "svg", "png"
     Tempfile.open('roby_orocos_instanciate') do |io|
-        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks)
+        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks, annotations)
         io.flush
 
         File.open(dataflow_file, 'w') do |output_io|
