@@ -8,15 +8,30 @@ module Orocos
         class NetworkMergeSolver
             attr_reader :plan
 
+	    attr_reader :task_replacement_graph
+
             def initialize(plan, &block)
                 @plan = plan
                 @merging_candidates_queries = Hash.new
+		@task_replacement_graph = BGL::Graph.new
 
                 if block_given?
                     singleton_class.class_eval do
                         define_method(:merged_tasks, &block)
                     end
                 end
+            end
+
+            def replacement_for(task)
+                if task.plan && task.plan != plan
+                    task = plan[task]
+                end
+                task_replacement_graph.each_dfs(task, BGL::Graph::TREE) do |_, to, _|
+                    if to.leaf?(task_replacement_graph)
+                        return to
+                    end
+                end
+                return task
             end
 
             def self.merge_identical_tasks(plan, &block)
@@ -174,6 +189,7 @@ module Orocos
                 plan.remove_object(target_task)
                 graph.replace_vertex(target_task, task)
                 graph.remove(target_task)
+		task_replacement_graph.link(target_task, task, nil)
                 all_merges[target_task] = task
 
                 # Since we modified +task+, we now have to update the graph.
@@ -687,16 +703,8 @@ module Orocos
                         candidates = merge_tasks_next_step(candidates)
 
                         possible_cycles.each do |from, to|
-                            applied_merges.each_dfs(from, BGL::Graph::ALL) do |_, task, _|
-                                if task.leaf?
-                                    candidates << task
-                                end
-                            end
-                            applied_merges.each_dfs(to, BGL::Graph::ALL) do |_, task, _|
-                                if task.leaf?
-                                    candidates << task
-                                end
-                            end
+                            candidates << replacement_for(from)
+                            candidates << replacement_for(to)
                         end
                         possible_cycles.clear
 
