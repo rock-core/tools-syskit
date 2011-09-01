@@ -898,8 +898,8 @@ module Orocos
             def merge(merged_task)
                 # Copy arguments of +merged_task+ that are not yet assigned in
                 # +self+
-                merged_task.arguments.each do |key, value|
-                    arguments[key] ||= value if !arguments.has_key?(key)
+                merged_task.arguments.each_static do |key, value|
+                    arguments[key] = value if !arguments.set?(key)
                 end
 
                 # Instanciate missing dynamic ports
@@ -975,7 +975,6 @@ module Orocos
             def data_writer(*args)
                 task, port_name, policy = data_accessor(*args)
 
-                puts "looking for #{port_name} on #{task}"
                 port = task.find_input_port(port_name)
                 if !port
                     raise ArgumentError, "#{task} has no input port #{port_name}"

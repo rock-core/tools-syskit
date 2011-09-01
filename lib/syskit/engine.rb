@@ -297,7 +297,11 @@ module Orocos
                 result = []
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
-                        result << use_deployment(deployment_def.name, options)
+                        # Currently, the supervision cannot handle orogen_default tasks 
+                        # properly, thus filtering them out for now 
+                        if not /^orogen_default/ =~ "#{deployment_def.name}"
+                            result << use_deployment(deployment_def.name, options)
+                        end
                     end
                 end
                 result
@@ -421,7 +425,6 @@ module Orocos
 	    end
 
 	    def export_define_to_planner(planner, name)
-	    	puts name.to_s
 	        if !defines.has_key?(name)
 		    raise ArgumentError, "no define called #{name} on #{self}"
 		end
@@ -438,9 +441,7 @@ module Orocos
 		    raise ArgumentError, "cannot export a non-master device"
 		end
 
-puts "trying to export #{name} on #{planner}"
 		if !planner.has_method?("#{device.name}_device")
-puts "exporting #{name} on #{planner}"
 		    planner.method("#{device.name}_device") do
 		        spec = Roby.orocos_engine.device(device.name)
 		        if arguments[:conf]
@@ -1380,6 +1381,10 @@ puts "exporting #{name} on #{planner}"
 
                     compute_system_network
 
+                    if options[:garbage_collect] && options[:validate_network]
+                        validate_generated_network(trsc, options)
+                    end
+
                     # Now compute a deployment for the resulting network
                     if options[:compute_deployments]
                         instanciate_required_deployments
@@ -1394,10 +1399,6 @@ puts "exporting #{name} on #{planner}"
                     if options[:compute_deployments]
                         @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
                         @network_merge_solver.merge_identical_tasks
-                    end
-
-                    if options[:garbage_collect] && options[:validate_network]
-                        validate_generated_network(trsc, options)
                     end
 
                     # the tasks[] and devices mappings are updated during the
