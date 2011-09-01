@@ -957,6 +957,25 @@ puts "exporting #{name} on #{planner}"
                 end
             end
 
+            # Called after compute_system_network to map the required component
+            # network to deployments
+            #
+            # The deployments are still abstract, i.e. they are not mapped to
+            # running tasks yet
+            def deploy_system_network
+                instanciate_required_deployments
+                @network_merge_solver.merge_identical_tasks
+
+                # Cleanup the remainder of the tasks that are of no use right
+                # now (mostly devices)
+                plan.static_garbage_collect do |obj|
+                    Engine.debug { "  removing #{obj}" }
+                    # Remove tasks that we just added and are not
+                    # useful anymore
+                    plan.remove_object(obj)
+                end
+            end
+
             class << self
                 # Set of blocks registered with
                 # register_instanciation_postprocessing
@@ -1230,8 +1249,7 @@ puts "exporting #{name} on #{planner}"
                     # The mapping from this deployed network to the running
                     # tasks is done in #finalize_deployed_tasks
                     if options[:compute_deployments]
-                        instanciate_required_deployments
-                        @network_merge_solver.merge_identical_tasks
+                        deploy_system_network
                     end
 
                     # Now that we have a deployed network, we can compute the
