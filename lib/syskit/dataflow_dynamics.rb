@@ -1,5 +1,30 @@
 module Orocos
     module RobyPlugin
+        class TaskContext
+            attr_accessor :dynamics
+
+            attribute(:port_dynamics) { Hash.new }
+
+            # Tries to update the port dynamics information for the input port
+            # +port_name+ based on its inputs
+            #
+            # Returns the new PortDynamics object if successful, and nil
+            # otherwise
+            def update_input_port_dynamics(port_name)
+                dynamics = []
+                each_concrete_input_connection(port_name) do |source_task, source_port, sink_port|
+                    if dyn = source_task.port_dynamics[source_port]
+                        dynamics << dyn
+                    else
+                        return
+                    end
+                end
+                dyn = PortDynamics.new("#{name}.#{port_name}")
+                dynamics.each { |d| dyn.merge(d) }
+                port_dynamics[port_name] = dyn
+            end
+        end
+
         class << self
             # Margin that should be added to the computed buffer sizes. It is a
             # ratio of the optimal buffer size
@@ -170,6 +195,18 @@ module Orocos
                 done_port_info(task, nil)
             end
 
+            def done_port_info(task, port_name)
+                super
+                if has_information_for_port?(task, port_name)
+                    info = port_info(task, port_name)
+                    if port_name
+                        task.port_dynamics[port_name] = info
+                    else
+                        task.dynamics = info
+                    end
+                end
+            end
+            
             def create_port_info(task, port_name)
                 port_model = task.model.find_port(port_name)
                 dynamics = PortDynamics.new("#{task.orocos_name}.#{port_model.name}",
