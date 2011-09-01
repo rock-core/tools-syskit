@@ -1008,6 +1008,17 @@ module Orocos
                         "could not find implementation for the following abstract tasks: #{still_abstract}"
                 end
 
+                plan.find_local_tasks(TaskContext) do |task|
+                    seen = Hash.new
+                    task.each_concrete_input_connections do |source_task, source_port, sink_port, _|
+                        if (port_model = task.model.find_input_port(sink_port)) && port_model.multiplexes?
+                            next
+                        elsif seen[sink_port]
+                            raise SpecError, "#{task}.#{sink_port} is connected multiple times"
+                        end
+                        seen[sink_port] = true
+                    end
+                end
                 # Check that all devices are properly assigned
                 missing_devices = all_tasks.find_all do |t|
                     t.model < Device &&

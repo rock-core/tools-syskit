@@ -862,7 +862,7 @@ module Orocos
                     if (port_model = model.find_input_port(sink_port)) && port_model.multiplexes?
                         next
                     elsif self_inputs.has_key?(sink_port)
-                        raise InternalError, "multiple connections to the same input: #{self}:#{sink_port} is connected from #{source_task}:#{source_port} and #{self_inputs[sink_port]}"
+                        return false
                     end
                     self_inputs[sink_port] = [source_task, source_port, policy]
                 end
