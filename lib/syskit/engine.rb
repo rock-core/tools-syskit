@@ -132,7 +132,7 @@ module Orocos
                         elsif selected_object = engine.defines[value]
                             return selected_object
                         else
-                            raise SpecError, "#{value} does not refer to a known task or device"
+                            raise SpecError, "#{value} does not refer to a known task or device (known tasks: #{engine.tasks.keys.sort.join(", ")}; known devices: #{engine.robot.devices.keys.sort.join(", ")})"
                         end
                     end
 
@@ -1034,7 +1034,7 @@ module Orocos
                 # Check that all device instances are proper tasks (not proxies)
                 instances.each do |instance|
                     if instance.task.transaction_proxy?
-                        raise InternalError, "some transaction proxies are stored in instance definitions"
+                        raise InternalError, "instance definition #{instance} contains a transaction proxy: #{instance.task}"
                     end
                 end
                 robot.devices.each do |name, instance|
