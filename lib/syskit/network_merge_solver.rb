@@ -659,19 +659,36 @@ module Orocos
                     while !candidates.empty?
                         Engine.debug "  -- Raw merge candidates"
                         merges = direct_merge_mappings(candidates, possible_cycles)
+                        Engine.debug "     #{merges.size} vertices in merge graph"
+                        Engine.debug "     #{possible_cycles.size} possible cycles"
 
                         if merges.empty?
+                            Engine.debug "  -- Looking for merges in dataflow cycles"
                             possible_cycles = possible_cycles.to_a
 
                             # Resolve one cycle. As soon as we solved one, cycle in the
                             # normal procedure (resolving one task should break the
                             # cycle)
+                            rejected_cycles = []
                             while !possible_cycles.empty?
                                 cycle = possible_cycles.shift
-                                next if !can_merge_cycle?(possible_cycles, *cycle)
+                                Engine.debug do
+                                    "    checking cycle #{cycle[0]}.merge(#{cycle[1]})"
+                                    break
+                                end
+
+                                if !can_merge_cycle?(possible_cycles, *cycle)
+                                    Engine.debug do
+                                        "    cannot merge cycle #{cycle[0]}.merge(#{cycle[1]})"
+                                        break
+                                    end
+                                    rejected_cycles << cycle
+                                    next
+                                end
 
                                 Engine.debug do
                                     "    found cycle merge for #{cycle[1]}.merge(#{cycle[1]})"
+                                    break
                                 end
                                 merges.link(cycle[0], cycle[1], nil)
                                 if possible_cycles.include?([cycle[1], cycle[0]])
@@ -679,7 +696,7 @@ module Orocos
                                 end
                                 break
                             end
-                            possible_cycles.clear
+                            possible_cycles.concat(rejected_cycles)
                         end
                         if merges.empty?
                             candidates.clear
