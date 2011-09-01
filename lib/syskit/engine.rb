@@ -1019,6 +1019,20 @@ module Orocos
                         seen[sink_port] = true
                     end
                 end
+
+                devices = Hash.new
+                all_tasks.each do |task|
+                    next if !(task.model < Device)
+                    task.model.each_master_device do |srv|
+                        device_name = task.arguments["#{srv.name}_name"]
+                        if old_task = devices[device_name]
+                            raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}"
+                        else
+                            devices[device_name] = task
+                        end
+                    end
+                end
+
                 # Check that all devices are properly assigned
                 missing_devices = all_tasks.find_all do |t|
                     t.model < Device &&
