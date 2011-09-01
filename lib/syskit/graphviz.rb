@@ -32,6 +32,11 @@ module Orocos
                     end
                 end
             end
+            def add_task_annotation(task, name, ann)
+                task_annotations[task].merge!(name => ann) do |_, old, new|
+                    old.concat(new)
+                end
+            end
 
             def annotate_ports(annotations)
                 port_annotations.merge!(annotations) do |_, old, new|
@@ -42,6 +47,11 @@ module Orocos
                             old_array << new_array
                         end
                     end
+                end
+            end
+            def add_port_annotation(task, port_name, name, ann)
+                port_annotations[[task, port_name]].merge!(name => ann) do |_, old, new|
+                    old.concat(new)
                 end
             end
 
@@ -124,6 +134,13 @@ module Orocos
                     map { |s| s.gsub(/add_(\w+)_annotations/, '\1') }
             end
 
+            def add_task_info_annotations
+                plan.find_local_tasks(TaskContext).each do |task|
+                    add_task_annotation(task, "Arguments", task.arguments.map { |k, v| "#{k}: #{v}" })
+                    add_task_annotation(task, "Roles", task.roles.to_a.sort.join(", "))
+                end
+            end
+
             def add_connection_policy_annotations
                 plan.find_local_tasks(TaskContext).each do |source_task|
                     source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
@@ -198,7 +215,7 @@ module Orocos
                         sink_port_id   = sink_port.gsub(/[^\w]/, '_')
 
                         label = conn_annotations[[source_task, source_port, sink_task, sink_port]].join(",")
-                        result << "  #{source_task.dot_id}:#{source_port_id} -> #{sink_task.dot_id}:#{sink_port_id} [#{style}label=\"#{label}\"];"
+                        result << "  outputs#{source_task.dot_id}:#{source_port_id} -> inputs#{sink_task.dot_id}:#{sink_port_id} [#{style}label=\"#{label}\"];"
                     end
                 end
 
@@ -222,15 +239,18 @@ module Orocos
                 clusters.each do |deployment, task_contexts|
                     if deployment
                         result << "  subgraph cluster_#{deployment.dot_id} {"
-                        result << "    #{dot_task_attributes(deployment, Array.new, Array.new, task_colors, remove_compositions).join(";\n     ")};"
+                        task_label, task_dot_attributes = format_task_label(deployment, task_colors)
+                        label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n"
+                        label << "    #{task_label}\n"
+                        label << "  </TABLE>"
+                        result << "      label=< #{label} >;"
                     end
 
                     task_contexts.each do |task|
                         if !task
                             raise "#{task} #{deployment} #{task_contexts.inspect}"
                         end
-                        attributes = dot_task_attributes(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort, task_colors, remove_compositions)
-                        result << "    #{task.dot_id} [#{attributes.join(",")}];"
+                        result << render_task(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort)
                     end
 
                     if deployment
@@ -241,18 +261,60 @@ module Orocos
                 result << "};"
                 result.join("\n")
             end
-            def format_annotations(annotations, key)
-                if !annotations.has_key?(key)
-                    return
+
+            def render_task(task, input_ports, output_ports)
+                result = []
+                result << "    subgraph cluster_#{task.dot_id} {"
+                result << "      label=\"#{"color=red" if task.abstract?}\"";
+                
+                task_label, attributes = format_task_label(task)
+                task_label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\">#{task_label}</TABLE>"
+                result << "    label#{task.dot_id} [shape=none,label=< #{task_label} >];";
+
+                if !input_ports.empty?
+                    input_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
+                    input_ports.each do |p|
+                        port_id = p.gsub(/[^\w]/, '_')
+                        ann = format_annotations(port_annotations, [task, p])
+                        input_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
+                    end
+                    input_port_label << "\n</TABLE>"
+                    result << "    inputs#{task.dot_id} [label=< #{input_port_label} >,shape=none];"
+                    result << "    inputs#{task.dot_id} -> label#{task.dot_id} [style=invis];"
+                end
+
+                if !output_ports.empty?
+                    output_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
+                    output_ports.each do |p|
+                        port_id = p.gsub(/[^\w]/, '_')
+                        ann = format_annotations(port_annotations, [task, p])
+                        output_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
+                    end
+                    output_port_label << "\n</TABLE>"
+                    result << "    outputs#{task.dot_id} [label=< #{output_port_label} >,shape=none];"
+                    result << "    label#{task.dot_id} -> outputs#{task.dot_id} [style=invis];"
+                end
+
+                result << "    }"
+                result.join("\n")
+            end
+            def format_annotations(annotations, key = nil)
+                if key
+                    if !annotations.has_key?(key)
+                        return
+                    end
+                    ann = annotations[key]
+                else
+                    ann = annotations
                 end
 
                 result = []
-                ann = annotations[key]
                 result = ann.map do |category, values|
                     next if values.empty?
 
-                    "<TR><TD ROWSPAN=\"#{values.size()}\">#{category}</TD><TD>#{values.first}</TD></TR>\n" +
-                    values[1..-1].map { |v| "<TR><TD>#{v}</TD></TR>" }.join("\n")
+                    values = values.map { |v| v.tr("<>", "[]") }
+                    "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
+                    values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
                 end.flatten
 
                 if !result.empty?
@@ -262,86 +324,44 @@ module Orocos
 
 
             def format_task_label(task, task_colors = Hash.new)
-                task_node_attributes = []
-                task_flags = []
-                #task_flags << "E" if task.executable?
-                #task_flags << "A" if task.abstract?
-                #task_flags << "C" if task.kind_of?(Composition)
-                task_flags =
-                    if !task_flags.empty?
-                        "[#{task_flags.join(",")}]"
-                    else ""
-                    end
+                label = []
                 
-                task_label = "<TR><TD COLSPAN=\"2\">"
-                task_label << 
-                    if task.respond_to?(:proxied_data_services)
-                        task.proxied_data_services.map(&:short_name).join(", ") + task_flags
+                if task.respond_to?(:proxied_data_services)
+                    name = task.proxied_data_services.map(&:short_name).join(", ").tr("<>", '[]')
+                    label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
+                else
+                    annotations = Hash.new
+                    if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
+                        name = task.model.root_model.name
+                        spec = []
+                        task.model.specialized_children.each do |child_name, child_models|
+                            spec << "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
+                        end
+                        annotations["Specialized On"] = spec
                     else
-                        text = task.to_s
-                        text = text.gsub('Orocos::RobyPlugin::', '').
-                            gsub(/\s+/, '').gsub('=>', ':').tr('<>', '[]')
-                        result =
-                            if text =~ /(.*)\/\[(.*)\](:0x[0-9a-f]+)/
-                                # It is a specialization, move the
-                                # specialization specification below the model
-                                # name
-                                name = $1
-                                specializations = $2
-                                id  = $3
-                                name + task_flags +
-                                    "<BR/>" + specializations.gsub('),', ')<BR/>')
-                            else
-                                text.gsub /:0x[0-9a-f]+/, ''
-                            end
-                        result.gsub(/\s+/, '').gsub('=>', ':').
-                            gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '<BR/>')
+                        name = task.model.name
                     end
-                task_label.tr('<>', '[]')
+                    name = name.gsub("Orocos::RobyPlugin::", "").tr("<>", '[]')
 
-                if task.kind_of?(Deployment)
-                    if task_colors[task]
-                        task_node_attributes << "color=\"#{task_colors[task]}\""
-                        task_label = "<FONT COLOR=\"#{task_colors[task]}\">#{task_label}"
-                        task_label << " <BR/> [Process name: #{task.model.deployment_name}]</FONT>"
-                    else
-                        task_label = "#{task_label}"
-                        task_label << " <BR/> [Process name: #{task.model.deployment_name}]"
+                    if task.respond_to?(:orocos_name)
+                        name << "[#{task.orocos_name}]"
                     end
-                elsif task.kind_of?(Composition)
-                    task_node_attributes << "color=\"blue\""
+                    label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
+                    ann = format_annotations(annotations)
+                    label << ann
+                end
+                
+                if ann = format_annotations(task_annotations, task)
+                    label << ann
                 end
 
-                roles = task.roles
-                task_label << " <BR/> roles:#{roles.to_a.sort.join(",")}</TD></TR>"
-                
-                ann = format_annotations(task_annotations, task)
-                if ann
-                    task_label << ann
-                end
-
-                return task_label, task_node_attributes
+                label = "    " + label.join("\n    ")
+                return label
             end
 
             # Helper method for the to_dot methods
-            def dot_task_attributes(task, inputs, outputs, task_colors, remove_compositions = false) # :nodoc:
-                task_label, task_dot_attributes = format_task_label(task, task_colors)
+            def dot_task_attributes(task, task_colors, remove_compositions = false) # :nodoc:
 
-                label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n"
-                if !inputs.empty?
-                    label << inputs.map do |name|
-                        ann = format_annotations(port_annotations, [task, name])
-                        "    <TABLE BORDER=\"0\" CELLBORDER=\"1\"><TR BORDER=\"1\"><TD COLSPAN=\"2\" PORT=\"#{name.gsub(/[^\w]/, '_')}\">#{name}</TD></TR>\n#{ann}</TD></TR></TABLE>"
-                    end.join("")
-                end
-                label << "    #{task_label}\n"
-                if !outputs.empty?
-                    label << outputs.map do |name|
-                        ann = format_annotations(port_annotations, [task, name])
-                        "    <TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"1\"><TR><TD COLSPAN=\"2\" PORT=\"#{name.gsub(/[^\w]/, '_')}\">#{name}</TD></TR>\n#{ann}</TD></TR></TABLE></TR></TD>"
-                    end.join("")
-                end
-                label << "  </TABLE>"
 
                 task_dot_attributes << "label=< #{label} >"
                 if task.abstract?

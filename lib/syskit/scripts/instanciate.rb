@@ -11,6 +11,7 @@ remove_loggers      = false
 validate_network    = true
 test = false
 annotations = Set.new
+default_annotations = ["connection_policy", "task_info"]
 
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate [options] deployment [additional services]
@@ -20,7 +21,7 @@ parser = OptionParser.new do |opt|
     'define' that should be added
     "
 
-    opt.on('--annotate=LIST', Array, "comma-separated list of annotations that should be added to the output (defaults to connection_policy). Available annotations: #{available_annotations.to_a.sort.join(", ")}") do |ann|
+    opt.on('--annotate=LIST', Array, "comma-separated list of annotations that should be added to the output (defaults to #{default_annotations.to_a.join(",")}). Available annotations: #{available_annotations.to_a.sort.join(", ")}") do |ann|
         ann.each do |name|
             if !available_annotations.include?(name)
                 STDERR.puts "#{name} is not a known annotation. Known annotations are: #{available_annotations.join(", ")}"
@@ -56,6 +57,10 @@ remaining = parser.parse(ARGV)
 if remaining.empty?
     STDERR.puts parser
     exit(1)
+end
+
+if annotations.empty?
+    annotations = default_annotations
 end
 
 if test
