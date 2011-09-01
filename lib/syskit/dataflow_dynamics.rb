@@ -127,7 +127,8 @@ module Orocos
 
             def sampled_at(duration)
                 result = PortDynamics.new(name, sample_size)
-                result.add_trigger("resample=#{duration}", duration, queue_size(duration))
+                names = triggers.map(&:name)
+                result.add_trigger("#{name}.resample(#{names.join(",")},#{duration})", duration, queue_size(duration))
                 result
             end
 
@@ -330,7 +331,7 @@ module Orocos
                 activity_type = task.orogen_spec.activity_type.name
                 if activity_type == "Periodic"
                     Engine.debug { "  adding periodic trigger #{task.orogen_spec.period} 1" }
-                    add_task_trigger(task, "main-period", task.orogen_spec.period, 1)
+                    add_task_trigger(task, "#{task.orocos_name}.main-period", task.orogen_spec.period, 1)
                     done_task_info(task)
                 else
                     if !task.orogen_spec.task_model.each_event_port.find { true }
