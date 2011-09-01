@@ -428,15 +428,20 @@ module Orocos
                     return true
                 end
 
+                done = true
+                required = missing_ports[task].dup
                 Engine.debug do
                     Engine.debug "trying to compute dataflow dynamics for #{task}"
+                    Engine.debug "  requires information on: #{required.map(&:to_s).join(", ")}"
                     break
                 end
 
-                done = true
-                required = missing_ports[task].dup
                 required.each do |missing|
                     if !compute_info_for(task, missing)
+                        Engine.debug do
+                            Engine.debug "  cannot compute information on #{missing}"
+                            break
+                        end
                         done = false
                     end
                 end
