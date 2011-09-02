@@ -8,8 +8,16 @@ module Orocos
         #
         # Requirements on the information type:
         #
-        #  * empty?
-        #  * merge(value)
+        # * empty?
+        # * merge(value)
+        #
+        # Subclasses need to redefine the following methods (go to the method
+        # documentation for more information)
+        #
+        # * initial_information(task)
+        # * required_information(tasks)
+        # * triggering_inputs(task)
+        # * propagate_task(task)
         class DataFlowComputation
             attr_reader :result
 
@@ -150,40 +158,6 @@ module Orocos
                 result
             end
 
-            # Registers information about +task+ that is independent of the
-            # connection graph, to seed the algorithm
-            #
-            # The information must be added using #add_port_info
-            def initial_information(task)
-                raise NotImplementedError
-            end
-
-            # Returns the list of input ports in +task+ that should trigger a
-            # recomputation of the information for +task+
-            def triggering_inputs(task)
-                raise NotImplementedError
-            end
-
-            # Returns the set of objects for which information is required as an
-            # output of the algorithm
-            #
-            # The returned value is a map:
-            #
-            #   task => ports
-            #
-            # Where +ports+ is the set of port names that are required on
-            # +task+. +nil+ can be used to denote the task itself.
-            def required_information(tasks)
-                raise NotImplementedError
-            end
-
-            # Propagate information on +task+. Returns true if all information
-            # that can be computed has been (i.e. if calling #propagate_task on
-            # the same task again will never add new information)
-            def propagate_task(task)
-                raise NotImplementedError
-            end
-
             def set_port_info(task, port_name, info)
                 if !has_information_for_port?(task, port_name)
                     add_port_info(task, port_name, info)
@@ -251,6 +225,40 @@ module Orocos
                         missing_ports.delete(task)
                     end
                 end
+            end
+
+            # Registers information about +task+ that is independent of the
+            # connection graph, to seed the algorithm
+            #
+            # The information must be added using #add_port_info
+            def initial_information(task)
+                raise NotImplementedError
+            end
+
+            # Returns the list of input ports in +task+ that should trigger a
+            # recomputation of the information for +task+
+            def triggering_inputs(task)
+                raise NotImplementedError
+            end
+
+            # Returns the set of objects for which information is required as an
+            # output of the algorithm
+            #
+            # The returned value is a map:
+            #
+            #   task => ports
+            #
+            # Where +ports+ is the set of port names that are required on
+            # +task+. +nil+ can be used to denote the task itself.
+            def required_information(tasks)
+                raise NotImplementedError
+            end
+
+            # Propagate information on +task+. Returns true if all information
+            # that can be computed has been (i.e. if calling #propagate_task on
+            # the same task again will never add new information)
+            def propagate_task(task)
+                raise NotImplementedError
             end
         end
     end
