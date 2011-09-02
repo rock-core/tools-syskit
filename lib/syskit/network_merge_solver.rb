@@ -8,15 +8,30 @@ module Orocos
         class NetworkMergeSolver
             attr_reader :plan
 
+	    attr_reader :task_replacement_graph
+
             def initialize(plan, &block)
                 @plan = plan
                 @merging_candidates_queries = Hash.new
+		@task_replacement_graph = BGL::Graph.new
 
                 if block_given?
                     singleton_class.class_eval do
                         define_method(:merged_tasks, &block)
                     end
                 end
+            end
+
+            def replacement_for(task)
+                if task.plan && task.plan != plan
+                    task = plan[task]
+                end
+                task_replacement_graph.each_dfs(task, BGL::Graph::TREE) do |_, to, _|
+                    if to.leaf?(task_replacement_graph)
+                        return to
+                    end
+                end
+                return task
             end
 
             def self.merge_identical_tasks(plan, &block)
@@ -174,6 +189,7 @@ module Orocos
                 plan.remove_object(target_task)
                 graph.replace_vertex(target_task, task)
                 graph.remove(target_task)
+		task_replacement_graph.link(target_task, task, nil)
                 all_merges[target_task] = task
 
                 # Since we modified +task+, we now have to update the graph.
@@ -643,19 +659,36 @@ module Orocos
                     while !candidates.empty?
                         Engine.debug "  -- Raw merge candidates"
                         merges = direct_merge_mappings(candidates, possible_cycles)
+                        Engine.debug "     #{merges.size} vertices in merge graph"
+                        Engine.debug "     #{possible_cycles.size} possible cycles"
 
                         if merges.empty?
+                            Engine.debug "  -- Looking for merges in dataflow cycles"
                             possible_cycles = possible_cycles.to_a
 
                             # Resolve one cycle. As soon as we solved one, cycle in the
                             # normal procedure (resolving one task should break the
                             # cycle)
+                            rejected_cycles = []
                             while !possible_cycles.empty?
                                 cycle = possible_cycles.shift
-                                next if !can_merge_cycle?(possible_cycles, *cycle)
+                                Engine.debug do
+                                    "    checking cycle #{cycle[0]}.merge(#{cycle[1]})"
+                                    break
+                                end
+
+                                if !can_merge_cycle?(possible_cycles, *cycle)
+                                    Engine.debug do
+                                        "    cannot merge cycle #{cycle[0]}.merge(#{cycle[1]})"
+                                        break
+                                    end
+                                    rejected_cycles << cycle
+                                    next
+                                end
 
                                 Engine.debug do
                                     "    found cycle merge for #{cycle[1]}.merge(#{cycle[1]})"
+                                    break
                                 end
                                 merges.link(cycle[0], cycle[1], nil)
                                 if possible_cycles.include?([cycle[1], cycle[0]])
@@ -663,7 +696,7 @@ module Orocos
                                 end
                                 break
                             end
-                            possible_cycles.clear
+                            possible_cycles.concat(rejected_cycles)
                         end
                         if merges.empty?
                             candidates.clear
@@ -687,16 +720,8 @@ module Orocos
                         candidates = merge_tasks_next_step(candidates)
 
                         possible_cycles.each do |from, to|
-                            applied_merges.each_dfs(from, BGL::Graph::ALL) do |_, task, _|
-                                if task.leaf?
-                                    candidates << task
-                                end
-                            end
-                            applied_merges.each_dfs(to, BGL::Graph::ALL) do |_, task, _|
-                                if task.leaf?
-                                    candidates << task
-                                end
-                            end
+                            candidates << replacement_for(from)
+                            candidates << replacement_for(to)
                         end
                         possible_cycles.clear
 

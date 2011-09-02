@@ -132,7 +132,7 @@ module Orocos
                         elsif selected_object = engine.defines[value]
                             return selected_object
                         else
-                            raise SpecError, "#{value} does not refer to a known task or device"
+                            raise SpecError, "#{value} does not refer to a known task or device (known tasks: #{engine.tasks.keys.sort.join(", ")}; known devices: #{engine.robot.devices.keys.sort.join(", ")})"
                         end
                     end
 
@@ -297,7 +297,11 @@ module Orocos
                 result = []
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
-                        result << use_deployment(deployment_def.name, options)
+                        # Currently, the supervision cannot handle orogen_default tasks 
+                        # properly, thus filtering them out for now 
+                        if not /^orogen_default/ =~ "#{deployment_def.name}"
+                            result << use_deployment(deployment_def.name, options)
+                        end
                     end
                 end
                 result
@@ -421,7 +425,6 @@ module Orocos
 	    end
 
 	    def export_define_to_planner(planner, name)
-	    	puts name.to_s
 	        if !defines.has_key?(name)
 		    raise ArgumentError, "no define called #{name} on #{self}"
 		end
@@ -438,9 +441,7 @@ module Orocos
 		    raise ArgumentError, "cannot export a non-master device"
 		end
 
-puts "trying to export #{name} on #{planner}"
 		if !planner.has_method?("#{device.name}_device")
-puts "exporting #{name} on #{planner}"
 		    planner.method("#{device.name}_device") do
 		        spec = Roby.orocos_engine.device(device.name)
 		        if arguments[:conf]
@@ -783,6 +784,31 @@ puts "exporting #{name} on #{planner}"
                         "could not find implementation for the following abstract tasks: #{still_abstract}"
                 end
 
+                plan.find_local_tasks(TaskContext) do |task|
+                    seen = Hash.new
+                    task.each_concrete_input_connections do |source_task, source_port, sink_port, _|
+                        if (port_model = task.model.find_input_port(sink_port)) && port_model.multiplexes?
+                            next
+                        elsif seen[sink_port]
+                            raise SpecError, "#{task}.#{sink_port} is connected multiple times"
+                        end
+                        seen[sink_port] = true
+                    end
+                end
+
+                devices = Hash.new
+                all_tasks.each do |task|
+                    next if !(task.model < Device)
+                    task.model.each_master_device do |srv|
+                        device_name = task.arguments["#{srv.name}_name"]
+                        if old_task = devices[device_name]
+                            raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}"
+                        else
+                            devices[device_name] = task
+                        end
+                    end
+                end
+
                 # Check that all devices are properly assigned
                 missing_devices = all_tasks.find_all do |t|
                     t.model < Device &&
@@ -798,11 +824,11 @@ puts "exporting #{name} on #{planner}"
                 # Check that all device instances are proper tasks (not proxies)
                 instances.each do |instance|
                     if instance.task.transaction_proxy?
-                        raise InternalError, "some transaction proxies are stored in instance definitions"
+                        raise InternalError, "instance definition #{instance} contains a transaction proxy: #{instance.task}"
                     end
                 end
                 robot.devices.each do |name, instance|
-                    if instance.task.transaction_proxy?
+                    if instance.task && instance.task.transaction_proxy?
                         raise InternalError, "some transaction proxies are stored in devices definitions"
                     end
                 end
@@ -1033,19 +1059,6 @@ puts "exporting #{name} on #{planner}"
             # It updates the +tasks+, robot.devices 'task' attribute and
             # instances hashes
             def merged_tasks(merges)
-                tasks.each_key do |n|
-                    if task = merges[tasks[n]]
-                        tasks[n] = task
-                        if robot.devices[n] && robot.devices[n].respond_to?(:task=)
-                            robot.devices[n].task = task
-                        end
-                    end
-                end
-                instances.each do |i|
-                    if task = merges[i.task]
-                        i.task = task
-                    end
-                end
             end
 
             # The set of tasks that represent the running deployments
@@ -1274,38 +1287,6 @@ puts "exporting #{name} on #{planner}"
                         @network_merge_solver.merge_identical_tasks
                     end
 
-                    # the tasks[] and devices mappings are updated during the
-                    # merge. We replace the proxies by the corresponding tasks
-                    # when applicable
-                    instances.each do |instance|
-                        if instance.task && instance.task.transaction_proxy?
-                            instance.task = instance.task.__getobj__
-                        end
-                    end
-                    robot.devices.keys.each do |name|
-                        device_task = robot.devices[name].task
-                        if device_task.plan == trsc && device_task.transaction_proxy?
-                            if device_task.__getobj__
-                                robot.devices[name].task = device_task.__getobj__
-                            else # unused
-                                robot.devices.delete(name)
-                            end
-                        end
-                    end
-                    tasks.each_key do |name|
-                        next if !robot.devices[name]
-                        instance_task = robot.devices[name].task
-                        if instance_task.plan == trsc && instance_task.transaction_proxy?
-                            tasks[name].task = instance_task.__getobj__
-                        end
-                    end
-
-                    # Finally, we should now only have deployed tasks. Verify it
-                    # and compute the connection policies
-                    if options[:garbage_collect] && options[:validate_network]
-                        validate_final_network(trsc, options)
-                    end
-
                     if options[:garbage_collect]
                         Engine.debug "final garbage collection pass"
                         trsc.static_garbage_collect do |obj|
@@ -1326,23 +1307,70 @@ puts "exporting #{name} on #{planner}"
                     # Remove the permanent and mission flags from all the tasks.
                     # We then re-add them only for the ones that are marked as
                     # mission in the engine requirements
-                    required_tasks = ValueSet.new
-                    trsc.find_tasks.permanent.each do |t|
+                    trsc.find_local_tasks.permanent.each do |t|
                         trsc.unmark_permanent(t)
                     end
                     trsc.find_tasks(Deployment).each do |t|
                         trsc.add_permanent(t)
                     end
+
+                    fullfilled_models = Hash.new
+
+                    # Replace the tasks stored in devices and instances by the
+                    # actual new tasks
                     instances.each do |instance|
                         old_task = state_backup.instance_tasks[instance]
-                        new_task = instance.task
-                        if old_task && old_task.plan && old_task != new_task
-                            trsc.replace(trsc[old_task], trsc[new_task])
+                        new_task = @network_merge_solver.replacement_for(instance.task)
+                        if old_task != new_task
+                            Engine.debug "#{instance}.task: #{old_task} is replaced by #{new_task}"
                         end
                         if instance.mission?
                             trsc.add_mission(trsc[new_task])
                         end
-                        required_tasks << trsc[new_task]
+
+                        if new_task.transaction_proxy?
+                            instance.task = new_task = new_task.__getobj__
+                        else
+                            instance.task = new_task
+                        end
+
+                        if old_task && old_task.plan && old_task != new_task
+                            trsc.replace(trsc[old_task], trsc[new_task])
+                        end
+
+                        m = (fullfilled_models[new_task] || [Roby::Task, Array.new, Hash.new])
+                        m = Roby::TaskStructure::Dependency.merge_fullfilled_model(m, instance.models, instance.arguments)
+                        fullfilled_models[new_task] = m
+                    end
+
+                    fullfilled_models.each do |task, m|
+                        if !m[1].kind_of?(Array)
+                            raise "Array found in fullfilled model"
+                        end
+                        task.fullfilled_model = m
+                    end
+
+                    robot.devices.keys.each do |name|
+                        next if !robot.devices[name].respond_to?(:task=)
+
+                        device_task = robot.devices[name].task
+                        device_task = @network_merge_solver.replacement_for(device_task)
+
+                        if device_task.plan
+                            if device_task.transaction_proxy?
+                                robot.devices[name].task = device_task.__getobj__
+                            else
+                                robot.devices[name].task = device_task
+                            end
+                        else
+                            robot.devices[name].task = nil
+                        end
+                    end
+
+                    # Finally, we should now only have deployed tasks. Verify it
+                    # and compute the connection policies
+                    if options[:garbage_collect] && options[:validate_network]
+                        validate_final_network(trsc, options)
                     end
 
                     if options[:compute_deployments]
@@ -1773,11 +1801,7 @@ puts "exporting #{name} on #{planner}"
                             existing_task = new_task
                         end
                         existing_task.merge(task)
-                        instances.each do |instance|
-                            if instance.task == task
-                                instance.task = existing_task
-                            end
-                        end
+                        @network_merge_solver.task_replacement_graph.link(task, existing_task, nil)
                         Engine.debug { "  using #{existing_task} for #{task} (#{task.orogen_name})" }
                         plan.remove_object(task)
                         if existing_task.conf != task.conf

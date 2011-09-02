@@ -561,10 +561,6 @@ module Orocos
                             return false
                         end
 
-                if state == :FATAL_ERROR
-                    STDERR.puts "ready_for_setup? #{self}: fatal error"
-                end
-
                 return (state == :EXCEPTION || state == :STOPPED || state == :PRE_OPERATIONAL)
             end
 
