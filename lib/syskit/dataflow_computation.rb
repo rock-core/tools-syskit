@@ -80,13 +80,10 @@ module Orocos
 
                 tasks.each do |task|
                     initial_information(task)
-
-                    triggering_inputs(task).each do |port|
-                        task.each_concrete_input_connection(port.name) do |from_task, from_port, to_port, _|
-                            port_triggers = (triggering_connections[task][to_port] ||= Set.new)
-                            port_triggers << [from_task, from_port]
-                            triggering_dependencies[from_task] << task
-                        end
+                    connections = triggering_port_connections(task)
+                    triggering_connections[task] = connections
+                    triggering_dependencies[task] = connections.map do |port_name, (triggering_ports, _)|
+                        triggering_ports.map(&:first)
                     end
                 end
 
@@ -97,8 +94,12 @@ module Orocos
 
                     current_size = @result_size
                     remaining_tasks.delete_if do |task|
-                        triggering_connections[task].delete_if do |port_name, triggers|
-                            if triggers.all? { |args| has_final_information_for_port?(*args) }
+                        triggering_connections[task].delete_if do |port_name, (triggers, can_use_any_connection)|
+                            if can_use_any_connection && (done_connection = triggers.find { |args| has_final_information_for_port?(*args) })
+                                add_port_info(task, port_name, port_info(*done_connection))
+                                done_port_info(task, port_name)
+                                true
+                            elsif !can_use_any_connection && triggers.all? { |args| has_final_information_for_port?(*args) }
                                 triggers.each do |info|
                                     add_port_info(task, port_name, port_info(*info))
                                 end
@@ -233,6 +234,35 @@ module Orocos
             # The information must be added using #add_port_info
             def initial_information(task)
                 raise NotImplementedError
+            end
+
+            # Returns the list of ports whose information can be propagated to a
+            # port in +task+
+            #
+            # The returned value is a hash of the form
+            #
+            #   port_name => [Set([other_task, other_port_name]), boolean]
+            #
+            # where +port_name+ is a port in +task+ and the set is a set of
+            # ports whose information can be propagated to add information on
+            # +port_name+.
+            #
+            # If the boolean is false, the information will be propagated only
+            # if all the listed ports have information. Otherwise, it will be as
+            # soon as one has some information
+            #
+            # The default implementation calls a method +triggering_inputs+ that
+            # simply returns a list of ports in +task+ whose connections are
+            # triggering.
+            def triggering_port_connections(task)
+                result = Hash.new
+                triggering_inputs(task).each do |port|
+                    task.each_concrete_input_connection(port.name) do |from_task, from_port, to_port, _|
+                        result[to_port] ||= [Set.new, false]
+                        result[to_port].first << [from_task, from_port]
+                    end
+                end
+                result
             end
 
             # Returns the list of input ports in +task+ that should trigger a
