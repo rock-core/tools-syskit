@@ -202,6 +202,14 @@ module Orocos
                         graph.unlink(task, child)
                     end
                 end
+
+                task_parents = task.enum_for(:each_parent_vertex, graph).to_a
+                task_parents.each do |parent|
+                    if !parent.can_merge?(task)
+                        Engine.debug { "      #{parent}.merge(#{task}) is not a valid merge anymore, updating merge graph" }
+                        graph.unlink(parent, task)
+                    end
+                end
             end
 
             # Apply the straightforward merges
