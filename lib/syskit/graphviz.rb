@@ -10,6 +10,10 @@ module Orocos
             attr_reader :task_annotations
             # Annotations for ports
             attr_reader :port_annotations
+            # Additional vertices that should be added to the generated graph
+            attr_reader :additional_vertices
+            # Additional edges that should be added to the generated graph
+            attr_reader :additional_edges
 
             def initialize(plan, engine)
                 @plan = plan
@@ -18,7 +22,8 @@ module Orocos
                 @task_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
                 @port_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
                 @conn_annotations = Hash.new { |h, k| h[k] = Array.new }
-                @edges = Hash.new { |h, k| h[k] = Array.new }
+                @additional_vertices = Hash.new { |h, k| h[k] = Array.new }
+                @additional_edges    = Array.new
             end
 
             def annotate_tasks(annotations)
@@ -65,8 +70,12 @@ module Orocos
                 end
             end
 
-            def additional_edges(from, to, label)
-                edges[[from, to]] << label
+            def add_vertex(task, vertex_name, vertex_label)
+                additional_vertices[task] << [vertex_name, vertex_label]
+            end
+
+            def add_edge(from, to, label = nil)
+                additional_edges << [from, to, label]
             end
 
             # Generate a svg file representing the current state of the
@@ -115,7 +124,8 @@ module Orocos
                 end
 
                 all_tasks.each do |task|
-                    task_label, attributes = format_task_label(task)
+                    attributes = []
+                    task_label = format_task_label(task)
                     label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
                     attributes << "label=<#{task_label}>"
                     if task.abstract?
@@ -258,15 +268,42 @@ module Orocos
                     end
                 end
 
+                additional_edges.each do |from, to, label|
+                    from_id = dot_id(*from)
+                    to_id   = dot_id(*to)
+                    result << "  #{from_id} -> #{to_id} [#{label}];"
+                end
+
                 result << "};"
                 result.join("\n")
+            end
+
+            def dot_id(object, context = nil)
+                case object
+                when Orocos::RobyPlugin::TaskContext
+                    "label#{object.dot_id}"
+                when Orocos::Spec::InputPort
+                    "inputs#{context.dot_id}:#{object.name}"
+                when Orocos::Spec::OutputPort
+                    "outputs#{context.dot_id}:#{object.name}"
+                else
+                    if object.respond_to?(:to_str) && context.respond_to?(:object_id)
+                        "#{object}#{context.dot_id}"
+                    else
+                        raise ArgumentError, "don't know how to generate a dot ID for #{object} in context #{context}"
+                    end
+                end
             end
 
             def render_task(task, input_ports, output_ports)
                 result = []
                 result << "    subgraph cluster_#{task.dot_id} {"
                 result << "      label=\"#{"color=red" if task.abstract?}\"";
-                
+
+                additional_vertices[task].each do |vertex_name, vertex_label|
+                    result << "      #{vertex_name}#{task.dot_id} [#{vertex_label}];"
+                end
+
                 task_label, attributes = format_task_label(task)
                 task_label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\">#{task_label}</TABLE>"
                 result << "    label#{task.dot_id} [shape=none,label=< #{task_label} >];";
