@@ -242,11 +242,24 @@ module Orocos
                     end
 
                     all_tasks << source_task
+                    connections = Hash.new
+
+                    if !source_task.kind_of?(Composition)
+                        source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
+                            next if excluded_models.include?(sink_task.model)
+                            connections[[source_port, sink_port, sink_task]] = [policy, true]
+                        end
+                    end
                     source_task.each_output_connection do |source_port, sink_port, sink_task, policy|
+                        next if connections.has_key?([source_port, sink_port, sink_task])
                         next if excluded_models.include?(sink_task.model)
                         next if remove_compositions && sink_task.kind_of?(Composition)
-
                         is_concrete = !source_task.kind_of?(Composition) && !sink_task.kind_of?(Composition)
+                        connections[[source_port, sink_port, sink_task]] = [policy, is_concrete]
+                    end
+
+
+                    connections.each do |(source_port, sink_port, sink_task), (policy, is_concrete)|
                         if !is_concrete
                             style = "style=dashed,"
                         end
