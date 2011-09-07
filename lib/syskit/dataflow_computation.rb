@@ -80,6 +80,9 @@ module Orocos
                 # #initial_information can add the required information if it is
                 # available
                 @missing_ports = required_information(tasks)
+                if !@missing_ports.kind_of?(Hash)
+                    raise ArgumentError, "#required_information is supposed to return a Hash, but returned #{@missing_ports}"
+                end
 
                 tasks.each do |task|
                     initial_information(task)
