@@ -766,7 +766,7 @@ module Orocos
                     end
 
                     if spec = specializations[all_specializations]
-                        Engine.debug "adding #{specialization_model.short_name} as parent of #{spec.short_name}"
+                        SystemModel.debug { "adding #{specialization_model.short_name} as parent of #{spec.short_name}" }
                         # Make sure that +specialization_model+ knows about
                         # +spec+
                         spec.parent_models << specialization_model
@@ -784,7 +784,7 @@ module Orocos
                             specialization_model.verify_acceptable_specialization(new_spec, false)
                         end
 
-                        Engine.debug "creating new specialization on #{specialization_model.short_name}"
+                        SystemModel.debug "creating new specialization on #{specialization_model.short_name}"
                         # Create the specialization on the child. It will
                         # register it recursively on its own parents up to
                         # +self+
@@ -2131,9 +2131,7 @@ module Orocos
                     end
 
                     candidate = find_common_parent(candidates)
-                    Engine.debug do
-                        Engine.debug "using specialization #{candidate.short_name} of #{short_name}"
-                    end
+                    Engine.debug { Engine.debug "using specialization #{candidate.short_name} of #{short_name}" }
                     if candidate != self
                         return candidate.instanciate(engine, arguments)
                     end
@@ -2212,10 +2210,7 @@ module Orocos
                             end
 
                         else
-                            Engine.debug do
-                                Engine.debug "no port mappings for #{child_name}"
-                                break
-                            end
+                            Engine.debug { "no port mappings for #{child_name}" }
                         end
 
                         role = [child_name].to_set

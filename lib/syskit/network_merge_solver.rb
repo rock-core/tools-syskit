@@ -107,8 +107,8 @@ module Orocos
                     end
 
                     Engine.debug do
-                        candidates.each do |target_task|
-                            Engine.debug "    RAW #{target_task}.merge(#{task})"
+                        candidates.each do |t|
+                            Engine.debug "    RAW #{t}.merge(#{task})"
                         end
                         break
                     end
@@ -199,9 +199,7 @@ module Orocos
                 modified_task_children = []
                 task_children.each do |child|
                     if !task.can_merge?(child)
-                        Engine.debug do
-                            "      #{task}.merge(#{child}) is not a valid merge anymore, updating merge graph"
-                        end
+                        Engine.debug { "      #{task}.merge(#{child}) is not a valid merge anymore, updating merge graph" }
                         graph.unlink(task, child)
                         modified_task_children << child
                     end
@@ -353,10 +351,7 @@ module Orocos
                     reachable = ValueSet.new
                     reachable << task
                     to_remove = Array.new
-                    Engine.debug do
-                        Engine.debug "  from #{task}"
-                        break
-                    end
+                    Engine.debug { "  from #{task}" }
 
                     merge_graph.each_dfs(task, BGL::Graph::ALL) do |edge_from, edge_to, _|
                         if reachable.include?(edge_to)
@@ -384,10 +379,7 @@ module Orocos
                 while !cycles.empty?
                     task, reachable, to_remove = cycles.shift
                     to_remove.each do |edge_from, edge_to|
-                        Engine.debug do
-                            Engine.debug "  removing #{edge_from}.merge(#{edge_to})"
-                            break
-                        end
+                        Engine.debug { "  removing #{edge_from}.merge(#{edge_to})" }
                         merge_graph.unlink(edge_from, edge_to)
                     end
                     ignored = ignored.merge(reachable)
@@ -450,8 +442,8 @@ module Orocos
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                         Engine.debug do
                             Engine.debug "    trying to disambiguate using dependency structure: #{target_task}"
-                            task_set.each do |task|
-                                Engine.debug "        => #{task}"
+                            task_set.each do |t|
+                                Engine.debug "        => #{t}"
                             end
                             break
                         end
@@ -467,32 +459,26 @@ module Orocos
                     # 1. use device and orogen names
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                         if !target_task.respond_to?(:each_device_name)
-                            Engine.debug do
-                                "cannot disambiguate using names: #{target_task} is no device driver"
-                            end
+                            Engine.debug { "cannot disambiguate using names: #{target_task} is no device driver" }
                             next
                         end
                         device_names = target_task.each_device_name.map { |_, dev_name| Regexp.new("^#{dev_name}$") }
                         if device_names.empty?
-                            Engine.debug do
-                                "cannot disambiguate using names: #{target_task} is a device driver, but it is attached to no devices"
-                            end
+                            Engine.debug { "cannot disambiguate using names: #{target_task} is a device driver, but it is attached to no devices" }
                             next
                         end
 
                         deployed = task_set.find_all(&:execution_agent)
                         if deployed.empty?
-                            Engine.debug do
-                                "cannot disambiguate using names: no merge candidates of #{target_task} is deployed"
-                            end
+                            Engine.debug { "cannot disambiguate using names: no merge candidates of #{target_task} is deployed" }
                             next
                         end
 
                         Engine.debug do
                             Engine.debug "    trying to disambiguate using names: #{target_task}"
                             Engine.debug "    devices: #{device_names.join(", ")}"
-                            deployed.each do |task|
-                                Engine.debug "       #{task.orogen_name} #{task.execution_agent.deployment_name}"
+                            deployed.each do |t|
+                                Engine.debug "       #{t.orogen_name} #{t.execution_agent.deployment_name}"
                             end
                             break
                         end
@@ -520,8 +506,8 @@ module Orocos
 
                         Engine.debug do
                             Engine.debug "    trying to disambiguate using distance: #{target_task}"
-                            task_set.each do |task|
-                                Engine.debug "        => #{task}"
+                            task_set.each do |t|
+                                Engine.debug "        => #{t}"
                             end
                             break
                         end
@@ -672,24 +658,15 @@ module Orocos
                             rejected_cycles = []
                             while !possible_cycles.empty?
                                 cycle = possible_cycles.shift
-                                Engine.debug do
-                                    "    checking cycle #{cycle[0]}.merge(#{cycle[1]})"
-                                    break
-                                end
+                                Engine.debug { "    checking cycle #{cycle[0]}.merge(#{cycle[1]})" }
 
                                 if !can_merge_cycle?(possible_cycles, *cycle)
-                                    Engine.debug do
-                                        "    cannot merge cycle #{cycle[0]}.merge(#{cycle[1]})"
-                                        break
-                                    end
+                                    Engine.debug { "    cannot merge cycle #{cycle[0]}.merge(#{cycle[1]})" }
                                     rejected_cycles << cycle
                                     next
                                 end
 
-                                Engine.debug do
-                                    "    found cycle merge for #{cycle[1]}.merge(#{cycle[1]})"
-                                    break
-                                end
+                                Engine.debug { "    found cycle merge for #{cycle[1]}.merge(#{cycle[1]})" }
                                 merges.link(cycle[0], cycle[1], nil)
                                 if possible_cycles.include?([cycle[1], cycle[0]])
                                     merges.link(cycle[1], cycle[0], nil)

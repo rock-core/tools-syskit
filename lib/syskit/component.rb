@@ -182,10 +182,7 @@ module Orocos
                     component_model = component_model.
                         specialize("#{component_model.name}<#{reason}>")
 
-                    SystemModel.debug do
-                        SystemModel.debug "created the specialized submodel #{component_model.short_name} of #{component_model.superclass.short_name} as a singleton model for #{reason}"
-                        break
-                    end
+                    SystemModel.debug { "created the specialized submodel #{component_model.short_name} of #{component_model.superclass.short_name} as a singleton model for #{reason}" }
                 end
 
                 service_model = required_service.
@@ -750,11 +747,11 @@ module Orocos
                     raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
                 end
 
-                Engine.debug do
-                    Engine.debug "#{short_name} provides #{model.short_name}"
-                    Engine.debug "port mappings"
+                SystemModel.debug do
+                    SystemModel.debug "#{short_name} provides #{model.short_name}"
+                    SystemModel.debug "port mappings"
                     service.port_mappings.each do |m, mappings|
-                        Engine.debug "  #{m.short_name}: #{mappings}"
+                        SystemModel.debug "  #{m.short_name}: #{mappings}"
                     end
                     break
                 end
