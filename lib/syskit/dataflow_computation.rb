@@ -276,10 +276,15 @@ module Orocos
             # triggering.
             def triggering_port_connections(task)
                 result = Hash.new
+                connections = Set.new
+
                 triggering_inputs(task).each do |port|
                     task.each_concrete_input_connection(port.name) do |from_task, from_port, to_port, _|
-                        result[to_port] ||= [Set.new, false]
-                        result[to_port].first << [from_task, from_port]
+                        connections << [from_task, from_port]
+                    end
+                    if !connections.empty?
+                        result[port.name] = [connections, false]
+                        connections = Set.new
                     end
                 end
                 result
