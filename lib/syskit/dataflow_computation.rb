@@ -86,10 +86,19 @@ module Orocos
 
                 tasks.each do |task|
                     initial_information(task)
-                    connections = triggering_port_connections(task)
-                    triggering_connections[task] = connections
-                    triggering_dependencies[task] = connections.map do |port_name, (triggering_ports, _)|
-                        triggering_ports.map(&:first)
+                    if connections = triggering_port_connections(task)
+                        triggering_connections[task] = connections
+                        triggering_dependencies[task] = connections.map do |port_name, (triggering_ports, _)|
+                            triggering_ports.map(&:first)
+                        end
+
+                        debug do
+                            debug "#{connections.size} triggering connections for #{task}"
+                            connections.each do |task, port|
+                                debug "  #{task} #{port}"
+                            end
+                            break
+                        end
                     end
                 end
 
