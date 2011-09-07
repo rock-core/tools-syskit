@@ -950,13 +950,10 @@ module Orocos
             # This network is neither validated nor tied to actual deployments
             def compute_system_network
                 instanciate
-                Engine.instanciation_postprocessing.each do |block|
-                    block.call(self)
-                end
-
-                # Needed at least for now to merge together drivers that
-                # have multiple devices
                 @network_merge_solver.merge_identical_tasks
+                Engine.instanciation_postprocessing.each do |block|
+                    block.call(self, plan)
+                end
                 link_to_busses
                 @network_merge_solver.merge_identical_tasks
 
