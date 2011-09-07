@@ -966,10 +966,6 @@ module Orocos
                         end
                     end
 
-                Engine.system_network_postprocessing.each do |block|
-                    block.call(self)
-                end
-
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
                 plan.static_garbage_collect do |obj|
@@ -977,6 +973,10 @@ module Orocos
                     # Remove tasks that we just added and are not
                     # useful anymore
                     plan.remove_object(obj)
+                end
+
+                Engine.system_network_postprocessing.each do |block|
+                    block.call(self)
                 end
             end
 
