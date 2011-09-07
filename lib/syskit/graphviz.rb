@@ -1,6 +1,21 @@
 module Orocos
     module RobyPlugin
-        # Support to export a dataflow and/or hierarchy structure to graphviz
+        # General support to export a generated plan into a dot-compatible
+        # format
+        #
+        # This class generates the dot specification files (and runs dot for
+        # you), exporting the component-related information out of a plan.
+        #
+        # It also contains an API that allows to add "annotations" to the
+        # generated graph. Four types of annotations can be generated:
+        #
+        # * port annotations: text is added to the port descriptions
+        #   (#add_port_annotation)
+        # * task annotations: text is added to the task description
+        #   (#add_task_annotation)
+        # * additional vertices (#add_vertex)
+        # * additional edges (#add_edge)
+        #
         class Graphviz
             # The plan object containing the structure we want to display
             attr_reader :plan
@@ -37,6 +52,14 @@ module Orocos
                     end
                 end
             end
+
+            # Add an annotation block to a task label.
+            #
+            # @arg task is the task to which the information should be added
+            # @arg name is the annotation name. It appears on the left column of
+            #           the task label
+            # @arg ann is the annotation itself, as an array. Each line in the
+            #          array is displayed as a separate line in the label.
             def add_task_annotation(task, name, ann)
                 task_annotations[task].merge!(name => ann) do |_, old, new|
                     old.concat(new)
@@ -54,6 +77,15 @@ module Orocos
                     end
                 end
             end
+
+            # Add an annotation block to a port label.
+            #
+            # @arg task is the task in which the port 
+            # @arg port_name is the port name
+            # @arg name is the annotation name. It appears on the left column of
+            #           the task label
+            # @arg ann is the annotation itself, as an array. Each line in the
+            #          array is displayed as a separate line in the label.
             def add_port_annotation(task, port_name, name, ann)
                 port_annotations[[task, port_name]].merge!(name => ann) do |_, old, new|
                     old.concat(new)
