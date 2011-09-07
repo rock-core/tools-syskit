@@ -196,15 +196,12 @@ module Orocos
                 # I.e. it is possible that some of +task+'s children cannot be
                 # merged into +task+ anymore
                 task_children = task.enum_for(:each_child_vertex, graph).to_a
-                modified_task_children = []
                 task_children.each do |child|
                     if !task.can_merge?(child)
                         Engine.debug { "      #{task}.merge(#{child}) is not a valid merge anymore, updating merge graph" }
                         graph.unlink(task, child)
-                        modified_task_children << child
                     end
                 end
-                modified_task_children
             end
 
             # Apply the straightforward merges
