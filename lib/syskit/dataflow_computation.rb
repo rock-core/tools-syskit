@@ -29,6 +29,9 @@ module Orocos
 
             attr_reader :done_ports
 
+            extend Logger::Hierarchy
+            include Logger::Hierarchy
+
             def has_information_for_port?(task, port_name)
                 result.has_key?(task) && result[task].has_key?(port_name)
             end
@@ -64,10 +67,10 @@ module Orocos
                 @triggering_connections  = Hash.new { |h, k| h[k] = Hash.new }
                 @triggering_dependencies = Hash.new { |h, k| h[k] = ValueSet.new }
 
-                Engine.debug do
-                    Engine.debug "#{self.class}: computing on #{tasks.size} tasks"
+                debug do
+                    debug "#{self.class}: computing on #{tasks.size} tasks"
                     tasks.each do |t|
-                        Engine.debug "  #{t}"
+                        debug "  #{t}"
                     end
                     break
                 end
@@ -106,12 +109,12 @@ module Orocos
                                 done_port_info(task, port_name)
                                 true
                             else
-                                Engine.debug do
-                                    Engine.debug "cannot propagate information to input #{task}.#{port_name}"
-                                    Engine.debug "  missing info on:"
+                                debug do
+                                    debug "cannot propagate information to input #{task}.#{port_name}"
+                                    debug "  missing info on:"
                                     missing = triggers.find_all { |args| !has_final_information_for_port?(*args) }
                                     missing.each do |missing_task, missing_port|
-                                        Engine.debug "    #{missing_task}.#{missing_port}"
+                                        debug "    #{missing_task}.#{missing_port} (has_info: #{has_information_for_port?(missing_task, missing_port)}, has_final_info: #{has_final_information_for_port?(missing_task, missing_port)}"
                                     end
                                     break
                                 end
@@ -128,23 +131,23 @@ module Orocos
                 end
 
                 if !missing_ports.empty?
-                    Engine.debug do
-                        Engine.debug "found fixed point, breaking out of propagation loop with #{missing_ports.size} missing ports"
-                        Engine.debug "removing partial port information"
+                    debug do
+                        debug "found fixed point, breaking out of propagation loop with #{missing_ports.size} missing ports"
+                        debug "removing partial port information"
                         break
                     end
                     result.delete_if do |task, port_info|
                         port_info.delete_if do |port, info|
                             if info.empty?
-                                Engine.debug do
-                                    Engine.debug "  #{task}.#{port} (empty)"
+                                debug do
+                                    debug "  #{task}.#{port} (empty)"
                                     break
                                 end
                                 true
 
                             elsif !has_final_information_for_port?(task, port)
-                                Engine.debug do
-                                    Engine.debug "  #{task}.#{port} (not finalized)"
+                                debug do
+                                    debug "  #{task}.#{port} (not finalized)"
                                     break
                                 end
                                 true
@@ -153,7 +156,7 @@ module Orocos
                         port_info.empty?
                     end
                 else
-                    Engine.debug "done computing all required port information"
+                    debug "done computing all required port information"
                 end
 
                 result
@@ -174,10 +177,10 @@ module Orocos
             # information with the new object.
             def add_port_info(task, port_name, info)
                 if done_ports[task].include?(port_name)
-                    Engine.debug do
-                        Engine.debug "done_port_info(#{task}, #{port_name}) called at"
+                    debug do
+                        debug "done_port_info(#{task}, #{port_name}) called at"
                         @done_at[[task, port_name]].each do |line|
-                            Engine.debug "  #{line}"
+                            debug "  #{line}"
                         end
                         break
                     end
@@ -206,8 +209,13 @@ module Orocos
 
             # Called when all information on +task+.+port_name+ has been added
             def done_port_info(task, port_name)
-                Engine.debug do
-                    Engine.debug "done computing information for #{task}.#{port_name}"
+                debug do
+                    debug "done computing information for #{task}.#{port_name}"
+                    if has_information_for_port?(task, port_name)
+                        debug "  #{port_info(task, port_name)}"
+                    else
+                        debug "  no stored information"
+                    end
                     @done_at ||= Hash.new
                     @done_at[[task, port_name]] = caller
                     break
