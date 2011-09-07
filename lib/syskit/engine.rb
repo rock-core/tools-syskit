@@ -815,7 +815,7 @@ module Orocos
                         t.model.each_master_device.any? { |srv| !t.arguments["#{srv.name}_name"] }
                 end
                 if !missing_devices.empty?
-                    raise DeviceAllocationFailed.new(missing_devices),
+                    raise DeviceAllocationFailed.new(self, missing_devices),
                         "could not allocate devices for the following tasks: #{missing_devices}"
                 end
             end
