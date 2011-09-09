@@ -950,8 +950,11 @@ module Orocos
             # This network is neither validated nor tied to actual deployments
             def compute_system_network
                 instanciate
-                @network_merge_solver.merge_identical_tasks
                 Engine.instanciation_postprocessing.each do |block|
+                    block.call(self, plan)
+                end
+                @network_merge_solver.merge_identical_tasks
+                Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, plan)
                 end
                 link_to_busses
@@ -1005,6 +1008,10 @@ module Orocos
                 attr_reader :instanciation_postprocessing
 
                 # Set of blocks registered with
+                # register_instanciated_network_postprocessing
+                attr_reader :instanciated_network_postprocessing
+
+                # Set of blocks registered with
                 # register_system_network_postprocessing
                 attr_reader :system_network_postprocessing
 
@@ -1013,17 +1020,37 @@ module Orocos
                 attr_reader :deployment_postprocessing
             end
             @instanciation_postprocessing = Array.new
+            @instanciated_network_postprocessing = Array.new
             @system_network_postprocessing = Array.new
             @deployment_postprocessing = Array.new
 
             # Registers a system-wide post-processing stage for the instanciation
             # stage. This post-processing block is meant to add new tasks and
-            # new relations in the graph.
+            # new relations in the graph. It runs after the instanciation, but
+            # before the first merge pass has been performed. I.e. in this
+            # graph, there will be present some duplicate tasks, devices won't
+            # be assigned properly, ... Use the
+            # instanciated_network_postprocessing hook to be called after this
+            # first merge pass.
+            #
+            # Use it to instanciate/annotate the graph early, i.e. before some
+            # system-wide processing is done
             #
             # Postprocessing stages that configures the task(s) automatically
             # should be registered with #register_system_network_postprocessing
             def self.register_instanciation_postprocessing(&block)
                 instanciation_postprocessing << block
+            end
+
+            # Registers a system-wide post-processing stage for augmenting the
+            # system network instanciation. Unlike the instanciation
+            # postprocessing stage, a first merge pass has been done on the
+            # graph and it is therefore not final but well-formed.
+            #
+            # Postprocessing stages that configures the task(s) automatically
+            # should be registered with #register_system_network_postprocessing
+            def self.register_instanciated_network_postprocessing(&block)
+                instanciated_network_postprocessing << block
             end
 
             # Registers a system-wide post-processing stage for the system
