@@ -77,7 +77,7 @@ module Orocos
         end
 
         # Represents a requirement created by Engine#add or Engine#define
-        class EngineRequirement < ComponentInstance
+        class EngineRequirement < InstanceRequirements
             # The name as give  to Engine#add or Engine#define
             attr_accessor :name
             # The actual task. It is set after #resolve has been called
@@ -94,8 +94,8 @@ module Orocos
             # The task this new task replaces. It is set by Engine#replace
             attr_accessor :replaces
 
-            def initialize(engine, name, models)
-                super(engine, models)
+            def initialize(name, models)
+                super(models)
                 @name = name
                 @state_copies = Array.new
             end
@@ -105,65 +105,12 @@ module Orocos
                 @state_copies = old.state_copies.dup
             end
 
-            def instanciate(engine)
+            def instanciate(engine, context)
                 task = super
                 @state_copies.each do |port_name, state_path, filter_block|
                     @task.copy_to_state(port_name, *state_path, &filter_block)
                 end
                 task
-            end
-
-            def placeholder_task(engine)
-                if models.size == 1 && models.find { true }.kind_of?(MasterDeviceInstance)
-                    models.find { true }.task
-                else
-                    instanciate(engine)
-                end
-            end
-
-            def self.resolve_explicit_selection(value, engine)
-                if engine && value.respond_to?(:to_str)
-                    value = value.to_str
-                    if !(selected_object = engine.tasks[value])
-                        if selected_object = engine.robot.devices[value]
-                            # Return the service that corresponds to the device
-                            # name
-                            return resolve_explicit_selection(selected_object, engine)
-                        elsif selected_object = engine.defines[value]
-                            return selected_object
-                        else
-                            raise SpecError, "#{value} does not refer to a known task or device (known tasks: #{engine.tasks.keys.sort.join(", ")}; known devices: #{engine.robot.devices.keys.sort.join(", ")})"
-                        end
-                    end
-
-                    # Check if a service has explicitely been selected, and
-                    # if it is the case, return it instead of the complete
-                    # task
-                    service_names = value.split '.'
-                    service_names.shift # remove the task name
-                    if !selected_object.kind_of?(Component) || service_names.empty? 
-                        selected_object
-                    else
-                        candidate_service = selected_object.model.find_data_service(service_names.join("."))
-
-                        if !candidate_service && service_names.size == 1
-                            # Might still be a slave of a main service
-                            services = selected_object.model.each_data_service.
-                                find_all { |_, srv| !srv.master? && srv.name == service_names.first }
-
-                            if services.empty?
-                                raise SpecError, "#{value} is not a known device, or an instanciated composition"
-                            elsif services.size > 1
-                                raise SpecError, "#{value} can refer to multiple objects"
-                            end
-                            candidate_service = services.first.last
-                        end
-
-                        DataServiceInstance.new(selected_object, candidate_service)
-                    end
-                else
-                    super(value, engine)
-                end
             end
 
             # Requires that the values that are output on +port_name+ on this
@@ -344,7 +291,7 @@ module Orocos
                 @tasks     = Hash.new
                 @deployments = Hash.new { |h, k| h[k] = Set.new }
                 @main_selection = Hash.new
-                @main_user_selection = Hash.new
+                @main_user_selection = DependencyInjection.new
                 @defines   = Hash.new
                 @modified  = false
                 @pending_removes = Hash.new
@@ -353,23 +300,23 @@ module Orocos
             end
 
             # The set of selections the user specified should be applied on
-            # every compositions. See Engine#use and EngineRequirement#use
-            # for more details on the format
+            # every compositions. See Engine#use and InstanceRequirements#use
+            #
+            # It is stored as an instance of DependencyInjection
             attr_reader :main_user_selection
 
             # The system-level device selection used during instanciation
             attr_reader :main_selection
+
+            # The system-level device selection used during instanciation
+            attr_reader :main_default_selection
 
             # Provides system-level selection.
             #
             # This is akin to dependency injection at the system level. See
             # EngineRequirement#use for details.
             def use(*mappings)
-                mappings = RobyPlugin.validate_using_spec(*mappings)
-                mappings.each do |model, definition|
-                    main_user_selection[model] = definition
-                end
-                @main_user_selection = EngineRequirement.resolve_recursive_selection(main_user_selection)
+                main_user_selection.add(*mappings)
             end
 
             # Require a new composition/service, and specify that it should be
@@ -380,25 +327,88 @@ module Orocos
                 instance
             end
 
+            # Resolve a name into either an InstanceRequirement or an
+            # InstanceSelection object, suitable for the instantiation process.
+            #
+            # The name can refer to an instance definition or to a device.
+            # Additionally, a particular service can be selected by using the
+            #
+            #   base_name.service_name
+            #
+            # syntax.
+            def resolve_name(name, instance_name)
+                model_name, *service_name = name.to_str.split('.')
+                instance_name = instance_name.to_str
+
+                if device = robot.devices[model_name]
+                    instance = Engine.create_instanciated_component(self, instance_name, device)
+                elsif instance = defines[model_name]
+                    instance = instance.dup
+                    instance.name = instance_name
+                else
+                    raise SpecError, "#{value} does not refer to a known task or device (known tasks: #{engine.tasks.keys.sort.join(", ")}; known devices: #{engine.robot.devices.keys.sort.join(", ")})"
+                end
+
+                # Check if a service has explicitely been selected, and
+                # if it is the case, return it instead of the complete
+                # task
+                if service_name.empty?
+                    return instance
+                else
+                    service_name = service_name.join(".")
+                    candidates = []
+                    instance.base_models.each do |m|
+                        if srv = m.find_data_service(service_name)
+                            candidates << srv
+                        end
+                    end
+
+                    if candidates.empty?
+                        # Look for slave services, if they are not ambiguous
+                        instance.base_models.each do |m|
+                            m.each_data_service do |srv_name, srv|
+                                if srv_name =~ /\.#{service_name}/
+                                    candidates << srv
+                                end
+                            end
+                        end
+                    end
+
+                    if candidates.size > 1
+                        raise ArgumentError, "ambiguity while resolving #{name}: the service name #{service_name} can be resolved into #{candidates.map(&:to_s).join(", ")}"
+                    elsif candidates.empty?
+                        all_services = instance.models.map do |m|
+                            m.each_data_service.map(&:first)
+                        end.flatten.uniq.sort
+                        raise ArgumentError, "no service #{service_name} can be found for #{name}, known services are #{all_services.join(", ")} on #{instance}"
+                    end
+                    result = InstanceSelection.new(instance)
+                    result.selected_services[candidates.first.model] = candidates.first
+                    return result
+                end
+            end
+
             # Helper method that creates an instance of EngineRequirement
             # and registers it
             def self.create_instanciated_component(engine, name, model) # :nodoc:
                 if model.respond_to?(:to_str)
-                    model = engine.instanciated_component_from_name(model, name || model)
+                    model = engine.resolve_name(model, name || model)
                 end
 
                 if model.kind_of?(DeviceInstance)
+                    service = model.service
+                    service_model = model.device_model
                     if model.kind_of?(SlaveDeviceInstance)
                         model = model.master_device
                     end
 
-                    requirements = EngineRequirement.new(engine, name, [model.task_model])
+                    requirements = EngineRequirement.new(name, [model.task_model])
                     requirements.with_arguments(model.task_arguments)
                     requirements.with_arguments("#{model.service.name}_name" => model.name)
                     requirements
                 elsif model.kind_of?(Class) && model < Component
-                    EngineRequirement.new(engine, name, [model])
-                elsif model.kind_of?(EngineRequirement)
+                    EngineRequirement.new(name, [model])
+                elsif model.kind_of?(InstanceRequirements)
                     model
                 else
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
@@ -407,7 +417,7 @@ module Orocos
 
             # Returns a instanciation specification for the given device
             def device(name)
-                instanciated_component_from_name(name, name)
+                resolve_name(name, name)
             end
 
 	    def export_defines_to_planner(planner)
@@ -463,30 +473,10 @@ module Orocos
             #   ...
             #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
-                defines[name] = Engine.create_instanciated_component(self, name, main_user_selection[model] || model)
+                selected = main_user_selection.selection_for(model) || model
+                defines[name] = Engine.create_instanciated_component(self, name, selected)
                 export_define_to_planner(::MainPlanner, name)
 		defines[name]
-            end
-
-            # Returns the EngineRequirement object that represents the given
-            # name.
-            #
-            # The name can be a deployment definition (created with #define) or
-            # a device name
-            def instanciated_component_from_name(name, instance_name = name)
-                name = name.to_str
-                instance_name = instance_name.to_str
-
-                if device = robot.devices[name]
-                    instance = Engine.create_instanciated_component(self, instance_name, device)
-                elsif (instance = defines[name])
-                    instance = instance.dup
-                    instance.name = instance_name
-                else
-                    raise ArgumentError, "#{name} is not a valid instance definition added with #define"
-                end
-
-                instance
             end
 
             # Add a new component requirement to the current deployment
@@ -499,7 +489,8 @@ module Orocos
             def add(model, arguments = Hash.new)
                 arguments = Kernel.validate_options arguments, :as => nil
 
-                instance = Engine.create_instanciated_component(self, arguments[:as], main_user_selection[model] || model)
+                selected = main_user_selection.selection_for(model) || model
+                instance = Engine.create_instanciated_component(self, arguments[:as], selected)
 
                 @modified = true
                 instances << instance
@@ -639,34 +630,6 @@ module Orocos
                 @modified = true
             end
 
-            # Add the global selections to +using_spec+
-            def add_default_selections(using_spec)
-                implicit = using_spec[nil] || []
-                Engine.debug "adding default selections"
-
-                main_selection.each do |key, selected|
-                    Engine.debug do
-                        Engine.debug "  #{key} => #{selected}"
-                        break
-                    end
-
-                    if key
-                        next if implicit.any? { |t| t.fullfills?(key) }
-                    end
-
-                    if resolved_selection = EngineRequirement.resolve_explicit_selection(selected, self)
-                        verify_result_in_transaction(key, resolved_selection)
-                        if resolved_selection.respond_to?(:to_ary) && !implicit.empty?
-                            using_spec[nil].concat(resolved_selection)
-                        else
-                            using_spec[key] ||= resolved_selection
-                        end
-                    end
-                end
-
-                EngineRequirement.resolve_recursive_selection(using_spec)
-            end
-
             def verify_result_in_transaction(key, result)
                 if result.respond_to?(:to_ary)
                     result.each { |obj| verify_result_in_transaction(key, obj) }
@@ -703,14 +666,19 @@ module Orocos
                 end
 
                 robot.each_master_device do |name, device_instance|
-                    plan.add(task = device_instance.instanciate(self))
+                    plan.add(task = device_instance.instanciate(self, main_selection))
                     device_instance.task = task
                     register_task(name, task)
                 end
 
                 instances.each do |instance|
-                    plan.add(task = instance.placeholder_task(self))
-                    instance.task = task
+                    begin
+                        main_selection.save
+                        plan.add(task = instance.instanciate(self, main_selection))
+                    ensure
+                        main_selection.restore
+                    end
+
                     if name = instance.name
                         register_task(name, task)
                     end
@@ -796,6 +764,16 @@ module Orocos
                     end
                 end
 
+                # Check that all devices are properly assigned
+                missing_devices = all_tasks.find_all do |t|
+                    t.model < Device &&
+                        t.model.each_master_device.any? { |srv| !t.arguments["#{srv.name}_name"] }
+                end
+                if !missing_devices.empty?
+                    raise DeviceAllocationFailed.new(self, missing_devices),
+                        "could not allocate devices for the following tasks: #{missing_devices}"
+                end
+
                 devices = Hash.new
                 all_tasks.each do |task|
                     next if !(task.model < Device)
@@ -807,16 +785,6 @@ module Orocos
                             devices[device_name] = task
                         end
                     end
-                end
-
-                # Check that all devices are properly assigned
-                missing_devices = all_tasks.find_all do |t|
-                    t.model < Device &&
-                        t.model.each_master_device.any? { |srv| !t.arguments["#{srv.name}_name"] }
-                end
-                if !missing_devices.empty?
-                    raise DeviceAllocationFailed.new(self, missing_devices),
-                        "could not allocate devices for the following tasks: #{missing_devices}"
                 end
             end
 
@@ -869,7 +837,7 @@ module Orocos
                 # This caches the mapping from child name to child model to
                 # speed up instanciation
                 model.each_composition do |composition|
-                    composition.update_all_children
+                    composition.prepare
                 end
 
                 # We now compute default selections for data service models. It
@@ -935,14 +903,36 @@ module Orocos
                     end
                 end
 
-                if !use_main_selection?
-                    @main_selection = main_user_selection.dup
-                else
-                    @main_selection = result.merge(main_user_selection)
+                @main_selection = DependencyInjectionContext.new
+
+                # First, push the name-to-spec mappings
+                devices = robot.devices.map_value do |name, dev|
+                    device(name)
                 end
-                @main_selection = EngineRequirement.resolve_recursive_selection(@main_selection)
+                main_selection.push(devices)
+                main_selection.push(defines)
+                # Second, push the automatically-computed selections (if
+                # required)
+                if use_main_selection?
+                    main_selection.push(DependencyInjection.new(result))
+                end
+                # Finally, the explicit selections
+                main_selection.push(main_user_selection)
+
+                Engine.debug do
+                    Engine.debug "Resolved main selection"
+                    Engine.log_nest(2) do
+                        Engine.log_pp(:debug, @main_selection)
+                    end
+                    break
+                end
 
                 @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
+            end
+
+            def add_default_selections(using_spec)
+                result = main_selection.merge(using_spec)
+                InstanceRequirements.resolve_recursive_selection_mapping(result)
             end
 
             # Compute in #plan the network needed to fullfill the requirements

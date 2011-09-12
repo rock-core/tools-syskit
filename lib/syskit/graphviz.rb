@@ -258,7 +258,6 @@ module Orocos
                         connections[[source_port, sink_port, sink_task]] = [policy, is_concrete]
                     end
 
-
                     connections.each do |(source_port, sink_port, sink_task), (policy, is_concrete)|
                         if !is_concrete
                             style = "style=dashed,"

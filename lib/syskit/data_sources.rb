@@ -70,6 +70,10 @@ module Orocos
             #   [service_model, port] => target_port
             attribute(:port_mappings) { Hash.new }
 
+            def each_fullfilled_model
+                yield(self)
+            end
+
             # Return the config type for the instances of this service, if there
             # is one
             def config_type

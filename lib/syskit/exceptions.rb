@@ -73,18 +73,16 @@ module Orocos
         # Exception raised when a service is required but none can be found on a
         # particular task context
         class NoMatchingService < Ambiguous
-            attr_reader :composition_model
-            attr_reader :child_name
             attr_reader :task_model
             attr_reader :required_service
 
-            def initialize(composition_model, child_name, task_model, required_service)
-                @composition_model, @child_name, @task_model, @required_service =
-                    composition_model, child_name, task_model, required_service
+            def initialize(task_model, required_service)
+                @task_model, @required_service =
+                    task_model, required_service
             end
 
             def pretty_print(pp)
-                pp.text "there are no services in #{task_model} that provide the service #{required_service.short_name}, to fullfill the constraints on the child #{child_name} of #{composition_model.short_name}"
+                pp.text "there are no services in #{task_model} that provide the service #{required_service.short_name}"
                 pp.breakable
                 pp.text "the services of #{task_model.short_name} are:"
                 pp.nest(2) do
@@ -93,6 +91,24 @@ module Orocos
                         pp.text "#{srv.name}: #{srv.model.short_name}"
                     end
                 end
+            end
+        end
+
+        # Refinement of NoMatchingService for a composition child. It adds the
+        # information of the composition / child name
+        class NoMatchingServiceForCompositionChild < NoMatchingService
+            attr_reader :composition_model
+            attr_reader :child_name
+
+            def initialize(composition_model, child_name, task_model, required_service)
+                @composition_model, @child_name = composition_model, child_name
+                super(task_model, required_service)
+            end
+
+            def pretty_print(pp)
+                pp.text "while trying to fullfill the constraints on the child #{child_name} of #{composition_model.short_name}"
+                pp.breakable
+                super
             end
         end
 
@@ -489,7 +505,7 @@ module Orocos
                             if key.respond_to?(:short_name)
                                 key = key.short_name
                             end
-                            value = value.selected_models
+                            value = value.requirements.models
                             value = value.map do |v|
                                 if v.respond_to?(:short_name) then v.short_name
                                 else v.to_s

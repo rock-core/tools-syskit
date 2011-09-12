@@ -122,7 +122,7 @@ module Orocos
                                 true
                             else
                                 debug do
-                                    debug "cannot propagate information to input #{task}.#{port_name}"
+                                    debug "cannot propagate information to port #{task}.#{port_name}"
                                     debug "  missing info on:"
                                     missing = triggers.find_all { |args| !has_final_information_for_port?(*args) }
                                     missing.each do |missing_task, missing_port|

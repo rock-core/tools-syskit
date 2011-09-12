@@ -348,7 +348,7 @@ module Orocos
             #
             # It creates a new task from the component model using
             # Component.new, adds it to the engine's plan and returns it.
-            def instanciate(engine, arguments = Hash.new)
+            def instanciate(engine, context, arguments = Hash.new)
                 task_arguments, instanciate_arguments = Kernel.
                     filter_options arguments, :task_arguments => Hash.new
                 engine.plan.add(task = new(task_arguments[:task_arguments]))
@@ -415,6 +415,10 @@ module Orocos
             # children
             attr_accessor :required_host
 
+            # The InstanceRequirements object for which this component has been
+            # instanciated.
+            attr_reader :requirements
+
             # Returns the set of communication busses names that this task
             # needs.
             def com_busses
@@ -431,6 +435,7 @@ module Orocos
                 super
                 @state_copies = Array.new
                 @reusable = true
+                @requirements = InstanceRequirements.new
             end
 
             def create_fresh_copy
@@ -908,6 +913,8 @@ module Orocos
                 # Finally, remove +merged_task+ from the data flow graph and use
                 # #replace_task to replace it completely
                 plan.replace_task(merged_task, self)
+
+                requirements.merge(merged_task.requirements)
                 nil
             end
 
