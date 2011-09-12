@@ -290,8 +290,8 @@ module Orocos
                 @instances = Array.new
                 @tasks     = Hash.new
                 @deployments = Hash.new { |h, k| h[k] = Set.new }
-                @main_selection = Hash.new
                 @main_user_selection = DependencyInjection.new
+                @main_automatic_selection = DependencyInjection.new
                 @defines   = Hash.new
                 @modified  = false
                 @pending_removes = Hash.new
@@ -305,11 +305,11 @@ module Orocos
             # It is stored as an instance of DependencyInjection
             attr_reader :main_user_selection
 
-            # The system-level device selection used during instanciation
-            attr_reader :main_selection
-
-            # The system-level device selection used during instanciation
-            attr_reader :main_default_selection
+            # The set of selections computed based on what is actually available
+            # on this system
+            #
+            # It can be disabled by setting #use_main_selection to false
+            attr_reader :main_automatic_selection
 
             # Provides system-level selection.
             #
@@ -665,10 +665,34 @@ module Orocos
                     composition_model.reset_autoconnection
                 end
 
+                # Now prepare the main selection
+                main_selection = DependencyInjectionContext.new
+
+                devices = Hash.new
                 robot.each_master_device do |name, device_instance|
                     plan.add(task = device_instance.instanciate(self, main_selection))
                     device_instance.task = task
                     register_task(name, task)
+                    devices[name] = task
+                end
+                main_selection.push(devices)
+
+                # First, push the name-to-spec mappings
+                main_selection.push(defines)
+                # Second, push the automatically-computed selections (if
+                # required)
+                if use_main_selection?
+                    main_selection.push(DependencyInjection.new(main_automatic_selection))
+                end
+                # Finally, the explicit selections
+                main_selection.push(main_user_selection)
+
+                Engine.debug do
+                    Engine.debug "Resolved main selection"
+                    Engine.log_nest(2) do
+                        Engine.log_pp(:debug, main_selection)
+                    end
+                    break
                 end
 
                 instances.each do |instance|
@@ -902,30 +926,7 @@ module Orocos
                         service_allocation_candidates[service] = candidates
                     end
                 end
-
-                @main_selection = DependencyInjectionContext.new
-
-                # First, push the name-to-spec mappings
-                devices = robot.devices.map_value do |name, dev|
-                    device(name)
-                end
-                main_selection.push(devices)
-                main_selection.push(defines)
-                # Second, push the automatically-computed selections (if
-                # required)
-                if use_main_selection?
-                    main_selection.push(DependencyInjection.new(result))
-                end
-                # Finally, the explicit selections
-                main_selection.push(main_user_selection)
-
-                Engine.debug do
-                    Engine.debug "Resolved main selection"
-                    Engine.log_nest(2) do
-                        Engine.log_pp(:debug, @main_selection)
-                    end
-                    break
-                end
+                @main_automatic_selection = result
 
                 @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
             end
