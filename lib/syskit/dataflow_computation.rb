@@ -53,6 +53,77 @@ module Orocos
                 end
             end
 
+            # Stores propagation information for the algorithm
+            #
+            # This class stores a list of ports on which changes will should
+            # cause a call to #propagate_task. It is used as values in
+            # DataFlowComputation#triggering_connections
+            class Trigger
+                USE_ALL = 0 # all triggers must have final information
+                USE_ANY = 1 # at least one trigger must have final information
+                USE_PARTIAL = 2 # can use any added info from any trigger (implies USE_ANY)
+
+                # The list of triggering ports, as [task, port_name] pairs
+                attr_reader :ports
+                # The propagation mode, as one of USE_ALL, USE_ANY and
+                # USE_PARTIAL constants. See constant documentation for more
+                # details.
+                attr_reader :mode
+
+                def initialize(ports, mode)
+                    @ports, @mode = ports, mode
+                end
+
+                # Called by the algorithm to determine which ports should
+                # be propagated given a certain algorithm state +state+.
+                #
+                # +state+ is a DataFlowComputation object. Only the
+                # #has_information_for_port? and
+                # #has_final_information_for_port? methods are used.
+                def ports_to_propagate(state)
+                    if ports.empty?
+                        return [], false 
+                    end
+
+                    predicate =
+                        if mode == USE_PARTIAL
+                            state.method(:has_information_for_port?)
+                        else
+                            state.method(:has_final_information_for_port?)
+                        end
+
+                    complete = false
+                    candidates = []
+                    ports.each do |args|
+                        if state.has_final_information_for_port?(*args)
+                            complete = true
+                            candidates << args
+                        elsif mode == USE_ALL
+                            return [], false
+                        elsif state.has_information_for_port?(*args)
+                            complete = false
+                            if mode == USE_PARTIAL
+                                candidates << args
+                            end
+                        end
+                    end
+
+                    if mode == USE_ALL
+                        if !complete
+                            return []
+                        end
+                        return ports, true
+                    else
+                        return candidates, complete
+                    end
+                end
+
+                def to_s
+                    modes = %w{ALL ANY PARTIAL}
+                    "#<Trigger: mode=#{modes[mode]} ports=#{ports.map { |t, p| "#{t}.#{p}" }.sort.join(",")}>"
+                end
+            end
+
             def propagate(tasks)
                 # Get the periods from the activities themselves directly (i.e.
                 # not taking into account the port-driven behaviour)
@@ -88,8 +159,8 @@ module Orocos
                     initial_information(task)
                     if connections = triggering_port_connections(task)
                         triggering_connections[task] = connections
-                        triggering_dependencies[task] = connections.map do |port_name, (triggering_ports, _)|
-                            triggering_ports.map(&:first)
+                        triggering_dependencies[task] = connections.map do |port_name, triggers|
+                            triggers.ports.map(&:first)
                         end
 
                         debug do
@@ -109,27 +180,21 @@ module Orocos
 
                     current_size = @result_size
                     remaining_tasks.delete_if do |task|
-                        triggering_connections[task].delete_if do |port_name, (triggers, can_use_any_connection)|
-                            if can_use_any_connection && (done_connection = triggers.find { |args| has_final_information_for_port?(*args) })
-                                add_port_info(task, port_name, port_info(*done_connection))
-                                done_port_info(task, port_name)
-                                true
-                            elsif !can_use_any_connection && triggers.all? { |args| has_final_information_for_port?(*args) }
-                                triggers.each do |info|
+                        triggering_connections[task].delete_if do |port_name, triggers|
+                            next if has_final_information_for_port?(task, port_name)
+
+                            to_propagate, complete = triggers.ports_to_propagate(self)
+                            to_propagate.each do |info|
+                                begin
                                     add_port_info(task, port_name, port_info(*info))
+                                rescue Exception => e
+                                    raise e, "while propagating information from port #{info} to #{port_name} on #{task}, #{e.message}", e.backtrace
                                 end
+                            end
+                            if complete
                                 done_port_info(task, port_name)
                                 true
                             else
-                                debug do
-                                    debug "cannot propagate information to port #{task}.#{port_name}"
-                                    debug "  missing info on:"
-                                    missing = triggers.find_all { |args| !has_final_information_for_port?(*args) }
-                                    missing.each do |missing_task, missing_port|
-                                        debug "    #{missing_task}.#{missing_port} (has_info: #{has_information_for_port?(missing_task, missing_port)}, has_final_info: #{has_final_information_for_port?(missing_task, missing_port)}"
-                                    end
-                                    break
-                                end
                                 false
                             end
                         end
@@ -283,7 +348,7 @@ module Orocos
                         connections << [from_task, from_port]
                     end
                     if !connections.empty?
-                        result[port.name] = [connections, false]
+                        result[port.name] = Trigger.new(connections, Trigger::USE_ALL)
                         connections = Set.new
                     end
                 end
