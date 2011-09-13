@@ -268,7 +268,11 @@ module Orocos
                     @result_size += 1
                     @result[task][port_name] = info
                 else
-                    @result[task][port_name].merge(info)
+                    begin
+                        @result[task][port_name].merge(info)
+                    rescue Exception => e
+                        raise e, "while adding information to port #{port_name} on #{task}, #{e.message}", e.backtrace
+                    end
                 end
             end
 
