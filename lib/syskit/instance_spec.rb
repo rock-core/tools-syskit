@@ -452,6 +452,8 @@ module Orocos
                     pp.breakable
                     pp.text "Arguments: #{arguments}"
                 end
+
+                super if defined? super
             end
         end
 
