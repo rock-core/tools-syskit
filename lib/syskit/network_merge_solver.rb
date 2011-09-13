@@ -6,6 +6,8 @@ module Orocos
         # This is the core of the system deployment algorithm implemented in
         # Engine
         class NetworkMergeSolver
+            include Utilrb::Timepoints
+
             attr_reader :plan
 
 	    attr_reader :task_replacement_graph
@@ -643,7 +645,10 @@ module Orocos
 
                 merged_tasks = ValueSet.new
                 possible_cycles = Set.new
+                pass_idx = 0
                 while !candidates.empty?
+                    pass_idx += 1
+                    add_timepoint 'merge', 'pass', pass_idx, "start"
                     merged_tasks.clear
                     possible_cycles.clear
 
@@ -722,6 +727,7 @@ module Orocos
                         parents = t.each_parent_task.to_value_set
                         candidates.merge(parents) if parents.size > 1
                     end
+                    add_timepoint 'merge', 'pass', pass_idx, "done"
                 end
 
                 Engine.debug do

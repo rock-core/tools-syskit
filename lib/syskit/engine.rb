@@ -1,3 +1,4 @@
+require 'utilrb/timepoints'
 require 'tempfile'
 class Object
     def dot_id
@@ -858,6 +859,8 @@ module Orocos
             # Must be called everytime the system model changes. It updates the
             # values that are cached to speed up the instanciation process
             def prepare
+                add_timepoint 'prepare', 'start'
+
                 # This caches the mapping from child name to child model to
                 # speed up instanciation
                 model.each_composition do |composition|
@@ -892,6 +895,7 @@ module Orocos
 
                 service_allocation_candidates.clear
                 result = Hash.new
+                add_timepoint 'default_allocations', 'start'
                 model.each_data_service do |service|
                     candidates = all_concrete_models.
                         find_all { |m| m.fullfills?(service) }.
@@ -926,9 +930,13 @@ module Orocos
                         service_allocation_candidates[service] = candidates
                     end
                 end
+                add_timepoint 'default_allocations', 'end'
                 @main_automatic_selection = result
 
                 @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
+
+                add_timepoint 'prepare', 'done'
+
             end
 
             def add_default_selections(using_spec)
@@ -936,23 +944,35 @@ module Orocos
                 InstanceRequirements.resolve_recursive_selection_mapping(result)
             end
 
+            include Utilrb::Timepoints
+
+            def format_timepoints
+                super + @network_merge_solver.format_timepoints
+            end
+
             # Compute in #plan the network needed to fullfill the requirements
             #
             # This network is neither validated nor tied to actual deployments
             def compute_system_network
+                add_timepoint 'compute_system_network', 'instanciate'
                 instanciate
                 Engine.instanciation_postprocessing.each do |block|
                     block.call(self, plan)
                 end
+                add_timepoint 'compute_system_network', 'merge'
                 @network_merge_solver.merge_identical_tasks
+                add_timepoint 'compute_system_network', 'postprocessing'
                 Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, plan)
                 end
+                add_timepoint 'compute_system_network', 'link_to_busses'
                 link_to_busses
+                add_timepoint 'compute_system_network', 'merge'
                 @network_merge_solver.merge_identical_tasks
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
+                add_timepoint 'compute_system_network', 'default_conf'
                 plan.find_local_tasks(Component).
                     each do |task|
                         if !task.arguments[:conf]
@@ -960,6 +980,7 @@ module Orocos
                         end
                     end
 
+                add_timepoint 'compute_system_network', 'static_garbage_collect'
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
                 plan.static_garbage_collect do |obj|
@@ -969,6 +990,7 @@ module Orocos
                     plan.remove_object(obj)
                 end
 
+                add_timepoint 'compute_system_network', 'postprocessing'
                 Engine.system_network_postprocessing.each do |block|
                     block.call(self)
                 end
@@ -1209,6 +1231,7 @@ module Orocos
             #   current plan state if an error occurs. Set this option to false
             #   to disable this (it is costly).
             def resolve(options = Hash.new)
+                @timepoints = []
 	    	return if disabled?
 
                 if options == true
@@ -1264,10 +1287,14 @@ module Orocos
                     # requirements. This can fail if some service cannot be
                     # allocated to tasks, and if some drivers cannot be
                     # allocated to devices.
+                    add_timepoint 'compute_system_network', 'start'
                     compute_system_network
+                    add_timepoint 'compute_system_network', 'done'
 
                     if options[:garbage_collect] && options[:validate_network]
+                        add_timepoint 'validate_generated_network', 'start'
                         validate_generated_network(trsc, options)
+                        add_timepoint 'validate_generated_network', 'done'
                     end
 
                     # Now, deploy the network by matching the available
@@ -1277,14 +1304,18 @@ module Orocos
                     # The mapping from this deployed network to the running
                     # tasks is done in #finalize_deployed_tasks
                     if options[:compute_deployments]
+                        add_timepoint 'deploy_system_network', 'start'
                         deploy_system_network
+                        add_timepoint 'deploy_system_network', 'done'
                     end
 
                     # Now that we have a deployed network, we can compute the
                     # connection policies and the port dynamics, and call the
                     # registered postprocessing blocks
                     if options[:compute_policies]
+                        add_timepoint 'compute_connection_policies', 'start'
                         @port_dynamics = DataFlowDynamics.compute_connection_policies(trsc)
+                        add_timepoint 'compute_connection_policies', 'done'
                     end
                     Engine.deployment_postprocessing.each do |block|
                         block.call(self)
@@ -1293,13 +1324,17 @@ module Orocos
                     # Finally, we map the deployed network to the currently
                     # running tasks
                     if options[:compute_deployments]
+                        add_timepoint 'compute_deployment', 'start'
                         used_tasks = trsc.find_local_tasks(Component).
                             to_value_set
                         used_deployments = trsc.find_local_tasks(Deployment).
                             to_value_set
 
+                        add_timepoint 'compute_deployment', 'finalized_deployed_tasks'
                         @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
+                        add_timepoint 'compute_deployment', 'merge'
                         @network_merge_solver.merge_identical_tasks
+                        add_timepoint 'compute_deployment', 'done'
                     end
 
                     if options[:garbage_collect]
