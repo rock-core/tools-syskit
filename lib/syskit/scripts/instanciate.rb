@@ -12,6 +12,7 @@ validate_network    = true
 test = false
 annotations = Set.new
 default_annotations = ["connection_policy", "task_info"]
+profile_file_path = nil
 
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate [options] deployment [additional services]
@@ -46,6 +47,9 @@ parser = OptionParser.new do |opt|
     end
     opt.on("--dont-validate", "do not validate the generate system network") do
         validate_network = false
+    end
+    opt.on("--profile=FILE", String, "run the deployment algorithm under ruby-prof, and generates a kcachegrind-compatible output to FILE") do |path|
+        profile_file_path = path
     end
     opt.on('--test', 'test mode: instanciates everything defined in the given file') do
         test = true
@@ -161,6 +165,10 @@ if output_type != 'txt' && !output_file
         end
 end
 
+if profile_file_path
+    require 'ruby-prof'
+end
+
 # We don't need the process server, win some startup time
 Roby.app.orocos_only_load_models = true
 Roby.app.orocos_disables_local_process_server = true
@@ -179,13 +187,25 @@ error = Scripts.run do
         end
         Scripts.toc_tic "initialized in %.3f seconds"
 
+        if profile_file_path
+            RubyProf.resume
+        end
         Roby.app.orocos_engine.
             resolve(:export_plan_on_error => false,
                 :compute_policies => compute_policies,
                 :compute_deployments => compute_deployments,
                 :validate_network => validate_network)
+        if profile_file_path
+            RubyProf.pause
+        end
         Scripts.toc_tic "computed deployment in %.3f seconds"
     end
+end
+
+if profile_file_path
+    result = RubyProf.stop
+    printer = RubyProf::CallTreePrinter.new(result)
+    printer.print(File.open(profile_file_path, 'w'), 0)
 end
 
 if error
