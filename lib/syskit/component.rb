@@ -910,11 +910,15 @@ module Orocos
                 self.instanciated_dynamic_inputs =
                     merged_task.instanciated_dynamic_inputs.merge(instanciated_dynamic_inputs)
 
+                # Merge the InstanceRequirements objects
+                requirements.merge(merged_task.requirements)
+
+                # Call included plugins if there are some
+                super if defined? super
+
                 # Finally, remove +merged_task+ from the data flow graph and use
                 # #replace_task to replace it completely
                 plan.replace_task(merged_task, self)
-
-                requirements.merge(merged_task.requirements)
                 nil
             end
 
