@@ -416,7 +416,6 @@ module Orocos
             end
 
             def pretty_print(pp)
-                pp.text "InstanceRequirements"
                 if base_models.empty?
                     pp.breakable
                     pp.text "No models"
@@ -451,7 +450,7 @@ module Orocos
 
                 if !arguments.empty?
                     pp.breakable
-                    pp.text "Arguments: #{selections}"
+                    pp.text "Arguments: #{arguments}"
                 end
             end
         end
