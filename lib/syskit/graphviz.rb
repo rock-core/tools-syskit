@@ -222,7 +222,8 @@ module Orocos
             def dataflow(remove_compositions = false, excluded_models = ValueSet.new)
                 result = []
                 result << "digraph {"
-                result << "  rankdir=LR"
+                result << "  splines=ortho;"
+                result << "  rankdir=LR;"
                 result << "  node [shape=none,margin=0,height=.1,fontname=\"Arial\"];"
 
                 output_ports = Hash.new { |h, k| h[k] = Set.new }
