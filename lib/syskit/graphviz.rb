@@ -425,7 +425,7 @@ module Orocos
                     end
                     name = name.gsub("Orocos::RobyPlugin::", "").tr("<>", '[]')
 
-                    if task.respond_to?(:orocos_name)
+                    if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"
                     end
                     label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
