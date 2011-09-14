@@ -1015,6 +1015,20 @@ module Orocos
                 end
             end
 
+            # Method called to verify that the result of #deploy_system_network
+            # is valid
+            def validate_deployed_network
+                # Check for the presence of non-deployed tasks
+                not_deployed = plan.find_local_tasks(TaskContext).
+                    find_all { |t| !t.execution_agent }
+
+                if !not_deployed.empty?
+                    remaining_merges = @network_merge_solver.complete_merge_graph
+                    raise MissingDeployments.new(not_deployed, remaining_merges),
+                        "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
+                end
+            end
+
             class << self
                 # Set of blocks registered with
                 # register_instanciation_postprocessing
@@ -1307,6 +1321,12 @@ module Orocos
                         add_timepoint 'deploy_system_network', 'start'
                         deploy_system_network
                         add_timepoint 'deploy_system_network', 'done'
+                    end
+
+                    if options[:validate_network]
+                        add_timepoint 'validate_deployed_network', 'start'
+                        validate_deployed_network
+                        add_timepoint 'validate_deployed_network', 'stop'
                     end
 
                     # Now that we have a deployed network, we can compute the
