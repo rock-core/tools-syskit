@@ -55,8 +55,6 @@ module Orocos
                 end
             end
 
-            include CompositionModel
-
             def initialize
                 @system_model = self
                 @composition_specializations = Hash.new do |h, k|
@@ -327,7 +325,7 @@ module Orocos
                     :child_of => Orocos::RobyPlugin::TaskContext
 
                 klass = Class.new(options[:child_of])
-                klass.instance_variable_set :@system_model, system_model
+                klass.instance_variable_set :@system_model, self
                 if name
                     klass.orogen_spec  = RobyPlugin.create_orogen_interface(name)
                 end
