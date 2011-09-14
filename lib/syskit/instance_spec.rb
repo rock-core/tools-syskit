@@ -622,19 +622,20 @@ module Orocos
 
             def initialize_copy(from)
                 @explicit = from.explicit.map_value do |key, obj|
-                    if obj.kind_of?(Roby::Task)
-                        obj
-                    elsif obj
+                    case obj
+                    when InstanceRequirements, InstanceSelection
                         obj.dup
-                    else nil
+                    else obj
                     end
                 end
                 @defaults = Set.new
                 from.defaults.each do |obj|
-                    obj = if obj.kind_of?(Roby::Task)
-                              obj
-                          else obj.dup
-                          end
+                    obj =
+                        case obj
+                        when InstanceRequirements, InstanceSelection
+                            obj.dup
+                        else obj
+                        end
 
                     @defaults << obj
                 end
