@@ -1,5 +1,10 @@
 module Orocos
     module RobyPlugin
+        # Access to all the available models
+        #
+        # The SystemModel instance is an access point to all the models that are
+        # available to the deployment engine (services, compositions, ...) and
+        # allows to define them as well.
         class SystemModel
             extend Logger::Forward
             extend Logger::Hierarchy
