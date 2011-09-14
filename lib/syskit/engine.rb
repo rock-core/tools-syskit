@@ -1289,6 +1289,7 @@ module Orocos
                 # deployment information
                 if !options[:compute_deployments]
                     options[:compute_policies] = false
+                    options[:validate_network] = false
                 end
 
                 prepare
