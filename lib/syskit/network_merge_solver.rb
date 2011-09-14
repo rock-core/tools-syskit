@@ -8,8 +8,10 @@ module Orocos
         class NetworkMergeSolver
             include Utilrb::Timepoints
 
+            # The plan on which this solver applies
             attr_reader :plan
 
+            # A graph that holds all replacements done during generation
 	    attr_reader :task_replacement_graph
 
             def initialize(plan, &block)
