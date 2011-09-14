@@ -142,7 +142,7 @@ module Orocos
 
             # The plan we are working on
             attr_reader :plan
-            # The model we are taking our tasks from
+            # The model we are working on, as a SystemModel instance
             attr_reader :model
             # The robot on which the software is running
             attr_reader :robot
