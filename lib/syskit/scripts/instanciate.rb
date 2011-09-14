@@ -140,7 +140,6 @@ else
     passes = [[remaining.shift, []]]
     pass = 0
     while name = remaining.shift
-        puts name.inspect
         if name == "/"
             pass += 1
             passes[pass] = [remaining.shift, []]
