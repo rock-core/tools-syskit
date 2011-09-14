@@ -811,6 +811,9 @@ module Orocos
                         end
                     end
                 end
+
+                # Call hooks that we might have
+                super if defined? super
             end
 
             def validate_final_network(plan, options = Hash.new)
@@ -841,6 +844,8 @@ module Orocos
                             "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
                     end
                 end
+
+                super if defined? super
             end
 
             # A mapping from data service models to concrete models
