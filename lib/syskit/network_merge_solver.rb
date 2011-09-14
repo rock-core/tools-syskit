@@ -90,9 +90,6 @@ module Orocos
                     # Don't do service allocation at this stage. It should be
                     # done at the specification stage already
                     next if task.kind_of?(DataServiceProxy)
-                    # We can only replace a deployed task by a non deployed
-                    # task if the deployed task is not running
-                    next if task.execution_agent && !task.pending?
 
                     query = @merging_candidates_queries[task.model]
                     if !query
