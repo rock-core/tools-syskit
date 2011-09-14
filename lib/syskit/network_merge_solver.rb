@@ -86,10 +86,16 @@ module Orocos
                 for task in task_set
                     # We never replace a transaction proxy. We only use them to
                     # replace new tasks in the transaction
-                    next if task.transaction_proxy?
+                    if task.transaction_proxy?
+                        Engine.debug { "cannot replace #{task}: is a transaction proxy" }
+                        next
+                    end
                     # Don't do service allocation at this stage. It should be
                     # done at the specification stage already
-                    next if task.kind_of?(DataServiceProxy)
+                    if task.kind_of?(DataServiceProxy)
+                        Engine.debug { "cannot replace #{task}: is a data service proxy" }
+                        next
+                    end
 
                     query = @merging_candidates_queries[task.model]
                     if !query
@@ -104,12 +110,13 @@ module Orocos
                     candidates.delete(task)
                     candidates.delete_if { |t| t.kind_of?(DataServiceProxy) }
                     if candidates.empty?
+                        Engine.debug { "no candidates to replace #{task}, using model #{task.user_required_model}" }
                         next
                     end
 
                     Engine.debug do
                         candidates.each do |t|
-                            Engine.debug "    RAW #{t}.merge(#{task})"
+                            Engine.debug "RAW #{t}.merge(#{task})"
                         end
                         break
                     end
@@ -124,19 +131,19 @@ module Orocos
                         # Cannot merge into target_task if it is marked as not
                         # being usable
                         if !target_task.reusable?
-			    Engine.debug { "    rejecting #{target_task}.merge(#{task}) as receiver is not reusable" }
+			    Engine.debug { "rejecting #{target_task}.merge(#{task}) as receiver is not reusable" }
 			    next
 			end
                         # We can not replace a non-abstract task with an
                         # abstract one
                         if (!task.abstract? && target_task.abstract?)
-			    Engine.debug { "    rejecting #{target_task}.merge(#{task}) as abstract attribute mismatches" }
+			    Engine.debug { "rejecting #{target_task}.merge(#{task}) as abstract attribute mismatches" }
 			    next
 			end
                         # Merges involving a deployed task can only involve a
                         # non-deployed task as well
                         if (task.execution_agent && target_task.execution_agent)
-			    Engine.debug { "    rejecting #{target_task}.merge(#{task}) as deployment attribute mismatches" }
+			    Engine.debug { "rejecting #{target_task}.merge(#{task}) as deployment attribute mismatches" }
 			    next
 			end
 
@@ -146,7 +153,7 @@ module Orocos
                             task_children   ||= task.merged_relations(:each_child, true, false).to_value_set
                             target_children = target_task.merged_relations(:each_child, true, false).to_value_set
                             if task_children != target_children || task_children.any? { |t| t.kind_of?(DataServiceProxy) }
-			        Engine.debug { "    rejecting #{target_task}.merge(#{task}) as composition have different children" }
+			        Engine.debug { "rejecting #{target_task}.merge(#{task}) as composition have different children" }
 			        next
 			    end
                         end
@@ -155,21 +162,17 @@ module Orocos
                         can_merge = target_task.can_merge?(task)
                         if can_merge.nil?
                             # Not a direct merge, but might be a cycle
-                            Engine.debug do
-                                "    possible cycle merge for #{target_task}.merge(#{task})"
-                            end
+                            Engine.debug { "possible cycle merge for #{target_task}.merge(#{task})" }
                             if possible_cycles
                                 possible_cycles << [task, target_task]
                             end
                             next
                         elsif !can_merge
-			    Engine.debug { "    rejected because #{target_task}.can_merge?(#{task}) returned false" }
+			    Engine.debug { "rejected because #{target_task}.can_merge?(#{task}) returned false" }
                             next
                         end
 
-                        Engine.debug do
-                            "    #{target_task}.merge(#{task})"
-                        end
+                        Engine.debug { "#{target_task}.merge(#{task})" }
                         merge_graph.link(target_task, task, nil)
                     end
                 end
@@ -653,9 +656,12 @@ module Orocos
 
                     while !candidates.empty?
                         Engine.debug "  -- Raw merge candidates"
-                        merges = direct_merge_mappings(candidates, possible_cycles)
-                        Engine.debug "     #{merges.size} vertices in merge graph"
-                        Engine.debug "     #{possible_cycles.size} possible cycles"
+                        merges = Engine.log_nest(4) do
+                            merges = direct_merge_mappings(candidates, possible_cycles)
+                            Engine.debug "#{merges.size} vertices in merge graph"
+                            Engine.debug "#{possible_cycles.size} possible cycles"
+                            merges
+                        end
 
                         if merges.empty?
                             Engine.debug "  -- Looking for merges in dataflow cycles"
