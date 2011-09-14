@@ -1361,9 +1361,9 @@ module Orocos
                         add_timepoint 'compute_connection_policies', 'start'
                         @port_dynamics = DataFlowDynamics.compute_connection_policies(trsc)
                         add_timepoint 'compute_connection_policies', 'done'
-                    end
-                    Engine.deployment_postprocessing.each do |block|
-                        block.call(self)
+                        Engine.deployment_postprocessing.each do |block|
+                            block.call(self)
+                        end
                     end
 
                     # Finally, we map the deployed network to the currently
