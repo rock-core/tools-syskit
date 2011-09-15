@@ -137,21 +137,21 @@ module Orocos
         #   # source.port and sink.port are both CompositionChildPort instances
         #
         class CompositionChildPort
-            # The child object this port is part of
+            # [CompositionChild] The child object this port is part of
             attr_reader :child
-            # The port object that describes the actual port
+            # [Orocos::Spec::Port] The port object that describes the actual port
             attr_reader :port
-            # The actual port name. Can be different from port.name
-            # in case of port exports (in compositions) and port aliasing
+            # [String] The actual port name. Can be different from port.name in
+            # case of port exports (in compositions) and port aliasing
             attr_accessor :name
 
             # Returns the true name for the port, i.e. the name of the port on
             # the child
             def actual_name; port.name end
 
-            # THe port's type object
+            # The port's type object, as a subclass of Typelib::Type
             def type; port.type end
-            # The port's type name
+            # [String] The port's type name
             def type_name; port.type_name end
 
             # Declare that this port should be ignored in the automatic
@@ -172,7 +172,9 @@ module Orocos
                     other.name == name
             end
         
-            # Return true if the underlying port multiplexes
+            # Return true if the underlying port multiplexes, i.e. if it is
+            # an input port that is expected to have multiple inbound
+            # connections
             def multiplexes?
                @port.multiplexes?
             end
@@ -815,6 +817,8 @@ module Orocos
                 end
             end
 
+            # Registers a new composition model that is a specialization of
+            # +self+
             def add_specialization(all_specializations, new_specializations, &block)
                 # There's no composition with that spec. Create a new one
                 child_composition = new_submodel('', system_model)
