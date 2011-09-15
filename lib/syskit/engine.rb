@@ -347,7 +347,7 @@ module Orocos
                     instance = instance.dup
                     instance.name = instance_name
                 else
-                    raise SpecError, "#{value} does not refer to a known task or device (known tasks: #{engine.tasks.keys.sort.join(", ")}; known devices: #{engine.robot.devices.keys.sort.join(", ")})"
+                    raise SpecError, "#{name} does not refer to a known task or device (known tasks: #{tasks.keys.sort.join(", ")}; known devices: #{robot.devices.keys.sort.join(", ")})"
                 end
 
                 # Check if a service has explicitely been selected, and
