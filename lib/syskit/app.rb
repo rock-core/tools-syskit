@@ -801,6 +801,7 @@ module Orocos
         require 'orocos/roby'
         require 'orocos/process_server'
         Orocos.load_orogen_plugins('roby')
+        Roby.app.filter_out_patterns.push(/^#{Regexp.quote(File.expand_path(File.dirname(__FILE__), ".."))}/)
     end
 end
 
