@@ -46,16 +46,6 @@ module Orocos
                 opt.on('--debug', "turn debugging output on") do
                     Scripts.debug = true
                 end
-                opt.on_tail('-h', '--help', 'this help message') do
-                    STDERR.puts opt
-                    exit
-                end
-                opt.on('-r NAME', '--robot=NAME[,TYPE]', String, 'the robot name used as context to the deployment') do |name|
-                    robot_name, robot_type = name.split(',')
-                    Scripts.robot_name = robot_name
-                    Scripts.robot_type = robot_type
-                    Roby.app.robot(name, robot_type||robot_name)
-                end
                 if with_output
                     opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, 'in what format to output the result (can be: txt, dot, png or svg), defaults to txt') do |output_arg|
                         output_type, output_file = output_arg.split(':')
@@ -63,6 +53,7 @@ module Orocos
                         Scripts.output_type = output_type.downcase
                     end
                 end
+                Roby::Application.common_optparse_setup(opt)
             end
 
             def self.setup
