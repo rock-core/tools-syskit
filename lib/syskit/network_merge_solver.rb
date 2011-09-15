@@ -700,7 +700,7 @@ module Orocos
                         applied_merges = apply_merge_mappings(merges)
                         candidates = ValueSet.new
                         applied_merges.each_vertex do |task|
-                            candidates << task if task.leaf?
+                            candidates << task if task.leaf?(applied_merges)
                         end
                         merged_tasks.merge(candidates)
 
