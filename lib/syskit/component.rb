@@ -852,6 +852,7 @@ module Orocos
                 # that target_task has (without considering target_task itself).
                 models = user_required_model
                 if !fullfills?(models)
+                    NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: does not fullfill required model #{models.map(&:name).join(", ")}" }
                     return false
                 end
 
@@ -859,34 +860,65 @@ module Orocos
                 #
                 # We search for connections that use the same input port, and
                 # verify that they are coming from the same output
-                self_inputs = Hash.new
+                self_inputs = Hash.new { |h, k| h[k] = Hash.new }
                 each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    if (port_model = model.find_input_port(sink_port)) && port_model.multiplexes?
-                        next
-                    elsif self_inputs.has_key?(sink_port)
-                        return false
-                    end
-                    self_inputs[sink_port] = [source_task, source_port, policy]
+                    self_inputs[sink_port][[source_task, source_port]] = policy
                 end
 
                 might_be_cycle = false
                 target_task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     if (port_model = model.find_input_port(sink_port)) && port_model.multiplexes?
                         next
-                    elsif conn = self_inputs[sink_port]
-                        same_port   = (conn[1] == source_port)
-                        same_source = (conn[0] == source_task)
-                        if !same_port
+                    end
+
+                    # If +self+ has no connection on +sink_port+, it is valid
+                    if !self_inputs.has_key?(sink_port)
+                        next
+                    end
+
+                    # If the exact same connection is provided, verify that
+                    # the policies match
+                    if conn_policy = self_inputs[sink_port][[source_task, source_port]]
+                        if !policy.empty? && (RobyPlugin.update_connection_policy(conn_policy, policy) != policy)
+                            NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
                             return false
-                        elsif !policy.empty? && (RobyPlugin.update_connection_policy(conn[2], policy) != policy)
-                            return false
-                        elsif !same_source
-                            if Flows::DataFlow.reachable?(self, conn[0]) && Flows::DataFlow.reachable?(target_task, source_task)
-                                might_be_cycle = true
-                            else
-                                return false
+                        end
+                        next
+                    end
+
+                    # Otherwise, we look for potential cycles, i.e. for
+                    # connections where:
+                    #
+                    #  * the port names are the same
+                    #  * the tasks are different
+                    #  * but the tasks are interlinked
+                    #
+                    # If there seem to be a cycle, return a "maybe".
+                    # Otherwise, return false
+                    found = false
+                    self_inputs[sink_port].each do |conn, conn_policy|
+                        next if conn[1] != source_port
+
+                        if Flows::DataFlow.reachable?(self, conn[0]) && Flows::DataFlow.reachable?(target_task, source_task)
+                            if RobyPlugin.update_connection_policy(conn_policy, policy) == policy
+                                found = true
                             end
                         end
+                    end
+
+                    if found
+                        might_be_cycle = true
+                    else
+                        NetworkMergeSolver.debug do
+                            NetworkMergeSolver.debug "cannot merge #{target_task} into #{self}: incompatible connections on #{sink_port}, resp."
+                            NetworkMergeSolver.debug "    #{source_task}.#{source_port}"
+                            NetworkMergeSolver.debug "    --"
+                            self_inputs[sink_port].each_key do |conn|
+                                NetworkMergeSolver.debug "    #{conn[0]}.#{conn[1]}"
+                            end
+                            break
+                        end
+                        return false
                     end
                 end
 
