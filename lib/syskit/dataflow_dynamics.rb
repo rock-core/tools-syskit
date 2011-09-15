@@ -111,10 +111,10 @@ module Orocos
             end
 
             def merge(other_dynamics)
-                Engine.debug do
-                    Engine.debug "  adding triggers from #{other_dynamics.name} to #{name}"
-                    other_dynamics.triggers.each do |tr|
-                        Engine.debug "    (#{tr.name}): #{tr.period} #{tr.sample_count}"
+                DataFlowDynamics.debug do
+                    DataFlowDynamics.debug "adding triggers from #{other_dynamics.name} to #{name}"
+                    DataFlowDynamics.log_nest(4) do
+                        DataFlowDynamics.log_pp(:debug, other_dynamics)
                     end
                     break
                 end
@@ -144,6 +144,12 @@ module Orocos
 
             def queue_size(duration)
                 (1 + sample_count(duration)) * sample_size
+            end
+            
+            def pretty_print(pp)
+                pp.seplist(triggers) do |tr|
+                    pp.text "(#{tr.name}): #{tr.period} #{tr.sample_count}"
+                end
             end
         end
 

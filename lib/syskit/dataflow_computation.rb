@@ -122,6 +122,16 @@ module Orocos
                     modes = %w{ALL ANY PARTIAL}
                     "#<Trigger: mode=#{modes[mode]} ports=#{ports.map { |t, p| "#{t}.#{p}" }.sort.join(",")}>"
                 end
+
+                def pretty_print(pp)
+                    mode = %w{ALL ANY PARTIAL}[self.mode]
+                    pp.text mode
+                    pp.breakable
+                    pp.seplist(ports) do |portdef|
+                        task, port = *portdef
+                        pp.text "#{task}.#{port}"
+                    end
+                end
             end
 
             def propagate(tasks)
@@ -155,24 +165,35 @@ module Orocos
                     raise ArgumentError, "#required_information is supposed to return a Hash, but returned #{@missing_ports}"
                 end
 
+                debug ""
+                debug "== Gathering Initial Information"
                 tasks.each do |task|
-                    initial_information(task)
-                    if connections = triggering_port_connections(task)
-                        triggering_connections[task] = connections
-                        triggering_dependencies[task] = connections.map do |port_name, triggers|
-                            triggers.ports.map(&:first)
-                        end
+                    debug { "computing initial information for #{task}" }
 
-                        debug do
-                            debug "#{connections.size} triggering connections for #{task}"
-                            connections.each do |task, port|
-                                debug "  #{task} #{port}"
+                    log_nest(4) do
+                        initial_information(task)
+                        if connections = triggering_port_connections(task)
+                            triggering_connections[task] = connections
+                            triggering_dependencies[task] = connections.map do |port_name, triggers|
+                                triggers.ports.map(&:first)
                             end
-                            break
+
+                            debug do
+                                debug "#{connections.size} triggering connections for #{task}"
+                                connections.each do |port_name, info|
+                                    debug "    for #{port_name}"
+                                    log_nest(8) do
+                                        log_pp :debug, info
+                                    end
+                                end
+                                break
+                            end
                         end
                     end
                 end
 
+                debug ""
+                debug "== Propagation"
                 remaining_tasks = tasks.dup
                 while !missing_ports.empty?
                     remaining_tasks = remaining_tasks.
@@ -184,6 +205,20 @@ module Orocos
                             next if has_final_information_for_port?(task, port_name)
 
                             to_propagate, complete = triggers.ports_to_propagate(self)
+                            debug do
+                                if to_propagate.empty?
+                                    debug "nothing to propagate to #{task}.#{port_name}"
+                                    debug "    complete: #{complete}"
+                                else
+                                    debug "propagating information to #{task}.#{port_name}"
+                                    debug "    complete: #{complete}"
+                                    to_propagate.each do |info|
+                                        debug "    #{info.compact.join(".")}"
+                                    end
+                                end
+                                break
+                            end
+
                             to_propagate.each do |info|
                                 begin
                                     add_port_info(task, port_name, port_info(*info))
@@ -292,10 +327,12 @@ module Orocos
             def done_port_info(task, port_name)
                 debug do
                     debug "done computing information for #{task}.#{port_name}"
-                    if has_information_for_port?(task, port_name)
-                        debug "  #{port_info(task, port_name)}"
-                    else
-                        debug "  no stored information"
+                    log_nest(4) do
+                        if has_information_for_port?(task, port_name)
+                            log_pp(:debug, port_info(task, port_name))
+                        else
+                            debug "no stored information"
+                        end
                     end
                     @done_at ||= Hash.new
                     @done_at[[task, port_name]] = caller
