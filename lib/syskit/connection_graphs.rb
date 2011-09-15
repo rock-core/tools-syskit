@@ -80,30 +80,38 @@ module Orocos
                 return old
             end
 
+            old_fallback = old.delete(:fallback_policy)
+            new_fallback = new.delete(:fallback_policy)
+            if old_fallback && new_fallback
+                fallback = update_connection_policy(old_fallback, new_fallback)
+            else
+                fallback = old_fallback || new_fallback
+            end
+
             old = Port.validate_policy(old)
             new = Port.validate_policy(new)
-            if old[:type] != new[:type]
-                raise ArgumentError, "connection types mismatch: #{old[:type]} != #{new[:type]}"
-            end
-            type = old[:type]
 
-            if type == :buffer
-                if new.size != old.size
-                    raise ArgumentError, "connection policy mismatch: #{old} != #{new}"
-                end
-
-                old.merge(new) do |key, old_value, new_value|
-                    if key == :size
-                        [old_value, new_value].max
-                    elsif old_value != new_value
-                        raise ArgumentError, "connection policy mismatch for #{key}: #{old_value} != #{new_value}"
+            type = old[:type] || new[:type]
+            merged = old.merge(new) do |key, old_value, new_value|
+                if old_value == new_value
+                    old_value
+                elsif key == :type
+                    raise ArgumentError, "connection types mismatch: #{old_value} != #{new_value}"
+                elsif key == :transport
+                    if old_value == 0 then new_value
+                    elsif new_value == 0 then old_value
                     else
-                        old_value
+                        raise ArgumentError, "policy mismatch for transport: #{old_value} != #{new_value}"
                     end
+                else
+                    raise ArgumentError, "policy mismatch for #{key}: #{old_value} != #{new_value}"
                 end
-            elsif old == new.slice(*old.keys)
-                new
             end
+
+            if fallback
+                merged[:fallback_policy] = fallback
+            end
+            merged
         end
 
         Flows = Roby::RelationSpace(Component)
