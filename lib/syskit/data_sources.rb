@@ -592,20 +592,20 @@ module Orocos
                 # allocate a corresponding service in +self+
                 each_service_merge_candidate(target_task) do |selected_source_name, other_service, self_services|
                     if self_services.empty?
-                        Engine.debug do
-                            Engine.debug "cannot merge #{target_task} into #{self} as"
-                            Engine.debug "  no candidates for #{other_service}"
+                        NetworkMergeSolver.debug do
+                            NetworkMergeSolver.debug "cannot merge #{target_task} into #{self} as"
+                            NetworkMergeSolver.debug "  no candidates for #{other_service}"
                             break
                         end
 
                         return false
                     elsif self_services.size > 1
-                        Engine.debug do
-                            Engine.debug "cannot merge #{target_task} into #{self} as"
-                            Engine.debug "  ambiguous service selection for #{other_service}"
-                            Engine.debug "  candidates:"
+                        NetworkMergeSolver.debug do
+                            NetworkMergeSolver.debug "cannot merge #{target_task} into #{self} as"
+                            NetworkMergeSolver.debug "  ambiguous service selection for #{other_service}"
+                            NetworkMergeSolver.debug "  candidates:"
                             self_services.map(&:to_s).each do |name|
-                                Engine.debug "    #{name}"
+                                NetworkMergeSolver.debug "    #{name}"
                             end
                             break
                         end
