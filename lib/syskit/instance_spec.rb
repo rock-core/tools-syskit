@@ -335,6 +335,7 @@ module Orocos
                 end
 
                 @task = task_model.instanciate(engine, context, instanciate_arguments)
+                task.requirements.merge(self)
                 if !task_model.fullfills?(base_models)
                     raise InternalError, "instanciated task #{@task} does not provide the required models #{base_models.map(&:short_name).join(", ")}"
                 end
