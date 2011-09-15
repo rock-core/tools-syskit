@@ -842,10 +842,6 @@ module Orocos
                     spec == specialization_model.specialized_children
                 end
 
-                if has_spec && !specializations[specialization_model.specialized_children]
-                    raise "bloblo"
-                end
-
                 return if specializations[specialization_model.specialized_children]
 
                 specializations[specialization_model.specialized_children] = specialization_model
