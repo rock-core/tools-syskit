@@ -82,13 +82,14 @@ module Orocos
             end
 
             def pretty_print(pp)
-                pp.text "there are no services in #{task_model} that provide the service #{required_service.short_name}"
+                pp.text "there are no services in #{task_model} that provide the service #{required_service}"
                 pp.breakable
                 pp.text "the services of #{task_model.short_name} are:"
                 pp.nest(2) do
                     pp.breakable
                     pp.seplist(task_model.each_data_service) do |srv|
-                        pp.text "#{srv.name}: #{srv.model.short_name}"
+                        _, srv = *srv
+                        pp.text "#{srv.full_name}: #{srv.model.short_name}"
                     end
                 end
             end
@@ -126,13 +127,13 @@ module Orocos
             end
 
             def pretty_print(pp)
-                pp.text "there is an ambiguity while looking for a service of type #{required_service.short_name} in #{task_model.short_name}"
+                pp.text "there is an ambiguity while looking for a service of type #{required_service} in #{task_model.short_name}"
                 pp.breakable
                 pp.text "candidates are:"
                 pp.nest(2) do
                     pp.breakable
                     pp.seplist(candidates) do |service|
-                        pp.text service.name
+                        pp.text service.full_name
                     end
                 end
             end
