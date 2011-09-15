@@ -1839,7 +1839,7 @@ module Orocos
                     Engine.debug { "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})" }
                     # Check for the corresponding task in the plan
 		    Engine.debug deployment_task.deployment_name
-                    existing_deployment_tasks = (plan.find_tasks(deployment_task.model).not_finished.to_value_set & existing_deployments).
+                    existing_deployment_tasks = (plan.find_local_tasks(deployment_task.model).not_finished.to_value_set & existing_deployments).
                         find_all { |t| t.deployment_name == deployment_task.deployment_name }
 		    Engine.debug deployment_task.deployment_name
 
