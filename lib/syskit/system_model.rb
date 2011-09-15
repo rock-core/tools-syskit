@@ -195,9 +195,9 @@ module Orocos
             # See #ignored_ports_for_autoconnection
             def ignored_for_autoconnection?(port)
                 ignored_ports_for_autoconnection.any? do |port_klass, port_name, port_type_name|
-                    (port_klass && port.kind_of?(port_klass)) ||
-                    (port_name && port.name == port_name) ||
-                    (port_type_name && port.type_name == port_type_name)
+                    (!port_klass || port.kind_of?(port_klass)) &&
+                    (!port_name || port.name == port_name) &&
+                    (!port_type_name || port.type_name == port_type_name)
                 end
             end
 

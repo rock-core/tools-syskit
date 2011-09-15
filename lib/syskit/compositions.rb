@@ -1241,7 +1241,7 @@ module Orocos
                         next if seen.include?(out_port.name)
                         next if exported_port?(out_port)
                         next if autoconnect_ignores.include?([name, out_port.name])
-                        next if system_model.ignored_for_autoconnection?(out_port)
+                        next if system_model.ignored_for_autoconnection?(out_port.port)
 
                         child_outputs << out_port
                         seen << out_port.name
@@ -1250,7 +1250,7 @@ module Orocos
                         next if seen.include?(in_port.name)
                         next if exported_port?(in_port)
                         next if autoconnect_ignores.include?([name, in_port.name])
-                        next if system_model.ignored_for_autoconnection?(in_port)
+                        next if system_model.ignored_for_autoconnection?(in_port.port)
                         child_inputs << in_port
                         seen << in_port.name
                     end
