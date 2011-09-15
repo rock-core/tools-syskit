@@ -345,7 +345,7 @@ module Orocos
             def triggering_inputs(task)
                 all_triggers = ValueSet.new
                 @triggers[[task, nil]] = Set.new
-                task.orogen_spec.task_model.each_event_port.map do |port|
+                task.model.each_event_port do |port|
                     if task.has_concrete_input_connection?(port.name)
                         all_triggers << port
                         @triggers[[task, nil]] << [task, port.name]

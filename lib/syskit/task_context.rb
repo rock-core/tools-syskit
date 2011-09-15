@@ -84,6 +84,10 @@ module Orocos
                 def worstcase_processing_time(value)
                     orogen_spec.worstcase_processing_time(value)
                 end
+
+                def each_event_port(&block)
+                    orogen_spec.each_event_port(&block)
+                end
             end
             @@configured = Hash.new
             @@needs_reconfiguration = Set.new
