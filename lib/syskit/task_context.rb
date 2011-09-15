@@ -267,9 +267,16 @@ module Orocos
                 # Verify the host constraints (i.e. can't merge other_task in
                 # +self+ if both have constraints on which host they should run,
                 # and that constraint does not match)
-                other_task.respond_to?(:required_host) &&
+                result = other_task.respond_to?(:required_host) &&
                     (!required_host || !other_task.required_host ||
                     required_host == other_task.required_host)
+
+                if !result
+                    NetworkMergeSolver.debug { "cannot merge #{other_task} in #{self}: different host constraints" }
+                    false
+                else
+                    true
+                end
             end
 
             # The PortDynamics object that describes the dynamics of the task
