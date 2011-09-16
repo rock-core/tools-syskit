@@ -149,7 +149,7 @@ module Orocos
                 end
 
                 defn = Roby.app.orocos_engine.
-                    instanciated_component_from_name(definition_name)
+                    resolve_name(definition_name)
                 if !defn
                     raise ArgumentError, "#{defn} is not a valid definition"
                 end
