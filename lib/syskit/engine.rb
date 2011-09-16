@@ -948,6 +948,34 @@ module Orocos
 
             end
 
+            def apply_merge_to_stored_instances
+                # Replace the tasks stored in devices and instances by the
+                # actual new tasks
+                mappings = Hash.new
+                instances.each do |instance|
+                    new_task = (mappings[instance.task] ||= @network_merge_solver.replacement_for(instance.task))
+                    if new_task != instance.task
+                        NetworkMergeSolver.debug { "updated task of instance #{instance.task} from #{instance.task} to #{new_task}" }
+                    end
+                    instance.task = new_task
+                end
+                robot.devices.each do |name, dev|
+                    next if !dev.respond_to?(:task=)
+                    new_task = (mappings[dev.task] ||= @network_merge_solver.replacement_for(dev.task))
+                    if new_task != dev.task
+                        NetworkMergeSolver.debug { "updated task of device #{name} from #{dev.task} to #{new_task}" }
+                    end
+                    dev.task = new_task
+                end
+                @tasks = tasks.map_value do |name, task|
+                    new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task))
+                    if new_task != task
+                        NetworkMergeSolver.debug { "updated named task #{name} from #{task} to #{new_task}" }
+                    end
+                    new_task
+                end
+            end
+
             def add_default_selections(using_spec)
                 result = main_selection.merge(using_spec)
                 InstanceRequirements.resolve_recursive_selection_mapping(result)
@@ -970,6 +998,8 @@ module Orocos
                 end
                 add_timepoint 'compute_system_network', 'merge'
                 @network_merge_solver.merge_identical_tasks
+                apply_merge_to_stored_instances
+
                 add_timepoint 'compute_system_network', 'postprocessing'
                 Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, plan)
@@ -978,6 +1008,7 @@ module Orocos
                 link_to_busses
                 add_timepoint 'compute_system_network', 'merge'
                 @network_merge_solver.merge_identical_tasks
+                apply_merge_to_stored_instances
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
@@ -1013,6 +1044,7 @@ module Orocos
             def deploy_system_network
                 instanciate_required_deployments
                 @network_merge_solver.merge_identical_tasks
+                apply_merge_to_stored_instances
 
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
@@ -1379,6 +1411,7 @@ module Orocos
                         @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
                         add_timepoint 'compute_deployment', 'merge'
                         @network_merge_solver.merge_identical_tasks
+                        apply_merge_to_stored_instances
                         add_timepoint 'compute_deployment', 'done'
                     end
 
@@ -1411,14 +1444,14 @@ module Orocos
 
                     fullfilled_models = Hash.new
 
+                    # Update tasks, devices and instances
+                    apply_merge_to_stored_instances
+
                     # Replace the tasks stored in devices and instances by the
                     # actual new tasks
                     instances.each do |instance|
                         old_task = state_backup.instance_tasks[instance]
-                        new_task = @network_merge_solver.replacement_for(instance.task)
-                        if old_task != new_task
-                            Engine.debug "#{instance}.task: #{old_task} is replaced by #{new_task}"
-                        end
+                        new_task = instance.task
                         if instance.mission?
                             trsc.add_mission(trsc[new_task])
                         end
@@ -1449,8 +1482,6 @@ module Orocos
                         next if !robot.devices[name].respond_to?(:task=)
 
                         device_task = robot.devices[name].task
-                        device_task = @network_merge_solver.replacement_for(device_task)
-
                         if device_task.plan
                             if device_task.transaction_proxy?
                                 robot.devices[name].task = device_task.__getobj__
