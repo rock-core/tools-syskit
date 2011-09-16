@@ -498,6 +498,19 @@ module Orocos
                 instance
             end
 
+            # Returns true if +obj+ is a definition that is valid given the
+            # current system configuration, i.e. if it could be used in #define
+            # or #add
+            def valid_definition?(spec)
+                begin
+                    Engine.create_instanciated_component(self, "", spec)
+                    true
+                rescue ArgumentError
+                    false
+                end
+            end
+
+
             # Returns true if +name+ is the name of a definition added with
             # #define
             def has_definition?(name)
@@ -695,26 +708,42 @@ module Orocos
                     end
                     break
                 end
+                @main_selection = main_selection
 
                 instances.each do |instance|
-                    begin
-                        main_selection.save
-                        plan.add(task = instance.instanciate(self, main_selection))
-                    ensure
-                        main_selection.restore
-                    end
-
-                    if name = instance.name
-                        register_task(name, task)
-                    end
-
-                    # This is important here, as #resolve uses
-                    # static_garbage_collect to clear up the plan
-                    #
-                    # However, the permanent flag will be removed at the end
-                    # of #resolve
-                    plan.add_permanent(task)
+                    add_instance(instance, :as => instance.name, :context => main_selection)
                 end
+            end
+
+            # Add a task instance in the plan, during the instanciation process
+            #
+            # One must NOT use this method outside of the instanciation process
+            # !
+            def add_instance(instance_def, arguments = Hash.new)
+                arguments = Kernel.validate_options arguments, :as => nil, :context => @main_selection
+                context = arguments[:context]
+
+                selected = main_user_selection.selection_for(instance_def) || instance_def
+                instance = Engine.create_instanciated_component(self, arguments[:as], selected)
+
+                begin
+                    context.save
+                    plan.add(task = instance.instanciate(self, context))
+                ensure
+                    context.restore
+                end
+
+                if name = arguments[:as]
+                    register_task(name, task)
+                end
+
+                # This is important here, as #resolve uses
+                # static_garbage_collect to clear up the plan
+                #
+                # However, the permanent flag will be removed at the end
+                # of #resolve
+                plan.add_permanent(task)
+                task
             end
 
             # Generate a svg file representing the current state of the
