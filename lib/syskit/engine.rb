@@ -337,9 +337,9 @@ module Orocos
             #   base_name.service_name
             #
             # syntax.
-            def resolve_name(name, instance_name)
+            def resolve_name(name, instance_name = nil)
                 model_name, *service_name = name.to_str.split('.')
-                instance_name = instance_name.to_str
+                instance_name = instance_name.to_str if instance_name
 
                 if device = robot.devices[model_name]
                     instance = Engine.create_instanciated_component(self, instance_name, device)
