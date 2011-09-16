@@ -1159,6 +1159,17 @@ module Orocos
                 pp.breakable
                 pp.text "Selected: "
                 selected_task.pretty_print(pp)
+                pp.breakable
+                pp.text "Selected Services: "
+                if !selected_services.empty?
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.seplist(selected_services) do |sel|
+                            pp.text "#{sel[0]} => #{sel[1]}"
+                        end
+                    end
+                end
+                pp.breakable
                 pp.text "For: "
                 pp.nest(2) do
                     pp.breakable
