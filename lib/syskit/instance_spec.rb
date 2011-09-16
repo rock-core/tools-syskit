@@ -653,7 +653,17 @@ module Orocos
                 if name =~ /(.*)\.(\w+)$/
                     basename, service_name = $1, $2
                     base = DependencyInjection.resolve_selection_recursively(basename, mappings)
-                    InstanceSelection.from_object(base, InstanceRequirements.new, false, [service_name])
+                    base = InstanceSelection.from_object(base, InstanceRequirements.new, false)
+                    if !(task_model = base.requirements.models.find { |m| m <= Roby::Task })
+                        raise ArgumentError, "while resolving #{name}: cannot explicitely select a service on something that is not a task"
+                    end
+
+                    if service = InstanceSelection.select_service_by_name(task_model, service_name)
+                        service
+                    else
+                        raise ArgumentError, "cannot find service #{service_name} on #{basename}"
+                    end
+
                 else
                     DependencyInjection.resolve_selection_recursively(name, mappings)
                 end
@@ -1052,12 +1062,7 @@ module Orocos
                 selected_task
             end
 
-            def select_service_by_name(service_name)
-                task_model = requirements.models.find { |kl| kl < TaskContext }
-                if !task_model
-                    raise ArgumentError, "cannot look for a service on a non-task model"
-                end
-                
+            def self.select_service_by_name(task_model, service_name)
                 if !(candidate = task_model.find_data_service(service_name))
                     # Look for child services. Watch out for ambiguities
                     candidates = task_model.each_data_service.find_all do |name, srv|
@@ -1069,15 +1074,10 @@ module Orocos
                         candidate = candidates.first.last
                     end
                 end
-                
-                if candidate
-                    selected_services[candidate.model] = candidate
-                else
-                    raise NoMatchingService.new(task_model, service_name)
-                end
+                candidate
             end
 
-            def self.compute_service_selection(task_model, required_services, user_call, selected_services = nil)
+            def self.compute_service_selection(task_model, required_services, user_call)
                 result = Hash.new
                 required_services.each do |required|
                     next if !required.kind_of?(DataServiceModel)
@@ -1085,9 +1085,6 @@ module Orocos
                         task_model.find_all_services_from_type(required)
 
                     if candidate_services.size > 1
-                        if selected_services
-                            filtered = candidate_services.find_all { |srv| selected_services.include?(srv.name) }
-                        end
                         if filtered.size != 1
                             throw :invalid_selection if !user_call
                             raise AmbiguousServiceSelection.new([task_model], required, candidate_services)
@@ -1102,7 +1099,7 @@ module Orocos
                 result
             end
 
-            def self.from_object(object, requirements, user_call = false, selected_services = nil)
+            def self.from_object(object, requirements, user_call = false)
                 result = InstanceSelection.new(requirements)
                 required_model = requirements.models
 
@@ -1133,12 +1130,12 @@ module Orocos
                     object_requirements.require_model(object)
                 when Component
                     result.selected_task = object
-                    result.selected_services = compute_service_selection(object.model, required_model, selected_services, user_call)
+                    result.selected_services = compute_service_selection(object.model, required_model, user_call)
                     object_requirements.require_model(object.model)
                 else
                     if object < Component
                         object_requirements.require_model(object)
-                        result.selected_services = compute_service_selection(object, required_model, selected_services, user_call)
+                        result.selected_services = compute_service_selection(object, required_model, user_call)
                     else
                         throw :invalid_selection if !user_call
                         raise ArgumentError, "invalid selection #{object}: expected a device name, a task instance or a model"
@@ -1146,11 +1143,6 @@ module Orocos
                 end
 
                 result.requirements.merge(object_requirements)
-                if selected_services
-                    selected_services.each do |srv_name|
-                        result.select_service_by_name(srv_name)
-                    end
-                end
                 result
             end
 
