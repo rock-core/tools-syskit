@@ -61,6 +61,10 @@ module Orocos
             # @arg ann is the annotation itself, as an array. Each line in the
             #          array is displayed as a separate line in the label.
             def add_task_annotation(task, name, ann)
+                if !ann.respond_to?(:to_ary)
+                    ann = [ann]
+                end
+
                 task_annotations[task].merge!(name => ann) do |_, old, new|
                     old.concat(new)
                 end
