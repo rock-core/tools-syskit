@@ -174,6 +174,10 @@ module Orocos
             SingleRequirementTask.subplan(name_or_model)
         end
 
+        def self.requirement_from_name(name)
+            Roby.app.orocos_engine.resolve_name(name)
+        end
+
         # Type of task that allows to select a particular modality. I.e., it
         # removes any running instance of a particular service and replaces it
         # with the defined modality given to 'selected_modality'
