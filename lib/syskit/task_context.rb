@@ -534,7 +534,7 @@ module Orocos
                         @orogen_state = v
                     end
                 else
-                    new_state = orogen_task.state
+                    new_state = orogen_task.rtt_state
                     if new_state != @orogen_state
                         @last_orogen_state = orogen_state
                         @orogen_state = new_state
@@ -767,10 +767,11 @@ module Orocos
 		    emit :interrupt
                     emit :aborted
                 rescue Orocos::StateTransitionFailed
-		    # ALL THE LOGIC BELOW must use the state returned by
-		    # read_current_state. Do NOT call other state-related
-		    # methods like #state as they will read the state port
-                    if (state = orogen_task.peek_current_state) && (state != :RUNNING)
+                    # Use #rtt_state as it has no problem with asynchronous
+                    # communication, unlike the port-based state updates.
+		    state = orogen_task.rtt_state
+                    if state != :RUNNING
+			Engine.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
                         # Nothing to do, the poll block will finalize the task
                     else
                         raise
