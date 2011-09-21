@@ -529,6 +529,10 @@ module Orocos
                 end
 
                 if @state_reader
+                    if !@state_reader.connected?
+                        raise InternalError, "state_reader got disconnected"
+                    end
+
                     if v = @state_reader.read_new
                         @last_orogen_state = orogen_state
                         @orogen_state = v
