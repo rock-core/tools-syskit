@@ -545,12 +545,16 @@ module Orocos
             #
             # The new mapping overrides existing mappings
             def add_explicit(mappings)
+                # Invalidate the @resolved cached
+                @resolved = nil
                 explicit.merge!(mappings)
                 @explicit = DependencyInjection.resolve_recursive_selection_mapping(explicit)
             end
 
             # Add a list of objects to the default list. 
             def add_defaults(list)
+                # Invalidate the @resolved cached
+                @resolved = nil
                 @defaults |= list
                 seen = Set.new
                 @defaults.delete_if do |obj|
@@ -622,6 +626,7 @@ module Orocos
             end
 
             def initialize_copy(from)
+                @resolved = nil
                 @explicit = from.explicit.map_value do |key, obj|
                     case obj
                     when InstanceRequirements, InstanceSelection
@@ -714,6 +719,8 @@ module Orocos
             # a block that must return a new value for the for
             # +selected_instance+. It modifies +self+
             def map!(&block)
+                # Invalidate the @resolved cached
+                @resolved = nil
                 changed = false
                 result = explicit.map_value do |k, v|
                     result = yield(v)
@@ -735,6 +742,8 @@ module Orocos
             # If both objects provide selections for the same keys,
             # raises ArgumentError if the two selections are incompatible
             def merge(other)
+                # Invalidate the @resolved cached
+                @resolved = nil
                 @explicit.merge!(other.explicit) do |match, model1, model2|
                     if model1 <= model2
                         model1
