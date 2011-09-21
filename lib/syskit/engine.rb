@@ -711,7 +711,7 @@ module Orocos
                 @main_selection = main_selection
 
                 instances.each do |instance|
-                    add_instance(instance, :as => instance.name, :context => main_selection)
+                    instance.task = add_instance(instance, :as => instance.name, :context => main_selection)
                 end
             end
 
