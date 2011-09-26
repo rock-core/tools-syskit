@@ -192,11 +192,15 @@ module Orocos
                     source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
                         policy = policy.dup
                         policy.delete(:fallback_policy)
-                        policy_s = if policy.empty? then ""
-                                   elsif policy[:type] == :data then 'data'
-                                   elsif policy[:type] == :buffer then  "buffer:#{policy[:size]}"
-                                   else policy.to_s
-                                   end
+                        if policy.empty?
+                            policy_s = "(no policy)"
+                        else
+                            policy_s = if policy.empty? then ""
+                                       elsif policy[:type] == :data then 'data'
+                                       elsif policy[:type] == :buffer then  "buffer:#{policy[:size]}"
+                                       else policy.to_s
+                                       end
+                        end
                         conn_annotations[[source_task, source_port, sink_task, sink_port]] << policy_s
                     end
                 end
