@@ -2115,8 +2115,6 @@ module Orocos
                     t.emit :aborted, e
                 end
             end
-
-            RuntimeConnectionManagement.update(plan, all_dead_deployments)
         end
 
         def self.apply_requirement_modifications(plan)

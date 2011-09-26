@@ -750,8 +750,9 @@ module Orocos
 
             def self.run(app)
                 handler_ids = []
-                handler_ids << Roby.engine.add_propagation_handler(:type => :external_events, &Orocos::RobyPlugin.method(:update_task_states))
-                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &Orocos::RobyPlugin.method(:apply_requirement_modifications))
+                handler_ids << Roby.engine.add_propagation_handler(:type => :external_events, &RobyPlugin.method(:update_task_states))
+                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &RuntimeConnectionManagement.method(:update))
+                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &RobyPlugin.method(:apply_requirement_modifications))
 
                 if app.orocos_start_all_deployments?
                     all_deployment_names = app.orocos_engine.deployments.values.map(&:to_a).flatten

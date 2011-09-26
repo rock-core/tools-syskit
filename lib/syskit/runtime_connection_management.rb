@@ -10,10 +10,10 @@ module Orocos
                 @plan = plan
             end
 
-            def self.update(plan, dead_deployments, dry_run = false)
+            def self.update(plan, dry_run = false)
                 manager = RuntimeConnectionManagement.new(plan)
                 manager.dry_run = dry_run
-                manager.update(dead_deployments)
+                manager.update
             end
 
             # Updates an intermediate graph (RobyPlugin::RequiredDataFlow) where
@@ -333,14 +333,14 @@ module Orocos
                 true
             end
 
-            def update(dead_deployments)
+            def update
                 tasks = Flows::DataFlow.modified_tasks
                 if !tasks.empty?
                     # If there are some tasks that have been GCed/killed, we still
                     # need to update the connection graph to remove the old
                     # connections.  However, we should remove these tasks now as they
                     # should not be passed to compute_connection_changes
-                    tasks.delete_if { |t| !t.plan || dead_deployments.include?(t.execution_agent) }
+                    tasks.delete_if { |t| !t.plan || !t.execution_agent || t.execution_agent.ready_to_die? || t.execution_agent.finished? }
 
                     main_tasks, proxy_tasks = tasks.partition { |t| t.plan == plan }
                     main_tasks = main_tasks.to_value_set
