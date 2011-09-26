@@ -494,7 +494,7 @@ module Orocos
                 # Don't do anything if the policy has already been set
                 if !policy.empty?
                     DataFlowDynamics.debug " #{source_task}:#{source_port_name} => #{sink_task}:#{sink_port_name} already connected with #{policy}"
-                    next
+                    return policy
                 end
 
                 source_port = source_task.find_output_port_model(source_port_name)
