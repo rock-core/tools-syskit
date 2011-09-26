@@ -251,6 +251,23 @@ module Orocos
                 result
             end
 
+            def disconnect_port(port_name)
+                if port_name.respond_to?(:name)
+                    port_name = port_name.name
+                end
+
+                each_source do |parent_task|
+                    current = parent_task[self, Flows::DataFlow]
+                    current.delete_if { |(from, to), pol| to == port_name }
+                    parent_task[self, Flows::DataFlow] = current
+                end
+                each_sink do |child_task|
+                    current = self[child_task, Flows::DataFlow]
+                    current.delete_if { |(from, to), pol| from == port_name }
+                    self[child_task, Flows::DataFlow] = current
+                end
+            end
+
             # Calls either #connect_ports or #forward_ports, depending on its
             # arguments
             #
