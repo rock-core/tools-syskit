@@ -98,7 +98,7 @@ module Orocos
 
             def add_trigger(name, period, sample_count)
                 if sample_count != 0
-                    Engine.debug { "  [#{self.name}]: adding trigger from #{name} - #{period} #{sample_count}" }
+                    DataFlowDynamics.debug { "  [#{self.name}]: adding trigger from #{name} - #{period} #{sample_count}" }
                     triggers << Trigger.new(name, period, sample_count).freeze
                 end
             end
@@ -229,9 +229,9 @@ module Orocos
             # Adds triggering information from the attached devices to +task+'s ports
             def initial_device_information(task)
                 triggering_devices = task.each_device.to_a
-                Engine.debug do
-                    Engine.debug "initial port dynamics on #{task} (device)"
-                    Engine.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(", ")}"
+                DataFlowDynamics.debug do
+                    DataFlowDynamics.debug "initial port dynamics on #{task} (device)"
+                    DataFlowDynamics.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(", ")}"
                     break
                 end
 
@@ -252,7 +252,7 @@ module Orocos
             # initial_device_information_internal_triggering
             def initial_device_information_common(task, triggering_devices)
                 triggering_devices.each do |service, device|
-                    Engine.debug { "  #{device.name}: #{device.period} #{device.burst}" }
+                    DataFlowDynamics.debug { "  #{device.name}: #{device.period} #{device.burst}" }
                     device_dynamics = PortDynamics.new(device.name, 1)
                     if device.period
                         device_dynamics.add_trigger(device.name, device.period, 1)
@@ -266,7 +266,7 @@ module Orocos
             # Computes the initial port dynamics due to devices when the task
             # gets triggered by the devices it is attached to
             def initial_device_information_internal_triggering(task, triggering_devices)
-                Engine.debug "  is triggered internally"
+                DataFlowDynamics.debug "  is triggered internally"
 
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
                     add_task_info(task, device_dynamics)
@@ -281,7 +281,7 @@ module Orocos
             # Computes the initial port dynamics due to devices when the task is
             # triggered periodically
             def initial_device_information_periodic_triggering(task, triggering_devices, period)
-                Engine.debug { "  is triggered with a period of #{period} seconds" }
+                DataFlowDynamics.debug { "  is triggered with a period of #{period} seconds" }
 
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
                     service.each_output_port(true) do |out_port|
@@ -329,7 +329,7 @@ module Orocos
 
                 activity_type = task.orogen_spec.activity_type.name
                 if activity_type == "Periodic"
-                    Engine.debug { "  adding periodic trigger #{task.orogen_spec.period} 1" }
+                    DataFlowDynamics.debug { "  adding periodic trigger #{task.orogen_spec.period} 1" }
                     add_task_trigger(task, "#{task.orocos_name}.main-period", task.orogen_spec.period, 1)
                     done_task_info(task)
                 else
@@ -401,8 +401,8 @@ module Orocos
                     if has_final_information_for_port?(trigger_task, trigger_port)
                         port_info(trigger_task, trigger_port)
                     else
-                        Engine.debug do
-                            Engine.debug "  missing info on #{trigger_task}.#{trigger_port} to compute #{task}.#{port_name}"
+                        DataFlowDynamics.debug do
+                            DataFlowDynamics.debug "  missing info on #{trigger_task}.#{trigger_port} to compute #{task}.#{port_name}"
                             break
                         end
                         return false
@@ -429,16 +429,16 @@ module Orocos
 
                 done = true
                 required = missing_ports[task].dup
-                Engine.debug do
-                    Engine.debug "trying to compute dataflow dynamics for #{task}"
-                    Engine.debug "  requires information on: #{required.map(&:to_s).join(", ")}"
+                DataFlowDynamics.debug do
+                    DataFlowDynamics.debug "trying to compute dataflow dynamics for #{task}"
+                    DataFlowDynamics.debug "  requires information on: #{required.map(&:to_s).join(", ")}"
                     break
                 end
 
                 required.each do |missing|
                     if !compute_info_for(task, missing)
-                        Engine.debug do
-                            Engine.debug "  cannot compute information on #{missing}"
+                        DataFlowDynamics.debug do
+                            DataFlowDynamics.debug "  cannot compute information on #{missing}"
                             break
                         end
                         done = false
