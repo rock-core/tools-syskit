@@ -1003,6 +1003,15 @@ module Orocos
                     end
                     new_task
                 end
+                if @deployment_tasks
+                    @deployment_tasks = @deployment_tasks.map do |task|
+                        new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task))
+                        if new_task != task
+                            NetworkMergeSolver.debug { "updated deployment task #{task} to #{new_task}" }
+                        end
+                        new_task
+                    end
+                end
             end
 
             def add_default_selections(using_spec)
@@ -1353,7 +1362,9 @@ module Orocos
 
                 # Set some objects to nil to make sure that noone is using them
                 # while they are not valid
-                @dataflow_dynamics = @port_dynamics = nil
+                @dataflow_dynamics =
+                    @port_dynamics =
+                    @deployment_tasks = nil
 
                 if options == true
                     options = { :compute_policies => true }
