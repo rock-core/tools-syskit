@@ -1020,36 +1020,36 @@ module Orocos
             #
             # This network is neither validated nor tied to actual deployments
             def compute_system_network
-                add_timepoint 'compute_system_network', 'instanciate'
+                add_timepoint 'compute_system_network', 'start'
                 instanciate
                 Engine.instanciation_postprocessing.each do |block|
                     block.call(self, plan)
                 end
-                add_timepoint 'compute_system_network', 'merge'
+                add_timepoint 'compute_system_network', 'instanciate'
                 @network_merge_solver.merge_identical_tasks
                 apply_merge_to_stored_instances
 
-                add_timepoint 'compute_system_network', 'postprocessing'
+                add_timepoint 'compute_system_network', 'merge'
                 Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, plan)
+                    add_timepoint 'compute_system_network', 'postprocessing', block.to_s
                 end
-                add_timepoint 'compute_system_network', 'link_to_busses'
                 link_to_busses
-                add_timepoint 'compute_system_network', 'merge'
+                add_timepoint 'compute_system_network', 'link_to_busses'
                 @network_merge_solver.merge_identical_tasks
                 apply_merge_to_stored_instances
+                add_timepoint 'compute_system_network', 'merge'
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
-                add_timepoint 'compute_system_network', 'default_conf'
                 plan.find_local_tasks(Component).
                     each do |task|
                         if !task.arguments[:conf]
                             task.arguments[:conf] = ['default']
                         end
                     end
+                add_timepoint 'compute_system_network', 'default_conf'
 
-                add_timepoint 'compute_system_network', 'static_garbage_collect'
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
                 plan.static_garbage_collect do |obj|
@@ -1058,11 +1058,12 @@ module Orocos
                     # useful anymore
                     plan.remove_object(obj)
                 end
+                add_timepoint 'compute_system_network', 'static_garbage_collect'
 
-                add_timepoint 'compute_system_network', 'postprocessing'
                 Engine.system_network_postprocessing.each do |block|
                     block.call(self)
                 end
+                add_timepoint 'compute_system_network', 'postprocessing'
             end
 
             # Called after compute_system_network to map the required component
@@ -1387,14 +1388,13 @@ module Orocos
                     # requirements. This can fail if some service cannot be
                     # allocated to tasks, and if some drivers cannot be
                     # allocated to devices.
-                    add_timepoint 'compute_system_network', 'start'
                     compute_system_network
-                    add_timepoint 'compute_system_network', 'done'
+
+                    add_timepoint
 
                     if options[:garbage_collect] && options[:validate_network]
-                        add_timepoint 'validate_generated_network', 'start'
                         validate_generated_network(trsc, options)
-                        add_timepoint 'validate_generated_network', 'done'
+                        add_timepoint 'validate_generated_network'
                     end
 
                     # Now, deploy the network by matching the available
@@ -1404,26 +1404,24 @@ module Orocos
                     # The mapping from this deployed network to the running
                     # tasks is done in #finalize_deployed_tasks
                     if options[:compute_deployments]
-                        add_timepoint 'deploy_system_network', 'start'
                         deploy_system_network
-                        add_timepoint 'deploy_system_network', 'done'
+                        add_timepoint 'deploy_system_network'
                     end
 
                     if options[:validate_network]
-                        add_timepoint 'validate_deployed_network', 'start'
                         validate_deployed_network
-                        add_timepoint 'validate_deployed_network', 'stop'
+                        add_timepoint 'validate_deployed_network'
                     end
 
                     # Now that we have a deployed network, we can compute the
                     # connection policies and the port dynamics, and call the
                     # registered postprocessing blocks
                     if options[:compute_policies]
-                        add_timepoint 'compute_connection_policies', 'start'
                         @port_dynamics = DataFlowDynamics.compute_connection_policies(trsc)
-                        add_timepoint 'compute_connection_policies', 'done'
+                        add_timepoint 'compute_connection_policies'
                         Engine.deployment_postprocessing.each do |block|
                             block.call(self)
+                            add_timepoint 'deployment_postprocessing', block.to_s
                         end
                     end
 
