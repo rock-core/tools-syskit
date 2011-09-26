@@ -1201,6 +1201,14 @@ module Orocos
             # The set of tasks that represent the running deployments
             attr_reader :deployment_tasks
 
+            # The DataFlowDynamics instance that has been used to compute
+            # +port_dynamics+. It is only valid at the postprocesing stage of
+            # the deployed network
+            #
+            # It can be used to compute some connection policy by calling
+            # DataFlowDynamics#policy_for
+            attr_reader :dataflow_dynamics
+
             # A mapping of type
             #
             #   task_name => port_name => PortDynamics instance
@@ -1297,6 +1305,15 @@ module Orocos
                         end
                     end
                     required_connections.each do |task, connections|
+                        connections = connections.map_value do |(port_name, log_port_name), policy|
+                            out_port = task.find_output_port_model(port_name)
+
+                            if !logger_task.find_input_port_model(log_port_name)
+                                logger_task.instanciate_dynamic_input(log_port_name, out_port.type)
+                            end
+                            dataflow_dynamics.policy_for(task, port_name, log_port_name, logger_task, policy)
+                        end
+
                         task.connect_ports(logger_task, connections)
                     end
                 end
@@ -1333,6 +1350,10 @@ module Orocos
             def resolve(options = Hash.new)
                 @timepoints = []
 	    	return if disabled?
+
+                # Set some objects to nil to make sure that noone is using them
+                # while they are not valid
+                @dataflow_dynamics = @port_dynamics = nil
 
                 if options == true
                     options = { :compute_policies => true }
@@ -1417,7 +1438,8 @@ module Orocos
                     # connection policies and the port dynamics, and call the
                     # registered postprocessing blocks
                     if options[:compute_policies]
-                        @port_dynamics = DataFlowDynamics.compute_connection_policies(trsc)
+                        @dataflow_dynamics = DataFlowDynamics.new(trsc)
+                        @port_dynamics = dataflow_dynamics.compute_connection_policies
                         add_timepoint 'compute_connection_policies'
                         Engine.deployment_postprocessing.each do |block|
                             block.call(self)

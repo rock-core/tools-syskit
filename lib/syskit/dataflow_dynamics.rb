@@ -460,98 +460,113 @@ module Orocos
                 
                 propagate(deployed_tasks)
 
-                Engine.debug do
-                    Engine.debug "computing connections"
+                DataFlowDynamics.debug do
+                    DataFlowDynamics.debug "computing connections"
                     deployed_tasks.each do |t|
-                        Engine.debug "  #{t}"
+                        DataFlowDynamics.debug "  #{t}"
                     end
 
-                    Engine.debug "available information for"
+                    DataFlowDynamics.debug "available information for"
                     result.each do |task, ports|
-                        Engine.debug "  #{task}: #{ports.keys.join(", ")}"
+                        DataFlowDynamics.debug "  #{task}: #{ports.keys.join(", ")}"
                     end
                     break
                 end
 
                 deployed_tasks.each do |source_task|
                     source_task.each_concrete_output_connection do |source_port_name, sink_port_name, sink_task, policy|
-                        fallback_policy = policy.delete(:fallback_policy)
-
-                        # Don't do anything if the policy has already been set
-                        if !policy.empty?
-                            Engine.debug " #{source_task}:#{source_port_name} => #{sink_task}:#{sink_port_name} already connected with #{policy}"
-                            next
-                        end
-
-                        source_port = source_task.find_output_port_model(source_port_name)
-                        sink_port   = sink_task.find_input_port_model(sink_port_name)
-                        if !source_port
-                            raise InternalError, "#{source_port_name} is not a port of #{source_task.model}"
-                        elsif !sink_port
-                            raise InternalError, "#{sink_port_name} is not a port of #{sink_task.model}"
-                        end
-                        Engine.debug { "   #{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name}" }
-
-                        if !sink_port.needs_reliable_connection?
-                            if sink_port.required_connection_type == :data
-                                policy.merge! Port.validate_policy(:type => :data)
-                                Engine.debug { "     result: #{policy}" }
-                                next
-                            elsif sink_port.required_connection_type == :buffer
-                                policy.merge! Port.validate_policy(:type => :buffer, :size => 1)
-                                Engine.debug { "     result: #{policy}" }
-                                next
-                            end
-                        end
-
-                        # Compute the buffer size
-                        input_dynamics =
-                            if has_information_for_port?(source_task, source_port.name)
-                                port_info(source_task, source_port.name)
-                            end
-
-                        task_dynamics  =
-                            if has_information_for_task?(source_task)
-                                task_info(source_task)
-                            end
-
-                        reading_latency =
-                            if sink_port.trigger_port?
-                                sink_task.trigger_latency
-                            elsif task_dynamics && task_dynamics.minimal_period
-                                task_dynamics.minimal_period + sink_task.trigger_latency
-                            end
-
-                        if !input_dynamics || !reading_latency
-                            if fallback_policy
-                                if !input_dynamics
-                                    Engine.warn "period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
-                                else
-                                    Engine.warn "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
-                                end
-                                policy.merge!(Port.validate_policy(fallback_policy))
-                            elsif !input_dynamics
-                                raise SpecError, "period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
-                            else
-                                raise SpecError, "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
-                            end
-                        else
-                            policy[:type] = :buffer
-                            size = (1.0 + Orocos::RobyPlugin.buffer_size_margin) * input_dynamics.queue_size(reading_latency)
-                            policy[:size] = Integer(size) + 1
-                            Engine.debug do
-                                Engine.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"
-                                Engine.debug "     sample_size:#{input_dynamics.sample_size}"
-                                input_dynamics.triggers.each do |tr|
-                                    Engine.debug "     trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
-                                end
-                                break
-                            end
-                            policy.merge! Port.validate_policy(policy)
-                            Engine.debug { "     result: #{policy}" }
-                        end
+                        new_policy = policy_for(source_task, source_port_name, sink_port_name, sink_task, policy)
+                        policy.merge!(new_policy)
+                        # TODO: Announce that the policy changed to the relation
+                        # management code
                     end
                 end
+            end
+
+            # Given the current knowledge about the port dynamics, returns the
+            # policy for the provided connection
+            #
+            # +policy+ is either the current connection policy, or a hash with
+            # only a :fallback_policy value that contains a possible policy if
+            # the actual one cannot be computed.
+            def policy_for(source_task, source_port_name, sink_port_name, sink_task, policy)
+                policy = policy.dup
+                fallback_policy = policy.delete(:fallback_policy)
+
+                # Don't do anything if the policy has already been set
+                if !policy.empty?
+                    DataFlowDynamics.debug " #{source_task}:#{source_port_name} => #{sink_task}:#{sink_port_name} already connected with #{policy}"
+                    next
+                end
+
+                source_port = source_task.find_output_port_model(source_port_name)
+                sink_port   = sink_task.find_input_port_model(sink_port_name)
+                if !source_port
+                    raise InternalError, "#{source_port_name} is not a port of #{source_task.model}"
+                elsif !sink_port
+                    raise InternalError, "#{sink_port_name} is not a port of #{sink_task.model}"
+                end
+                DataFlowDynamics.debug { "   #{source_task}:#{source_port.name} => #{sink_task}:#{sink_port.name}" }
+
+                if !sink_port.needs_reliable_connection?
+                    if sink_port.required_connection_type == :data
+                        policy = Port.prepare_policy(:type => :data)
+                        DataFlowDynamics.debug { "     result: #{policy}" }
+                        return policy
+                    elsif sink_port.required_connection_type == :buffer
+                        policy = Port.prepare_policy(:type => :buffer, :size => 1)
+                        DataFlowDynamics.debug { "     result: #{policy}" }
+                        return policy
+                    end
+                end
+
+                # Compute the buffer size
+                input_dynamics =
+                    if has_final_information_for_port?(source_task, source_port.name)
+                        port_info(source_task, source_port.name)
+                    end
+
+                sink_task_dynamics  =
+                    if has_final_information_for_task?(sink_task)
+                        task_info(sink_task)
+                    end
+
+                reading_latency =
+                    if sink_port.trigger_port?
+                        sink_task.trigger_latency
+                    elsif sink_task_dynamics && sink_task_dynamics.minimal_period
+                        sink_task_dynamics.minimal_period + sink_task.trigger_latency
+                    end
+
+                if !input_dynamics || !reading_latency
+                    if fallback_policy
+                        if !input_dynamics
+                            Engine.warn "period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
+                        else
+                            Engine.warn "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
+                        end
+                        policy = fallback_policy
+                    elsif !input_dynamics
+                        raise SpecError, "period information for output port #{source_task}:#{source_port.name} cannot be computed. This is needed to compute the policy to connect to #{sink_task}:#{sink_port_name}"
+                    else
+                        raise SpecError, "#{sink_task} has no minimal period, needed to compute reading latency on #{sink_port.name}"
+                    end
+                else
+                    policy[:type] = :buffer
+                    size = (1.0 + Orocos::RobyPlugin.buffer_size_margin) * input_dynamics.queue_size(reading_latency)
+                    policy[:size] = Integer(size) + 1
+                    DataFlowDynamics.debug do
+                        DataFlowDynamics.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"
+                        DataFlowDynamics.debug "     sample_size:#{input_dynamics.sample_size}"
+                        input_dynamics.triggers.each do |tr|
+                            DataFlowDynamics.debug "     trigger(#{tr.name}): period=#{tr.period} count=#{tr.sample_count}"
+                        end
+                        break
+                    end
+                    DataFlowDynamics.debug { "     result: #{policy}" }
+                end
+
+                policy
             end
         end
     end
