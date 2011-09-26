@@ -382,9 +382,7 @@ module Orocos
             def required_information(tasks)
                 result = Hash.new
                 tasks.each do |t|
-                    ports = t.model.each_output_port.find_all do |p|
-                        t.each_concrete_output_connection(p.name).find { true }
-                    end
+                    ports = t.model.each_output_port.to_a
                     if !ports.empty?
                         result[t] = ports.map(&:name).to_set
                         result[t] << nil
