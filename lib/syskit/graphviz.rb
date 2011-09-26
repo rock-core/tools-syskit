@@ -119,8 +119,8 @@ module Orocos
             def to_file(kind, format, filename = nil, *additional_args)
                 # For backward compatibility reasons
                 filename ||= kind
-                if File.extname(filename) != kind
-                    filename += ".#{kind}"
+                if File.extname(filename) != ".#{format}"
+                    filename += ".#{format}"
                 end
 
                 Tempfile.open('roby_orocos_graphviz') do |io|
