@@ -2071,6 +2071,10 @@ module Orocos
                                 port_mappings.each do |from, to|
                                     Engine.debug "  #{from} => #{to}"
                                 end
+                                Engine.debug "on"
+                                connections.each do |(out_name, in_name), mappings|
+                                    Engine.debug "  #{out_name} => #{in_name} (#{mappings})"
+                                end
                                 break
                             end
                             connections.each do |(out_name, in_name), mappings|
@@ -2087,6 +2091,13 @@ module Orocos
                                 apply_port_mappings_on_outputs(exported_outputs[child_name], port_mappings)
                             end
 
+                            Engine.debug do
+                                Engine.debug "result"
+                                connections.each do |(out_name, in_name), mappings|
+                                    Engine.debug "  #{out_name} => #{in_name} (#{mappings})"
+                                end
+                                break
+                            end
                         else
                             Engine.debug { "no port mappings for #{child_name}" }
                         end
