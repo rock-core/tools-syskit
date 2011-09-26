@@ -162,8 +162,8 @@ module Orocos
                 all_tasks.each do |task|
                     attributes = []
                     task_label = format_task_label(task)
-                    label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
-                    attributes << "label=<#{task_label}>"
+                    label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
+                    attributes << "label=<#{label}>"
                     if task.abstract?
                         attributes << " color=\"red\""
                     end
@@ -347,7 +347,10 @@ module Orocos
             def render_task(task, input_ports, output_ports)
                 result = []
                 result << "    subgraph cluster_#{task.dot_id} {"
-                result << "      label=\"#{"color=red" if task.abstract?}\"";
+                result << "        label=\"\";"
+                if task.abstract?
+                    result << "      color=\"red\";"
+                end
 
                 additional_vertices[task].each do |vertex_name, vertex_label|
                     result << "      #{vertex_name}#{task.dot_id} [#{vertex_label}];"
