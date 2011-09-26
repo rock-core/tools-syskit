@@ -39,6 +39,9 @@ module Orocos
                 end
                 if current_mappings.empty?
                     unlink(source_task, sink_task)
+                else
+                    # To make the relation system call #update_info
+                    source_task[sink_task, self] = current_mappings
                 end
             end
 
