@@ -31,15 +31,16 @@ module Orocos
             end
 
             def self.resolve_service_name(service)
-                engine = Roby.app.orocos_engine
-                if !engine.robot.has_device?(service) && !engine.has_definition?(service)
-                    if engine.model.has_composition?(service)
-                        service = engine.model.composition_model(service)
-                    elsif model = Roby.app.orocos_tasks[service]
-                        service = model
-                    end
+                service_name, service_conf = service.split(':')
+                if service_conf
+                    service_conf = service_conf.split(',')
                 end
-                service
+                engine = Roby.app.orocos_engine
+                instance = engine.resolve_name(service_name)
+                if service_conf
+                    instance.use_conf(*service_conf)
+                end
+                instance
             end
 
             def self.common_options(opt, with_output = false)

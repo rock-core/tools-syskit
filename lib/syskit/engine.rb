@@ -346,6 +346,11 @@ module Orocos
                 elsif instance = defines[model_name]
                     instance = instance.dup
                     instance.name = instance_name
+                elsif self.model.has_composition?(model_name)
+                    component_model = model.composition_model(service_name)
+                    instance = Engine.create_instanciated_component(self, instance_name, component_model)
+                elsif component_model = Roby.app.orocos_tasks[model_name]
+                    instance = Engine.create_instanciated_component(self, instance_name, component_model)
                 else
                     raise SpecError, "#{name} does not refer to a known task or device (known tasks: #{tasks.keys.sort.join(", ")}; known devices: #{robot.devices.keys.sort.join(", ")})"
                 end
