@@ -65,13 +65,6 @@ module Orocos
         # A sample is virtual: it is not an actual data sample on the
         # connection. The translation between both is given by
         # PortDynamics#sample_size.
-        #
-        # To update and propagate these port dynamics along the data flow, the
-        # Engine uses the TaskContext#initial_ports_dynamics,
-        # TaskContext#propagate_ports_dynamics and
-        # TaskContext#propagate_ports_dynamics methods implemented by the tasks
-        # and devices
-        #
         class PortDynamics
             # The name of the port we are computing dynamics for. This is used
             # for debugging purposes only
