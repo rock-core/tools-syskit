@@ -413,20 +413,28 @@ module Orocos
                 end
             end
 
+            def create_state_reader
+                @state_reader = orogen_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE, :init => true, :transport => Orocos::TRANSPORT_CORBA)
+            end
+
             # Called at each cycle to update the orogen_state attribute for this
             # task.
             def update_orogen_state # :nodoc:
-                if orogen_spec.context.extended_state_support?
-                    @state_reader ||= orogen_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE)
+                if orogen_spec.context.extended_state_support? && !@state_reader
+                    create_state_reader
                 end
 
                 if @state_reader
+                    if !@state_reader.connected?
+                        raise InternalError, "state_reader got disconnected"
+                    end
+
                     if v = @state_reader.read_new
                         @last_orogen_state = orogen_state
                         @orogen_state = v
                     end
                 else
-                    new_state = orogen_task.state
+                    new_state = orogen_task.rtt_state
                     if new_state != @orogen_state
                         @last_orogen_state = orogen_state
                         @orogen_state = new_state
@@ -577,8 +585,11 @@ module Orocos
             # event will be emitted when the it has successfully been
             # configured and started.
             event :start do |context|
-                # We're not running yet, so we have to read the state ourselves.
-                state = read_current_state
+                # Create the state reader right now. Otherwise, we might not get
+                # the state updates related to the task's startup
+                if orogen_spec.context.extended_state_support?
+                    create_state_reader
+                end
 
                 # At this point, we should have already created all the dynamic
                 # ports that are required ... check that
@@ -656,10 +667,11 @@ module Orocos
 		    emit :interrupt
                     emit :aborted
                 rescue Orocos::StateTransitionFailed
-		    # ALL THE LOGIC BELOW must use the state returned by
-		    # read_current_state. Do NOT call other state-related
-		    # methods like #state as they will read the state port
-                    if (state = orogen_task.peek_current_state) && (state != :RUNNING)
+                    # Use #rtt_state as it has no problem with asynchronous
+                    # communication, unlike the port-based state updates.
+		    state = orogen_task.rtt_state
+                    if state != :RUNNING
+			Engine.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
                         # Nothing to do, the poll block will finalize the task
                     else
                         raise
