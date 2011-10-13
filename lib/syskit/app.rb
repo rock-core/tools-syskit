@@ -552,7 +552,7 @@ module Orocos
             # Load a part of the system definition, i.e. the robot description
             # files
             def load_system_definition(file)
-                orocos_engine.load(file)
+                orocos_engine.load_composite_file(file)
             end
 
             # Looks for a deployment called +name+ in the current installation

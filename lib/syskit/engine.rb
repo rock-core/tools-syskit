@@ -2005,6 +2005,33 @@ module Orocos
                 result
             end
 
+            # Helper class used to load files that contain both system model and
+            # engine requirements
+            #
+            # See Engine#load_composite_file
+            class CompositeLoader < BasicObject
+                def initialize(engine)
+                    @engine = engine
+                end
+
+                def method_missing(m, *args, &block)
+                    if !@engine.respond_to?(m) && @engine.model.respond_to?(m)
+                        @engine.model.send(m, *args, &block)
+                    else
+                        @engine.send(m, *args, &block)
+                    end
+                end
+            end
+
+            # Load a file that contains both system model and engine
+            # requirements
+            def load_composite_file(file)
+                loader = CompositeLoader.new(self)
+                if Kernel.load_dsl_file(file, loader, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
+                    RobyPlugin.info "loaded #{file}"
+                end
+            end
+
             # Load the given DSL file into this Engine instance
             def load(file)
                 if Kernel.load_dsl_file(file, self, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
