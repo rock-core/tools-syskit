@@ -7,7 +7,7 @@ available_annotations = Orocos::RobyPlugin::Graphviz.available_annotations
 compute_policies    = true
 compute_deployments = true
 remove_compositions = false
-remove_loggers      = false
+remove_loggers      = true
 validate_network    = true
 test = false
 annotations = Set.new
@@ -41,8 +41,8 @@ parser = OptionParser.new do |opt|
     opt.on('--no-deployments', "don't deploy") do
         compute_deployments = false
     end
-    opt.on("--no-loggers", "remove all loggers from the generated data flow graph") do
-        remove_loggers = true
+    opt.on("--[no-]loggers", "remove all loggers from the generated data flow graph") do |value|
+        remove_loggers = !value
     end
     opt.on("--no-compositions", "remove all compositions from the generated data flow graph") do
         remove_compositions = true
