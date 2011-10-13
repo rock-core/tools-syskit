@@ -171,8 +171,8 @@ if output_type != 'txt' && !output_file
     output_file =
         if base_name = (Scripts.robot_name || Scripts.robot_type)
             base_name
-        elsif deployment_file != '-'
-            deployment_file
+        elsif remaining.first != '-'
+            remaining.first
         else
             "instanciate"
         end
