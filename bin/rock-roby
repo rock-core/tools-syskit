@@ -1,0 +1,4 @@
+#! /usr/bin/env ruby
+APP_DIR = Dir.pwd
+mode = ARGV.shift
+require "orocos/roby/scripts/#{mode}"
