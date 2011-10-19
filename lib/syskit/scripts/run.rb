@@ -1,5 +1,6 @@
 require 'roby'
 require 'orocos/roby/scripts/common'
+require 'roby/schedulers/temporal'
 Scripts = Orocos::RobyPlugin::Scripts
 
 dry_run = false
@@ -33,7 +34,7 @@ error = Scripts.run do
             Roby.app.orocos_engine.resolve
             if !Roby.engine.scheduler
                 require 'roby/schedulers/basic'
-                Roby.engine.scheduler = Roby::Schedulers::Basic.new
+                Roby.engine.scheduler = Roby::Schedulers::Temporal.new
             end
 
             tasks = Roby.plan.find_tasks(Orocos::RobyPlugin::Component).
