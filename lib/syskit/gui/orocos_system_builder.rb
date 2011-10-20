@@ -182,7 +182,7 @@ module Ui
         end
 
         def append(filename)
-            engine.load(filename)
+            engine.load_composite_file(filename)
 
             items = Hash.new
             engine.defines.each_value do |instance|
