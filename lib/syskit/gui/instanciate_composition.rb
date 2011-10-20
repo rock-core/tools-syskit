@@ -14,22 +14,18 @@ module Ui
         attr_reader :robot
         attr_reader :engine
         attr_reader :parent_window
+        attr_reader :parent_engine
 
-        def initialize(system_model, robot, main = nil)
+        def initialize(system_model, robot, main = nil, parent_engine = nil)
             super(main)
-            @selection = Hash.new
+            @selection = Orocos::RobyPlugin::DependencyInjection.new
 
             @parent_window = main
             @system_model = system_model
+            @parent_engine = parent_engine || Roby.app.orocos_engine
             @robot = robot
             @plan   = Roby::Plan.new
             @engine = Orocos::RobyPlugin::Engine.new(plan, system_model, robot)
-
-            Roby.app.orocos_engine.deployments.each do |host, names|
-                names.each do |n|
-                    @engine.use_deployment(n, :on => host)
-                end
-            end
         end
 
         def root_task
@@ -37,35 +33,7 @@ module Ui
         end
 
         def actual_selection
-            selection = self.selection
-            actual_selection = selection.dup
-            actual_selection.delete_if do |from, to|
-                to.respond_to?(:is_specialization?) && to.is_specialization?
-            end
-
-            removed_selections = selection.keys - actual_selection.keys
-            if !removed_selections.empty?
-                removed_selections.map! do |path|
-                    [path, root_task.resolve_role_path(path.split('.')).model]
-                end
-
-                @selection = actual_selection
-                compute
-                removed_selections.each do |path, model|
-                    current_model = root_task.resolve_role_path(path.split('.')).model
-                    if current_model != model
-                        raise InvalidInstanciation, "cannot generate instanciation code in the current state: you need to enforce the specialization of #{path} by picking the relevant children"
-                    end
-                end
-            end
-            actual_selection
-
-        ensure
-            if selection
-                @selection = selection
-                compute
-                update_view
-            end
+            self.selection.dup
         end
 
 
@@ -88,18 +56,25 @@ module Ui
                 'nil'
             when Array
                 "[#{selection.map { |s| selection_to_string(s) }.join(", ")}]"
+            when Orocos::RobyPlugin::InstanceRequirements
+                to_ruby(selection.base_models.first, selection.selections, nil)
             else
                 raise NotImplementedError, "cannot convert #{selection.class} to a Ruby syntax"
             end
         end
 
-        def self.format_selection(result, actual_selection)
-            actual_selection.each do |from, to|
+        def self.format_selection(actual_selection)
+            list = []
+            actual_selection.explicit.each do |from, to|
                 from = selection_to_string(from)
                 to   = selection_to_string(to)
-                result << "\n  use(#{from} => #{to})"
+                list << "#{from} => #{to}"
             end
-            result
+            actual_selection.defaults.each do |obj|
+                list << selection_to_string(obj)
+            end
+
+            "use(#{list.join(",\n  ")})"
         end
 
         def self.to_ruby_define(model, actual_selection, name)
@@ -107,8 +82,8 @@ module Ui
                 raise ArgumentError, "definitions must have a name"
             end
             result = ["define('#{name}', #{model.short_name})"]
-            result = format_selection(result, actual_selection)
-            result.join(".")
+            result << "  " + format_selection(actual_selection)
+            result.join(".\n")
         end
 
         def self.to_ruby(model, actual_selection, name)
@@ -116,8 +91,8 @@ module Ui
                 options = ", :as => #{name}"
             end
             result = ["add(#{model.short_name}#{options})"]
-            result = format_selection(result, actual_selection)
-            result.join(".")
+            result << "  " + format_selection(actual_selection)
+            result.join(".\n")
         end
 
         attr_reader :model
@@ -136,6 +111,13 @@ module Ui
                 begin
                     Orocos::RobyPlugin::Composition.strict_specialization_selection = false
                     @main = engine.add_mission(model).use(selection)
+
+                    parent_engine.deployments.each do |host, names|
+                        names.each do |n|
+                            @engine.use_deployment(n, :on => host)
+                        end
+                    end
+
                     engine.prepare
                     engine.instanciate
                     plan.static_garbage_collect
@@ -244,7 +226,7 @@ module Ui
                     map { |role_path| role_path.join(".") }
 
                 current_selection = roles.find_all do |role_name|
-                    window.selection[role_name]
+                    window.selection.explicit[role_name]
                 end
 
                 puts "mouse pressed for #{self} (#{models.map(&:name).join(", ")}) [#{task}, #{roles.to_a.join(", ")}]"
@@ -284,10 +266,10 @@ module Ui
                 if selected_model = selection[action.text]
                     roles.each do |child_name|
                         puts "selected #{selected_model} for #{child_name}"
-                        window.selection[child_name] = selected_model
+                        window.selection.explicit[child_name] = selected_model
                     end
                 elsif deselected_role = deselection[action.text]
-                    window.selection.delete(deselected_role)
+                    window.selection.explicit.delete(deselected_role)
                 end
 
                 window.update

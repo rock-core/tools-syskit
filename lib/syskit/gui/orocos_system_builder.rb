@@ -33,7 +33,7 @@ module Ui
             if !@composer_dialog
                 dialog   = Qt::Dialog.new
                 dialog.set_attribute(Qt::WA_DeleteOnClose, false)
-                composer = Ui::OrocosComposerWidget.new(system_model, robot)
+                composer = Ui::OrocosComposerWidget.new(system_model, robot, engine)
                 composer.setupUi(dialog)
                 @composer_dialog = composer
             end
