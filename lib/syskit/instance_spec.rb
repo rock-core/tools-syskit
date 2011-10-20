@@ -722,7 +722,7 @@ module Orocos
                 # Invalidate the @resolved cached
                 @resolved = nil
                 changed = false
-                result = explicit.map_value do |k, v|
+                explicit = self.explicit.map_value do |k, v|
                     result = yield(v)
                     changed ||= (result != v)
                     result
