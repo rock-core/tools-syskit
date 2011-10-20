@@ -57,6 +57,54 @@ module Orocos
                 Roby::Application.common_optparse_setup(opt)
             end
 
+            DOT_DIRECT_OUTPUT = %w{txt x11}
+
+            # This sets up output in either text or dot format
+            #
+            # The text generation is based on Ruby's pretty print (we
+            # pretty-print the given object). Otherwise, the given block is
+            # meant to generate a dot file that is then postprocessed by
+            # generate_dot_output (which needs to be called at the script's end)
+            def self.setup_output(script_name, object, &block)
+                @dot_generation = block
+                @output_object = object
+
+                output_type, output_file = self.output_type, self.output_file
+                if !DOT_DIRECT_OUTPUT.include?(output_type) && !output_file
+                    @output_file =
+                        if base_name = (self.robot_name || self.robot_type)
+                            "#{base_name}.#{output_type}"
+                        else
+                            "#{script_name}.#{output_type}"
+                        end
+                end
+            end
+
+            def self.generate_output
+                # Now output them
+                case output_type
+                when "txt"
+                    pp @output_object
+                when "dot"
+                    File.open(output_file, 'w') do |output_io|
+                        output_io.puts @dot_generation.call
+                    end
+                when "png", "svg", "x11"
+                    cmd = "dot -T#{output_type}"
+                    if !DOT_DIRECT_OUTPUT.include?(output_type)
+                        cmd << " -o#{output_file}"
+                    end
+                    io = IO.popen(cmd, "w")
+                    io.write(@dot_generation.call)
+                    io.flush
+                    io.close
+                end
+
+                if output_file
+                    STDERR.puts "exported result to #{output_file}"
+                end
+            end
+
             def self.setup
             end
 
