@@ -193,6 +193,13 @@ module Orocos
                     raise ArgumentError, "#use is available only for compositions, got #{base_models.map(&:short_name).join(", ")}"
                 end
 
+                mappings.delete_if do |sel|
+                    if sel.kind_of?(DependencyInjection)
+                        selections.merge(sel)
+                        true
+                    end
+                end
+
                 explicit, defaults = DependencyInjection.validate_use_argument(*mappings)
                 selections.add_explicit(explicit)
                 selections.add_defaults(defaults)
