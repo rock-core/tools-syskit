@@ -943,6 +943,9 @@ module Orocos
                 service_allocation_candidates.clear
                 result = Hash.new
                 add_timepoint 'default_allocations', 'start'
+
+                # For each declared data service, look for models that define
+                # them and store the result
                 model.each_data_service do |service|
                     candidates = all_concrete_models.
                         find_all { |m| m.fullfills?(service) }.
