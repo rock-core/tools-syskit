@@ -202,6 +202,10 @@ module Orocos
             #   (i.e., the local machine)
             def use_deployment(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
+                if deployments[options[:on]].include?(name)
+                    return
+                end
+
                 server   = process_server_for(options[:on])
                 deployer = server.load_orogen_deployment(name)
 
