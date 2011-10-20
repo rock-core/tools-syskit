@@ -1520,8 +1520,14 @@ module Orocos
                     child_inputs  = Array.new
                     child_outputs = Array.new
 
+                    # Flags used to mark whether in_p resp. out_p have been
+                    # explicitely given as ports or as child task. It is used to
+                    # generate different error messages.
+                    in_explicit, out_explicit = false
+
                     case out_p
                     when CompositionChildOutputPort
+                        out_explicit = true
                         child_outputs << out_p
                     when CompositionChild
                         out_p.each_output_port do |p|
@@ -1535,6 +1541,7 @@ module Orocos
 
                     case in_p
                     when CompositionChildInputPort
+                        in_explicit = true
                         child_inputs << in_p
                     when CompositionChild
                         in_p.each_input_port do |p|
@@ -1550,6 +1557,21 @@ module Orocos
                     end
 
                     result = autoconnect_children(child_outputs, child_inputs, each_explicit_connection.to_a)
+                    # No connections found. This is an error, as the user
+                    # probably expects #connect to create some, so raise the
+                    # corresponding exception
+                    if result.empty?
+                        if in_explicit && out_explicit
+                            raise ArgumentError, "cannot connect #{in_p.child.child_name}.#{in_p.name}[#{in_p.type_name}] to #{out_p.child.child_name}.#{out_p.name}[#{out_p.type_name}]: incompatible types"
+                        elsif in_explicit
+                            raise ArgumentError, "cannot find a match for #{in_p.child.child_name}.#{in_p.name}[#{in_p.type_name}] in #{out_p}"
+                        elsif out_explicit
+                            raise ArgumentError, "cannot find a match for #{out_p.child.child_name}.#{out_p.name}[#{out_p.type_name}] in #{in_p}"
+                        else
+                            raise ArgumentError, "no compatible ports found while connecting #{out_p} to #{in_p}"
+                        end
+                    end
+
                     unmapped_explicit_connections.merge!(result) do |k, v1, v2|
                         v1.merge!(v2)
                     end
