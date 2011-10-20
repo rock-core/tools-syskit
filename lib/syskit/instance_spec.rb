@@ -488,6 +488,11 @@ module Orocos
                 @explicit.empty? && @defaults.empty?
             end
 
+            def clear
+                explicit.clear
+                defaults.clear
+            end
+
             def to_s # :nodoc:
                 explicit = self.explicit.map { |k, v| [k.to_s, v.to_s] }.sort_by(&:first).map { |k, v| "#{k} => #{v}" }
                 defaults = self.defaults.map(&:to_s)
