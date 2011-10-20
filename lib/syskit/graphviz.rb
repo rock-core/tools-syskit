@@ -162,7 +162,7 @@ module Orocos
                 all_tasks.each do |task|
                     attributes = []
                     task_label = format_task_label(task)
-                    label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
+                    label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
                     attributes << "label=<#{label}>"
                     if task.abstract?
                         attributes << " color=\"red\""
@@ -303,7 +303,7 @@ module Orocos
                     if deployment
                         result << "  subgraph cluster_#{deployment.dot_id} {"
                         task_label, task_dot_attributes = format_task_label(deployment, task_colors)
-                        label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n"
+                        label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n"
                         label << "    #{task_label}\n"
                         label << "  </TABLE>"
                         result << "      label=< #{label} >;"
@@ -361,7 +361,7 @@ module Orocos
                 end
 
                 task_label, attributes = format_task_label(task)
-                task_label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\">#{task_label}</TABLE>"
+                task_label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">#{task_label}</TABLE>"
                 result << "    label#{task.dot_id} [shape=none,label=< #{task_label} >];";
 
                 if !input_ports.empty?
