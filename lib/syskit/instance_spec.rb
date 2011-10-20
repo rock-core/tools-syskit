@@ -47,7 +47,8 @@ module Orocos
             attr_reader :base_models
             # Required arguments on the final task
             attr_reader :arguments
-            # The model selection that can be used to instanciate this task
+            # The model selection that can be used to instanciate this task, as
+            # a DependencyInjection object
             attr_reader :selections
 
             # The model selection that can be used to instanciate this task,
