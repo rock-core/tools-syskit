@@ -22,6 +22,7 @@ module Orocos
             @name = "Orocos::RobyPlugin::TaskContext"
 
             argument :conf
+            argument :orocos_name
 
             extend Model
 
