@@ -47,7 +47,6 @@ module Ui
 
         def item_clicked(item, column)
             idx = item.data(column, Qt::UserRole)
-            puts "selected #{composition_models[idx]}"
             composer.model = composition_models[idx]
         end
 
