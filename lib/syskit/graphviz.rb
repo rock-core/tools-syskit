@@ -236,9 +236,15 @@ module Orocos
 
                 output_ports = Hash.new { |h, k| h[k] = Set.new }
                 input_ports  = Hash.new { |h, k| h[k] = Set.new }
+                connections = Hash.new
 
                 all_tasks = plan.find_local_tasks(Deployment).to_value_set
 
+                # Register all ports and all connections
+                #
+                # Note that a connection is not guaranteed to be from an output
+                # to an input: on compositions, exported ports are represented
+                # as connections between either two inputs or two outputs
                 plan.find_local_tasks(Component).each do |source_task|
                     next if remove_compositions && source_task.kind_of?(Composition)
                     next if excluded_models.include?(source_task.model)
@@ -251,35 +257,44 @@ module Orocos
                     end
 
                     all_tasks << source_task
-                    connections = Hash.new
 
                     if !source_task.kind_of?(Composition)
                         source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
                             next if excluded_models.include?(sink_task.model)
-                            connections[[source_port, sink_port, sink_task]] = [policy, true]
+                            connections[[source_task, source_port, sink_port, sink_task]] = policy
                         end
                     end
                     source_task.each_output_connection do |source_port, sink_port, sink_task, policy|
                         next if connections.has_key?([source_port, sink_port, sink_task])
                         next if excluded_models.include?(sink_task.model)
                         next if remove_compositions && sink_task.kind_of?(Composition)
-                        is_concrete = !source_task.kind_of?(Composition) && !sink_task.kind_of?(Composition)
-                        connections[[source_port, sink_port, sink_task]] = [policy, is_concrete]
+                        connections[[source_task, source_port, sink_port, sink_task]] = policy
                     end
+                end
 
-                    connections.each do |(source_port, sink_port, sink_task), (policy, is_concrete)|
-                        if !is_concrete
-                            style = "style=dashed,"
+                connections.each do |(source_task, source_port, sink_port, sink_task), policy|
+                    source_type =
+                        if input_ports[source_task].include?(source_port)
+                            "inputs"
+                        else
+                            "outputs"
+                        end
+                    sink_type =
+                        if input_ports[sink_task].include?(sink_port)
+                            "inputs"
+                        else
+                            "outputs"
                         end
 
-                        output_ports[source_task] << source_port
-                        input_ports[sink_task]    << sink_port
-                        source_port_id = source_port.gsub(/[^\w]/, '_')
-                        sink_port_id   = sink_port.gsub(/[^\w]/, '_')
-
-                        label = conn_annotations[[source_task, source_port, sink_task, sink_port]].join(",")
-                        result << "  outputs#{source_task.dot_id}:#{source_port_id} -> inputs#{sink_task.dot_id}:#{sink_port_id} [#{style}label=\"#{label}\"];"
+                    if source_task.kind_of?(Composition) || sink_task.kind_of?(Composition)
+                        style = "style=dashed,"
                     end
+
+                    source_port_id = source_port.gsub(/[^\w]/, '_')
+                    sink_port_id   = sink_port.gsub(/[^\w]/, '_')
+
+                    label = conn_annotations[[source_task, source_port, sink_task, sink_port]].join(",")
+                    result << "  #{source_type}#{source_task.dot_id}:#{source_port_id} -> #{sink_type}#{sink_task.dot_id}:#{sink_port_id} [#{style}label=\"#{label}\"];"
                 end
 
                 # Group the tasks by deployment
