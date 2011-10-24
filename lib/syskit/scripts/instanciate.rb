@@ -200,7 +200,7 @@ error = Scripts.run do
             service_name = Scripts.resolve_service_name(service_name)
             Roby.app.orocos_engine.add service_name
         end
-        Scripts.toc_tic "initialized in %.3f seconds"
+        Scripts.toc_tic "fully initialized in %.3f seconds"
 
         if rprof_file_path
             RubyProf.resume

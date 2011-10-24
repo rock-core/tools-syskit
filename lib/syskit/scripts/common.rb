@@ -21,8 +21,8 @@ module Orocos
             end
             def self.toc(string = nil)
                 if string
-                    STDERR.puts string % [Time.now - @tic]
-                else STDERR.puts yield(Time.now - @tic)
+                    Robot.info string % [Time.now - @tic]
+                else Robot.info yield(Time.now - @tic)
                 end
             end
             def self.toc_tic(string = nil, &block)
@@ -127,7 +127,7 @@ module Orocos
 
                     Roby.app.setup
                     toc = Time.now
-                    STDERR.puts "loaded Roby application in %.3f seconds" % [toc - tic]
+                    Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
 
                     yield
                 end

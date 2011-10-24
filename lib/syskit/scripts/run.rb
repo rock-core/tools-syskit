@@ -20,8 +20,10 @@ end
 deployment_file     = remaining.shift
 additional_services = remaining.dup
 
+Scripts.tic
 error = Scripts.run do
     Roby.app.run do
+        Scripts.toc_tic "fully initialized in %.3f seconds"
         Roby.execute do
             if deployment_file != '-'
                 Roby.app.load_orocos_deployment(deployment_file)
