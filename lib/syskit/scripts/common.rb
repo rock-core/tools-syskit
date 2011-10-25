@@ -14,7 +14,6 @@ module Orocos
                 attr_accessor :robot_name
             end
             @debug = false
-            @output_type = 'txt'
 
             def self.tic
                 @tic = Time.now
@@ -43,13 +42,26 @@ module Orocos
                 instance
             end
 
+            class << self
+                # List of output modes as detected by #autodetect_output_modes
+                attr_reader :output_modes
+                # The default output mode as detected by #autodetect_output_modes
+                attr_reader :default_output_mode
+            end
+
             def self.common_options(opt, with_output = false)
                 opt.on('--debug', "turn debugging output on") do
                     Scripts.debug = true
                 end
                 if with_output
-                    opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, 'in what format to output the result (can be: txt, dot, png or svg), defaults to txt') do |output_arg|
+                    autodetect_output_modes
+                    self.output_type = default_output_mode
+                    opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, "in what format to output the result (can be: #{output_modes.join(", ")}), defaults to #{default_output_mode}") do |output_arg|
                         output_type, output_file = output_arg.split(':')
+                        output_type = output_type.downcase
+                        if !output_modes.include?(output_type)
+                            raise ArgumentError, "unknown or unavailable output mode #{output_type}, available output modes: #{output_modes.join(", ")}"
+                        end
                         Scripts.output_file = output_file
                         Scripts.output_type = output_type.downcase
                     end
@@ -57,7 +69,41 @@ module Orocos
                 Roby::Application.common_optparse_setup(opt)
             end
 
-            DOT_DIRECT_OUTPUT = %w{txt x11}
+            DOT_DIRECT_OUTPUT = %w{txt x11 qt}
+
+            # Autodetects which output modes are available, and which should be
+            # used by default. It depends on the availability of an X11
+            # connection (tested by looking at ENV['DISPLAY'] and the
+            # availability of Qt / x11 output in dot.
+            #
+            # The preference is:
+            #  * qt
+            #  * dot-x11
+            #  * txt
+            def self.autodetect_output_modes
+                @output_modes = %w{txt svg png dot}
+
+                has_x11_display = ENV['DISPLAY']
+                if !has_x11_display
+                    @default_output_mode = 'txt'
+                end
+
+                `dot -Tx11 does_not_exist 2>&1`
+                if has_dot_x11 = ($?.exitstatus != 1)
+                    @output_modes << 'x11'
+                    @default_output_mode = 'x11'
+                end
+
+                has_qt =
+                    begin
+                        require 'Qt4'
+                    rescue LoadError
+                    end
+                if has_qt
+                    @output_modes << 'qt'
+                    @default_output_mode = 'qt'
+                end
+            end
 
             # This sets up output in either text or dot format
             #
