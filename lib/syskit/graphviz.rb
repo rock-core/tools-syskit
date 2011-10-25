@@ -272,6 +272,18 @@ module Orocos
                     end
                 end
 
+                # Register ports that are part of connections, but are not
+                # defined on the task's interface. They are dynamic ports.
+                connections.each do |(source_task, source_port, sink_port, sink_task), policy|
+                    if !input_ports[source_task].include?(source_port)
+                        output_ports[source_task] << source_port
+                    end
+                    if !output_ports[sink_task].include?(sink_port)
+                        input_ports[sink_task] << sink_port
+                    end
+                end
+
+                # Finally, emit the dot code for connections
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
                     source_type =
                         if input_ports[source_task].include?(source_port)
@@ -280,10 +292,10 @@ module Orocos
                             "outputs"
                         end
                     sink_type =
-                        if input_ports[sink_task].include?(sink_port)
-                            "inputs"
-                        else
+                        if output_ports[sink_task].include?(sink_port)
                             "outputs"
+                        else
+                            "inputs"
                         end
 
                     if source_task.kind_of?(Composition) || sink_task.kind_of?(Composition)
