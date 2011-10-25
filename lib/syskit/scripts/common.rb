@@ -98,6 +98,15 @@ module Orocos
                     io.write(@dot_generation.call)
                     io.flush
                     io.close
+                when "qt"
+                    require 'orocos/roby/gui/plan_display'
+                    if !$qApp
+                        app = Qt::Application.new(ARGV)
+                    end
+                    display = Ui::PlanDisplay.new
+                    display.update_view(Roby.plan, Roby.app.orocos_engine)
+                    display.show
+                    $qApp.exec
                 end
 
                 if output_file
