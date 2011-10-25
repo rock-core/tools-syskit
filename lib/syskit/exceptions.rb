@@ -225,13 +225,20 @@ module Orocos
         # Exception raised when we could not find concrete implementations for
         # abstract tasks that are in the plan
         class TaskAllocationFailed < SpecError
-            # A task to parents mapping for the failed allocations
+            # A task to [parents, candidates] mapping for the failed allocations
             attr_reader :abstract_tasks
 
+            # Creates a new TaskAllocationFailed exception for the given tasks.
+            #
+            # +tasks+ is a mapping from the abstract tasks to the possible
+            # candidate implementation for these tasks, i.e.
+            #
+            #    t => [model0, model1, ...]
+            #
             def initialize(tasks)
                 @abstract_tasks = Hash.new
 
-                tasks.each do |abstract_task|
+                tasks.each do |abstract_task, candidates|
                     parents = abstract_task.
                         enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
                         map do |parent_task|
@@ -239,17 +246,31 @@ module Orocos
                                 Roby::TaskStructure::Dependency]
                             [options[:roles], parent_task]
                         end
-                    abstract_tasks[abstract_task] = parents
+                    abstract_tasks[abstract_task] = [parents, candidates]
                 end
             end
 
             def pretty_print(pp)
                 pp.text "cannot find a concrete implementation for #{abstract_tasks.size} task(s)"
 
-                abstract_tasks.each do |task, parents|
+                abstract_tasks.each do |task, (parents, candidates)|
                     pp.breakable
-                    pp.text "for #{task.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                    pp.text "#{task.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
                     pp.nest(2) do
+                        pp.breakable
+                        if candidates
+                            if candidates.empty?
+                                pp.text "no candidates"
+                            else
+                                pp.text "#{candidates.size} candidates"
+                                pp.nest(2) do
+                                    pp.breakable
+                                    pp.seplist(candidates) do |c_task|
+                                        pp.text "#{c_task.short_name}"
+                                    end
+                                end
+                            end
+                        end
                         pp.breakable
                         pp.seplist(parents) do |parent|
                             role, parent = parent

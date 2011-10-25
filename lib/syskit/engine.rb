@@ -811,7 +811,19 @@ module Orocos
 
                 still_abstract = all_tasks.find_all(&:abstract?)
                 if !still_abstract.empty?
-                    raise TaskAllocationFailed.new(still_abstract),
+                    abstract_tasks = Hash.new
+                    still_abstract.each do |task|
+                        if task.respond_to?(:proxied_data_services)
+                            candidates = task.proxied_data_services.inject(nil) do |set, m|
+                                m_candidates = (service_allocation_candidates[m] || ValueSet.new).to_value_set
+                                set ||= m_candidates
+                                set & m_candidates
+                            end
+                            abstract_tasks[task] = candidates || ValueSet.new
+                        end
+                    end
+
+                    raise TaskAllocationFailed.new(abstract_tasks),
                         "could not find implementation for the following abstract tasks: #{still_abstract}"
                 end
 
