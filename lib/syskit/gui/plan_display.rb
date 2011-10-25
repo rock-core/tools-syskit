@@ -39,7 +39,6 @@ module Ui
 
             task_from_id.clear
             plan.each_task do |task|
-                puts task.object_id
                 task_from_id[task.object_id] = task
             end
             hierarchy_items.each(&:dispose)
