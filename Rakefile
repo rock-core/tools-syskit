@@ -71,6 +71,7 @@ namespace :setup do
         build_orogen 'simple_source'
         build_orogen 'echo'
         build_orogen 'operations'
+        build_orogen 'configurations'
         build_orogen 'states'
         build_orogen 'uncaught'
         build_orogen 'system'
