@@ -165,17 +165,10 @@ end
 
 require 'roby/standalone'
 
-# Generate a default name if the output file name has not been given
-output_type, output_file = Scripts.output_type, Scripts.output_file
-if output_type != 'txt' && !output_file
-    output_file =
-        if base_name = (Scripts.robot_name || Scripts.robot_type)
-            base_name
-        elsif remaining.first != '-'
-            remaining.first
-        else
-            "instanciate"
-        end
+excluded_tasks      = ValueSet.new
+Scripts.setup_output("instanciate", Roby.app.orocos_engine) do
+    Roby.app.orocos_engine.
+        to_dot_dataflow(remove_compositions, excluded_tasks, annotations)
 end
 
 if rprof_file_path
@@ -222,6 +215,10 @@ error = Scripts.run do
     end
 end
 
+if remove_loggers
+    excluded_tasks << Orocos::RobyPlugin::Logger::Logger
+end
+
 if rprof_file_path
     result = RubyProf.stop
     printer = RubyProf::CallTreePrinter.new(result)
@@ -234,64 +231,5 @@ if error
     exit(1)
 end
 
-excluded_tasks      = ValueSet.new
-if remove_loggers
-    excluded_tasks << Orocos::RobyPlugin::Logger::Logger
-end
-
-hierarchy_file = "#{output_file}-hierarchy.#{output_type}"
-dataflow_file = "#{output_file}-dataflow.#{output_type}"
-
-case output_type
-when "txt"
-    pp Roby.app.orocos_engine
-when "dot"
-    File.open(hierarchy_file, 'w') do |output_io|
-        output_io.puts Roby.app.orocos_engine.to_dot_hierarchy
-    end
-    File.open(dataflow_file, 'w') do |output_io|
-        output_io.puts Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks, annotations)
-    end
-when "x11"
-    output_file  = nil
-    Tempfile.open('roby_orocos_instanciate') do |io|
-        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks, annotations)
-        io.flush
-        `dot -Tx11 #{io.path}`
-        if $?.exitstatus != 0
-            STDERR.puts "dot failed to display the network"
-        end
-    end
-
-when "svg", "png"
-    Tempfile.open('roby_orocos_instanciate') do |io|
-        io.write Roby.app.orocos_engine.to_dot_dataflow(remove_compositions, excluded_tasks, annotations)
-        io.flush
-
-        File.open(dataflow_file, 'w') do |output_io|
-            output_io.puts(`dot -T#{Scripts.output_type} #{io.path}`)
-            if $?.exitstatus != 0
-                STDERR.puts "dot failed to generate the network"
-                exit(2)
-            end
-        end
-    end
-    Tempfile.open('roby_orocos_instanciate') do |io|
-        io.write Roby.app.orocos_engine.to_dot_hierarchy
-        io.flush
-
-        File.open(hierarchy_file, 'w') do |output_io|
-            output_io.puts(`dot -T#{Scripts.output_type} #{io.path}`)
-            if $?.exitstatus != 0
-                STDERR.puts "dot failed to generate the network"
-                exit(2)
-            end
-        end
-    end
-end
-
-if output_file
-    STDERR.puts "output task hierarchy in #{hierarchy_file}"
-    STDERR.puts "output dataflow in #{dataflow_file}"
-end
+Scripts.generate_output
 
