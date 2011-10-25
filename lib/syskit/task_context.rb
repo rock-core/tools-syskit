@@ -878,16 +878,23 @@ module Orocos
 
             class << self
                 attr_accessor :name
+                attr_accessor :short_name
             end
             @name = "Orocos::RobyPlugin::DataServiceProxy"
+
+            def to_s
+                "placeholder for #{self.model.short_name}"
+            end
 
             def self.new_submodel(name, models = [])
                 Class.new(self) do
                     abstract
                     class << self
                         attr_accessor :name
+                        attr_accessor :short_name
                     end
                     @name = name
+                    @short_name = models.map(&:short_name).join(",")
                 end
             end
 
@@ -926,7 +933,7 @@ module Orocos
                 model.include ComponentModelProxy
                 model.proxied_data_services = models.dup
             else
-                model = DataServiceProxy.new_submodel(name)
+                model = DataServiceProxy.new_submodel(name, models)
             end
 
             orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
