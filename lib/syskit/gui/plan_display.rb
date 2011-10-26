@@ -34,8 +34,11 @@ module Ui
                 @error_text = nil
             end
 
-            engine.to_svg('hierarchy', 'hierarchy.svg')
-            engine.to_svg('dataflow', 'dataflow.svg', false)
+            renderers.clear
+            hierarchy_io = Tempfile.open('hierarchy')
+            engine.to_svg('hierarchy', hierarchy_io)
+            dataflow_io = Tempfile.open('dataflow')
+            engine.to_svg('dataflow', dataflow_io, false)
 
             task_from_id.clear
             plan.each_task do |task|
@@ -44,10 +47,10 @@ module Ui
             hierarchy_items.each(&:dispose)
             dataflow_items.each(&:dispose)
             scene.clear
-            @hierarchy_items = display_svg('hierarchy.svg')
-            @dataflow_items  = display_svg('dataflow.svg')
+            @hierarchy_items = display_svg(hierarchy_io.path)
+            @dataflow_items  = display_svg(dataflow_io.path)
 
-            r = renderers['hierarchy.svg']
+            r = renderers[hierarchy_io.path]
             bottom = hierarchy_items.map do |i|
                 r.matrixForElement(i.svgid).
                     map(r.bounds_on_element(i.svgid).bottom_left).
@@ -56,6 +59,9 @@ module Ui
             dataflow_items.each do |item|
                 item.move_by(0, bottom + HIERARCHY_DATAFLOW_MARGIN)
             end
+        ensure
+            hierarchy_io.close
+            dataflow_io.close
         end
 
         def display_error(message, error)

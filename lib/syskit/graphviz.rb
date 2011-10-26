@@ -116,7 +116,7 @@ module Orocos
 
             # Generate a svg file representing the current state of the
             # deployment
-            def to_file(kind, format, filename = nil, *additional_args)
+            def to_file(kind, format, output_io = nil, *additional_args)
                 # For backward compatibility reasons
                 filename ||= kind
                 if File.extname(filename) != ".#{format}"
@@ -127,8 +127,13 @@ module Orocos
                     io.write send(kind, *additional_args)
                     io.flush
 
-                    File.open(filename, 'w') do |output_io|
+                    if output_io.respond_to?(:to_str)
+                        File.open(output_io, 'w') do |io|
+                            io.puts(`dot -T#{format} #{io.path}`)
+                        end
+                    else
                         output_io.puts(`dot -T#{format} #{io.path}`)
+                        output_io.flush
                     end
                 end
             end
