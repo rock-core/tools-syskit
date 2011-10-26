@@ -5,5 +5,10 @@ mode = ARGV.shift
 begin
     require "orocos/roby/scripts/#{mode}"
 rescue LoadError
-    require "roby/app/scripts/#{mode}"
+    begin
+        require "roby/app/scripts/#{mode}"
+    rescue LoadError
+        STDERR.puts "unknown mode '#{mode}'"
+        exit(1)
+    end
 end
