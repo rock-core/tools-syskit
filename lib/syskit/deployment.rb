@@ -126,7 +126,7 @@ module Orocos
                 else
                     model = activity_model
                 end
-                plan.add(task = model.new)
+                plan.add(task = model.new(:orocos_name => activity.name))
                 task.robot = robot
                 task.executed_by self
                 task.orogen_spec = activity

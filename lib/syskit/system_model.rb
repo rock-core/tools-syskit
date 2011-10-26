@@ -1,5 +1,10 @@
 module Orocos
     module RobyPlugin
+        # Access to all the available models
+        #
+        # The SystemModel instance is an access point to all the models that are
+        # available to the deployment engine (services, compositions, ...) and
+        # allows to define them as well.
         class SystemModel
             extend Logger::Forward
             extend Logger::Hierarchy
@@ -50,8 +55,6 @@ module Orocos
                 end
             end
 
-            include CompositionModel
-
             def initialize
                 @system_model = self
                 @composition_specializations = Hash.new do |h, k|
@@ -62,12 +65,16 @@ module Orocos
                 @data_service_models = Hash.new
                 @device_models = Hash.new
                 @composition_models = Hash.new
+                @ignored_ports_for_autoconnection = Array.new
             end
 
             attr_predicate :export?, true
             attr_reader :data_service_models
             attr_reader :device_models
             attr_reader :composition_models
+            # The set of criteria to match ports that should be ignored during
+            # autoconnection
+            attr_reader :ignored_ports_for_autoconnection
 
             def has_data_service?(name)
                 if data_service_models.has_key?(name)
@@ -166,6 +173,32 @@ module Orocos
             # Load the types defined in the specified oroGen projects
             def import_types_from(*names)
                 Roby.app.main_orogen_project.import_types_from(*names)
+            end
+
+            # Registers a global exclusion for a class of ports, to be ignored
+            # for all autoconnections
+            #
+            # Any of the arguments can be nil, in which case this criteria will
+            # be ignored.
+            #
+            # @arg [Class] the specific port class, usually Orocos::Spec::InputPort or Orocos::Spec::OutputPort
+            # @arg [String] the port name
+            # @arg [String] the type name of the port, as a string
+            #
+            # It is usually used by plugins that manage certain ports
+            def ignore_port_for_autoconnection(port_type, port_name, port_type_name)
+                ignored_ports_for_autoconnection << [port_type, port_name, port_type_name]
+            end
+
+            # Returns true if a global exclusion rule matches +port+
+            #
+            # See #ignored_ports_for_autoconnection
+            def ignored_for_autoconnection?(port)
+                ignored_ports_for_autoconnection.any? do |port_klass, port_name, port_type_name|
+                    (!port_klass || port.kind_of?(port_klass)) &&
+                    (!port_name || port.name == port_name) &&
+                    (!port_type_name || port.type_name == port_type_name)
+                end
             end
 
             # Load a system model file
@@ -292,7 +325,7 @@ module Orocos
                     :child_of => Orocos::RobyPlugin::TaskContext
 
                 klass = Class.new(options[:child_of])
-                klass.instance_variable_set :@system_model, system_model
+                klass.instance_variable_set :@system_model, self
                 if name
                     klass.orogen_spec  = RobyPlugin.create_orogen_interface(name)
                 end

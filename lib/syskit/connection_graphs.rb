@@ -39,6 +39,9 @@ module Orocos
                 end
                 if current_mappings.empty?
                     unlink(source_task, sink_task)
+                else
+                    # To make the relation system call #update_info
+                    source_task[sink_task, self] = current_mappings
                 end
             end
 
@@ -80,30 +83,38 @@ module Orocos
                 return old
             end
 
+            old_fallback = old.delete(:fallback_policy)
+            new_fallback = new.delete(:fallback_policy)
+            if old_fallback && new_fallback
+                fallback = update_connection_policy(old_fallback, new_fallback)
+            else
+                fallback = old_fallback || new_fallback
+            end
+
             old = Port.validate_policy(old)
             new = Port.validate_policy(new)
-            if old[:type] != new[:type]
-                raise ArgumentError, "connection types mismatch: #{old[:type]} != #{new[:type]}"
-            end
-            type = old[:type]
 
-            if type == :buffer
-                if new.size != old.size
-                    raise ArgumentError, "connection policy mismatch: #{old} != #{new}"
-                end
-
-                old.merge(new) do |key, old_value, new_value|
-                    if key == :size
-                        [old_value, new_value].max
-                    elsif old_value != new_value
-                        raise ArgumentError, "connection policy mismatch for #{key}: #{old_value} != #{new_value}"
+            type = old[:type] || new[:type]
+            merged = old.merge(new) do |key, old_value, new_value|
+                if old_value == new_value
+                    old_value
+                elsif key == :type
+                    raise ArgumentError, "connection types mismatch: #{old_value} != #{new_value}"
+                elsif key == :transport
+                    if old_value == 0 then new_value
+                    elsif new_value == 0 then old_value
                     else
-                        old_value
+                        raise ArgumentError, "policy mismatch for transport: #{old_value} != #{new_value}"
                     end
+                else
+                    raise ArgumentError, "policy mismatch for #{key}: #{old_value} != #{new_value}"
                 end
-            elsif old == new.slice(*old.keys)
-                new
             end
+
+            if fallback
+                merged[:fallback_policy] = fallback
+            end
+            merged
         end
 
         Flows = Roby::RelationSpace(Component)
@@ -240,6 +251,23 @@ module Orocos
                 result
             end
 
+            def disconnect_port(port_name)
+                if port_name.respond_to?(:name)
+                    port_name = port_name.name
+                end
+
+                each_source do |parent_task|
+                    current = parent_task[self, Flows::DataFlow]
+                    current.delete_if { |(from, to), pol| to == port_name }
+                    parent_task[self, Flows::DataFlow] = current
+                end
+                each_sink do |child_task|
+                    current = self[child_task, Flows::DataFlow]
+                    current.delete_if { |(from, to), pol| from == port_name }
+                    self[child_task, Flows::DataFlow] = current
+                end
+            end
+
             # Calls either #connect_ports or #forward_ports, depending on its
             # arguments
             #
@@ -312,6 +340,11 @@ module Orocos
                 self
             end
 
+            def has_concrete_input_connection?(required_port)
+                each_concrete_input_connection(required_port) { return true }
+                false
+            end
+
             def each_concrete_output_connection(required_port = nil)
                 if !block_given?
                     return enum_for(:each_concrete_output_connection, required_port)
@@ -338,6 +371,11 @@ module Orocos
                     end
                 end
                 self
+            end
+
+            def has_concrete_output_connection?(required_port)
+                each_concrete_output_connection(required_port) { return true }
+                false
             end
 
             # call-seq:

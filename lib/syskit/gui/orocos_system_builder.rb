@@ -33,7 +33,7 @@ module Ui
             if !@composer_dialog
                 dialog   = Qt::Dialog.new
                 dialog.set_attribute(Qt::WA_DeleteOnClose, false)
-                composer = Ui::OrocosComposerWidget.new(system_model, robot)
+                composer = Ui::OrocosComposerWidget.new(system_model, robot, engine)
                 composer.setupUi(dialog)
                 @composer_dialog = composer
             end
@@ -182,11 +182,11 @@ module Ui
         end
 
         def append(filename)
-            engine.load(filename)
+            engine.load_composite_file(filename)
 
             items = Hash.new
             engine.defines.each_value do |instance|
-                item = add(instance.base_models.to_a.first, instance.using_spec)
+                item = add(instance.base_models.to_a.first, instance.selections)
                 item.set_check_state(0, Qt::Unchecked)
                 item.name = instance.name
                 item.update_text
@@ -199,7 +199,7 @@ module Ui
                     item.set_check_state(0, Qt::Checked)
                     select(item)
                 elsif composition = instance.base_models.find { |model| model <= Orocos::RobyPlugin::Compositon }
-                    item = add(composition, instance.using_spec)
+                    item = add(composition, instance.selections)
                     item.name = instance.name
                     items[item.name] = item
                     item.update_text

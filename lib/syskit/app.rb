@@ -552,7 +552,7 @@ module Orocos
             # Load a part of the system definition, i.e. the robot description
             # files
             def load_system_definition(file)
-                orocos_engine.load(file)
+                orocos_engine.load_composite_file(file)
             end
 
             # Looks for a deployment called +name+ in the current installation
@@ -750,8 +750,9 @@ module Orocos
 
             def self.run(app)
                 handler_ids = []
-                handler_ids << Roby.engine.add_propagation_handler(:type => :external_events, &Orocos::RobyPlugin.method(:update_task_states))
-                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &Orocos::RobyPlugin.method(:apply_requirement_modifications))
+                handler_ids << Roby.engine.add_propagation_handler(:type => :external_events, &RobyPlugin.method(:update_task_states))
+                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &RuntimeConnectionManagement.method(:update))
+                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &RobyPlugin.method(:apply_requirement_modifications))
 
                 if app.orocos_start_all_deployments?
                     all_deployment_names = app.orocos_engine.deployments.values.map(&:to_a).flatten
@@ -800,6 +801,8 @@ module Orocos
     Roby::Application.register_plugin('orocos', Orocos::RobyPlugin::Application) do
         require 'orocos/roby'
         require 'orocos/process_server'
+        Orocos.load_orogen_plugins('roby')
+        Roby.app.filter_out_patterns.push(/^#{Regexp.quote(File.expand_path(File.dirname(__FILE__), ".."))}/)
     end
 end
 

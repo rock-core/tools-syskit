@@ -149,7 +149,7 @@ module Orocos
                 end
 
                 defn = Roby.app.orocos_engine.
-                    instanciated_component_from_name(definition_name)
+                    resolve_name(definition_name)
                 if !defn
                     raise ArgumentError, "#{defn} is not a valid definition"
                 end
@@ -172,6 +172,10 @@ module Orocos
 
         def self.require_task(name_or_model)
             SingleRequirementTask.subplan(name_or_model)
+        end
+
+        def self.requirement_from_name(name)
+            Roby.app.orocos_engine.resolve_name(name)
         end
 
         # Type of task that allows to select a particular modality. I.e., it

@@ -14,15 +14,14 @@ module Orocos
                 attr_accessor :robot_name
             end
             @debug = false
-            @output_type = 'txt'
 
             def self.tic
                 @tic = Time.now
             end
             def self.toc(string = nil)
                 if string
-                    STDERR.puts string % [Time.now - @tic]
-                else STDERR.puts yield(Time.now - @tic)
+                    Robot.info string % [Time.now - @tic]
+                else Robot.info yield(Time.now - @tic)
                 end
             end
             def self.toc_tic(string = nil, &block)
@@ -31,37 +30,133 @@ module Orocos
             end
 
             def self.resolve_service_name(service)
-                engine = Roby.app.orocos_engine
-                if !engine.robot.has_device?(service) && !engine.has_definition?(service)
-                    if engine.model.has_composition?(service)
-                        service = engine.model.composition_model(service)
-                    elsif model = Roby.app.orocos_tasks[service]
-                        service = model
-                    end
+                service_name, service_conf = service.split(':')
+                if service_conf
+                    service_conf = service_conf.split(',')
                 end
-                service
+                engine = Roby.app.orocos_engine
+                instance = engine.resolve_name(service_name)
+                if service_conf
+                    instance.use_conf(*service_conf)
+                end
+                instance
+            end
+
+            class << self
+                # List of output modes as detected by #autodetect_output_modes
+                attr_reader :output_modes
+                # The default output mode as detected by #autodetect_output_modes
+                attr_reader :default_output_mode
             end
 
             def self.common_options(opt, with_output = false)
                 opt.on('--debug', "turn debugging output on") do
                     Scripts.debug = true
                 end
-                opt.on_tail('-h', '--help', 'this help message') do
-                    STDERR.puts opt
-                    exit
-                end
-                opt.on('-r NAME', '--robot=NAME[,TYPE]', String, 'the robot name used as context to the deployment') do |name|
-                    robot_name, robot_type = name.split(',')
-                    Scripts.robot_name = robot_name
-                    Scripts.robot_type = robot_type
-                    Roby.app.robot(name, robot_type||robot_name)
-                end
                 if with_output
-                    opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, 'in what format to output the result (can be: txt, dot, png or svg), defaults to txt') do |output_arg|
+                    autodetect_output_modes
+                    self.output_type = default_output_mode
+                    opt.on('-o TYPE[:file]', '--output=TYPE[:file]', String, "in what format to output the result (can be: #{output_modes.join(", ")}), defaults to #{default_output_mode}") do |output_arg|
                         output_type, output_file = output_arg.split(':')
+                        output_type = output_type.downcase
+                        if !output_modes.include?(output_type)
+                            raise ArgumentError, "unknown or unavailable output mode #{output_type}, available output modes: #{output_modes.join(", ")}"
+                        end
                         Scripts.output_file = output_file
                         Scripts.output_type = output_type.downcase
                     end
+                end
+                Roby::Application.common_optparse_setup(opt)
+            end
+
+            DOT_DIRECT_OUTPUT = %w{txt x11 qt}
+
+            # Autodetects which output modes are available, and which should be
+            # used by default. It depends on the availability of an X11
+            # connection (tested by looking at ENV['DISPLAY'] and the
+            # availability of Qt / x11 output in dot.
+            #
+            # The preference is:
+            #  * qt
+            #  * dot-x11
+            #  * txt
+            def self.autodetect_output_modes
+                @output_modes = %w{txt svg png dot}
+
+                has_x11_display = ENV['DISPLAY']
+                if !has_x11_display
+                    @default_output_mode = 'txt'
+                end
+
+                `dot -Tx11 does_not_exist 2>&1`
+                if has_dot_x11 = ($?.exitstatus != 1)
+                    @output_modes << 'x11'
+                    @default_output_mode = 'x11'
+                end
+
+                has_qt =
+                    begin
+                        require 'Qt4'
+                    rescue LoadError
+                    end
+                if has_qt
+                    @output_modes << 'qt'
+                    @default_output_mode = 'qt'
+                end
+            end
+
+            # This sets up output in either text or dot format
+            #
+            # The text generation is based on Ruby's pretty print (we
+            # pretty-print the given object). Otherwise, the given block is
+            # meant to generate a dot file that is then postprocessed by
+            # generate_dot_output (which needs to be called at the script's end)
+            def self.setup_output(script_name, object, &block)
+                @dot_generation = block
+                @output_object = object
+
+                output_type, output_file = self.output_type, self.output_file
+                if !DOT_DIRECT_OUTPUT.include?(output_type) && !output_file
+                    @output_file =
+                        if base_name = (self.robot_name || self.robot_type)
+                            "#{base_name}.#{output_type}"
+                        else
+                            "#{script_name}.#{output_type}"
+                        end
+                end
+            end
+
+            def self.generate_output
+                # Now output them
+                case output_type
+                when "txt"
+                    pp @output_object
+                when "dot"
+                    File.open(output_file, 'w') do |output_io|
+                        output_io.puts @dot_generation.call
+                    end
+                when "png", "svg", "x11"
+                    cmd = "dot -T#{output_type}"
+                    if !DOT_DIRECT_OUTPUT.include?(output_type)
+                        cmd << " -o#{output_file}"
+                    end
+                    io = IO.popen(cmd, "w")
+                    io.write(@dot_generation.call)
+                    io.flush
+                    io.close
+                when "qt"
+                    require 'orocos/roby/gui/plan_display'
+                    if !$qApp
+                        app = Qt::Application.new(ARGV)
+                    end
+                    display = Ui::PlanDisplay.new
+                    display.update_view(Roby.plan, Roby.app.orocos_engine)
+                    display.show
+                    $qApp.exec
+                end
+
+                if output_file
+                    STDERR.puts "exported result to #{output_file}"
                 end
             end
 
@@ -87,7 +182,7 @@ module Orocos
 
                     Roby.app.setup
                     toc = Time.now
-                    STDERR.puts "loaded Roby application in %.3f seconds" % [toc - tic]
+                    Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
 
                     yield
                 end

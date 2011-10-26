@@ -1,5 +1,6 @@
 require 'logger'
 require 'utilrb/logger'
+require 'utilrb/hash/map_value'
 require 'orocos/roby/exceptions'
 require 'facets/string/snakecase'
 
@@ -170,19 +171,6 @@ module Orocos
                 mod.instance_variable_set :@orogen_spec, ::Roby.app.loaded_orogen_projects[name]
                 mod
             end
-        end
-
-        def self.validate_using_spec(*mappings)
-            result = Hash.new
-            mappings.each do |element|
-                if element.kind_of?(Hash)
-                    result.merge!(element)
-                else
-                    result[nil] ||= Array.new
-                    result[nil] << element
-                end
-            end
-            result
         end
     end
 end

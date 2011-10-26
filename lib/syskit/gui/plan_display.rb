@@ -7,6 +7,8 @@ module Ui
         attr_reader :renderers
         attr_reader :svg
 
+        def show; view.show end
+
         def initialize(main = nil)
             super()
             @scene           = Qt::GraphicsScene.new
@@ -15,6 +17,7 @@ module Ui
             @hierarchy_items = Array.new
             @dataflow_items  = Array.new
             @svg             = Hash.new
+            @task_from_id = Hash.new
 
             view.viewport_update_mode = Qt::GraphicsView::FullViewportUpdate
             view.scale(0.8, 0.8)
@@ -34,7 +37,7 @@ module Ui
             engine.to_svg('hierarchy', 'hierarchy.svg')
             engine.to_svg('dataflow', 'dataflow.svg', false)
 
-            @task_from_id = Hash.new
+            task_from_id.clear
             plan.each_task do |task|
                 task_from_id[task.object_id] = task
             end
@@ -85,7 +88,8 @@ module Ui
                 next if title.empty?
 
                 id = title[0].content
-                if id =~ /^\d+$/ # this node represents a task/composition
+                if id =~ /^(?:inputs|outputs|label)(\d+)$/ # this node is a part of a task / composition
+                    id = $1
                     task = task_from_id[Integer(id)]
                     svgid_to_task[el['id']] = task
                 end

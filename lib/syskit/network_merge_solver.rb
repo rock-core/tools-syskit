@@ -6,17 +6,38 @@ module Orocos
         # This is the core of the system deployment algorithm implemented in
         # Engine
         class NetworkMergeSolver
+            include Utilrb::Timepoints
+            extend Logger::Hierarchy
+            include Logger::Hierarchy
+
+            # The plan on which this solver applies
             attr_reader :plan
+
+            # A graph that holds all replacements done during generation
+	    attr_reader :task_replacement_graph
 
             def initialize(plan, &block)
                 @plan = plan
                 @merging_candidates_queries = Hash.new
+		@task_replacement_graph = BGL::Graph.new
 
                 if block_given?
                     singleton_class.class_eval do
                         define_method(:merged_tasks, &block)
                     end
                 end
+            end
+
+            def replacement_for(task)
+                if task.plan && task.plan != plan
+                    task = plan[task]
+                end
+                task_replacement_graph.each_dfs(task, BGL::Graph::TREE) do |_, to, _|
+                    if to.leaf?(task_replacement_graph)
+                        return to
+                    end
+                end
+                return task
             end
 
             def self.merge_identical_tasks(plan, &block)
@@ -67,13 +88,16 @@ module Orocos
                 for task in task_set
                     # We never replace a transaction proxy. We only use them to
                     # replace new tasks in the transaction
-                    next if task.transaction_proxy?
+                    if task.transaction_proxy?
+                        debug { "cannot replace #{task}: is a transaction proxy" }
+                        next
+                    end
                     # Don't do service allocation at this stage. It should be
                     # done at the specification stage already
-                    next if task.kind_of?(DataServiceProxy)
-                    # We can only replace a deployed task by a non deployed
-                    # task if the deployed task is not running
-                    next if task.execution_agent && !task.pending?
+                    if task.kind_of?(DataServiceProxy)
+                        debug { "cannot replace #{task}: is a data service proxy" }
+                        next
+                    end
 
                     query = @merging_candidates_queries[task.model]
                     if !query
@@ -88,12 +112,13 @@ module Orocos
                     candidates.delete(task)
                     candidates.delete_if { |t| t.kind_of?(DataServiceProxy) }
                     if candidates.empty?
+                        debug { "no candidates to replace #{task}, using model #{task.user_required_model}" }
                         next
                     end
 
-                    Engine.debug do
-                        candidates.each do |target_task|
-                            Engine.debug "    RAW #{target_task}.merge(#{task})"
+                    debug do
+                        candidates.each do |t|
+                            debug "RAW #{t}.merge(#{task})"
                         end
                         break
                     end
@@ -108,19 +133,19 @@ module Orocos
                         # Cannot merge into target_task if it is marked as not
                         # being usable
                         if !target_task.reusable?
-			    Engine.debug { "    rejecting #{target_task}.merge(#{task}) as receiver is not reusable" }
+			    debug { "rejecting #{target_task}.merge(#{task}) as receiver is not reusable" }
 			    next
 			end
                         # We can not replace a non-abstract task with an
                         # abstract one
                         if (!task.abstract? && target_task.abstract?)
-			    Engine.debug { "    rejecting #{target_task}.merge(#{task}) as abstract attribute mismatches" }
+			    debug { "rejecting #{target_task}.merge(#{task}) as abstract attribute mismatches" }
 			    next
 			end
                         # Merges involving a deployed task can only involve a
                         # non-deployed task as well
                         if (task.execution_agent && target_task.execution_agent)
-			    Engine.debug { "    rejecting #{target_task}.merge(#{task}) as deployment attribute mismatches" }
+			    debug { "rejecting #{target_task}.merge(#{task}) as deployment attribute mismatches" }
 			    next
 			end
 
@@ -130,7 +155,7 @@ module Orocos
                             task_children   ||= task.merged_relations(:each_child, true, false).to_value_set
                             target_children = target_task.merged_relations(:each_child, true, false).to_value_set
                             if task_children != target_children || task_children.any? { |t| t.kind_of?(DataServiceProxy) }
-			        Engine.debug { "    rejecting #{target_task}.merge(#{task}) as composition have different children" }
+			        debug { "rejecting #{target_task}.merge(#{task}) as composition have different children" }
 			        next
 			    end
                         end
@@ -139,21 +164,17 @@ module Orocos
                         can_merge = target_task.can_merge?(task)
                         if can_merge.nil?
                             # Not a direct merge, but might be a cycle
-                            Engine.debug do
-                                "    possible cycle merge for #{target_task}.merge(#{task})"
-                            end
+                            debug { "possible cycle merge for #{target_task}.merge(#{task})" }
                             if possible_cycles
                                 possible_cycles << [task, target_task]
                             end
                             next
                         elsif !can_merge
-			    Engine.debug { "    rejected because #{target_task}.can_merge?(#{task}) returned false" }
+			    debug { "rejected because #{target_task}.can_merge?(#{task}) returned false" }
                             next
                         end
 
-                        Engine.debug do
-                            "    #{target_task}.merge(#{task})"
-                        end
+                        debug { "#{target_task}.merge(#{task})" }
                         merge_graph.link(target_task, task, nil)
                     end
                 end
@@ -165,7 +186,7 @@ module Orocos
                     raise "trying to merge a task onto itself: #{task}"
                 end
 
-                Engine.debug { "    #{task}.merge(#{target_task})" }
+                debug { "    #{task}.merge(#{target_task})" }
                 if task.respond_to?(:merge)
                     task.merge(target_task)
                 else
@@ -174,23 +195,27 @@ module Orocos
                 plan.remove_object(target_task)
                 graph.replace_vertex(target_task, task)
                 graph.remove(target_task)
+		task_replacement_graph.link(target_task, task, nil)
                 all_merges[target_task] = task
 
                 # Since we modified +task+, we now have to update the graph.
                 # I.e. it is possible that some of +task+'s children cannot be
                 # merged into +task+ anymore
                 task_children = task.enum_for(:each_child_vertex, graph).to_a
-                modified_task_children = []
                 task_children.each do |child|
                     if !task.can_merge?(child)
-                        Engine.debug do
-                            "      #{task}.merge(#{child}) is not a valid merge anymore, updating merge graph"
-                        end
+                        debug { "      #{task}.merge(#{child}) is not a valid merge anymore, updating merge graph" }
                         graph.unlink(task, child)
-                        modified_task_children << child
                     end
                 end
-                modified_task_children
+
+                task_parents = task.enum_for(:each_parent_vertex, graph).to_a
+                task_parents.each do |parent|
+                    if !parent.can_merge?(task)
+                        debug { "      #{parent}.merge(#{task}) is not a valid merge anymore, updating merge graph" }
+                        graph.unlink(parent, task)
+                    end
+                end
             end
 
             # Apply the straightforward merges
@@ -232,16 +257,14 @@ module Orocos
                         if target_task.child_vertex?(parent, merge_graph)
                             order = merge_sort_order(parent, target_task)
                             if order == 1
-                                Engine.debug do
+                                debug do
                                     "     picking up #{target_task}.merge(#{parent}) for local cycle"
                                 end
                                 merge_graph.unlink(parent, target_task)
                                 parent_count -= 1
-                                next
-                            end
 
-                            if order == -1
-                                Engine.debug do
+                            elsif order == -1
+                                debug do
                                     "     picking up #{parent}.merge(#{target_task}) for local cycle"
                                 end
                                 merge_graph.unlink(target_task, parent)
@@ -333,49 +356,59 @@ module Orocos
                 leftovers
             end
 
-            def break_simple_cycles(merge_graph, cycles)
-                cycles.delete_if do |task|
-                    parent_removal =
-                        task.enum_for(:each_parent_vertex, merge_graph).find_all do |parent|
-                            cycles.include?(parent)
-                        end
+            # This tries to break cycles found in the merge graph
+            def break_simple_merge_cycles(merge_graph, cycles)
+                cycles = cycles.map do |task|
+                    reachable = ValueSet.new
+                    reachable << task
+                    to_remove = Array.new
+                    debug { "  from #{task}" }
 
-                    if !parent_removal.empty?
-                        parent_removal.each do |removed_parent|
-                            Engine.debug do
-                                "    removing #{task}.merge(#{removed_parent})"
-                            end
-                            merge_graph.unlink(removed_parent, task)
-                        end
-                        next(true)
-                    end
-
-                    child_removal =
-                        task.enum_for(:each_child_vertex, merge_graph).find_all do |child|
-                            cycles.include?(child)
-                        end
-                    if !child_removal.empty?
-                        child_removal.each do |removed_child|
-                            Engine.debug do
-                                "    #{task} => #{removed_child}"
-                            end
-                            merge_graph.unlink(task, removed_child)
-                            next(true)
+                    merge_graph.each_dfs(task, BGL::Graph::ALL) do |edge_from, edge_to, _|
+                        if reachable.include?(edge_to)
+                            debug { "    remove #{edge_from}.merge(#{edge_to})" }
+                            to_remove << [edge_from, edge_to]
+                        else
+                            debug { "    keep #{edge_from}.merge(#{edge_to})" }
+                            reachable << edge_to
                         end
                     end
 
-                    false
+                    debug do
+                        debug "    reachable:"
+                        reachable.each do |t|
+                            debug "      #{t}"
+                        end
+                        break
+                    end
+
+                    [task, reachable, to_remove]
+                end
+                cycles = cycles.sort_by { |_, reachable, _| -reachable.size }
+
+                ignored = ValueSet.new
+                while !cycles.empty?
+                    task, reachable, to_remove = cycles.shift
+                    to_remove.each do |edge_from, edge_to|
+                        debug { "  removing #{edge_from}.merge(#{edge_to})" }
+                        merge_graph.unlink(edge_from, edge_to)
+                    end
+                    ignored = ignored.merge(reachable)
+                    cycles.delete_if do |task, reachable, _|
+                        if ignored.include?(task)
+                            ignored = ignored.merge(reachable)
+                            true
+                        end
+                    end
                 end
             end
 
-
-
             def display_merge_graph(title, merge_graph)
-                Engine.debug "  -- #{title}"
-                Engine.debug do
+                debug "  -- #{title}"
+                debug do
                     merge_graph.each_vertex do |vertex|
                         vertex.each_child_vertex(merge_graph) do |child|
-                            Engine.debug "    #{vertex}.merge(#{child})"
+                            debug "    #{vertex}.merge(#{child})"
                         end
                     end
                     break
@@ -396,12 +429,12 @@ module Orocos
                     if one_parent.empty?
                         break if cycles.empty?
 
-                        Engine.debug "  -- Breaking simple cycles"
-                        break_simple_cycles(merge_graph, cycles)
+                        debug "  -- Breaking simple cycles in the merge graph"
+                        break_simple_merge_cycles(merge_graph, cycles)
                         next
                     end
 
-                    Engine.debug "  -- Applying simple merges"
+                    debug "  -- Applying simple merges"
                     apply_simple_merges(one_parent, merges, merge_graph)
                     break if cycles.empty?
                 end
@@ -409,7 +442,7 @@ module Orocos
                 
                 display_merge_graph("Merge graph after first pass", merge_graph)
 
-                Engine.debug "  -- Applying complex merges"
+                debug "  -- Applying complex merges"
                 while merges.size != merges_size && !ambiguous.empty?
                     merges_size = merges.size
 
@@ -418,10 +451,10 @@ module Orocos
                     #    a candidate is the child of another, we should select
                     #    the highest-level one
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
-                        Engine.debug do
-                            Engine.debug "    trying to disambiguate using dependency structure: #{target_task}"
-                            task_set.each do |task|
-                                Engine.debug "        => #{task}"
+                        debug do
+                            debug "    trying to disambiguate using dependency structure: #{target_task}"
+                            task_set.each do |t|
+                                debug "        => #{t}"
                             end
                             break
                         end
@@ -437,32 +470,26 @@ module Orocos
                     # 1. use device and orogen names
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                         if !target_task.respond_to?(:each_device_name)
-                            Engine.debug do
-                                "cannot disambiguate using names: #{target_task} is no device driver"
-                            end
+                            debug { "cannot disambiguate using names: #{target_task} is no device driver" }
                             next
                         end
                         device_names = target_task.each_device_name.map { |_, dev_name| Regexp.new("^#{dev_name}$") }
                         if device_names.empty?
-                            Engine.debug do
-                                "cannot disambiguate using names: #{target_task} is a device driver, but it is attached to no devices"
-                            end
+                            debug { "cannot disambiguate using names: #{target_task} is a device driver, but it is attached to no devices" }
                             next
                         end
 
                         deployed = task_set.find_all(&:execution_agent)
                         if deployed.empty?
-                            Engine.debug do
-                                "cannot disambiguate using names: no merge candidates of #{target_task} is deployed"
-                            end
+                            debug { "cannot disambiguate using names: no merge candidates of #{target_task} is deployed" }
                             next
                         end
 
-                        Engine.debug do
-                            Engine.debug "    trying to disambiguate using names: #{target_task}"
-                            Engine.debug "    devices: #{device_names.join(", ")}"
-                            deployed.each do |task|
-                                Engine.debug "       #{task.orogen_name} #{task.execution_agent.deployment_name}"
+                        debug do
+                            debug "    trying to disambiguate using names: #{target_task}"
+                            debug "    devices: #{device_names.join(", ")}"
+                            deployed.each do |t|
+                                debug "       #{t.orogen_name} #{t.execution_agent.deployment_name}"
                             end
                             break
                         end
@@ -488,10 +515,10 @@ module Orocos
                             next
                         end
 
-                        Engine.debug do
-                            Engine.debug "    trying to disambiguate using distance: #{target_task}"
-                            task_set.each do |task|
-                                Engine.debug "        => #{task}"
+                        debug do
+                            debug "    trying to disambiguate using distance: #{target_task}"
+                            task_set.each do |t|
+                                debug "        => #{t}"
                             end
                             break
                         end
@@ -512,7 +539,7 @@ module Orocos
                         if !target_task.respond_to?(:each_device_name)
                             candidate = task_set.find { true }
                             if task_set.all? { |t| t.model == candidate.model }
-                                Engine.debug { "randomly picking #{candidate}" }
+                                debug { "randomly picking #{candidate}" }
                                 [candidate]
                             end
                         end
@@ -522,7 +549,12 @@ module Orocos
                 if respond_to?(:merged_tasks)
                     merged_tasks(merges)
                 end
-                merges.values.to_value_set
+
+                resulting_merge_graph = BGL::Graph.new
+                merges.each do |replaced_task, task|
+                    resulting_merge_graph.link(replaced_task, task, nil)
+                end
+                resulting_merge_graph
             end
 
             # Propagation step in the BFS of merge_identical_tasks
@@ -586,10 +618,10 @@ module Orocos
             #
             # The step is given by #merge_tasks_next_step
             def merge_identical_tasks
-                Engine.debug do
-                    Engine.debug ""
-                    Engine.debug "----------------------------------------------------"
-                    Engine.debug "Merging identical tasks"
+                debug do
+                    debug ""
+                    debug "----------------------------------------------------"
+                    debug "Merging identical tasks"
                     break
                 end
 
@@ -598,10 +630,10 @@ module Orocos
                 all_tasks = plan.find_local_tasks(Orocos::RobyPlugin::Component).
                     to_value_set
 
-                Engine.debug do
-                    Engine.debug "-- Tasks in plan"
+                debug do
+                    debug "-- Tasks in plan"
                     all_tasks.each do |t|
-                        Engine.debug "    #{t}"
+                        debug "    #{t}"
                     end
                     break
                 end
@@ -617,57 +649,98 @@ module Orocos
 
                 merged_tasks = ValueSet.new
                 possible_cycles = Set.new
+                pass_idx = 0
                 while !candidates.empty?
+                    pass_idx += 1
+                    add_timepoint 'merge', 'pass', pass_idx, "start"
                     merged_tasks.clear
                     possible_cycles.clear
 
                     while !candidates.empty?
-                        Engine.debug "  -- Raw merge candidates"
-                        merges = direct_merge_mappings(candidates, possible_cycles)
+                        debug "  -- Raw merge candidates"
+                        merges = log_nest(4) do
+                            merges = direct_merge_mappings(candidates, possible_cycles)
+                            debug "#{merges.size} vertices in merge graph"
+                            debug "#{possible_cycles.size} possible cycles"
+                            merges
+                        end
 
                         if merges.empty?
+                            debug "  -- Looking for merges in dataflow cycles"
                             possible_cycles = possible_cycles.to_a
 
                             # Resolve one cycle. As soon as we solved one, cycle in the
                             # normal procedure (resolving one task should break the
                             # cycle)
+                            rejected_cycles = []
                             while !possible_cycles.empty?
                                 cycle = possible_cycles.shift
-                                next if !can_merge_cycle?(possible_cycles, *cycle)
+                                debug { "    checking cycle #{cycle[0]}.merge(#{cycle[1]})" }
 
-                                Engine.debug do
-                                    "    found cycle merge for #{cycle[1]}.merge(#{cycle[1]})"
+                                if !can_merge_cycle?(possible_cycles, *cycle)
+                                    debug { "    cannot merge cycle #{cycle[0]}.merge(#{cycle[1]})" }
+                                    rejected_cycles << cycle
+                                    next
                                 end
+
+                                debug { "    found cycle merge for #{cycle[1]}.merge(#{cycle[1]})" }
                                 merges.link(cycle[0], cycle[1], nil)
                                 if possible_cycles.include?([cycle[1], cycle[0]])
                                     merges.link(cycle[1], cycle[0], nil)
                                 end
                                 break
                             end
-                            possible_cycles.clear
+                            possible_cycles.concat(rejected_cycles)
                         end
                         if merges.empty?
                             candidates.clear
                             break 
                         end
 
-                        candidates = apply_merge_mappings(merges)
+                        applied_merges = apply_merge_mappings(merges)
+                        candidates = ValueSet.new
+                        applied_merges.each_vertex do |task|
+                            candidates << task if task.leaf?(applied_merges)
+                        end
                         merged_tasks.merge(candidates)
+
+                        debug do
+                            debug "  -- Merged tasks during this pass"
+                            for t in candidates
+                                debug "    #{t}"
+                            end
+                            break
+                        end
                         candidates = merge_tasks_next_step(candidates)
+
+                        possible_cycles.each do |from, to|
+                            candidates << replacement_for(from)
+                            candidates << replacement_for(to)
+                        end
+                        possible_cycles.clear
+
+                        debug do
+                            debug "  -- Candidates for next pass"
+                            for t in candidates
+                                debug "    #{t}"
+                            end
+                            break
+                        end
                     end
 
 
-                    Engine.debug "  -- Parents"
+                    debug "  -- Parents"
                     for t in merged_tasks
                         parents = t.each_parent_task.to_value_set
                         candidates.merge(parents) if parents.size > 1
                     end
+                    add_timepoint 'merge', 'pass', pass_idx, "done"
                 end
 
-                Engine.debug do
-                    Engine.debug "done merging identical tasks"
-                    Engine.debug "----------------------------------------------------"
-                    Engine.debug ""
+                debug do
+                    debug "done merging identical tasks"
+                    debug "----------------------------------------------------"
+                    debug ""
                     break
                 end
             end

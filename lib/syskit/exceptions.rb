@@ -73,26 +73,43 @@ module Orocos
         # Exception raised when a service is required but none can be found on a
         # particular task context
         class NoMatchingService < Ambiguous
-            attr_reader :composition_model
-            attr_reader :child_name
             attr_reader :task_model
             attr_reader :required_service
 
-            def initialize(composition_model, child_name, task_model, required_service)
-                @composition_model, @child_name, @task_model, @required_service =
-                    composition_model, child_name, task_model, required_service
+            def initialize(task_model, required_service)
+                @task_model, @required_service =
+                    task_model, required_service
             end
 
             def pretty_print(pp)
-                pp.text "there are no services in #{task_model} that provide the service #{required_service.short_name}, to fullfill the constraints on the child #{child_name} of #{composition_model.short_name}"
+                pp.text "there are no services in #{task_model} that provide the service #{required_service}"
                 pp.breakable
                 pp.text "the services of #{task_model.short_name} are:"
                 pp.nest(2) do
                     pp.breakable
                     pp.seplist(task_model.each_data_service) do |srv|
-                        pp.text "#{srv.name}: #{srv.model.short_name}"
+                        _, srv = *srv
+                        pp.text "#{srv.full_name}: #{srv.model.short_name}"
                     end
                 end
+            end
+        end
+
+        # Refinement of NoMatchingService for a composition child. It adds the
+        # information of the composition / child name
+        class NoMatchingServiceForCompositionChild < NoMatchingService
+            attr_reader :composition_model
+            attr_reader :child_name
+
+            def initialize(composition_model, child_name, task_model, required_service)
+                @composition_model, @child_name = composition_model, child_name
+                super(task_model, required_service)
+            end
+
+            def pretty_print(pp)
+                pp.text "while trying to fullfill the constraints on the child #{child_name} of #{composition_model.short_name}"
+                pp.breakable
+                super
             end
         end
 
@@ -110,13 +127,13 @@ module Orocos
             end
 
             def pretty_print(pp)
-                pp.text "there is an ambiguity while looking for a service of type #{required_service.short_name} in #{task_model.short_name}"
+                pp.text "there is an ambiguity while looking for a service of type #{required_service} in #{task_model.short_name}"
                 pp.breakable
                 pp.text "candidates are:"
                 pp.nest(2) do
                     pp.breakable
                     pp.seplist(candidates) do |service|
-                        pp.text service.name
+                        pp.text service.full_name
                     end
                 end
             end
@@ -208,13 +225,20 @@ module Orocos
         # Exception raised when we could not find concrete implementations for
         # abstract tasks that are in the plan
         class TaskAllocationFailed < SpecError
-            # A task to parents mapping for the failed allocations
+            # A task to [parents, candidates] mapping for the failed allocations
             attr_reader :abstract_tasks
 
+            # Creates a new TaskAllocationFailed exception for the given tasks.
+            #
+            # +tasks+ is a mapping from the abstract tasks to the possible
+            # candidate implementation for these tasks, i.e.
+            #
+            #    t => [model0, model1, ...]
+            #
             def initialize(tasks)
                 @abstract_tasks = Hash.new
 
-                tasks.each do |abstract_task|
+                tasks.each do |abstract_task, candidates|
                     parents = abstract_task.
                         enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
                         map do |parent_task|
@@ -222,17 +246,31 @@ module Orocos
                                 Roby::TaskStructure::Dependency]
                             [options[:roles], parent_task]
                         end
-                    abstract_tasks[abstract_task] = parents
+                    abstract_tasks[abstract_task] = [parents, candidates]
                 end
             end
 
             def pretty_print(pp)
                 pp.text "cannot find a concrete implementation for #{abstract_tasks.size} task(s)"
 
-                abstract_tasks.each do |task, parents|
+                abstract_tasks.each do |task, (parents, candidates)|
                     pp.breakable
-                    pp.text "for #{task.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                    pp.text "#{task.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
                     pp.nest(2) do
+                        pp.breakable
+                        if candidates
+                            if candidates.empty?
+                                pp.text "no candidates"
+                            else
+                                pp.text "#{candidates.size} candidates"
+                                pp.nest(2) do
+                                    pp.breakable
+                                    pp.seplist(candidates) do |c_task|
+                                        pp.text "#{c_task.short_name}"
+                                    end
+                                end
+                            end
+                        end
                         pp.breakable
                         pp.seplist(parents) do |parent|
                             role, parent = parent
@@ -246,35 +284,84 @@ module Orocos
         # Exception raised when we could not find devices to allocate for tasks
         # that are device drivers
         class DeviceAllocationFailed < SpecError
-            # A task to parents mapping for the failed allocations
+            # The set of tasks that failed allocation
             attr_reader :failed_tasks
+            # A task to parents mapping for tasks involved in this error, at the
+            # time of the exception creation
+            attr_reader :task_parents
+            # Existing candidates for this device
+            attr_reader :candidates
 
-            def initialize(tasks)
-                @failed_tasks = Hash.new
+            def initialize(engine, tasks)
+                @failed_tasks = tasks.dup
+                @candidates = Hash.new
+                @task_parents = Hash.new
+
 
                 tasks.each do |abstract_task|
-                    parents = abstract_task.
+                    resolve_device_task(engine, abstract_task)
+                end
+            end
+
+            def resolve_device_task(engine, abstract_task)
+                all_tasks = [abstract_task].to_value_set
+
+                # List the possible candidates for the missing devices
+                candidates = Hash.new
+                abstract_task.model.each_master_device do |srv|
+                    if !abstract_task.arguments["#{srv.name}_name"]
+                        candidates[srv] = engine.plan.find_local_tasks(srv.model).to_value_set
+                        candidates[srv].delete(abstract_task)
+                        all_tasks |= candidates[srv]
+                    end
+                end
+                self.candidates[abstract_task] = candidates
+
+                all_tasks.each do |t|
+                    next if task_parents.has_key?(t)
+
+                    parents = t.
                         enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
                         map do |parent_task|
-                            options = parent_task[abstract_task,
-                                Roby::TaskStructure::Dependency]
+                            options = parent_task[t, Roby::TaskStructure::Dependency]
                             [options[:roles], parent_task]
                         end
-                    failed_tasks[abstract_task] = parents
+                    task_parents[t] = parents
                 end
             end
 
             def pretty_print(pp)
                 pp.text "cannot find a device to tie to #{failed_tasks.size} task(s)"
 
-                failed_tasks.each do |task, parents|
+                failed_tasks.each do |task|
+                    parents = task_parents[task]
+                    candidates = self.candidates[task]
+
                     pp.breakable
                     pp.text "for #{task.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
                     pp.nest(2) do
+                        if !parents.empty?
+                            pp.breakable
+                            pp.seplist(parents) do |parent|
+                                role, parent = parent
+                                pp.text "child #{role.to_a.first} of #{parent.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                            end
+                        end
+
                         pp.breakable
-                        pp.seplist(parents) do |parent|
-                            role, parent = parent
-                            pp.text "child #{role.to_a.first} of #{parent.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                        pp.seplist(candidates) do |cand|
+                            srv, tasks = *cand
+                            if tasks.empty?
+                                pp.text "no candidates for #{srv.short_name}"
+                            else
+                                pp.text "candidates for #{srv.short_name}"
+                                pp.nest(2) do
+                                    pp.breakable
+                                    pp.seplist(tasks) do |cand_t|
+                                        pp.text "#{cand_t}"
+                                    end
+                                end
+                            end
                         end
                     end
                 end
@@ -440,7 +527,7 @@ module Orocos
                             if key.respond_to?(:short_name)
                                 key = key.short_name
                             end
-                            value = value.selected_models
+                            value = value.requirements.models
                             value = value.map do |v|
                                 if v.respond_to?(:short_name) then v.short_name
                                 else v.to_s

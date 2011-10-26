@@ -22,6 +22,7 @@ module Orocos
             @name = "Orocos::RobyPlugin::TaskContext"
 
             argument :conf
+            argument :orocos_name
 
             extend Model
 
@@ -83,6 +84,10 @@ module Orocos
 
                 def worstcase_processing_time(value)
                     orogen_spec.worstcase_processing_time(value)
+                end
+
+                def each_event_port(&block)
+                    orogen_spec.each_event_port(&block)
                 end
             end
             @@configured = Hash.new
@@ -263,9 +268,16 @@ module Orocos
                 # Verify the host constraints (i.e. can't merge other_task in
                 # +self+ if both have constraints on which host they should run,
                 # and that constraint does not match)
-                other_task.respond_to?(:required_host) &&
+                result = other_task.respond_to?(:required_host) &&
                     (!required_host || !other_task.required_host ||
                     required_host == other_task.required_host)
+
+                if !result
+                    NetworkMergeSolver.debug { "cannot merge #{other_task} in #{self}: different host constraints" }
+                    false
+                else
+                    true
+                end
             end
 
             # The PortDynamics object that describes the dynamics of the task
@@ -285,152 +297,6 @@ module Orocos
             # time it is actually triggered
             def trigger_latency
                 orogen_spec.worstcase_trigger_latency
-            end
-
-            ##
-            #:call-seq:
-            #   initial_ports_dynamics => { port_name => port_dynamic, ... }
-            #
-            # Computes the initial port dynamics, i.e. the dynamics that are not
-            # due to an external trigger.
-            #
-            # The information comes from the activity (in case it is a periodic
-            # activity) and device models.
-            #
-            # Returns a mapping from the task's port name to the corresponding
-            # instance of PortDynamics, for the ports for which we have some
-            # information
-            #
-            # Also creates and updates the #task_dynamics object
-            def initial_ports_dynamics
-                @task_dynamics = PortDynamics.new("#{orocos_name}.main")
-
-                result = Hash.new
-                if defined? super
-                    result.merge!(super)
-                end
-
-                if orogen_spec.activity_type.name == 'Periodic'
-                    Engine.debug { "  adding periodic trigger #{orogen_spec.period} 1" }
-                    task_dynamics.add_trigger("main-period", orogen_spec.period, 1)
-                end
-
-                result
-            end
-
-            def create_port_dynamics(result, port_model)
-                if dynamics = result[port_model.name]
-                    return dynamics
-                end
-                dynamics = PortDynamics.new("#{self.orocos_name}.#{port_model.name}",
-                                            port_model.sample_size)
-                dynamics.add_trigger("burst", port_model.burst_period, port_model.burst_size)
-                result[port_model.name] = dynamics
-            end
-
-            ##
-            # Propagate information from the input ports to the output ports,
-            # using the output ports of +self+
-            #
-            # It will only do partial updates, i.e. will just propagate the
-            # ports for which enough information is available
-            def propagate_ports_dynamics_on_outputs(result, handled, with_task_dynamics)
-                if with_task_dynamics
-                    task_minimal_period = task_dynamics.minimal_period
-                end
-
-                old_handled_size = handled.size
-
-                # Propagate explicit update links, i.e. cases where the output
-                # port is only updated when a set of input ports is.
-                model.each_output_port do |port_model|
-                    next if handled.include?(port_model.name)
-                    next if port_model.port_triggers.empty?
-                    next if !with_task_dynamics && port_model.triggered_on_update?
-
-                    # Ignore if we don't have the necessary information for the
-                    # ports that trigger this one
-                    info_available = port_model.port_triggers.all? do |p|
-                        result[p.name] &&
-                            (with_task_dynamics || p.trigger_port?)
-                    end
-                    next if !info_available
-
-                    handled << port_model.name
-                    dynamics = create_port_dynamics(result, port_model)
-
-                    # Compute how many samples we will have queued during
-                    # +trigger_latency+
-                    port_model.port_triggers.each do |trigger_port|
-                        trigger_port_name = trigger_port.name
-                        trigger_port_dynamics = result[trigger_port_name]
-                        period       = trigger_port_dynamics.minimal_period
-
-                        sample_count =
-                            if trigger_port.trigger_port?
-                                # The task gets triggered by the input port. It
-                                # means that we will get 1 + (number of possible
-                                # input samples during trigger_latency) samples
-                                # out
-                                1 + trigger_port_dynamics.
-                                    sample_count(trigger_latency)
-                            else
-                                trigger_port_dynamics.
-                                    sample_count(task_minimal_period + trigger_latency)
-                            end
-
-                        dynamics.add_trigger(trigger_port_name, period * port_model.period, 1)
-                        dynamics.add_trigger(trigger_port_name, 0, sample_count - 1)
-                    end
-                    dynamics.add_trigger("burst",
-                        port_model.burst_period * dynamics.minimal_period,
-                        port_model.burst_size)
-                end
-                old_handled_size != handled.size
-            end
-
-            def propagate_ports_dynamics(triggering_connections, result)
-                triggering_connections.delete_if do |from_task, from_port, to_port|
-                    if result.has_key?(from_task)
-                        out_dynamics = result[from_task][from_port]
-                    end
-                    next if !out_dynamics
-
-                    # The source port is computed, save the period in the input
-                    # ports's model
-                    if orogen_spec.trigger_port?(model.find_input_port(to_port))
-                        task_dynamics.merge(out_dynamics)
-                    end
-
-                    # We may need it to propagate triggers to output ports for
-                    # which triggering inputs are specified
-                    dynamics = (result[self][to_port] ||= PortDynamics.new("#{self.orocos_name}.#{to_port}"))
-                    dynamics.merge(out_dynamics)
-
-                    # Handled fine
-                    true
-                end
-
-                # We don't have all the info we need yet
-                if !triggering_connections.empty?
-                    return
-                end
-
-                model.each_output_port do |port_model|
-                    next if !port_model.triggered_on_update?
-
-                    dynamics = create_port_dynamics(result[self], port_model)
-
-                    triggered_once = port_model.triggered_once_per_update?
-                    task_dynamics.triggers.each do |tr|
-                        dynamics.add_trigger("main", tr.period * port_model.period, 1)
-                        if !triggered_once
-                            dynamics.add_trigger("main", 0, tr.sample_count - 1)
-                        end
-                    end
-                end
-
-                true
             end
 
             def find_input_port(name)
@@ -548,20 +414,28 @@ module Orocos
                 end
             end
 
+            def create_state_reader
+                @state_reader = orogen_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE, :init => true, :transport => Orocos::TRANSPORT_CORBA)
+            end
+
             # Called at each cycle to update the orogen_state attribute for this
             # task.
             def update_orogen_state # :nodoc:
-                if orogen_spec.context.extended_state_support?
-                    @state_reader ||= orogen_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE)
+                if orogen_spec.context.extended_state_support? && !@state_reader
+                    create_state_reader
                 end
 
                 if @state_reader
+                    if !@state_reader.connected?
+                        raise InternalError, "state_reader got disconnected"
+                    end
+
                     if v = @state_reader.read_new
                         @last_orogen_state = orogen_state
                         @orogen_state = v
                     end
                 else
-                    new_state = orogen_task.state
+                    new_state = orogen_task.rtt_state
                     if new_state != @orogen_state
                         @last_orogen_state = orogen_state
                         @orogen_state = new_state
@@ -712,8 +586,11 @@ module Orocos
             # event will be emitted when the it has successfully been
             # configured and started.
             event :start do |context|
-                # We're not running yet, so we have to read the state ourselves.
-                state = read_current_state
+                # Create the state reader right now. Otherwise, we might not get
+                # the state updates related to the task's startup
+                if orogen_spec.context.extended_state_support?
+                    create_state_reader
+                end
 
                 # At this point, we should have already created all the dynamic
                 # ports that are required ... check that
@@ -791,10 +668,11 @@ module Orocos
 		    emit :interrupt
                     emit :aborted
                 rescue Orocos::StateTransitionFailed
-		    # ALL THE LOGIC BELOW must use the state returned by
-		    # read_current_state. Do NOT call other state-related
-		    # methods like #state as they will read the state port
-                    if (state = orogen_task.peek_current_state) && (state != :RUNNING)
+                    # Use #rtt_state as it has no problem with asynchronous
+                    # communication, unlike the port-based state updates.
+		    state = orogen_task.rtt_state
+                    if state != :RUNNING
+			Engine.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
                         # Nothing to do, the poll block will finalize the task
                     else
                         raise
@@ -1000,16 +878,23 @@ module Orocos
 
             class << self
                 attr_accessor :name
+                attr_accessor :short_name
             end
             @name = "Orocos::RobyPlugin::DataServiceProxy"
+
+            def to_s
+                "placeholder for #{self.model.short_name}"
+            end
 
             def self.new_submodel(name, models = [])
                 Class.new(self) do
                     abstract
                     class << self
                         attr_accessor :name
+                        attr_accessor :short_name
                     end
                     @name = name
+                    @short_name = models.map(&:short_name).join(",")
                 end
             end
 
@@ -1048,7 +933,7 @@ module Orocos
                 model.include ComponentModelProxy
                 model.proxied_data_services = models.dup
             else
-                model = DataServiceProxy.new_submodel(name)
+                model = DataServiceProxy.new_submodel(name, models)
             end
 
             orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))

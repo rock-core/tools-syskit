@@ -182,10 +182,7 @@ module Orocos
                     component_model = component_model.
                         specialize("#{component_model.name}<#{reason}>")
 
-                    SystemModel.debug do
-                        SystemModel.debug "created the specialized submodel #{component_model.short_name} of #{component_model.superclass.short_name} as a singleton model for #{reason}"
-                        break
-                    end
+                    SystemModel.debug { "created the specialized submodel #{component_model.short_name} of #{component_model.superclass.short_name} as a singleton model for #{reason}" }
                 end
 
                 service_model = required_service.
@@ -351,7 +348,7 @@ module Orocos
             #
             # It creates a new task from the component model using
             # Component.new, adds it to the engine's plan and returns it.
-            def instanciate(engine, arguments = Hash.new)
+            def instanciate(engine, context, arguments = Hash.new)
                 task_arguments, instanciate_arguments = Kernel.
                     filter_options arguments, :task_arguments => Hash.new
                 engine.plan.add(task = new(task_arguments[:task_arguments]))
@@ -418,6 +415,10 @@ module Orocos
             # children
             attr_accessor :required_host
 
+            # The InstanceRequirements object for which this component has been
+            # instanciated.
+            attr_reader :requirements
+
             # Returns the set of communication busses names that this task
             # needs.
             def com_busses
@@ -434,6 +435,7 @@ module Orocos
                 super
                 @state_copies = Array.new
                 @reusable = true
+                @requirements = InstanceRequirements.new
             end
 
             def create_fresh_copy
@@ -750,11 +752,11 @@ module Orocos
                     raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
                 end
 
-                Engine.debug do
-                    Engine.debug "#{short_name} provides #{model.short_name}"
-                    Engine.debug "port mappings"
+                SystemModel.debug do
+                    SystemModel.debug "#{short_name} provides #{model.short_name}"
+                    SystemModel.debug "port mappings"
                     service.port_mappings.each do |m, mappings|
-                        Engine.debug "  #{m.short_name}: #{mappings}"
+                        SystemModel.debug "  #{m.short_name}: #{mappings}"
                     end
                     break
                 end
@@ -850,6 +852,7 @@ module Orocos
                 # that target_task has (without considering target_task itself).
                 models = user_required_model
                 if !fullfills?(models)
+                    NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: does not fullfill required model #{models.map(&:name).join(", ")}" }
                     return false
                 end
 
@@ -857,34 +860,65 @@ module Orocos
                 #
                 # We search for connections that use the same input port, and
                 # verify that they are coming from the same output
-                self_inputs = Hash.new
+                self_inputs = Hash.new { |h, k| h[k] = Hash.new }
                 each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    if (port_model = model.find_input_port(sink_port)) && port_model.multiplexes?
-                        next
-                    elsif self_inputs.has_key?(sink_port)
-                        raise InternalError, "multiple connections to the same input: #{self}:#{sink_port} is connected from #{source_task}:#{source_port} and #{self_inputs[sink_port]}"
-                    end
-                    self_inputs[sink_port] = [source_task, source_port, policy]
+                    self_inputs[sink_port][[source_task, source_port]] = policy
                 end
 
                 might_be_cycle = false
                 target_task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     if (port_model = model.find_input_port(sink_port)) && port_model.multiplexes?
                         next
-                    elsif conn = self_inputs[sink_port]
-                        same_port   = (conn[1] == source_port)
-                        same_source = (conn[0] == source_task)
-                        if !same_port
+                    end
+
+                    # If +self+ has no connection on +sink_port+, it is valid
+                    if !self_inputs.has_key?(sink_port)
+                        next
+                    end
+
+                    # If the exact same connection is provided, verify that
+                    # the policies match
+                    if conn_policy = self_inputs[sink_port][[source_task, source_port]]
+                        if !policy.empty? && (RobyPlugin.update_connection_policy(conn_policy, policy) != policy)
+                            NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
                             return false
-                        elsif !policy.empty? && (RobyPlugin.update_connection_policy(conn[2], policy) != policy)
-                            return false
-                        elsif !same_source
-                            if Flows::DataFlow.reachable?(self, conn[0]) && Flows::DataFlow.reachable?(target_task, source_task)
-                                might_be_cycle = true
-                            else
-                                return false
+                        end
+                        next
+                    end
+
+                    # Otherwise, we look for potential cycles, i.e. for
+                    # connections where:
+                    #
+                    #  * the port names are the same
+                    #  * the tasks are different
+                    #  * but the tasks are interlinked
+                    #
+                    # If there seem to be a cycle, return a "maybe".
+                    # Otherwise, return false
+                    found = false
+                    self_inputs[sink_port].each do |conn, conn_policy|
+                        next if conn[1] != source_port
+
+                        if Flows::DataFlow.reachable?(self, conn[0]) && Flows::DataFlow.reachable?(target_task, source_task)
+                            if RobyPlugin.update_connection_policy(conn_policy, policy) == policy
+                                found = true
                             end
                         end
+                    end
+
+                    if found
+                        might_be_cycle = true
+                    else
+                        NetworkMergeSolver.debug do
+                            NetworkMergeSolver.debug "cannot merge #{target_task} into #{self}: incompatible connections on #{sink_port}, resp."
+                            NetworkMergeSolver.debug "    #{source_task}.#{source_port}"
+                            NetworkMergeSolver.debug "    --"
+                            self_inputs[sink_port].each_key do |conn|
+                                NetworkMergeSolver.debug "    #{conn[0]}.#{conn[1]}"
+                            end
+                            break
+                        end
+                        return false
                     end
                 end
 
@@ -907,6 +941,12 @@ module Orocos
                     merged_task.instanciated_dynamic_outputs.merge(instanciated_dynamic_outputs)
                 self.instanciated_dynamic_inputs =
                     merged_task.instanciated_dynamic_inputs.merge(instanciated_dynamic_inputs)
+
+                # Merge the InstanceRequirements objects
+                requirements.merge(merged_task.requirements)
+
+                # Call included plugins if there are some
+                super if defined? super
 
                 # Finally, remove +merged_task+ from the data flow graph and use
                 # #replace_task to replace it completely

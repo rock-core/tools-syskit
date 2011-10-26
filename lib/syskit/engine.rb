@@ -1,3 +1,4 @@
+require 'utilrb/timepoints'
 require 'tempfile'
 class Object
     def dot_id
@@ -77,7 +78,7 @@ module Orocos
         end
 
         # Represents a requirement created by Engine#add or Engine#define
-        class EngineRequirement < ComponentInstance
+        class EngineRequirement < InstanceRequirements
             # The name as give  to Engine#add or Engine#define
             attr_accessor :name
             # The actual task. It is set after #resolve has been called
@@ -94,8 +95,8 @@ module Orocos
             # The task this new task replaces. It is set by Engine#replace
             attr_accessor :replaces
 
-            def initialize(engine, name, models)
-                super(engine, models)
+            def initialize(name, models)
+                super(models)
                 @name = name
                 @state_copies = Array.new
             end
@@ -105,65 +106,12 @@ module Orocos
                 @state_copies = old.state_copies.dup
             end
 
-            def instanciate(engine)
+            def instanciate(engine, context)
                 task = super
                 @state_copies.each do |port_name, state_path, filter_block|
                     @task.copy_to_state(port_name, *state_path, &filter_block)
                 end
                 task
-            end
-
-            def placeholder_task(engine)
-                if models.size == 1 && models.find { true }.kind_of?(MasterDeviceInstance)
-                    models.find { true }.task
-                else
-                    instanciate(engine)
-                end
-            end
-
-            def self.resolve_explicit_selection(value, engine)
-                if engine && value.respond_to?(:to_str)
-                    value = value.to_str
-                    if !(selected_object = engine.tasks[value])
-                        if selected_object = engine.robot.devices[value]
-                            # Return the service that corresponds to the device
-                            # name
-                            return resolve_explicit_selection(selected_object, engine)
-                        elsif selected_object = engine.defines[value]
-                            return selected_object
-                        else
-                            raise SpecError, "#{value} does not refer to a known task or device"
-                        end
-                    end
-
-                    # Check if a service has explicitely been selected, and
-                    # if it is the case, return it instead of the complete
-                    # task
-                    service_names = value.split '.'
-                    service_names.shift # remove the task name
-                    if !selected_object.kind_of?(Component) || service_names.empty? 
-                        selected_object
-                    else
-                        candidate_service = selected_object.model.find_data_service(service_names.join("."))
-
-                        if !candidate_service && service_names.size == 1
-                            # Might still be a slave of a main service
-                            services = selected_object.model.each_data_service.
-                                find_all { |_, srv| !srv.master? && srv.name == service_names.first }
-
-                            if services.empty?
-                                raise SpecError, "#{value} is not a known device, or an instanciated composition"
-                            elsif services.size > 1
-                                raise SpecError, "#{value} can refer to multiple objects"
-                            end
-                            candidate_service = services.first.last
-                        end
-
-                        DataServiceInstance.new(selected_object, candidate_service)
-                    end
-                else
-                    super(value, engine)
-                end
             end
 
             # Requires that the values that are output on +port_name+ on this
@@ -194,7 +142,7 @@ module Orocos
 
             # The plan we are working on
             attr_reader :plan
-            # The model we are taking our tasks from
+            # The model we are working on, as a SystemModel instance
             attr_reader :model
             # The robot on which the software is running
             attr_reader :robot
@@ -254,6 +202,10 @@ module Orocos
             #   (i.e., the local machine)
             def use_deployment(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
+                if deployments[options[:on]].include?(name)
+                    return
+                end
+
                 server   = process_server_for(options[:on])
                 deployer = server.load_orogen_deployment(name)
 
@@ -297,7 +249,11 @@ module Orocos
                 result = []
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
-                        result << use_deployment(deployment_def.name, options)
+                        # Currently, the supervision cannot handle orogen_default tasks 
+                        # properly, thus filtering them out for now 
+                        if not /^orogen_default/ =~ "#{deployment_def.name}"
+                            result << use_deployment(deployment_def.name, options)
+                        end
                     end
                 end
                 result
@@ -339,8 +295,8 @@ module Orocos
                 @instances = Array.new
                 @tasks     = Hash.new
                 @deployments = Hash.new { |h, k| h[k] = Set.new }
-                @main_selection = Hash.new
-                @main_user_selection = Hash.new
+                @main_user_selection = DependencyInjection.new
+                @main_automatic_selection = DependencyInjection.new
                 @defines   = Hash.new
                 @modified  = false
                 @pending_removes = Hash.new
@@ -349,23 +305,23 @@ module Orocos
             end
 
             # The set of selections the user specified should be applied on
-            # every compositions. See Engine#use and EngineRequirement#use
-            # for more details on the format
+            # every compositions. See Engine#use and InstanceRequirements#use
+            #
+            # It is stored as an instance of DependencyInjection
             attr_reader :main_user_selection
 
-            # The system-level device selection used during instanciation
-            attr_reader :main_selection
+            # The set of selections computed based on what is actually available
+            # on this system
+            #
+            # It can be disabled by setting #use_main_selection to false
+            attr_reader :main_automatic_selection
 
             # Provides system-level selection.
             #
             # This is akin to dependency injection at the system level. See
             # EngineRequirement#use for details.
             def use(*mappings)
-                mappings = RobyPlugin.validate_using_spec(*mappings)
-                mappings.each do |model, definition|
-                    main_user_selection[model] = definition
-                end
-                @main_user_selection = EngineRequirement.resolve_recursive_selection(main_user_selection)
+                main_user_selection.add(*mappings)
             end
 
             # Require a new composition/service, and specify that it should be
@@ -376,25 +332,93 @@ module Orocos
                 instance
             end
 
+            # Resolve a name into either an InstanceRequirement or an
+            # InstanceSelection object, suitable for the instantiation process.
+            #
+            # The name can refer to an instance definition or to a device.
+            # Additionally, a particular service can be selected by using the
+            #
+            #   base_name.service_name
+            #
+            # syntax.
+            def resolve_name(name, instance_name = nil)
+                model_name, *service_name = name.to_str.split('.')
+                instance_name = instance_name.to_str if instance_name
+
+                if device = robot.devices[model_name]
+                    instance = Engine.create_instanciated_component(self, instance_name, device)
+                elsif instance = defines[model_name]
+                    instance = instance.dup
+                    instance.name = instance_name
+                elsif self.model.has_composition?(model_name)
+                    component_model = model.composition_model(service_name)
+                    instance = Engine.create_instanciated_component(self, instance_name, component_model)
+                elsif component_model = Roby.app.orocos_tasks[model_name]
+                    instance = Engine.create_instanciated_component(self, instance_name, component_model)
+                else
+                    raise SpecError, "#{name} does not refer to a known task or device (known tasks: #{tasks.keys.sort.join(", ")}; known devices: #{robot.devices.keys.sort.join(", ")})"
+                end
+
+                # Check if a service has explicitely been selected, and
+                # if it is the case, return it instead of the complete
+                # task
+                if service_name.empty?
+                    return instance
+                else
+                    service_name = service_name.join(".")
+                    candidates = []
+                    instance.base_models.each do |m|
+                        if srv = m.find_data_service(service_name)
+                            candidates << srv
+                        end
+                    end
+
+                    if candidates.empty?
+                        # Look for slave services, if they are not ambiguous
+                        instance.base_models.each do |m|
+                            m.each_data_service do |srv_name, srv|
+                                if srv_name =~ /\.#{service_name}/
+                                    candidates << srv
+                                end
+                            end
+                        end
+                    end
+
+                    if candidates.size > 1
+                        raise ArgumentError, "ambiguity while resolving #{name}: the service name #{service_name} can be resolved into #{candidates.map(&:to_s).join(", ")}"
+                    elsif candidates.empty?
+                        all_services = instance.models.map do |m|
+                            m.each_data_service.map(&:first)
+                        end.flatten.uniq.sort
+                        raise ArgumentError, "no service #{service_name} can be found for #{name}, known services are #{all_services.join(", ")} on #{instance}"
+                    end
+                    result = InstanceSelection.new(instance)
+                    result.selected_services[candidates.first.model] = candidates.first
+                    return result
+                end
+            end
+
             # Helper method that creates an instance of EngineRequirement
             # and registers it
             def self.create_instanciated_component(engine, name, model) # :nodoc:
                 if model.respond_to?(:to_str)
-                    model = engine.instanciated_component_from_name(model, name || model)
+                    model = engine.resolve_name(model, name || model)
                 end
 
                 if model.kind_of?(DeviceInstance)
+                    service = model.service
+                    service_model = model.device_model
                     if model.kind_of?(SlaveDeviceInstance)
                         model = model.master_device
                     end
 
-                    requirements = EngineRequirement.new(engine, name, [model.task_model])
+                    requirements = EngineRequirement.new(name, [model.task_model])
                     requirements.with_arguments(model.task_arguments)
                     requirements.with_arguments("#{model.service.name}_name" => model.name)
                     requirements
                 elsif model.kind_of?(Class) && model < Component
-                    EngineRequirement.new(engine, name, [model])
-                elsif model.kind_of?(EngineRequirement)
+                    EngineRequirement.new(name, [model])
+                elsif model.kind_of?(InstanceRequirements)
                     model
                 else
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
@@ -403,7 +427,7 @@ module Orocos
 
             # Returns a instanciation specification for the given device
             def device(name)
-                instanciated_component_from_name(name, name)
+                resolve_name(name, name)
             end
 
 	    def export_defines_to_planner(planner)
@@ -459,30 +483,10 @@ module Orocos
             #   ...
             #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
-                defines[name] = Engine.create_instanciated_component(self, name, main_user_selection[model] || model)
+                selected = main_user_selection.selection_for(model) || model
+                defines[name] = Engine.create_instanciated_component(self, name, selected)
                 export_define_to_planner(::MainPlanner, name)
 		defines[name]
-            end
-
-            # Returns the EngineRequirement object that represents the given
-            # name.
-            #
-            # The name can be a deployment definition (created with #define) or
-            # a device name
-            def instanciated_component_from_name(name, instance_name = name)
-                name = name.to_str
-                instance_name = instance_name.to_str
-
-                if device = robot.devices[name]
-                    instance = Engine.create_instanciated_component(self, instance_name, device)
-                elsif (instance = defines[name])
-                    instance = instance.dup
-                    instance.name = instance_name
-                else
-                    raise ArgumentError, "#{name} is not a valid instance definition added with #define"
-                end
-
-                instance
             end
 
             # Add a new component requirement to the current deployment
@@ -495,12 +499,26 @@ module Orocos
             def add(model, arguments = Hash.new)
                 arguments = Kernel.validate_options arguments, :as => nil
 
-                instance = Engine.create_instanciated_component(self, arguments[:as], main_user_selection[model] || model)
+                selected = main_user_selection.selection_for(model) || model
+                instance = Engine.create_instanciated_component(self, arguments[:as], selected)
 
                 @modified = true
                 instances << instance
                 instance
             end
+
+            # Returns true if +obj+ is a definition that is valid given the
+            # current system configuration, i.e. if it could be used in #define
+            # or #add
+            def valid_definition?(spec)
+                begin
+                    Engine.create_instanciated_component(self, "", spec)
+                    true
+                rescue ArgumentError
+                    false
+                end
+            end
+
 
             # Returns true if +name+ is the name of a definition added with
             # #define
@@ -635,34 +653,6 @@ module Orocos
                 @modified = true
             end
 
-            # Add the global selections to +using_spec+
-            def add_default_selections(using_spec)
-                implicit = using_spec[nil] || []
-                Engine.debug "adding default selections"
-
-                main_selection.each do |key, selected|
-                    Engine.debug do
-                        Engine.debug "  #{key} => #{selected}"
-                        break
-                    end
-
-                    if key
-                        next if implicit.any? { |t| t.fullfills?(key) }
-                    end
-
-                    if resolved_selection = EngineRequirement.resolve_explicit_selection(selected, self)
-                        verify_result_in_transaction(key, resolved_selection)
-                        if resolved_selection.respond_to?(:to_ary) && !implicit.empty?
-                            using_spec[nil].concat(resolved_selection)
-                        else
-                            using_spec[key] ||= resolved_selection
-                        end
-                    end
-                end
-
-                EngineRequirement.resolve_recursive_selection(using_spec)
-            end
-
             def verify_result_in_transaction(key, result)
                 if result.respond_to?(:to_ary)
                     result.each { |obj| verify_result_in_transaction(key, obj) }
@@ -698,271 +688,92 @@ module Orocos
                     composition_model.reset_autoconnection
                 end
 
+                # Now prepare the main selection
+                main_selection = DependencyInjectionContext.new
+
+                devices = Hash.new
                 robot.each_master_device do |name, device_instance|
-                    plan.add(task = device_instance.instanciate(self))
+                    plan.add(task = device_instance.instanciate(self, main_selection))
                     device_instance.task = task
+                    register_task(name, task)
+                    devices[name] = task
+                end
+                main_selection.push(devices)
+
+                # First, push the name-to-spec mappings
+                main_selection.push(defines)
+                # Second, push the automatically-computed selections (if
+                # required)
+                if use_main_selection?
+                    main_selection.push(DependencyInjection.new(main_automatic_selection))
+                end
+                # Finally, the explicit selections
+                main_selection.push(main_user_selection)
+
+                Engine.debug do
+                    Engine.debug "Resolved main selection"
+                    Engine.log_nest(2) do
+                        Engine.log_pp(:debug, main_selection)
+                    end
+                    break
+                end
+                @main_selection = main_selection
+
+                instances.each do |instance|
+                    instance.task = add_instance(instance, :as => instance.name, :context => main_selection)
+                end
+            end
+
+            # Add a task instance in the plan, during the instanciation process
+            #
+            # One must NOT use this method outside of the instanciation process
+            # !
+            def add_instance(instance_def, arguments = Hash.new)
+                arguments = Kernel.validate_options arguments, :as => nil, :context => @main_selection
+                context = arguments[:context]
+
+                selected = main_user_selection.selection_for(instance_def) || instance_def
+                instance = Engine.create_instanciated_component(self, arguments[:as], selected)
+
+                begin
+                    context.save
+                    plan.add(task = instance.instanciate(self, context))
+                ensure
+                    context.restore
+                end
+
+                if name = arguments[:as]
                     register_task(name, task)
                 end
 
-                instances.each do |instance|
-                    plan.add(task = instance.placeholder_task(self))
-                    instance.task = task
-                    if name = instance.name
-                        register_task(name, task)
-                    end
-
-                    # This is important here, as #resolve uses
-                    # static_garbage_collect to clear up the plan
-                    #
-                    # However, the permanent flag will be removed at the end
-                    # of #resolve
-                    plan.add_permanent(task)
-                end
+                # This is important here, as #resolve uses
+                # static_garbage_collect to clear up the plan
+                #
+                # However, the permanent flag will be removed at the end
+                # of #resolve
+                plan.add_permanent(task)
+                task
             end
 
             # Generate a svg file representing the current state of the
             # deployment
             def to_svg(kind, filename = nil, *additional_args)
-                # For backward compatibility reasons
-                if !filename
-                    filename = kind
-                    kind = 'dataflow'
-                end
-
-                Tempfile.open('roby_orocos_deployment') do |io|
-                    io.write send("to_dot_#{kind}", *additional_args)
-                    io.flush
-
-                    File.open(filename, 'w') do |output_io|
-                        output_io.puts(`dot -Tsvg #{io.path}`)
-                    end
-                end
+                Graphviz.new(plan, self).to_file(kind, 'svg', filename, *additional_args)
             end
 
-            # Generates a dot graph that represents the task hierarchy in this
-            # deployment
             def to_dot_hierarchy
-                result = []
-                result << "digraph {"
-                result << "  rankdir=TB"
-                result << "  node [shape=record,height=.1,fontname=\"Arial\"];"
-
-                all_tasks = ValueSet.new
-
-                plan.find_local_tasks(Composition).each do |task|
-                    all_tasks << task
-                    task.each_child do |child_task, _|
-                        all_tasks << child_task
-                        result << "  #{task.dot_id} -> #{child_task.dot_id};"
-                    end
-                end
-
-                plan.find_local_tasks(Deployment).each do |task|
-                    all_tasks << task
-                    task.each_executed_task do |component|
-                        all_tasks << component
-                        result << "  #{component.dot_id} -> #{task.dot_id} [color=\"blue\"];"
-                    end
-                end
-
-                all_tasks.each do |task|
-                    task_label, attributes = format_task_label(task)
-                    attributes << "label=<#{task_label}>"
-                    if task.abstract?
-                        attributes << " color=\"red\""
-                    end
-
-                    result << "  #{task.dot_id} [#{attributes.join(" ")}];"
-                end
-
-                result << "};"
-                result.join("\n")
+                Graphviz.new(plan, self).hierarchy
             end
 
-            def to_dot
-                to_dot_dataflow
+            def to_dot_dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = ["connection_policy"])
+                gen = Graphviz.new(plan, self)
+                annotations.each do |ann|
+                    gen.send("add_#{ann}_annotations")
+                end
+                gen.dataflow(remove_compositions, excluded_models)
             end
 
-            # Generates a dot graph that represents the task dataflow in this
-            # deployment
-            def to_dot_dataflow(remove_compositions = false, excluded_models = ValueSet.new)
-                result = []
-                result << "digraph {"
-                result << "  rankdir=LR"
-                result << "  node [shape=none,margin=0,height=.1,fontname=\"Arial\"];"
-
-                output_ports = Hash.new { |h, k| h[k] = Set.new }
-                input_ports  = Hash.new { |h, k| h[k] = Set.new }
-
-                all_tasks = plan.find_local_tasks(Deployment).to_value_set
-
-                plan.find_local_tasks(Component).each do |source_task|
-                    next if remove_compositions && source_task.kind_of?(Composition)
-                    next if excluded_models.include?(source_task.model)
-
-                    source_task.model.each_input_port do |port|
-                        input_ports[source_task] << port.name
-                    end
-                    source_task.model.each_output_port do |port|
-                        output_ports[source_task] << port.name
-                    end
-
-                    all_tasks << source_task
-                    if !source_task.kind_of?(Composition)
-                        source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                            next if excluded_models.include?(sink_task.model)
-
-                            output_ports[source_task] << source_port
-                            input_ports[sink_task]    << sink_port
-                            source_port_id = source_port.gsub(/[^\w]/, '_')
-                            sink_port_id   = sink_port.gsub(/[^\w]/, '_')
-
-                            policy = policy.dup
-                            policy.delete(:fallback_policy)
-                            policy_s = if policy.empty? then ""
-                                       elsif policy[:type] == :data then 'data'
-                                       elsif policy[:type] == :buffer then  "buffer:#{policy[:size]}"
-                                       else policy.to_s
-                                       end
-
-                            result << "  #{source_task.dot_id}:#{source_port_id} -> #{sink_task.dot_id}:#{sink_port_id} [label=\"#{policy_s}\"];"
-                        end
-                    end
-
-                    if !remove_compositions
-                        source_task.each_sink do |sink_task, connections|
-                            next if !sink_task.kind_of?(Composition) && !source_task.kind_of?(Composition)
-                            next if excluded_models.include?(sink_task.model) || excluded_models.include?(source_task.model)
-
-                            connections.each do |(source_port, sink_port), _|
-                                output_ports[source_task] << source_port
-                                input_ports[sink_task]    << sink_port
-
-                                result << "  #{source_task.dot_id}:#{source_port} -> #{sink_task.dot_id}:#{sink_port} [style=dashed];"
-                            end
-                        end
-                    end
-                end
-
-                clusters = Hash.new { |h, k| h[k] = Array.new }
-                all_tasks.each do |task|
-                    if !task.kind_of?(Deployment)
-                        clusters[task.execution_agent] << task
-                    end
-                end
-
-                # Allocate one color for each task. The ideal would be to do a
-                # graph coloring so that two related tasks don't get the same
-                # color, but that's TODO
-                task_colors = Hash.new
-                used_deployments = all_tasks.map(&:execution_agent).to_value_set
-                used_deployments.each do |task|
-                    task_colors[task] = RobyPlugin.allocate_color
-                end
-
-                clusters.each do |deployment, task_contexts|
-                    if deployment
-                        result << "  subgraph cluster_#{deployment.dot_id} {"
-                        result << "    #{dot_task_attributes(deployment, Array.new, Array.new, task_colors, remove_compositions).join(";\n     ")};"
-                    end
-
-                    task_contexts.each do |task|
-                        if !task
-                            raise "#{task} #{deployment} #{task_contexts.inspect}"
-                        end
-                        attributes = dot_task_attributes(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort, task_colors, remove_compositions)
-                        result << "    #{task.dot_id} [#{attributes.join(",")}];"
-                    end
-
-                    if deployment
-                        result << "  };"
-                    end
-                end
-
-                result << "};"
-                result.join("\n")
-            end
-
-            def format_task_label(task, task_colors = Hash.new)
-                task_node_attributes = []
-                task_flags = []
-                #task_flags << "E" if task.executable?
-                #task_flags << "A" if task.abstract?
-                #task_flags << "C" if task.kind_of?(Composition)
-                task_flags =
-                    if !task_flags.empty?
-                        "[#{task_flags.join(",")}]"
-                    else ""
-                    end
-                
-                task_label = 
-                    if task.respond_to?(:proxied_data_services)
-                        task.proxied_data_services.map(&:short_name).join(", ") + task_flags
-                    else
-                        text = task.to_s
-                        text = text.gsub('Orocos::RobyPlugin::', '').
-                            gsub(/\s+/, '').gsub('=>', ':').tr('<>', '[]')
-                        result =
-                            if text =~ /(.*)\/\[(.*)\](:0x[0-9a-f]+)/
-                                # It is a specialization, move the
-                                # specialization specification below the model
-                                # name
-                                name = $1
-                                specializations = $2
-                                id  = $3
-                                name + task_flags +
-                                    "<BR/>" + specializations.gsub('),', ')<BR/>')
-                            else
-                                text.gsub /:0x[0-9a-f]+/, ''
-                            end
-                        result.gsub(/\s+/, '').gsub('=>', ':').
-                            gsub(/\[\]|\{\}/, '').gsub(/[{}]/, '<BR/>')
-                    end
-                task_label.tr('<>', '[]')
-
-                if task.kind_of?(Deployment)
-                    if task_colors[task]
-                        task_node_attributes << "color=\"#{task_colors[task]}\""
-                        task_label = "<FONT COLOR=\"#{task_colors[task]}\">#{task_label}"
-                        task_label << " <BR/> [Process name: #{task.model.deployment_name}]</FONT>"
-                    else
-                        task_label = "#{task_label}"
-                        task_label << " <BR/> [Process name: #{task.model.deployment_name}]"
-                    end
-                elsif task.kind_of?(Composition)
-                    task_node_attributes << "color=\"blue\""
-                end
-
-                roles = task.roles
-                task_label << " <BR/> roles:#{roles.to_a.sort.join(",")}"
-
-                return task_label, task_node_attributes
-            end
-
-            # Helper method for the to_dot methods
-            def dot_task_attributes(task, inputs, outputs, task_colors, remove_compositions = false) # :nodoc:
-                task_label, task_dot_attributes = format_task_label(task, task_colors)
-
-                label = "  <TABLE ALIGN=\"LEFT\" BORDER=\"0\" CELLBORDER=\"#{task.kind_of?(Deployment) ? '0' : '1'}\" CELLSPACING=\"0\">\n"
-                if !inputs.empty?
-                    label << inputs.map do |name|
-                        "    <TR><TD PORT=\"#{name.gsub(/[^\w]/, '_')}\">#{name} </TD></TR>\n"
-                    end.join("")
-                end
-                label << "    <TR><TD ALIGN=\"LEFT\" PORT=\"main\">#{task_label} </TD></TR>\n"
-                if !outputs.empty?
-                    label << outputs.map do |name|
-                        "    <TR><TD PORT=\"#{name.gsub(/[^\w]/, '_')}\">#{name} </TD></TR>\n"
-                    end.join("")
-                end
-                label << "  </TABLE>"
-
-                task_dot_attributes << "label=< #{label} >"
-                if task.abstract?
-                    task_dot_attributes << "color=\"red\""
-                end
-                task_dot_attributes
-            end
+            def to_dot; to_dot_dataflow end
 
             def pretty_print(pp) # :nodoc:
                 pp.text "-- Tasks"
@@ -1000,8 +811,32 @@ module Orocos
 
                 still_abstract = all_tasks.find_all(&:abstract?)
                 if !still_abstract.empty?
-                    raise TaskAllocationFailed.new(still_abstract),
+                    abstract_tasks = Hash.new
+                    still_abstract.each do |task|
+                        if task.respond_to?(:proxied_data_services)
+                            candidates = task.proxied_data_services.inject(nil) do |set, m|
+                                m_candidates = (service_allocation_candidates[m] || ValueSet.new).to_value_set
+                                set ||= m_candidates
+                                set & m_candidates
+                            end
+                            abstract_tasks[task] = candidates || ValueSet.new
+                        end
+                    end
+
+                    raise TaskAllocationFailed.new(abstract_tasks),
                         "could not find implementation for the following abstract tasks: #{still_abstract}"
+                end
+
+                plan.find_local_tasks(TaskContext) do |task|
+                    seen = Hash.new
+                    task.each_concrete_input_connections do |source_task, source_port, sink_port, _|
+                        if (port_model = task.model.find_input_port(sink_port)) && port_model.multiplexes?
+                            next
+                        elsif seen[sink_port]
+                            raise SpecError, "#{task}.#{sink_port} is connected multiple times"
+                        end
+                        seen[sink_port] = true
+                    end
                 end
 
                 # Check that all devices are properly assigned
@@ -1010,20 +845,36 @@ module Orocos
                         t.model.each_master_device.any? { |srv| !t.arguments["#{srv.name}_name"] }
                 end
                 if !missing_devices.empty?
-                    raise DeviceAllocationFailed.new(missing_devices),
+                    raise DeviceAllocationFailed.new(self, missing_devices),
                         "could not allocate devices for the following tasks: #{missing_devices}"
                 end
+
+                devices = Hash.new
+                all_tasks.each do |task|
+                    next if !(task.model < Device)
+                    task.model.each_master_device do |srv|
+                        device_name = task.arguments["#{srv.name}_name"]
+                        if old_task = devices[device_name]
+                            raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}"
+                        else
+                            devices[device_name] = task
+                        end
+                    end
+                end
+
+                # Call hooks that we might have
+                super if defined? super
             end
 
             def validate_final_network(plan, options = Hash.new)
                 # Check that all device instances are proper tasks (not proxies)
                 instances.each do |instance|
                     if instance.task.transaction_proxy?
-                        raise InternalError, "some transaction proxies are stored in instance definitions"
+                        raise InternalError, "instance definition #{instance} contains a transaction proxy: #{instance.task}"
                     end
                 end
                 robot.devices.each do |name, instance|
-                    if instance.task.transaction_proxy?
+                    if instance.task && instance.task.transaction_proxy?
                         raise InternalError, "some transaction proxies are stored in devices definitions"
                     end
                 end
@@ -1043,6 +894,8 @@ module Orocos
                             "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
                     end
                 end
+
+                super if defined? super
             end
 
             # A mapping from data service models to concrete models
@@ -1061,10 +914,16 @@ module Orocos
             # Must be called everytime the system model changes. It updates the
             # values that are cached to speed up the instanciation process
             def prepare
+                add_timepoint 'prepare', 'start'
+
+                Engine.model_postprocessing.each do |block|
+                    block.call(model)
+                end
+
                 # This caches the mapping from child name to child model to
                 # speed up instanciation
                 model.each_composition do |composition|
-                    composition.update_all_children
+                    composition.prepare
                 end
 
                 # We now compute default selections for data service models. It
@@ -1095,6 +954,10 @@ module Orocos
 
                 service_allocation_candidates.clear
                 result = Hash.new
+                add_timepoint 'default_allocations', 'start'
+
+                # For each declared data service, look for models that define
+                # them and store the result
                 model.each_data_service do |service|
                     candidates = all_concrete_models.
                         find_all { |m| m.fullfills?(service) }.
@@ -1129,28 +992,86 @@ module Orocos
                         service_allocation_candidates[service] = candidates
                     end
                 end
-
-                if !use_main_selection?
-                    @main_selection = main_user_selection.dup
-                else
-                    @main_selection = result.merge(main_user_selection)
-                end
-                @main_selection = EngineRequirement.resolve_recursive_selection(@main_selection)
+                add_timepoint 'default_allocations', 'end'
+                @main_automatic_selection = result
 
                 @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
+
+                add_timepoint 'prepare', 'done'
+
+            end
+
+            def apply_merge_to_stored_instances
+                # Replace the tasks stored in devices and instances by the
+                # actual new tasks
+                mappings = Hash.new
+                instances.each do |instance|
+                    new_task = (mappings[instance.task] ||= @network_merge_solver.replacement_for(instance.task))
+                    if new_task != instance.task
+                        NetworkMergeSolver.debug { "updated task of instance #{instance.task} from #{instance.task} to #{new_task}" }
+                    end
+                    instance.task = new_task
+                end
+                robot.devices.each do |name, dev|
+                    next if !dev.respond_to?(:task=)
+                    new_task = (mappings[dev.task] ||= @network_merge_solver.replacement_for(dev.task))
+                    if new_task != dev.task
+                        NetworkMergeSolver.debug { "updated task of device #{name} from #{dev.task} to #{new_task}" }
+                    end
+                    dev.task = new_task
+                end
+                @tasks = tasks.map_value do |name, task|
+                    new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task))
+                    if new_task != task
+                        NetworkMergeSolver.debug { "updated named task #{name} from #{task} to #{new_task}" }
+                    end
+                    new_task
+                end
+                if @deployment_tasks
+                    @deployment_tasks = @deployment_tasks.map do |task|
+                        new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task))
+                        if new_task != task
+                            NetworkMergeSolver.debug { "updated deployment task #{task} to #{new_task}" }
+                        end
+                        new_task
+                    end
+                end
+            end
+
+            def add_default_selections(using_spec)
+                result = main_selection.merge(using_spec)
+                InstanceRequirements.resolve_recursive_selection_mapping(result)
+            end
+
+            include Utilrb::Timepoints
+
+            def format_timepoints
+                super + @network_merge_solver.format_timepoints
             end
 
             # Compute in #plan the network needed to fullfill the requirements
             #
             # This network is neither validated nor tied to actual deployments
             def compute_system_network
+                add_timepoint 'compute_system_network', 'start'
                 instanciate
+                Engine.instanciation_postprocessing.each do |block|
+                    block.call(self, plan)
+                end
+                add_timepoint 'compute_system_network', 'instanciate'
+                @network_merge_solver.merge_identical_tasks
+                apply_merge_to_stored_instances
 
-                # Needed at least for now to merge together drivers that
-                # have multiple devices
-                @network_merge_solver.merge_identical_tasks
+                add_timepoint 'compute_system_network', 'merge'
+                Engine.instanciated_network_postprocessing.each do |block|
+                    block.call(self, plan)
+                    add_timepoint 'compute_system_network', 'postprocessing', block.to_s
+                end
                 link_to_busses
+                add_timepoint 'compute_system_network', 'link_to_busses'
                 @network_merge_solver.merge_identical_tasks
+                apply_merge_to_stored_instances
+                add_timepoint 'compute_system_network', 'merge'
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
@@ -1160,6 +1081,33 @@ module Orocos
                             task.arguments[:conf] = ['default']
                         end
                     end
+                add_timepoint 'compute_system_network', 'default_conf'
+
+                # Cleanup the remainder of the tasks that are of no use right
+                # now (mostly devices)
+                plan.static_garbage_collect do |obj|
+                    Engine.debug { "  removing #{obj}" }
+                    # Remove tasks that we just added and are not
+                    # useful anymore
+                    plan.remove_object(obj)
+                end
+                add_timepoint 'compute_system_network', 'static_garbage_collect'
+
+                Engine.system_network_postprocessing.each do |block|
+                    block.call(self)
+                end
+                add_timepoint 'compute_system_network', 'postprocessing'
+            end
+
+            # Called after compute_system_network to map the required component
+            # network to deployments
+            #
+            # The deployments are still abstract, i.e. they are not mapped to
+            # running tasks yet
+            def deploy_system_network
+                instanciate_required_deployments
+                @network_merge_solver.merge_identical_tasks
+                apply_merge_to_stored_instances
 
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
@@ -1171,28 +1119,128 @@ module Orocos
                 end
             end
 
+            # Method called to verify that the result of #deploy_system_network
+            # is valid
+            def validate_deployed_network
+                # Check for the presence of non-deployed tasks
+                not_deployed = plan.find_local_tasks(TaskContext).
+                    find_all { |t| !t.execution_agent }
+
+                if !not_deployed.empty?
+                    remaining_merges = @network_merge_solver.complete_merge_graph
+                    raise MissingDeployments.new(not_deployed, remaining_merges),
+                        "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
+                end
+            end
+
+            class << self
+                # Set of blocks registered with
+                # register_model_postprocessing
+                attr_reader :model_postprocessing
+
+                # Set of blocks registered with
+                # register_instanciation_postprocessing
+                attr_reader :instanciation_postprocessing
+
+                # Set of blocks registered with
+                # register_instanciated_network_postprocessing
+                attr_reader :instanciated_network_postprocessing
+
+                # Set of blocks registered with
+                # register_system_network_postprocessing
+                attr_reader :system_network_postprocessing
+
+                # Set of blocks registered with
+                # register_deployment_postprocessing
+                attr_reader :deployment_postprocessing
+            end
+            @model_postprocessing = Array.new
+            @instanciation_postprocessing = Array.new
+            @instanciated_network_postprocessing = Array.new
+            @system_network_postprocessing = Array.new
+            @deployment_postprocessing = Array.new
+
+            # Registers a system-wide post-processing stage for the models.
+            # This post-processing block is meant to modify the models according
+            # to the activity of some plugins. It can also be used if you want
+            # to validate some properties on them.
+            #
+            # The block will be given the SystemModel object
+            def self.register_model_postprocessing(&block)
+                model_postprocessing << block
+            end
+
+            # Registers a system-wide post-processing stage for the instanciation
+            # stage. This post-processing block is meant to add new tasks and
+            # new relations in the graph. It runs after the instanciation, but
+            # before the first merge pass has been performed. I.e. in this
+            # graph, there will be present some duplicate tasks, devices won't
+            # be assigned properly, ... Use the
+            # instanciated_network_postprocessing hook to be called after this
+            # first merge pass.
+            #
+            # Use it to instanciate/annotate the graph early, i.e. before some
+            # system-wide processing is done
+            #
+            # Postprocessing stages that configures the task(s) automatically
+            # should be registered with #register_system_network_postprocessing
+            def self.register_instanciation_postprocessing(&block)
+                instanciation_postprocessing << block
+            end
+
+            # Registers a system-wide post-processing stage for augmenting the
+            # system network instanciation. Unlike the instanciation
+            # postprocessing stage, a first merge pass has been done on the
+            # graph and it is therefore not final but well-formed.
+            #
+            # Postprocessing stages that configures the task(s) automatically
+            # should be registered with #register_system_network_postprocessing
+            def self.register_instanciated_network_postprocessing(&block)
+                instanciated_network_postprocessing << block
+            end
+
+            # Registers a system-wide post-processing stage for the system
+            # network (i.e. the complete network before it gets merged with
+            # deployed tasks). This post-processing block is meant to
+            # automatically configure the tasks and/or dataflow, but not change
+            # the task graph
+            #
+            # Postprocessing stages that change the task graph should be
+            # registered with #register_instanciation_postprocessing
+            def self.register_system_network_postprocessing(&block)
+                system_network_postprocessing << block
+            end
+
+            # Registers a system-wide post-processing stage for the deployed
+            # network. This post-processing block is meant to automatically
+            # configure the tasks and/or dataflow, but not change the task
+            # graph. Unlike in #register_system_network_postprocessing, it has
+            # access to information that deployment provides (as e.g. port
+            # dynamics).
+            #
+            # Postprocessing stages that change the task graph should be
+            # registered with #register_instanciation_postprocessing
+            def self.register_deployment_postprocessing(&block)
+                deployment_postprocessing << block
+            end
+
             # Hook called by the merge algorithm
             #
             # It updates the +tasks+, robot.devices 'task' attribute and
             # instances hashes
             def merged_tasks(merges)
-                tasks.each_key do |n|
-                    if task = merges[tasks[n]]
-                        tasks[n] = task
-                        if robot.devices[n] && robot.devices[n].respond_to?(:task=)
-                            robot.devices[n].task = task
-                        end
-                    end
-                end
-                instances.each do |i|
-                    if task = merges[i.task]
-                        i.task = task
-                    end
-                end
             end
 
             # The set of tasks that represent the running deployments
             attr_reader :deployment_tasks
+
+            # The DataFlowDynamics instance that has been used to compute
+            # +port_dynamics+. It is only valid at the postprocesing stage of
+            # the deployed network
+            #
+            # It can be used to compute some connection policy by calling
+            # DataFlowDynamics#policy_for
+            attr_reader :dataflow_dynamics
 
             # A mapping of type
             #
@@ -1290,6 +1338,15 @@ module Orocos
                         end
                     end
                     required_connections.each do |task, connections|
+                        connections = connections.map_value do |(port_name, log_port_name), policy|
+                            out_port = task.find_output_port_model(port_name)
+
+                            if !logger_task.find_input_port_model(log_port_name)
+                                logger_task.instanciate_dynamic_input(log_port_name, out_port.type)
+                            end
+                            dataflow_dynamics.policy_for(task, port_name, log_port_name, logger_task, policy)
+                        end
+
                         task.connect_ports(logger_task, connections)
                     end
                 end
@@ -1324,7 +1381,14 @@ module Orocos
             #   current plan state if an error occurs. Set this option to false
             #   to disable this (it is costly).
             def resolve(options = Hash.new)
+                @timepoints = []
 	    	return if disabled?
+
+                # Set some objects to nil to make sure that noone is using them
+                # while they are not valid
+                @dataflow_dynamics =
+                    @port_dynamics =
+                    @deployment_tasks = nil
 
                 if options == true
                     options = { :compute_policies => true }
@@ -1343,6 +1407,7 @@ module Orocos
                 # deployment information
                 if !options[:compute_deployments]
                     options[:compute_policies] = false
+                    options[:validate_network] = false
                 end
 
                 prepare
@@ -1375,58 +1440,63 @@ module Orocos
                         end
                     end
 
+                    # We first generate a non-deployed network that fits all
+                    # requirements. This can fail if some service cannot be
+                    # allocated to tasks, and if some drivers cannot be
+                    # allocated to devices.
                     compute_system_network
+
+                    add_timepoint
 
                     if options[:garbage_collect] && options[:validate_network]
                         validate_generated_network(trsc, options)
+                        add_timepoint 'validate_generated_network'
                     end
 
-                    # Now compute a deployment for the resulting network
+                    # Now, deploy the network by matching the available
+                    # deployments to the one in the generated network. Note that
+                    # these deployments are *not* yet the running tasks.
+                    #
+                    # The mapping from this deployed network to the running
+                    # tasks is done in #finalize_deployed_tasks
                     if options[:compute_deployments]
-                        instanciate_required_deployments
-                        @network_merge_solver.merge_identical_tasks
+                        deploy_system_network
+                        add_timepoint 'deploy_system_network'
                     end
 
-                    used_tasks = trsc.find_local_tasks(Component).
-                        to_value_set
-                    used_deployments = trsc.find_local_tasks(Deployment).
-                        to_value_set
+                    if options[:validate_network]
+                        validate_deployed_network
+                        add_timepoint 'validate_deployed_network'
+                    end
 
+                    # Now that we have a deployed network, we can compute the
+                    # connection policies and the port dynamics, and call the
+                    # registered postprocessing blocks
+                    if options[:compute_policies]
+                        @dataflow_dynamics = DataFlowDynamics.new(trsc)
+                        @port_dynamics = dataflow_dynamics.compute_connection_policies
+                        add_timepoint 'compute_connection_policies'
+                        Engine.deployment_postprocessing.each do |block|
+                            block.call(self)
+                            add_timepoint 'deployment_postprocessing', block.to_s
+                        end
+                    end
+
+                    # Finally, we map the deployed network to the currently
+                    # running tasks
                     if options[:compute_deployments]
+                        add_timepoint 'compute_deployment', 'start'
+                        used_tasks = trsc.find_local_tasks(Component).
+                            to_value_set
+                        used_deployments = trsc.find_local_tasks(Deployment).
+                            to_value_set
+
+                        add_timepoint 'compute_deployment', 'finalized_deployed_tasks'
                         @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
+                        add_timepoint 'compute_deployment', 'merge'
                         @network_merge_solver.merge_identical_tasks
-                    end
-
-                    # the tasks[] and devices mappings are updated during the
-                    # merge. We replace the proxies by the corresponding tasks
-                    # when applicable
-                    instances.each do |instance|
-                        if instance.task && instance.task.transaction_proxy?
-                            instance.task = instance.task.__getobj__
-                        end
-                    end
-                    robot.devices.keys.each do |name|
-                        device_task = robot.devices[name].task
-                        if device_task.plan == trsc && device_task.transaction_proxy?
-                            if device_task.__getobj__
-                                robot.devices[name].task = device_task.__getobj__
-                            else # unused
-                                robot.devices.delete(name)
-                            end
-                        end
-                    end
-                    tasks.each_key do |name|
-                        next if !robot.devices[name]
-                        instance_task = robot.devices[name].task
-                        if instance_task.plan == trsc && instance_task.transaction_proxy?
-                            tasks[name].task = instance_task.__getobj__
-                        end
-                    end
-
-                    # Finally, we should now only have deployed tasks. Verify it
-                    # and compute the connection policies
-                    if options[:garbage_collect] && options[:validate_network]
-                        validate_final_network(trsc, options)
+                        apply_merge_to_stored_instances
+                        add_timepoint 'compute_deployment', 'done'
                     end
 
                     if options[:garbage_collect]
@@ -1449,32 +1519,72 @@ module Orocos
                     # Remove the permanent and mission flags from all the tasks.
                     # We then re-add them only for the ones that are marked as
                     # mission in the engine requirements
-                    required_tasks = ValueSet.new
-                    trsc.find_tasks.permanent.each do |t|
+                    trsc.find_local_tasks.permanent.each do |t|
                         trsc.unmark_permanent(t)
                     end
                     trsc.find_tasks(Deployment).each do |t|
                         trsc.add_permanent(t)
                     end
+
+                    fullfilled_models = Hash.new
+
+                    # Update tasks, devices and instances
+                    apply_merge_to_stored_instances
+
+                    # Replace the tasks stored in devices and instances by the
+                    # actual new tasks
                     instances.each do |instance|
                         old_task = state_backup.instance_tasks[instance]
                         new_task = instance.task
-                        if old_task && old_task.plan && old_task != new_task
-                            trsc.replace(trsc[old_task], trsc[new_task])
-                        end
                         if instance.mission?
                             trsc.add_mission(trsc[new_task])
                         end
-                        required_tasks << trsc[new_task]
+
+                        if new_task.transaction_proxy?
+                            instance.task = new_task = new_task.__getobj__
+                        else
+                            instance.task = new_task
+                        end
+
+                        if old_task && old_task.plan && old_task != new_task
+                            trsc.replace(trsc[old_task], trsc[new_task])
+                        end
+
+                        m = (fullfilled_models[new_task] || [Roby::Task, Array.new, Hash.new])
+                        m = Roby::TaskStructure::Dependency.merge_fullfilled_model(m, instance.models, instance.arguments)
+                        fullfilled_models[new_task] = m
+                    end
+
+                    fullfilled_models.each do |task, m|
+                        if !m[1].kind_of?(Array)
+                            raise "Array found in fullfilled model"
+                        end
+                        task.fullfilled_model = m
+                    end
+
+                    robot.devices.keys.each do |name|
+                        next if !robot.devices[name].respond_to?(:task=)
+
+                        device_task = robot.devices[name].task
+                        if device_task.plan
+                            if device_task.transaction_proxy?
+                                robot.devices[name].task = device_task.__getobj__
+                            else
+                                robot.devices[name].task = device_task
+                            end
+                        else
+                            robot.devices[name].task = nil
+                        end
+                    end
+
+                    # Finally, we should now only have deployed tasks. Verify it
+                    # and compute the connection policies
+                    if options[:garbage_collect] && options[:validate_network]
+                        validate_final_network(trsc, options)
                     end
 
                     if options[:compute_deployments]
                         configure_logging
-                    end
-
-                    if options[:compute_policies]
-                        @port_dynamics =
-                            DataFlowDynamics.compute_connection_policies(trsc)
                     end
 
                     if dry_run?
@@ -1844,7 +1954,7 @@ module Orocos
                     Engine.debug { "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})" }
                     # Check for the corresponding task in the plan
 		    Engine.debug deployment_task.deployment_name
-                    existing_deployment_tasks = (plan.find_tasks(deployment_task.model).not_finished.to_value_set & existing_deployments).
+                    existing_deployment_tasks = (plan.find_local_tasks(deployment_task.model).not_finished.to_value_set & existing_deployments).
                         find_all { |t| t.deployment_name == deployment_task.deployment_name }
 		    Engine.debug deployment_task.deployment_name
 
@@ -1901,11 +2011,7 @@ module Orocos
                             existing_task = new_task
                         end
                         existing_task.merge(task)
-                        instances.each do |instance|
-                            if instance.task == task
-                                instance.task = existing_task
-                            end
-                        end
+                        @network_merge_solver.task_replacement_graph.link(task, existing_task, nil)
                         Engine.debug { "  using #{existing_task} for #{task} (#{task.orogen_name})" }
                         plan.remove_object(task)
                         if existing_task.conf != task.conf
@@ -1916,6 +2022,33 @@ module Orocos
                     result << existing_deployment_task
                 end
                 result
+            end
+
+            # Helper class used to load files that contain both system model and
+            # engine requirements
+            #
+            # See Engine#load_composite_file
+            class CompositeLoader < BasicObject
+                def initialize(engine)
+                    @engine = engine
+                end
+
+                def method_missing(m, *args, &block)
+                    if !@engine.respond_to?(m) && @engine.model.respond_to?(m)
+                        @engine.model.send(m, *args, &block)
+                    else
+                        @engine.send(m, *args, &block)
+                    end
+                end
+            end
+
+            # Load a file that contains both system model and engine
+            # requirements
+            def load_composite_file(file)
+                loader = CompositeLoader.new(self)
+                if Kernel.load_dsl_file(file, loader, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
+                    RobyPlugin.info "loaded #{file}"
+                end
             end
 
             # Load the given DSL file into this Engine instance
@@ -2033,8 +2166,6 @@ module Orocos
                     t.emit :aborted, e
                 end
             end
-
-            RuntimeConnectionManagement.update(plan, all_dead_deployments)
         end
 
         def self.apply_requirement_modifications(plan)

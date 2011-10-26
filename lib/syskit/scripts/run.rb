@@ -1,5 +1,6 @@
 require 'roby'
 require 'orocos/roby/scripts/common'
+require 'roby/schedulers/temporal'
 Scripts = Orocos::RobyPlugin::Scripts
 
 dry_run = false
@@ -19,8 +20,10 @@ end
 deployment_file     = remaining.shift
 additional_services = remaining.dup
 
+Scripts.tic
 error = Scripts.run do
     Roby.app.run do
+        Scripts.toc_tic "fully initialized in %.3f seconds"
         Roby.execute do
             if deployment_file != '-'
                 Roby.app.load_orocos_deployment(deployment_file)
@@ -33,7 +36,7 @@ error = Scripts.run do
             Roby.app.orocos_engine.resolve
             if !Roby.engine.scheduler
                 require 'roby/schedulers/basic'
-                Roby.engine.scheduler = Roby::Schedulers::Basic.new
+                Roby.engine.scheduler = Roby::Schedulers::Temporal.new
             end
 
             tasks = Roby.plan.find_tasks(Orocos::RobyPlugin::Component).
