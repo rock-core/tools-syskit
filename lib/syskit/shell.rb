@@ -49,6 +49,72 @@ module Orocos
                 end
             end
 
+            class ShellDeploymentRestart < Roby::Task
+                event :start, :controlable => true
+                event :stop do |context|
+                    Roby.app.orocos_engine.modified!
+                    emit :stop
+                end
+            end
+
+            # Stops all deployment processes
+            def stop_deployments(*models)
+                Roby.execute do
+                    if models.empty?
+                        models << Orocos::RobyPlugin::Deployment
+                    end
+                    models.each do |m|
+                        Roby.plan.find_tasks(m).
+                            each do |task|
+                                if task.kind_of?(Orocos::RobyPlugin::TaskContext)
+                                    task.execution_agent.stop!
+                                else
+                                    task.stop!
+                                end
+                            end
+                    end
+                end
+            end
+
+            # Either restarts deployments that support the given task contexts,
+            # or the deployments of the given model.
+            #
+            # If no deployments are given, restart all of them
+            def restart_deployments(*models)
+                Roby.execute do
+                    protection = ShellDeploymentRestart.new
+                    Roby.plan.add(protection)
+                    protection.start!
+
+                    if models.empty?
+                        models << Orocos::RobyPlugin::Deployment
+                    end
+                    done = Roby::AndGenerator.new
+                    done.signals protection.stop_event
+
+                    models.each do |m|
+                        agents = ValueSet.new
+                        Roby.plan.find_tasks(m).
+                            each do |task|
+                                if task.kind_of?(Orocos::RobyPlugin::TaskContext)
+                                    agents << task.execution_agent
+                                else
+                                    agents << task
+                                end
+                            end
+
+                        agents.each do |agent_task|
+                            agent_task.each_executed_task do |task|
+                                task.stop_event.handle_with(protection)
+                            end
+                            done << agent_task.stop_event
+                            agent_task.stop!
+                        end
+                    end
+                end
+                nil
+            end
+
             # Reloads the configuration files
             def reload_config
                 if File.directory?(dir = File.join(APP_DIR, 'config', 'orogen'))
