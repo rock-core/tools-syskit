@@ -389,6 +389,22 @@ module Orocos
                     end
                 end
 
+                Kernel.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
+                Kernel.const_set('DataServices', Orocos::RobyPlugin::DataServices)
+                Kernel.const_set('Srv',          Orocos::RobyPlugin::DataServices)
+                Kernel.const_set('Devices',      Orocos::RobyPlugin::Devices)
+                Kernel.const_set('Dev',          Orocos::RobyPlugin::Devices)
+                Kernel.const_set('Compositions', Orocos::RobyPlugin::Compositions)
+                Kernel.const_set('Cmp',          Orocos::RobyPlugin::Compositions)
+
+                Orocos.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
+                Orocos.const_set('DataServices', Orocos::RobyPlugin::DataServices)
+                Orocos.const_set('Srv',          Orocos::RobyPlugin::DataServices)
+                Orocos.const_set('Devices',      Orocos::RobyPlugin::Devices)
+                Orocos.const_set('Dev',          Orocos::RobyPlugin::Devices)
+                Orocos.const_set('Compositions', Orocos::RobyPlugin::Compositions)
+                Orocos.const_set('Cmp',          Orocos::RobyPlugin::Compositions)
+
                 if app.shell?
                     return
                 end
@@ -436,14 +452,6 @@ module Orocos
                         start_local_process_server(:redirect => app.redirect_local_process_server?)
                     end
                 end
-
-                Orocos.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
-                Orocos.const_set('DataServices', Orocos::RobyPlugin::DataServices)
-                Orocos.const_set('Srv',          Orocos::RobyPlugin::DataServices)
-                Orocos.const_set('Devices',      Orocos::RobyPlugin::Devices)
-                Orocos.const_set('Dev',          Orocos::RobyPlugin::Devices)
-                Orocos.const_set('Compositions', Orocos::RobyPlugin::Compositions)
-                Orocos.const_set('Cmp', Orocos::RobyPlugin::Compositions)
             end
 
             def self.require_models(app)
