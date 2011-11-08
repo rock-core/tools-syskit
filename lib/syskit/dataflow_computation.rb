@@ -33,11 +33,14 @@ module Orocos
             include Logger::Hierarchy
 
             def has_information_for_port?(task, port_name)
-                result.has_key?(task) && result[task].has_key?(port_name)
+                result.has_key?(task) &&
+                    result[task].has_key?(port_name)
             end
 
             def has_final_information_for_port?(task, port_name)
-                done_ports[task].include?(port_name) && has_information_for_port?(task, port_name)
+                done_ports.has_key?(task) &&
+                    done_ports[task].include?(port_name) &&
+                    has_information_for_port?(task, port_name)
             end
 
             def port_info(task, port_name)
@@ -420,6 +423,20 @@ module Orocos
             # the same task again will never add new information)
             def propagate_task(task)
                 raise NotImplementedError
+            end
+
+            # Maps the tasks stored in the dataflow dynamics information to the
+            # ones that +merge_solver+ is pointing to
+            def apply_merges(merge_solver)
+                @result = result.map_key do |task, _|
+                    merge_solver.replacement_for(task)
+                end
+                @missing_ports = missing_ports.map_key do |task, _|
+                    merge_solver.replacement_for(task)
+                end
+                @done_ports = done_ports.map_key do |task, _|
+                    merge_solver.replacement_for(task)
+                end
             end
         end
     end
