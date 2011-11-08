@@ -1001,6 +1001,19 @@ module Orocos
 
             end
 
+            # Updates the tasks in the DataFlowDynamics instance to point to the
+            # final tasks (i.e. the ones in the plan) instead of the temporary
+            # used during resolution
+            def apply_merge_to_dataflow_dynamics
+                @dataflow_dynamics.apply_merges(@network_merge_solver)
+            end
+
+            # This updates the tasks stored in each instance spec to point to
+            # the actual task (i.e. the task that implements that spec in the
+            # plan).
+            #
+            # This is needed as multiple merge steps are done between the
+            # initially-instanciated plan and the final plan
             def apply_merge_to_stored_instances
                 # Replace the tasks stored in devices and instances by the
                 # actual new tasks
@@ -1495,7 +1508,6 @@ module Orocos
                         @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments, options[:garbage_collect])
                         add_timepoint 'compute_deployment', 'merge'
                         @network_merge_solver.merge_identical_tasks
-                        apply_merge_to_stored_instances
                         add_timepoint 'compute_deployment', 'done'
                     end
 
@@ -1530,6 +1542,9 @@ module Orocos
 
                     # Update tasks, devices and instances
                     apply_merge_to_stored_instances
+                    # Update the dataflow dynamics information to point to the
+                    # final tasks
+                    apply_merge_to_dataflow_dynamics
 
                     # Replace the tasks stored in devices and instances by the
                     # actual new tasks
@@ -2011,7 +2026,7 @@ module Orocos
                             existing_task = new_task
                         end
                         existing_task.merge(task)
-                        @network_merge_solver.task_replacement_graph.link(task, existing_task, nil)
+                        @network_merge_solver.register_replacement(task, existing_task)
                         Engine.debug { "  using #{existing_task} for #{task} (#{task.orogen_name})" }
                         plan.remove_object(task)
                         if existing_task.conf != task.conf

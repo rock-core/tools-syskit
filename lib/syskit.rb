@@ -1,10 +1,13 @@
 require 'orocos'
 require 'roby'
 require 'orogen'
+
+require 'utilrb/hash/map_key'
 require 'utilrb/module/include'
 require 'utilrb/symbol/to_str'
 require 'utilrb/module/define_or_reuse'
 require 'utilrb/timepoints'
+
 require 'orocos/roby/base'
 require 'orocos/roby/component'
 require 'orocos/roby/connection_graphs'

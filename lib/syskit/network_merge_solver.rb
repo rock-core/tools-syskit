@@ -13,7 +13,7 @@ module Orocos
             # The plan on which this solver applies
             attr_reader :plan
 
-            # A graph that holds all replacements done during generation
+            # A graph that holds all replacements done during resolution
 	    attr_reader :task_replacement_graph
 
             def initialize(plan, &block)
@@ -181,6 +181,10 @@ module Orocos
                 return merge_graph
             end
 
+            def register_replacement(old_task, new_task)
+                task_replacement_graph.link(old_task, new_task, nil)
+            end
+
             def do_merge(task, target_task, all_merges, graph)
                 if task == target_task
                     raise "trying to merge a task onto itself: #{task}"
@@ -195,7 +199,7 @@ module Orocos
                 plan.remove_object(target_task)
                 graph.replace_vertex(target_task, task)
                 graph.remove(target_task)
-		task_replacement_graph.link(target_task, task, nil)
+                register_replacement(target_task, task)
                 all_merges[target_task] = task
 
                 # Since we modified +task+, we now have to update the graph.
