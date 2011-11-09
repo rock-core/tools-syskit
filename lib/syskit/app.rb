@@ -708,7 +708,7 @@ module Orocos
                     raise ArgumentError, "there is already a process server called #{name} running"
                 end
 
-                options = Kernel.validate_options options, :port => ProcessServer::DEFAULT_PORT, :log_dir => 'log', :result_dir => 'results'
+                options = Kernel.validate_options options, :port => ProcessServer::DEFAULT_PORT, :log_dir => 'logs', :result_dir => 'results'
 
                 port = options[:port]
                 if host =~ /^(.*):(\d+)$/
