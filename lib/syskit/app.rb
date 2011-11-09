@@ -618,6 +618,9 @@ module Orocos
                 @server_pid = fork do
                     if options[:redirect]
                         logfile = File.expand_path("local_process_server.txt", Roby.app.log_dir)
+                        if not File.exists?(Roby.app.log_dir)
+                            FileUtils.mkdir_p(Roby.app.log_dir)
+                        end
                         new_logger = ::Logger.new(File.open(logfile, 'w'))
                     else
                         new_logger = ::Logger.new(STDOUT)
