@@ -788,7 +788,7 @@ module Orocos
 
                 # Then set per-device configuration options
                 if respond_to?(:each_device)
-                    each_device do |_, device|
+                    each_master_device do |_, device|
                         if device.configuration
                             apply_configuration(device.configuration)
                         elsif device.configuration_block

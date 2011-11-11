@@ -861,6 +861,26 @@ module Orocos
                     return enum_for(:each_device)
                 end
 
+                each_master_device do |srv, device|
+                    yield(srv, device)
+
+                    device.each_slave do |_, slave|
+                        yield(slave.service, slave)
+                    end
+                end
+            end
+
+            # Enumerates the MasterDeviceInstance objects associated with this
+            # task context
+            #
+            # It yields the data service and the device model
+            #
+            # See also #each_device_name
+            def each_master_device
+                if !block_given?
+                    return enum_for(:each_master_device)
+                end
+
                 each_device_name do |service, device_name|
                     if !(device = robot.devices[device_name])
                         raise SpecError, "#{self} attaches device #{device_name} to #{service.full_name}, but #{device_name} is not a known device"
@@ -899,7 +919,7 @@ module Orocos
             # name. It is optional only if there is only one device attached to
             # this component
             def robot_device(subname = nil)
-                devices = each_device.to_a
+                devices = each_master_device.to_a
                 if !subname
                     if devices.empty?
                         raise ArgumentError, "#{self} is not attached to any device"

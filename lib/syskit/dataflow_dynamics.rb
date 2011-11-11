@@ -228,7 +228,7 @@ module Orocos
 
             # Adds triggering information from the attached devices to +task+'s ports
             def initial_device_information(task)
-                triggering_devices = task.each_device.to_a
+                triggering_devices = task.each_master_device.to_a
                 DataFlowDynamics.debug do
                     DataFlowDynamics.debug "initial port dynamics on #{task} (device)"
                     DataFlowDynamics.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(", ")}"
