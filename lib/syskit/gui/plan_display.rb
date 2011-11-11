@@ -7,6 +7,42 @@ module Ui
     # the creation of an association between graphical elements (identified
     # through their SVG object ID) and the graphical representation.
     class PlanDisplay < Qt::Object
+        module GraphicsViewExtension
+            attribute(:current_scaling) { 1 }
+
+            def wheelEvent(event)
+                if event.modifiers != Qt::ControlModifier
+                    return super
+                end
+
+                # See documentation of wheelEvent
+                degrees = event.delta / 8.0
+                num_steps = degrees / 15
+
+                old = self.current_scaling
+                new = old + num_steps
+                if new == 0
+                    if old > 0
+                        @current_scaling = -1
+                    else
+                        @current_scaling = 1
+                    end
+                else
+                    @current_scaling = new
+                end
+                scale_factor =
+                    if current_scaling > 0
+                        current_scaling
+                    else
+                        1.0 / current_scaling.abs
+                    end
+
+                self.transform = Qt::Transform.from_scale(scale_factor, scale_factor)
+
+                event.accept
+            end
+        end
+
         # The GraphicsScene instance in which we actually generate a display
         attr_reader :scene
         # The GraphicsView widget that handles the scene
@@ -27,6 +63,7 @@ module Ui
             super()
             @scene           = Qt::GraphicsScene.new
             @view            = Qt::GraphicsView.new(scene, main)
+            @view.extend GraphicsViewExtension
             @renderers       = Hash.new
             @hierarchy_items = Array.new
             @dataflow_items  = Array.new
