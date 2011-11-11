@@ -243,6 +243,20 @@ module Orocos
                     raise ArgumentError, "expected #{slave_service} to be either a string or a data service model"
                 end
             end
+
+            # Allows calling
+            #
+            #   device.blabla_slave
+            #
+            # to access a device slave
+            def method_missing(m, *args, &block)
+                if m.to_s =~ /(.*)_slave$/ && (!block && args.empty?)
+                    if s = slaves[$1]
+                        return s
+                    end
+                end
+                return super
+            end
         end
 
         # A SlaveDeviceInstance represents slave devices, i.e. data services
