@@ -479,6 +479,7 @@ module Orocos
                         # management code
                     end
                 end
+                result
             end
 
             # Given the current knowledge about the port dynamics, returns the
