@@ -1,10 +1,24 @@
 module Ui
+    # Widget used to display a network of Orocos tasks represented in a Roby
+    # plan
+    #
+    # The technique used here is to convert the network to dot and then svg
+    # using Orocos::RobyPlugin::Graphviz. The SVG is then postprocessed to allow
+    # the creation of an association between graphical elements (identified
+    # through their SVG object ID) and the graphical representation.
     class PlanDisplay < Qt::Object
+        # The GraphicsScene instance in which we actually generate a display
         attr_reader :scene
+        # The GraphicsView widget that handles the scene
         attr_reader :view
+        # A mapping from task objects to their SVG ID
         attr_reader :task_from_id
+        # A mapping from the SVG GraphicsItems to the task object
         attr_reader :graphicsitem_to_task
+        # The SVG renderer objects used to render the task SVGs
         attr_reader :renderers
+
+        # The raw SVG data
         attr_reader :svg
 
         def show; view.show end
