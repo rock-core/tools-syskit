@@ -532,9 +532,9 @@ module Orocos
 
                 # And register all the slave services there is on the driver
                 task_model.each_slave_data_service(service) do |_, slave_service|
-                    device_instance.slaves[slave_service_name] = slave_service
-                    devices["#{name}.#{slave_service.name}"] =
-                        SlaveDeviceInstance.new(devices[name], slave_service)
+                    slave_device = SlaveDeviceInstance.new(devices[name], slave_service)
+                    device_instance.slaves[slave_service.name] = slave_device
+                    devices["#{name}.#{slave_service.name}"] = slave_device
                 end
 
                 device_instance
