@@ -232,7 +232,11 @@ module Orocos
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
-            def dataflow(remove_compositions = false, excluded_models = ValueSet.new)
+            def dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = Set.new)
+                annotations.each do |ann|
+                    send("add_#{ann}_annotations")
+                end
+
                 result = []
                 result << "digraph {"
                 result << "  splines=ortho;"

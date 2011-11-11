@@ -767,10 +767,7 @@ module Orocos
 
             def to_dot_dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = ["connection_policy"])
                 gen = Graphviz.new(plan, self)
-                annotations.each do |ann|
-                    gen.send("add_#{ann}_annotations")
-                end
-                gen.dataflow(remove_compositions, excluded_models)
+                gen.dataflow(remove_compositions, excluded_models, annotations)
             end
 
             def to_dot; to_dot_dataflow end
@@ -1488,6 +1485,7 @@ module Orocos
                     if options[:compute_policies]
                         @dataflow_dynamics = DataFlowDynamics.new(trsc)
                         @port_dynamics = dataflow_dynamics.compute_connection_policies
+                        puts "PORT DYNAMICS: #{@port_dynamics.class}"
                         add_timepoint 'compute_connection_policies'
                         Engine.deployment_postprocessing.each do |block|
                             block.call(self)

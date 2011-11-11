@@ -126,7 +126,12 @@ module Orocos
                 end
             end
 
-            def self.generate_output
+            def self.generate_output(display_options = Hash.new)
+                display_options = Kernel.validate_options display_options,
+                    :remove_compositions => false,
+                    :excluded_tasks => [Orocos::RobyPlugin::Logger::Logger].to_value_set,
+                    :annotations => Set.new
+
                 # Now output them
                 case output_type
                 when "txt"
@@ -150,7 +155,8 @@ module Orocos
                         app = Qt::Application.new(ARGV)
                     end
                     display = Ui::PlanDisplay.new
-                    display.update_view(Roby.plan, Roby.app.orocos_engine)
+                    display.update_view(Roby.plan, Roby.app.orocos_engine,
+                        display_options)
                     display.show
                     $qApp.exec
                 end

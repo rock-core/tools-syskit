@@ -28,7 +28,12 @@ module Ui
         attr_reader :error_text
 
         HIERARCHY_DATAFLOW_MARGIN = 50
-        def update_view(plan, engine)
+        def update_view(plan, engine, display_options = Hash.new)
+            display_options = Kernel.validate_options display_options,
+                :remove_compositions => false,
+                :excluded_tasks => [Orocos::RobyPlugin::Logger::Logger].to_value_set,
+                :annotations => Set.new
+
             if error_text
                 scene.remove_item(error_text)
                 @error_text = nil
@@ -38,7 +43,9 @@ module Ui
             hierarchy_io = Tempfile.open('hierarchy')
             engine.to_svg('hierarchy', hierarchy_io)
             dataflow_io = Tempfile.open('dataflow')
-            engine.to_svg('dataflow', dataflow_io, false)
+            engine.to_svg('dataflow', dataflow_io, display_options[:remove_compositions],
+                         display_options[:excluded_tasks],
+                         display_options[:annotations])
 
             task_from_id.clear
             plan.each_task do |task|

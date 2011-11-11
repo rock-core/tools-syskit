@@ -231,5 +231,7 @@ if error
     exit(1)
 end
 
-Scripts.generate_output
+Scripts.generate_output(:remove_compositions => remove_compositions,
+                        :excluded_tasks => excluded_tasks,
+                        :annotations => annotations)
 
