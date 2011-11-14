@@ -1371,6 +1371,10 @@ module Orocos
                     end
             end
 
+            # The set of options last given to #instanciate. It is used by
+            # plugins to configure their behaviours
+            attr_accessor :options
+
             # Generate the deployment according to the current requirements, and
             # merges it into the current plan
             #
@@ -1419,6 +1423,8 @@ module Orocos
                     options[:compute_policies] = false
                     options[:validate_network] = false
                 end
+
+                self.options = options
 
                 prepare
 
