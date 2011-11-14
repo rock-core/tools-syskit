@@ -418,10 +418,10 @@ module Orocos
                 Orocos.disable_sigchld_handler = true
                 Orocos.load
 
-                if File.directory?(dir = File.join(APP_DIR, 'config', 'orogen'))
+                if File.directory?(dir = File.join(app.app_dir, 'config', 'orogen'))
                     Orocos.conf.load_dir(dir)
                 end
-                if app.robot_name && File.directory?(dir = File.join(APP_DIR, 'config', app.robot_name, 'orogen'))
+                if app.robot_name && File.directory?(dir = File.join(app.app_dir, 'config', app.robot_name, 'orogen'))
                     Orocos.conf.load_dir(dir)
                 end
 
@@ -435,7 +435,7 @@ module Orocos
                 Orocos::RobyPlugin::RTT.const_set :TaskContext, Orocos::RobyPlugin::TaskContext
 
                 app.orocos_system_model = SystemModel.new
-                app.orocos_engine = Engine.new(Roby.plan || Roby::Plan.new, app.orocos_system_model)
+                app.orocos_engine = Engine.new(app.plan || Roby::Plan.new, app.orocos_system_model)
                 Orocos.singleton_class.class_eval do
                     attr_reader :engine
                 end
@@ -457,8 +457,8 @@ module Orocos
             def self.require_models(app)
                 # Load the data services and task models
                 %w{data_services compositions}.each do |category|
-                    all_files = app.list_dir(APP_DIR, "tasks", category).to_a +
-                        app.list_robotdir(APP_DIR, 'tasks', 'ROBOT', category).to_a
+                    all_files = app.list_dir(app.app_dir, "tasks", category).to_a +
+                        app.list_robotdir(app.app_dir, 'tasks', 'ROBOT', category).to_a
                     all_files.each do |path|
                         app.load_system_model(path)
                     end
@@ -466,7 +466,7 @@ module Orocos
 
                 # Define planning methods on the main planner for the available
                 # deployment files
-                app.list_dir(APP_DIR, 'config', 'deployments') do |path|
+                app.list_dir(app.app_dir, 'config', 'deployments') do |path|
                     name = File.basename(path, '.rb')
                     ::MainPlanner.describe "resets the current component network to the state defined in #{path}"
                     ::MainPlanner.method(name) do
@@ -479,7 +479,7 @@ module Orocos
 
                 # Finally, we load the configuration file ourselves using the
                 # #load_system_model call
-                if file = app.robotfile(APP_DIR, 'config', "ROBOT.rb")
+                if file = app.robotfile(app.app_dir, 'config', "ROBOT.rb")
                     app.load_system_model file
                 end
             end
