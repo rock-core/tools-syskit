@@ -781,7 +781,7 @@ module Orocos
                     Roby.execute do
                         all_deployment_names.each do |name|
                             task = Roby.app.orocos_deployments[name].instanciate(Roby.app.orocos_engine)
-                            Roby.plan.add_permanent(task)
+                            app.plan.add_permanent(task)
                         end
                     end
                 end
