@@ -759,11 +759,22 @@ module Orocos
             # This greatly reduces latency during operations
             attr_predicate :orocos_start_all_deployments?, true
 
-            def self.run(app)
+            def self.plug_engine_in_roby(roby_engine)
                 handler_ids = []
-                handler_ids << Roby.engine.add_propagation_handler(:type => :external_events, &RobyPlugin.method(:update_task_states))
-                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &RuntimeConnectionManagement.method(:update))
-                handler_ids << Roby.engine.add_propagation_handler(:type => :propagation, :late => true, &RobyPlugin.method(:apply_requirement_modifications))
+                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &RobyPlugin.method(:update_task_states))
+                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &RuntimeConnectionManagement.method(:update))
+                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &RobyPlugin.method(:apply_requirement_modifications))
+                handler_ids
+            end
+
+            def self.unplug_engine_from_roby(handler_ids, roby_engine)
+                handler_ids.each do |handler_id|
+                    roby_engine.remove_propagation_handler(handler_id)
+                end
+            end
+
+            def self.run(app)
+                handler_ids = plug_engine_in_roby(Roby.engine)
 
                 if app.orocos_start_all_deployments?
                     all_deployment_names = app.orocos_engine.deployments.values.map(&:to_a).flatten
@@ -784,10 +795,7 @@ module Orocos
                     Orocos::Process.kill(remaining)
                 end
 
-                handler_ids.each do |handler_id|
-                    Roby.engine.remove_propagation_handler(handler_id)
-                end
-
+                unplug_engine_from_roby(handler_ids, Roby.engine)
                 stop_process_servers
             end
 
