@@ -215,6 +215,22 @@ module Orocos
                 add_sink(target_task, mappings)
             end
 
+            # Returns true if +port_name+ is connected
+            def connected?(port_name)
+                each_sink do |sink_task, mappings|
+                    if mappings.any? { |(from, to), _| from == port_name }
+                        return true
+                    end
+                end
+                each_source do |source_task|
+                    mappings = source_task[self, Flows::DataFlow]
+                    if mappings.any? { |(from, to), _| from == port_name }
+                        return true
+                    end
+                end
+                false
+            end
+
             # Connect a set of ports between +self+ and +target_task+.
             #
             # +mappings+ describes the connections. It is a hash of the form
