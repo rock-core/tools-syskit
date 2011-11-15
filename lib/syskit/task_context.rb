@@ -773,6 +773,8 @@ module Orocos
             #
             # It then sets the task properties using the values found there
             def configure
+                super if defined? super
+
                 # First, set configuration from the configuration files
                 # Note: it can only set properties
                 conf = self.conf || ['default']
