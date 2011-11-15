@@ -12,6 +12,15 @@ module Orocos
             # graph as a constant)
             attr_accessor :name
 
+            # Create new connections between +source_task+ and +sink_task+.
+            #
+            # +mappings+ is a map from port name pairs to the connection policy
+            # that should be used:
+            #
+            #    [output_port_name, input_port_name] => policy
+            #
+            # Raises Roby::ModelViolation if the connection already exists with
+            # an incompatible policy
             def add_connections(source_task, sink_task, mappings) # :nodoc:
                 if mappings.empty?
                     raise ArgumentError, "the connection set is empty"
@@ -32,6 +41,11 @@ module Orocos
                 end
             end
 
+            # Removes the given set of connections between +source_task+ and
+            # +sink_task+.
+            #
+            # +mappings+ is an array of port name pairs [output_port_name,
+            # input_port_name]
             def remove_connections(source_task, sink_task, mappings) # :nodoc:
                 current_mappings = source_task[sink_task, self]
                 mappings.each do |source_port, sink_port|
@@ -45,6 +59,7 @@ module Orocos
                 end
             end
 
+            # Tests if +port+, which has to be an output port, is connected
             def has_out_connections?(task, port)
                 task.each_child_vertex(self) do |child_task|
                     if task[child_task, self].any? { |source_port, _| source_port == port }
@@ -54,6 +69,7 @@ module Orocos
                 false
             end
 
+            # Tests if +port+, which has to be an input port, is connected
             def has_in_connections?(task, port)
                 task.each_parent_vertex(self) do |parent_task|
                     if parent_task[task, self].any? { |_, target_port| target_port == port }
@@ -63,6 +79,8 @@ module Orocos
                 false
             end
 
+            # Tests if there is a connection between +source_task+:+source_port+
+            # and +sink_task+:+sink_port+
             def connected?(source_task, source_port, sink_task, sink_port)
                 if !linked?(source_task, sink_task)
                     return false
