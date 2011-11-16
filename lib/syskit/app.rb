@@ -1,5 +1,6 @@
 require 'utilrb/kernel/load_dsl_file'
 require 'roby/state/state'
+require 'utilrb/spawn'
 
 require 'typelib'
 module Typelib
@@ -645,24 +646,12 @@ module Orocos
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
 
-                @server_pid = fork do
-                    if options[:redirect]
-                        logfile = File.expand_path("local_process_server.txt", Roby.app.log_dir)
-                        if not File.exists?(Roby.app.log_dir)
-                            FileUtils.mkdir_p(Roby.app.log_dir)
-                        end
-                        new_logger = ::Logger.new(File.open(logfile, 'w'))
-                    else
-                        new_logger = ::Logger.new(STDOUT)
-                    end
-
-                    new_logger.level = ::Logger::DEBUG
-                    new_logger.formatter = Roby.logger.formatter
-                    new_logger.progname = "ProcessServer(localhost)"
-                    Orocos.logger = new_logger
-                    ::Process.setpgrp
-                    Orocos::ProcessServer.run(server_options, port)
+                if !File.exists?(Roby.app.log_dir)
+                    FileUtils.mkdir_p(Roby.app.log_dir)
                 end
+                @server_pid = Utilrb.spawn 'orocos_process_server', "--port=#{port}", "--debug",
+                    :redirect => 'local_process_server.txt',
+                    :working_directory => Roby.app.log_dir
 
                 # Wait for the server to be ready
                 client = nil
