@@ -37,7 +37,6 @@ module Orocos
             def setup
                 @old_loglevel = Orocos.logger.level
                 Roby.app.using('orocos')
-                Roby.app.redirect_local_process_server = false
 
                 super
 
