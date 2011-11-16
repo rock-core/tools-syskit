@@ -231,6 +231,21 @@ module Orocos
                 false
             end
 
+            # Tests if +port_name+ is connected to +other_port+ on +other_task+
+            def connected_to?(port_name, other_task, other_port)
+                if Flows::DataFlow.linked?(self, other_task)
+                    self[other_task, Flows::DataFlow].each_key do |from, to|
+                        return true if from == port_name && to == other_port
+                    end
+                end
+                if Flows::DataFlow.linked?(other_task, self)
+                    other_task[self, Flows::DataFlow].each_key do |from, to|
+                        return true if from == other_port && to == port_name
+                    end
+                end
+                false
+            end
+
             # Connect a set of ports between +self+ and +target_task+.
             #
             # +mappings+ describes the connections. It is a hash of the form
