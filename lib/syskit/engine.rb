@@ -1491,7 +1491,6 @@ module Orocos
                     if options[:compute_policies]
                         @dataflow_dynamics = DataFlowDynamics.new(trsc)
                         @port_dynamics = dataflow_dynamics.compute_connection_policies
-                        puts "PORT DYNAMICS: #{@port_dynamics.class}"
                         add_timepoint 'compute_connection_policies'
                         Engine.deployment_postprocessing.each do |block|
                             block.call(self)
