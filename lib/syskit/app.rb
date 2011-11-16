@@ -815,17 +815,13 @@ module Orocos
                 end
 
                 unplug_engine_from_roby(handler_ids, Roby.engine)
-                stop_process_servers
             end
 
             def self.cleanup(app)
-                Application.stop_local_process_server
+                stop_process_servers
+                stop_local_process_server
             end
 
-            def stop_process_servers
-                Application.stop_process_servers
-            end
-            
             def self.stop_process_servers
                 # Stop the local process server if we started it ourselves
                 Orocos::RobyPlugin.process_servers.each_value do |client, options|

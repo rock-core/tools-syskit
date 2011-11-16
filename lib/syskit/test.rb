@@ -89,7 +89,6 @@ module Orocos
                 if @handler_ids
                     Orocos::RobyPlugin::Application.unplug_engine_from_roby(@handler_ids, engine)
                 end
-                Orocos::RobyPlugin::Application.stop_local_process_server
 
                 if !keep_logs?
                     FileUtils.rm_rf Roby.app.log_dir
