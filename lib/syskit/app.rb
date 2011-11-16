@@ -420,21 +420,17 @@ module Orocos
                     end
                 end
 
-                Kernel.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
-                Kernel.const_set('DataServices', Orocos::RobyPlugin::DataServices)
-                Kernel.const_set('Srv',          Orocos::RobyPlugin::DataServices)
-                Kernel.const_set('Devices',      Orocos::RobyPlugin::Devices)
-                Kernel.const_set('Dev',          Orocos::RobyPlugin::Devices)
-                Kernel.const_set('Compositions', Orocos::RobyPlugin::Compositions)
-                Kernel.const_set('Cmp',          Orocos::RobyPlugin::Compositions)
-
-                Orocos.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
-                Orocos.const_set('DataServices', Orocos::RobyPlugin::DataServices)
-                Orocos.const_set('Srv',          Orocos::RobyPlugin::DataServices)
-                Orocos.const_set('Devices',      Orocos::RobyPlugin::Devices)
-                Orocos.const_set('Dev',          Orocos::RobyPlugin::Devices)
-                Orocos.const_set('Compositions', Orocos::RobyPlugin::Compositions)
-                Orocos.const_set('Cmp',          Orocos::RobyPlugin::Compositions)
+                [Kernel, Orocos].each do |mod|
+                    if !mod.const_defined?('Cmp')
+                        mod.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
+                        mod.const_set('DataServices', Orocos::RobyPlugin::DataServices)
+                        mod.const_set('Srv',          Orocos::RobyPlugin::DataServices)
+                        mod.const_set('Devices',      Orocos::RobyPlugin::Devices)
+                        mod.const_set('Dev',          Orocos::RobyPlugin::Devices)
+                        mod.const_set('Compositions', Orocos::RobyPlugin::Compositions)
+                        mod.const_set('Cmp',          Orocos::RobyPlugin::Compositions)
+                    end
+                end
 
                 if app.shell?
                     return
@@ -564,6 +560,13 @@ module Orocos
                 project.name 'roby'
                 @main_orogen_project = project
                 project.extend MasterProjectHook
+                if Orocos.export_types?
+                    Orocos.type_export_namespace.constants.each do |const_name|
+                        Orocos.type_export_namespace.send(:remove_const, const_name)
+                    end
+                end
+
+                loaded_orogen_projects.clear
             end
 
             def self.load_task_extension(file, app)

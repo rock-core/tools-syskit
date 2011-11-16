@@ -46,14 +46,6 @@ module Orocos
                 Orocos.disable_sigchld_handler = true
                 ::Orocos.initialize
                 Roby.app.extend Orocos::RobyPlugin::Application
-                save_collection Roby.app.loaded_orogen_projects
-                save_collection Roby.app.orocos_tasks
-                save_collection Roby.app.orocos_deployments
-                save_collection Orocos::RobyPlugin.process_servers
-
-                project = Orocos::Generation::Component.new
-                project.name 'roby'
-                Roby.app.instance_variable_set :@main_orogen_project, project
 
                 if self.class.needed_orogen_projects.empty? && !self.class.needs_no_orogen_projects?
                     Roby.app.orogen_load_all
@@ -74,8 +66,6 @@ module Orocos
                 super
 
                 Roby.app.orocos_clear_models
-                ::Orocos.instance_variable_set :@registry, Typelib::Registry.new
-                ::Orocos::CORBA.instance_variable_set :@loaded_typekits, []
 
                 deployments = plan.find_tasks(Deployment).running.to_a
 
