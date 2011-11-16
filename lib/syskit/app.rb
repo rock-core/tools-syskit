@@ -116,12 +116,25 @@ module Orocos
                 end
             end
 
+            # The set of currently defined log groups
+            #
+            # It is a mapping from the log group name to the corresponding
+            # LogGroup instance
             attr_reader :log_groups
 
+            # The main log filter
+            #
+            # See #log_group
             def main_group
                 log_groups[nil]
             end
 
+            # Create a new log group with the given name
+            #
+            # A log groups are sets of filters that are used to match
+            # deployments, tasks or specific ports. These filters can be enabled
+            # or disabled using their name with #enable_log_group and
+            # #disable_log_group
             def log_group(name, &block)
                 group = LogGroup.new
                 group.load(&block)
@@ -159,16 +172,31 @@ module Orocos
                 log_groups[name].enabled = false
             end
 
+            # If true, the output of the local process server will be saved in
+            # log_dir/local_process_server.txt
             attr_predicate :redirect_local_process_server?, true
 
+            # Signifies whether orocos logging is enabled at all or not. If
+            # false, no logging will take place. If true, logging is enabled to
+            # the extent of the log configuration done with enable/disable log
+            # groups (#enable_log_group) and single ports (#exclude_from_log)
             attr_predicate :log_enabled?
+            # See #log_enabled?
             def enable_logging; @log_enabled = true end
+            # See #log_enabled?
             def disable_logging; @log_enabled = false end
 
+            # If true, changes to the values in properties are being logged by
+            # the framework. If false, they are not.
+            #
+            # Currently, properties are logged in a properties.0.log file
             attr_predicate :conf_log_enabled?
+            # See #conf_log_enabled?
             def enable_conf_logging; @conf_log_enabled = true end
+            # See #conf_log_enabled?
             def disable_conf_logging; @conf_log_enabled = false end
 
+            # Returns true if +deployment+ is completely excluded from logging
             def deployment_excluded_from_log?(deployment)
                 if !log_enabled?
                     true
@@ -178,6 +206,8 @@ module Orocos
                 end
             end
 
+            # Returns true if the port with name +port_name+ of task model
+            # +task_model+ in deployment +deployment+ should be logged or not
             def port_excluded_from_log?(deployment, task_model, port)
                 if !log_enabled?
                     true
