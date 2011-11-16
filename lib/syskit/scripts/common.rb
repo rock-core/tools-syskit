@@ -196,7 +196,7 @@ module Orocos
                 if error
                     exit(1)
                 end
-            ensure Roby.app.stop_process_servers
+            ensure Roby.app.cleanup
             end
         end
     end
