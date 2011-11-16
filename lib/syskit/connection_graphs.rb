@@ -224,7 +224,7 @@ module Orocos
                 end
                 each_source do |source_task|
                     mappings = source_task[self, Flows::DataFlow]
-                    if mappings.any? { |(from, to), _| from == port_name }
+                    if mappings.any? { |(from, to), _| to == port_name }
                         return true
                     end
                 end
