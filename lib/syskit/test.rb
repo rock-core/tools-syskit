@@ -72,13 +72,13 @@ module Orocos
             end
 
             def teardown
+                super
+
                 Roby.app.orocos_clear_models
                 ::Orocos.instance_variable_set :@registry, Typelib::Registry.new
                 ::Orocos::CORBA.instance_variable_set :@loaded_typekits, []
 
                 deployments = plan.find_tasks(Deployment).running.to_a
-
-                super
 
                 deployments.each do |task|
                     if task.orogen_deployment.alive?
