@@ -229,7 +229,7 @@ module Orocos
                 candidates = ([context] + namespaces).
                     compact.
                     find_all do |namespace|
-                        namespace.const_defined?(const_name)
+                        namespace.const_defined_here?(const_name)
                     end
 
                 if candidates.size > 1 && candidates.first != context
@@ -421,7 +421,7 @@ module Orocos
                 end
 
                 [Kernel, Orocos].each do |mod|
-                    if !mod.const_defined?('Cmp')
+                    if !mod.const_defined_here?('Cmp')
                         mod.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
                         mod.const_set('DataServices', Orocos::RobyPlugin::DataServices)
                         mod.const_set('Srv',          Orocos::RobyPlugin::DataServices)
@@ -545,7 +545,7 @@ module Orocos
                 projects.each do |name|
                     name = name.camelcase(:upper)
                     Orocos::RobyPlugin.send(:remove_const, name)
-                    if Orocos.const_defined?(name)
+                    if Orocos.const_defined_here?(name)
                         Orocos.send(:remove_const, name)
                     end
                 end
