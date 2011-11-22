@@ -561,9 +561,7 @@ module Orocos
                 @main_orogen_project = project
                 project.extend MasterProjectHook
                 if Orocos.export_types?
-                    Orocos.type_export_namespace.constants.each do |const_name|
-                        Orocos.type_export_namespace.send(:remove_const, const_name)
-                    end
+                    Orocos.registry.clear_exports(Orocos.type_export_namespace)
                 end
 
                 loaded_orogen_projects.clear
