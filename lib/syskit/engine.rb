@@ -42,14 +42,37 @@ module Orocos
                 @logged_ports = Set.new
             end
 
-            def createLoggingPort(port_name, port_type)
-                return if logged_ports.include?([port_name, port_type])
+            # Wrapper on top of the createLoggingPort operation
+            #
+            # +sink_port_name+ is the port name of the logging task,
+            # +logged_task+ the Orocos::RobyPlugin::TaskContext object from
+            # which the data is being logged and +logged_port+ the
+            # Orocos::Spec::OutputPort model object of the port that we want to
+            # log.
+            def createLoggingPort(sink_port_name, logged_task, logged_port)
+                return if logged_ports.include?([sink_port_name, logged_port.type.name])
+
+                logged_port_type = logged_port.type.name
+
+                metadata = Hash[
+                    'rock_task_model' => logged_task.model.orogen_spec.name,
+                    'rock_task_name' => logged_task.orocos_name,
+                    'rock_task_object_name' => logged_port.name,
+                    'rock_stream_type' => 'port']
+                metadata = metadata.map do |k, v|
+                    Hash['key' => k, 'value' => v]
+                end
+                puts "creating logging port #{sink_port_name} with metadata"
+                pp metadata
 
                 @create_port ||= operation('createLoggingPort')
-                if !@create_port.callop(port_name, port_type)
-                    raise ArgumentError, "cannot create a logger port of name #{port_name} and type #{port_type}"
+                if !@create_port.callop(sink_port_name, logged_port_type, metadata)
+                    raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}"
                 end
-                logged_ports << [port_name, port_type]
+                logged_ports << [sink_port_name, logged_port_type]
+            rescue Exception => e
+                pp e
+                raise
             end
 
             def setup
@@ -68,11 +91,9 @@ module Orocos
                     end
                 end
 
-                super
-
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|
                     source_port = source_task.find_output_port_model(source_port_name)
-                    createLoggingPort(sink_port_name, source_port.type.name)
+                    createLoggingPort(sink_port_name, source_task, source_port)
                 end
             end
         end
@@ -1314,7 +1335,7 @@ module Orocos
 
                             log_port_name = "#{t.orocos_name}.#{port_name}"
                             connections[[port_name, log_port_name]] = { :fallback_policy => { :type => :buffer, :size => Engine.default_logging_buffer_size } }
-                            required_logging_ports << [log_port_name, p.type.name]
+                            required_logging_ports << [log_port_name, t, p]
                         end
                         required_connections << [t, connections]
                     end
@@ -1343,8 +1364,8 @@ module Orocos
                         #
                         # Otherwise, Logger#configure will take care of it for
                         # us
-                        required_logging_ports.each do |port_name, port_type|
-                            logger_task.createLoggingPort(port_name, port_type)
+                        required_logging_ports.each do |port_name, logged_task, logged_port|
+                            logger_task.createLoggingPort(port_name, logged_task, logged_port)
                         end
                     end
                     required_connections.each do |task, connections|
