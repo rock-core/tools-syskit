@@ -1,0 +1,30 @@
+#! /usr/bin/env ruby
+
+require 'orocos'
+require 'orocos/scripts'
+
+Orocos.initialize
+
+parser = OptionParser.new
+Orocos::Scripts.common_optparse_setup(parser)
+model, name = parser.parse(ARGV)
+name  ||= "rock-run#{Process.pid}"
+
+Orocos.run model => name do
+    task = Orocos::TaskContext.get(name)
+    Orocos::Scripts.conf(task)
+
+    if Orocos::Scripts.gui?
+        require 'vizkit'
+        Vizkit.display(task)
+
+        #if task.rtt_state == :PRE_OPERATIONAL
+        #    task.configure
+        #end
+        #task.start
+        Vizkit.exec
+    else
+        STDIN.readline
+    end
+end
+
