@@ -1084,6 +1084,26 @@ module Orocos
                 selected_task
             end
 
+            # Do an explicit service selection to match requirements in
+            # +service_list+. New services get selected only if relevant
+            # services are not already selected in +selected_services+
+            def select_services_for(service_list)
+                base_object =
+                    if selected_task then selected_task.model
+                    else requirements.models.find { |m| m <= Component }
+                    end
+
+                service_list.each do |srv|
+                    matching_service =
+                        selected_services.keys.find { |sel| sel.fullfills?(srv) }
+                    if matching_service
+                        selected_services[srv] = selected_services[matching_service]
+                    else
+                        selected_services.merge!(self.class.compute_service_selection(base_object, [srv], true))
+                    end
+                end
+            end
+
             def self.select_service_by_name(task_model, service_name)
                 if !(candidate = task_model.find_data_service(service_name))
                     # Look for child services. Watch out for ambiguities
