@@ -445,6 +445,11 @@ module Orocos
                 Orocos.disable_sigchld_handler = true
                 Orocos.load
 
+                path = File.join(app.app_dir, "models", "orogen")
+                if File.directory?(path)
+                    Orocos.load_dummy_models(path)
+                end
+
                 if File.directory?(dir = File.join(app.app_dir, 'config', 'orogen'))
                     Orocos.conf.load_dir(dir)
                 end
