@@ -2,18 +2,18 @@ BASE_DIR = File.expand_path( '../..', File.dirname(__FILE__))
 APP_DIR = File.join(BASE_DIR, "test")
 
 $LOAD_PATH.unshift BASE_DIR
-require 'test/roby/common'
+require 'orocos/roby/test'
 require 'roby/schedulers/basic'
 
 class TC_RobyPlugin_Deployment < Test::Unit::TestCase
-    include RobyPluginCommonTest
-
-    def setup
-        super
-        @orocos_update = engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
-    end
+    include Orocos::RobyPlugin::Test
 
     needs_no_orogen_projects
+
+    def setup
+        ENV['PKG_CONFIG_PATH'] = File.join(BASE_DIR, 'test', 'working_copy', 'prefix', 'lib', 'pkgconfig') + ":#{ENV['PKG_CONFIG_PATH']}"
+        super
+    end
 
     def test_deployment_nominal_actions
         Roby.app.load_orogen_project "echo"
