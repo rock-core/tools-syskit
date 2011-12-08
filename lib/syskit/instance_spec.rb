@@ -1122,7 +1122,7 @@ module Orocos
             end
 
             def self.from_object(object, requirements, user_call = false)
-                result = InstanceSelection.new(requirements)
+                result = InstanceSelection.new(requirements.dup)
                 required_model = requirements.models
 
                 object_requirements = InstanceRequirements.new
