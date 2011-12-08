@@ -45,7 +45,7 @@ class TC_RobyPlugin_Deployment < Test::Unit::TestCase
 	    task.start!
 	end
 
-        Orocos.logger.level = Logger::FATAL
+        Orocos.logger.level = ::Logger::FATAL
         assert_any_event(task.stop_event) do
             task.orogen_deployment.kill(false)
         end
