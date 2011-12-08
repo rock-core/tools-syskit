@@ -118,8 +118,8 @@ module Ui
                 item.move_by(0, bottom + HIERARCHY_DATAFLOW_MARGIN)
             end
         ensure
-            hierarchy_io.close
-            dataflow_io.close
+            hierarchy_io.close if hierarchy_io
+            dataflow_io.close if dataflow_io
         end
 
         def display_error(message, error)
