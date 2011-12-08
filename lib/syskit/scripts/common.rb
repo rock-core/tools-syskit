@@ -127,9 +127,13 @@ module Orocos
             end
 
             def self.generate_output(display_options = Hash.new)
+                default_exclude = []
+                if defined? Orocos::RobyPlugin::Logger::Logger
+                    default_exclude << Orocos::RobyPlugin::Logger::Logger
+                end
                 display_options = Kernel.validate_options display_options,
                     :remove_compositions => false,
-                    :excluded_tasks => [Orocos::RobyPlugin::Logger::Logger].to_value_set,
+                    :excluded_tasks => default_exclude.to_value_set,
                     :annotations => Set.new
 
                 # Now output them
