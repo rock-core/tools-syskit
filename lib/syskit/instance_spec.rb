@@ -1092,6 +1092,12 @@ module Orocos
                     if selected_task then selected_task.model
                     else requirements.models.find { |m| m <= Component }
                     end
+                
+                # At this stage, the selection only contains data services. We
+                # therefore cannot do any explicit service selection and return.
+                if !base_object
+                    return
+                end
 
                 service_list.each do |srv|
                     matching_service =
