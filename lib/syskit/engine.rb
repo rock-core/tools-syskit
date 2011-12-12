@@ -1623,7 +1623,9 @@ module Orocos
                     end
 
                     if options[:compute_deployments]
-                        configure_logging
+                        if defined?(Orocos::RobyPlugin::Logger::Logger)
+                            configure_logging
+                        end
                     end
 
                     if dry_run?
