@@ -275,6 +275,8 @@ module Orocos
                 next if ready?
 
                 if orogen_deployment.wait_running(0)
+                    emit :ready
+
                     @task_handles = Hash.new
                     orogen_spec.task_activities.each do |activity|
                         task_handles[activity.name] = 
@@ -284,8 +286,6 @@ module Orocos
                     each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                         initialize_running_task(task.orocos_name, task)
                     end
-
-                    emit :ready
                 end
             end
 

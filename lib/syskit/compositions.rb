@@ -1721,6 +1721,13 @@ module Orocos
                 else
                     result = InstanceSelection.new(find_child(child_name))
                 end
+
+                # Must compute the data service selection. We need to
+                # finish cleanup all of that once and for all
+                services = requirements.base_models.
+                    find_all { |m| m.kind_of?(DataServiceModel) }
+                result.select_services_for(services)
+
                 return result
 
             rescue AmbiguousServiceSelection => e
