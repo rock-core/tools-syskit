@@ -343,18 +343,13 @@ module Orocos
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
                 if orocos_load_component_extensions?
-                    file = File.join('tasks', 'orogen', "#{name}.rb")
-                    if File.exists?(file)
-                        Application.load_task_extension(file, self)
-                    else
-                        file = File.join('tasks', 'components', "#{name}.rb")
-                        if File.exists?(file)
-                            RobyPlugin.warn "putting orogen-specific models in tasks/components/ is deprecated"
-                            RobyPlugin.warn "move #{file} to #{file.gsub(/\/components\//, '/orogen/')}"
-                            Application.load_task_extension(file, self)
-                        elsif model_file = Application.find_in_model_path("orogen", "#{name}.rb")
-                            Application.load_task_extension(model_file, self)
-                        end
+                    file = find_files('models', 'orogen', "#{name}.rb", :all => :false, :order => :specific_first) ||
+                        find_files('tasks', 'orogen', "#{name}.rb", :all => :false, :order => :specific_first) ||
+                        find_files('tasks', 'components', "#{name}.rb", :all => :false, :order => :specific_first)
+
+                    if !file.empty?
+                        Roby::Application.info "loading task extension #{file.first}"
+                        Application.load_task_extension(file.first, self)
                     end
                 end
 
@@ -450,12 +445,10 @@ module Orocos
                     Orocos.load_dummy_models(path)
                 end
 
-                if File.directory?(dir = File.join(app.app_dir, 'config', 'orogen'))
-                    Orocos.conf.load_dir(dir)
-                end
-                if app.robot_name && File.directory?(dir = File.join(app.app_dir, 'config', app.robot_name, 'orogen'))
-                    Orocos.conf.load_dir(dir)
-                end
+                app.find_dirs('config', 'orogen', 'ROBOT', :all => true, :order => :specific_last).
+                    each do |dir|
+                        Orocos.conf.load_dir(dir)
+                    end
 
                 app.orocos_clear_models
                 app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext
@@ -488,17 +481,18 @@ module Orocos
 
             def self.require_models(app)
                 # Load the data services and task models
-                %w{data_services compositions}.each do |category|
-                    all_files = app.list_dir(app.app_dir, "tasks", category).to_a +
-                        app.list_robotdir(app.app_dir, 'tasks', 'ROBOT', category).to_a
-                    all_files.each do |path|
-                        app.load_system_model(path)
-                    end
+                all_files =
+                    app.find_files_in_dirs("tasks", "data_services", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                    app.find_files_in_dirs("models", "data_services", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                    app.find_files_in_dirs("tasks", "compositions", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                    app.find_files_in_dirs("models", "compositions", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/)
+                all_files.each do |path|
+                    app.load_system_model(path)
                 end
 
                 # Define planning methods on the main planner for the available
                 # deployment files
-                app.list_dir(app.app_dir, 'config', 'deployments') do |path|
+                app.find_files_in_dirs('config', 'deployments', 'ROBOT', :all => true, :order => :specific_last, :pattern => /\.rb$/).each do |path|
                     name = File.basename(path, '.rb')
                     ::MainPlanner.describe "resets the current component network to the state defined in #{path}"
                     ::MainPlanner.method(name) do
@@ -510,9 +504,12 @@ module Orocos
                 end
 
                 # Finally, we load the configuration file ourselves using the
-                # #load_system_model call
-                if file = app.robotfile(app.app_dir, 'config', "ROBOT.rb")
-                    app.load_system_model file
+                # #load_system_model call, to be able to use #load_system_model
+                # instead of a plain require
+                #
+                # This sucks big time
+                if file = app.find_files('config', "ROBOT.rb", :all => false, :order => :specific_first)
+                    app.load_system_model file.first
                 end
             end
 
@@ -581,16 +578,27 @@ module Orocos
             # Load a part of the system model, i.e. composition and/or data
             # services
             def load_system_model(file)
-                candidates = [file, File.join("tasks", file)]
-                candidates = candidates.concat(candidates.map { |p| "#{p}.rb" })
+                candidates = [file, "#{file}.rb"]
+
+                args = ["models", "ROBOT", *file.split("/")]
+                args << {:all => false, :order => :specific_first}
+                if robot_file = find_files(*args)
+                    candidates << robot_file
+                end
+
+                args[-2] = "#{args[-2]}.rb"
+                if robot_file = find_files(*args)
+                    candidates << robot_file
+                end
+
                 path = candidates.find do |path|
                     File.exists?(path)
                 end
-
                 if !path
                     raise ArgumentError, "there is no system model file called #{file}"
                 end
 
+                Roby::Application.info "loading system model file #{path}"
                 orocos_system_model.load(path)
             end
 
@@ -604,10 +612,8 @@ module Orocos
             def find_orocos_deployment(name)
                 if File.file?(name)
                     name
-		elsif file = robotfile('config', 'ROBOT', 'deployments', "#{name}.rb")
-		    file
-		elsif File.file?(file = File.join('config', 'deployments', "#{name}.rb"))
-		    file
+                else
+                    return find_files('config', 'deployments', 'ROBOT', "#{name}.rb", :all => false, :order => :specific_first)
 		end
             end
 
