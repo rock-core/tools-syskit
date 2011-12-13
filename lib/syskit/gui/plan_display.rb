@@ -119,6 +119,7 @@ module Ui
                     map(r.bounds_on_element(i.svgid).bottom_left).
                     y
             end.max
+            bottom ||= 0
             dataflow_items.each do |item|
                 item.move_by(0, bottom + HIERARCHY_DATAFLOW_MARGIN)
             end
