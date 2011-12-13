@@ -308,6 +308,16 @@ module Orocos
                 @required_host = name
             end
 
+            # Returns the system model we are attached to, or nil if we are not
+            # attached to any. This is essentially the system model in which
+            # elements of base_models are declared
+            def system_model
+                base_models.each do |mod|
+                    return mod.system_model
+                end
+                nil
+            end
+
             # Returns a task that can be used in the plan as a placeholder for
             # this instance
             def create_placeholder_task
@@ -315,9 +325,7 @@ module Orocos
                 if task_model
                     task = task_model.new(@arguments)
                 else 
-                    if !@task_model
-                        @task_model = DataServiceModel.proxy_task_model(models)
-                    end
+                    @task_model ||= system_model.proxy_task_model(models)
                     task = @task_model.new(@arguments)
                 end
                 task.required_host = self.required_host

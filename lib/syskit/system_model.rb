@@ -60,6 +60,7 @@ module Orocos
                 @composition_specializations = Hash.new do |h, k|
                     h[k] = Hash.new { |a, b| a[b] = Hash.new }
                 end
+                @proxy_task_models = Hash.new
 
                 @export = true
                 @data_service_models = Hash.new
@@ -173,6 +174,17 @@ module Orocos
             # Load the types defined in the specified oroGen projects
             def import_types_from(*names)
                 Roby.app.main_orogen_project.import_types_from(*names)
+            end
+
+            # Create an abstract task model used to proxy the provided set of
+            # services in a plan
+            def proxy_task_model(models)
+                models = models.to_set
+                if model = @proxy_task_models[models]
+                    return model
+                else
+                    @proxy_task_models[models] = DataServiceModel.proxy_task_model(models)
+                end
             end
 
             # Registers a global exclusion for a class of ports, to be ignored
