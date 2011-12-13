@@ -435,7 +435,7 @@ module Orocos
                     requirements.with_arguments(model.task_arguments)
                     requirements.with_arguments("#{model.service.name}_name" => model.name)
                     requirements
-                elsif model.kind_of?(Class) && model < Component
+                elsif model.kind_of?(Module) && (model < Component || model < DataService)
                     EngineRequirement.new(name, [model])
                 elsif model.kind_of?(InstanceRequirements)
                     model

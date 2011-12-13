@@ -337,7 +337,7 @@ module Orocos
             def instanciate(engine, context, arguments = Hash.new)
                 task_model = models.find { |m| m < Component }
                 if !task_model
-                    raise ArgumentError, "cannot call #instanciate on a composite model"
+                    return create_placeholder_task
                 end
 
                 context.push(selections)
