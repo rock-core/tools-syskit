@@ -482,6 +482,9 @@ module Orocos
             def self.require_models(app)
                 # Load the data services and task models
                 all_files =
+                    app.find_files_in_dirs("models", "blueprints", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                    app.find_files_in_dirs("tasks", "compositions", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                    app.find_files_in_dirs("models", "compositions", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/)
                     app.find_files_in_dirs("tasks", "data_services", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
                     app.find_files_in_dirs("models", "data_services", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
                     app.find_files_in_dirs("tasks", "compositions", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
@@ -579,25 +582,24 @@ module Orocos
             # services
             def load_system_model(file)
                 candidates = [file, "#{file}.rb"]
-
-                args = ["models", "ROBOT", *file.split("/")]
-                args << {:all => false, :order => :specific_first}
-                if robot_file = find_files(*args)
-                    candidates << robot_file
-                end
-
-                args[-2] = "#{args[-2]}.rb"
-                if robot_file = find_files(*args)
-                    candidates << robot_file
-                end
-
-                path = candidates.find do |path|
-                    File.exists?(path)
-                end
-                if !path
+                candidates << File.join("models", "ROBOT", file)
+                candidates << File.join("models", "ROBOT", "#{file}.rb")
+                search_options = {:all => false, :order => :specific_first}
+                candidates = candidates.map do |path|
+                    path = Pathname.new(path)
+                    if path.absolute?
+                        args = [path.to_s]
+                    else
+                        args = path.enum_for(:each_filename).to_a
+                    end
+                    args << search_options
+                    find_files(*args)
+                end.compact
+                if candidates.empty?
                     raise ArgumentError, "there is no system model file called #{file}"
                 end
 
+                path = candidates.first
                 Roby::Application.info "loading system model file #{path}"
                 orocos_system_model.load(path)
             end
