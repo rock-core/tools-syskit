@@ -1,5 +1,8 @@
 #! /usr/bin/env ruby
-APP_DIR = Dir.pwd
+
+require 'rock/bundle'
+
+Bundle.load
 mode = ARGV.shift
 
 begin
