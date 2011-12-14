@@ -146,12 +146,21 @@ module Ui
             error_text.default_text_color = Qt::Color.new('red')
         end
 
-        def display_svg(filename)
+        def display_svg(io)
             # Build a two-way mapping from the SVG IDs and the task objects
             svgid_to_task = Hash.new
             svg_objects = Set.new
 
-            svg[filename.gsub(/\.svg$/, '')] = svg_data = File.read(filename).dup
+            if !io.respond_to?(:read)
+                path = io
+                svg_data = File.read(io)
+            else
+                path = io.path
+                svg_data = io.read
+            end
+            puts "data: #{data}"
+
+            svg[path.gsub(/\.svg$/, '')] = svg_data = svg_data.dup
             xml = Nokogiri::XML(svg_data)
             xml.children.children.children.each do |el|
                 title = (el/"title")
@@ -166,7 +175,7 @@ module Ui
                 svg_objects << el['id']
             end
 
-            renderer = (@renderers[filename]  = Qt::SvgRenderer.new(filename))
+            renderer = (@renderers[path]  = Qt::SvgRenderer.new(Qt::ByteArray.new(svg_data)))
 
             all_items = []
 
