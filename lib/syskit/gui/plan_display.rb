@@ -65,21 +65,23 @@ module Ui
             @view            = Qt::GraphicsView.new(scene, main)
             @view.extend GraphicsViewExtension
             @renderers       = Hash.new
-            @hierarchy_items = Array.new
-            @dataflow_items  = Array.new
             @svg             = Hash.new
+            @svg_items = Hash.new
             @task_from_id = Hash.new
+            @stack = Array.new
+            @title_font = Qt::Font.new
+            title_font.bold = true
 
             view.viewport_update_mode = Qt::GraphicsView::FullViewportUpdate
             view.scale(0.8, 0.8)
         end
 
-        attr_reader :hierarchy_items
-        attr_reader :dataflow_items
+        attr_reader :svg_items
         attr_reader :error_text
+        attr_reader :stack
+        attr_accessor :title_font
 
-        HIERARCHY_DATAFLOW_MARGIN = 50
-        def update_view(plan, engine, display_options = Hash.new)
+        def render_plan(mode, plan, engine, display_options)
             default_exclude = []
             if defined? Orocos::RobyPlugin::Logger::Logger
                 default_exclude << Orocos::RobyPlugin::Logger::Logger
@@ -90,42 +92,81 @@ module Ui
                 :excluded_tasks => default_exclude.to_value_set,
                 :annotations => Set.new
 
-            if error_text
-                scene.remove_item(error_text)
-                @error_text = nil
+            svg_io = Tempfile.open(mode)
+            if mode == "dataflow"
+                engine.to_svg(mode, svg_io, display_options[:remove_compositions],
+                             display_options[:excluded_tasks],
+                             display_options[:annotations])
+            else
+                engine.to_svg(mode, svg_io)
             end
 
-            renderers.clear
-            hierarchy_io = Tempfile.open('hierarchy')
-            engine.to_svg('hierarchy', hierarchy_io)
-            dataflow_io = Tempfile.open('dataflow')
-            engine.to_svg('dataflow', dataflow_io, display_options[:remove_compositions],
-                         display_options[:excluded_tasks],
-                         display_options[:annotations])
-
-            task_from_id.clear
             plan.each_task do |task|
                 task_from_id[task.object_id] = task
             end
-            hierarchy_items.each(&:dispose)
-            dataflow_items.each(&:dispose)
-            scene.clear
-            @hierarchy_items = display_svg(hierarchy_io.path)
-            @dataflow_items  = display_svg(dataflow_io.path)
-
-            r = renderers[hierarchy_io.path]
-            bottom = hierarchy_items.map do |i|
-                r.matrixForElement(i.svgid).
-                    map(r.bounds_on_element(i.svgid).bottom_left).
-                    y
-            end.max
-            bottom ||= 0
-            dataflow_items.each do |item|
-                item.move_by(0, bottom + HIERARCHY_DATAFLOW_MARGIN)
+            if old_items = svg_items[[mode, plan]]
+                old_items.each(&:dispose)
             end
+            svg_io.rewind
+            renderer, items = display_svg(svg_io)
+            svg_items[[mode, plan]] = items
+
         ensure
-            hierarchy_io.close if hierarchy_io
-            dataflow_io.close if dataflow_io
+            svg_io.close if svg_io
+        end
+
+        def clear
+            renderers.clear
+            stack.clear
+            scene.clear
+            svg_items.clear
+            svg.clear
+            task_from_id.clear
+        end
+
+        def push(title, item)
+            if item.respond_to?(:to_ary)
+                item = item.map do |w|
+                    if w.kind_of?(Qt::Widget)
+                        scene.add_widget(w)
+                    else
+                        w
+                    end
+                end
+                item = scene.create_item_group(item)
+            elsif item.kind_of?(Qt::Widget)
+                item = scene.add_widget(item)
+            end
+            if !item.kind_of?(Qt::GraphicsItem)
+                raise ArgumentError, "expected a graphics item but got #{item}"
+            end
+            stack.push([title, item])
+        end
+
+        def push_plan(title, mode, plan, engine, display_options)
+            push(title, render_plan(mode, plan, engine, display_options))
+        end
+
+        TITLE_BOTTOM_MARGIN = 10
+        SEPARATION_MARGIN = 50
+
+        def update_view(plan, engine, display_options = Hash.new)
+            clear
+            push_plan('Task Dependency Hierarchy', 'hierarchy', plan, engine, display_options)
+            push_plan('Dataflow', 'dataflow', plan, engine, display_options)
+            render
+        end
+
+        def render
+            y = 0
+            stack.each do |title, item|
+                title_item = scene.add_simple_text(title, title_font)
+                title_item.move_by(0, y)
+                y += title_item.bounding_rect.height + TITLE_BOTTOM_MARGIN
+
+                item.move_by(0, y)
+                y += item.bounding_rect.height + SEPARATION_MARGIN
+            end
         end
 
         def display_error(message, error)
@@ -212,7 +253,7 @@ module Ui
             end
 
             view.update
-            all_items
+            return renderer, all_items
         end
 
         # The margin between the top and bottom parts of the saved SVG, in
