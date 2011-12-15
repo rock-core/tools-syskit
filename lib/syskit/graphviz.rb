@@ -156,6 +156,10 @@ module Orocos
                     end
                 end
 
+                plan.find_local_tasks(Component).each do |task|
+                    all_tasks << task
+                end
+
                 plan.find_local_tasks(Deployment).each do |task|
                     all_tasks << task
                     task.each_executed_task do |component|
