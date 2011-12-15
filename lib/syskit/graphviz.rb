@@ -185,6 +185,14 @@ module Orocos
                     map { |s| s.gsub(/add_(\w+)_annotations/, '\1') }
             end
 
+            def add_port_details_annotations
+                plan.find_local_tasks(Component).each do |task|
+                    task.model.each_port do |p|
+                        add_port_annotation(task, p.name, "Type", p.type_name)
+                    end
+                end
+            end
+
             def add_task_info_annotations
                 plan.find_local_tasks(TaskContext).each do |task|
                     add_task_annotation(task, "Arguments", task.arguments.map { |k, v| "#{k}: #{v}" })
