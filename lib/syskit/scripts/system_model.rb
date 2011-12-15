@@ -41,7 +41,9 @@ class ModelListWidget < Qt::TreeWidget
     end
 
     def populate
-        Roby.app.orocos_system_model.each_data_service do |srv|
+        services = Roby.app.orocos_system_model.each_data_service.to_a
+        services.sort_by { |srv| srv.name }.each do |srv|
+            services << srv
             name = srv.name.gsub(/.*DataServices::/, '')
             model_name_to_object[name] = srv
 
@@ -49,7 +51,9 @@ class ModelListWidget < Qt::TreeWidget
             item.set_text(0, name)
             item.set_data(0, Qt::UserRole, Qt::Variant.new(0))
         end
-        Roby.app.orocos_system_model.each_composition do |cmp|
+
+        compositions = Roby.app.orocos_system_model.each_composition.to_a
+        compositions.sort_by { |srv| srv.name }.each do |cmp|
             name = cmp.name.gsub(/.*Compositions::/, '')
             model_name_to_object[name] = cmp
 
@@ -64,6 +68,91 @@ class ModelListWidget < Qt::TreeWidget
         @root_services.clear
         @root_compositions.clear
     end
+end
+
+class SpecializationSelectionChangedBinder < Qt::Object
+    attr_reader :display
+    attr_reader :all_specializations
+
+    def initialize(display, all_specializations)
+        super()
+        @display, @all_specializations = display, all_specializations
+    end
+
+    def selected_item(current, previous)
+        selected_model = current.data(0, Qt::UserRole).to_int
+        if selected_model = all_specializations[selected_model]
+            display_model(selected_model, display)
+        end
+    end
+    slots 'selected_item(QTreeWidgetItem*,QTreeWidgetItem*)'
+end
+
+def display_model(model, display)
+    Roby.plan.clear
+    requirements = Orocos::RobyPlugin::Engine.
+        create_instanciated_component(Roby.app.orocos_engine, "", model)
+    task = requirements.instanciate(
+        Roby.app.orocos_engine,
+        Orocos::RobyPlugin::DependencyInjectionContext.new)
+
+    Roby.plan.add(task)
+
+    display_options = { :annotations => ['port_details', 'task_info', 'connection_policy'] }
+    display.clear
+    if model <= Orocos::RobyPlugin::Composition
+        specialization_widget = Qt::TreeWidget.new
+        specialization_widget_proxy = display.scene.add_widget(specialization_widget)
+        specialization_widget_proxy.width = 500
+        all_specializations = []
+        model.each_direct_specialization do |specialized_model|
+            specializations = specialized_model.specialized_children.map do |child_name, selected_model|
+                selected_model = selected_model.map(&:short_name).join(",")
+                    "#{child_name} => #{selected_model}"
+            end
+            selector = Qt::TreeWidgetItem.new(specialization_widget)
+            selector.set_text(0, specializations.join("\n"))
+            selector.set_data(0, Qt::UserRole, Qt::Variant.new(all_specializations.size))
+            all_specializations << specialized_model
+            selector.set_check_state(0, Qt::Unchecked)
+        end
+        binder = SpecializationSelectionChangedBinder.new(display, all_specializations)
+        Qt::Object.connect(specialization_widget, SIGNAL('currentItemChanged(QTreeWidgetItem*,QTreeWidgetItem*)'),
+                           binder, SLOT('selected_item(QTreeWidgetItem*,QTreeWidgetItem*)'), Qt::QueuedConnection)
+        display.push("Specializations", specialization_widget_proxy)
+
+        display.push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.orocos_engine, display_options)
+        display.push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, display_options)
+    else
+        display.push_plan('Interface', 'dataflow', Roby.plan, Roby.orocos_engine, display_options)
+    end
+
+    services = []
+    task.model.each_data_service do |service_name, service|
+        model_hierarchy = service.model.ancestors.
+            find_all do |m|
+            m.kind_of?(Orocos::RobyPlugin::DataServiceModel) &&
+                m != Orocos::RobyPlugin::DataService &&
+                m != service.model
+            end
+
+        model_hierarchy.each do |m|
+            port_mappings = service.port_mappings_for(m).dup
+            port_mappings.delete_if do |from, to|
+                from == to
+            end
+            model_name = m.short_name.gsub("DataServices::", "")
+            if !port_mappings.empty?
+                services << "#{model_name} #{port_mappings}"
+            else
+                services << model_name
+            end
+        end
+    end
+    label = Qt::Label.new(services.join("\n"))
+    label.background_role = Qt::Palette::NoRole
+    display.push("Provided Services", label)
+    display.render
 end
 
 Scripts.run do
@@ -88,25 +177,11 @@ Scripts.run do
 
     model_list.connect(SIGNAL('itemClicked(QTreeWidgetItem*,int)')) do |item, col|
         if model = model_list.model_name_to_object[item.text(0)]
-            Roby.plan.clear
-            requirements = Orocos::RobyPlugin::Engine.create_instanciated_component(Roby.app.orocos_engine, "", model)
-            task = requirements.instanciate(Roby.app.orocos_engine, Orocos::RobyPlugin::DependencyInjectionContext.new)
-            Roby.plan.add(task)
-
-            task.model.each_data_service do |service_name, service|
-                puts service_name
-                service.model.ancestors.find_all { |m| m.kind_of?(Orocos::RobyPlugin::DataServiceModel) }.
-                    each do |m|
-                        puts "  #{m.name} #{service.port_mappings_for(m)}"
-                    end
-            end
-            display_options = Hash.new
-            display.update_view(Roby.plan,
-                                Roby.app.orocos_engine,
-                                display_options)
+            display_model(model, display)
         end
     end
     model_list.populate
+    main.resize(800, 500)
     main.show
 
     $qApp.exec
