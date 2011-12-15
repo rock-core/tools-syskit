@@ -22,6 +22,33 @@ module Orocos
             end
         end
 
+        # Exception raised when CompositionChild#method_missing is called to
+        # resolve a port but the port name is ambiguous
+        class AmbiguousChildPort < RuntimeError
+            attr_reader :composition_child
+            attr_reader :port_name
+            attr_reader :candidates
+
+            def initialize(composition_child, port_name, candidates)
+                @composition_child, @port_name, @candidates =
+                    composition_child, port_name, candidates
+            end
+
+            def pretty_print(pp)
+                pp.text "#{port_name} is ambiguous on the child #{composition_child.child_name} of"
+                pp.breakable
+                composition_child.composition.pretty_print(pp)
+                pp.breakable
+                pp.text "Candidates:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(candidates) do |c|
+                        pp.text c
+                    end
+                end
+            end
+        end
+
         # Represents a placeholder in a composition
         #
         # Compostion#add returns an instance of CompostionChild to represent the
@@ -104,11 +131,28 @@ module Orocos
             def method_missing(name, *args) # :nodoc:
                 if args.empty?
                     name = name.to_s
-                    composition.find_child(child_name).models.each do |child_model|
-                        if port = child_model.find_output_port(name)
-                            return CompositionChildOutputPort.new(self, port, name)
-                        elsif port = child_model.find_input_port(name)
+                    candidates = []
+                    composition.find_child(child_name).models.map do |child_model|
+                        if output = child_model.find_output_port(name)
+                            candidates << [child_model, output]
+                        end
+                        if input  = child_model.find_input_port(name)
+                            candidates << [child_model, input]
+                        end
+                    end
+
+                    if candidates.size > 1
+                        candidates = candidates.map do |model, port|
+                            "#{model.short_name}.#{port.name}"
+                        end
+                        raise AmbiguousChildPort.new(self, name, candidates), "#{name} is ambiguous on the child #{child_name} of #{composition.short_name}: #{candidates.join(", ")}"
+                    elsif candidates.size == 1
+                        port = candidates.first[1]
+                        case port
+                        when Orocos::Spec::InputPort
                             return CompositionChildInputPort.new(self, port, name)
+                        else
+                            return CompositionChildOutputPort.new(self, port, name)
                         end
                     end
                 end
