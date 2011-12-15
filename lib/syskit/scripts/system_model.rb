@@ -82,7 +82,7 @@ class ModelDisplayView < Ui::PlanDisplay
         @specializations = ValueSet.new
     end
 
-    def selectedObject(obj_as_variant)
+    def clickedSpecialization(obj_as_variant)
         object = obj_as_variant.value
         if specializations.include?(object)
             if object.model != current_model
@@ -90,22 +90,46 @@ class ModelDisplayView < Ui::PlanDisplay
             end
         end
     end
-    slots 'selectedObject(QVariant&)'
+    slots 'clickedSpecialization(QVariant&)'
 
     def clear
         super
         specializations.clear
     end
 
-    def render_specializations(current_task, model_to_task)
-        current_task.model.each_direct_specialization do |specialized_model|
-            if !(specialized_task = model_to_task[specialized_model])
-                Roby.plan.add(specialized_task = specialized_model.new)
-                model_to_task[specialized_model] = specialized_task
-                specializations << specialized_task
-                render_specializations(specialized_task, specialized_model)
+    def render_specialization_graph(root_model)
+        models = root_model.instanciate_all_possible_specializations
+        models << root_model
+
+        puts "#{models.size} models"
+        models.each do |m|
+            pp m
+        end
+
+        model_to_task = Hash.new
+        parents = Hash.new
+        models.each do |composition_model|
+            Roby.plan.add(task = composition_model.new)
+            model_to_task[composition_model] = task
+            specializations << task
+            parents[task] = Set.new
+        end
+
+        # Now generate the dependency links
+        models.each do |composition_model|
+            models.each do |other_model|
+                next if other_model == composition_model
+                if (other_model.applied_specializations & composition_model.applied_specializations) == composition_model.applied_specializations
+                    parents[model_to_task[other_model]] << model_to_task[composition_model]
+                end
             end
-            specialized_task.depends_on(current_task)
+        end
+        parents.each do |task, task_parents|
+            task_parents.each do |parent_task|
+                if task_parents.none? { |p| p != parent_task && parents[p].include?(parent_task) }
+                    parent_task.depends_on(task)
+                end
+            end
         end
     end
 
@@ -114,13 +138,10 @@ class ModelDisplayView < Ui::PlanDisplay
 
         if model <= Orocos::RobyPlugin::Composition
             Roby.plan.clear
-            Roby.plan.add_mission(task = model.root_model.new)
-            model_to_task = { model.root_model => task }
-            specializations << task
-            render_specializations(task, model_to_task)
+            render_specialization_graph(model.root_model)
 
-            Qt::Object.connect(self, SIGNAL('selectedSvgItem(QGraphicsSvgItem*)'),
-                               self, SLOT('select_specialization(QGraphicsSvgItem*)'), Qt::QueuedConnection)
+            Qt::Object.connect(self, SIGNAL('selectedObject(QVariant&)'),
+                               self, SLOT('clickedSpecialization(QVariant&)'))
             display_options = { :annotations => [] }
             push_plan('Specializations', 'hierarchy', Roby.plan, Roby.orocos_engine, display_options)
         end
@@ -133,12 +154,11 @@ class ModelDisplayView < Ui::PlanDisplay
             Orocos::RobyPlugin::DependencyInjectionContext.new)
         Roby.plan.add(task)
 
-        display_options = { :annotations => ['port_details', 'task_info', 'connection_policy'] }
         if model <= Orocos::RobyPlugin::Composition
-            push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.orocos_engine, display_options)
-            push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, display_options)
+            push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.orocos_engine, Hash.new)
+            push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, :annotations => ['port_details', 'task_info', 'connection_policy'])
         else
-            push_plan('Interface', 'dataflow', Roby.plan, Roby.orocos_engine, display_options)
+            push_plan('Interface', 'dataflow', Roby.plan, Roby.orocos_engine, :annotations => ['port_details'])
         end
 
         services = []
@@ -147,7 +167,7 @@ class ModelDisplayView < Ui::PlanDisplay
                 find_all do |m|
                 m.kind_of?(Orocos::RobyPlugin::DataServiceModel) &&
                     m != Orocos::RobyPlugin::DataService &&
-                    m != service.model
+                    m != task.model
                 end
 
             model_hierarchy.each do |m|

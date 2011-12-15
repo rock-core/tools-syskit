@@ -861,9 +861,21 @@ module Orocos
 
                 puts "partitionned #{specializations.values.size} specializations into #{all.size} models"
 
+                done_subsets = Set.new
+
                 result = []
                 all.each do |merged, set|
-                    result << instanciate_specialization(merged, set)
+                    (1..set.size).each do |subset_size|
+                        set.to_a.combination(subset_size) do |subset|
+                            subset = subset.to_set
+                            if !done_subsets.include?(subset)
+                                merged = Specialization.new
+                                subset.each { |spec| merged.merge(spec) }
+                                result << instanciate_specialization(merged, subset)
+                                done_subsets << subset
+                            end
+                        end
+                    end
                 end
                 result
             end
