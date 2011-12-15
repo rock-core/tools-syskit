@@ -277,6 +277,10 @@ module Orocos
                 @task_model = DataServiceModel.proxy_task_model([self])
             end
 
+            def pretty_print(pp)
+                pp.text short_name
+            end
+
             # Returns a subclass of Roby::Task that implements the given set of
             # data services
             def self.proxy_task_model(service_models)
