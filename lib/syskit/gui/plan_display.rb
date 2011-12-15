@@ -8,7 +8,21 @@ module Ui
     # through their SVG object ID) and the graphical representation.
     class PlanDisplay < Qt::Object
         module GraphicsViewExtension
+            attr_accessor :plan_display
             attribute(:current_scaling) { 1 }
+
+            def mousePressEvent(event)
+                items = self.items(event.pos)
+                items = items.find_all do |i|
+                    i.respond_to?(:real_object) &&
+                        i.real_object
+                end
+                if sel = items.first
+                    emit plan_display.
+                        selectedObject(Qt::Variant.fromValue(sel.real_object))
+                end
+                event.accept
+            end
 
             def wheelEvent(event)
                 if event.modifiers != Qt::ControlModifier
@@ -48,9 +62,10 @@ module Ui
         # The GraphicsView widget that handles the scene
         attr_reader :view
         # A mapping from task objects to their SVG ID
-        attr_reader :task_from_id
-        # A mapping from the SVG GraphicsItems to the task object
-        attr_reader :graphicsitem_to_task
+        attr_reader :ruby_id_to_index
+        # A mapping from task objects to their SVG ID
+        attr_reader :svg_id_to_index
+        attr_reader :index_to_object
         # The SVG renderer objects used to render the task SVGs
         attr_reader :renderers
 
@@ -64,10 +79,12 @@ module Ui
             @scene           = Qt::GraphicsScene.new
             @view            = Qt::GraphicsView.new(scene, main)
             @view.extend GraphicsViewExtension
+            @view.plan_display = self
             @renderers       = Hash.new
             @svg             = Hash.new
-            @svg_items = Hash.new
-            @task_from_id = Hash.new
+            @index_to_object = Array.new
+            @svg_id_to_index  = Hash.new
+            @ruby_id_to_index  = Hash.new
             @stack = Array.new
             @title_font = Qt::Font.new
             title_font.bold = true
@@ -76,7 +93,6 @@ module Ui
             view.scale(0.8, 0.8)
         end
 
-        attr_reader :svg_items
         attr_reader :error_text
         attr_reader :stack
         attr_accessor :title_font
@@ -102,14 +118,13 @@ module Ui
             end
 
             plan.each_task do |task|
-                task_from_id[task.object_id] = task
-            end
-            if old_items = svg_items[[mode, plan]]
-                old_items.each(&:dispose)
+                index = index_to_object.size
+                index_to_object.push(task)
+                ruby_id_to_index[task.object_id] = index
             end
             svg_io.rewind
             renderer, items = display_svg(svg_io)
-            svg_items[[mode, plan]] = items
+            items
 
         ensure
             svg_io.close if svg_io
@@ -119,9 +134,10 @@ module Ui
             renderers.clear
             stack.clear
             scene.clear
-            svg_items.clear
             svg.clear
-            task_from_id.clear
+            index_to_object.clear
+            ruby_id_to_index.clear
+            svg_id_to_index.clear
         end
 
         def push(title, item)
@@ -187,9 +203,19 @@ module Ui
             error_text.default_text_color = Qt::Color.new('red')
         end
 
+        module SvgObjectMapper
+            attr_accessor :plan_display
+            def real_object
+                id = data(Qt::UserRole)
+                if id.valid?
+                    id = id.to_int
+                    plan_display.index_to_object[id]
+                end
+            end
+        end
+
         def display_svg(io)
             # Build a two-way mapping from the SVG IDs and the task objects
-            svgid_to_task = Hash.new
             svg_objects = Set.new
 
             if !io.respond_to?(:read)
@@ -199,7 +225,6 @@ module Ui
                 path = io.path
                 svg_data = io.read
             end
-            puts "data: #{data}"
 
             svg[path.gsub(/\.svg$/, '')] = svg_data = svg_data.dup
             xml = Nokogiri::XML(svg_data)
@@ -208,10 +233,10 @@ module Ui
                 next if title.empty?
 
                 id = title[0].content
-                if id =~ /^(?:inputs|outputs|label)(\d+)$/ # this node is a part of a task / composition
+                if id =~ /^(?:inputs|outputs|label)?(\d+)$/ # this node is a part of a task / composition
                     id = $1
-                    task = task_from_id[Integer(id)]
-                    svgid_to_task[el['id']] = task
+                    index = ruby_id_to_index[Integer(id)]
+                    svg_id_to_index[el['id']] = index
                 end
                 svg_objects << el['id']
             end
@@ -222,7 +247,6 @@ module Ui
 
             # Now, add separate graphics items for each of the tasks, so that we
             # are able to interact with them
-            @graphicsitem_to_task = Hash.new
             svg_objects.each do |svgid|
                 pos = renderer.matrixForElement(svgid).
                     map(renderer.bounds_on_element(svgid).top_left)
@@ -233,28 +257,19 @@ module Ui
                 item.shared_renderer = renderer
                 item.element_id = svgid
                 item.pos = pos
-
-                class << item
-                    attr_accessor :svgid
-                    attr_accessor :window
+                if index = svg_id_to_index[svgid]
+                    item.set_data(Qt::UserRole, Qt::Variant.new(index))
                 end
-                item.window = self
-                item.svgid  = svgid
-
-                if task = svgid_to_task[svgid]
-                    graphicsitem_to_task[item] = task
-
-                    class << item
-                        attr_accessor :task
-                    end
-                    item.task   = task
-                end
+                item.extend SvgObjectMapper
+                item.plan_display = self
                 scene.add_item(item)
             end
 
             view.update
             return renderer, all_items
         end
+
+        signals 'selectedObject(QVariant&)'
 
         # The margin between the top and bottom parts of the saved SVG, in
         # points
