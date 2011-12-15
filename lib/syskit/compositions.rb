@@ -264,31 +264,10 @@ module Orocos
             # specialization, calling this method with recursive = true ensures
             # that the block is applied on all specialization models that should
             # have it applied
-            def apply_specialization_block(block, recursive = true)
+            def apply_specialization_block(block)
                 if !definition_blocks.include?(block)
                     with_module(*RobyPlugin.constant_search_path, &block)
                     definition_blocks << block
-
-                    if recursive
-                        specializations.each do |subspec|
-                            subspec.apply_specialization_block(block, false)
-                        end
-                    end
-                end
-            end
-
-            # Returns the specialization spec that is a merge of the one of
-            # +self+ with the specified one.
-            def merge_specialization_spec(new_spec)
-                specialized_children.merge(new_spec) do |child_name, models_a, models_b|
-                    result = ValueSet.new
-                    (models_a | models_b).each do |m|
-                        if !result.any? { |result_m| result_m <= m }
-                            result.delete_if { |result_m| m < result_m }
-                            result << m
-                        end
-                    end
-                    result
                 end
             end
         end
@@ -328,6 +307,10 @@ module Orocos
             # #specialize for more details
             attribute(:specializations) { Hash.new }
 
+            ##
+            # :attr: instanciated_specializations
+            attribute(:instanciated_specializations) { Hash.new }
+
             # The root composition model in the specialization hierarchy
             def root_model; self end
 
@@ -339,6 +322,20 @@ module Orocos
             #
             # It is empty for composition models that are not specializations
             attribute(:specialized_children) { Hash.new }
+
+            ##
+            # :attr: specialized_children
+            #
+            # The set of specializations that are applied from the root of the
+            # model graph up to this model
+            attribute(:applied_specializations) { Set.new }
+
+            # A set of blocks that are used to evaluate if two specializations
+            # can be applied at the same time
+            #
+            # The block should take as input two Specialization instances and
+            # return true if it is compatible and false otherwise
+            attribute(:specialization_constraints) { Array.new }
 
             # Returns true if this composition model is a model created by
             # specializing another one on +child_name+ with +child_model+
@@ -364,20 +361,6 @@ module Orocos
             def parent_model_of?(child_model)
                 (child_model < self) ||
                     specializations.values.include?(child_model)
-            end
-
-            # Enumerates all the specializations of this model that are direct
-            # children of it
-            def each_direct_specialization(&block)
-                if !block_given?
-                    return enum_for(:each_direct_specialization)
-                end
-
-                specializations.each_value do |compo|
-                    if compo.parent_models.include?(self)
-                        yield(compo)
-                    end
-                end
             end
 
             # Enumerates all compositions that are specializations of this model
@@ -685,6 +668,8 @@ module Orocos
             # This creates specializations for the allowed combinations. See
             # #specialize for more informations on specializations
             def constrain(child, allowed_models, options = Hash.new)
+                raise NotImplementedError
+
                 options = Kernel.validate_options options, :exclusive => false
 
                 child = if child.respond_to?(:to_str)
@@ -708,6 +693,74 @@ module Orocos
                 abstract
 
                 self
+            end
+
+            class Specialization
+                attr_reader :specialized_children
+                attr_reader :specialization_blocks
+                attr_reader :compatibilities
+                attr_accessor :composition_model
+
+                def initialize(spec = Hash.new, block = nil)
+                    @specialized_children = spec
+                    @specialization_blocks = Array.new
+                    if block
+                        @specialization_blocks << block
+                    end
+                    @compatibilities = Set.new
+                end
+
+                def initialize_copy(old)
+                    @specialized_children = old.specialized_children.dup
+                    @specialization_blocks = old.specialization_blocks.dup
+                    @compatibilities = old.compatibilities.dup
+                end
+
+                def compatible_with?(spec)
+                    compatibilities.include?(spec)
+                end
+
+                def has_specialization?(child_name, model)
+                    if selected_models = specialized_children[child_name]
+                        selected_models.any? { |m| m.fullfills?(model) }
+                    end
+                end
+
+                def add(new_spec, new_blocks)
+                    specialized_children.merge!(new_spec) do |child_name, models_a, models_b|
+                        result = Set.new
+                        (models_a | models_b).each do |m|
+                            if !result.any? { |result_m| result_m <= m }
+                                result.delete_if { |result_m| m < result_m }
+                                result << m
+                            end
+                        end
+                        result
+                    end
+                    if new_blocks.respond_to?(:to_ary)
+                        specialization_blocks.concat(new_blocks)
+                    else
+                        specialization_blocks << new_blocks
+                    end
+                end
+
+                def merge(other_spec)
+                    add(other_spec.specialized_children, other_spec.specialization_blocks)
+                    @compatibilities = compatibilities & other_spec.compatibilities
+                end
+
+                def match?(selection)
+                    has_selection = false
+                    selection.all? do |child_name, selected_child|
+                        if this_selection = specialized_children[child_name]
+                            has_selection = true
+                            selected_child.fullfills?(this_selection)
+                        else
+                            true
+                        end
+                    end
+                    return has_selection
+                end
             end
 
             # Create a child of this composition model in which +child_name+ is
@@ -762,35 +815,57 @@ module Orocos
                             map { |name, _| name }
 
                         children.each do |child_name|
-                            new_spec[child_name] = [child_model].to_value_set
+                            new_spec[child_name] = [child_model].to_set
                         end
                     elsif !child_model.respond_to?(:each)
-                        new_spec[child.to_str] = [child_model].to_value_set
+                        new_spec[child.to_str] = [child_model].to_set
                     else
-                        new_spec[child.to_str] = child_model.to_value_set
+                        new_spec[child.to_str] = child_model.to_set
                     end
                 end
 
-                # ... and validate it
+                # validate it
                 verify_acceptable_specialization(new_spec)
 
-                # Find out which of our specializations already apply for the
-                # given mapping. Apply the specializations only on those
-                matching_specializations = find_all_specializations(new_spec)
-                matching_specializations << self
+                # register it
+                specialization = (specializations[new_spec] ||= Specialization.new)
+                specialization.add(new_spec, block)
 
-                # Remove the candidates that are filtered out by the :not option
-                if !options[:not].empty?
-                    matching_specializations.delete_if do |spec|
-                        if child_specialization = spec.specialized_children[child_name]
-                            if options[:not].any? { |model| child_specialization.fullfills?(model) }
-                                true
-                            end
-                        end
+                # and update compatibilities
+                specializations.each_value do |spec|
+                    if compatible_specializations?(spec, specialization)
+                        spec.compatibilities << specialization
+                        specialization.compatibilities << spec
+                    else
+                        spec.compatibilities.delete(specialization)
+                        specialization.compatibilities.delete(spec)
                     end
                 end
+            end
 
-                create_specializations(matching_specializations, new_spec, &block)
+            def add_specialization_constraint(explicit = nil, &as_block)
+                specialization_constraints << (explicit || as_block)
+            end
+
+            def compatible_specializations?(spec1, spec2)
+                specialization_constraints.each do |validator|
+                    if !validator[spec1, spec2]
+                        return false
+                    end
+                end
+                return true
+            end
+
+            def instanciate_all_possible_specializations
+                all = partition_specializations(specializations.values)
+
+                puts "partitionned #{specializations.values.size} specializations into #{all.size} models"
+
+                result = []
+                all.each do |merged, set|
+                    result << instanciate_specialization(merged, set)
+                end
+                result
             end
 
             # Creates specializations on +new_spec+ for each of the models
@@ -863,35 +938,29 @@ module Orocos
 
             # Registers a new composition model that is a specialization of
             # +self+
-            def add_specialization(all_specializations, new_specializations, &block)
+            def instanciate_specialization(composite_spec, applied_specializations)
+                if current_model = instanciated_specializations[composite_spec.specialized_children]
+                    return current_model.composition_model
+                end
+
                 # There's no composition with that spec. Create a new one
                 child_composition = new_submodel('', system_model)
                 child_composition.parent_models << self
                 child_composition.extend CompositionSpecializationModel
-                child_composition.specialized_children.merge!(all_specializations)
+                child_composition.specialized_children.merge!(composite_spec.specialized_children)
+                child_composition.applied_specializations = applied_specializations
                 child_composition.private_model
                 child_composition.root_model = root_model
-                new_specializations.each do |child_name, child_models|
+                composite_spec.specialized_children.each do |child_name, child_models|
                     child_composition.add child_models, :as => child_name
                 end
-                if block
+                composite_spec.specialization_blocks.each do |block|
                     child_composition.apply_specialization_block(block)
                 end
-                register_specialization(child_composition)
+                composite_spec.composition_model = child_composition
+                instanciated_specializations[composite_spec.specialized_children] = composite_spec
+
                 child_composition
-            end
-
-            def register_specialization(specialization_model)
-                has_spec = specializations.keys.find do |spec|
-                    spec == specialization_model.specialized_children
-                end
-
-                return if specializations[specialization_model.specialized_children]
-
-                specializations[specialization_model.specialized_children] = specialization_model
-                parent_models.each do |p_m|
-                    p_m.register_specialization(specialization_model)
-                end
             end
 
             # Verifies that the child selection in +new_spec+ is valid
@@ -956,15 +1025,26 @@ module Orocos
 
             # See CompositionSpecializationModel#specialized_on?
             def specialized_on?(child_name, child_model); false end
-
-            # Returns the specialization specification which is a merge of
-            # +new_spec+ with the specialization specification of +self+
-            #
-            # On non-specialized compositions, new_spec.dup is returned.
-            def merge_specialization_spec(new_spec); new_spec.dup end
             
             def pretty_print(pp) # :nodoc:
-                pp.text "#{name}:"
+                pp.text "#{root_model.name}:"
+
+                specializations = specialized_children.to_a
+                if !specializations.empty?
+                    pp.text "Specialized on:"
+                    pp.nest(2) do
+                        specializations.each do |key, selected_models|
+                            pp.breakable
+                            pp.text "#{key}: "
+                            pp.nest(2) do
+                                pp.seplist(selected_models) do |m|
+                                    m.pretty_print(pp)
+                                end
+                            end
+                        end
+                    end
+                end
+                
                 data_services = each_data_service.to_a
                 if !data_services.empty?
                     pp.nest(2) do
@@ -977,24 +1057,6 @@ module Orocos
                                     pp.text "#{name}: #{ds.model.name}"
                                 end
                         end
-                    end
-                end
-                specializations = each_direct_specialization.to_a
-                if !specializations.empty?
-                    pp.nest(2) do
-                        pp.breakable
-                        pp.text "Specializations:"
-                        pretty_print_specializations(pp)
-                    end
-                end
-            end
-
-            def pretty_print_specializations(pp) # :nodoc:
-                pp.nest(2) do
-                    each_direct_specialization do |submodel|
-                        pp.breakable
-                        pp.text submodel.name
-                        submodel.pretty_print_specializations(pp)
                     end
                 end
             end
@@ -1025,6 +1087,8 @@ module Orocos
             #   add 'ManualDriving',
             #       'Control' => controller_model.as(FourWheelController)
             def default_specialization(child, child_model)
+                raise NotImplementedError
+
                 child = if child.respond_to?(:to_str)
                             child.to_str
                         else child.name.gsub(/.*::/, '')
@@ -1033,146 +1097,59 @@ module Orocos
                 default_specializations[child] = child_model
             end
 
-            # Returns the composition models from model_set that are the most
-            # specialized in the context the children listed in +children_names+
-            #
-            # I.e. if two models A and B have the same set of children, it will
-            # remove A iff
-            #
-            # * all children of A that are listed in +children_names+ are also
-            #   in B,
-            # * for all children listed in +children_names+, the models required
-            #   by B are either equivalent or specializations of the corresponding
-            #   requirements in A
-            # * there is at least one of those children that is specialized in
-            #   +B+
-            # 
-            def find_most_specialized_compositions(model_set, children_names)
-                return model_set if children_names.empty?
-
-                relations = BGL::Graph.new
-
-                # We remove a model from +model_set+ iff
-                # * one of its specialization is also in +result+ *and*
-                # * this specialization is specialized on one of the children
-                #   listed in +children_names+
-                model_set.each do |m|
-                    m.extend BGL::Vertex
-                    m.specializations.each do |specialized_on, specialization|
-                        next if !model_set.include?(specialization)
-
-                        if children_names.any? { |child| specialized_on[child] != m.specialized_children[child] }
-                            relations.link(m, specialization, nil)
-                        end
-                    end
+            def partition_specializations(specialization_set)
+                if specialization_set.empty?
+                    return []
                 end
 
-                candidates = model_set.find_all { |m| m.leaf?(relations) }
-		candidates.delete_if do |model|
-		    candidates.any? do |parent_model|
-			parent_model.specializations.any? do |_, m|
-			    m == model
-		        end
-		    end
-		end
-		candidates
-            end
-
-            def find_all_selected_specializations(selection)
-                find_all_specializations(selection, true)
-            end
-
-            # Returns the set of specializations that are valid for the provided
-            # mapping
-            #
-            # The mapping must be a mapping from child name to a set of models
-            def find_all_specializations(selection, only_explicit_selection = false)
-                candidates = ValueSet.new
-                specializations.each do |mapping, composition|
-                    next if candidates.include?(composition)
-
-                    valid = true
-                    has_explicit_selection = false
-                    mapping.each do |child_name, child_models|
-                        selected_models = selection[child_name]
-                        if selected_models
-                            # There is an explicit selection on +self+. Make
-                            # sure that the specialization covers it
-                            matches = selected_models.all? do |selected_m|
-                                selected_m.fullfills?(child_models)
+                candidates = []
+                seed = specialization_set.first
+                candidates << [seed.dup, [seed].to_set]
+                specialization_set[1..-1].each do |spec_model|
+                    new_candidates = []
+                    candidates.each do |merged, all|
+                        if merged.compatible_with?(spec_model)
+                            merged.merge(spec_model)
+                            all << spec_model
+                        else
+                            new_merged = spec_model.dup
+                            new_all = all.find_all do |m|
+                                if new_merged.compatible_with?(m)
+                                    new_merged.merge(m)
+                                    true
+                                end
                             end
-
-                            if !matches
-                                valid = false
-                                break
-                            else
-                                has_explicit_selection = true
-                            end
+                            new_all << spec_model
+                            new_candidates << [new_merged, new_all.to_set]
                         end
                     end
-
-                    if valid && (has_explicit_selection || !only_explicit_selection)
-                        candidates << composition
+                    new_candidates.each do |new_merged, new_all|
+                        if !candidates.any? { |_, all| all == new_all }
+                            candidates << [new_merged, new_all]
+                        end
                     end
                 end
                 candidates
             end
 
-            # Returns the most specialized compositions that are valid for the
-            # provided mapping
-            #
-            # Unlike #find_all_specializations, it really only returns the most
-            # specialized compositions, i.e. the leaves in the model graph
-            def find_specializations(selected_models)
-                Engine.debug do
-                    Engine.debug "looking for specializations of #{short_name} on"
-                    selected_models.each do |selector, m|
-                        selector = selector.short_name if selector.respond_to?(:short_name)
-                        Engine.debug "  #{selector} => #{m.map(&:short_name).join(", ")}"
-                    end
-                    break
+            def find_specialization(selection)
+                if model = instanciated_specializations[selection]
+                    return model.composition_model
                 end
 
-                raw_candidates = find_all_specializations(selected_models, true)
-                raw_candidates << self
-                candidates = find_most_specialized_compositions(raw_candidates, selected_models.keys)
-
-                Engine.debug do
-                    Engine.debug "  initial results:"
-                    raw_candidates.each do |m|
-                        Engine.debug "    #{m.short_name} (selected=#{candidates.include?(m)})"
-                    end
-                    break
+                matching_specializations = specializations.values.find_all do |spec_model|
+                    spec_model.match?(selection)
                 end
 
-                all_filtered_results = Hash.new
-
-                # We now look at default specializations. Compositions that have
-                # certain specializations are preferred over other.
-                each_default_specialization do |child_name, default_child_model|
-                    preferred_models = candidates.find_all do |composition_model|
-                        composition_model.specialized_on?(child_name, default_child_model)
-                    end
-
-                    if !preferred_models.empty?
-                        Engine.debug do
-                            Engine.debug "  default specialization selection on #{child_name} narrows down to"
-                            preferred_models.each do |m|
-                                Engine.debug "    #{m.short_name}"
-                            end
-                            break
-                        end
-                        all_filtered_results[child_name] = preferred_models.to_value_set
-                    end
+                if matching_specializations.empty?
+                    return self
                 end
 
-                # Check if the default specialization leads to something
-                # meaningful
-                filtered_out = all_filtered_results.values.inject(&:&)
-                if filtered_out && !filtered_out.empty?
-                    return filtered_out.to_a
+                candidates = partition_specializations(matching_specializations)
+                if candidates.size != 1
+                    return self
                 else
-                    return candidates.to_a
+                    instanciate_specialization(*candidates.first)
                 end
             end
 
@@ -1655,63 +1632,6 @@ module Orocos
                 result
             end
 
-            # In the explicit selection phase, try to find a composition that
-            # matches +selection+ for +child_name+
-            def find_selected_compositions(child_name, selection) # :nodoc:
-                subselection = selection.dup
-                selection_children = Array.new
-                selection.each do |name, model|
-                    next if !name.respond_to?(:to_str)
-                    if name =~ /^#{child_name}\.(.+)/ 
-                        subselection.delete(name)
-                        name = $1
-                        selection_children << name.gsub(/\..*/, '')
-                    end
-                    subselection[name] = model
-                end
-
-                # No indirect composition selection exist
-                if subselection == selection
-                    return Array.new
-                end
-
-                # Find all compositions that can be used for +child_name+ and
-                # for which +subselection+ is a valid selection
-                candidates = system_model.each_composition.find_all do |composition_model|
-                    if !selection_children.all? { |n| composition_model.all_children.has_key?(n) }
-                        next
-                    end
-
-                    valid = catch :invalid_selection do
-                        verify_acceptable_selection(child_name, composition_model, false)
-                        true
-                    end
-                    next if !valid
-
-                    valid = catch :invalid_selection do
-                        composition_model.find_children_models_and_tasks(subselection, false)
-                        true
-                    end
-                    valid
-                end
-
-                # Now select the most specialized models
-                result = find_most_specialized_compositions(candidates, subselection.keys)
-                # Don't bother going further if there is no ambiguity
-                if result.size < 2
-                    return result
-                end
-
-                default_model = find_default_specialization(child_name)
-                if default_model
-                    default_selection = result.find_all { |model| model.fullfills?(default_model) }
-                    if !default_selection.empty?
-                        return default_selection
-                    end
-                end
-                result
-            end
-
             attr_reader :child_proxy_models
 
             # Creates a task model to proxy the services and/or task listed in
@@ -1898,7 +1818,7 @@ module Orocos
 
                 spec = Hash.new
                 user_selection.each { |name, selection| spec[name] = selection.requirements.models }
-                find_specializations(spec)
+                find_specialization(spec)
             end
 
             # This returns an InstanciatedComponent object that can be used in
@@ -2053,7 +1973,7 @@ module Orocos
                 # Find the specializations that apply
                 find_specialization_spec = Hash.new
                 user_selection.each { |name, sel| find_specialization_spec[name] = sel.requirements.models }
-                candidates = find_specializations(find_specialization_spec)
+                candidates = [find_specialization(find_specialization_spec)]
 
                 # Now, check if some of our specializations apply to
                 # +selected_models+. If there is one, call #instanciate on it

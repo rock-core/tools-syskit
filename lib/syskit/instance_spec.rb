@@ -273,15 +273,9 @@ module Orocos
 
                 selection = self.selections.dup
                 selection.remove_unresolved
-                candidates = Engine.log_nest(2) do
+                result = Engine.log_nest(2) do
                     composition_model.narrow(DependencyInjectionContext.new(selection))
                 end
-                result =
-                    if candidates.size == 1
-                        candidates.find { true }
-                    else
-                        composition_model
-                    end
 
                 Engine.debug do
                     if candidates.size > 1
