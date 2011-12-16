@@ -62,8 +62,6 @@ module Orocos
                 metadata = metadata.map do |k, v|
                     Hash['key' => k, 'value' => v]
                 end
-                puts "creating logging port #{sink_port_name} with metadata"
-                pp metadata
 
                 @create_port ||= operation('createLoggingPort')
                 if !@create_port.callop(sink_port_name, logged_port_type, metadata)
