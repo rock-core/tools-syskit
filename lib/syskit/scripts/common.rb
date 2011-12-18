@@ -176,8 +176,10 @@ module Orocos
             def self.run
                 error = Roby.display_exception do
                     tic = Time.now
-                    Roby.app.filter_backtraces = !debug
                     Roby.app.using_plugins 'orocos'
+                    if debug
+                        Roby.app.filter_backtraces = false
+                    end
                     if debug
                         RobyPlugin.logger = ::Logger.new(STDOUT)
                         RobyPlugin.logger.formatter = Roby.logger.formatter
