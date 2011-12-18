@@ -575,7 +575,7 @@ module Orocos
                         candidates = service.component_model.send("each_#{direction}_port").
                             find_all { |p| !used_ports.include?(p.name) && p.type == port.type }
                         if candidates.empty?
-                            raise InvalidPortMapping, "no candidate to map #{port.name}[#{port.type_name}] from #{service.name} onto #{short_name}"
+                            raise InvalidPortMapping, "no candidate to map #{direction} port #{port.name}[#{port.type_name}] from #{service.name} onto #{short_name}"
                         elsif candidates.size == 1
                             used_ports << candidates.first.name
                             result[port.name] = candidates.first.name

@@ -149,10 +149,12 @@ module Orocos
                     elsif candidates.size == 1
                         port = candidates.first[1]
                         case port
-                        when Orocos::Spec::InputPort
+                        when Orocos::Spec::InputPort, CompositionChildInputPort
                             return CompositionChildInputPort.new(self, port, name)
-                        else
+                        when Orocos::Spec::OutputPort, CompositionChildOutputPort
                             return CompositionChildOutputPort.new(self, port, name)
+                        else
+                            raise InternalError, "child port #{port} is neither a Spec::OutputPort or Spec::InputPort"
                         end
                     end
                 end
@@ -720,6 +722,16 @@ module Orocos
                     compatibilities.include?(spec)
                 end
 
+                def find_specialization(child_name, model)
+                    if selected_models = specialized_children[child_name]
+                        if matches = selected_models.find_all { |m| m.fullfills?(model) }
+                            if !matches.empty?
+                                return matches
+                            end
+                        end
+                    end
+                end
+
                 def has_specialization?(child_name, model)
                     if selected_models = specialized_children[child_name]
                         selected_models.any? { |m| m.fullfills?(model) }
@@ -749,17 +761,44 @@ module Orocos
                     @compatibilities = compatibilities & other_spec.compatibilities
                 end
 
-                def match?(selection)
+                def weak_match?(selection)
                     has_selection = false
-                    selection.all? do |child_name, selected_child|
-                        if this_selection = specialized_children[child_name]
-                            has_selection = true
-                            selected_child.fullfills?(this_selection)
-                        else
-                            true
+                    selection.each do |child_name, selected_child|
+                        this_selection = specialized_children[child_name]
+                        next if !this_selection
+
+                        has_selection = true
+
+                        does_match =
+                            if selected_child.respond_to?(:fullfills?)
+                                selected_child.fullfills?(this_selection)
+                            else
+                                selected_child.any? do |submodel|
+                                    submodel.fullfills?(this_selection)
+                                end
+                            end
+
+                        if !does_match
+                            return false
                         end
                     end
                     return has_selection
+                end
+
+                def strong_match?(selection)
+                    selection.all? do |child_name, selected_child|
+                        if this_selection = specialized_children[child_name]
+                            if selected_child.respond_to?(:fullfills?)
+                                selected_child.fullfills?(this_selection)
+                            else
+                                selected_child.any? do |submodel|
+                                    submodel.fullfills?(this_selection)
+                                end
+                            end
+                        else
+                            return false
+                        end
+                    end
                 end
             end
 
@@ -833,6 +872,7 @@ module Orocos
 
                 # and update compatibilities
                 specializations.each_value do |spec|
+                    next if spec == specialization
                     if compatible_specializations?(spec, specialization)
                         spec.compatibilities << specialization
                         specialization.compatibilities << spec
@@ -1145,12 +1185,29 @@ module Orocos
             end
 
             def find_specialization(selection)
+                Engine.debug do
+                    Engine.debug "looking for specialization of #{short_name} on"
+                    selection.each do |k, v|
+                        Engine.debug "  #{k} => #{v}"
+                    end
+                    break
+                end
+
                 if model = instanciated_specializations[selection]
+                    Engine.debug "  cached: #{model.composition_model.short_name}"
                     return model.composition_model
                 end
 
                 matching_specializations = specializations.values.find_all do |spec_model|
-                    spec_model.match?(selection)
+                    spec_model.weak_match?(selection)
+                end
+
+                Engine.debug do
+                    Engine.debug "  #{matching_specializations.size} matching specializations found"
+                    matching_specializations.each do |m|
+                        Engine.debug "    #{m.specialized_children}"
+                    end
+                    break
                 end
 
                 if matching_specializations.empty?
@@ -1158,6 +1215,7 @@ module Orocos
                 end
 
                 candidates = partition_specializations(matching_specializations)
+                Engine.debug "  partitioned into #{candidates.size} candidates"
                 if candidates.size != 1
                     return self
                 else

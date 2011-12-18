@@ -271,16 +271,18 @@ module Orocos
                     break
                 end
 
-                selection = self.selections.dup
-                selection.remove_unresolved
+                context = Engine.log_nest(4) do
+                    selection = self.selections.dup
+                    selection.remove_unresolved
+                    DependencyInjectionContext.new(selection)
+                end
+
                 result = Engine.log_nest(2) do
-                    composition_model.narrow(DependencyInjectionContext.new(selection))
+                    composition_model.narrow(context)
                 end
 
                 Engine.debug do
-                    if candidates.size > 1
-                        Engine.debug "  found multiple candidates, using default model #{result.short_name}"
-                    else
+                    if result
                         Engine.debug "  using #{result.short_name}"
                     end
                     break
