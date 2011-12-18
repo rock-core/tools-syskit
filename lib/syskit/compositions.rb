@@ -899,8 +899,6 @@ module Orocos
             def instanciate_all_possible_specializations
                 all = partition_specializations(specializations.values)
 
-                puts "partitionned #{specializations.values.size} specializations into #{all.size} models"
-
                 done_subsets = Set.new
 
                 result = []
