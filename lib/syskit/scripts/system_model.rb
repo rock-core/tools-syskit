@@ -190,14 +190,23 @@ class ModelDisplayView < Ui::PlanDisplay
     end
 end
 
+Roby::Application.make_own_logger('App', Logger::INFO)
 Scripts.run do
-    files, projects = remaining.partition { |path| File.file?(path) }
-    projects.each do |project_name|
-        Roby.app.use_deployments_from(project_name)
+    if remaining.empty?
+        # Load all task libraries
+        Orocos.available_task_libraries.each_key do |name|
+            Roby.app.using_task_library(name)
+        end
+    else
+        files, projects = remaining.partition { |path| File.file?(path) }
+        projects.each do |project_name|
+            Roby.app.use_deployments_from(project_name)
+        end
+        files.each do |file|
+            Roby.app.orocos_engine.load_composite_file file
+        end
     end
-    files.each do |file|
-        Roby.app.orocos_engine.load_composite_file file
-    end
+
     Roby.app.orocos_engine.prepare
 
     main = Qt::Widget.new
