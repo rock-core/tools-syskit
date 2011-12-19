@@ -314,16 +314,20 @@ module Orocos
                 nil
             end
 
+            def instanciation_model
+                task_model = models.find { |m| m <= Roby::Task }
+                if task_model && models.size == 1
+                    return task_model
+                else 
+                    return (@task_model || system_model.proxy_task_model(models))
+                end
+            end
+
             # Returns a task that can be used in the plan as a placeholder for
             # this instance
             def create_placeholder_task
-                task_model = models.find { |m| m <= Roby::Task }
-                if task_model
-                    task = task_model.new(@arguments)
-                else 
-                    @task_model ||= system_model.proxy_task_model(models)
-                    task = @task_model.new(@arguments)
-                end
+                task_model = instanciation_model
+                task = task_model.new(@arguments)
                 task.required_host = self.required_host
                 task.abstract = true
                 task
@@ -331,10 +335,7 @@ module Orocos
 
             # Create a concrete task for this requirement
             def instanciate(engine, context, arguments = Hash.new)
-                task_model = models.find { |m| m < Component }
-                if !task_model
-                    return create_placeholder_task
-                end
+                task_model = instanciation_model
 
                 context.push(selections)
 
@@ -350,6 +351,10 @@ module Orocos
                 task.requirements.merge(self)
                 if !task_model.fullfills?(base_models)
                     raise InternalError, "instanciated task #{@task} does not provide the required models #{base_models.map(&:short_name).join(", ")}"
+                end
+
+                if models.size > 1
+                    task.abstract = true
                 end
 
                 if required_host && task.respond_to?(:required_host=)
@@ -1092,10 +1097,13 @@ module Orocos
             # +service_list+. New services get selected only if relevant
             # services are not already selected in +selected_services+
             def select_services_for(service_list)
-                base_object =
-                    if selected_task then selected_task.model
-                    else requirements.models.find { |m| m <= Component }
+                if selected_task
+                    base_object = selected_task.model
+                elsif (base_object = requirements.models.find { |m| m <= Component })
+                    service_list = service_list.find_all do |srv|
+                        !requirements.models.find { |m| m.fullfills?(srv) }
                     end
+                end
                 
                 # At this stage, the selection only contains data services. We
                 # therefore cannot do any explicit service selection and return.

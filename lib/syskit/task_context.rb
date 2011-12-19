@@ -903,6 +903,7 @@ module Orocos
             def self.proxied_data_services
                 data_services.values.map(&:model)
             end
+
             def proxied_data_services
                 self.model.proxied_data_services
             end
@@ -932,7 +933,7 @@ module Orocos
                 model = task_model.specialize("placeholder_model_for_" + name.gsub(/[^\w]/, '_'))
                 model.name = name
                 model.abstract
-                model.include ComponentModelProxy
+                model.extend ComponentModelProxy
                 model.proxied_data_services = models.dup
             else
                 model = DataServiceProxy.new_submodel(name, models)
