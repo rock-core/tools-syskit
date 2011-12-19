@@ -1212,11 +1212,15 @@ module Orocos
             # Given a set of specialization sets, returns subset common to all
             # of the contained sets
             def find_common_specialization_subset(candidates)
-                result = candidates[0].to_set
-                candidates[1..-1].each do |subset|
+                result = candidates[0][1].to_set
+                candidates[1..-1].each do |merged, subset|
                     result &= subset.to_set
                 end
-                result
+
+                merged = result.inject(Specialization.new) do |merged, spec|
+                    merged.merge(spec)
+                end
+                [merged, result]
             end
 
             # call-seq:
