@@ -950,7 +950,9 @@ module Orocos
             # Registers a new composition model that is a specialization of
             # +self+
             def instanciate_specialization(composite_spec, applied_specializations)
-                if current_model = instanciated_specializations[composite_spec.specialized_children]
+                if applied_specializations.empty?
+                    return self
+                elsif current_model = instanciated_specializations[composite_spec.specialized_children]
                     return current_model.composition_model
                 end
 
