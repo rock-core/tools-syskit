@@ -57,9 +57,26 @@ class ModelListWidget < Qt::TreeWidget
             name = cmp.name.gsub(/.*Compositions::/, '')
             model_name_to_object[name] = cmp
 
+            has_errors = false
+            # Instanciate each specialization separately, to make sure that
+            # everything's OK
+            #
+            # If there is a problem, mark the composition in red
+            cmp.specializations.each_value do |spec|
+                begin
+                    cmp.instanciate_specialization(spec, [spec])
+                rescue Exception => e
+                    has_errors = true
+                    break
+                end
+            end
+
             item = Qt::TreeWidgetItem.new(root_compositions)
             item.set_text(0, name)
             item.set_data(0, Qt::UserRole, Qt::Variant.new(1))
+            if has_errors
+                item.set_background(0, Qt::Brush.new(Qt::Color.new(255, 128, 128)))
+            end
         end
     end
 
@@ -79,15 +96,42 @@ class ModelDisplayView < Ui::PlanDisplay
 
     def initialize(parent = nil)
         super
-        @specializations = ValueSet.new
+        @specializations = Hash.new
     end
 
     def clickedSpecialization(obj_as_variant)
         object = obj_as_variant.value
-        if specializations.include?(object)
-            if object.model != current_model
-                render_model(object.model)
+        if specializations.values.include?(object)
+            clicked  = object.model.applied_specializations.dup.to_set
+            selected = current_model.applied_specializations.dup.to_set
+
+            if clicked.all? { |s| selected.include?(s) }
+                # This specialization is already selected, remove it
+                clicked.each { |s| selected.delete(s) }
+                new_selection = selected
+
+                new_merged_selection = new_selection.inject(Orocos::RobyPlugin::CompositionModel::Specialization.new) do |merged, s|
+                    merged.merge(s)
+                end
+            else
+                # This is not already selected, add it to the set. We have to
+                # take care that some of the currently selected specializations
+                # might not be compatible
+                new_selection = clicked
+                new_merged_selection = new_selection.inject(Orocos::RobyPlugin::CompositionModel::Specialization.new) do |merged, s|
+                    merged.merge(s)
+                end
+
+                selected.each do |s|
+                    if new_merged_selection.compatible_with?(s)
+                        new_selection << s
+                        new_merged_selection.merge(s)
+                    end
+                end
             end
+
+            new_model = current_model.root_model.instanciate_specialization(new_merged_selection, new_selection)
+            render_model(new_model)
         end
     end
     slots 'clickedSpecialization(QVariant&)'
@@ -98,52 +142,56 @@ class ModelDisplayView < Ui::PlanDisplay
     end
 
     def render_specialization_graph(root_model)
-        models = root_model.instanciate_all_possible_specializations
-        models << root_model
-
-        puts "#{models.size} models"
-        models.each do |m|
-            pp m
+        specializations = Hash.new
+        root_model.specializations.each_value.map do |spec|
+            task_model = root_model.instanciate_specialization(spec, [spec])
+            Roby.plan.add(task = task_model.new)
+            specializations[spec] = task
         end
 
-        model_to_task = Hash.new
-        parents = Hash.new
-        models.each do |composition_model|
-            Roby.plan.add(task = composition_model.new)
-            model_to_task[composition_model] = task
-            specializations << task
-            parents[task] = Set.new
-        end
-
-        # Now generate the dependency links
-        models.each do |composition_model|
-            models.each do |other_model|
-                next if other_model == composition_model
-                if (other_model.applied_specializations & composition_model.applied_specializations) == composition_model.applied_specializations
-                    parents[model_to_task[other_model]] << model_to_task[composition_model]
+        specializations.each do |spec, task|
+            spec.compatibilities.each do |comp|
+                comp = specializations[comp]
+                if !Roby::TaskStructure::SpecializationCompatibilityGraph.linked?(comp, task)
+                    task.add_compatible_specialization(comp)
                 end
             end
         end
-        parents.each do |task, task_parents|
-            task_parents.each do |parent_task|
-                if task_parents.none? { |p| p != parent_task && parents[p].include?(parent_task) }
-                    parent_task.depends_on(task)
-                end
-            end
-        end
+
+        specializations
     end
 
     def render_model(model)
         clear
+        @current_model = model
 
         if model <= Orocos::RobyPlugin::Composition
             Roby.plan.clear
-            render_specialization_graph(model.root_model)
+            @specializations = render_specialization_graph(model.root_model)
+
+            current_specializations, incompatible_specializations = [], Hash.new
+            if model.root_model != model
+                current_specializations = model.applied_specializations.map { |s| specializations[s] }
+
+                incompatible_specializations = specializations.dup
+                incompatible_specializations.delete_if do |spec, task|
+                    model.applied_specializations.all? { |applied_spec| applied_spec.compatible_with?(spec) }
+                end
+            end
 
             Qt::Object.connect(self, SIGNAL('selectedObject(QVariant&)'),
                                self, SLOT('clickedSpecialization(QVariant&)'))
-            display_options = { :annotations => [] }
-            push_plan('Specializations', 'hierarchy', Roby.plan, Roby.orocos_engine, display_options)
+            display_options = {
+                :accessor => :each_compatible_specialization,
+                :dot_edge_mark => '--',
+                :dot_graph_type => 'graph',
+                :graphviz_tool => 'fdp',
+                :highlights => current_specializations,
+                :toned_down => incompatible_specializations.values
+            }
+            push_plan('Specializations', 'relation_to_dot',
+                      Roby.plan, Roby.orocos_engine,
+                      display_options)
         end
 
         Roby.plan.clear
@@ -155,6 +203,7 @@ class ModelDisplayView < Ui::PlanDisplay
         Roby.plan.add(task)
 
         if model <= Orocos::RobyPlugin::Composition
+
             push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.orocos_engine, Hash.new)
             push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, :annotations => ['port_details', 'task_info', 'connection_policy'])
         else
@@ -189,6 +238,8 @@ class ModelDisplayView < Ui::PlanDisplay
         render
     end
 end
+
+Roby::TaskStructure.relation 'SpecializationCompatibilityGraph', :child_name => :compatible_specialization, :dag => false
 
 Scripts.run do
     if remaining.empty?
