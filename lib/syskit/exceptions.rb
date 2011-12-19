@@ -82,12 +82,14 @@ module Orocos
             end
 
             def pretty_print(pp)
-                pp.text "there are no services in #{task_model} that provide the service #{required_service}"
+                name = task_model.map(&:short_name).join(", ")
+                candidates = task_model.inject([]) { |set, m| set.concat(m.each_data_service.to_a) }
+                pp.text "there are no services in #{name} that provide the service #{required_service}"
                 pp.breakable
-                pp.text "the services of #{task_model.short_name} are:"
+                pp.text "the services of #{name} are:"
                 pp.nest(2) do
                     pp.breakable
-                    pp.seplist(task_model.each_data_service) do |srv|
+                    pp.seplist(candidates) do |srv|
                         _, srv = *srv
                         pp.text "#{srv.full_name}: #{srv.model.short_name}"
                     end
