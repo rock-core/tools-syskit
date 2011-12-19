@@ -537,17 +537,6 @@ module Orocos
                 label = "    " + label.join("\n    ")
                 return label
             end
-
-            # Helper method for the to_dot methods
-            def dot_task_attributes(task, task_colors, remove_compositions = false) # :nodoc:
-
-
-                task_dot_attributes << "label=< #{label} >"
-                if task.abstract?
-                    task_dot_attributes << "color=\"red\""
-                end
-                task_dot_attributes
-            end
         end
     end
 end
