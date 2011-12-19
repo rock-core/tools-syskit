@@ -1131,7 +1131,17 @@ module Orocos
                 candidates
             end
 
-            def find_specialization(selection)
+            # Find the sets of specializations that match +selection+
+            #
+            # The returned value is a set of sets, in which each set is an array
+            # of Specialization instances that are compatible with each other.
+            # Further disambiguation would, for instance, have to pick one of
+            # these sets and call
+            #
+            #   instanciate_specialization(*candidates[selected_element])
+            #
+            # to get the corresponding composition model
+            def find_matching_specializations(selection)
                 Engine.debug do
                     Engine.debug "looking for specialization of #{short_name} on"
                     selection.each do |k, v|
@@ -1158,16 +1168,32 @@ module Orocos
                 end
 
                 if matching_specializations.empty?
-                    return self
+                    return []
                 end
 
-                candidates = partition_specializations(matching_specializations)
-                Engine.debug "  partitioned into #{candidates.size} candidates"
-                if candidates.size != 1
+                return partition_specializations(matching_specializations)
+            end
+
+            # Returns a single composition that can be used as a base model for
+            # +selection+. Returns +self+ if the possible specializations are
+            # ambiguous, or if no specializations apply. 
+            def find_suitable_specialization(selection)
+                all = find_matching_specializations(selection)
+                if all.size != 1
                     return self
                 else
-                    instanciate_specialization(*candidates.first)
+                    return instanciate_specialization(*all.first)
                 end
+            end
+
+            # Given a set of specialization sets, returns subset common to all
+            # of the contained sets
+            def find_common_specialization_subset(candidates)
+                result = candidates[0].to_set
+                candidates[1..-1].each do |subset|
+                    result &= subset.to_set
+                end
+                result
             end
 
             # call-seq:
@@ -1835,7 +1861,7 @@ module Orocos
 
                 spec = Hash.new
                 user_selection.each { |name, selection| spec[name] = selection.requirements.models }
-                find_specialization(spec)
+                find_suitable_specialization(spec)
             end
 
             # This returns an InstanciatedComponent object that can be used in
@@ -1956,29 +1982,15 @@ module Orocos
                 # Find the specializations that apply
                 find_specialization_spec = Hash.new
                 user_selection.each { |name, sel| find_specialization_spec[name] = sel.requirements.models }
-                candidates = [find_specialization(find_specialization_spec)]
-
-                # Now, check if some of our specializations apply to
-                # +selected_models+. If there is one, call #instanciate on it
+                candidates = find_matching_specializations(find_specialization_spec)
                 if Composition.strict_specialization_selection? && candidates.size > 1
                     raise AmbiguousSpecialization.new(self, user_selection, candidates)
                 elsif !candidates.empty?
-                    Engine.debug do
-                        if candidates.size > 1
-                            Engine.debug "  #{candidates.size} candidates remaining"
-                            candidates.each do |m|
-                                Engine.debug "    #{m.short_name}"
-                            end
-                            Engine.debug "  continuing as strict_specialization_selection? is not set"
-                        end
-                        break
-                    end
-
-                    candidate = find_common_parent(candidates)
+                    specialized_model = find_common_specialization_subset(candidates)
+                    specialized_model = instanciate_specialization(*specialized_model)
                     Engine.debug { Engine.debug "using specialization #{candidate.short_name} of #{short_name}" }
-                    if candidate != self
-                        return candidate.instanciate(engine, context, arguments)
-                    end
+                    specialized_model = instanciate_specialization(*candidates.first)
+                    return specialized_model.instanciate(engine, context, arguments)
                 end
 
                 # First of all, add the task for +self+
