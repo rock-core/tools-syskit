@@ -116,55 +116,63 @@ module Orocos
 
             # Generate a svg file representing the current state of the
             # deployment
-            def to_file(kind, format, output_io = nil, *additional_args)
+            def to_file(kind, format, output_io = nil, options = Hash.new)
                 # For backward compatibility reasons
                 filename ||= kind
                 if File.extname(filename) != ".#{format}"
                     filename += ".#{format}"
                 end
 
+                file_options, display_options = Kernel.filter_options options,
+                    :graphviz_tool => "dot"
+
                 Tempfile.open('roby_orocos_graphviz') do |io|
-                    io.write send(kind, *additional_args)
+                    io.write send(kind, display_options)
                     io.flush
 
                     if output_io.respond_to?(:to_str)
                         File.open(output_io, 'w') do |io|
-                            io.puts(`dot -T#{format} #{io.path}`)
+                            io.puts(`#{file_options[:graphviz_tool]} -T#{format} #{io.path}`)
                         end
                     else
-                        output_io.puts(`dot -T#{format} #{io.path}`)
+                        output_io.puts(`#{file_options[:graphviz_tool]} -T#{format} #{io.path}`)
                         output_io.flush
                     end
                 end
             end
 
+            COLORS = {
+                :normal => %w{#000000 red},
+                :toned_down => %w{#D3D7CF #D3D7CF}
+            }
+
             # Generates a dot graph that represents the task hierarchy in this
             # deployment
-            def hierarchy
+            def relation_to_dot(options = Hash.new)
+                options = Kernel.validate_options options,
+                    :accessor => nil,
+                    :dot_edge_mark => "->",
+                    :dot_graph_type => 'digraph',
+                    :highlights => [],
+                    :toned_down => []
+
+                if !options[:accessor]
+                    raise ArgumentError, "no :accessor option given"
+                end
+
                 result = []
-                result << "digraph {"
+                result << "#{options[:dot_graph_type]} {"
+                result << "  mindist=0"
                 result << "  rankdir=TB"
                 result << "  node [shape=record,height=.1,fontname=\"Arial\"];"
 
                 all_tasks = ValueSet.new
 
-                plan.find_local_tasks(Composition).each do |task|
-                    all_tasks << task
-                    task.each_child do |child_task, _|
-                        all_tasks << child_task
-                        result << "  #{task.dot_id} -> #{child_task.dot_id};"
-                    end
-                end
-
                 plan.find_local_tasks(Component).each do |task|
                     all_tasks << task
-                end
-
-                plan.find_local_tasks(Deployment).each do |task|
-                    all_tasks << task
-                    task.each_executed_task do |component|
-                        all_tasks << component
-                        result << "  #{component.dot_id} -> #{task.dot_id} [color=\"blue\"];"
+                    task.send(options[:accessor]) do |child_task, _|
+                        all_tasks << child_task
+                        result << "  #{task.dot_id} #{options[:dot_edge_mark]} #{child_task.dot_id};"
                     end
                 end
 
@@ -173,8 +181,18 @@ module Orocos
                     task_label = format_task_label(task)
                     label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
                     attributes << "label=<#{label}>"
-                    if task.abstract?
-                        attributes << " color=\"red\""
+                    color_set =
+                        if options[:toned_down].include?(task)
+                            COLORS[:toned_down]
+                        else COLORS[:normal]
+                        end
+                    color =
+                        if task.abstract? then color_set[1]
+                        else color_set[0]
+                        end
+                    attributes << "color=\"#{color}\""
+                    if options[:highlights].include?(task)
+                        attributes << "penwidth=3"
                     end
 
                     result << "  #{task.dot_id} [#{attributes.join(" ")}];"
@@ -182,6 +200,15 @@ module Orocos
 
                 result << "};"
                 result.join("\n")
+            end
+
+            # Generates a dot graph that represents the task hierarchy in this
+            # deployment
+            #
+            # It takes no options. The +options+ argument is used to have a
+            # common signature with #dataflow
+            def hierarchy(options = Hash.new)
+                relation_to_dot(:accessor => :each_child)
             end
 
             def self.available_annotations
@@ -244,8 +271,19 @@ module Orocos
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
-            def dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = Set.new)
-                annotations.each do |ann|
+            def dataflow(options = Hash.new, excluded_models = ValueSet.new, annotations = Set.new)
+                # For backward compatibility with the signature
+                # dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = Set.new)
+                if !options.kind_of?(Hash)
+                    options = { :remove_compositions => options, :excluded_models => excluded_models, :annotations => annotations }
+                end
+
+                options = Kernel.validate_options options,
+                    :remove_compositions => false,
+                    :excluded_models => ValueSet.new,
+                    :annotations => Set.new
+                    
+                options[:annotations].each do |ann|
                     send("add_#{ann}_annotations")
                 end
 
@@ -267,8 +305,8 @@ module Orocos
                 # to an input: on compositions, exported ports are represented
                 # as connections between either two inputs or two outputs
                 plan.find_local_tasks(Component).each do |source_task|
-                    next if remove_compositions && source_task.kind_of?(Composition)
-                    next if excluded_models.include?(source_task.model)
+                    next if options[:remove_compositions] && source_task.kind_of?(Composition)
+                    next if options[:excluded_models].include?(source_task.model)
 
                     source_task.model.each_input_port do |port|
                         input_ports[source_task] << port.name
@@ -288,7 +326,7 @@ module Orocos
                     source_task.each_output_connection do |source_port, sink_port, sink_task, policy|
                         next if connections.has_key?([source_port, sink_port, sink_task])
                         next if excluded_models.include?(sink_task.model)
-                        next if remove_compositions && sink_task.kind_of?(Composition)
+                        next if options[:remove_compositions] && sink_task.kind_of?(Composition)
                         connections[[source_task, source_port, sink_port, sink_task]] = policy
                     end
                 end

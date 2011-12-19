@@ -97,25 +97,14 @@ module Ui
         attr_reader :stack
         attr_accessor :title_font
 
-        def render_plan(mode, plan, engine, display_options)
+        def render_plan(mode, plan, engine, options)
             default_exclude = []
             if defined? Orocos::RobyPlugin::Logger::Logger
                 default_exclude << Orocos::RobyPlugin::Logger::Logger
             end
 
-            display_options = Kernel.validate_options display_options,
-                :remove_compositions => false,
-                :excluded_tasks => default_exclude.to_value_set,
-                :annotations => Set.new
-
             svg_io = Tempfile.open(mode)
-            if mode == "dataflow"
-                engine.to_svg(mode, svg_io, display_options[:remove_compositions],
-                             display_options[:excluded_tasks],
-                             display_options[:annotations])
-            else
-                engine.to_svg(mode, svg_io)
-            end
+            engine.to_svg(mode, svg_io, options)
 
             plan.each_task do |task|
                 index = index_to_object.size
