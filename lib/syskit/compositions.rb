@@ -646,57 +646,6 @@ module Orocos
                 @main_task = add(models, options)
             end
 
-            # Requires the specified child to be of the given models. It is
-            # mainly used in an abstract compostion definition to force the user
-            # to select a specific child model.
-            #
-            # For instance, in
-            #
-            #   orientation_provider = data_service 'Orientation'
-            #   composition.add orientation_provider, :as => 'imu'
-            #   composition.constrain 'imu',
-            #       [CompensatedSensors, RawSensors]
-            #
-            # Then the actual component selected for the composition's 'imu'
-            # child would have to provide the Orientation data service *and*
-            # either the CompensatedSensors and RawSensors (or both).
-            #
-            # If both can't be selected, use the :exclusive option, as:
-            #
-            #   composition.constrain 'imu',
-            #       [CompensatedSensors, RawSensors],
-            #       :exclusive => true
-            #
-            # This creates specializations for the allowed combinations. See
-            # #specialize for more informations on specializations
-            def constrain(child, allowed_models, options = Hash.new)
-                raise NotImplementedError
-
-                options = Kernel.validate_options options, :exclusive => false
-
-                child = if child.respond_to?(:to_str)
-                            child.to_str
-                        else child.name.gsub(/.*::/, '')
-                        end
-
-                allowed_models.each do |model|
-                    if options[:exclusive]
-                        exclusions = allowed_models.dup
-                        exclusions.delete(model)
-                        specialize(child => model, :not => exclusions)
-                    else
-                        specialize(child => model)
-                    end
-                end
-
-                child_constraints[child] << allowed_models
-                filter_out_abstract_compositions
-
-                abstract
-
-                self
-            end
-
             class Specialization
                 attr_reader :specialized_children
                 attr_reader :specialization_blocks
@@ -1949,40 +1898,6 @@ module Orocos
                 child_task = selected_child.instanciate(engine, context, :task_arguments => child_arguments)
                 child_task.required_host = find_child(child_name).required_host || self_task.required_host
                 child_task
-            end
-
-            # Finds the most specialized composition model that is parent of a
-            # set of composition models
-            def find_common_parent(candidates)
-                if candidates.empty?
-                    raise ArgumentError, "empty set"
-                elsif candidates.size == 1
-                    return candidates.first
-                end
-
-                # Generate the set of common parents for the models in
-                # +candidates+
-                all_parents = Array.new
-                candidates.each do |model|
-                    all = ValueSet.new
-                    all << model
-                    queue = model.parent_models
-                    while !queue.empty?
-                        all.merge(queue)
-                        queue = queue.inject(ValueSet.new) { |result, c| result | c.parent_models }
-                        queue -= all
-                    end
-                    all_parents << all
-                end
-
-                common_parents = all_parents.inject(:&)
-                common_parents.delete_if do |model|
-                    common_parents.any? { |c| c.parent_models.include?(model) }
-                end
-                if common_parents.size != 1
-                    raise InternalError, "found #{common_parents.size} common parents, expected a single one. Found #{common_parents.map(&:short_name).join(", ")} as parents of #{candidates.map(&:short_name).join(", ")}"
-                end
-                common_parents.find { true }
             end
 
             # Returns a Composition task with instanciated children. If
