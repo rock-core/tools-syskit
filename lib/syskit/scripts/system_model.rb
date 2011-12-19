@@ -190,7 +190,6 @@ class ModelDisplayView < Ui::PlanDisplay
     end
 end
 
-Roby::Application.make_own_logger('App', Logger::INFO)
 Scripts.run do
     if remaining.empty?
         # Load all task libraries
