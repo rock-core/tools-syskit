@@ -2,7 +2,7 @@
 
 require 'rock/bundle'
 
-Bundle.load
+Bundles.load(true)
 mode = ARGV.shift
 
 begin
