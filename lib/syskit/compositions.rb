@@ -667,8 +667,12 @@ module Orocos
                     @compatibilities = old.compatibilities.dup
                 end
 
+                def empty?
+                    specialized_children.empty?
+                end
+
                 def compatible_with?(spec)
-                    compatibilities.include?(spec)
+                    empty? || spec == self || compatibilities.include?(spec)
                 end
 
                 def find_specialization(child_name, model)
@@ -706,8 +710,16 @@ module Orocos
                 end
 
                 def merge(other_spec)
+                    @compatibilities =
+                        if empty?
+                            other_spec.compatibilities.dup
+                        else
+                            compatibilities & other_spec.compatibilities.dup
+                        end
+                    @compatibilities << other_spec
+
                     add(other_spec.specialized_children, other_spec.specialization_blocks)
-                    @compatibilities = compatibilities & other_spec.compatibilities
+                    self
                 end
 
                 def weak_match?(selection)
