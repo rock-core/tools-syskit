@@ -948,7 +948,10 @@ module Orocos
             end
 
             # Registers a new composition model that is a specialization of
-            # +self+
+            # +self+. +composite_spec+ is a Specialization object in which all
+            # the required specializations have been merged and
+            # +applied_specializations+ the list of the specializations,
+            # separate.
             def instanciate_specialization(composite_spec, applied_specializations)
                 if applied_specializations.empty?
                     return self
@@ -1147,8 +1150,14 @@ module Orocos
 
             # Find the sets of specializations that match +selection+
             #
-            # The returned value is a set of sets, in which each set is an array
-            # of Specialization instances that are compatible with each other.
+            # The returned value is a set of [merged_specialization,
+            # [atomic_specializations]], tuples. In each of these tuples,
+            # 
+            # * +merged_specialization+ is the Specialization instance
+            #   representing the desired composite specialization
+            # * +atomic_specializations+ is the set of single specializations
+            #   that have been merged to obtain +merged_specialization+
+            # 
             # Further disambiguation would, for instance, have to pick one of
             # these sets and call
             #
