@@ -1248,10 +1248,6 @@ module Orocos
                         each_child.map { |n, _| n }
                     else names
                     end
-
-                specializations.each_value do |spec|
-                    spec.autoconnect(*names)
-                end
             end
 
             # The result of #compute_autoconnection is cached. This method
