@@ -98,6 +98,10 @@ module Orocos
                 burst   0
             end
 
+            def full_name
+                name
+            end
+
             # Declares that the following configuration chain should be used for
             # this device
             def use_conf(*conf)
@@ -284,6 +288,10 @@ module Orocos
             # on the task model
             def name
                 service.name
+            end
+
+            def full_name
+                "#{master_device.name}.#{name}"
             end
 
             # Defined to be consistent with task and data service models
