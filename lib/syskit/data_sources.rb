@@ -381,6 +381,14 @@ module Orocos
                     device_instance.extend(device_configuration_module)
                 end
             end
+            def provides(service_model, new_port_mappings = Hash.new)
+                super
+
+                if service_model.respond_to?(:device_configuration_module) && service_model.device_configuration_module
+                    self.device_configuration_module ||= Module.new
+                    self.device_configuration_module.include(service_model.device_configuration_module)
+                end
+            end
         end
         Device   = DeviceModel.new
         Device.name = "Orocos::RobyPlugin::Device"
