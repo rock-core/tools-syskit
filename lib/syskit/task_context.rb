@@ -564,9 +564,8 @@ module Orocos
                 ::Robot.info "setting up #{self}"
 
                 self.conf ||= ['default']
-                if respond_to?(:configure)
-                    configure
-                end
+
+                configure
                 if !Roby.app.orocos_engine.dry_run? && (cleaned_up || state == :PRE_OPERATIONAL)
                     orogen_task.configure(false)
                 end
