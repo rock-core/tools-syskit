@@ -7,9 +7,12 @@ module Orocos
             attr_reader :provided_service_model
             # The task instance we are bound to
             attr_reader :task
+            # The ProvidedDataService instance that represents the data service
+            attr_reader :model
 
             def initialize(task, provided_service_model)
                 @task, @provided_service_model = task, provided_service_model
+                @model = provided_service_model
                 if !task.kind_of?(Component)
                     raise "expected a task instance, got #{task}"
                 end
@@ -28,6 +31,26 @@ module Orocos
 
             def fullfills?(*args)
                 provided_service_model.fullfills?(*args)
+            end
+
+            def find_input_port(port_name)
+                task.find_input_port(model.port_mappings_for_task[port_name.to_s])
+            end
+
+            def find_output_port(port_name)
+                task.find_output_port(model.port_mappings_for_task[port_name.to_s])
+            end
+
+            def as_plan
+                task
+            end
+
+            def connect_ports(sink, mappings)
+                mapped = Hash.new
+                mappings.each do |(source, sink), policy|
+                    mapped[[model.find_output_port(source).name, sink]] = policy
+                end
+                task.connect_ports(sink, mappings)
             end
         end
 

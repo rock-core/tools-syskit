@@ -70,6 +70,13 @@ module Orocos
                 result
             end
 
+            def find_input_port(name)
+                component_model.find_input_port(port_mappings_for_task[name])
+            end
+            def find_output_port(name)
+                component_model.find_output_port(port_mappings_for_task[name])
+            end
+
             def find_all_services_from_type(m)
                 if self.model.fullfills?(m)
                     [self]

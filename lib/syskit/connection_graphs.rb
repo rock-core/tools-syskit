@@ -260,9 +260,10 @@ module Orocos
                 if target_task.respond_to?(:as_plan)
                     mapped_connections = Hash.new
                     mappings.map do |(source, sink), policy|
-                        sink = target_task.find_input_port(sink).name
+                        sink = target_task.model.find_input_port(sink).name
                         mapped_connections[[source, sink]] = policy
                     end
+                    mappings = mapped_connections
                     target_task = target_task.as_plan
                 end
 
