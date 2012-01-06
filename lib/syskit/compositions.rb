@@ -704,7 +704,7 @@ module Orocos
                     end
                     if new_blocks.respond_to?(:to_ary)
                         specialization_blocks.concat(new_blocks)
-                    else
+                    elsif new_blocks
                         specialization_blocks << new_blocks
                     end
                 end
