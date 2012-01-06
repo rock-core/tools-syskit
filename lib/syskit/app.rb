@@ -343,8 +343,8 @@ module Orocos
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
                 if orocos_load_component_extensions?
-                    file = find_files('models', 'orogen', "#{name}.rb", :all => :false, :order => :specific_first) ||
-                        find_files('tasks', 'orogen', "#{name}.rb", :all => :false, :order => :specific_first) ||
+                    file = find_files('models', 'orogen', "#{name}.rb", :all => :false, :order => :specific_first) +
+                        find_files('tasks', 'orogen', "#{name}.rb", :all => :false, :order => :specific_first) +
                         find_files('tasks', 'components', "#{name}.rb", :all => :false, :order => :specific_first)
 
                     if !file.empty?
