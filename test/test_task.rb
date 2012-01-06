@@ -60,15 +60,15 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
     def test_task_port_access
         Roby.app.load_orogen_project "echo"
 
-        assert(input  = Echo::Echo.port('input'))
+        assert(input  = Echo::Echo.find_input_port('input'))
         assert_same(input, Echo::Echo.input)
         assert_equal('input', input.name)
-        assert(output = Echo::Echo.port('output'))
+        assert(output = Echo::Echo.find_output_port('output'))
         assert_same(output, Echo::Echo.output)
         assert_equal('output', output.name)
 
-        assert_equal(['input', 'input_struct', 'input_opaque'].to_set, Echo::Echo.each_input.map(&:name).to_set)
-        assert_equal(['output', 'output_opaque', 'state', 'ondemand'].to_set, Echo::Echo.each_output.map(&:name).to_set)
+        assert_equal(['input', 'input_struct', 'input_opaque'].to_set, Echo::Echo.each_input_port.map(&:name).to_set)
+        assert_equal(['output', 'output_opaque', 'state', 'ondemand'].to_set, Echo::Echo.each_output_port.map(&:name).to_set)
     end
 
     def test_task_model_inheritance
@@ -83,6 +83,7 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
     end
 
     def test_task_nominal
+        Roby.logger.level = Logger::DEBUG
         Roby.app.load_orogen_project "echo"
 	engine.run
         task, _ = start_task_context Orocos::RobyPlugin::Deployments::Echo, "echo_Echo"
@@ -111,18 +112,11 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
         deployment_task = nil
         task = nil
         engine.execute do
-            plan.add(deployment_task = deployment.new)
-            plan.add_permanent(task = deployment_task.task(task_name))
+            plan.add_mission(deployment_task = deployment.new)
+            plan.add_mission(task = deployment_task.task(task_name))
         end
-        assert_event_emission deployment_task.ready_event do
-            deployment_task.start!
-        end
-        engine.wait_one_cycle # to make sure that the task is configured
-        assert_any_event(task.start_event) do
-            assert(task.orogen_task, "I don't have the task handle")
-            assert(task.check_is_setup, "task is not ready")
-            task.start!
-        end
+        assert_event_emission deployment_task.ready_event
+        assert_event_emission task.start_event
         return task, deployment_task
     end
 
@@ -205,8 +199,8 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
         Roby.app.load_orogen_project "system_test"
 
         plan.add(deployment = Orocos::RobyPlugin::Deployments::System.new)
-        plan.add_permanent(control = deployment.task('control'))
-        plan.add_permanent(motors  = deployment.task('motor_controller'))
+        plan.add_mission(control = deployment.task('control'))
+        plan.add_mission(motors  = deployment.task('motor_controller'))
         plan.add_permanent(started_ev = (motors.start_event & control.start_event))
         control.add_sink(motors, { ['cmd_out', 'command'] => Hash.new })
 
@@ -224,7 +218,6 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
 
         motors.executable  = false
         control.executable = false
-        engine.scheduler = Roby::Schedulers::Basic.new(true, plan)
         engine.run
         assert_event_emission(started_ev) do
             motors.executable  = true
@@ -266,9 +259,9 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
     def test_dynamic_ports
         Roby.app.load_orogen_project 'system_test'
 
-        assert(SystemTest::CanBus.dynamic_output_port?('motors'))
-        assert(!SystemTest::CanBus.dynamic_input_port?('motors'))
-        assert(SystemTest::CanBus.dynamic_input_port?('wmotors'))
+        assert(SystemTest::CanBus.has_dynamic_output_port?('motors'))
+        assert(!SystemTest::CanBus.has_dynamic_input_port?('motors'))
+        assert(SystemTest::CanBus.has_dynamic_input_port?('wmotors'))
     end
 
     def test_update_connection_policy
@@ -278,23 +271,23 @@ class TC_RobyPlugin_Task < Test::Unit::TestCase
 
         old_policy = { :type => :data, :init => true }
         new_policy = { :type => :data, :init => true, :pull => true }
-        assert_equal(nil, Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
+        assert_equal(Orocos::Port.validate_policy(new_policy), Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
 
         old_policy = { :type => :data, :init => true }
         new_policy = { :type => :data, :init => false }
-        assert_equal(nil, Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
+        assert_raises(ArgumentError) { Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy) }
 
         old_policy = { :type => :data }
         new_policy = { :type => :data, :init => false }
-        assert_equal(Orocos::Port.validate_policy(old_policy), Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
+        assert_equal(Orocos::Port.validate_policy(new_policy), Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
 
         old_policy = { :type => :buffer, :size => 2 }
         new_policy = { :type => :buffer, :size => 1 }
-        assert_equal(Orocos::Port.validate_policy(old_policy), Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
+        assert_raises(ArgumentError) { Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy) }
 
         old_policy = { :type => :buffer, :size => 1 }
         new_policy = { :type => :buffer, :size => 2 }
-        assert_equal(Orocos::Port.validate_policy(new_policy), Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy))
+        assert_raises(ArgumentError) { Orocos::RobyPlugin.update_connection_policy(old_policy, new_policy) }
     end
 end
 
