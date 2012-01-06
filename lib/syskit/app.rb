@@ -343,13 +343,13 @@ module Orocos
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
                 if orocos_load_component_extensions?
-                    file = find_files('models', 'orogen', "#{name}.rb", :all => :false, :order => :specific_first) +
-                        find_files('tasks', 'orogen', "#{name}.rb", :all => :false, :order => :specific_first) +
-                        find_files('tasks', 'components', "#{name}.rb", :all => :false, :order => :specific_first)
+                    file = find_file('models', 'orogen', "#{name}.rb", :order => :specific_first) ||
+                        find_file('tasks', 'orogen', "#{name}.rb", :order => :specific_first) ||
+                        find_file('tasks', 'components', "#{name}.rb", :order => :specific_first)
 
-                    if !file.empty?
-                        Roby::Application.info "loading task extension #{file.first}"
-                        Application.load_task_extension(file.first, self)
+                    if file
+                        Roby::Application.info "loading task extension #{file}"
+                        Application.load_task_extension(file, self)
                     end
                 end
 
@@ -511,8 +511,8 @@ module Orocos
                 # instead of a plain require
                 #
                 # This sucks big time
-                if file = app.find_files('config', "ROBOT.rb", :all => false, :order => :specific_first)
-                    app.load_system_model file.first
+                if file = app.find_file('config', "ROBOT.rb", :order => :specific_first)
+                    app.load_system_model file
                 end
             end
 
@@ -584,7 +584,7 @@ module Orocos
                 candidates = [file, "#{file}.rb"]
                 candidates << File.join("models", "ROBOT", file)
                 candidates << File.join("models", "ROBOT", "#{file}.rb")
-                search_options = {:all => false, :order => :specific_first}
+                search_options = {:order => :specific_first}
                 candidates = candidates.map do |path|
                     path = Pathname.new(path)
                     if path.absolute?
@@ -593,7 +593,7 @@ module Orocos
                         args = path.enum_for(:each_filename).to_a
                     end
                     args << search_options
-                    find_files(*args)
+                    find_file(*args)
                 end.compact
                 if candidates.empty?
                     raise ArgumentError, "there is no system model file called #{file}"
@@ -615,7 +615,7 @@ module Orocos
                 if File.file?(name)
                     name
                 else
-                    return find_files('config', 'deployments', 'ROBOT', "#{name}.rb", :all => false, :order => :specific_first)
+                    return find_file('config', 'deployments', 'ROBOT', "#{name}.rb", :order => :specific_first)
 		end
             end
 
