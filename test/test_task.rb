@@ -8,11 +8,6 @@ require 'roby/schedulers/basic'
 class TC_RobyPlugin_Task < Test::Unit::TestCase
     include RobyPluginCommonTest
 
-    def setup
-        super
-        @orocos_update = engine.add_propagation_handler(&Orocos::RobyPlugin.method(:update))
-    end
-
     needs_no_orogen_projects
 
     def test_task_executable_flag
