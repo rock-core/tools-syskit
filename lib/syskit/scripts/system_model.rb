@@ -149,15 +149,6 @@ class ModelDisplayView < Ui::PlanDisplay
             specializations[spec] = task
         end
 
-        specializations.each do |spec, task|
-            spec.compatibilities.each do |comp|
-                comp = specializations[comp]
-                if !Roby::TaskStructure::SpecializationCompatibilityGraph.linked?(comp, task)
-                    task.add_compatible_specialization(comp)
-                end
-            end
-        end
-
         specializations
     end
 
