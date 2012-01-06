@@ -272,6 +272,17 @@ module Orocos
                     definition_blocks << block
                 end
             end
+
+            # Registers a new composition model that is a specialization of
+            # +self+. The generated model is registered on the root model (not
+            # this one)
+            def instanciate_specialization(merged, list)
+                applied_specializations.each do |s|
+                    merged.merge(s)
+                end
+                list = list + applied_specializations.to_a
+                root_model.instanciate_specialization(merged, list)
+            end
         end
 
         # Model-level instances and attributes for compositions
