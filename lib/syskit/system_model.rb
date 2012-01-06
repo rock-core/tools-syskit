@@ -451,6 +451,11 @@ module Orocos
                 if Kernel.load_dsl_file(file, self, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
                     RobyPlugin.info "loaded #{file}"
                 end
+
+                file = Roby.app.make_path_relative(file)
+                if !$LOADED_FEATURES.include?(file)
+                    $LOADED_FEATURES << file
+                end
                 self
             end
 
