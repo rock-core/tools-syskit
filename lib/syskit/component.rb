@@ -1,7 +1,7 @@
 module Orocos
     module RobyPlugin
         # Data structure used internally to represent the data services that are
-        # provided by a given component
+        # provided by a given component model
         class ProvidedDataService
             # The task model which provides this service
             attr_reader :component_model
