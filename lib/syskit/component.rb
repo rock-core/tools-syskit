@@ -847,6 +847,7 @@ module Orocos
 
             def can_merge?(target_task)
                 if !(super_result = super)
+                    NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: super returned false" }
                     return super_result
                 end
 

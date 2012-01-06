@@ -599,9 +599,13 @@ module Orocos
             # two different data services
             def can_merge?(target_task)
                 if !(super_result = super)
+                    NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: super returned false" }
                     return super_result
                 end
-                return false if !target_task.kind_of?(DataService)
+                if !target_task.kind_of?(DataService)
+                    NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: #{target_task} has no services" }
+                    return false
+                end
 
                 # Check that for each data service in +target_task+, we can
                 # allocate a corresponding service in +self+
