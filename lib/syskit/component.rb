@@ -1138,6 +1138,13 @@ module Orocos
                         else
                             raise NoMethodError, "#{self} has no port called #{port_name}"
                         end
+                    elsif m.to_s =~ /^(\w+)_srv/
+                        service_name = $1
+                        if service_model = model.find_data_service(service_name)
+                            return DataServiceInstance.new(service_model, self)
+                        else
+                            raise NoMethodError, "#{self} has no service called #{service_name}"
+                        end
                     end
                 end
                 super
