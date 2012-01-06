@@ -1943,9 +1943,14 @@ module Orocos
                 elsif !candidates.empty?
                     specialized_model = find_common_specialization_subset(candidates)
                     specialized_model = instanciate_specialization(*specialized_model)
-                    Engine.debug { Engine.debug "using specialization #{candidate.short_name} of #{short_name}" }
                     specialized_model = instanciate_specialization(*candidates.first)
-                    return specialized_model.instanciate(engine, context, arguments)
+                    if specialized_model != self
+                        Engine.debug do
+                            Engine.debug "using specialization #{specialized_model.short_name} of #{short_name}"
+                            break
+                        end
+                        return specialized_model.instanciate(engine, context, arguments)
+                    end
                 end
 
                 # First of all, add the task for +self+
