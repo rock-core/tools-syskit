@@ -439,6 +439,8 @@ module Orocos
                     EngineRequirement.new(name, [model])
                 elsif model.kind_of?(InstanceRequirements)
                     model
+                elsif model.kind_of?(InstanceSelection)
+                    model
                 else
                     raise ArgumentError, "wrong model type #{model.class} for #{model}"
                 end

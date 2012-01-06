@@ -1102,7 +1102,7 @@ module Orocos
 
             # If this selection does not yet have an associated task,
             # instanciate one
-            def instanciate(engine, context, options)
+            def instanciate(engine, context, options = Hash.new)
                 requirements.narrow_model
 
                 options[:task_arguments] ||= requirements.arguments
