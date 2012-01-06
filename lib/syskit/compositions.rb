@@ -897,6 +897,9 @@ module Orocos
                 child_composition.extend CompositionSpecializationModel
                 child_composition.specialized_children.merge!(composite_spec.specialized_children)
                 child_composition.applied_specializations = applied_specializations
+                composite_spec.compatibilities.each do |single_spec|
+                    child_composition.specializations[single_spec.specialized_children] ||= single_spec
+                end
                 child_composition.private_model
                 child_composition.root_model = root_model
                 composite_spec.specialized_children.each do |child_name, child_models|
