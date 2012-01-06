@@ -165,10 +165,10 @@ end
 
 require 'roby/standalone'
 
-excluded_tasks      = ValueSet.new
+excluded_models      = ValueSet.new
 Scripts.setup_output("instanciate", Roby.app.orocos_engine) do
     Roby.app.orocos_engine.
-        to_dot_dataflow(remove_compositions, excluded_tasks, annotations)
+        to_dot_dataflow(remove_compositions, excluded_models, annotations)
 end
 
 if rprof_file_path
@@ -216,7 +216,7 @@ error = Scripts.run do
 end
 
 if remove_loggers
-    excluded_tasks << Orocos::RobyPlugin::Logger::Logger
+    excluded_models << Orocos::RobyPlugin::Logger::Logger
 end
 
 if rprof_file_path
@@ -232,6 +232,6 @@ if error
 end
 
 Scripts.generate_output(:remove_compositions => remove_compositions,
-                        :excluded_tasks => excluded_tasks,
+                        :excluded_models => excluded_models,
                         :annotations => annotations)
 
