@@ -143,7 +143,10 @@ module Orocos
             end
 
             def short_name
-                name.gsub('Orocos::RobyPlugin::', '')
+                name.gsub('Orocos::RobyPlugin::', '').
+                    gsub('DataServices', 'Srv').
+                    gsub('Devices', 'Dev').
+                    gsub('Compositions', 'Cmp')
             end
         end
 

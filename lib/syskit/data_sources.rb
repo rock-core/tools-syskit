@@ -93,7 +93,10 @@ module Orocos
             # Returns the string that should be used to display information
             # about this model to the user
             def short_name
-                name.gsub('Orocos::RobyPlugin::', '')
+                name.gsub('Orocos::RobyPlugin::', '').
+                    gsub('DataServices', 'Srv').
+                    gsub('Devices', 'Dev').
+                    gsub('Compositions', 'Cmp')
             end
 
             def to_s # :nodoc:
