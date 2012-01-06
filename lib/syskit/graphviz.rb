@@ -477,7 +477,10 @@ module Orocos
                 result << "    }"
                 result.join("\n")
             end
-            def format_annotations(annotations, key = nil)
+            def format_annotations(annotations, key = nil, options = Hash.new)
+                options = Kernel.validate_options options,
+                    :include_empty => false
+
                 if key
                     if !annotations.has_key?(key)
                         return
@@ -489,7 +492,7 @@ module Orocos
 
                 result = []
                 result = ann.map do |category, values|
-                    next if values.empty?
+                    next if (values.empty? && !options[:include_empty])
 
                     values = values.map { |v| v.tr("<>", "[]") }
                     "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
@@ -509,14 +512,18 @@ module Orocos
                     name = task.proxied_data_services.map(&:short_name).join(", ").tr("<>", '[]')
                     label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
                 else
-                    annotations = Hash.new
+                    annotations = Array.new
                     if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
+                        annotations = [["Specialized On", [""]]]
                         name = task.model.root_model.name
-                        spec = []
                         task.model.specialized_children.each do |child_name, child_models|
-                            spec << "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
+                            child_models = child_models.map(&:short_name)
+                            annotations << [child_name, child_models.shift]
+                            child_models.each do |m|
+                                annotations << ["", m]
+                            end
                         end
-                        annotations["Specialized On"] = spec
+
                     else
                         name = task.model.name
                     end
