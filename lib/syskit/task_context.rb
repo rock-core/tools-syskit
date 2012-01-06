@@ -563,6 +563,7 @@ module Orocos
 
                 ::Robot.info "setting up #{self}"
 
+                self.conf ||= ['default']
                 if respond_to?(:configure)
                     configure
                 end
