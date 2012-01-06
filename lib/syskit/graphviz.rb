@@ -282,6 +282,7 @@ module Orocos
                     :remove_compositions => false,
                     :excluded_models => ValueSet.new,
                     :annotations => Set.new
+                excluded_models = options[:excluded_models]
                     
                 options[:annotations].each do |ann|
                     send("add_#{ann}_annotations")
@@ -306,7 +307,7 @@ module Orocos
                 # as connections between either two inputs or two outputs
                 plan.find_local_tasks(Component).each do |source_task|
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
-                    next if options[:excluded_models].include?(source_task.model)
+                    next if excluded_models.include?(source_task.model)
 
                     source_task.model.each_input_port do |port|
                         input_ports[source_task] << port.name
