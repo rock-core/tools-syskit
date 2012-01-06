@@ -1568,7 +1568,9 @@ module Orocos
                     apply_merge_to_stored_instances
                     # Update the dataflow dynamics information to point to the
                     # final tasks
-                    apply_merge_to_dataflow_dynamics
+                    if @dataflow_dynamics
+                        apply_merge_to_dataflow_dynamics
+                    end
 
                     # Replace the tasks stored in devices and instances by the
                     # actual new tasks
