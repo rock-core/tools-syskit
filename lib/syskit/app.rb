@@ -409,6 +409,8 @@ module Orocos
 
             # Called by Roby::Application on setup
             def self.setup(app)
+                ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.ruby-#{::Process.pid}.txt")
+
                 if !Roby.respond_to?(:orocos_engine)
                     def Roby.orocos_engine
                         Roby.app.orocos_engine
