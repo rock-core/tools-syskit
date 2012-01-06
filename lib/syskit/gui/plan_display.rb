@@ -17,7 +17,7 @@ module Ui
                     i.respond_to?(:real_object) &&
                         i.real_object
                 end
-                if sel = items.first
+                if (sel = items.first) && sel.real_object
                     emit plan_display.
                         selectedObject(Qt::Variant.fromValue(sel.real_object))
                 end
