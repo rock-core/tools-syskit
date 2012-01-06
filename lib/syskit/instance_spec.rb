@@ -651,7 +651,7 @@ module Orocos
 
                     candidates = required_models.map do |m|
                         selection[m] || selection[m.name]
-                    end.flatten.compact
+                    end.flatten.compact.to_set
                     if !candidates.empty?
                         return candidates
                     end
