@@ -152,7 +152,7 @@ class ModelDisplayView < Ui::PlanDisplay
         specializations
     end
 
-    def render_model(model)
+    def render_model(model, annotations = [])
         clear
         @current_model = model
 
@@ -196,7 +196,7 @@ class ModelDisplayView < Ui::PlanDisplay
         if model <= Orocos::RobyPlugin::Composition
 
             push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.orocos_engine, Hash.new)
-            push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, :annotations => ['port_details', 'task_info', 'connection_policy'])
+            push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, :annotations => annotations)
         else
             push_plan('Interface', 'dataflow', Roby.plan, Roby.orocos_engine, :annotations => ['port_details'])
         end
@@ -230,6 +230,61 @@ class ModelDisplayView < Ui::PlanDisplay
     end
 end
 
+class SystemModelBrowser < Qt::Widget
+    attr_reader :current_model
+    attr_reader :annotation_actions
+    attr_reader :model_display
+
+    def initialize(main = nil)
+        super
+
+        main_layout = Qt::VBoxLayout.new(self)
+
+        menu_layout = Qt::HBoxLayout.new
+        main_layout.add_layout(menu_layout)
+        annotation_button = Qt::PushButton.new("Annotations", self)
+        annotation_menu = Qt::Menu.new
+        @annotation_actions = []
+        Orocos::RobyPlugin::Graphviz.available_annotations.each do |ann_name|
+            act = Qt::Action.new(ann_name, annotation_menu)
+            act.checkable = true
+            annotation_menu.add_action(act)
+            annotation_actions << act
+            act.connect(SIGNAL('triggered()')) do
+                render_current_model
+            end
+        end
+        annotation_button.menu = annotation_menu
+        menu_layout.add_widget(annotation_button)
+        menu_layout.add_stretch(1)
+
+        layout = Qt::HBoxLayout.new
+        main_layout.add_layout(layout)
+        splitter = Qt::Splitter.new(self)
+        layout.add_widget(splitter)
+        model_list = ModelListWidget.new(splitter)
+        splitter.add_widget(model_list)
+        @model_display = ModelDisplayView.new(splitter)
+        splitter.add_widget(model_display.view)
+        splitter.set_stretch_factor(1, 2)
+
+        model_list.connect(SIGNAL('itemClicked(QTreeWidgetItem*,int)')) do |item, col|
+            if model = model_list.model_name_to_object[item.text(0)]
+                @current_model = model
+                render_current_model
+            end
+        end
+        model_list.populate
+    end
+
+    def render_current_model
+        annotations = annotation_actions.
+            find_all { |act| act.checked? }.
+            map(&:text)
+        model_display.render_model(current_model, annotations)
+    end
+end
+
 Roby::TaskStructure.relation 'SpecializationCompatibilityGraph', :child_name => :compatible_specialization, :dag => false
 
 Scripts.run do
@@ -250,22 +305,7 @@ Scripts.run do
 
     Roby.app.orocos_engine.prepare
 
-    main = Qt::Widget.new
-    layout = Qt::HBoxLayout.new(main)
-    splitter = Qt::Splitter.new(main)
-    layout.add_widget(splitter)
-    model_list = ModelListWidget.new(splitter)
-    splitter.add_widget(model_list)
-    display = ModelDisplayView.new(splitter)
-    splitter.add_widget(display.view)
-    splitter.set_stretch_factor(1, 2)
-
-    model_list.connect(SIGNAL('itemClicked(QTreeWidgetItem*,int)')) do |item, col|
-        if model = model_list.model_name_to_object[item.text(0)]
-            display.render_model(model)
-        end
-    end
-    model_list.populate
+    main = SystemModelBrowser.new
     main.resize(800, 500)
     main.show
 
