@@ -2,6 +2,7 @@ require 'orocos/roby/gui/orocos_composer_ui'
 require 'orocos/roby/gui/instanciate_composition'
 
 module Ui
+    # UI window to instanciate compositions
     class OrocosComposerWidget < Qt::Object
         attr_reader :main
         attr_reader :ui

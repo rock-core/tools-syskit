@@ -170,7 +170,7 @@ class ModelDisplayView < Ui::PlanDisplay
                 end
             end
 
-            Qt::Object.connect(self, SIGNAL('selectedObject(QVariant&)'),
+            Qt::Object.connect(self, SIGNAL('selectedObject(QVariant&,QPoint&)'),
                                self, SLOT('clickedSpecialization(QVariant&)'))
             display_options = {
                 :accessor => :each_compatible_specialization,

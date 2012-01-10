@@ -19,7 +19,7 @@ module Ui
                 end
                 if (sel = items.first) && sel.real_object
                     emit plan_display.
-                        selectedObject(Qt::Variant.fromValue(sel.real_object))
+                        selectedObject(Qt::Variant.fromValue(sel.real_object), event.globalPos)
                 end
                 event.accept
             end
@@ -258,7 +258,7 @@ module Ui
             return renderer, all_items
         end
 
-        signals 'selectedObject(QVariant&)'
+        signals 'selectedObject(QVariant&, QPoint&)'
 
         # The margin between the top and bottom parts of the saved SVG, in
         # points

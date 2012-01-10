@@ -4,6 +4,11 @@ require 'orocos/roby/gui/instanciate_composition'
 require 'orocos/roby/gui/plan_display'
 
 module Ui
+    # Main UI window for the instanciation GUI
+    #
+    # This window displays the current selection on the left and the resulting
+    # plan on the right. It uses the OrocosComposerWidget to add new things to
+    # the global plan.
     class OrocosSystemBuilderWidget < Qt::Object
         attr_reader :system_model
         attr_reader :robot
