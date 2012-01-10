@@ -25,37 +25,45 @@ app = Qt::Application.new(ARGV)
 require 'orocos/roby/gui/plan_display'
 
 class ModelListWidget < Qt::TreeWidget
+    # The TreeWidgetItem that is root of all the data service items
     attr_reader :root_services
+    # The TreeWidgetItem that is root of all the composition items
     attr_reader :root_compositions
-    attr_reader :model_name_to_object
+    # The TreeWidgetItem that is root of all the task items
+    attr_reader :root_tasks
 
     def initialize(parent = nil)
         super
 
-        @model_name_to_object = Hash.new
         @root_services = Qt::TreeWidgetItem.new(self)
         root_services.set_text(0, "Data Services")
         @root_compositions = Qt::TreeWidgetItem.new(self)
         root_compositions.set_text(0, "Compositions")
+        @root_tasks = Qt::TreeWidgetItem.new(self)
+        root_tasks.set_text(0, "Task Contexts")
         set_header_label("")
     end
+
+    ITEM_ROLE_MODEL = Qt::UserRole
+
+    ROOT_ROLE_SERVICE = 0
+    ROOT_ROLE_COMPOSITION = 1
+    ROOT_ROLE_TASK = 2
 
     def populate
         services = Roby.app.orocos_system_model.each_data_service.to_a
         services.sort_by { |srv| srv.name }.each do |srv|
             services << srv
             name = srv.name.gsub(/.*DataServices::/, '')
-            model_name_to_object[name] = srv
 
             item = Qt::TreeWidgetItem.new(root_services)
             item.set_text(0, name)
-            item.set_data(0, Qt::UserRole, Qt::Variant.new(0))
+            item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_value(srv))
         end
 
         compositions = Roby.app.orocos_system_model.each_composition.to_a
         compositions.sort_by { |srv| srv.name }.each do |cmp|
             name = cmp.name.gsub(/.*Compositions::/, '')
-            model_name_to_object[name] = cmp
 
             has_errors = false
             # Instanciate each specialization separately, to make sure that
@@ -73,17 +81,24 @@ class ModelListWidget < Qt::TreeWidget
 
             item = Qt::TreeWidgetItem.new(root_compositions)
             item.set_text(0, name)
-            item.set_data(0, Qt::UserRole, Qt::Variant.new(1))
+            item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_value(cmp))
             if has_errors
                 item.set_background(0, Qt::Brush.new(Qt::Color.new(255, 128, 128)))
             end
         end
+
+        task_contexts = Roby.app.orocos_system_model.each_task_model.to_a
+        task_contexts.sort_by(&:name).each do |task|
+            item = Qt::TreeWidgetItem.new(root_tasks)
+            item.set_text(0, task.short_name)
+            item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_value(task))
+        end
     end
 
     def clear
-        @model_name_to_object.clear
         @root_services.clear
         @root_compositions.clear
+        @root_tasks.clear
     end
 end
 
@@ -193,8 +208,7 @@ class ModelDisplayView < Ui::PlanDisplay
             Orocos::RobyPlugin::DependencyInjectionContext.new)
         Roby.plan.add(task)
 
-        if model <= Orocos::RobyPlugin::Composition
-
+        if model <= Orocos::RobyPlugin::Component
             push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.orocos_engine, Hash.new)
             push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, :annotations => annotations)
         else
@@ -269,8 +283,9 @@ class SystemModelBrowser < Qt::Widget
         splitter.set_stretch_factor(1, 2)
 
         model_list.connect(SIGNAL('itemClicked(QTreeWidgetItem*,int)')) do |item, col|
-            if model = model_list.model_name_to_object[item.text(0)]
-                @current_model = model
+            model = item.data(col, ModelListWidget::ITEM_ROLE_MODEL)
+            if model.valid?
+                @current_model = model.value
                 render_current_model
             end
         end
