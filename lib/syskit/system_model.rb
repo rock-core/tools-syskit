@@ -171,6 +171,17 @@ module Orocos
                 Roby.app.orocos_tasks.each_value(&block)
             end
 
+            def each_model(&block)
+                if !block_given?
+                    return enum_for(:each_model)
+                end
+                each_data_service(&block)
+                each_device(&block)
+                each_composition(&block)
+                each_deployment_model(&block)
+                each_task_model(&block)
+            end
+
             # Load the types defined in the specified oroGen projects
             def import_types_from(*names)
                 Roby.app.main_orogen_project.import_types_from(*names)

@@ -105,12 +105,12 @@ end
 # Qt::Internal::setDebug(Qt::QtDebugChannel::QTDB_VIRTUAL)
 # Qt::Internal::setDebug(Qt::QtDebugChannel::QTDB_GC)
 
-class ModelDisplayView < Ui::PlanDisplay
+class ModelDisplayView < Qt::ToolBox
     attr_reader :specializations
     attr_reader :current_model
 
     def initialize(parent = nil)
-        super
+        super(parent)
         @specializations = Hash.new
     end
 
@@ -152,7 +152,9 @@ class ModelDisplayView < Ui::PlanDisplay
     slots 'clickedSpecialization(QVariant&)'
 
     def clear
-        super
+        while count > 0
+            removeItem(0)
+        end
         specializations.clear
     end
 
@@ -167,7 +169,22 @@ class ModelDisplayView < Ui::PlanDisplay
         specializations
     end
 
-    def render_model(model, annotations = [])
+    def push_plan(title, mode, plan, engine, options)
+        display = Ui::PlanDisplay.new(self)
+        display.plan = plan.dup
+        display.engine = engine
+        display.options = options
+        display.mode = mode
+        display.display
+        add_item(display, title)
+        display
+    end
+
+    def push(title, widget)
+        add_item(widget, title)
+    end
+
+    def render_model(model)
         clear
         @current_model = model
 
@@ -185,8 +202,6 @@ class ModelDisplayView < Ui::PlanDisplay
                 end
             end
 
-            Qt::Object.connect(self, SIGNAL('selectedObject(QVariant&,QPoint&)'),
-                               self, SLOT('clickedSpecialization(QVariant&)'))
             display_options = {
                 :accessor => :each_compatible_specialization,
                 :dot_edge_mark => '--',
@@ -195,9 +210,15 @@ class ModelDisplayView < Ui::PlanDisplay
                 :highlights => current_specializations,
                 :toned_down => incompatible_specializations.values
             }
-            push_plan('Specializations', 'relation_to_dot',
+            plan_display = push_plan('Specializations', 'relation_to_dot',
                       Roby.plan, Roby.orocos_engine,
                       display_options)
+            Qt::Object.connect(plan_display, SIGNAL('selectedObject(QVariant&,QPoint&)'),
+                               self, SLOT('clickedSpecialization(QVariant&)'))
+
+            if specializations.empty?
+                self.set_item_enabled(count - 1, false)
+            end
         end
 
         Roby.plan.clear
@@ -210,9 +231,10 @@ class ModelDisplayView < Ui::PlanDisplay
 
         if model <= Orocos::RobyPlugin::Component
             push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.orocos_engine, Hash.new)
-            push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, :annotations => annotations)
+            default_widget = push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, Hash.new)
+
         else
-            push_plan('Interface', 'dataflow', Roby.plan, Roby.orocos_engine, :annotations => ['port_details'])
+            default_widget = push_plan('Interface', 'dataflow', Roby.plan, Roby.orocos_engine, Hash.new)
         end
 
         services = []
@@ -237,16 +259,16 @@ class ModelDisplayView < Ui::PlanDisplay
                 end
             end
         end
-        label = Qt::Label.new(services.join("\n"))
+        label = Qt::Label.new(services.join("\n"), self)
         label.background_role = Qt::Palette::NoRole
         push("Provided Services", label)
-        render
+
+        self.current_widget = default_widget
     end
 end
 
 class SystemModelBrowser < Qt::Widget
     attr_reader :current_model
-    attr_reader :annotation_actions
     attr_reader :model_display
 
     def initialize(main = nil)
@@ -256,20 +278,6 @@ class SystemModelBrowser < Qt::Widget
 
         menu_layout = Qt::HBoxLayout.new
         main_layout.add_layout(menu_layout)
-        annotation_button = Qt::PushButton.new("Annotations", self)
-        annotation_menu = Qt::Menu.new
-        @annotation_actions = []
-        Orocos::RobyPlugin::Graphviz.available_annotations.each do |ann_name|
-            act = Qt::Action.new(ann_name, annotation_menu)
-            act.checkable = true
-            annotation_menu.add_action(act)
-            annotation_actions << act
-            act.connect(SIGNAL('triggered()')) do
-                render_current_model
-            end
-        end
-        annotation_button.menu = annotation_menu
-        menu_layout.add_widget(annotation_button)
         menu_layout.add_stretch(1)
 
         layout = Qt::HBoxLayout.new
@@ -279,7 +287,7 @@ class SystemModelBrowser < Qt::Widget
         model_list = ModelListWidget.new(splitter)
         splitter.add_widget(model_list)
         @model_display = ModelDisplayView.new(splitter)
-        splitter.add_widget(model_display.view)
+        splitter.add_widget(model_display)
         splitter.set_stretch_factor(1, 2)
 
         model_list.connect(SIGNAL('itemClicked(QTreeWidgetItem*,int)')) do |item, col|
@@ -293,10 +301,7 @@ class SystemModelBrowser < Qt::Widget
     end
 
     def render_current_model
-        annotations = annotation_actions.
-            find_all { |act| act.checked? }.
-            map(&:text)
-        model_display.render_model(current_model, annotations)
+        model_display.render_model(current_model)
     end
 end
 

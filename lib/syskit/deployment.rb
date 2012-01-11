@@ -40,6 +40,10 @@ module Orocos
                 @pid ||= orogen_deployment.pid
             end
 
+            def self.short_name
+                name.gsub("Orocos::RobyPlugin::", "")
+            end
+
             # Returns the name of this particular deployment instance
             def self.deployment_name
                 orogen_spec.name

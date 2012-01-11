@@ -6,11 +6,19 @@ module Ui
     # using Orocos::RobyPlugin::Graphviz. The SVG is then postprocessed to allow
     # the creation of an association between graphical elements (identified
     # through their SVG object ID) and the graphical representation.
-    class PlanDisplay < Qt::Object
+    class PlanDisplay < Qt::Widget
+        # Module used to extend the Qt::GraphicsView widget to provide events on
+        # click, and zoom with Ctrl + Wheel
         module GraphicsViewExtension
+            # The underlying PlanDisplay object
             attr_accessor :plan_display
+
+            # The current scaling factor
             attribute(:current_scaling) { 1 }
 
+            # Handler that emits the selectedObject signal on the underlying
+            # PlanDisplay instance if the user clicks on a SVG item that
+            # represents a registered plan object
             def mousePressEvent(event)
                 items = self.items(event.pos)
                 items = items.find_all do |i|
@@ -24,6 +32,8 @@ module Ui
                 event.accept
             end
 
+            # Handler that changes the current_scaling factor (and updates the
+            # view) on Ctrl + Wheel events
             def wheelEvent(event)
                 if event.modifiers != Qt::ControlModifier
                     return super
@@ -72,12 +82,31 @@ module Ui
         # The raw SVG data
         attr_reader :svg
 
-        def show; view.show end
+        # The push button that controls whether compositions are displayed or
+        # not
+        attr_reader :remove_compositions_btn
+        # The push button that controls which models should be displayed or
+        # hidden
+        attr_reader :excluded_models_btn
+        # The set of Qt::Action objects that represent the user selection w.r.t.
+        # hidden models, as a map from a model object to the corresponding
+        # Qt::Action object
+        attr_reader :excluded_models_act
+        # The push button that controls which annotations are displayed (only
+        # enabled if mode == 'dataflow')
+        attr_reader :annotation_btn
+        # The set of Qt::Action objects that represent the user selection w.r.t.
+        # the annotations
+        attr_reader :annotation_act
+
+        DEFAULT_ANNOTATIONS = %w{task_info port_details}
+        DEFAULT_REMOVE_COMPOSITIONS = false
+        DEFAULT_excluded_models = %w{Orocos::RobyPlugin::Logger::Logger}
 
         def initialize(main = nil)
-            super()
-            @scene           = Qt::GraphicsScene.new
-            @view            = Qt::GraphicsView.new(scene, main)
+            super(main)
+            @scene           = Qt::GraphicsScene.new(main)
+            @view            = Qt::GraphicsView.new(scene, self)
             @view.extend GraphicsViewExtension
             @view.plan_display = self
             @renderers       = Hash.new
@@ -89,8 +118,134 @@ module Ui
             @title_font = Qt::Font.new
             title_font.bold = true
 
+            # Add a button bar
+            @remove_compositions_btn = Qt::PushButton.new("Hide Compositions", self)
+            remove_compositions_btn.checkable = true
+            remove_compositions_btn.checked = DEFAULT_REMOVE_COMPOSITIONS
+            @excluded_models_btn     = Qt::PushButton.new("Hidden Models", self)
+            @annotation_btn = Qt::PushButton.new("Annotations", self)
+
+            # Generate the menu for annotations
+            annotation_menu = Qt::Menu.new(annotation_btn)
+            @annotation_act = Hash.new
+            Orocos::RobyPlugin::Graphviz.available_annotations.each do |ann_name|
+                act = Qt::Action.new(ann_name, annotation_menu)
+                act.checkable = true
+                act.checked = DEFAULT_ANNOTATIONS.include?(ann_name)
+                annotation_menu.add_action(act)
+                annotation_act[ann_name] = act
+            end
+            annotation_btn.menu = annotation_menu
+
+            # Generate the menu for hidden models
+            excluded_models_menu = Qt::Menu.new(excluded_models_btn)
+            @excluded_models_act = Hash.new
+            Roby.app.orocos_system_model.each_model.sort_by(&:name).each do |model|
+                next if model <= Orocos::RobyPlugin::Deployment
+
+                act = Qt::Action.new(model.short_name, excluded_models_menu)
+                act.checkable = true
+                act.checked = DEFAULT_excluded_models.include?(model.name)
+                excluded_models_act[model] = act
+                excluded_models_menu.add_action(act)
+            end
+            excluded_models_btn.menu = excluded_models_menu
+
+            # Lay the UI out
+            root_layout = Qt::VBoxLayout.new(self)
+            button_bar_layout = Qt::HBoxLayout.new
+            root_layout.add_layout(button_bar_layout)
+            button_bar_layout.add_widget(remove_compositions_btn)
+            button_bar_layout.add_widget(excluded_models_btn)
+            button_bar_layout.add_widget(annotation_btn)
+            root_layout.add_widget(view)
+
+            # Add action handlers
+            annotation_act.each do |ann_name, act|
+                act.connect(SIGNAL('toggled(bool)')) do |checked|
+                    if checked then options[:annotations] << ann_name
+                    else options[:annotations].delete(ann_name)
+                    end
+                    display
+                end
+            end
+            remove_compositions_btn.connect(SIGNAL('toggled(bool)')) do |checked|
+                options[:remove_compositions] = checked
+                display
+            end
+            excluded_models_act.each do |model, act|
+                act.connect(SIGNAL('toggled(bool)')) do |checked|
+                    if checked then options[:excluded_models] << model
+                    else options[:excluded_models].delete(model)
+                    end
+                    display
+                end
+            end
+
             view.viewport_update_mode = Qt::GraphicsView::FullViewportUpdate
             view.scale(0.8, 0.8)
+        end
+
+        # The plan this display acts on
+        attr_accessor :plan
+        # The engine this display uses to generate the display
+        attr_accessor :engine
+        # The display mode ('hierarchy' or 'dataflow')
+        attr_reader :mode
+        # Sets the display mode ('hierarchy' or 'dataflow'). Enables or disables
+        # the annotation_btn if mode is dataflow or not
+        def mode=(mode)
+            annotation_btn.enabled = (mode == 'dataflow')
+            remove_compositions_btn.enabled = (mode != 'relation_to_dot')
+            excluded_models_btn.enabled = (mode != 'relation_to_dot')
+            @mode = mode
+        end
+        # The display options, as a hash
+        attr_reader :options
+        # Sets some display options, updating the GUI in the process
+        def options=(options)
+            default_excluded_models = Array.new
+            excluded_models_act.each do |model, action|
+                default_excluded_models << model if action.checked?
+            end
+            default_remove_compositions = remove_compositions_btn.checked?
+            default_annotations = Array.new
+            annotation_act.each do |act_name, act|
+                default_annotations << act_name if act.checked?
+            end
+
+            gui_options, other_options = Kernel.filter_options options,
+                :excluded_models => default_excluded_models,
+                :remove_compositions => default_remove_compositions,
+                :annotations => default_annotations
+            excluded_models_act.each do |model, action|
+                action.checked = gui_options[:excluded_models].include?(model)
+            end
+            remove_compositions_btn.checked = gui_options[:remove_compositions]
+            annotation_act.each do |act_name, act|
+                act.checked = gui_options[:annotations].include?(act_name)
+            end
+
+            @options = other_options.merge(gui_options)
+        end
+
+        def display
+            clear
+
+            # Filter the option hash based on the current mode
+            options = self.options
+            if mode != 'dataflow'
+                options.delete(:annotations)
+            end
+            if mode == 'relation_to_dot'
+                options.delete(:remove_compositions)
+                options.delete(:excluded_models)
+            end
+
+            # Update the composition display option based on the information in
+            # +options+
+            push_plan('', mode, plan, engine, options)
+            render
         end
 
         attr_reader :error_text
@@ -98,11 +253,6 @@ module Ui
         attr_accessor :title_font
 
         def render_plan(mode, plan, engine, options)
-            default_exclude = []
-            if defined? Orocos::RobyPlugin::Logger::Logger
-                default_exclude << Orocos::RobyPlugin::Logger::Logger
-            end
-
             svg_io = Tempfile.open(mode)
             engine.to_svg(mode, svg_io, options)
 
@@ -192,8 +342,15 @@ module Ui
             error_text.default_text_color = Qt::Color.new('red')
         end
 
+        # Module used to extend the SVG items that represent a task in the plan
+        #
+        # The #real_object method can then be used to get the actual plan object
+        # out of the SVG item
         module SvgObjectMapper
+            # The PlanDisplay object to which we are attached
             attr_accessor :plan_display
+
+            # The task object that is represented by this SVG item
             def real_object
                 id = data(Qt::UserRole)
                 if id.valid?
