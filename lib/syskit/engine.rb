@@ -1666,10 +1666,8 @@ module Orocos
                     end
 
                     if options[:on_error] == :commit
-                        puts "COMMIT"
                         trsc.commit_transaction
                     else
-                        puts "DISCARDING"
                         trsc.discard_transaction
                     end
                     raise
