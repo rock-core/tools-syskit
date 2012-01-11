@@ -283,7 +283,8 @@ module Orocos
                     :annotations => Set.new
                 excluded_models = options[:excluded_models]
                     
-                options[:annotations].each do |ann|
+                annotations = options[:annotations].to_set
+                annotations.each do |ann|
                     send("add_#{ann}_annotations")
                 end
 
