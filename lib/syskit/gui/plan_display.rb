@@ -162,6 +162,8 @@ module Ui
             button_bar_layout.add_widget(annotation_btn)
             root_layout.add_widget(view)
 
+            self.options = Hash.new
+
             # Add action handlers
             annotation_act.each do |ann_name, act|
                 act.connect(SIGNAL('toggled(bool)')) do |checked|
@@ -218,6 +220,8 @@ module Ui
                 :excluded_models => default_excluded_models,
                 :remove_compositions => default_remove_compositions,
                 :annotations => default_annotations
+            @options = other_options.merge(gui_options)
+
             excluded_models_act.each do |model, action|
                 action.checked = gui_options[:excluded_models].include?(model)
             end
@@ -225,15 +229,13 @@ module Ui
             annotation_act.each do |act_name, act|
                 act.checked = gui_options[:annotations].include?(act_name)
             end
-
-            @options = other_options.merge(gui_options)
         end
 
         def display
             clear
 
             # Filter the option hash based on the current mode
-            options = self.options
+            options = self.options.dup
             if mode != 'dataflow'
                 options.delete(:annotations)
             end
