@@ -105,7 +105,7 @@ end
 # Qt::Internal::setDebug(Qt::QtDebugChannel::QTDB_VIRTUAL)
 # Qt::Internal::setDebug(Qt::QtDebugChannel::QTDB_GC)
 
-class ModelDisplayView < Qt::ToolBox
+class ModelDisplayView < Ui::StackedDisplay
     attr_reader :specializations
     attr_reader :current_model
 
@@ -152,9 +152,7 @@ class ModelDisplayView < Qt::ToolBox
     slots 'clickedSpecialization(QVariant&)'
 
     def clear
-        while count > 0
-            removeItem(0)
-        end
+        super
         specializations.clear
     end
 
@@ -167,21 +165,6 @@ class ModelDisplayView < Qt::ToolBox
         end
 
         specializations
-    end
-
-    def push_plan(title, mode, plan, engine, options)
-        display = Ui::PlanDisplay.new(self)
-        display.plan = plan.dup
-        display.engine = engine
-        display.options = options
-        display.mode = mode
-        display.display
-        add_item(display, title)
-        display
-    end
-
-    def push(title, widget)
-        add_item(widget, title)
     end
 
     def render_model(model)

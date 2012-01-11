@@ -779,15 +779,11 @@ module Orocos
             # Generate a svg file representing the current state of the
             # deployment
             def to_svg(kind, filename = nil, *additional_args)
-                Graphviz.new(plan, self).to_file(kind, 'svg', filename, *additional_args)
-            end
-
-            def to_dot_hierarchy
-                Graphviz.new(plan, self).hierarchy
+                Graphviz.new(plan).to_file(kind, 'svg', filename, *additional_args)
             end
 
             def to_dot_dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = ["connection_policy"])
-                gen = Graphviz.new(plan, self)
+                gen = Graphviz.new(plan)
                 gen.dataflow(remove_compositions, excluded_models, annotations)
             end
 

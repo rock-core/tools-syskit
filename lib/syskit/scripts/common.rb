@@ -154,13 +154,15 @@ module Orocos
                     io.flush
                     io.close
                 when "qt"
-                    require 'orocos/roby/gui/plan_display'
+                    require 'orocos/roby/gui/stacked_display'
                     if !$qApp
                         app = Qt::Application.new(ARGV)
                     end
-                    display = Ui::PlanDisplay.new
-                    display.update_view(Roby.plan, Roby.app.orocos_engine,
-                        display_options)
+                    display = Ui::StackedDisplay.new
+                    display.push_plan('Task Dependency Hierarchy', 'hierarchy',
+                                      Roby.plan, Roby.orocos_engine, display_options)
+                    display.push_plan('Dataflow', 'dataflow',
+                                      Roby.plan, Roby.orocos_engine, display_options)
                     display.show
                     $qApp.exec
                 end
@@ -198,6 +200,7 @@ module Orocos
 
                     yield
                 end
+                puts "ERROR? : #{error}"
             ensure Roby.app.cleanup
             end
         end

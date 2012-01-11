@@ -30,9 +30,8 @@ module Orocos
             # Additional edges that should be added to the generated graph
             attr_reader :additional_edges
 
-            def initialize(plan, engine)
+            def initialize(plan)
                 @plan = plan
-                @engine = engine
 
                 @task_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
                 @port_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }

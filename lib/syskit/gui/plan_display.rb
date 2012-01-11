@@ -190,8 +190,6 @@ module Ui
 
         # The plan this display acts on
         attr_accessor :plan
-        # The engine this display uses to generate the display
-        attr_accessor :engine
         # The display mode ('hierarchy' or 'dataflow')
         attr_reader :mode
         # Sets the display mode ('hierarchy' or 'dataflow'). Enables or disables
@@ -246,17 +244,17 @@ module Ui
 
             # Update the composition display option based on the information in
             # +options+
-            push_plan('', mode, plan, engine, options)
-            render
+            render_plan(mode, plan, options)
         end
 
         attr_reader :error_text
         attr_reader :stack
         attr_accessor :title_font
 
-        def render_plan(mode, plan, engine, options)
+        def render_plan(mode, plan, options)
             svg_io = Tempfile.open(mode)
-            engine.to_svg(mode, svg_io, options)
+            Orocos::RobyPlugin::Graphviz.new(plan).
+                to_file(mode, 'svg', svg_io, options)
 
             plan.each_task do |task|
                 index = index_to_object.size
@@ -265,7 +263,15 @@ module Ui
             end
             svg_io.rewind
             renderer, items = display_svg(svg_io)
-            items
+
+            item = items.map do |w|
+                if w.kind_of?(Qt::Widget)
+                    scene.add_widget(w)
+                else
+                    w
+                end
+            end
+            item = scene.create_item_group(item)
 
         ensure
             svg_io.close if svg_io
@@ -279,69 +285,6 @@ module Ui
             index_to_object.clear
             ruby_id_to_index.clear
             svg_id_to_index.clear
-        end
-
-        def push(title, item)
-            if item.respond_to?(:to_ary)
-                item = item.map do |w|
-                    if w.kind_of?(Qt::Widget)
-                        scene.add_widget(w)
-                    else
-                        w
-                    end
-                end
-                item = scene.create_item_group(item)
-            elsif item.kind_of?(Qt::Widget)
-                item = scene.add_widget(item)
-            end
-            if !item.kind_of?(Qt::GraphicsItem)
-                raise ArgumentError, "expected a graphics item but got #{item}"
-            end
-            stack.push([title, item])
-        end
-
-        def push_plan(title, mode, plan, engine, display_options)
-            push(title, render_plan(mode, plan, engine, display_options))
-        end
-
-        TITLE_BOTTOM_MARGIN = 10
-        SEPARATION_MARGIN = 50
-
-        def update_view(plan, engine, display_options = Hash.new)
-            clear
-            push_plan('Task Dependency Hierarchy', 'hierarchy', plan, engine, display_options)
-            push_plan('Dataflow', 'dataflow', plan, engine, display_options)
-            render
-        end
-
-        def render
-            y = 0
-            stack.each do |title, item|
-                title_item = scene.add_simple_text(title, title_font)
-                title_item.move_by(0, y)
-                y += title_item.bounding_rect.height + TITLE_BOTTOM_MARGIN
-
-                item.move_by(0, y)
-                y += item.bounding_rect.height + SEPARATION_MARGIN
-            end
-        end
-
-        def display_error(message, error)
-            # Then display the error as a text item above the rest
-            if !@error_text
-                # Set the opacity of all plan items to 0.2
-                hierarchy_items.each do |it|
-                    it.opacity = 0.2
-                end
-                dataflow_items.each do |it|
-                    it.opacity = 0.2
-                end
-
-                @error_text = Qt::GraphicsTextItem.new
-                scene.add_item(error_text)
-            end
-            error_text.plain_text = message + "\n\n" + Roby.format_exception(error).join("\n") + "\n" + error.backtrace.join("\n")
-            error_text.default_text_color = Qt::Color.new('red')
         end
 
         # Module used to extend the SVG items that represent a task in the plan
