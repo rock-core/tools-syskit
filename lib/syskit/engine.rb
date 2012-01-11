@@ -1677,7 +1677,7 @@ module Orocos
 
             rescue Exception => e
                 if options[:on_error] == :commit
-                    return
+                    raise
                 end
 
                 @plan = engine_plan
