@@ -198,10 +198,6 @@ module Orocos
 
                     yield
                 end
-
-                if error
-                    exit(1)
-                end
             ensure Roby.app.cleanup
             end
         end

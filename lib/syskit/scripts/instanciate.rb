@@ -201,10 +201,10 @@ error = Scripts.run do
             PerfTools::CpuProfiler.start(pprof_file_path)
         end
         Roby.app.orocos_engine.
-            resolve(:export_plan_on_error => false,
-                :compute_policies => compute_policies,
+            resolve(:compute_policies => compute_policies,
                 :compute_deployments => compute_deployments,
-                :validate_network => validate_network)
+                :validate_network => validate_network,
+                :on_error => :commit)
         if display_timepoints
             pp Roby.app.orocos_engine.format_timepoints
         end
@@ -227,11 +227,11 @@ elsif pprof_file_path
     PerfTools::CpuProfiler.stop
 end
 
-if error
-    exit(1)
-end
-
 Scripts.generate_output(:remove_compositions => remove_compositions,
                         :excluded_models => excluded_models,
                         :annotations => annotations)
+
+if error
+    exit(1)
+end
 

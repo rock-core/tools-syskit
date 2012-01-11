@@ -1411,10 +1411,14 @@ module Orocos
             # garbage_collect::
             #   if false, it will not clean up the plan from all tasks that are
             #   not useful. Mainly useful for testing/debugging purposes
-            # export_plan_on_error::
+            # on_error::
             #   by default, #resolve will generate a dot file containing the
-            #   current plan state if an error occurs. Set this option to false
-            #   to disable this (it is costly).
+            #   current plan state if an error occurs. This corresponds to a
+            #   :save value for this option. It can also be set to :commit, in
+            #   which case the current state of the transaction is committed to
+            #   the plan, allowing to display it anyway (for debugging of models
+            #   for instance). Set it to false to do no special action (i.e.
+            #   drop the currently generated plan)
             def resolve(options = Hash.new)
                 @timepoints = []
 	    	return if disabled?
@@ -1432,10 +1436,18 @@ module Orocos
                     :compute_policies    => true,
                     :compute_deployments => true,
                     :garbage_collect => true,
-                    :export_plan_on_error => true,
+                    :export_plan_on_error => nil,
                     :save_plans => false,
                     :validate_network => true,
-                    :forced_removes => false # internal flag
+                    :forced_removes => false,
+                    :on_error => :save # internal flag
+
+                if !options[:export_plan_on_error].nil?
+                    options[:on_error] =
+                        if options[:export_plan_on_error] then :save
+                        else false
+                        end
+                end
 
                 # It makes no sense to compute the policies if we are not
                 # computing the deployments, as policy computation needs
@@ -1463,10 +1475,10 @@ module Orocos
                 state_backup.valid!
 
                 engine_plan = @plan
-                plan.in_transaction do |trsc|
-                    @network_merge_solver = NetworkMergeSolver.new(trsc, &method(:merged_tasks))
+                trsc = @plan = Roby::Transaction.new(plan)
+                @network_merge_solver = NetworkMergeSolver.new(trsc, &method(:merged_tasks))
 
-                    begin
+                begin
                     @plan = trsc
 
                     instances.delete_if do |instance|
@@ -1648,19 +1660,30 @@ module Orocos
                     pending_removes.clear
                     @modified = false
 
-                    rescue Exception => e
-                        if options[:export_plan_on_error]
-                            Roby.log_pp(e, Roby, :fatal)
-                            Engine.fatal "Engine#resolve failed"
-                            output_path = autosave_plan_to_dot
-                            Engine.fatal "the generated plan has been saved into #{output_path}"
-                            Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
-                        end
-                        raise
+                rescue Exception => e
+                    if options[:on_error] == :save
+                        Roby.log_pp(e, Roby, :fatal)
+                        Engine.fatal "Engine#resolve failed"
+                        output_path = autosave_plan_to_dot
+                        Engine.fatal "the generated plan has been saved into #{output_path}"
+                        Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
                     end
+
+                    if options[:on_error] == :commit
+                        puts "COMMIT"
+                        trsc.commit_transaction
+                    else
+                        puts "DISCARDING"
+                        trsc.discard_transaction
+                    end
+                    raise
                 end
 
             rescue Exception => e
+                if options[:on_error] == :commit
+                    return
+                end
+
                 @plan = engine_plan
 
                 if !state_backup || (state_backup && !state_backup.valid?)
