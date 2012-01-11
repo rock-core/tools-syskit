@@ -41,11 +41,11 @@ module Ui
 
                 # See documentation of wheelEvent
                 degrees = event.delta / 8.0
-                num_steps = degrees / 15
+                num_steps = degrees / 60.0
 
                 old = self.current_scaling
                 new = old + num_steps
-                if new == 0
+                if new.abs < 1
                     if old > 0
                         @current_scaling = -1
                     else
@@ -54,6 +54,8 @@ module Ui
                 else
                     @current_scaling = new
                 end
+
+                current_scaling = (self.current_scaling * 10).round / 10.0
                 scale_factor =
                     if current_scaling > 0
                         current_scaling
