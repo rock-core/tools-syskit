@@ -12,6 +12,13 @@ module Orocos
                 attr_accessor :output_type
                 attr_accessor :robot_type
                 attr_accessor :robot_name
+
+                # The path to the ruby-prof output, as provided to use_rprof, or nil
+                # if profiling with ruby-prof is not enabled
+                attr_reader :rprof_file_path
+                # The path to the perftools output, as provided to use_pprof, or nil
+                # if profiling with perftools is not enabled
+                attr_reader :pprof_file_path
             end
             @debug = false
 
@@ -40,6 +47,46 @@ module Orocos
                     instance.use_conf(*service_conf)
                 end
                 instance
+            end
+
+            def self.use_rprof(file_path)
+                require 'ruby-prof'
+                @rprof_file_path = file_path
+            end
+
+            def self.use_pprof(file_path)
+                require 'perftools'
+                @pprof_file_path = file_path
+            end
+
+            def self.start_profiling
+                resume_profiling
+            end
+
+            def self.pause_profiling
+                if rprof_file_path
+                    RubyProf.pause
+                end
+            end
+
+            def self.resume_profiling
+                if rprof_file_path
+                    RubyProf.resume
+                end
+                if pprof_file_path && !PerfTools::CpuProfiler.running?
+                    PerfTools::CpuProfiler.start(pprof_file_path)
+                end
+            end
+
+            def self.end_profiling
+                if rprof_file_path
+                    result = RubyProf.stop
+                    printer = RubyProf::CallTreePrinter.new(result)
+                    printer.print(File.open(rprof_file_path, 'w'), 0)
+                end
+                if pprof_file_path
+                    PerfTools::CpuProfiler.stop
+                end
             end
 
             class << self
@@ -154,15 +201,18 @@ module Orocos
                     io.flush
                     io.close
                 when "qt"
-                    require 'orocos/roby/gui/stacked_display'
+                    require 'orocos/roby/gui/instanciated_network_display'
                     if !$qApp
                         app = Qt::Application.new(ARGV)
                     end
-                    display = Ui::StackedDisplay.new
-                    display.push_plan('Task Dependency Hierarchy', 'hierarchy',
+                    display = Ui::InstanciatedNetworkDisplay.new
+                    display.plan_display.push_plan('Task Dependency Hierarchy', 'hierarchy',
                                       Roby.plan, Roby.orocos_engine, display_options)
-                    display.push_plan('Dataflow', 'dataflow',
+                    display.plan_display.push_plan('Dataflow', 'dataflow',
                                       Roby.plan, Roby.orocos_engine, display_options)
+                    if @last_error
+                        display.add_error(@last_error)
+                    end
                     display.show
                     $qApp.exec
                 end
@@ -173,34 +223,34 @@ module Orocos
             end
 
             def self.setup
+                tic = Time.now
+                Roby.app.using_plugins 'orocos'
+                if debug
+                    Roby.app.filter_backtraces = false
+                end
+                if debug
+                    RobyPlugin.logger = ::Logger.new(STDOUT)
+                    RobyPlugin.logger.formatter = Roby.logger.formatter
+                    RobyPlugin.logger.level = ::Logger::DEBUG
+                    Engine.logger = ::Logger.new(STDOUT)
+                    Engine.logger.formatter = Roby.logger.formatter
+                    Engine.logger.level = ::Logger::DEBUG
+                    SystemModel.logger = ::Logger.new(STDOUT)
+                    SystemModel.logger.formatter = Roby.logger.formatter
+                    SystemModel.logger.level = ::Logger::DEBUG
+                end
+
+                Roby.app.setup
+                toc = Time.now
+                Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
             end
 
             def self.run
                 error = Roby.display_exception do
-                    tic = Time.now
-                    Roby.app.using_plugins 'orocos'
-                    if debug
-                        Roby.app.filter_backtraces = false
-                    end
-                    if debug
-                        RobyPlugin.logger = ::Logger.new(STDOUT)
-                        RobyPlugin.logger.formatter = Roby.logger.formatter
-                        RobyPlugin.logger.level = ::Logger::DEBUG
-                        Engine.logger = ::Logger.new(STDOUT)
-                        Engine.logger.formatter = Roby.logger.formatter
-                        Engine.logger.level = ::Logger::DEBUG
-                        SystemModel.logger = ::Logger.new(STDOUT)
-                        SystemModel.logger.formatter = Roby.logger.formatter
-                        SystemModel.logger.level = ::Logger::DEBUG
-                    end
-
-                    Roby.app.setup
-                    toc = Time.now
-                    Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
-
+                    setup
                     yield
                 end
-                puts "ERROR? : #{error}"
+                @last_error = error
             ensure Roby.app.cleanup
             end
         end

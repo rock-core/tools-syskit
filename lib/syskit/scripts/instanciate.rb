@@ -13,11 +13,9 @@ test = false
 annotations = Set.new
 default_annotations = ["connection_policy", "task_info"]
 display_timepoints = false
-pprof_file_path = nil
-rprof_file_path = nil
 
 parser = OptionParser.new do |opt|
-    opt.banner = "Usage: scripts/orocos/instanciate [options] deployment [additional services]
+    opt.banner = "instanciate [options] deployment [additional services]
    'deployment' is either the name of a deployment in config/deployments,
     or a file that should be loaded to get the desired deployment
     'additional services', if given, refers to services defined with
@@ -56,13 +54,13 @@ parser = OptionParser.new do |opt|
     opt.on("--rprof=FILE", String, "run the deployment algorithm under ruby-prof, and generates a kcachegrind-compatible output to FILE") do |path|
         display_timepoints = true
         if path
-            rprof_file_path = path
+            Scripts.use_rprof(path)
         end
     end
     opt.on("--pprof=FILE", String, "run the deployment algorithm under google perftools, and generates the raw profiling information to FILE") do |path|
         display_timepoints = true
         if path
-            pprof_file_path = path
+            Scripts.use_pprof(path)
         end
     end
     opt.on('--test', 'test mode: instanciates everything defined in the given file') do
@@ -79,6 +77,93 @@ end
 
 if annotations.empty?
     annotations = default_annotations
+end
+
+require 'roby/standalone'
+
+class Instanciate
+    attr_accessor :passes
+    def initialize(passes)
+        @passes = passes
+    end
+
+    def self.parse_passes(remaining)
+        if remaining.empty?
+            return []
+        end
+
+        remaining = remaining.dup
+        passes = [[remaining.shift, []]]
+        pass = 0
+        while name = remaining.shift
+            if name == "/"
+                pass += 1
+                passes[pass] = [remaining.shift, []]
+            else
+                passes[pass][1] << name
+            end
+        end
+        passes
+    end
+
+    def self.setup
+        Roby.app.orocos_only_load_models = true
+        Roby.app.orocos_disables_local_process_server = true
+        Roby.app.single
+    end
+
+    def self.compute(passes, compute_policies, compute_deployments, validate_network)
+        Scripts.start_profiling
+        Scripts.pause_profiling
+
+        passes.each do |deployment_file, additional_services|
+            if deployment_file != '-'
+                Roby.app.load_orocos_deployment(deployment_file)
+            end
+            additional_services.each do |service_name|
+                service_name = Scripts.resolve_service_name(service_name)
+                Roby.app.orocos_engine.add service_name
+            end
+
+            Scripts.resume_profiling
+            Scripts.tic
+            Roby.app.orocos_engine.
+                resolve(:compute_policies => compute_policies,
+                    :compute_deployments => compute_deployments,
+                    :validate_network => validate_network,
+                    :on_error => :commit)
+            Scripts.toc_tic "computed deployment in %.3f seconds"
+            if display_timepoints
+                pp Roby.app.orocos_engine.format_timepoints
+            end
+            Scripts.pause_profiling
+        end
+        Scripts.end_profiling
+    end
+
+    def run(compute_policies = true, compute_deployments = true, validate_network = true, remove_loggers = true, remove_compositions = false, annotations = [])
+        excluded_models      = ValueSet.new
+        Scripts.setup_output("instanciate", Roby.app.orocos_engine) do
+            Roby.app.orocos_engine.
+                to_dot_dataflow(remove_compositions, excluded_models, annotations)
+        end
+
+        setup
+        error = Scripts.run do
+            GC.start
+            self.class.compute(passes, compute_policies, compute_deployments, validate_network)
+        end
+
+        if remove_loggers
+            excluded_models << Orocos::RobyPlugin::Logger::Logger
+        end
+
+        Scripts.generate_output(:remove_compositions => remove_compositions,
+                                :excluded_models => excluded_models,
+                                :annotations => annotations)
+
+        error
+    end
 end
 
 if test
@@ -151,87 +236,75 @@ if test
     exit(0)
 
 else
-    passes = [[remaining.shift, []]]
-    pass = 0
-    while name = remaining.shift
-        if name == "/"
-            pass += 1
-            passes[pass] = [remaining.shift, []]
-        else
-            passes[pass][1] << name
+    passes = Instanciate.parse_passes(remaining)
+end
+
+
+# If we are using the Qt GUI, do everything in there
+if Scripts.output_type == 'qt'
+    require 'orocos/roby/gui/instanciated_network_display'
+    class InstanciateGUI < Qt::Widget
+        attr_reader :reload_btn
+        attr_reader :apply_btn
+        attr_reader :instance_txt
+        attr_reader :network_display
+
+        def initialize(parent = nil)
+            super
+
+            main_layout = Qt::VBoxLayout.new(self)
+            toolbar_layout = Qt::HBoxLayout.new
+            main_layout.add_layout(toolbar_layout)
+
+            @reload_btn = Qt::PushButton.new("Reload", self)
+            @apply_btn = Qt::PushButton.new("Apply", self)
+            @instance_txt = Qt::LineEdit.new(self)
+            toolbar_layout.add_widget(@reload_btn)
+            toolbar_layout.add_widget(@apply_btn)
+            toolbar_layout.add_widget(@instance_txt)
+
+            main_layout.add_widget(
+                @network_display = Ui::InstanciatedNetworkDisplay.new(self))
+
+            Qt::Object.connect(apply_btn, SIGNAL('clicked()'), self, SLOT('compute()'))
         end
+
+        def compute
+            passes = Instanciate.parse_passes(instance_txt.text.split(" "))
+
+            Roby.plan.clear
+            Roby.orocos_engine.clear
+            begin Instanciate.compute(passes, true, true, true)
+            rescue Exception => e
+                error = e
+            end
+
+            network_display.clear
+            network_display.plan_display.push_plan('Task Dependency Hierarchy', 'hierarchy',
+                  Roby.plan, Roby.orocos_engine, Hash.new)
+            network_display.plan_display.push_plan('Dataflow', 'dataflow',
+                  Roby.plan, Roby.orocos_engine, Hash.new)
+            if error
+                STDERR.puts "if error: #{error}"
+                network_display.add_error(error)
+                STDERR.puts "if error: PASSED"
+            end
+        end
+        slots 'compute()'
+    end
+
+    app = Qt::Application.new(ARGV)
+    Instanciate.setup
+    Scripts.setup
+    display = InstanciateGUI.new
+    display.show
+    app.exec
+    STDERR.puts "DONE"
+else
+    cmd_handler = Instanciate.new(passes)
+    if cmd_handler.run(compute_policies, compute_deployments, validate_network, remove_loggers, remove_compositions, annotations)
+        exit 1
     end
 end
 
-require 'roby/standalone'
-
-excluded_models      = ValueSet.new
-Scripts.setup_output("instanciate", Roby.app.orocos_engine) do
-    Roby.app.orocos_engine.
-        to_dot_dataflow(remove_compositions, excluded_models, annotations)
-end
-
-if rprof_file_path
-    require 'ruby-prof'
-elsif pprof_file_path
-    require 'perftools'
-end
-
-# We don't need the process server, win some startup time
-Roby.app.orocos_only_load_models = true
-Roby.app.orocos_disables_local_process_server = true
-Roby.app.single
-Scripts.tic
-error = Scripts.run do
-    GC.start
-
-    passes.each do |deployment_file, additional_services|
-        if deployment_file != '-'
-            Roby.app.load_orocos_deployment(deployment_file)
-        end
-        additional_services.each do |service_name|
-            service_name = Scripts.resolve_service_name(service_name)
-            Roby.app.orocos_engine.add service_name
-        end
-        Scripts.toc_tic "fully initialized in %.3f seconds"
-
-        if rprof_file_path
-            RubyProf.resume
-        elsif pprof_file_path && !PerfTools::CpuProfiler.running?
-            PerfTools::CpuProfiler.start(pprof_file_path)
-        end
-        Roby.app.orocos_engine.
-            resolve(:compute_policies => compute_policies,
-                :compute_deployments => compute_deployments,
-                :validate_network => validate_network,
-                :on_error => :commit)
-        if display_timepoints
-            pp Roby.app.orocos_engine.format_timepoints
-        end
-        if rprof_file_path
-            RubyProf.pause
-        end
-        Scripts.toc_tic "computed deployment in %.3f seconds"
-    end
-end
-
-if remove_loggers
-    excluded_models << Orocos::RobyPlugin::Logger::Logger
-end
-
-if rprof_file_path
-    result = RubyProf.stop
-    printer = RubyProf::CallTreePrinter.new(result)
-    printer.print(File.open(profile_file_path, 'w'), 0)
-elsif pprof_file_path
-    PerfTools::CpuProfiler.stop
-end
-
-Scripts.generate_output(:remove_compositions => remove_compositions,
-                        :excluded_models => excluded_models,
-                        :annotations => annotations)
-
-if error
-    exit(1)
-end
-
+STDOUT.flush

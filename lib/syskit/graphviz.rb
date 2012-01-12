@@ -285,7 +285,8 @@ module Orocos
                 options = Kernel.validate_options options,
                     :remove_compositions => false,
                     :excluded_models => ValueSet.new,
-                    :annotations => Set.new
+                    :annotations => Set.new,
+                    :highlights => Set.new
                 excluded_models = options[:excluded_models]
                     
                 annotations = options[:annotations].to_set
@@ -405,7 +406,10 @@ module Orocos
                         if !task
                             raise "#{task} #{deployment} #{task_contexts.inspect}"
                         end
-                        result << render_task(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort)
+                        if options[:highlights].include?(task)
+                            style = "penwidth=3;"
+                        end
+                        result << render_task(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort, style)
                     end
 
                     if deployment
@@ -440,13 +444,14 @@ module Orocos
                 end
             end
 
-            def render_task(task, input_ports, output_ports)
+            def render_task(task, input_ports, output_ports, style = nil)
                 result = []
                 result << "    subgraph cluster_#{task.dot_id} {"
                 result << "        label=\"\";"
                 if task.abstract?
                     result << "      color=\"red\";"
                 end
+                result << style if style
 
                 additional_vertices[task].each do |vertex_name, vertex_label|
                     result << "      #{vertex_name}#{task.dot_id} [#{vertex_label}];"
