@@ -119,9 +119,6 @@ module Ui
             @svg_id_to_index  = Hash.new
             @ruby_id_to_index  = Hash.new
             @object_to_svgitem = Hash.new
-            @stack = Array.new
-            @title_font = Qt::Font.new
-            title_font.bold = true
 
             # Add a button bar
             @remove_compositions_btn = Qt::PushButton.new("Hide Compositions", self)
@@ -258,9 +255,6 @@ module Ui
         end
 
         signals 'updated(QVariant&)'
-        attr_reader :error_text
-        attr_reader :stack
-        attr_accessor :title_font
 
         def render_plan(mode, plan, options)
             svg_io = Tempfile.open(mode)
@@ -290,7 +284,6 @@ module Ui
 
         def clear
             renderers.clear
-            stack.clear
             scene.clear
             svg.clear
             index_to_object.clear
