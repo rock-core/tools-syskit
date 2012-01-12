@@ -129,12 +129,17 @@ module Orocos
                     io.write send(kind, display_options)
                     io.flush
 
+                    graph = `#{file_options[:graphviz_tool]} -T#{format} #{io.path}`
+                    if !$?.exited?
+                        raise ArgumentError, "dot crashed while trying to generate the graph"
+                    end
+
                     if output_io.respond_to?(:to_str)
                         File.open(output_io, 'w') do |io|
-                            io.puts(`#{file_options[:graphviz_tool]} -T#{format} #{io.path}`)
+                            io.puts(graph)
                         end
                     else
-                        output_io.puts(`#{file_options[:graphviz_tool]} -T#{format} #{io.path}`)
+                        output_io.puts(graph)
                         output_io.flush
                     end
                 end

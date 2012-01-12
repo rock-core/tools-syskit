@@ -246,9 +246,15 @@ module Ui
 
             # Update the composition display option based on the information in
             # +options+
-            render_plan(mode, plan, options)
+            begin
+                render_plan(mode, plan, options)
+                emit updated(Qt::Variant.new)
+            rescue Exception => e
+                emit updated(Qt::Variant.fromValue(e))
+            end
         end
 
+        signals 'updated(QVariant&)'
         attr_reader :error_text
         attr_reader :stack
         attr_accessor :title_font
