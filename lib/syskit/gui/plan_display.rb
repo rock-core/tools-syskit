@@ -77,6 +77,8 @@ module Ui
         attr_reader :ruby_id_to_index
         # A mapping from task objects to their SVG ID
         attr_reader :svg_id_to_index
+        # A mapping from objects to their QSvgItem
+        attr_reader :object_to_svgitem
         attr_reader :index_to_object
         # The SVG renderer objects used to render the task SVGs
         attr_reader :renderers
@@ -116,6 +118,7 @@ module Ui
             @index_to_object = Array.new
             @svg_id_to_index  = Hash.new
             @ruby_id_to_index  = Hash.new
+            @object_to_svgitem = Hash.new
             @stack = Array.new
             @title_font = Qt::Font.new
             title_font.bold = true
@@ -293,6 +296,7 @@ module Ui
             index_to_object.clear
             ruby_id_to_index.clear
             svg_id_to_index.clear
+            object_to_svgitem.clear
         end
 
         # Module used to extend the SVG items that represent a task in the plan
@@ -358,7 +362,9 @@ module Ui
                 item.pos = pos
                 if index = svg_id_to_index[svgid]
                     item.set_data(Qt::UserRole, Qt::Variant.new(index))
+                    object_to_svgitem[index_to_object[index]] = item
                 end
+            
                 item.extend SvgObjectMapper
                 item.plan_display = self
                 scene.add_item(item)
@@ -366,6 +372,16 @@ module Ui
 
             view.update
             return renderer, all_items
+        end
+
+        def ensure_visible(object)
+            # We might not have an item to display that object:
+            #
+            # * dot crashed
+            # * the class of the object are currently hidden
+            if item = object_to_svgitem[object]
+                view.ensureVisible(item)
+            end
         end
 
         signals 'selectedObject(QVariant&, QPoint&)'
