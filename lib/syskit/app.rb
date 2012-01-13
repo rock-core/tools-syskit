@@ -442,16 +442,6 @@ module Orocos
                 Orocos.disable_sigchld_handler = true
                 Orocos.load
 
-                path = File.join(app.app_dir, "models", "orogen")
-                if File.directory?(path)
-                    Orocos.load_dummy_models(path)
-                end
-
-                app.find_dirs('config', 'orogen', 'ROBOT', :all => true, :order => :specific_last).
-                    each do |dir|
-                        Orocos.conf.load_dir(dir)
-                    end
-
                 app.orocos_clear_models
                 app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext
 
@@ -481,7 +471,41 @@ module Orocos
                 end
             end
 
+            # Hook into the Application#require_config call directly, instead of
+            # using the normal plugin-app system. We need that since we need to
+            # load the config/ROBOT file ourselves using load_system_model
+            def self.require_config(app)
+                app.find_dirs('config', 'orogen', 'ROBOT', :all => true, :order => :specific_last).
+                    each do |dir|
+                        Orocos.conf.load_dir(dir)
+                    end
+            end
+
+            def self.reload_config(app)
+                if defined? ::MainPlanner
+                    app.orocos_engine.robot.devices.each do |name, _|
+                        if MainPlanner.has_method?("#{name}_device")
+                            MainPlanner.remove_planning_method("#{name}_device")
+                        end
+                    end
+                    app.orocos_engine.defines.each do |name, _|
+                        if MainPlanner.has_method?(name)
+                            MainPlanner.remove_planning_method(name)
+                        end
+                    end
+                end
+
+                app.orocos_engine.robot.clear
+                app.orocos_engine.defines.clear
+            end
+
             def self.require_models(app)
+                all_files =
+                    app.find_files_in_dirs("models", "orogen", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
+                all_files.each do |path|
+                    Orocos.load_dummy_models(path)
+                end
+
                 # Load the data services and task models
                 all_files =
                     app.find_files_in_dirs("models", "blueprints", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
@@ -506,15 +530,6 @@ module Orocos
                             engine.load(path)
                         end
                     end
-                end
-
-                # Finally, we load the configuration file ourselves using the
-                # #load_system_model call, to be able to use #load_system_model
-                # instead of a plain require
-                #
-                # This sucks big time
-                if file = app.find_file('config', "ROBOT.rb", :order => :specific_first)
-                    app.load_system_model file
                 end
             end
 
@@ -577,6 +592,11 @@ module Orocos
             def self.load_task_extension(file, app)
                 if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
                     RobyPlugin.info "loaded #{file}"
+                end
+
+                file = Roby.app.make_path_relative(file)
+                if !$LOADED_FEATURES.include?(file)
+                    $LOADED_FEATURES << file
                 end
             end
 

@@ -381,6 +381,11 @@ module Orocos
                 engine.model
             end
 
+            def clear
+                com_busses.clear
+                devices.clear
+            end
+
             # Declares a new communication bus
             def com_bus(type_spec, options = Hash.new)
                 type =

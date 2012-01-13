@@ -112,7 +112,7 @@ class Instanciate
         Roby.app.single
     end
 
-    def self.compute(passes, compute_policies, compute_deployments, validate_network)
+    def self.compute(passes, compute_policies, compute_deployments, validate_network, display_timepoints = false)
         Scripts.start_profiling
         Scripts.pause_profiling
 
@@ -141,7 +141,7 @@ class Instanciate
         Scripts.end_profiling
     end
 
-    def run(compute_policies = true, compute_deployments = true, validate_network = true, remove_loggers = true, remove_compositions = false, annotations = [])
+    def run(compute_policies = true, compute_deployments = true, validate_network = true, remove_loggers = true, remove_compositions = false, annotations = [], display_timepoints = false)
         excluded_models      = ValueSet.new
         Scripts.setup_output("instanciate", Roby.app.orocos_engine) do
             Roby.app.orocos_engine.
@@ -151,7 +151,7 @@ class Instanciate
         setup
         error = Scripts.run do
             GC.start
-            self.class.compute(passes, compute_policies, compute_deployments, validate_network)
+            self.class.compute(passes, compute_policies, compute_deployments, validate_network, display_timepoints)
         end
 
         if remove_loggers
@@ -266,6 +266,10 @@ if Scripts.output_type == 'qt'
             main_layout.add_widget(
                 @network_display = Ui::InstanciatedNetworkDisplay.new(self))
 
+            @reload_btn.connect(SIGNAL('clicked()')) do
+                Roby.app.reload_config
+                compute
+            end
             Qt::Object.connect(apply_btn, SIGNAL('clicked()'), self, SLOT('compute()'))
         end
 
@@ -302,7 +306,7 @@ if Scripts.output_type == 'qt'
     STDERR.puts "DONE"
 else
     cmd_handler = Instanciate.new(passes)
-    if cmd_handler.run(compute_policies, compute_deployments, validate_network, remove_loggers, remove_compositions, annotations)
+    if cmd_handler.run(compute_policies, compute_deployments, validate_network, remove_loggers, remove_compositions, annotations, display_timepoints)
         exit 1
     end
 end
