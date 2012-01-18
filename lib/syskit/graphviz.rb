@@ -150,6 +150,16 @@ module Orocos
                 :toned_down => %w{#D3D7CF #D3D7CF}
             }
 
+            def format_edge_info(value)
+                if value.respond_to?(:to_str)
+                    value.to_str
+                elsif value.respond_to?(:each)
+                    value.map { |v| format_edge_info(v) }.join(",")
+                else
+                    value.to_s
+                end
+            end
+
             # Generates a dot graph that represents the task hierarchy in this
             # deployment
             def relation_to_dot(options = Hash.new)
@@ -158,7 +168,8 @@ module Orocos
                     :dot_edge_mark => "->",
                     :dot_graph_type => 'digraph',
                     :highlights => [],
-                    :toned_down => []
+                    :toned_down => [],
+                    :displayed_options => []
 
                 if !options[:accessor]
                     raise ArgumentError, "no :accessor option given"
@@ -174,9 +185,13 @@ module Orocos
 
                 plan.find_local_tasks(Component).each do |task|
                     all_tasks << task
-                    task.send(options[:accessor]) do |child_task, _|
+                    task.send(options[:accessor]) do |child_task, edge_info|
+                        label = []
+                        options[:displayed_options].each do |key|
+                            label << "#{key}=#{format_edge_info(edge_info[key])}"
+                        end
                         all_tasks << child_task
-                        result << "  #{task.dot_id} #{options[:dot_edge_mark]} #{child_task.dot_id};"
+                        result << "  #{task.dot_id} #{options[:dot_edge_mark]} #{child_task.dot_id} [label=\"#{label.join(",")}\"];"
                     end
                 end
 
@@ -212,7 +227,7 @@ module Orocos
             # It takes no options. The +options+ argument is used to have a
             # common signature with #dataflow
             def hierarchy(options = Hash.new)
-                relation_to_dot(:accessor => :each_child)
+                relation_to_dot(:accessor => :each_child, :displayed_options => [:roles])
             end
 
             def self.available_annotations
