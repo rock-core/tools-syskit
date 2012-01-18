@@ -1,5 +1,8 @@
 require 'roby/standalone'
 require 'orocos/roby/scripts/common'
+require 'Qt'
+require 'orocos/roby/gui/stacked_display'
+
 Scripts = Orocos::RobyPlugin::Scripts
 
 parser = OptionParser.new do |opt|
