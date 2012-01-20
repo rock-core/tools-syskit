@@ -88,7 +88,9 @@ module Orocos
 
                 new = Hash.new
                 new_edges.each do |source_task, sink_task|
-                    new[[source_task, sink_task]] = source_task[sink_task, RequiredDataFlow]
+                    if source_task.setup? && sink_task.setup?
+                        new[[source_task, sink_task]] = source_task[sink_task, RequiredDataFlow]
+                    end
                 end
 
                 removed = Hash.new
