@@ -517,8 +517,6 @@ module Orocos
 
             # Called to configure the component
             def setup
-                super
-
                 if !orogen_task
                     raise InternalError, "#setup called but there is no orogen_task"
                 end
@@ -565,13 +563,13 @@ module Orocos
 
                 self.conf ||= ['default']
 
-                configure
+                super
+
                 if !Roby.app.orocos_engine.dry_run? && (cleaned_up || state == :PRE_OPERATIONAL)
                     orogen_task.configure(false)
                 end
                 TaskContext.needs_reconfiguration.delete(orocos_name)
                 TaskContext.configured[orocos_name] = [orogen_task.model, self.conf.dup]
-                is_setup!
             end
 
             ##

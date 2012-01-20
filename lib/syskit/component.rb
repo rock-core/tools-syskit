@@ -833,8 +833,19 @@ module Orocos
             # configured
             attr_predicate :setup?, true
 
+            # Call to configure the component. User-provided configuration calls
+            # should be defined in a #configure method
+            #
+            # Note that for error-handling reasons, the setup? flag is not set
+            # by this method. Caller must call is_setup! after a successful call
+            # to #setup
             def setup
-                @setup = true
+                configure
+            end
+
+            # User-provided part of the component configuration
+            def configure
+                super if defined? super
             end
 
             def user_required_model
