@@ -1127,8 +1127,12 @@ module Orocos
                 if selected_task
                     base_object = selected_task.model
                 elsif (base_object = requirements.models.find { |m| m <= Component })
+                    # Remove from service_list the services that are not
+                    # provided by the component model we found. This is possible
+                    # at this stage, as the model list can contain both
+                    # a component model and a list of services.
                     service_list = service_list.find_all do |srv|
-                        !requirements.models.find { |m| m.fullfills?(srv) }
+                        requirements.models.find { |m| m.fullfills?(srv) }
                     end
                 end
                 
