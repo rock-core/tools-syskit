@@ -76,7 +76,10 @@ module Orocos
                     klass.private_specialization = true
                     klass.private_model
                     klass.name = name
-                    klass.orogen_spec  = RobyPlugin.create_orogen_interface(self.name + "_" + name)
+                    # The oroGen spec name should be the same, as we need that
+                    # for logging. Note that the layer itself does not care about the
+                    # name
+                    klass.orogen_spec  = RobyPlugin.create_orogen_interface(self.name)
                     klass.state_events = state_events.dup
                     RobyPlugin.merge_orogen_interfaces(klass.orogen_spec, [orogen_spec])
                     klass
@@ -517,8 +520,6 @@ module Orocos
 
             # Called to configure the component
             def setup
-                super
-
                 if !orogen_task
                     raise InternalError, "#setup called but there is no orogen_task"
                 end
@@ -565,13 +566,13 @@ module Orocos
 
                 self.conf ||= ['default']
 
-                configure
+                super
+
                 if !Roby.app.orocos_engine.dry_run? && (cleaned_up || state == :PRE_OPERATIONAL)
                     orogen_task.configure(false)
                 end
                 TaskContext.needs_reconfiguration.delete(orocos_name)
                 TaskContext.configured[orocos_name] = [orogen_task.model, self.conf.dup]
-                is_setup!
             end
 
             ##
@@ -939,7 +940,7 @@ module Orocos
                 model = DataServiceProxy.new_submodel(name, models)
             end
 
-            orogen_spec = RobyPlugin.create_orogen_interface(name.gsub(/[^\w]/, '_'))
+            orogen_spec = RobyPlugin.create_orogen_interface
             model.instance_variable_set(:@orogen_spec, orogen_spec)
             RobyPlugin.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
             models.each do |m|

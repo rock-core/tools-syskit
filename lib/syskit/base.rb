@@ -31,8 +31,8 @@ module Orocos
         end
 
         # Creates a blank orogen interface and returns it
-        def self.create_orogen_interface(name)
-            Orocos::Spec::TaskContext.new(Roby.app.main_orogen_project)
+        def self.create_orogen_interface(name = nil)
+            Orocos::Spec::TaskContext.new(Roby.app.main_orogen_project, name)
         end
 
         # Returns an array of modules. It is used as the search path for DSL

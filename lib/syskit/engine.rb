@@ -68,12 +68,9 @@ module Orocos
                     raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}"
                 end
                 logged_ports << [sink_port_name, logged_port_type]
-            rescue Exception => e
-                pp e
-                raise
             end
 
-            def setup
+            def configure
                 super
 
                 if default_logger?
@@ -2191,6 +2188,7 @@ module Orocos
                     if t.ready_for_setup? && Roby.app.orocos_auto_configure?
                         begin
                             t.setup 
+                            t.is_setup!
                         rescue Exception => e
                             t.event(:start).emit_failed(e)
                         end

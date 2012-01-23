@@ -148,7 +148,7 @@ class Instanciate
                 to_dot_dataflow(remove_compositions, excluded_models, annotations)
         end
 
-        setup
+        self.class.setup
         error = Scripts.run do
             GC.start
             self.class.compute(passes, compute_policies, compute_deployments, validate_network, display_timepoints)
