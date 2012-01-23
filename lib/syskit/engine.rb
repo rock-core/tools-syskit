@@ -64,7 +64,6 @@ module Orocos
                 end
 
                 @create_port ||= operation('createLoggingPort')
-                puts "#{sink_port_name} #{logged_port_type} #{metadata}"
                 if !@create_port.callop(sink_port_name, logged_port_type, metadata)
                     raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}"
                 end
