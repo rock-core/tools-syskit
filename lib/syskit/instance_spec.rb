@@ -286,6 +286,10 @@ module Orocos
                     Engine.debug { "not narrowing as this selection is not a composition (models=#{base_models.map(&:name)})" }
                     @models = @base_models
                     return
+                elsif composition_model.specializations.empty?
+                    Engine.debug { "not narrowing as #{composition_model.short_name} has no specialization(s)" }
+                    @models = @base_models
+                    return
                 end
 
                 Engine.debug do

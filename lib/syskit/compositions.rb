@@ -1111,6 +1111,10 @@ module Orocos
             #
             # to get the corresponding composition model
             def find_matching_specializations(selection)
+                if specializations.empty?
+                    return []
+                end
+
                 Engine.debug do
                     Engine.debug "looking for specialization of #{short_name} on"
                     selection.each do |k, v|
