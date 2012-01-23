@@ -2030,7 +2030,9 @@ module Orocos
                             end
                         end
 
-                        if !selected_child.port_mappings.empty?
+                        if selected_child.port_mappings.empty?
+                            Engine.debug { "no port mappings for #{child_name}" }
+                        else
                             port_mappings = selected_child.port_mappings
                             Engine.debug do
                                 Engine.debug "applying port mappings for #{child_name}"
@@ -2064,8 +2066,6 @@ module Orocos
                                 end
                                 break
                             end
-                        else
-                            Engine.debug { "no port mappings for #{child_name}" }
                         end
 
                         role = [child_name].to_set
