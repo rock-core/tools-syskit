@@ -249,8 +249,8 @@ if Scripts.output_type == 'qt'
         attr_reader :instance_txt
         attr_reader :network_display
 
-        def initialize(parent = nil)
-            super
+        def initialize(parent = nil, arguments = "")
+            super(parent)
 
             main_layout = Qt::VBoxLayout.new(self)
             toolbar_layout = Qt::HBoxLayout.new
@@ -271,6 +271,9 @@ if Scripts.output_type == 'qt'
                 compute
             end
             Qt::Object.connect(apply_btn, SIGNAL('clicked()'), self, SLOT('compute()'))
+
+            @instance_txt.text = arguments
+            compute
         end
 
         def compute
@@ -300,7 +303,7 @@ if Scripts.output_type == 'qt'
     app = Qt::Application.new(ARGV)
     Instanciate.setup
     Scripts.setup
-    display = InstanciateGUI.new
+    display = InstanciateGUI.new(nil, remaining.join(" "))
     display.show
     app.exec
     STDERR.puts "DONE"
