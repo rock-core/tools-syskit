@@ -45,6 +45,12 @@ module Orocos
                 task
             end
 
+            def as(service)
+                result = self.dup
+                result.instance_variable_set(:@model, model.as(service)) 
+                result
+            end
+
             def connect_ports(sink, mappings)
                 mapped = Hash.new
                 mappings.each do |(source, sink), policy|

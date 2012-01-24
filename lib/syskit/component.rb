@@ -50,6 +50,22 @@ module Orocos
                 "#{component_model.short_name}:#{full_name}"
             end
 
+            # Returns a view of this service as a provider of +service_model+
+            #
+            # It allows to transparently apply port mappings as if +self+ was a
+            # service of type +service_model+
+            def as(service_model)
+                result = dup
+                result.instance_variable_set(:@model, service_model)
+
+                mappings = port_mappings.dup
+                mappings.delete_if do |srv, _|
+                    !service_model.fullfills?(srv)
+                end
+                result.instance_variable_set(:@port_mappings, mappings)
+                result
+            end
+
             def fullfills?(models)
                 if !models.respond_to?(:each)
                     models = [models]
@@ -385,6 +401,16 @@ module Orocos
             #
             def use_conf(*spec, &block)
                 Engine.create_instanciated_component(nil, nil, self).use_conf(*spec, &block)
+            end
+
+            # Returns a view of this component as a producer of the given model
+            #
+            # This will fail if multiple services offer +service_model+. In this
+            # case, one would have to first explicitely select the service and
+            # only then call #as on the returned ProvidedDataService object
+            def as(service_model)
+                srv = find_service_from_type(service_model)
+                return srv.as(service_model)
             end
         end
 
@@ -1159,6 +1185,19 @@ module Orocos
                     end
                 end
                 super
+            end
+
+            # Returns a view of this component as a provider of the given
+            # service model. It can for instance be used to connect ports while
+            # transparently applying port mappings
+            #
+            # It works only if there is only one service providing the requested
+            # type on +self+. Otherwise, one will have to select the service
+            # first and only then call #as on the DataServiceInstance object
+            #
+            # The same can be done at the model level with ComponentModel#as
+            def as(service_model)
+                return DataServiceInstance.new(self, self.class.as(service_model))
             end
         end
     end
