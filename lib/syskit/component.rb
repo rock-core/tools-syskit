@@ -75,10 +75,24 @@ module Orocos
                     (services.empty? || self.model.fullfills?(services))
             end
 
+            # Returns the port mappings that should be applied from the service
+            # model +model+ to the providing task
+            #
+            # The returned value is a hash of the form
+            #
+            #   service_port_name => task_port_name
+            #
             def port_mappings_for_task
                 port_mappings_for(model)
             end
 
+            # Returns the port mappings that should be applied from the service
+            # model +service_model+ to the providing task
+            #
+            # The returned value is a hash of the form
+            #
+            #   service_port_name => task_port_name
+            #
             def port_mappings_for(service_model)
                 if !(result = port_mappings[service_model])
                     raise ArgumentError, "#{service_model} is not provided by #{model.short_name}"
@@ -86,9 +100,14 @@ module Orocos
                 result
             end
 
+            # Returns the port model on +component_model+ that corresponds to
+            # the port name +name+ on this service
             def find_input_port(name)
                 component_model.find_input_port(port_mappings_for_task[name])
             end
+
+            # Returns the port model on +component_model+ that corresponds to
+            # the port name +name+ on this service
             def find_output_port(name)
                 component_model.find_output_port(port_mappings_for_task[name])
             end
