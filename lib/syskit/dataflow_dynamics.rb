@@ -112,6 +112,7 @@ module Orocos
                     break
                 end
                 triggers.concat(other_dynamics.triggers)
+                true
             end
 
             def minimal_period

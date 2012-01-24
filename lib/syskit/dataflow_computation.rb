@@ -144,9 +144,9 @@ module Orocos
                 # We also precompute relevant connections, as they won't change
                 # during the computation
                 @result = Hash.new { |h, k| h[k] = Hash.new }
-                # Internal variable that counts the number of ports registered
-                # in @result
-                @result_size = 0
+                # Internal variable that is used to detect whether an iteration
+                # added information
+                @changed = false
                 @done_ports = Hash.new { |h, k| h[k] = Set.new }
                 @triggering_connections  = Hash.new { |h, k| h[k] = Hash.new }
                 @triggering_dependencies = Hash.new { |h, k| h[k] = ValueSet.new }
@@ -202,7 +202,7 @@ module Orocos
                     remaining_tasks = remaining_tasks.
                         sort_by { |t| triggering_dependencies[t].size }
 
-                    current_size = @result_size
+                    @changed = false
                     remaining_tasks.delete_if do |task|
                         triggering_connections[task].delete_if do |port_name, triggers|
                             next if has_final_information_for_port?(task, port_name)
@@ -210,11 +210,11 @@ module Orocos
                             to_propagate, complete = triggers.ports_to_propagate(self)
                             debug do
                                 if to_propagate.empty?
-                                    debug "nothing to propagate to #{task}.#{port_name}"
-                                    debug "    complete: #{complete}"
+                                    debug { "nothing to propagate to #{task}.#{port_name}" }
+                                    debug { "    complete: #{complete}" }
                                 else
-                                    debug "propagating information to #{task}.#{port_name}"
-                                    debug "    complete: #{complete}"
+                                    debug { "propagating information to #{task}.#{port_name}" }
+                                    debug { "    complete: #{complete}" }
                                     to_propagate.each do |info|
                                         debug "    #{info.compact.join(".")}"
                                     end
@@ -240,7 +240,7 @@ module Orocos
                         propagate_task(task)
                     end
 
-                    if current_size == @result_size
+                    if !@changed
                         break
                     end
                 end
@@ -303,11 +303,11 @@ module Orocos
                 end
 
                 if !has_information_for_port?(task, port_name)
-                    @result_size += 1
+                    @changed = true
                     @result[task][port_name] = info
                 else
                     begin
-                        @result[task][port_name].merge(info)
+                        @changed = @result[task][port_name].merge(info)
                     rescue Exception => e
                         raise e, "while adding information to port #{port_name} on #{task}, #{e.message}", e.backtrace
                     end
@@ -342,17 +342,21 @@ module Orocos
                     break
                 end
 
-                if has_information_for_port?(task, port_name)
-                    if port_info(task, port_name).empty?
-                        remove_port_info(task, port_name)
-                    end
-                end
+                if !done_ports[task].include?(port_name)
+                    @changed = true
 
-                done_ports[task] << port_name
-                if missing_ports.has_key?(task)
-                    missing_ports[task].delete(port_name)
-                    if missing_ports[task].empty?
-                        missing_ports.delete(task)
+                    if has_information_for_port?(task, port_name)
+                        if port_info(task, port_name).empty?
+                            remove_port_info(task, port_name)
+                        end
+                    end
+
+                    done_ports[task] << port_name
+                    if missing_ports.has_key?(task)
+                        missing_ports[task].delete(port_name)
+                        if missing_ports[task].empty?
+                            missing_ports.delete(task)
+                        end
                     end
                 end
             end
