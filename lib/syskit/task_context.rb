@@ -493,6 +493,9 @@ module Orocos
                 @setup = true
                 if all_inputs_connected?
                     self.executable = nil
+                    Engine.debug { "#{self} is setup and all its inputs are connected, set executable to nil and executable? = #{executable?}" }
+                else
+                    Engine.debug { "#{self} is setup but some of its inputs are not connected, keep executable = #{executable?}" }
                 end
             end
 

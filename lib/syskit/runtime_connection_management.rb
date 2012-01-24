@@ -327,6 +327,7 @@ module Orocos
                 pending_tasks.each do |t|
                     if t.all_inputs_connected?
                         t.executable = nil
+                        Engine.debug { "#{t} has all its inputs connected, set executable to nil and executable? = #{t.executable?}" }
                     end
                 end
 
@@ -335,6 +336,19 @@ module Orocos
 
             def update
                 tasks = Flows::DataFlow.modified_tasks
+
+                # The modifications to +tasks+ might have removed all input
+                # connection. Make sure that in this case, executable? has been
+                # reset to nil
+                #
+                # The normal workflow does not work in this case, as it is only
+                # looking for tasks whose input connections have been modified
+                tasks.each do |t|
+                    if t.setup? && !t.executable? && t.plan == plan && t.all_inputs_connected?
+                        t.executable = nil
+                    end
+                end
+
                 if !tasks.empty?
                     # If there are some tasks that have been GCed/killed, we still
                     # need to update the connection graph to remove the old
