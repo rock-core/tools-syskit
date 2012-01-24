@@ -738,7 +738,7 @@ module Orocos
                 @main_selection = main_selection
 
                 instances.each do |instance|
-                    instance.task = add_instance(instance, :as => instance.name, :context => main_selection)
+                    instance.task = add_instance(instance, :as => instance.name, :context => main_selection).to_component
                 end
             end
 
@@ -770,7 +770,14 @@ module Orocos
                 # However, the permanent flag will be removed at the end
                 # of #resolve
                 plan.add_permanent(task)
-                task
+
+                if instance.respond_to?(:selected_services) && (instance.selected_services.size == 1)
+                    # The caller is trying to access a particular service. Give
+                    # it to him
+                    return DataServiceInstance.new(task, instance.selected_services.values.first)
+                else
+                    return task
+                end
             end
 
             # Generate a svg file representing the current state of the

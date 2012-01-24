@@ -1183,6 +1183,8 @@ module Orocos
                 @state_copies << StateCopySetup.new(port_name, state_path, nil, filter_block)
             end
 
+            def to_component; self end
+
             def method_missing(m, *args, &block)
                 if args.empty? && !block
                     if m.to_s =~ /^(\w+)_port/

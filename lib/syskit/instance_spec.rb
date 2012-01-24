@@ -1110,6 +1110,13 @@ module Orocos
                 @port_mappings = Hash.new
             end
 
+            def to_component
+                if selected_task
+                    return selected_task
+                end
+                raise ArgumentError, "#{self} has no selected component, cannot convert it"
+            end
+
             # If this selection does not yet have an associated task,
             # instanciate one
             def instanciate(engine, context, options = Hash.new)
