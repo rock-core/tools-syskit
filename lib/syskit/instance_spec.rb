@@ -53,10 +53,10 @@ module Orocos
 
             def connect_ports(sink, mappings)
                 mapped = Hash.new
-                mappings.each do |(source, sink), policy|
-                    mapped[[model.find_output_port(source).name, sink]] = policy
+                mappings.each do |(source_port, sink_port), policy|
+                    mapped[[model.find_output_port(source_port).name, sink_port]] = policy
                 end
-                task.connect_ports(sink, mappings)
+                task.connect_ports(sink, mapped)
             end
         end
 
@@ -1255,7 +1255,7 @@ module Orocos
             end
 
             def to_s
-                "#<#{self.class}: #{requirements} selected_task=#{selected_task}>"
+                "#<#{self.class}: #{requirements} selected_task=#{selected_task} selected_services=#{selected_services}>"
             end
 
             def pretty_print(pp)
