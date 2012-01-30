@@ -38,6 +38,7 @@ module Orocos
             end
 
             def mark_changed_configuration_as_not_reusable(changed)
+                changed = changed.map_key { |k| k.name }
                 Roby.execute do
                     TaskContext.configured.each do |task_name, (orogen_model, current_conf)|
                         changed_conf = changed[orogen_model.name]
