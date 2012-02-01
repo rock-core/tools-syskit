@@ -67,11 +67,12 @@ module Orocos
 
                 Roby.app.orocos_clear_models
 
-                deployments = plan.find_tasks(Deployment).running.to_a
-
-                deployments.each do |task|
-                    if task.orogen_deployment.alive?
-                        task.orogen_deployment.kill
+                if plan
+                    deployments = plan.find_tasks(Deployment).running.to_a
+                    deployments.each do |task|
+                        if task.orogen_deployment.alive?
+                            task.orogen_deployment.kill
+                        end
                     end
                 end
 
