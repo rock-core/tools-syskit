@@ -55,6 +55,10 @@ module Orocos
                 result
             end
 
+            def to_s
+                "#<DataServiceInstance: #{task.name}.#{model.name}>"
+            end
+
             def connect_ports(sink, mappings)
                 mapped = Hash.new
                 mappings.each do |(source_port, sink_port), policy|
