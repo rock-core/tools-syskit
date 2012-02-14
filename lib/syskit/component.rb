@@ -100,16 +100,12 @@ module Orocos
                 result
             end
 
-            # Returns the port model on +component_model+ that corresponds to
-            # the port name +name+ on this service
             def find_input_port(name)
-                component_model.find_input_port(port_mappings_for_task[name])
+                model.find_input_port(name)
             end
 
-            # Returns the port model on +component_model+ that corresponds to
-            # the port name +name+ on this service
             def find_output_port(name)
-                component_model.find_output_port(port_mappings_for_task[name])
+                model.find_output_port(name)
             end
 
             def find_all_services_from_type(m)
@@ -125,34 +121,19 @@ module Orocos
             end
 
             def has_output_port?(name)
-                each_output_port.find { |p| p.name == name }
+                !!find_output_port(name)
             end
 
             def has_input_port?(name)
-                each_input_port.find { |p| p.name == name }
+                !!find_input_port(name)
             end
 
-            # Yields the port models for this service's input, applied on the
-            # underlying task. I.e. applies the port mappings to the service
-            # definition
             def each_input_port(with_slaves = false, &block)
                 if !block_given?
                     return enum_for(:each_input_port, with_slaves)
                 end
 
-                port_mappings = port_mappings_for(model)
-                model.each_input_port do |input_port|
-                    port_name = input_port.name
-                    if mapped_port = port_mappings[port_name]
-                        port_name = mapped_port
-                    end
-                    p = component_model.find_input_port(port_name)
-                    if !p
-                        raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
-                    end
-                    yield(p)
-                end
-
+                model.each_input_port(&block)
                 if with_slaves
                     each_slave do |name, srv|
                         srv.each_input_port(true, &block)
@@ -160,31 +141,38 @@ module Orocos
                 end
             end
 
-            # Yields the port models for this service's output, applied on the
-            # underlying task. I.e. applies the port mappings to the service
-            # definition
             def each_output_port(with_slaves = false, &block)
                 if !block_given?
                     return enum_for(:each_output_port, with_slaves)
                 end
 
-                port_mappings = port_mappings_for(model)
-                model.each_output_port do |output_port|
-                    port_name = output_port.name
-                    if mapped_port = port_mappings[port_name]
-                        port_name = mapped_port
-                    end
-                    p = component_model.find_output_port(port_name)
-                    if !p
-                        raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
-                    end
-                    yield(p)
-                end
-
+                model.each_output_port(&block)
                 if with_slaves
                     each_slave do |name, srv|
                         srv.each_output_port(true, &block)
                     end
+                end
+            end
+
+            def each_task_input_port(with_slaves = false, &block)
+                if !block_given?
+                    return enum_for(:each_task_input_port, with_slaves)
+                end
+
+                mappings = port_mappings_for_task
+                each_input_port do |port|
+                    yield(component_model.find_input_port(mappings[port.name]))
+                end
+            end
+
+            def each_task_output_port(with_slaves = false, &block)
+                if !block_given?
+                    return enum_for(:each_task_output_port, with_slaves)
+                end
+
+                mappings = port_mappings_for_task
+                each_output_port do |port|
+                    yield(component_model.find_output_port(mappings[port.name]))
                 end
             end
 

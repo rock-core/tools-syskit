@@ -271,7 +271,7 @@ module Orocos
 
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
                     add_task_info(task, device_dynamics)
-                    service.each_output_port(true) do |out_port|
+                    service.each_task_output_port(true) do |out_port|
                         out_port.triggered_on_update = false
                         add_port_info(task, out_port.name, device_dynamics)
                         done_port_info(task, out_port.name)
@@ -285,7 +285,7 @@ module Orocos
                 DataFlowDynamics.debug { "  is triggered with a period of #{period} seconds" }
 
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
-                    service.each_output_port(true) do |out_port|
+                    service.each_task_output_port(true) do |out_port|
                         out_port.triggered_on_update = false
                         add_port_trigger(task, out_port.name,
                             device.name, period, device_dynamics.queue_size(period))
