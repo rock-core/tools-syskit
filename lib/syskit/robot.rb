@@ -568,6 +568,16 @@ module Orocos
                 devices.find_all { |name, instance| instance.kind_of?(SlaveDeviceInstance) }.
                     each(&block)
             end
+
+            def method_missing(m, *args, &block)
+                if args.empty? && !block_given?
+                    if dev = devices[m.to_s]
+                        return dev
+                    end
+                end
+
+                super
+            end
         end
     end
 end
