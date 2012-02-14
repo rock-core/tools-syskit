@@ -257,7 +257,7 @@ module Orocos
             #
             # Raises ArgumentError if one of the ports do not exist.
             def connect_ports(target_task, mappings)
-                if target_task.respond_to?(:as_plan)
+                if target_task.as_plan != target_task
                     mapped_connections = Hash.new
                     mappings.map do |(source, sink), policy|
                         sink = target_task.model.find_input_port(sink).name
@@ -276,7 +276,7 @@ module Orocos
             end
 
             def disconnect_ports(target_task, mappings)
-                if target_task.respond_to?(:as_plan)
+                if target_task.as_plan != target_task
                     mappings = mappings.map do |source, sink|
                         sink = target_task.find_input_port(sink)
                         [source, sink.name]
