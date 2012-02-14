@@ -774,7 +774,7 @@ module Orocos
                 if instance.respond_to?(:selected_services) && (instance.selected_services.size == 1)
                     # The caller is trying to access a particular service. Give
                     # it to him
-                    return DataServiceInstance.new(task, instance.selected_services.values.first)
+                    return instance.selected_services.values.first.bind(task)
                 else
                     return task
                 end

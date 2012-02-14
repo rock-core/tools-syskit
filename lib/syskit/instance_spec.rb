@@ -417,7 +417,7 @@ module Orocos
                 case value
                 when DeviceInstance
                     if value.task
-                        DataServiceInstance.new(value.task, value.service)
+                        value.service.bind(value.task)
                     else
                         value.service
                     end

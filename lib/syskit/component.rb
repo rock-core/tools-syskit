@@ -279,6 +279,15 @@ module Orocos
                 context.instance_eval(&block)
                 self
             end
+
+            # Returns the DataServiceInstance object that binds this provided
+            # service to an actual task
+            def bind(task)
+                if !task.fullfills?(component_model)
+                    raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
+                end
+                DataServiceInstance.new(task, self)
+            end
         end
 
         # Definition of model-level methods for the Component models. See the
@@ -1219,6 +1228,12 @@ module Orocos
 
             def to_component; self end
 
+            def find_data_service(service_name)
+                if service_model = model.find_data_service(service_name)
+                    return service_model.bind(self)
+                end
+            end
+
             def method_missing(m, *args, &block)
                 if args.empty? && !block
                     if m.to_s =~ /^(\w+)_port/
@@ -1231,9 +1246,8 @@ module Orocos
                             raise NoMethodError, "#{self} has no port called #{port_name}"
                         end
                     elsif m.to_s =~ /^(\w+)_srv/
-                        service_name = $1
-                        if service_model = model.find_data_service(service_name)
-                            return DataServiceInstance.new(service_model, self)
+                        if service_model = find_data_service(service_name)
+                            return service_model
                         else
                             raise NoMethodError, "#{self} has no service called #{service_name}"
                         end
@@ -1252,7 +1266,7 @@ module Orocos
             #
             # The same can be done at the model level with ComponentModel#as
             def as(service_model)
-                return DataServiceInstance.new(self, self.class.as(service_model))
+                return model.as(service_model).bind(self)
             end
         end
     end
