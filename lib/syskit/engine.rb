@@ -407,9 +407,9 @@ module Orocos
                         end.flatten.uniq.sort
                         raise ArgumentError, "no service #{service_name} can be found for #{name}, known services are #{all_services.join(", ")} on #{instance}"
                     end
-                    result = InstanceSelection.new(instance)
-                    result.selected_services[candidates.first.model] = candidates.first
-                    return result
+
+                    instance.select_service(candidates.first)
+                    return instance
                 end
             end
 

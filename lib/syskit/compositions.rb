@@ -1712,7 +1712,7 @@ module Orocos
 
             rescue AmbiguousServiceSelection => e
                 raise AmbiguousServiceMapping.new(
-                    self, child_name, e.task_model, e.require_service, e.candidates), e.message, e.backtrace
+                    self, child_name, e.task_model, e.required_service, e.candidates), e.message, e.backtrace
             rescue NoMatchingService => e
                 raise NoMatchingServiceForCompositionChild.new(
                     self, child_name, e.task_model, e.required_service), e.message, e.backtrace

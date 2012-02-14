@@ -91,6 +91,9 @@ module Orocos
             # The model selection that can be used to instanciate this task, as
             # a DependencyInjection object
             attr_reader :selections
+            # If set, this requirements points to a specific service, not a
+            # specific task. Use #select_service to select.
+            attr_reader :service
 
             # The model selection that can be used to instanciate this task,
             # as resolved using names and application of default selections
@@ -110,6 +113,7 @@ module Orocos
                 @base_models = old.base_models.dup
                 @arguments = old.arguments.dup
                 @selections = old.selections.dup
+                @service = service
             end
 
             # Add new models to the set of required ones
@@ -119,6 +123,25 @@ module Orocos
                 base_models.delete_if { |bm| new_models.any? { |m| m.fullfills?(bm) } }
                 @base_models |= new_models.to_value_set
                 narrow_model
+            end
+
+            # Explicitely selects a given service on the task models required by
+            # this task
+            def select_service(service)
+                if service.respond_to?(:to_str)
+                    # This is a service name
+                    task_model = @models.find { |m| m.kind_of?(Component) }
+                    if !task_model
+                        raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
+                    end
+                    service_model = task_model.find_data_service(service)
+                    if !service_model
+                        raise ArgumentError, "there is no service called #{service} on #{task_model.short_name}"
+                    end
+                    @service = service_model
+                else
+                    @service = service
+                end
             end
 
             # Return true if this child provides all of the required models
@@ -179,6 +202,10 @@ module Orocos
                     v1
                 end
                 @selections.merge(other_spec.selections)
+                if service && other_spec.service && service != other_spec.service
+                    raise ArgumentError, "cannot merge #{self} and #{other_spec}: incompatible services selected"
+                end
+                @service
 
                 # Call modules that could have been included in the class to
                 # extend it
@@ -406,7 +433,11 @@ module Orocos
                     task.required_host = required_host
                 end
 
-                @task
+                if service
+                    service.bind(task)
+                else
+                    @task
+                end
 
             rescue InstanciationError => e
                 e.instanciation_chain << self
@@ -458,8 +489,12 @@ module Orocos
             end
 
             def each_fullfilled_model(&block)
-                models.each do |m|
-                    m.each_fullfilled_model(&block)
+                if service
+                    service.each_fullfilled_model(&block)
+                else
+                    models.each do |m|
+                        m.each_fullfilled_model(&block)
+                    end
                 end
             end
 
@@ -478,6 +513,9 @@ module Orocos
                 end
                 if !arguments.empty?
                     result << " args(#{arguments})"
+                end
+                if service
+                    result << " srv=#{service}"
                 end
                 result << ">"
             end
@@ -521,6 +559,28 @@ module Orocos
                 end
 
                 super if defined? super
+            end
+
+            def method_missing(m, *args, &block)
+                if m.to_s =~ /^(\w+)_srv$/ && args.empty? && !block_given?
+                    service_name = $1
+                    task_model = models.find { |m| m <= TaskContext }
+                    if !task_model
+                        raise ArgumentError, "this requirement object does not refer to a task context explicitely, cannot select a service"
+                    end
+                    if service
+                        service_name = "#{service.name}.#{service_name}"
+                    end
+                    srv = task_model.find_data_service(service_name)
+                    if !srv
+                        raise ArgumentError, "the task model #{task_model.short_name} does not have any service called #{service_name}"
+                    end
+
+                    result = self.dup
+                    result.select_service(srv)
+                    return result
+                end
+                super
             end
         end
 
@@ -888,13 +948,20 @@ module Orocos
                     selection.each_fullfilled_model do |m|
                         if using_spec[m]
                             Engine.debug do
-                                Engine.debug "  rejected #{selection} for #{m}: already explicitely selected"
+                                Engine.debug "  rejected #{selection}"
+                                Engine.debug "    for #{m}"
+                                Engine.debug "    reason: already explicitely selected"
                                 break
                             end
                         elsif ambiguous_default_selections.has_key?(m)
                             ambiguity = ambiguous_default_selections[m]
                             Engine.debug do
-                                Engine.debug "  rejected #{selection} for #{m}: ambiguity with #{ambiguity.map(&:to_s).join(", ")}"
+                                Engine.debug "  rejected #{selection}"
+                                Engine.debug "    for #{m}"
+                                Engine.debug "    reason: ambiguity with"
+                                ambiguity.each do |model|
+                                    Engine.debug "      #{model}"
+                                end
                                 break
                             end
                             ambiguity << selection
@@ -902,10 +969,18 @@ module Orocos
                             removed = resolved_default_selections.delete(m)
                             ambiguous_default_selections[m] = [selection, removed].to_set
                             Engine.debug do
-                                Engine.debug "  rejected #{removed} for #{m}: ambiguity with #{selection}"
+                                Engine.debug "  removing #{removed}"
+                                Engine.debug "    for #{m}"
+                                Engine.debug "    reason: ambiguity with"
+                                Engine.debug "      #{selection}"
                                 break
                             end
                         elsif selection != m
+                            Engine.debug do
+                                Engine.debug "  adding #{selection}"
+                                Engine.debug "    for #{m}"
+                                break
+                            end
                             resolved_default_selections[m] = selection
                         end
                     end
@@ -1216,14 +1291,11 @@ module Orocos
                         task_model.find_all_services_from_type(required)
 
                     if candidate_services.size > 1
-                        if filtered.size != 1
-                            throw :invalid_selection if !user_call
-                            raise AmbiguousServiceSelection.new([task_model], required, candidate_services)
-                        end
-                        candidate_services = filtered
+                        throw :invalid_selection if !user_call
+                        raise AmbiguousServiceSelection.new(task_model, required, candidate_services)
                     elsif candidate_services.empty?
                         throw :invalid_selection if !user_call
-                        raise NoMatchingService.new([task_model], required)
+                        raise NoMatchingService.new(task_model, required)
                     end
                     result[required] = candidate_services.first
                 end
@@ -1238,6 +1310,11 @@ module Orocos
                 case object
                 when InstanceRequirements
                     result.requirements.merge(object)
+                    if object.service
+                        required_model.each do |required|
+                            result.selected_services[required] = object.service
+                        end
+                    end
                 when InstanceSelection
                     result.selected_task = object.selected_task
                     result.selected_services = object.selected_services
