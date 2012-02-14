@@ -62,7 +62,11 @@ module Orocos
             def connect_ports(sink, mappings)
                 mapped = Hash.new
                 mappings.each do |(source_port, sink_port), policy|
-                    mapped[[model.find_output_port(source_port).name, sink_port]] = policy
+                    mapped_source_name = model.port_mappings_for_task[source_port]
+                    if !mapped_source_name
+                        raise ArgumentError, "cannot find port #{source_port} on #{self}"
+                    end
+                    mapped[[mapped_source_name, sink_port]] = policy
                 end
                 task.connect_ports(sink, mapped)
             end
