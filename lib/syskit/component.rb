@@ -245,6 +245,40 @@ module Orocos
                     end
                 end
             end
+
+            # Helper class used by #add_slaves to provide the evaluation context
+            class SlaveDefinitionContext
+                def initialize(component_model, master_name)
+                    @component_model = component_model
+                    @master_name = master_name
+                end
+
+                def provides(*args, &block)
+                    options =
+                        if args.last.kind_of?(Hash)
+                            args.pop
+                        else Hash.new
+                        end
+                    options[:slave_of] = @master_name
+                    args << options
+                    @component_model.provides(*args, &block)
+                end
+            end
+
+            # Provides an instanciation context that can be used to add multiple
+            # slaves easily, e.g.:
+            #
+            # driver_for('NewDevice').add_slaves do
+            #   provides Srv::Camera, :as => 'lcamera'
+            #   provides Srv::Laser, :as => 'scans'
+            #   ...
+            # end
+            #
+            def add_slaves(&block)
+                context = SlaveDefinitionContext.new(component_model, name)
+                context.instance_eval(&block)
+                self
+            end
         end
 
         # Definition of model-level methods for the Component models. See the
