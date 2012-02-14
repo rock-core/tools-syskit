@@ -395,6 +395,10 @@ module Orocos
                 end
 
                 @task
+
+            rescue InstanciationError => e
+                e.instanciation_chain << self
+                raise
             end
 
             # Resolves a selection given through the #use method
@@ -711,22 +715,30 @@ module Orocos
 
             def resolve_name(name, mappings)
                 if name =~ /(.*)\.(\w+)$/
-                    basename, service_name = $1, $2
-                    base = DependencyInjection.resolve_selection_recursively(basename, mappings)
-                    base = InstanceSelection.from_object(base, InstanceRequirements.new, false)
-                    if !(task_model = base.requirements.models.find { |m| m <= Roby::Task })
+                    object_name, service_name = $1, $2
+                else
+                    object_name = name
+                end
+
+                main_object = DependencyInjection.resolve_selection_recursively(object_name, mappings)
+                if main_object.respond_to?(:to_str)
+                    raise NameResolutionError.new(object_name), "#{object_name} is not a known device or definition"
+                end
+
+                if service_name
+                    main_object = InstanceSelection.from_object(main_object, InstanceRequirements.new, false)
+                    if !(task_model = main_object.requirements.models.find { |m| m <= Roby::Task })
                         raise ArgumentError, "while resolving #{name}: cannot explicitely select a service on something that is not a task"
                     end
 
                     if service = InstanceSelection.select_service_by_name(task_model, service_name)
                         service
                     else
-                        raise ArgumentError, "cannot find service #{service_name} on #{basename}"
+                        raise ArgumentError, "cannot find service #{service_name} on #{object_name}"
                     end
-
-                else
-                    DependencyInjection.resolve_selection_recursively(name, mappings)
                 end
+
+                main_object
             end
 
             # Recursively resolve the selections that are specified as strings
@@ -1131,6 +1143,9 @@ module Orocos
 
                 selected_task.requirements.merge(self.requirements)
                 selected_task
+            rescue InstanciationError => e
+                e.instanciation_chain << requirements
+                raise
             end
 
             # Do an explicit service selection to match requirements in

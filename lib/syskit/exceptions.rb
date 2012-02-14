@@ -425,9 +425,31 @@ module Orocos
             end
         end
 
+        class InstanciationError < SpecError
+            # The instanciation chain, i.e. an array of composition models that
+            # were being instanciated
+            attr_reader :instanciation_chain
+
+            def initialize
+                @instanciation_chain = []
+            end
+
+            def pretty_print(pp)
+                if !instanciation_chain.empty?
+                    pp.text "while instanciating"
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.seplist(instanciation_chain.reverse) do |m|
+                            pp.text m.models.map(&:short_name).sort.join(", ")
+                        end
+                    end
+                end
+            end
+        end
+
         # Exception raised when the user provided a composition child selection
         # that is not compatible with the child definition
-        class InvalidSelection < SpecError
+        class InvalidSelection < InstanciationError
             # The composition model
             attr_reader :composition_model
             # The child name for which the selection is invalid
@@ -438,6 +460,7 @@ module Orocos
             attr_reader :required_models
 
             def initialize(composition_model, child_name, selected_model, required_models)
+                super()
                 @composition_model, @child_name, @selected_model, @required_models =
                     composition_model, child_name, selected_model, required_models
             end
@@ -451,6 +474,28 @@ module Orocos
                     pp.seplist(required_models) do |m|
                         pp.text m.short_name
                     end
+                end
+            end
+        end
+
+        # Exception raised during instanciation if a name is found that cannot
+        # be resolved
+        class NameResolutionError < InstanciationError
+            # Selection information about what +missing_name+ was being used for
+            attr_accessor :selection
+            # The missing name
+            attr_reader :missing_name
+
+            def initialize(missing_name)
+                super()
+                @missing_name = missing_name
+            end
+
+            def pretty_print(pp)
+                pp.text "#{missing_name} is neither a device nor an instance definition"
+                if !instanciation_chain.empty?
+                    pp.breakable
+                    super
                 end
             end
         end
