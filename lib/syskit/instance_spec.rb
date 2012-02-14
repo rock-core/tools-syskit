@@ -34,11 +34,15 @@ module Orocos
             end
 
             def find_input_port(port_name)
-                task.find_input_port(model.port_mappings_for_task[port_name.to_s])
+                if mapped_name = model.port_mappings_for_task[port_name.to_s]
+                    task.find_input_port(mapped_name)
+                end
             end
 
             def find_output_port(port_name)
-                task.find_output_port(model.port_mappings_for_task[port_name.to_s])
+                if mapped_name = model.port_mappings_for_task[port_name.to_s]
+                    task.find_output_port(mapped_name)
+                end
             end
 
             def as_plan
