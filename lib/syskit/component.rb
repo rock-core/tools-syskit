@@ -531,7 +531,7 @@ module Orocos
             #
             # It may return an instanciated dynamic port
             def find_output_port_model(name)
-                if port_model = model.orogen_spec.each_output_port.find { |p| p.name == name }
+                if port_model = model.orogen_spec.find_output_port(name)
                     port_model
                 else instanciated_dynamic_outputs[name]
                 end
@@ -542,7 +542,7 @@ module Orocos
             #
             # It may return an instanciated dynamic port
             def find_input_port_model(name)
-                if port_model = model.orogen_spec.each_input_port.find { |p| p.name == name }
+                if port_model = model.orogen_spec.find_input_port(name)
                     port_model
                 else instanciated_dynamic_inputs[name]
                 end
