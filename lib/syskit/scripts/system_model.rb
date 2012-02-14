@@ -227,9 +227,10 @@ class ModelDisplayView < Ui::StackedDisplay
         task.model.each_data_service.sort_by(&:first).each do |service_name, service|
             model_hierarchy = service.model.ancestors.
                 find_all do |m|
-                m.kind_of?(Orocos::RobyPlugin::DataServiceModel) &&
-                    m != Orocos::RobyPlugin::DataService &&
-                    m != task.model
+                    m.kind_of?(Orocos::RobyPlugin::DataServiceModel) &&
+                        m != Orocos::RobyPlugin::DataService &&
+                        m != Orocos::RobyPlugin::Device &&
+                        m != task.model
                 end
 
             services << service_name
