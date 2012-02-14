@@ -292,9 +292,7 @@ if Scripts.output_type == 'qt'
             network_display.plan_display.push_plan('Dataflow', 'dataflow',
                   Roby.plan, Roby.orocos_engine, Hash.new)
             if error
-                STDERR.puts "if error: #{error}"
                 network_display.add_error(error)
-                STDERR.puts "if error: PASSED"
             end
         end
         slots 'compute()'

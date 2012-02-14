@@ -72,9 +72,7 @@ module Ui
             backtrace_item = Qt::TreeWidgetItem.new(item, [])
             error_list.setItemWidget(backtrace_item, 0, Qt::Label.new(backtrace_text.join("\n")))
 
-            STDERR.puts "add_error: #{exception}"
             item.set_data(0, Qt::UserRole, Qt::Variant.fromValue(exception))
-            STDERR.puts "add_error: PASSED"
             item
         end
     end
