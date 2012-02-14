@@ -365,7 +365,6 @@ module Orocos
                     instance = Engine.create_instanciated_component(self, instance_name, device)
                 elsif instance = defines[model_name]
                     instance = instance.dup
-                    instance.name = instance_name
                 elsif self.model.has_composition?(model_name)
                     component_model = model.composition_model(model_name)
                     instance = Engine.create_instanciated_component(self, instance_name, component_model)
