@@ -224,7 +224,7 @@ class ModelDisplayView < Ui::StackedDisplay
         end
 
         services = []
-        task.model.each_data_service do |service_name, service|
+        task.model.each_data_service.sort_by(&:first).each do |service_name, service|
             model_hierarchy = service.model.ancestors.
                 find_all do |m|
                 m.kind_of?(Orocos::RobyPlugin::DataServiceModel) &&
@@ -232,6 +232,7 @@ class ModelDisplayView < Ui::StackedDisplay
                     m != task.model
                 end
 
+            services << service_name
             model_hierarchy.each do |m|
                 port_mappings = service.port_mappings_for(m).dup
                 port_mappings.delete_if do |from, to|
@@ -239,9 +240,9 @@ class ModelDisplayView < Ui::StackedDisplay
                 end
                 model_name = m.short_name.gsub("DataServices::", "")
                 if !port_mappings.empty?
-                    services << "#{model_name} #{port_mappings}"
+                    services << "    #{model_name} with port mappings #{port_mappings}"
                 else
-                    services << model_name
+                    services << "    #{model_name}"
                 end
             end
         end
