@@ -459,14 +459,20 @@ module Orocos
 
             # Load the given DSL file into this SystemModel instance
             def load(file)
-                if Kernel.load_dsl_file(file, self, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
-                    RobyPlugin.info "loaded #{file}"
+                relative_path = Roby.app.make_path_relative(file)
+                if file != relative_path
+                    $LOADED_FEATURES << relative_path
                 end
 
-                file = Roby.app.make_path_relative(file)
-                if !$LOADED_FEATURES.include?(file)
-                    $LOADED_FEATURES << file
+                begin
+                    if Kernel.load_dsl_file(file, self, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
+                        RobyPlugin.info "loaded #{file}"
+                    end
+                rescue Exception
+                    $LOADED_FEATURES.delete(relative_path)
+                    raise
                 end
+
                 self
             end
 

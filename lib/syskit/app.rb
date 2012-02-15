@@ -588,13 +588,18 @@ module Orocos
             end
 
             def self.load_task_extension(file, app)
-                if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
-                    RobyPlugin.info "loaded #{file}"
+                relative_path = Roby.app.make_path_relative(file)
+                if file != relative_path
+                    $LOADED_FEATURES << relative_path
                 end
 
-                file = Roby.app.make_path_relative(file)
-                if !$LOADED_FEATURES.include?(file)
-                    $LOADED_FEATURES << file
+                begin
+                    if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
+                        RobyPlugin.info "loaded #{file}"
+                    end
+                rescue Exception
+                    $LOADED_FEATURES.delete(relative_path)
+                    raise
                 end
             end
 
