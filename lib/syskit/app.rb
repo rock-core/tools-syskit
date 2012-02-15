@@ -438,7 +438,7 @@ module Orocos
                 Orocos.master_project.extend(MasterProjectHook)
                 app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
-                Orocos.load
+                Orocos.reset
 
                 app.orocos_clear_models
                 app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext
