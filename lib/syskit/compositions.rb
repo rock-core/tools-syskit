@@ -2440,6 +2440,21 @@ module Orocos
                 end
             end
 
+            def fullfills?(models, arguments = Hash.new)
+                models = [*models].map do |other_model|
+                    if other_model <= Composition
+                        if !(other_model.applied_specializations - model.applied_specializations).empty?
+                            return false
+                        end
+                        other_model.root_model
+                    else
+                        other_model
+                    end
+                end
+                return super(models, arguments)
+            end
+
+
             def self.method_missing(m, *args, &block)
                 if args.empty?
                     name = m.to_s
