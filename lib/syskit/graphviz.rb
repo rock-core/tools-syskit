@@ -191,7 +191,7 @@ module Orocos
                             label << "#{key}=#{format_edge_info(edge_info[key])}"
                         end
                         all_tasks << child_task
-                        result << "  #{task.dot_id} #{options[:dot_edge_mark]} #{child_task.dot_id} [label=\"#{label.join(",")}\"];"
+                        result << "  #{task.dot_id} #{options[:dot_edge_mark]} #{child_task.dot_id} [label=\"#{label.join("\\n")}\"];"
                     end
                 end
 
