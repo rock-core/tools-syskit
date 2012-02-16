@@ -164,10 +164,47 @@ module Orocos
                 RobyPlugin.info { "starting deployment #{model.deployment_name} on #{host}" }
 
                 process_server, log_dir = Orocos::RobyPlugin.process_servers[host]
+                options = Hash.new
+
+                # Checking for options which apply in a multi-robot context, 
+                # e.g. such as prefixing
+                #
+                # multirobot: 
+                #     use_prefixing: true
+                #     exclude_from_prefixing: 
+                #         - SIMULATION
+                #         - .*TEST.*
+                if Roby.app.options["multirobot"] && Roby.app.options["multirobot"].key?("use_prefixing")
+                    # When prefixing is in use the argument 'robot_name' will be used to 
+                    # prefix the process according to the following schema
+                    # '<robot_name>_'
+                    if prefix_enable = Roby.app.options["multirobot"]["use_prefixing"]
+                        exclude = false
+                        # Exclude deployments from prefixing that match one of the given 
+                        # regular expressions (matching on complete deployment_name)
+                        if prefix_black_list = Roby.app.options["multirobot"]["exclude_from_prefixing"]
+                            prefix_black_list.each do |pattern| 
+                                begin
+                                    exclude = exclude || deployment_name =~ Regexp.new('^' + pattern + '$')
+                                rescue RegexpError => e
+                                    Robot.error "Regular expression in configuration of multirobot with errors: #{e}"
+                                end
+                            end
+                        end
+                        if !exclude
+                            Robot.info "Deployment #{deployment_name} is started with prefix #{Roby.app.robot_name}"
+                            args = { :prefix => "#{Roby.app.robot_name}_" }
+                            options.merge!(args)
+                        end
+                    else
+                        Robot.info "Deployment #{deployment_name} is started without prefix #{Roby.app.robot_name}"
+                    end                
+                end
                 @orogen_deployment = process_server.start(model.deployment_name, 
                                                           :working_directory => log_dir, 
                                                           :output => "%m-%p.txt", 
-                                                          :wait => false)
+                                                          :wait => false,
+                                                          :cmdline_args => options)
 
                 Deployment.all_deployments[@orogen_deployment] = self
                 emit :start
@@ -283,8 +320,9 @@ module Orocos
 
                     @task_handles = Hash.new
                     orogen_spec.task_activities.each do |activity|
-                        task_handles[activity.name] = 
-                            ::Orocos::TaskContext.get(activity.name)
+                        name = orogen_deployment.get_mapped_name(activity.name)
+                        task_handles[activity.name] =  
+                          ::Orocos::TaskContext.get(name)
                     end
 
                     each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
