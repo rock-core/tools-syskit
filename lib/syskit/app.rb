@@ -296,6 +296,12 @@ module Orocos
             # Load the given orogen project and defines the associated task
             # models. It also loads the projects this one depends on.
             def load_orogen_project(name, orogen = nil)
+                if Orocos.available_task_libraries[name].respond_to?(:to_str)
+                    orogen_path = Orocos.available_task_libraries[name]
+                    if File.file?(orogen_path)
+                        main_orogen_project.register_orogen_file(Orocos.available_task_libraries[name], name)
+                    end
+                end
                 orogen ||= main_orogen_project.load_orogen_project(name)
 
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
@@ -501,7 +507,7 @@ module Orocos
                 all_files =
                     app.find_files_in_dirs("models", "orogen", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
                 all_files.each do |path|
-                    Orocos.load_dummy_models(path)
+                    Orocos.register_orogen_files(path)
                 end
 
                 # Load the data services and task models
