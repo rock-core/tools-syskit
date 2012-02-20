@@ -440,7 +440,7 @@ module Orocos
                     pp.nest(2) do
                         pp.breakable
                         pp.seplist(instanciation_chain.reverse) do |m|
-                            pp.text m.models.map(&:short_name).sort.join(", ")
+                            m.pretty_print(pp)
                         end
                     end
                 end
