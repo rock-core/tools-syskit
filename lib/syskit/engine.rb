@@ -504,6 +504,9 @@ module Orocos
                 defines[name] = Engine.create_instanciated_component(self, name, selected)
                 export_define_to_planner(::MainPlanner, name)
 		defines[name]
+            rescue InstanciationError => e
+                e.instanciation_chain.push("defining #{name} as #{model}")
+                raise
             end
 
             # Add a new component requirement to the current deployment
