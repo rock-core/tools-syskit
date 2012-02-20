@@ -371,7 +371,7 @@ module Orocos
                 elsif component_model = Roby.app.orocos_tasks[model_name]
                     instance = Engine.create_instanciated_component(self, instance_name, component_model)
                 else
-                    raise SpecError, "#{name} does not refer to a known task or device (known tasks: #{tasks.keys.sort.join(", ")}; known devices: #{robot.devices.keys.sort.join(", ")})"
+                    raise NameResolutionError.new(name), "#{name} does not refer to a known task or device (known tasks: #{tasks.keys.sort.join(", ")}; known devices: #{robot.devices.keys.sort.join(", ")})"
                 end
 
                 # Check if a service has explicitely been selected, and
