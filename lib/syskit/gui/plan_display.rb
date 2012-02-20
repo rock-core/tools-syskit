@@ -132,7 +132,7 @@ module Ui
             # Generate the menu for annotations
             annotation_menu = Qt::Menu.new(annotation_btn)
             @annotation_act = Hash.new
-            Orocos::RobyPlugin::Graphviz.available_annotations.each do |ann_name|
+            Orocos::RobyPlugin::Graphviz.available_annotations.sort.each do |ann_name|
                 act = Qt::Action.new(ann_name, annotation_menu)
                 act.checkable = true
                 act.checked = DEFAULT_ANNOTATIONS.include?(ann_name)
