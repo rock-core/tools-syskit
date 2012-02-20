@@ -268,7 +268,7 @@ module Orocos
             attribute(:orocos_deployments) { Hash.new }
 
             attribute(:main_orogen_project) do
-                project = Orocos::Generation::Component.new
+                project = Orocos::Generation::Project.new
                 project.name 'roby'
                 project.extend MasterProjectHook
             end
@@ -576,7 +576,7 @@ module Orocos
                     end
                 end
 
-                project = Orocos::Generation::Component.new
+                project = Orocos::Generation::Project.new
                 project.name 'roby'
                 @main_orogen_project = project
                 project.extend MasterProjectHook
