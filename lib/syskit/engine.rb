@@ -1528,7 +1528,7 @@ module Orocos
                         @port_dynamics = dataflow_dynamics.compute_connection_policies
                         add_timepoint 'compute_connection_policies'
                         Engine.deployment_postprocessing.each do |block|
-                            block.call(self)
+                            block.call(self, plan)
                             add_timepoint 'deployment_postprocessing', block.to_s
                         end
                     end
