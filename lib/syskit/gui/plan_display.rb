@@ -102,6 +102,8 @@ module Ui
         # The set of Qt::Action objects that represent the user selection w.r.t.
         # the annotations
         attr_reader :annotation_act
+        # The button that allows to save the graph as an SVG
+        attr_reader :svg_export_btn
 
         DEFAULT_ANNOTATIONS = %w{task_info port_details}
         DEFAULT_REMOVE_COMPOSITIONS = false
@@ -153,6 +155,9 @@ module Ui
             end
             excluded_models_btn.menu = excluded_models_menu
 
+            # Add a button to export the SVG to a file
+            @svg_export_btn = Qt::PushButton.new('SVG Export')
+
             # Lay the UI out
             root_layout = Qt::VBoxLayout.new(self)
             button_bar_layout = Qt::HBoxLayout.new
@@ -160,6 +165,7 @@ module Ui
             button_bar_layout.add_widget(remove_compositions_btn)
             button_bar_layout.add_widget(excluded_models_btn)
             button_bar_layout.add_widget(annotation_btn)
+            button_bar_layout.add_widget(svg_export_btn)
             root_layout.add_widget(view)
 
             self.options = Hash.new
@@ -183,6 +189,13 @@ module Ui
                     else options[:excluded_models].delete(model)
                     end
                     display
+                end
+            end
+            svg_export_btn.connect(SIGNAL('clicked()')) do
+                if @svg_data && (path = Qt::FileDialog.get_save_file_name(nil, "SVG Export"))
+                    File.open(path, 'w') do |io|
+                        io.write @svg_data
+                    end
                 end
             end
 
@@ -322,6 +335,7 @@ module Ui
                 svg_data = io.read
             end
 
+            @svg_data = svg_data.dup
             svg[path.gsub(/\.svg$/, '')] = svg_data = svg_data.dup
             xml = Nokogiri::XML(svg_data)
             xml.children.children.children.each do |el|
