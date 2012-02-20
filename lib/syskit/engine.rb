@@ -367,7 +367,7 @@ module Orocos
                     instance = instance.dup
                     instance.name = instance_name
                 elsif self.model.has_composition?(model_name)
-                    component_model = model.composition_model(service_name)
+                    component_model = model.composition_model(model_name)
                     instance = Engine.create_instanciated_component(self, instance_name, component_model)
                 elsif component_model = Roby.app.orocos_tasks[model_name]
                     instance = Engine.create_instanciated_component(self, instance_name, component_model)
