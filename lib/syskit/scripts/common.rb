@@ -37,10 +37,14 @@ module Orocos
             end
 
             def self.resolve_service_name(service)
-                service_name, service_conf = service.split(':')
-                if service_conf
-                    service_conf = service_conf.split(',')
-                end
+                service_name, *service_conf = *service.split(':')
+                service_conf =
+                    if service_conf.size > 1
+                        raise ArgumentError, "found more than one colon in #{service}"
+                    elsif !service_conf.empty?
+                        service_conf.first.split(',')
+                    end
+
                 engine = Roby.app.orocos_engine
                 instance = engine.resolve_name(service_name)
                 if service_conf
