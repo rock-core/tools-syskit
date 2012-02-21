@@ -11,7 +11,7 @@ parser = OptionParser.new do |opt|
     end
 end
 
-Scripts.common_options(parser, true)
+Scripts.common_options(parser, false)
 remaining = parser.parse(ARGV)
 if remaining.empty?
     STDERR.puts parser
