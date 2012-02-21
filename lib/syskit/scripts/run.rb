@@ -20,6 +20,9 @@ end
 deployment_file     = remaining.shift
 additional_services = remaining.dup
 
+Roby.app.public_shell_interface = true
+Roby.app.public_logs = true
+
 Scripts.tic
 error = Scripts.run do
     Roby.app.run do
