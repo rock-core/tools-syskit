@@ -826,7 +826,7 @@ module Orocos
             def self.define_from_orogen(task_spec, system_model)
                 superclass = task_spec.superclass
                 if !(supermodel = Roby.app.orocos_tasks[superclass.name])
-                    supermodel = define_from_orogen(superclass, system)
+                    supermodel = define_from_orogen(superclass, system_model)
                 end
                 klass = system_model.
                     task_context(task_spec.name, :child_of => supermodel)
