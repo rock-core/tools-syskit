@@ -704,6 +704,8 @@ module Orocos
                     client =
                         begin Orocos::ProcessClient.new('localhost', port)
                         rescue Errno::ECONNREFUSED
+                            sleep 0.1
+                            nil
                         end
                 end
 
