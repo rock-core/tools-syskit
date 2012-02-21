@@ -5,7 +5,7 @@ Scripts = Orocos::RobyPlugin::Scripts
 
 dry_run = false
 parser = OptionParser.new do |opt|
-    opt.banner = "Usage: scripts/orocos/instanciate [options] deployment\nwhere 'deployment' is either the name of a deployment in config/deployments,\nor a file that should be loaded to get the desired deployment"
+    opt.banner = "Usage: scripts/orocos/run [options] deployment [additional_things_to_run]\nwhere 'deployment' is either the name of a deployment in config/deployments,\nor a file that should be loaded to get the desired deployment"
     opt.on('--dry-run', "do not configure and start any module") do
         dry_run = true
     end
