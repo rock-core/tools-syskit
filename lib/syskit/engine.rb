@@ -236,6 +236,9 @@ module Orocos
                         server.preload_typekit(tk.name)
                     end
                 end
+                deployer.used_task_libraries.each do |lib|
+                    Roby.app.using_task_library(lib.name)
+                end
 
                 deployments[options[:on]] << name
                 Roby.app.orocos_deployments[name]
