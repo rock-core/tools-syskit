@@ -16,7 +16,7 @@ module Orocos
         module MasterProjectHook
             def register_loaded_project(name, project)
                 super
-                Roby.app.load_orogen_project(name)
+                Roby.app.import_orogen_project(name, project)
             end
         end
         
@@ -267,10 +267,8 @@ module Orocos
             # subclass of Orocos::RobyPlugin::Deployment
             attribute(:orocos_deployments) { Hash.new }
 
-            attribute(:main_orogen_project) do
-                project = Orocos::Generation::Project.new
-                project.name 'roby'
-                project.extend MasterProjectHook
+            def main_orogen_project
+                Orocos.master_project
             end
 
             # The system model object
@@ -296,6 +294,16 @@ module Orocos
             # Load the given orogen project and defines the associated task
             # models. It also loads the projects this one depends on.
             def load_orogen_project(name, orogen = nil)
+                if !orogen
+                    Orocos.master_project.load_orogen_project(name)
+                else
+                    import_orogen_project(name, orogen)
+                end
+            end
+
+            def import_orogen_project(name, orogen)
+                return loaded_orogen_projects[name] if loaded_orogen_project?(name)
+
                 if Orocos.available_task_libraries[name].respond_to?(:to_str)
                     orogen_path = Orocos.available_task_libraries[name]
                     if File.file?(orogen_path)
@@ -304,14 +312,11 @@ module Orocos
                 end
                 orogen ||= main_orogen_project.load_orogen_project(name)
 
-                return loaded_orogen_projects[name] if loaded_orogen_project?(name)
-
                 # If it is a task library, register it on our main project
                 if !orogen.self_tasks.empty?
                     main_orogen_project.using_task_library(name)
                 end
 
-		Orocos.master_project.instance_variable_set :@opaques, main_orogen_project.opaques
 		Orocos.registry.merge(orogen.registry)
                 if tk = orogen.typekit
                     if orocos_only_load_models?
@@ -337,7 +342,7 @@ module Orocos
 
                 orogen.self_tasks.each do |task_def|
                     if !orocos_tasks[task_def.name]
-                        orocos_tasks[task_def.name] = Orocos::RobyPlugin::TaskContext.define_from_orogen(task_def, orocos_system_model)
+                        Orocos::RobyPlugin::TaskContext.define_from_orogen(task_def, orocos_system_model)
                     end
                 end
                 orogen.deployers.each do |deployment_def|
@@ -401,7 +406,7 @@ module Orocos
 
             def orogen_load_all
                 Orocos.available_projects.each_key do |name|
-                    load_orogen_project(name)
+                    Orocos.master_project.load_orogen_project(name)
                 end
             end
 
@@ -441,19 +446,8 @@ module Orocos
                 Roby::State.orocos = Roby::Conf.orocos # for backward compatibility
 
                 Orocos.configuration_log_name = File.join(app.log_dir, 'properties')
-                Orocos.master_project.extend(MasterProjectHook)
                 app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
-                Orocos.reset
-
-                app.orocos_clear_models
-                app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext
-
-                rtt_taskmodel = Orocos::Generation::Component.standard_tasks.
-                    find { |m| m.name == "RTT::TaskContext" }
-                Orocos::RobyPlugin::TaskContext.instance_variable_set :@orogen_spec, rtt_taskmodel
-                Orocos::RobyPlugin.const_set :RTT, Module.new
-                Orocos::RobyPlugin::RTT.const_set :TaskContext, Orocos::RobyPlugin::TaskContext
 
                 app.orocos_system_model = SystemModel.new
                 app.orocos_engine = Engine.new(app.plan || Roby::Plan.new, app.orocos_system_model)
@@ -473,6 +467,14 @@ module Orocos
                         start_local_process_server(:redirect => app.redirect_local_process_server?)
                     end
                 end
+
+                app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext
+
+                rtt_taskmodel = Orocos::Generation::Component.standard_tasks.
+                    find { |m| m.name == "RTT::TaskContext" }
+                Orocos::RobyPlugin::TaskContext.instance_variable_set :@orogen_spec, rtt_taskmodel
+                Orocos::RobyPlugin.const_set :RTT, Module.new
+                Orocos::RobyPlugin::RTT.const_set :TaskContext, Orocos::RobyPlugin::TaskContext
             end
 
             # Hook into the Application#require_config call directly, instead of
@@ -504,6 +506,11 @@ module Orocos
             end
 
             def self.require_models(app)
+                if !Orocos.loaded?
+                    Orocos.load
+                end
+                Orocos.master_project.extend(MasterProjectHook)
+
                 all_files =
                     app.find_files_in_dirs("models", "orogen", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
                 all_files.each do |path|
@@ -582,10 +589,8 @@ module Orocos
                     end
                 end
 
-                project = Orocos::Generation::Project.new
-                project.name 'roby'
-                @main_orogen_project = project
-                project.extend MasterProjectHook
+                Orocos.clear
+
                 if Orocos.export_types?
                     Orocos.registry.clear_exports(Orocos.type_export_namespace)
                 end

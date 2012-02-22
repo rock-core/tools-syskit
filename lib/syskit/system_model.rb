@@ -236,7 +236,13 @@ module Orocos
             # and deployments they contain.
             def using_task_library(*names)
                 names.each do |n|
-                    Roby.app.load_orogen_project(n)
+                    orogen = Orocos.master_project.using_task_library(n)
+                    if !Roby.app.loaded_orogen_project?(n)
+                        # The project was already loaded on
+                        # Orocos.master_project before Roby kicked in. Just load
+                        # the Roby part
+                        Roby.app.import_orogen_project(n, orogen)
+                    end
                 end
             end
 
