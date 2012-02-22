@@ -703,11 +703,20 @@ module Orocos
                     :redirect => 'local_process_server.txt',
                     :working_directory => Roby.app.log_dir
 
+                @server_port = port
+                nil
+            end
+
+            def self.has_local_process_server?
+                @server_pid
+            end
+
+            def self.connect_to_local_process_server
                 # Wait for the server to be ready
                 client = nil
                 while !client
                     client =
-                        begin Orocos::ProcessClient.new('localhost', port)
+                        begin Orocos::ProcessClient.new('localhost', @server_port)
                         rescue Errno::ECONNREFUSED
                             sleep 0.1
                             nil
@@ -722,8 +731,8 @@ module Orocos
 
                 # Do *not* manage the log directory for that one ...
                 register_process_server('localhost', client, Roby.app.log_dir)
-                client
             end
+
 
             def self.register_process_server(name, client, log_dir)
                 client.master_project.extend MasterProjectHook
@@ -733,15 +742,13 @@ module Orocos
             # Stop the process server started by start_local_process_server if
             # one is running
             def self.stop_local_process_server
-                return if !@server_pid
+                return if !has_local_process_server?
 
-                if @server_pid
-                    ::Process.kill('INT', @server_pid)
-                    begin
-                        ::Process.waitpid(@server_pid)
-                        @server_pid = nil
-                    rescue Errno::ESRCH
-                    end
+                ::Process.kill('INT', @server_pid)
+                begin
+                    ::Process.waitpid(@server_pid)
+                    @server_pid = nil
+                rescue Errno::ESRCH
                 end
                 Orocos::RobyPlugin.process_servers.delete('localhost')
             end
@@ -845,6 +852,10 @@ module Orocos
             end
 
             def self.run(app)
+                if has_local_process_server?
+                    connect_to_local_process_server
+                end
+
                 handler_ids = plug_engine_in_roby(Roby.engine)
 
                 if app.orocos_start_all_deployments?
@@ -866,7 +877,9 @@ module Orocos
                     Orocos::Process.kill(remaining)
                 end
 
-                unplug_engine_from_roby(handler_ids, Roby.engine)
+                if handler_ids
+                    unplug_engine_from_roby(handler_ids, Roby.engine)
+                end
             end
 
             def self.cleanup(app)
