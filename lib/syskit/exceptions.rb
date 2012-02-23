@@ -97,6 +97,28 @@ module Orocos
             end
         end
 
+        class UnknownServiceName < SpecError
+            attr_reader :component_model
+            attr_reader :service_name
+
+            def initialize(component_model, service_name)
+                @component_model, @service_name = component_model, service_name
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot find service #{service_name} in #{component_model.short_name}"
+                pp.text "the services of #{component_model.short_name} are:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(component_model.each_data_service.to_a) do |srv|
+                        _, srv = *srv
+                        pp.text "#{srv.full_name}: #{srv.model.short_name}"
+                    end
+                end
+            end
+        end
+
+
         # Refinement of NoMatchingService for a composition child. It adds the
         # information of the composition / child name
         class NoMatchingServiceForCompositionChild < NoMatchingService

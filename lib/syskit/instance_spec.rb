@@ -1276,6 +1276,8 @@ module Orocos
                     end
                     if candidates.size > 1
                         raise AmbiguousServiceSelection.new(task_model, service_name, candidates.map(&:last))
+                    elsif candidates.empty?
+                        raise UnknownServiceName.new(task_model, service_name)
                     else
                         candidate = candidates.first.last
                     end
