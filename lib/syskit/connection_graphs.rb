@@ -151,6 +151,11 @@ module Orocos
                 end
             end
 
+            def may_have_output_port?(name)
+                model.find_output_port(name) ||
+                    model.has_dynamic_output_port?(name)
+            end
+
             # Makes sure that +self+ has an input port called +name+. It will
             # instanciate a dynamic port if needed.
             #
@@ -163,6 +168,11 @@ module Orocos
                         raise ArgumentError, "#{self} has no input port called #{name}"
                     end
                 end
+            end
+
+            def may_have_input_port?(name)
+                model.find_input_port(name) ||
+                    model.has_dynamic_input_port?(name)
             end
 
             def clear_relations
@@ -331,12 +341,52 @@ module Orocos
             # composition and the other is part of this composition. Otherwise,
             # calls #connect_ports
             def connect_or_forward_ports(target_task, mappings)
-                if kind_of?(Composition) && depends_on?(target_task, false)
-                    forward_ports(target_task, mappings)
-                elsif target_task.kind_of?(Composition) && target_task.depends_on?(self, false)
-                    forward_ports(target_task, mappings)
-                else
-                    connect_ports(target_task, mappings)
+                if !kind_of?(Composition) && !target_task.kind_of?(Composition)
+                    return connect_ports(target_task, mappings)
+                end
+
+                connections = Hash.new
+                forwards   = Hash.new
+                mappings.each do |(out_port_name, in_port_name), policy|
+                    source_has_output = may_have_output_port?(out_port_name)
+                    target_has_input  = target_task.may_have_input_port?(in_port_name)
+                    if source_has_output && target_has_input
+                        connections[[out_port_name, in_port_name]] = policy
+                        next
+                    end
+
+                    if kind_of?(Composition)
+                        source_has_input = may_have_input_port?(out_port_name)
+                        if source_has_input
+                            forwards[[out_port_name, in_port_name]] = policy
+                            next
+                        elsif !source_has_output
+                            raise ArgumentError, "#{out_port_name} is neither an output port nor an exported input of #{self}"
+                        end
+                    elsif !source_has_output
+                        raise ArgumentError, "#{out_port_name} is not an output port of #{self}"
+                    end
+
+                    if target_task.kind_of?(Composition)
+                        target_has_output = target_task.may_have_output_port?(in_port_name)
+                        if target_has_output
+                            forwards[[out_port_name, in_port_name]] = policy
+                            next
+                        elsif !target_has_input
+                            raise ArgumentError, "#{out_port_name} is neither an input port nor an exported output of #{self}"
+                        end
+                    elsif !target_has_input
+                        raise ArgumentError, "#{out_port_name} is not an input port of #{self}"
+                    end
+
+                    raise ArgumentError, "invalid connection #{self}.#{out_port_name} => #{target_task}.#{in_port_name}"
+                end
+
+                if !connections.empty?
+                    connect_ports(target_task, connections)
+                end
+                if !forwards.empty?
+                    forward_ports(target_task, forwards)
                 end
             end
 
