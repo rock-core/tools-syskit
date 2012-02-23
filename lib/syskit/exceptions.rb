@@ -78,7 +78,7 @@ module Orocos
 
             def initialize(task_model, required_service)
                 @task_model, @required_service =
-                    task_model, required_service
+                    [*task_model], required_service
             end
 
             def pretty_print(pp)
