@@ -265,9 +265,12 @@ module Orocos
                 server = process_server_for(options[:on])
                 orogen = server.load_orogen_project(project_name)
 
+                Orocos::RobyPlugin.info "using deployments from #{project_name}"
+
                 result = []
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
+                        Orocos::RobyPlugin.info "  #{deployment_def.name}"
                         # Currently, the supervision cannot handle orogen_default tasks 
                         # properly, thus filtering them out for now 
                         if not /^orogen_default/ =~ "#{deployment_def.name}"
