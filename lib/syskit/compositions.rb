@@ -1869,8 +1869,15 @@ module Orocos
                 # instanciate this level (if referred to by CompositionChild)
                 requirements = selected_child.requirements
                 selections = requirements.selections.map do |sel|
-                    if sel.kind_of?(CompositionChild)
-                        begin self_task.child_from_role(sel.child_name)
+                    child_role =
+                        if sel.respond_to?(:to_str) && sel =~ /^parent\.(.*)$/
+                            $1
+                        elsif sel.kind_of?(CompositionChild)
+                            sel.child_name
+                        end
+
+                    if child_role
+                        begin self_task.child_from_role(child_role)
                         rescue ArgumentError
                             # The using spec of this child refers to another
                             # task's child, but that other child is not
