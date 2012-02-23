@@ -272,8 +272,20 @@ module Orocos
                 explicit, defaults = DependencyInjection.validate_use_argument(*mappings)
                 selections.add_explicit(explicit)
                 selections.add_defaults(defaults)
+                composition_model = narrow_model || composition_model
 
-                narrow_model
+                selections.each_selection_key do |obj|
+                    if obj.respond_to?(:to_str)
+                        # Two choices: either a child of the composition model,
+                        # or a child of a child that is a composition itself
+                        parts = obj.split('.')
+                        first_part = parts.first
+                        if !composition_model.has_child?(first_part)
+                            raise "#{first_part} is not a known child of #{composition_model.name}"
+                        end
+                    end
+                end
+
                 self
             end
 
@@ -874,6 +886,10 @@ module Orocos
                     yield(v)
                 end
                 self
+            end
+
+            def each_selection_key(&block)
+                explicit.each_key(&block)
             end
 
             # Merge the selections in +other+ into +self+.
