@@ -518,6 +518,8 @@ module Orocos
 
                 result = []
                 result = ann.map do |category, values|
+                    # Values are allowed to be an array of strings or plain strings, normalize to array
+                    values = [*values]
                     next if (values.empty? && !options[:include_empty])
 
                     values = values.map { |v| v.tr("<>", "[]") }
