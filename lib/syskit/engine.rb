@@ -1060,7 +1060,7 @@ module Orocos
                     dev.task = new_task
                 end
                 @tasks = tasks.map_value do |name, task|
-                    new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task))
+                    new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task.to_component))
                     if new_task != task
                         NetworkMergeSolver.debug { "updated named task #{name} from #{task} to #{new_task}" }
                     end

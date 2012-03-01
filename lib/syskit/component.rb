@@ -100,6 +100,10 @@ module Orocos
                 result
             end
 
+            def each_data_service(&block)
+                self
+            end
+
             def find_input_port(name)
                 model.find_input_port(name)
             end

@@ -49,6 +49,10 @@ module Orocos
                 task
             end
 
+            def to_component
+                task
+            end
+
             def as(service)
                 result = self.dup
                 result.instance_variable_set(:@model, model.as(service)) 
