@@ -322,8 +322,6 @@ module Orocos
                 @defines   = Hash.new
                 @modified  = false
                 @pending_removes = Hash.new
-
-                @dot_index = 0
             end
 
             # The set of selections the user specified should be applied on
@@ -799,7 +797,7 @@ module Orocos
                 gen.dataflow(remove_compositions, excluded_models, annotations)
             end
 
-            def to_dot; to_dot_dataflow end
+            def to_dot(options); to_dot_dataflow(options) end
 
             def pretty_print(pp) # :nodoc:
                 pp.text "-- Tasks"
@@ -1731,11 +1729,17 @@ module Orocos
                 @plan = engine_plan
             end
 
-            def autosave_plan_to_dot(suffix = nil)
-                output_path = File.join(Roby.app.log_dir, "orocos-engine-plan-#{(suffix + '-') if suffix}#{@dot_index}.dot")
-                @dot_index += 1
+            def autosave_plan_to_dot(dir = Roby.app.log_dir, options = Hash.new)
+                Engine.autosave_plan_to_dot(plan, dir, options)
+            end
+
+            @@dot_index = 0
+            def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, options = Hash.new)
+                options, dot_options = Kernel.filter_options options,
+                    :prefix => nil, :suffix => nil
+                output_path = File.join(dir, "orocos-engine-plan-#{options[:prefix]}%04i#{options[:suffix]}.dot" % [@@dot_index += 1])
                 File.open(output_path, 'w') do |io|
-                    io.write to_dot
+                    io.write Graphviz.new(plan).dataflow(dot_options)
                 end
                 output_path
             end

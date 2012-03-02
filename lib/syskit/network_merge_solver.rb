@@ -16,6 +16,17 @@ module Orocos
             # A graph that holds all replacements done during resolution
 	    attr_reader :task_replacement_graph
 
+            class << self
+                # If true, this is a directory path into which SVGs are generated
+                # for each steps of the network generation
+                attr_accessor :tracing_directory
+
+                # If tracing_directory is set, the options that should be used to
+                # generate the graphs
+                attr_accessor :tracing_options
+            end
+            @tracing_options = { :remove_compositions => true }
+
             def initialize(plan, &block)
                 @plan = plan
                 @merging_candidates_queries = Hash.new
@@ -191,6 +202,12 @@ module Orocos
                 end
 
                 debug { "    #{task}.merge(#{target_task})" }
+                if NetworkMergeSolver.tracing_directory
+                    Engine.autosave_plan_to_dot(plan,
+                            NetworkMergeSolver.tracing_directory,
+                            NetworkMergeSolver.tracing_options.merge(:highlights => [target_task, task].to_set, :suffix => "0"))
+                end
+
                 if task.respond_to?(:merge)
                     task.merge(target_task)
                 else
@@ -201,6 +218,12 @@ module Orocos
                 graph.remove(target_task)
                 register_replacement(target_task, task)
                 all_merges[target_task] = task
+
+                if NetworkMergeSolver.tracing_directory
+                    Engine.autosave_plan_to_dot(plan,
+                            NetworkMergeSolver.tracing_directory,
+                            NetworkMergeSolver.tracing_options.merge(:highlights => [target_task, task].to_set, :suffix => "1"))
+                end
 
                 # Since we modified +task+, we now have to update the graph.
                 # I.e. it is possible that some of +task+'s children cannot be
