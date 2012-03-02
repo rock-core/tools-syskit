@@ -310,7 +310,6 @@ if Scripts.output_type == 'qt'
     display = InstanciateGUI.new(nil, remaining.join(" "))
     display.show
     app.exec
-    STDERR.puts "DONE"
 else
     cmd_handler = Instanciate.new(passes)
     if cmd_handler.run(compute_policies, compute_deployments, validate_network, remove_loggers, remove_compositions, annotations, display_timepoints)
