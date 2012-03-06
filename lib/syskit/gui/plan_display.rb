@@ -105,9 +105,9 @@ module Ui
         # The button that allows to save the graph as an SVG
         attr_reader :svg_export_btn
 
-        DEFAULT_ANNOTATIONS = %w{task_info port_details}
-        DEFAULT_REMOVE_COMPOSITIONS = false
-        DEFAULT_excluded_models = %w{Orocos::RobyPlugin::Logger::Logger}
+        DEFAULT_ANNOTATIONS = []
+        DEFAULT_REMOVE_COMPOSITIONS = true
+        DEFAULT_EXCLUDED_MODELS = %w{Orocos::RobyPlugin::Logger::Logger}
 
         def initialize(main = nil)
             super(main)
@@ -149,7 +149,7 @@ module Ui
 
                 act = Qt::Action.new(model.short_name, excluded_models_menu)
                 act.checkable = true
-                act.checked = DEFAULT_excluded_models.include?(model.name)
+                act.checked = DEFAULT_EXCLUDED_MODELS.include?(model.name)
                 excluded_models_act[model] = act
                 excluded_models_menu.add_action(act)
             end
