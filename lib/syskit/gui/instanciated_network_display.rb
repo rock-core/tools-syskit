@@ -75,5 +75,13 @@ module Ui
             item.set_data(0, Qt::UserRole, Qt::Variant.fromValue(exception))
             item
         end
+
+        def display_plan(plan, engine)
+            clear
+            plan_display.push_plan('Task Dependency Hierarchy', 'hierarchy',
+                  plan, engine, Hash.new)
+            plan_display.push_plan('Dataflow', 'dataflow',
+                  plan, engine, Hash.new)
+        end
     end
 end

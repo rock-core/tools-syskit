@@ -292,11 +292,7 @@ if Scripts.output_type == 'qt'
                 error = e
             end
 
-            network_display.clear
-            network_display.plan_display.push_plan('Task Dependency Hierarchy', 'hierarchy',
-                  Roby.plan, Roby.orocos_engine, Hash.new)
-            network_display.plan_display.push_plan('Dataflow', 'dataflow',
-                  Roby.plan, Roby.orocos_engine, Hash.new)
+            network_display.display_plan(Roby.plan, Roby.orocos_engine)
             if error
                 network_display.add_error(error)
             end
