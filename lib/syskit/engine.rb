@@ -236,6 +236,9 @@ module Orocos
                         server.preload_typekit(tk.name)
                     end
                 end
+                deployer.used_task_libraries.each do |lib|
+                    Roby.app.using_task_library(lib.name)
+                end
 
                 deployments[options[:on]] << name
                 Roby.app.orocos_deployments[name]
@@ -262,9 +265,12 @@ module Orocos
                 server = process_server_for(options[:on])
                 orogen = server.load_orogen_project(project_name)
 
+                Orocos::RobyPlugin.info "using deployments from #{project_name}"
+
                 result = []
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
+                        Orocos::RobyPlugin.info "  #{deployment_def.name}"
                         # Currently, the supervision cannot handle orogen_default tasks 
                         # properly, thus filtering them out for now 
                         if not /^orogen_default/ =~ "#{deployment_def.name}"
@@ -316,8 +322,6 @@ module Orocos
                 @defines   = Hash.new
                 @modified  = false
                 @pending_removes = Hash.new
-
-                @dot_index = 0
             end
 
             # The set of selections the user specified should be applied on
@@ -365,14 +369,13 @@ module Orocos
                     instance = Engine.create_instanciated_component(self, instance_name, device)
                 elsif instance = defines[model_name]
                     instance = instance.dup
-                    instance.name = instance_name
                 elsif self.model.has_composition?(model_name)
                     component_model = model.composition_model(model_name)
                     instance = Engine.create_instanciated_component(self, instance_name, component_model)
                 elsif component_model = Roby.app.orocos_tasks[model_name]
                     instance = Engine.create_instanciated_component(self, instance_name, component_model)
                 else
-                    raise SpecError, "#{name} does not refer to a known task or device (known tasks: #{tasks.keys.sort.join(", ")}; known devices: #{robot.devices.keys.sort.join(", ")})"
+                    raise NameResolutionError.new(name), "#{name} does not refer to a known task or device (known tasks: #{tasks.keys.sort.join(", ")}; known devices: #{robot.devices.keys.sort.join(", ")})"
                 end
 
                 # Check if a service has explicitely been selected, and
@@ -408,9 +411,9 @@ module Orocos
                         end.flatten.uniq.sort
                         raise ArgumentError, "no service #{service_name} can be found for #{name}, known services are #{all_services.join(", ")} on #{instance}"
                     end
-                    result = InstanceSelection.new(instance)
-                    result.selected_services[candidates.first.model] = candidates.first
-                    return result
+
+                    instance.select_service(candidates.first)
+                    return instance
                 end
             end
 
@@ -505,6 +508,9 @@ module Orocos
                 defines[name] = Engine.create_instanciated_component(self, name, selected)
                 export_define_to_planner(::MainPlanner, name)
 		defines[name]
+            rescue InstanciationError => e
+                e.instanciation_chain.push("defining #{name} as #{model}")
+                raise
             end
 
             # Add a new component requirement to the current deployment
@@ -774,7 +780,7 @@ module Orocos
                 if instance.respond_to?(:selected_services) && (instance.selected_services.size == 1)
                     # The caller is trying to access a particular service. Give
                     # it to him
-                    return DataServiceInstance.new(task, instance.selected_services.values.first)
+                    return instance.selected_services.values.first.bind(task)
                 else
                     return task
                 end
@@ -791,7 +797,7 @@ module Orocos
                 gen.dataflow(remove_compositions, excluded_models, annotations)
             end
 
-            def to_dot; to_dot_dataflow end
+            def to_dot(options); to_dot_dataflow(options) end
 
             def pretty_print(pp) # :nodoc:
                 pp.text "-- Tasks"
@@ -1052,7 +1058,7 @@ module Orocos
                     dev.task = new_task
                 end
                 @tasks = tasks.map_value do |name, task|
-                    new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task))
+                    new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task.to_component))
                     if new_task != task
                         NetworkMergeSolver.debug { "updated named task #{name} from #{task} to #{new_task}" }
                     end
@@ -1526,7 +1532,7 @@ module Orocos
                         @port_dynamics = dataflow_dynamics.compute_connection_policies
                         add_timepoint 'compute_connection_policies'
                         Engine.deployment_postprocessing.each do |block|
-                            block.call(self)
+                            block.call(self, plan)
                             add_timepoint 'deployment_postprocessing', block.to_s
                         end
                     end
@@ -1723,11 +1729,17 @@ module Orocos
                 @plan = engine_plan
             end
 
-            def autosave_plan_to_dot(suffix = nil)
-                output_path = File.join(Roby.app.log_dir, "orocos-engine-plan-#{(suffix + '-') if suffix}#{@dot_index}.dot")
-                @dot_index += 1
+            def autosave_plan_to_dot(dir = Roby.app.log_dir, options = Hash.new)
+                Engine.autosave_plan_to_dot(plan, dir, options)
+            end
+
+            @@dot_index = 0
+            def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, options = Hash.new)
+                options, dot_options = Kernel.filter_options options,
+                    :prefix => nil, :suffix => nil
+                output_path = File.join(dir, "orocos-engine-plan-#{options[:prefix]}%04i#{options[:suffix]}.dot" % [@@dot_index += 1])
                 File.open(output_path, 'w') do |io|
-                    io.write to_dot
+                    io.write Graphviz.new(plan).dataflow(dot_options)
                 end
                 output_path
             end

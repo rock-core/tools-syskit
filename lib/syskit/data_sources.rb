@@ -764,8 +764,8 @@ module Orocos
             # by its name) is connected to something.
             def using_data_service?(source_name)
                 service = model.find_data_service(source_name)
-                inputs  = service.each_input_port.map(&:name)
-                outputs = service.each_output_port.map(&:name)
+                inputs  = service.each_task_input_port.map(&:name)
+                outputs = service.each_task_output_port.map(&:name)
 
                 each_source do |output|
                     description = output[self, Flows::DataFlow]

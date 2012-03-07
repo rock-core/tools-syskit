@@ -22,6 +22,12 @@ parser = OptionParser.new do |opt|
     'define' that should be added
     "
 
+    opt.on('--trace=DIR', String, 'generate a dot graph for each step of the generation') do |trace_dir|
+        trace_dir = File.expand_path(trace_dir)
+        FileUtils.mkdir_p trace_dir
+        Orocos::RobyPlugin::NetworkMergeSolver.tracing_directory = trace_dir
+    end
+
     opt.on('--annotate=LIST', Array, "comma-separated list of annotations that should be added to the output (defaults to #{default_annotations.to_a.join(",")}). Available annotations: #{available_annotations.to_a.sort.join(", ")}") do |ann|
         ann.each do |name|
             if !available_annotations.include?(name)
@@ -304,7 +310,6 @@ if Scripts.output_type == 'qt'
     display = InstanciateGUI.new(nil, remaining.join(" "))
     display.show
     app.exec
-    STDERR.puts "DONE"
 else
     cmd_handler = Instanciate.new(passes)
     if cmd_handler.run(compute_policies, compute_deployments, validate_network, remove_loggers, remove_compositions, annotations, display_timepoints)

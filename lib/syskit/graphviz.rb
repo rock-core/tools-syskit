@@ -227,7 +227,7 @@ module Orocos
             # It takes no options. The +options+ argument is used to have a
             # common signature with #dataflow
             def hierarchy(options = Hash.new)
-                relation_to_dot(:accessor => :each_child, :displayed_options => [:roles])
+                relation_to_dot(:accessor => :each_child)
             end
 
             def self.available_annotations

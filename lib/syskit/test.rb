@@ -51,7 +51,7 @@ module Orocos
                     Roby.app.orogen_load_all
                 else
                     self.class.needed_orogen_projects.each do |project_name|
-                        Roby.app.load_orogen_project project_name
+                        Orocos.master_project.load_orogen_project project_name
                     end
                 end
 

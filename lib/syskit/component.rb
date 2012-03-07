@@ -100,16 +100,16 @@ module Orocos
                 result
             end
 
-            # Returns the port model on +component_model+ that corresponds to
-            # the port name +name+ on this service
-            def find_input_port(name)
-                component_model.find_input_port(port_mappings_for_task[name])
+            def each_data_service(&block)
+                self
             end
 
-            # Returns the port model on +component_model+ that corresponds to
-            # the port name +name+ on this service
+            def find_input_port(name)
+                model.find_input_port(name)
+            end
+
             def find_output_port(name)
-                component_model.find_output_port(port_mappings_for_task[name])
+                model.find_output_port(name)
             end
 
             def find_all_services_from_type(m)
@@ -125,34 +125,19 @@ module Orocos
             end
 
             def has_output_port?(name)
-                each_output_port.find { |p| p.name == name }
+                !!find_output_port(name)
             end
 
             def has_input_port?(name)
-                each_input_port.find { |p| p.name == name }
+                !!find_input_port(name)
             end
 
-            # Yields the port models for this service's input, applied on the
-            # underlying task. I.e. applies the port mappings to the service
-            # definition
             def each_input_port(with_slaves = false, &block)
                 if !block_given?
                     return enum_for(:each_input_port, with_slaves)
                 end
 
-                port_mappings = port_mappings_for(model)
-                model.each_input_port do |input_port|
-                    port_name = input_port.name
-                    if mapped_port = port_mappings[port_name]
-                        port_name = mapped_port
-                    end
-                    p = component_model.find_input_port(port_name)
-                    if !p
-                        raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
-                    end
-                    yield(p)
-                end
-
+                model.each_input_port(&block)
                 if with_slaves
                     each_slave do |name, srv|
                         srv.each_input_port(true, &block)
@@ -160,31 +145,38 @@ module Orocos
                 end
             end
 
-            # Yields the port models for this service's output, applied on the
-            # underlying task. I.e. applies the port mappings to the service
-            # definition
             def each_output_port(with_slaves = false, &block)
                 if !block_given?
                     return enum_for(:each_output_port, with_slaves)
                 end
 
-                port_mappings = port_mappings_for(model)
-                model.each_output_port do |output_port|
-                    port_name = output_port.name
-                    if mapped_port = port_mappings[port_name]
-                        port_name = mapped_port
-                    end
-                    p = component_model.find_output_port(port_name)
-                    if !p
-                        raise InternalError, "#{component_model.short_name} was expected to have a port called #{port_name} to fullfill #{model.short_name}. Port mappings are #{port_mappings}"
-                    end
-                    yield(p)
-                end
-
+                model.each_output_port(&block)
                 if with_slaves
                     each_slave do |name, srv|
                         srv.each_output_port(true, &block)
                     end
+                end
+            end
+
+            def each_task_input_port(with_slaves = false, &block)
+                if !block_given?
+                    return enum_for(:each_task_input_port, with_slaves)
+                end
+
+                mappings = port_mappings_for_task
+                each_input_port do |port|
+                    yield(component_model.find_input_port(mappings[port.name]))
+                end
+            end
+
+            def each_task_output_port(with_slaves = false, &block)
+                if !block_given?
+                    return enum_for(:each_task_output_port, with_slaves)
+                end
+
+                mappings = port_mappings_for_task
+                each_output_port do |port|
+                    yield(component_model.find_output_port(mappings[port.name]))
                 end
             end
 
@@ -244,6 +236,49 @@ module Orocos
                         yield(m)
                     end
                 end
+            end
+
+            # Helper class used by #add_slaves to provide the evaluation context
+            class SlaveDefinitionContext
+                def initialize(component_model, master_name)
+                    @component_model = component_model
+                    @master_name = master_name
+                end
+
+                def provides(*args, &block)
+                    options =
+                        if args.last.kind_of?(Hash)
+                            args.pop
+                        else Hash.new
+                        end
+                    options[:slave_of] = @master_name
+                    args << options
+                    @component_model.provides(*args, &block)
+                end
+            end
+
+            # Provides an instanciation context that can be used to add multiple
+            # slaves easily, e.g.:
+            #
+            # driver_for('NewDevice').add_slaves do
+            #   provides Srv::Camera, :as => 'lcamera'
+            #   provides Srv::Laser, :as => 'scans'
+            #   ...
+            # end
+            #
+            def add_slaves(&block)
+                context = SlaveDefinitionContext.new(component_model, name)
+                context.instance_eval(&block)
+                self
+            end
+
+            # Returns the DataServiceInstance object that binds this provided
+            # service to an actual task
+            def bind(task)
+                if !task.fullfills?(component_model)
+                    raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
+                end
+                DataServiceInstance.new(task, self)
             end
         end
 
@@ -531,7 +566,7 @@ module Orocos
             #
             # It may return an instanciated dynamic port
             def find_output_port_model(name)
-                if port_model = model.orogen_spec.each_output_port.find { |p| p.name == name }
+                if port_model = model.orogen_spec.find_output_port(name)
                     port_model
                 else instanciated_dynamic_outputs[name]
                 end
@@ -542,7 +577,7 @@ module Orocos
             #
             # It may return an instanciated dynamic port
             def find_input_port_model(name)
-                if port_model = model.orogen_spec.each_input_port.find { |p| p.name == name }
+                if port_model = model.orogen_spec.find_input_port(name)
                     port_model
                 else instanciated_dynamic_inputs[name]
                 end
@@ -1185,6 +1220,12 @@ module Orocos
 
             def to_component; self end
 
+            def find_data_service(service_name)
+                if service_model = model.find_data_service(service_name)
+                    return service_model.bind(self)
+                end
+            end
+
             def method_missing(m, *args, &block)
                 if args.empty? && !block
                     if m.to_s =~ /^(\w+)_port/
@@ -1197,9 +1238,8 @@ module Orocos
                             raise NoMethodError, "#{self} has no port called #{port_name}"
                         end
                     elsif m.to_s =~ /^(\w+)_srv/
-                        service_name = $1
-                        if service_model = model.find_data_service(service_name)
-                            return DataServiceInstance.new(service_model, self)
+                        if service_model = find_data_service(service_name)
+                            return service_model
                         else
                             raise NoMethodError, "#{self} has no service called #{service_name}"
                         end
@@ -1218,7 +1258,7 @@ module Orocos
             #
             # The same can be done at the model level with ComponentModel#as
             def as(service_model)
-                return DataServiceInstance.new(self, self.class.as(service_model))
+                return model.as(service_model).bind(self)
             end
         end
     end
