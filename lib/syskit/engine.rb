@@ -65,7 +65,17 @@ module Orocos
 
                 @create_port ||= operation('createLoggingPort')
                 if !@create_port.callop(sink_port_name, logged_port_type, metadata)
-                    raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}"
+                    # Look whether a port with that name and type already
+                    # exists. If it is the case, it means somebody else already
+                    # created it and we're fine- Otherwise, raise an error
+                    begin
+                        port = input_port(sink_port_name)
+                        if port.type.name != logged_port_type
+                            raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}: a port of same name but different type exists"
+                        end
+                    rescue Orocos::NotFound
+                        raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}"
+                    end
                 end
                 logged_ports << [sink_port_name, logged_port_type]
             end
