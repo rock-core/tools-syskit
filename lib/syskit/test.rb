@@ -1,4 +1,5 @@
 require 'test/unit'
+require 'flexmock/test_unit'
 require 'roby'
 require 'roby/test/common'
 require 'roby/test/testcase'
@@ -7,6 +8,7 @@ require 'orocos/roby'
 require 'roby/schedulers/temporal'
 require 'utilrb/module/include'
 require 'orocos/process_server'
+require 'roby/tasks/simple'
 
 module Orocos
     module RobyPlugin
@@ -33,6 +35,106 @@ module Orocos
             attr_reader :sys_model
             # The execution engine
             attr_reader :orocos_engine
+
+            def prepare_plan(options)
+                result = super
+
+                options, _ = Kernel.filter_options options, :model => nil
+                if options[:model] && options[:model].respond_to?(:should_receive)
+                    # The caller provided a mock class, give him a mock object
+                    result.map do |obj|
+                        if obj.respond_to?(:each)
+                            obj.map do |instance|
+                                mock_task_context(instance)
+                            end
+                        else
+                            mock_task_context(obj)
+                        end
+                    end
+                else
+                    result
+                end
+            end
+
+            def mock_orogen_model(&block)
+                flexmock(Orocos::RobyPlugin.create_orogen_interface(&block))
+            end
+
+            def mock_task_context_model(orogen_model = nil, &block)
+                orogen_model ||= mock_orogen_model(&block)
+                flexmock(Orocos::RobyPlugin::TaskContext.define_from_orogen(orogen_model, sys_model))
+            end
+
+            def mock_input_port(port_model)
+                port = flexmock("mock for #{port_model}")
+                port.should_receive(:model).and_return(port_model)
+                port
+            end
+
+            def mock_output_port(port_model)
+                port = flexmock("mock for #{port_model}")
+                port.should_receive(:model).and_return(port_model)
+                port
+            end
+
+            def mock_remote_task_context(orogen_model)
+                mock = flexmock(FakeOrocosTask.new)
+                mock.should_receive(:model).and_return(orogen_model)
+                orogen_model.each_input_port do |port_model|
+                    port = mock_input_port(port_model)
+                    mock.should_receive(:port).with(port_model.name).and_return(port)
+                    mock.should_receive(:port).with(port_model.name, FlexMock.any).and_return(port)
+                end
+                orogen_model.each_output_port do |port_model|
+                    port = mock_output_port(port_model)
+                    mock.should_receive(:port).with(port_model.name).and_return(port)
+                    mock.should_receive(:port).with(port_model.name, FlexMock.any).and_return(port)
+                end
+                mock
+            end
+
+            def mock_task_context(klass_or_instance, &block)
+                klass_or_instance ||= mock_task_context_model(&block)
+                if klass_or_instance.kind_of?(Class)
+                    mock = flexmock(klass.new)
+                elsif !klass_or_instance.respond_to?(:should_receive)
+                    mock = flexmock(klass_or_instance)
+                else
+                    mock = klass_or_instance
+                end
+
+                mock.should_receive(:to_task).and_return(mock)
+                mock.should_receive(:as_plan).and_return(mock)
+                mock.should_receive(:orogen_task).and_return(mock_remote_task_context(mock.class.orogen_spec))
+                mock
+            end
+
+            class FakeOrocosTask
+                include BGL::Vertex
+            end
+
+            class FakeDeploymentTask < Roby::Tasks::Simple
+                event :ready
+                forward :start => :ready
+            end
+
+            def mock_deployment_task
+                task = flexmock(FakeDeploymentTask.new)
+                task.should_receive(:to_task).and_return(task)
+                task.should_receive(:as_plan).and_return(task)
+                plan.add(task)
+                task
+            end
+
+            def mock_configured_task(task)
+                if !task.execution_agent
+                    task.executed_by(deployer = mock_deployment_task)
+                    deployer.should_receive(:ready_to_die?).and_return(false)
+                    deployer.start!
+                    deployer.emit :ready
+                end
+                task.should_receive(:setup?).and_return(true)
+            end
 
             def setup
                 @old_loglevel = Orocos.logger.level

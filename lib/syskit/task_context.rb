@@ -850,7 +850,9 @@ module Orocos
                 end
 
                 klass.instance_variable_set :@state_events, state_events
-                Roby.app.orocos_tasks[task_spec.name] = klass
+                if task_spec.name
+                    Roby.app.orocos_tasks[task_spec.name] = klass
+                end
                 klass
             end
 
