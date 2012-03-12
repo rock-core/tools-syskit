@@ -2198,7 +2198,7 @@ module Orocos
                 next if !t.orogen_task
 
                 if !t.execution_agent
-                    raise NotImplementedError, "#{t} is still running, but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
+                    raise NotImplementedError, "#{t} is not yet finished but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
                 elsif !t.execution_agent.ready?
                     raise InternalError, "orogen_task != nil on #{t}, but #{t.execution_agent} is not ready yet"
                 end
