@@ -308,10 +308,13 @@ module Orocos
 
                 result = Hash.new
                 mappings.delete_if do |port_pair|
+                    if !port_pair.respond_to?(:to_ary)
+                        raise ArgumentError, "invalid connection description #{mappings.inspect}, expected a list of pairs of port names"
+                    end
                     result[port_pair] = connections.delete(port_pair)
                 end
                 if !mappings.empty?
-                    raise ArgumentError, "no such connections #{mappings} for #{self} => #{target_task}"
+                    raise ArgumentError, "no such connections #{mappings.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")} for #{self} => #{target_task}. Existing connections are: #{connections.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")}"
                 end
                 Flows::DataFlow.modified_tasks << self << target_task
                 result
