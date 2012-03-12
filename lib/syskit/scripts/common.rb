@@ -114,6 +114,7 @@ module Orocos
             def self.common_options(opt, with_output = false)
                 opt.on('--debug', "turn debugging output on") do
                     Scripts.debug = true
+                    Roby.app.public_logs = true
                 end
                 if with_output
                     autodetect_output_modes
