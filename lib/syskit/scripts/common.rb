@@ -36,6 +36,17 @@ module Orocos
                 tic
             end
 
+            def self.add_service(service_name)
+                if service_name =~ /^\w+(:\w+(,\w+)*)?$/
+                    service_name = Scripts.resolve_service_name(service_name)
+                    Roby.app.orocos_engine.add service_name
+                else
+                    Kernel.eval_dsl(service_name, Roby.orocos_engine,
+                            Orocos::RobyPlugin.constant_search_path,
+                            !Roby.app.filter_backtraces?)
+                end
+            end
+
             def self.resolve_service_name(service)
                 service_name, *service_conf = *service.split(':')
                 service_conf =
