@@ -511,6 +511,20 @@ module Orocos
                 end
                 Orocos.master_project.extend(MasterProjectHook)
 
+                Orocos::RobyPlugin.process_servers.each do |name, (client, log_dir)|
+		    client.available_projects.each do |name, orogen_model|
+		    	if !Orocos.available_projects.has_key?(name)
+			    Orocos.master_project.register_orogen_file(orogen_model, name)
+			end
+		    end
+		    client.available_typekits.each do |name, (registry, typelist)|
+		    	if !Orocos.available_typekits.has_key?(name)
+			    Orocos.master_project.register_typekit(name, registry, typelist)
+			    puts "registering typekit #{name}"
+			end
+		    end
+		end
+
                 all_files =
                     app.find_files_in_dirs("models", "orogen", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
                 all_files.each do |path|
@@ -735,7 +749,6 @@ module Orocos
 
 
             def self.register_process_server(name, client, log_dir)
-                client.master_project.extend MasterProjectHook
                 Orocos::RobyPlugin.process_servers[name] = [client, log_dir]
             end
 
