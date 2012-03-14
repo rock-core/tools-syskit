@@ -163,7 +163,7 @@ module Orocos
                     end
                 end
 
-                raise NoMethodError, "in composition #{composition.short_name}: child #{child_name} of type #{composition.find_child(child_name).models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
+                raise InvalidCompositionChildPort.new(composition, child_name, name), "in composition #{composition.short_name}: child #{child_name} of type #{composition.find_child(child_name).models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
             end
 
             def ==(other) # :nodoc:
@@ -174,6 +174,42 @@ module Orocos
 
             def each_fullfilled_model(&block)
                 composition.find_child(child_name).each_fullfilled_model(&block)
+            end
+        end
+
+        class InvalidCompositionChildPort < RuntimeError
+            attr_reader :composition_model
+            attr_reader :child_name
+            attr_reader :child_model
+            attr_reader :port_name
+
+            def initialize(composition_model, child_name, port_name)
+                @composition_model, @child_name, @port_name =
+                    composition_model, child_name, port_name
+                @child_model = composition_model.find_child(child_name).models.dup
+            end
+
+            def pretty_print(pp)
+                pp.text "port #{port_name} of child #{child_name} of #{composition_model.short_name} does not exist"
+                pp.breakable
+                pp.text "Available ports are:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(child_model) do |model|
+                        pp.text model.short_name
+                        pp.nest(2) do
+                            pp.breakable
+                            inputs = model.each_input_port.sort_by(&:name)
+                            outputs = model.each_output_port.sort_by(&:name)
+                            pp.seplist(inputs) do |port|
+                                pp.text "(in)#{port.name}[#{port.type_name}]"
+                            end
+                            pp.seplist(outputs) do |port|
+                                pp.text "(out)#{port.name}[#{port.type_name}]"
+                            end
+                        end
+                    end
+                end
             end
         end
 
