@@ -1645,7 +1645,7 @@ module Orocos
                         elsif out_explicit
                             raise ArgumentError, "cannot find a match for #{out_p.child.child_name}.#{out_p.name}[#{out_p.type_name}] in #{in_p}"
                         else
-                            raise ArgumentError, "no compatible ports found while connecting #{out_p} to #{in_p}"
+                            raise ArgumentError, "no compatible ports found while connecting #{out_p.child_name} to #{in_p.child_name}"
                         end
                     end
 
