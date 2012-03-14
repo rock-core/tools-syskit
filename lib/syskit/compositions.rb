@@ -89,6 +89,10 @@ module Orocos
                 self
             end
 
+            def pretty_print(pp)
+                pp.text "child #{child_name} of #{composition.short_name}[#{model.map(&:short_name).join(", ")}]"
+            end
+
             # Checks if this child fullfills the given model
             def fullfills?(model)
                 composition.find_child(child_name).fullfills?(model)
