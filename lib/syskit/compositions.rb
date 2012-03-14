@@ -264,6 +264,11 @@ module Orocos
             def multiplexes?
                @port.multiplexes?
             end
+
+            def pretty_print(pp)
+                pp.text "port #{name} of "
+                child.pretty_print(pp)
+            end
         end
 
         # Specialization of CompositionChildPort for output ports
