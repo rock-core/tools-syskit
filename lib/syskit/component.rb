@@ -466,6 +466,11 @@ module Orocos
                 srv = find_service_from_type(service_model)
                 return srv.as(service_model)
             end
+
+	    # Defined to be compatible, in port mapping code, with the data services
+	    def port_mappings_for_task
+	    	Hash.new { |h,k| k }
+	    end
         end
 
         # Base class for models that represent components (TaskContext,
