@@ -700,7 +700,7 @@ module Orocos
                     FileUtils.mkdir_p(Roby.app.log_dir)
                 end
                 @server_pid = Utilrb.spawn 'orocos_process_server', "--port=#{port}", "--debug",
-                    :redirect => 'local_process_server.txt',
+                    :redirect => (if options[:redirect] then 'local_process_server.txt' end),
                     :working_directory => Roby.app.log_dir
 
                 @server_port = port
