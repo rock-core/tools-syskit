@@ -125,6 +125,7 @@ module Orocos
                 @sys_model = Orocos::RobyPlugin::SystemModel.new
                 @orocos_engine = Engine.new(plan, sys_model)
                 @handler_ids = Orocos::RobyPlugin::Application.plug_engine_in_roby(engine)
+                Orocos::RobyPlugin::Application.connect_to_local_process_server
             end
 
             def teardown
