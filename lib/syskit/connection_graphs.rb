@@ -290,7 +290,7 @@ module Orocos
             def disconnect_ports(target_task, mappings)
                 if target_task.as_plan != target_task
                     port_mappings = target_task.model.port_mappings_for_task
-                    mappings = mappings.map_key do |(source, sink), _|
+                    mappings = mappings.map do |source, sink|
                         mapped_sink = port_mappings[sink]
                         if !mapped_sink
                             raise ArgumentError, "#{sink} is not a port of #{target_task}"
