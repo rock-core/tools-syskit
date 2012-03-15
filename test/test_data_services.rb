@@ -86,14 +86,11 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
     def test_device_type
         model = sys_model.device_type("Camera")
         assert(sys_model.has_device?('Camera'))
-        assert_same(model, DataSources::Camera)
-        assert_equal("camera", model.name)
-        assert_equal("#<DataSource: camera>", model.to_s)
-        assert(data_service = DServ::Camera)
-        assert(data_service != model)
+        assert_same(model, Devices::Camera)
+        assert_equal("Orocos::RobyPlugin::Devices::Camera", model.name)
+        assert_equal("#<Device: Orocos::RobyPlugin::Devices::Camera>", model.to_s)
 
-        assert(model < data_service)
-        assert(model < DataSource)
+        assert(model < Device)
         assert(model < DataService)
     end
 
@@ -209,7 +206,8 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         assert_equal(Srv::Image, srv_left_image.model)
         assert_equal(task_model.find_data_service('stereo'), srv_left_image.master)
         assert_equal([], srv_left_image.each_input_port.to_a)
-        assert_equal([task_model.find_output_port('leftImage')], srv_left_image.each_output_port.to_a)
+        assert_equal([Srv::Image.find_output_port('image')], srv_left_image.each_output_port.to_a)
+        assert_equal({'image' => 'leftImage'}, srv_left_image.port_mappings_for_task)
 
         assert(task_model.fullfills?(Srv::Image))
         assert_equal(Srv::Image, task_model.find_data_service('stereo.left').model)
@@ -235,7 +233,7 @@ class TC_RobySpec_DataServiceModels < Test::Unit::TestCase
         assert_equal(expected.to_set, service_set[task_model.each_data_service])
         assert_equal([["stereo", Dev::StereoCam]].to_set,
                      service_set[task_model.each_root_data_service])
-        assert_equal([:stereo_name, :conf], task_model.arguments.to_a)
+        assert_equal([:stereo_name, :conf, :orocos_name], task_model.arguments.to_a)
     end
 
     def test_provides_validates_ambiguities
