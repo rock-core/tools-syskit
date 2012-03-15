@@ -836,7 +836,7 @@ module Orocos
                 # Define specific events for the extended states (if there is any)
                 state_events = { :EXCEPTION => :exception, :FATAL_ERROR => :fatal_error, :RUNTIME_ERROR => :runtime_error }
                 task_spec.states.each do |name, type|
-                    event_name = name.snakecase.downcase
+                    event_name = name.snakecase.downcase.to_sym
                     klass.event event_name
                     if type == :fatal
                         klass.forward event_name => :fatal_error
@@ -847,6 +847,9 @@ module Orocos
                     end
 
                     state_events[name.to_sym] = event_name
+                end
+                if supermodel && supermodel.state_events
+                    state_events = state_events.merge(supermodel.state_events)
                 end
 
                 klass.instance_variable_set :@state_events, state_events
