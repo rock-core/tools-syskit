@@ -56,44 +56,9 @@ module Orocos
                 end
             end
 
-            def mock_orogen_model(&block)
-                flexmock(Orocos::RobyPlugin.create_orogen_interface(&block))
-            end
+            include Orocos::Test::Mocks
 
-            def mock_task_context_model(orogen_model = nil, &block)
-                orogen_model ||= mock_orogen_model(&block)
-                flexmock(Orocos::RobyPlugin::TaskContext.define_from_orogen(orogen_model, sys_model))
-            end
-
-            def mock_input_port(port_model)
-                port = flexmock("mock for #{port_model}")
-                port.should_receive(:model).and_return(port_model)
-                port
-            end
-
-            def mock_output_port(port_model)
-                port = flexmock("mock for #{port_model}")
-                port.should_receive(:model).and_return(port_model)
-                port
-            end
-
-            def mock_remote_task_context(orogen_model)
-                mock = flexmock(FakeOrocosTask.new)
-                mock.should_receive(:model).and_return(orogen_model)
-                orogen_model.each_input_port do |port_model|
-                    port = mock_input_port(port_model)
-                    mock.should_receive(:port).with(port_model.name).and_return(port)
-                    mock.should_receive(:port).with(port_model.name, FlexMock.any).and_return(port)
-                end
-                orogen_model.each_output_port do |port_model|
-                    port = mock_output_port(port_model)
-                    mock.should_receive(:port).with(port_model.name).and_return(port)
-                    mock.should_receive(:port).with(port_model.name, FlexMock.any).and_return(port)
-                end
-                mock
-            end
-
-            def mock_task_context(klass_or_instance, &block)
+            def mock_roby_task_context(klass_or_instance, &block)
                 klass_or_instance ||= mock_task_context_model(&block)
                 if klass_or_instance.kind_of?(Class)
                     mock = flexmock(klass.new)
@@ -105,13 +70,11 @@ module Orocos
 
                 mock.should_receive(:to_task).and_return(mock)
                 mock.should_receive(:as_plan).and_return(mock)
-                mock.should_receive(:orogen_task).and_return(mock_remote_task_context(mock.class.orogen_spec))
+                mock.should_receive(:orogen_task).and_return(mock_task_context(mock.class.orogen_spec))
                 mock
             end
 
-            class FakeOrocosTask
-                include BGL::Vertex
-            end
+            Orocos::Test::Mocks::FakeTaskContext.include BGL::Vertex
 
             class FakeDeploymentTask < Roby::Tasks::Simple
                 event :ready
