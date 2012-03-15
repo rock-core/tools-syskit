@@ -164,6 +164,9 @@ module Orocos
                 RobyPlugin.info { "starting deployment #{model.deployment_name} on #{host}" }
 
                 process_server, log_dir = Orocos::RobyPlugin.process_servers[host]
+                if !process_server
+                    raise ArgumentError, "cannot find the process server for #{host}"
+                end
                 options = Hash.new
 
                 # Checking for options which apply in a multi-robot context, 
