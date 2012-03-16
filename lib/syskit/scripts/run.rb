@@ -61,7 +61,7 @@ error = Scripts.run do
             Roby.app.orocos_engine.dry_run = dry_run
             Roby.app.orocos_engine.resolve
             if !Roby.engine.scheduler
-                require 'roby/schedulers/basic'
+                require 'roby/schedulers/temporal'
                 Roby.engine.scheduler = Roby::Schedulers::Temporal.new
             end
 
