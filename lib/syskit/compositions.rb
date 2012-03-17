@@ -1010,6 +1010,13 @@ module Orocos
                     raise ArgumentError, "#{child_model.short_name} does not specify a specialization of #{parent_models.map(&:short_name)}"
                 end
 
+                if child_model < Component && parent_class = parent_models.find { |m| m < Component }
+                    if !(child_model < parent_class)
+                        throw :invalid_selection if !user_call
+                        raise ArgumentError, "#{child_model.short_name} is not a subclass of #{parent_class.short_name}, cannot specialize #{child_name} with it"
+                    end
+                end
+
                 child_model.each_port do |port|
                     if conflict = parent_models.find { |m| !(child_model < m) && m.has_port?(port.name) }
                         throw :invalid_selection if !user_call
@@ -1017,13 +1024,6 @@ module Orocos
                     end
                 end
 
-
-                if child_model < Component && parent_class = parent_models.find { |m| m < Component }
-                    if !(child_model < parent_class)
-                        throw :invalid_selection if !user_call
-                        raise ArgumentError, "#{child_model.short_name} is not a subclass of #{parent_class.short_name}, cannot specialize #{child_name} with it"
-                    end
-                end
                 true
             end
 
