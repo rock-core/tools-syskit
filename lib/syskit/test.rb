@@ -9,6 +9,7 @@ require 'roby/schedulers/temporal'
 require 'utilrb/module/include'
 require 'orocos/process_server'
 require 'roby/tasks/simple'
+require 'orocos/test'
 
 module Orocos
     module RobyPlugin
