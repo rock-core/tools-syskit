@@ -204,6 +204,7 @@ module Orocos
                             pp.seplist(inputs) do |port|
                                 pp.text "(in)#{port.name}[#{port.type_name}]"
                             end
+                            pp.breakable
                             pp.seplist(outputs) do |port|
                                 pp.text "(out)#{port.name}[#{port.type_name}]"
                             end
