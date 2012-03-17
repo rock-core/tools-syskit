@@ -649,7 +649,11 @@ module Orocos
                 if !explicit.empty?
                     pp.nest(2) do
                         pp.breakable
-                        explicit = self.explicit.map { |k, v| [k.to_s, "#{k} => #{v}"] }.sort_by(&:first)
+                        explicit = self.explicit.map do |k, v|
+                            k = k.short_name
+                            v = v.short_name
+                            [k, "#{k} => #{v}"]
+                        end.sort_by(&:first)
                         pp.seplist(explicit) do |kv|
                             pp.text kv[1]
                         end
@@ -968,19 +972,19 @@ module Orocos
                     selection.each_fullfilled_model do |m|
                         if using_spec[m]
                             Engine.debug do
-                                Engine.debug "  rejected #{selection}"
-                                Engine.debug "    for #{m}"
+                                Engine.debug "  rejected #{selection.short_name}"
+                                Engine.debug "    for #{m.short_name}"
                                 Engine.debug "    reason: already explicitely selected"
                                 break
                             end
                         elsif ambiguous_default_selections.has_key?(m)
                             ambiguity = ambiguous_default_selections[m]
                             Engine.debug do
-                                Engine.debug "  rejected #{selection}"
-                                Engine.debug "    for #{m}"
+                                Engine.debug "  rejected #{selection.short_name}"
+                                Engine.debug "    for #{m.short_name}"
                                 Engine.debug "    reason: ambiguity with"
                                 ambiguity.each do |model|
-                                    Engine.debug "      #{model}"
+                                    Engine.debug "      #{model.short_name}"
                                 end
                                 break
                             end
@@ -989,16 +993,16 @@ module Orocos
                             removed = resolved_default_selections.delete(m)
                             ambiguous_default_selections[m] = [selection, removed].to_set
                             Engine.debug do
-                                Engine.debug "  removing #{removed}"
-                                Engine.debug "    for #{m}"
+                                Engine.debug "  removing #{removed.short_name}"
+                                Engine.debug "    for #{m.short_name}"
                                 Engine.debug "    reason: ambiguity with"
-                                Engine.debug "      #{selection}"
+                                Engine.debug "      #{selection.short_name}"
                                 break
                             end
                         elsif selection != m
                             Engine.debug do
-                                Engine.debug "  adding #{selection}"
-                                Engine.debug "    for #{m}"
+                                Engine.debug "  adding #{selection.short_name}"
+                                Engine.debug "    for #{m.short_name}"
                                 break
                             end
                             resolved_default_selections[m] = selection
