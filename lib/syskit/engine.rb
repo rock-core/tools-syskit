@@ -514,13 +514,21 @@ module Orocos
             #   ...
             #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
-                selected = main_user_selection.selection_for(model) || model
+                selected = user_selection_for(model)
                 defines[name] = Engine.create_instanciated_component(self, name, selected)
                 export_define_to_planner(::MainPlanner, name)
 		defines[name]
             rescue InstanciationError => e
                 e.instanciation_chain.push("defining #{name} as #{model}")
                 raise
+            end
+
+            def user_selection_for(model)
+                if model.respond_to?(:to_str) || !model.kind_of?(InstanceRequirements)
+                    main_user_selection.selection_for(model) || model
+                else
+                    model
+                end
             end
 
             # Add a new component requirement to the current deployment
@@ -533,7 +541,7 @@ module Orocos
             def add(model, arguments = Hash.new)
                 arguments = Kernel.validate_options arguments, :as => nil
 
-                selected = main_user_selection.selection_for(model) || model
+                selected = user_selection_for(model)
                 instance = Engine.create_instanciated_component(self, arguments[:as], selected)
 
                 @modified = true
@@ -766,7 +774,7 @@ module Orocos
                 arguments = Kernel.validate_options arguments, :as => nil, :context => @main_selection
                 context = arguments[:context]
 
-                selected = main_user_selection.selection_for(instance_def) || instance_def
+                selected = user_selection_for(instance_def)
                 instance = Engine.create_instanciated_component(self, arguments[:as], selected)
 
                 begin
