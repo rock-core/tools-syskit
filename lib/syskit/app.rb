@@ -605,10 +605,6 @@ module Orocos
 
                 Orocos.clear
 
-                if Orocos.export_types?
-                    Orocos.registry.clear_exports(Orocos.type_export_namespace)
-                end
-
                 loaded_orogen_projects.clear
             end
 
