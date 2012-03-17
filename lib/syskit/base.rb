@@ -4,6 +4,12 @@ require 'utilrb/hash/map_value'
 require 'orocos/roby/exceptions'
 require 'facets/string/snakecase'
 
+class Object
+    def short_name
+        to_s
+    end
+end
+
 module Orocos
     # Roby is a plan management component, i.e. a supervision framework that is
     # based on the concept of plans.
