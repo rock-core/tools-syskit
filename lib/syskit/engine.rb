@@ -235,6 +235,13 @@ module Orocos
                 server   = process_server_for(options[:on])
                 deployer = server.load_orogen_deployment(name)
 
+                if !Roby.app.loaded_orogen_project?(deployer.project.name)
+                    # The project was already loaded on
+                    # Orocos.master_project before Roby kicked in. Just load
+                    # the Roby part
+                    Roby.app.import_orogen_project(deployer.project.name, deployer.project)
+                end
+
                 deployer.used_typekits.each do |tk|
                     next if tk.virtual?
                     if Roby.app.orocos_only_load_models?
@@ -982,7 +989,9 @@ module Orocos
                 end
                 deployments.each do |machine_name, deployment_names|
                     deployment_names.each do |deployment_name|
-                        model = Roby.app.orocos_deployments[deployment_name]
+                        if !(model = Roby.app.orocos_deployments[deployment_name])
+                            raise InternalError, "no model defined for deployment #{deployment_name}"
+                        end
                         model.orogen_spec.task_activities.each do |deployed_task|
                             all_concrete_models << Roby.app.orocos_tasks[deployed_task.task_model.name]
                         end

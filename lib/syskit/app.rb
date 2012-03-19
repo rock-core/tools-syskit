@@ -528,7 +528,10 @@ module Orocos
                 all_files =
                     app.find_files_in_dirs("models", "orogen", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
                 all_files.each do |path|
-                    Orocos.register_orogen_files(path)
+                    name = File.basename(path, ".orogen")
+                    if !Orocos.available_projects.has_key?(name)
+                        Orocos.master_project.register_orogen_file(path, name)
+                    end
                 end
 
                 # Load the data services and task models
