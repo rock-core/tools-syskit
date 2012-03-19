@@ -1980,7 +1980,10 @@ module Orocos
             #   children of +self+ whose definition matches the given model.
             #
             def instanciate(engine, context, arguments = Hash.new)
-                arguments = Kernel.validate_options arguments, :as => nil, :task_arguments => Hash.new
+                arguments = Kernel.validate_options arguments, :as => nil, :task_arguments => Hash.new, :specialize => true
+                if arguments[:specialize] && root_model != self
+                    return root_model.instanciate(engine, context, arguments)
+                end
 
                 barrier = Hash.new
                 selection = context.top.added_info
@@ -2005,22 +2008,23 @@ module Orocos
                         find_children_models_and_tasks(context)
                     end
 
-                # Find the specializations that apply
-                find_specialization_spec = Hash.new
-                user_selection.each { |name, sel| find_specialization_spec[name] = sel.requirements.models }
-                candidates = find_matching_specializations(find_specialization_spec)
-                if Composition.strict_specialization_selection? && candidates.size > 1
-                    raise AmbiguousSpecialization.new(self, user_selection, candidates)
-                elsif !candidates.empty?
-                    specialized_model = find_common_specialization_subset(candidates)
-                    specialized_model = instanciate_specialization(*specialized_model)
-                    specialized_model = instanciate_specialization(*candidates.first)
-                    if specialized_model != self
-                        Engine.debug do
-                            Engine.debug "using specialization #{specialized_model.short_name} of #{short_name}"
-                            break
+                if arguments[:specialize]
+                    # Find the specializations that apply
+                    find_specialization_spec = Hash.new
+                    selected_models.each { |name, sel| find_specialization_spec[name] = sel.requirements.models }
+                    candidates = find_matching_specializations(find_specialization_spec)
+                    if Composition.strict_specialization_selection? && candidates.size > 1
+                        raise AmbiguousSpecialization.new(self, user_selection, candidates)
+                    elsif !candidates.empty?
+                        specialized_model = find_common_specialization_subset(candidates)
+                        specialized_model = instanciate_specialization(*specialized_model)
+                        if specialized_model != self
+                            Engine.debug do
+                                Engine.debug "using specialization #{specialized_model.short_name} of #{short_name}"
+                                break
+                            end
+                            return specialized_model.instanciate(engine, context, arguments.merge(:specialize => false))
                         end
-                        return specialized_model.instanciate(engine, context, arguments)
                     end
                 end
 
