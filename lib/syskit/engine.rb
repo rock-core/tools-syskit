@@ -426,7 +426,11 @@ module Orocos
                         all_services = instance.models.map do |m|
                             m.each_data_service.map(&:first)
                         end.flatten.uniq.sort
-                        raise ArgumentError, "no service #{service_name} can be found for #{name}, known services are #{all_services.join(", ")} on #{instance}"
+                        if all_services.empty?
+                            raise ArgumentError, "no service #{service_name} can be found for #{name}, #{instance} has no known services"
+                        else
+                            raise ArgumentError, "no service #{service_name} can be found for #{name}, known services are #{all_services.join(", ")} on #{instance}"
+                        end
                     end
 
                     instance.select_service(candidates.first)
