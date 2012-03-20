@@ -520,7 +520,6 @@ module Orocos
 		    client.available_typekits.each do |name, (registry, typelist)|
 		    	if !Orocos.available_typekits.has_key?(name)
 			    Orocos.master_project.register_typekit(name, registry, typelist)
-			    puts "registering typekit #{name}"
 			end
 		    end
 		end
