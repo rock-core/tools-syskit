@@ -219,7 +219,7 @@ if test
         cmdline.concat(test_def['services'])
 
         txtlog = File.join(outdir, "#{test_name}-out.txt")
-        shellcmd = "#{$0} '#{cmdline.join("' '")}' >> #{txtlog} 2>&1"
+        shellcmd = "'#{cmdline.join("' '")}' >> #{txtlog} 2>&1"
         File.open(txtlog, 'w') do |io|
             io.puts test_name
             io.puts shellcmd
@@ -227,7 +227,7 @@ if test
         end
 
         STDERR.print "running test #{test_name}... "
-        `#{shellcmd}`
+        `rock-roby instanciate #{shellcmd}`
         if $?.exitstatus != 0
             if $?.exitstatus == 2
                 STDERR.puts "deployment successful, but dot failed to generate the resulting network"
