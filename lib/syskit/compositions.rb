@@ -2001,20 +2001,41 @@ module Orocos
                     break
                 end
 
-                # Apply the selection to our children
-                user_selection, selected_models =
+                # Find what we should use for our children. +explicit_selection+
+                # is the set of children for which a selection existed and
+                # +selected_models+ all the models we should use
+                explicit_selections, selected_models =
                     context.save do
                         context.push(barrier)
                         find_children_models_and_tasks(context)
                     end
 
                 if arguments[:specialize]
-                    # Find the specializations that apply
+                    # Find the specializations that apply. We use
+                    # +explicit_selections+ so that we don't under-specialize
+                    #
+                    # For instance, if a composition has
+                    #
+                    #   add(Srv::BaseService, :as => 'child')
+                    #
+                    # And no selection exists in 'context' for that child, then
+                    #
+                    #   explicit_selection['child'] == nil
+                    #
+                    # while
+                    #
+                    #   selected_models['child'] == Srv::BaseService
+                    #
+                    # In the second case, #find_matching_speecializations would
+                    # reject any specialization that do not match
+                    # Srv::BaseService for child, which is not what we want
+                    # (what we want is the specializations that match the other
+                    # selections).
                     find_specialization_spec = Hash.new
-                    selected_models.each { |name, sel| find_specialization_spec[name] = sel.requirements.models }
+                    explicit_selections.each { |name, sel| find_specialization_spec[name] = sel.requirements.models }
                     candidates = find_matching_specializations(find_specialization_spec)
                     if Composition.strict_specialization_selection? && candidates.size > 1
-                        raise AmbiguousSpecialization.new(self, user_selection, candidates)
+                        raise AmbiguousSpecialization.new(self, explicit_selections, candidates)
                     elsif !candidates.empty?
                         specialized_model = find_common_specialization_subset(candidates)
                         specialized_model = instanciate_specialization(*specialized_model)
