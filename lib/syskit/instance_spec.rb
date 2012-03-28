@@ -153,8 +153,14 @@ module Orocos
                 if !required_models.respond_to?(:each)
                     required_models = [required_models]
                 end
-                required_models.all? do |req_m|
-                    models.any? { |m| m.fullfills?(req_m) }
+                if service
+                    required_models.all? do |req_m|
+                        service.fullfills?(req_m)
+                    end
+                else
+                    required_models.all? do |req_m|
+                        models.any? { |m| m.fullfills?(req_m) }
+                    end
                 end
             end
 
@@ -209,7 +215,7 @@ module Orocos
                 if service && other_spec.service && service != other_spec.service
                     raise ArgumentError, "cannot merge #{self} and #{other_spec}: incompatible services selected"
                 end
-                @service
+                @service = other_spec.service
 
                 # Call modules that could have been included in the class to
                 # extend it
@@ -316,8 +322,8 @@ module Orocos
             # Returns true if +model+ did add a new constraint to the
             # specification, and false otherwise
             def require_model(model)
-                if !model.kind_of?(Module) || !model.kind_of?(Class)
-                    raise ArgumentError, "expected module or class, got #{model}"
+                if !model.kind_of?(Module) && !model.kind_of?(Class)
+                    raise ArgumentError, "expected module or class, got #{model} of class #{model.class}"
                 end
                 need_model = true
                 base_models.delete_if do |m|
@@ -1355,11 +1361,13 @@ module Orocos
                     end
                     result.selected_task = object.task
                     object_requirements.require_model(object.task.model)
+                    object_requirements.select_service(object.provided_service_model)
                 when ProvidedDataService
                     required_model.each do |required|
                         result.selected_services[required] = object
                     end
                     object_requirements.require_model(object.component_model)
+                    object_requirements.select_service(object)
                 when DataServiceModel
                     object_requirements.require_model(object)
                 when Component
@@ -1382,6 +1390,10 @@ module Orocos
 
             def each_fullfilled_model(&block)
                 requirements.each_fullfilled_model(&block)
+            end
+
+            def fullfills?(set)
+                requirements.fullfills?(set)
             end
 
             def to_s

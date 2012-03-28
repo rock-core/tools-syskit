@@ -2079,7 +2079,7 @@ module Orocos
                     # (what we want is the specializations that match the other
                     # selections).
                     find_specialization_spec = Hash.new
-                    explicit_selections.each { |name, sel| find_specialization_spec[name] = sel.requirements.models }
+                    explicit_selections.each { |name, sel| find_specialization_spec[name] = [sel] }
                     candidates = find_matching_specializations(find_specialization_spec)
                     if Composition.strict_specialization_selection? && candidates.size > 1
                         raise AmbiguousSpecialization.new(self, explicit_selections, candidates)
