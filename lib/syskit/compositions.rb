@@ -703,10 +703,31 @@ module Orocos
                 @main_task = add(models, options)
             end
 
+            # Representation of a composition specialization
             class Specialization
+                # The specialization constraints, as a map from child name to
+                # set of models (data services or components)
                 attr_reader :specialized_children
+
+                # The set of blocks that have been passed to the corresponding
+                # specialize calls. These blocks are going to be evaluated in
+                # the task model that will be created (on demand) to create
+                # tasks of this specialization
                 attr_reader :specialization_blocks
+
+                # Cache of compatibilities: this is a cache of other
+                # Specialization objects that can be applied at the same time
+                # that this one.
+                #
+                # Two compositions are compatible if their specialization sets
+                # are either disjoints (they don't specialize on the same
+                # children) or if it is possible that a component provides both
+                # the required models.
                 attr_reader :compatibilities
+
+                # The composition model that can be used to instanciate this
+                # specialization. This is a subclass of the composition that
+                # this specialization specializes.
                 attr_accessor :composition_model
 
                 def initialize(spec = Hash.new, block = nil)
@@ -724,10 +745,21 @@ module Orocos
                     @compatibilities = old.compatibilities.dup
                 end
 
+                # True if this does not specialize on anything
                 def empty?
                     specialized_children.empty?
                 end
 
+                def to_s
+                    specialized_children.map do |child_name, child_models|
+                        "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
+                    end.join(",")
+                end
+
+                # Returns true if +spec+ is compatible with +self+
+                #
+                # See #compatibilities for more information on compatible
+                # specializations
                 def compatible_with?(spec)
                     empty? || spec == self || compatibilities.include?(spec)
                 end
@@ -742,12 +774,16 @@ module Orocos
                     end
                 end
 
+                # Returns true if +self+ specializes on +child_name+ in a way
+                # that is compatible with +model+
                 def has_specialization?(child_name, model)
                     if selected_models = specialized_children[child_name]
                         selected_models.any? { |m| m.fullfills?(model) }
                     end
                 end
 
+                # Add new specializations and blocks to +self+ without checking
+                # for compatibility
                 def add(new_spec, new_blocks)
                     specialized_children.merge!(new_spec) do |child_name, models_a, models_b|
                         result = Set.new
@@ -766,6 +802,8 @@ module Orocos
                     end
                 end
 
+                # Merge the specialization specification of +other_spec+ into
+                # +self+
                 def merge(other_spec)
                     @compatibilities =
                         if empty?
@@ -1105,6 +1143,15 @@ module Orocos
                 default_specializations[child] = child_model
             end
 
+            # Partitions a set of specializations into the smallest number of
+            # merged specializations, as a list of
+            #
+            #   |merged, specialization_set]
+            #
+            # tuple, where +merged+ is the merged specialization model (the
+            # specialziation model for all specializations in
+            # +specialization_set+) and +specialization_set+ the single
+            # specializations that are compatible with each other
             def partition_specializations(specialization_set)
                 if specialization_set.empty?
                     return []
