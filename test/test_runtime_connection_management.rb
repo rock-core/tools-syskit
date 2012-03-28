@@ -15,7 +15,7 @@ class TC_RobyPlugin_RuntimeConnectionManagement < Test::Unit::TestCase
     end
 
     def test_connection_application_on_configured_tasks
-        klass = mock_task_context_model do
+        klass = mock_roby_task_context do
             output_port 'out', 'int'
             input_port 'in', 'int'
         end
@@ -35,7 +35,7 @@ class TC_RobyPlugin_RuntimeConnectionManagement < Test::Unit::TestCase
     end
 
     def test_connections_are_not_applied_on_unconfigured_tasks
-        klass = mock_task_context_model do
+        klass = mock_roby_task_context do
             output_port 'out', 'int'
             input_port 'in', 'int'
         end
