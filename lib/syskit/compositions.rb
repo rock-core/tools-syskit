@@ -1869,8 +1869,9 @@ module Orocos
                     # selected task
                     port_mappings = Hash.new
                     selected_child.selected_services.each do |expected, selected|
-                        if expected.kind_of?(DataServiceModel) && (existing_mappings = selected.port_mappings_for(expected))
-                            port_mappings = SystemModel.merge_port_mappings(port_mappings, existing_mappings)
+                        if expected.kind_of?(DataServiceModel) && selected.fullfills?(expected)
+                            mappings = selected.port_mappings_for(expected)
+                            port_mappings = SystemModel.merge_port_mappings(port_mappings, mappings)
                         end
                     end
 

@@ -924,9 +924,8 @@ module Orocos
         end
 
         module ComponentModelProxy
-            attr_accessor :proxied_data_services
-            def self.proxied_data_services
-                @proxied_data_services
+            module ClassExtension
+                attr_accessor :proxied_data_services
             end
             def proxied_data_services
                 self.model.proxied_data_services
@@ -943,7 +942,7 @@ module Orocos
                 model = task_model.specialize("placeholder_model_for_" + name.gsub(/[^\w]/, '_'))
                 model.name = name
                 model.abstract
-                model.extend ComponentModelProxy
+                model.include ComponentModelProxy
                 model.proxied_data_services = models.dup
             else
                 model = DataServiceProxy.new_submodel(name, models)
