@@ -256,7 +256,9 @@ module Orocos
                     SystemModel.logger.level = ::Logger::DEBUG
                 end
 
-                Roby.app.setup
+                Roby.display_exception do
+                    Roby.app.setup
+                end
                 toc = Time.now
                 Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
             end
