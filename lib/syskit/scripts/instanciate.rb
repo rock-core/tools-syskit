@@ -160,7 +160,9 @@ class Instanciate
         end
 
         if remove_loggers
-            excluded_models << Orocos::RobyPlugin::Logger::Logger
+            if defined? Orocos::RobyPlugin::Logger::Logger
+                excluded_models << Orocos::RobyPlugin::Logger::Logger
+            end
         end
 
         Scripts.generate_output(:remove_compositions => remove_compositions,
