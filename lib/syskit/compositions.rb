@@ -24,6 +24,58 @@ module Orocos
 
         # Exception raised when CompositionChild#method_missing is called to
         # resolve a port but the port name is ambiguous
+        class AmbiguousChildConnection < ArgumentError
+            attr_reader :composition_model
+            attr_reader :out_p
+            attr_reader :in_p
+
+            def initialize(composition_model, out_p, in_p)
+                @composition_model = composition_model
+                @out_p, @in_p = out_p, in_p
+            end
+
+            def pretty_print(pp)
+                out_explicit = out_p.kind_of?(CompositionChildOutputPort)
+                in_explicit  = in_p.kind_of?(CompositionChildInputPort)
+                if in_explicit && out_explicit
+                    pp.text "cannot connect #{in_p.short_name} to #{out_p.short_name}: incompatible types"
+                    in_model = in_p.child.models
+                    out_model = out_p.child.models
+                elsif in_explicit
+                    pp.text "cannot find a match for #{in_p.short_name} in #{out_p.short_name}"
+                    in_model = in_p.child.models
+                    out_model = out_p.models
+                elsif out_explicit
+                    pp.text "cannot find a match for #{out_p.short_name} in #{in_p.short_name}"
+                    in_model = in_p.models
+                    out_model = out_p.child.models
+                else
+                    pp.text "no compatible ports found while connecting #{out_p.short_name} to #{in_p.short_name}"
+                    in_model  = in_p.models
+                    out_model = out_p.models
+                end
+
+                [["Output candidates", out_model, :each_output_port],
+                    ["Input candidates", in_model, :each_input_port]].
+                    each do |name, models, each|
+                        pp.breakable
+                        pp.text name
+                        pp.breakable
+                        pp.seplist(models) do |m|
+                            pp.text m.short_name
+                            pp.nest(2) do
+                                pp.breakable
+                                pp.seplist(m.send(each)) do |p|
+                                    p.pretty_print(pp)
+                                end
+                            end
+                        end
+                    end
+            end
+        end
+
+        # Exception raised when CompositionChild#method_missing is called to
+        # resolve a port but the port name is ambiguous
         class AmbiguousChildPort < RuntimeError
             attr_reader :composition_child
             attr_reader :port_name
@@ -75,8 +127,16 @@ module Orocos
                 "#<CompositionChild: #{child_name} #{composition}>"
             end
 
+            def short_name
+                "#{composition.short_name}.#{child_name}_child[#{model.map(&:short_name).join(", ")}]"
+            end
+
             # Returns the required model for this compostion child
             def model
+                models
+            end
+
+            def models
                 composition.find_child(child_name).models
             end
 
@@ -264,6 +324,10 @@ module Orocos
             # connections
             def multiplexes?
                @port.multiplexes?
+            end
+
+            def short_name
+                "#{child.short_name}.#{name}_port[#{type_name}]"
             end
 
             def pretty_print(pp)
@@ -1691,15 +1755,7 @@ module Orocos
                     # probably expects #connect to create some, so raise the
                     # corresponding exception
                     if result.empty?
-                        if in_explicit && out_explicit
-                            raise ArgumentError, "cannot connect #{in_p.child.child_name}.#{in_p.name}[#{in_p.type_name}] to #{out_p.child.child_name}.#{out_p.name}[#{out_p.type_name}]: incompatible types"
-                        elsif in_explicit
-                            raise ArgumentError, "cannot find a match for #{in_p.child.child_name}.#{in_p.name}[#{in_p.type_name}] in #{out_p}"
-                        elsif out_explicit
-                            raise ArgumentError, "cannot find a match for #{out_p.child.child_name}.#{out_p.name}[#{out_p.type_name}] in #{in_p}"
-                        else
-                            raise ArgumentError, "no compatible ports found while connecting #{out_p.child_name} to #{in_p.child_name}"
-                        end
+                        raise AmbiguousChildConnection.new(self, out_p, in_p)
                     end
 
                     unmapped_explicit_connections.merge!(result) do |k, v1, v2|
