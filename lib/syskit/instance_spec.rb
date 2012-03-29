@@ -213,9 +213,10 @@ module Orocos
                 end
                 @selections.merge(other_spec.selections)
                 if service && other_spec.service && service != other_spec.service
-                    raise ArgumentError, "cannot merge #{self} and #{other_spec}: incompatible services selected"
+                    @service = nil
+                else
+                    @service = other_spec.service
                 end
-                @service = other_spec.service
 
                 # Call modules that could have been included in the class to
                 # extend it
