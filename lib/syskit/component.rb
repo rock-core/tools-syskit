@@ -560,10 +560,20 @@ module Orocos
                 result
             end
 
+            # Returns a placeholder task that can be used to require that a
+            # task from this component model is deployed and started at a
+            # certain point in the plan.
+            #
+            # It is usually used implicitely with the plan and relation methods directly:
+            #
+            #   cmp = task.depends_on(Cmp::MyComposition)
+            #
+            # calls this method behind the scenes.
             def self.as_plan
                 Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
             end
 
+            # Returns the set of models this model fullfills
             def self.each_fullfilled_model
                 ancestors.each do |m|
                     if m <= Component || m <= DataService
@@ -572,6 +582,7 @@ module Orocos
                 end
             end
 
+            # Returns the set of models this task fullfills
             def each_fullfilled_model(&block)
                 model.each_fullfilled_model(&block)
             end
