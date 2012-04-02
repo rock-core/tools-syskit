@@ -819,6 +819,15 @@ module Orocos
             end
 
             ##
+            # :attr: reject_ambiguous_processor_deployments?
+            #
+            # If multiple deployments are available for a task, and this task is
+            # not a device driver, the resolution engine will randomly pick one
+            # if this flag is set to false (the default). If set to true, it
+            # will generate an error
+            attr_predicate :reject_ambiguous_processor_deployments?, true
+
+            ##
             # :attr: orocos_only_load_models?
             #
             # In normal operations, the plugin initializes the CORBA layer,
