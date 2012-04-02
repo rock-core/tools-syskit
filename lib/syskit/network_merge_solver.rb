@@ -494,7 +494,23 @@ module Orocos
                         end
                     end
 
-                    # 1. use device and orogen names
+                    # 1. use deployment hints
+                    ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
+                        deployed = task_set.find_all(&:execution_agent)
+                        if deployed.empty?
+                            debug { "cannot disambiguate using hints: no merge candidates of #{target_task} is deployed" }
+                            next
+                        end
+
+                        hints = target_task.deployment_hints
+                        next if hints.empty?
+
+                        task_set.find_all do |t|
+                            hints.any? { |h| h === t.orocos_name }
+                        end
+                    end
+
+                    # 2. use device and orogen names
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                         if !target_task.respond_to?(:each_device_name)
                             debug { "cannot disambiguate using names: #{target_task} is no device driver" }
@@ -529,7 +545,7 @@ module Orocos
                         end
                     end
 
-                    # 2. use locality
+                    # 3. use locality
                     ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                         neighbours = ValueSet.new
                         target_task.each_concrete_input_connection do |source_task, _|
@@ -560,7 +576,7 @@ module Orocos
                         end
                     end
 
-                    # 3. if target_task is not a device driver and possible
+                    # 4. if target_task is not a device driver and possible
                     # merges have the same model, pick one randomly
                     if !Roby.app.reject_ambiguous_processor_deployments?
                         ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|

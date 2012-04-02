@@ -544,6 +544,22 @@ module Orocos
                 @reusable = false
             end
 
+            # Returns a set of hints that should be used to disambiguate the
+            # deployment of this task.
+            #
+            # It looks for #deployment_hints in the requirements. If there are
+            # none, it then looks in the parents.
+            def deployment_hints
+                hints = requirements.deployment_hints
+                return hints if !hints.empty?
+
+                result = Set.new
+                each_parent_task do |p|
+                    result |= p.deployment_hints
+                end
+                result
+            end
+
             def self.as_plan
                 Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
             end

@@ -106,10 +106,15 @@ module Orocos
             # while the underlying engine is instanciating the requirements
             attr_reader :resolved_using_spec
 
+            # A set of hints for deployment disambiguation (as matchers on the
+            # deployment names). New hints can be added with #use_deployments
+            attr_reader :deployment_hints
+
             def initialize(models = [])
                 @models    = @base_models = models
                 @arguments = Hash.new
                 @selections = DependencyInjection.new
+                @deployment_hints = Set.new
             end
 
             def initialize_copy(old)
@@ -117,6 +122,7 @@ module Orocos
                 @base_models = old.base_models.dup
                 @arguments = old.arguments.dup
                 @selections = old.selections.dup
+                @deployment_hints = old.deployment_hints.dup
                 @service = service
             end
 
@@ -218,6 +224,7 @@ module Orocos
                     @service = other_spec.service
                 end
 
+                @deployment_hints |= other_spec.deployment_hints
                 # Call modules that could have been included in the class to
                 # extend it
                 super if defined? super
@@ -311,6 +318,11 @@ module Orocos
             def use_conf(*conf)
                 @arguments[:conf] = conf
                 self
+            end
+
+            # Use the specified hints to select deployments
+            def use_deployments(*patterns)
+                @deployment_hints |= patterns.to_set
             end
 
             # Add a new model in the base_models set, and update +models+
