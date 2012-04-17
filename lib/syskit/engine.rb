@@ -1172,10 +1172,15 @@ module Orocos
             #
             # The deployments are still abstract, i.e. they are not mapped to
             # running tasks yet
-            def deploy_system_network
+            def deploy_system_network(validate_network)
                 instanciate_required_deployments
                 @network_merge_solver.merge_identical_tasks
                 apply_merge_to_stored_instances
+
+                if validate_network
+                    validate_deployed_network
+                    add_timepoint 'validate_deployed_network'
+                end
 
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
@@ -1546,13 +1551,8 @@ module Orocos
                     # The mapping from this deployed network to the running
                     # tasks is done in #finalize_deployed_tasks
                     if options[:compute_deployments]
-                        deploy_system_network
+                        deploy_system_network(options[:validate_network])
                         add_timepoint 'deploy_system_network'
-                    end
-
-                    if options[:validate_network]
-                        validate_deployed_network
-                        add_timepoint 'validate_deployed_network'
                     end
 
                     # Now that we have a deployed network, we can compute the

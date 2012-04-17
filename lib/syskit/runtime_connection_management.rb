@@ -281,6 +281,12 @@ module Orocos
                 # And create the new ones
                 pending_tasks = ValueSet.new
                 new.each do |(from_task, to_task), mappings|
+                    # The task might have been killed while the connections
+                    # were already added to the data flow graph. Roby's GC will
+                    # deal with that. Ignore.
+                    next if !from_task.orogen_task
+                    next if !to_task.orogen_task
+
                     mappings.each do |(from_port, to_port), policy|
                         Engine.debug do
                             Engine.debug "connecting #{from_task}:#{from_port}"
