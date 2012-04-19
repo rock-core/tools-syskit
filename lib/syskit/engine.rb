@@ -782,7 +782,7 @@ module Orocos
             # One must NOT use this method outside of the instanciation process
             # !
             def add_instance(instance_def, arguments = Hash.new)
-                arguments = Kernel.validate_options arguments, :as => nil, :context => @main_selection
+                arguments = Kernel.validate_options arguments, :as => nil, :context => @main_selection, :mission => false
                 context = arguments[:context]
 
                 selected = user_selection_for(instance_def)
@@ -804,7 +804,12 @@ module Orocos
                 #
                 # However, the permanent flag will be removed at the end
                 # of #resolve
-                plan.add_permanent(task)
+                if arguments[:mission]
+                    instance.mission = true
+                    plan.add_mission(task)
+                else
+                    plan.add_permanent(task)
+                end
 
                 if instance.respond_to?(:selected_services) && (instance.selected_services.size == 1)
                     # The caller is trying to access a particular service. Give
