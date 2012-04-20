@@ -72,12 +72,7 @@ module Ui
             backtrace_item = Qt::TreeWidgetItem.new(item, [])
             error_list.setItemWidget(backtrace_item, 0, Qt::Label.new(backtrace_text.join("\n")))
 
-            # prevent 'unresolved constructor call Qt::Variant (ArgumentError)' 
-            # for older Qt versions
-            if ! Qt.version < "4.7"
-                item.set_data(0, Qt::UserRole, Qt::Variant.fromValue(exception))
-            end
-
+            item.set_data(0, Qt::UserRole, Qt::Variant.fromValue(exception))
             item
         end
 
