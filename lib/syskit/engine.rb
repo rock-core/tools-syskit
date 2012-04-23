@@ -1444,6 +1444,13 @@ module Orocos
                             task.arguments[:conf] = ['default']
                         end
                     end
+
+                # Mark as permanent any currently running logger
+                plan.find_tasks(Orocos::RobyPlugin::Logger::Logger).
+                    not_finished.
+                    each do |t|
+                        plan.add_permanent(t)
+                    end
             end
 
             # The set of options last given to #instanciate. It is used by
