@@ -1404,6 +1404,13 @@ module Orocos
                         end
                     plan.add_permanent(logger_task)
                     logger_task.default_logger = true
+                    # Make sure that the tasks are started after the logger was
+                    # started
+                    deployment.each_executed_task do |t|
+                        if t.pending?
+                            t.should_start_after logger_task.start_event
+                        end
+                    end
 
                     if logger_task.setup?
                         # The logger task is already configured. Add the ports
