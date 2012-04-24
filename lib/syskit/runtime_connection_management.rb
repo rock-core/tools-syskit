@@ -183,7 +183,7 @@ module Orocos
                     if !dry_run?
                         if !sink.setup? || !source.setup?
                             Engine.debug do
-                                Engine.debug "cannot modify connections from #{source}"
+                                Engine.debug "cannot modify connections from #{source}, either one is not yet set up"
                                 Engine.debug "  to #{sink}"
                                 Engine.debug "  source.executable?:      #{source.executable?}"
                                 Engine.debug "  source.ready_for_setup?: #{source.ready_for_setup?}"
