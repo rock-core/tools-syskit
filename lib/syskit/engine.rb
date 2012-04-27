@@ -1988,9 +1988,6 @@ module Orocos
 
                         new_activities = Set.new
                         task.orogen_spec.task_activities.each do |deployed_task|
-                            task_model = Roby.app.orocos_tasks[deployed_task.task_model.name]
-                            next if plan.find_local_tasks(task_model).empty?
-
                             if ignored_deployed_task?(deployed_task)
                                 Engine.debug { "  ignoring #{deployment_name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
                             else
