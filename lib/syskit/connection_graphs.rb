@@ -322,6 +322,7 @@ module Orocos
                 if !mappings.empty?
                     raise ArgumentError, "no such connections #{mappings.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")} for #{self} => #{target_task}. Existing connections are: #{connections.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")}"
                 end
+
                 Flows::DataFlow.modified_tasks << self << target_task
                 result
             end
@@ -341,6 +342,7 @@ module Orocos
                     current.delete_if { |(from, to), pol| from == port_name }
                     self[child_task, Flows::DataFlow] = current
                 end
+                Flows::DataFlow.modified_tasks << self << target_task
             end
 
             # Calls either #connect_ports or #forward_ports, depending on its
@@ -540,6 +542,18 @@ module Orocos
                     return false if !mappings.has_key?([source_port, sink_port])
                 end
                 true
+            end
+
+            def finalized!(timestamp = nil)
+                plan = self.plan
+                super
+
+                # Do not remove if we are on a running plan. The connection
+                # management code needs to look at these tasks to actually
+                # disconnect them
+                if !plan.executable? || !plan.engine
+                    Flows::DataFlow.modified_tasks.delete(self)
+                end
             end
         end
 
