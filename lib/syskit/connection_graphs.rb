@@ -10,7 +10,12 @@ module Orocos
         class ConnectionGraph < BGL::Graph
             # Needed for Roby's marshalling (so that we can dump the connection
             # graph as a constant)
-            attr_accessor :name
+            attr_reader :name
+
+            def name=(name)
+                super
+                @name = name
+            end
 
             # Create new connections between +source_task+ and +sink_task+.
             #
@@ -90,6 +95,7 @@ module Orocos
         end
 
         ActualDataFlow   = ConnectionGraph.new
+        ActualDataFlow.name = "Orocos::RobyPlugin::ActualDataFlow"
         Orocos::TaskContext.include BGL::Vertex
 
         def self.update_connection_policy(old, new)

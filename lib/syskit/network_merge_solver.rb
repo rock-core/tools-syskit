@@ -31,6 +31,7 @@ module Orocos
                 @plan = plan
                 @merging_candidates_queries = Hash.new
 		@task_replacement_graph = BGL::Graph.new
+                @task_replacement_graph.name = "#{self}.task_replacement_graph"
 
                 if block_given?
                     singleton_class.class_eval do
@@ -96,6 +97,7 @@ module Orocos
                 # replace +task+
 
                 merge_graph = BGL::Graph.new
+                merge_graph.name = "#{self}.merge_graph"
                 for task in task_set
                     # We never replace a transaction proxy. We only use them to
                     # replace new tasks in the transaction
@@ -596,6 +598,7 @@ module Orocos
                 end
 
                 resulting_merge_graph = BGL::Graph.new
+                resulting_merge_graph.name = "#{self}.resulting_merge_graph"
                 merges.each do |replaced_task, task|
                     resulting_merge_graph.link(replaced_task, task, nil)
                 end
