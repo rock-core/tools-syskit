@@ -1196,6 +1196,11 @@ module Orocos
 
             # Adds a new dependency injection context on the stack
             def push(spec)
+                if spec.empty?
+                    stack << StackLevel.new(stack.last.resolver, DependencyInjection.new)
+                    return
+                end
+
                 spec = DependencyInjection.new(spec)
 
                 new_state = stack.last.resolver.dup
