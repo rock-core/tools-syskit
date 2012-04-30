@@ -101,6 +101,8 @@ module Orocos
             end
 
             def setup
+                @required_orocos_deployments = Set.new
+
                 @old_loglevel = Orocos.logger.level
                 Roby.app.using('orocos')
 
@@ -123,8 +125,8 @@ module Orocos
 
                 engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
-                @sys_model = Orocos::RobyPlugin::SystemModel.new
-                @orocos_engine = Engine.new(plan, sys_model)
+                @sys_model = Roby.app.orocos_system_model
+                @orocos_engine = Roby.app.orocos_engine
                 @handler_ids = Orocos::RobyPlugin::Application.plug_engine_in_roby(engine)
                 Orocos::RobyPlugin::Application.connect_to_local_process_server
             end
@@ -132,6 +134,7 @@ module Orocos
             def teardown
                 super
 
+                orocos_engine.clear
                 Roby.app.orocos_clear_models
 
                 if plan
@@ -177,6 +180,50 @@ module Orocos
                 end
                 if block_given?
                     execute(&block)
+                end
+            end
+
+            def assert_deployable_orocos_subplan(root_task)
+                requirements = []
+                if root_task.respond_to?(:to_str)
+                    requirements << root_task
+                elsif root_task.respond_to?(:as_plan)
+                    plan.add(root_task = root_task.as_plan)
+
+                    Roby::TaskStructure::Dependency.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info, kind|
+                        planner = to.planning_task
+                        puts "task=#{to} planner=#{planner}"
+                        if planner.kind_of?(SingleRequirementTask)
+                            requirements << planner.arguments[:name]
+                        end
+                    end
+                end
+
+                requirements.each do |req_name|
+                    orocos_engine.clear
+                    load_required_orocos_deployments
+                    orocos_engine.add(req_name)
+                    
+                    this = Time.now
+                    gc = GC.count
+                    GC::Profiler.clear
+                    GC::Profiler.enable
+                    orocos_engine.resolve
+                    puts "resolved #{req_name} in #{Time.now - this} seconds (ran GC #{GC.count - gc} times)"
+                    puts GC::Profiler.result
+                    GC::Profiler.disable
+                end
+            ensure
+                Roby.plan.clear
+            end
+
+            def load_orocos_deployment(name)
+                @required_orocos_deployments << Roby.app.find_orocos_deployment(name)
+            end
+
+            def load_required_orocos_deployments
+                @required_orocos_deployments.each do |req|
+                    orocos_engine.load_composite_file(req)
                 end
             end
         end
