@@ -1639,6 +1639,8 @@ module Orocos
                         apply_merge_to_dataflow_dynamics
                     end
 
+                    apply_merge_to_stored_instances
+
                     # Replace the tasks stored in devices and instances by the
                     # actual new tasks
                     instances.each do |instance|
@@ -1646,12 +1648,6 @@ module Orocos
                         new_task = instance.task
                         if instance.mission?
                             trsc.add_mission(trsc[new_task])
-                        end
-
-                        if new_task.transaction_proxy?
-                            instance.task = new_task = new_task.__getobj__
-                        else
-                            instance.task = new_task
                         end
 
                         if old_task && old_task.plan && old_task != new_task
@@ -1674,13 +1670,7 @@ module Orocos
                         next if !robot.devices[name].respond_to?(:task=)
 
                         device_task = robot.devices[name].task
-                        if device_task.plan
-                            if device_task.transaction_proxy?
-                                robot.devices[name].task = device_task.__getobj__
-                            else
-                                robot.devices[name].task = device_task
-                            end
-                        else
+                        if !device_task.plan
                             robot.devices[name].task = nil
                         end
                     end
@@ -2139,7 +2129,7 @@ module Orocos
                             existing_task = new_task
                         end
                         existing_task.merge(task)
-                        @network_merge_solver.register_replacement(task, existing_task)
+                        @network_merge_solver.register_replacement(task, plan.may_unwrap(existing_task))
                         Engine.debug { "  using #{existing_task} for #{task} (#{task.orogen_name})" }
                         plan.remove_object(task)
                         if existing_task.conf != task.conf
