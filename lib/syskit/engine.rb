@@ -1055,10 +1055,7 @@ module Orocos
                 add_timepoint 'default_allocations', 'end'
                 @main_automatic_selection = result
 
-                @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
-
                 add_timepoint 'prepare', 'done'
-
             end
 
             # Updates the tasks in the DataFlowDynamics instance to point to the
