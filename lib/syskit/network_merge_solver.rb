@@ -40,6 +40,10 @@ module Orocos
                 end
             end
 
+            def clear
+                @task_replacement_graph.clear
+            end
+
             def replacement_for(task)
                 if task.plan && task.plan != plan
                     task = plan[task]
@@ -746,10 +750,12 @@ module Orocos
                         end
 
                         applied_merges = apply_merge_mappings(merges)
+                        merges.clear
                         candidates = ValueSet.new
                         applied_merges.each_vertex do |task|
                             candidates << task if task.leaf?(applied_merges)
                         end
+                        applied_merges.clear
                         merged_tasks.merge(candidates)
 
                         debug do

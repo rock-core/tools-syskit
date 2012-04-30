@@ -1779,6 +1779,9 @@ module Orocos
 
             ensure
                 @plan = engine_plan
+                @network_merge_solver.task_replacement_graph.clear
+                @network_merge_solver = nil
+                @dataflow_dynamics = nil
             end
 
             def autosave_plan_to_dot(dir = Roby.app.log_dir, options = Hash.new)
