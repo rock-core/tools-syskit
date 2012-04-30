@@ -774,9 +774,10 @@ module Orocos
                         end
                     end
 
-                    candidates = required_models.map do |m|
-                        selection[m] || selection[m.name]
-                    end.flatten.compact.to_set
+                    candidates = required_models.inject(Set.new) do |candidates, m|
+                        candidates << (selection[m] || selection[m.name])
+                    end
+                    candidates.delete(nil)
                     if !candidates.empty?
                         return candidates
                     end

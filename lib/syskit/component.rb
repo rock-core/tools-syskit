@@ -656,8 +656,7 @@ module Orocos
                 used_ports = service.component_model.
                     send("each_data_service").
                     find_all { |_, task_service| task_service.model == service.model }.
-                    map { |_, task_service| task_service.port_mappings.values }.
-                    flatten.to_set
+                    inject(Set.new) { |used_ports, (_, task_service)| used_ports |= task_service.port_mappings.values.to_set }
 
                 # 0. check if an explicit port mapping is provided for this port
                 remaining.delete_if do |port|

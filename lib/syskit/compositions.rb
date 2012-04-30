@@ -2623,7 +2623,11 @@ module Orocos
             end
 
             def fullfills?(models, arguments = Hash.new)
-                models = [*models].map do |other_model|
+                if !models.respond_to?(:map)
+                    models = [models]
+                end
+
+                models = models.map do |other_model|
                     if other_model <= Composition
                         if !(other_model.applied_specializations - model.applied_specializations).empty?
                             return false
