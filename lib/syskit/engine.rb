@@ -1637,6 +1637,12 @@ module Orocos
                         trsc.add_permanent(t)
                     end
 
+                    if options[:compute_deployments]
+                        if defined?(Orocos::RobyPlugin::Logger::Logger)
+                            configure_logging
+                        end
+                    end
+
                     fullfilled_models = Hash.new
 
                     plan.each_task do |task|
@@ -1691,12 +1697,6 @@ module Orocos
                     # and compute the connection policies
                     if options[:garbage_collect] && options[:validate_network]
                         validate_final_network(trsc, options)
-                    end
-
-                    if options[:compute_deployments]
-                        if defined?(Orocos::RobyPlugin::Logger::Logger)
-                            configure_logging
-                        end
                     end
 
                     if dry_run?
