@@ -15,29 +15,27 @@ class TC_RobySpec_System < Test::Unit::TestCase
     needs_orogen_projects 'system_test'
 
     def test_robot_device_definition
-        stereo_device_model = sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
-        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+        stereo_device_model = sys_model.device_type 'Stereo' do
+            output_port 'disparity', 'camera/Image'
+            output_port 'cloud', 'base/PointCloud3D'
+        end
+        sys_model.data_service_type 'Camera' do
+            output_port 'image', 'camera/Image'
+        end
         stereo_model = SystemTest::Stereo
-        stereo_model.data_service 'stereo'
+        stereo_model.provides Dev::Stereo
 
         stereo_driver = SystemTest::StereoCamera
-        stereo_driver.driver_for 'stereo'
-        stereo_driver.data_service 'camera', :as => 'left',  :slave_of => 'stereo'
-        stereo_driver.data_service 'camera', :as => 'right', :slave_of => 'stereo'
+        stereo_driver.driver_for Dev::Stereo
+        stereo_driver.provides Srv::Camera, :as => 'left',  :slave_of => 'stereo'
+        stereo_driver.provides Srv::Camera, :as => 'right', :slave_of => 'stereo'
 
         orocos_engine.robot do
-            device 'stereo',  :as => 'frontStereo'
+            device Dev::Stereo,  :as => 'frontStereo'
         end
         
         driver_task = orocos_engine.robot.devices['frontStereo']
         assert_equal(stereo_device_model, driver_task.device_model)
-        assert_equal(stereo_driver, driver_task.task_model)
-
-        camera_type = DataServices::Camera
-        assert_equal camera_type,
-            orocos_engine.robot.devices['frontStereo.left'].service.model
-        assert_equal camera_type,
-            orocos_engine.robot.devices['frontStereo.right'].service.model
     end
 
     def complete_robot_definition
@@ -56,63 +54,81 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def complete_system_model
-        sys_model.com_bus_type 'can', :message_type => 'can/Message'
-        sys_model.data_source_type 'camera',    :interface => SystemTest::CameraDriver
-        sys_model.data_source_type 'stereo',    :interface => SystemTest::Stereo
-        sys_model.data_source_type 'imu',       :interface => SystemTest::IMU
-        sys_model.data_source_type 'motors',    :interface => SystemTest::MotorController
-        sys_model.data_source_type 'joystick',  :interface => SystemTest::Joystick
-        sys_model.data_source_type 'sliderbox', :interface => SystemTest::Sliderbox
+        sys_model.com_bus_type 'Can', :message_type => 'can/Message'
+
+        sys_model.data_service_type 'Image' do
+            output_port 'image', 'camera/Image'
+        end
+        sys_model.device_type 'Camera' do
+            provides Srv::Image
+        end
+        sys_model.data_service_type 'Stereo' do
+            output_port 'disparity', 'camera/Image'
+            output_port 'cloud', 'base/PointCloud3D'
+        end
+        sys_model.data_service_type 'Imu' do
+            output_port 'orientation', 'imu::Orientation'
+        end
+        sys_model.device_type 'Motors' do
+            output_port "motor_state", "control/MotorsState"
+        end
+        sys_model.data_service_type 'Joystick' do
+            output_port "joystick",      "controldev/Joystick"
+            output_port "motionCommand", "controldev/MotionCommand"
+        end
+        sys_model.data_service_type 'Sliderbox' do
+            output_port "sliderbox",        "controldev/Sliderbox"
+            output_port "fourWheelCommand", "controldev/FourWheelCommand"
+        end
 
         @can_bus        = SystemTest::CanBus
-        can_bus.driver_for 'can'
+        can_bus.driver_for Dev::Can
         @camera_driver  = SystemTest::CameraDriver
-        camera_driver.driver_for 'camera'
+        camera_driver.driver_for Dev::Camera
         @imu_driver     = SystemTest::IMU
-        imu_driver.driver_for 'imu'
+        imu_driver.provides Srv::Imu
         @motors         = SystemTest::MotorController
-        motors.driver_for 'motors'
+        motors.driver_for Dev::Motors
         @controldev     = SystemTest::ControlDevices
-        controldev.driver_for 'sliderbox'
-        controldev.driver_for 'joystick'
+        controldev.provides Srv::Joystick
+        controldev.provides Srv::Sliderbox
 
         sys_model.composition "ImageAcquisition" do
-            add DataServices::Camera, :as => 'acquisition'
-            filter = add SystemTest::CameraFilter
+            add Dev::Camera, :as => 'acquisition'
+            add SystemTest::CameraFilter, :as => 'filter'
             export filter.out, :as => "image"
 
-            data_service "camera"
-
+            provides Srv::Image
             autoconnect
         end
         sys_model.composition "Stereo" do
             stereo = add SystemTest::StereoProcessing, :as => 'processing'
-            image0 = add DataServices::Camera, :as => "image0"
-            image1 = add DataServices::Camera, :as => "image1"
+            image0 = add Srv::Image, :as => "image0"
+            image1 = add Srv::Image, :as => "image1"
             connect image0.image => stereo.leftImage
             connect image1.image => stereo.rightImage
 
             export stereo.disparity
             export stereo.cloud
 
-            data_service 'stereo'
+            provides Srv::Stereo
         end
     end
 
     def test_device_definition
         complete_system_model
         orocos_engine.robot do
-            device "camera", :as => "leftCamera"
-            device "camera", :as => "rightCamera"
+            device Dev::Camera, :as => "leftCamera"
+            device Dev::Camera, :as => "rightCamera"
         end
 
         robot = orocos_engine.robot
         left  = robot.devices['leftCamera']
         right = robot.devices['rightCamera']
         assert(left != right)
-        assert(left.task_model < DataSources::Camera)
+        assert(left.task_model < Srv::Image)
         assert_equal('leftCamera', left.task_arguments["camera_name"])
-        assert(right.task_model < DataSources::Camera)
+        assert(right.task_model < Srv::Image)
         assert_equal('rightCamera', right.task_arguments["camera_name"])
     end
 
@@ -131,7 +147,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
         cameras = plan.find_tasks(SystemTest::CameraDriver).to_a
         cameras.each do |cam|
             acq = cam.parents.first
-            assert_equal(DataServices::Camera, acq[cam, TaskStructure::Dependency][:model].first)
+            assert_equal([Dev::Camera], acq[cam, TaskStructure::Dependency][:model].first)
         end
         return acquisition
     end
@@ -147,13 +163,13 @@ class TC_RobySpec_System < Test::Unit::TestCase
     def test_device_model_disambiguation
         complete_system_model
         orocos_engine.robot do
-            device "camera", :as => "leftCamera"
-            device "camera", :as => "rightCamera"
+            device Dev::Camera, :as => "leftCamera"
+            device Dev::Camera, :as => "rightCamera"
         end
         orocos_engine.add(Compositions::ImageAcquisition).
-            use("camera" => "leftCamera")
+            use(Dev::Camera => "leftCamera")
         orocos_engine.add(Compositions::ImageAcquisition).
-            use("camera" => "rightCamera")
+            use(Dev::Camera => "rightCamera")
         orocos_engine.instanciate
 
         assert_equal(6, plan.size)
@@ -163,8 +179,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
     def test_child_name_direct_disambiguation
         complete_system_model
         orocos_engine.robot do
-            device "camera", :as => "leftCamera"
-            device "camera", :as => "rightCamera"
+            device Dev::Camera, :as => "leftCamera"
+            device Dev::Camera, :as => "rightCamera"
         end
         orocos_engine.add(Compositions::ImageAcquisition).
             use("acquisition" => "leftCamera")
@@ -179,14 +195,12 @@ class TC_RobySpec_System < Test::Unit::TestCase
     def test_child_name_indirect_disambiguation
         complete_system_model
         orocos_engine.robot do
-            device "camera", :as => "leftCamera"
-            device "camera", :as => "rightCamera"
+            device Dev::Camera, :as => "leftCamera"
+            device Dev::Camera, :as => "rightCamera"
         end
         orocos_engine.add(Compositions::Stereo).
-            use("image0" => Compositions::ImageAcquisition).
-            use("image1" => Compositions::ImageAcquisition).
-            use("image0.acquisition" => "leftCamera").
-            use("image1.acquisition" => "rightCamera")
+            use("image0" => Compositions::ImageAcquisition.use('acquisition' => 'leftCamera')).
+            use("image1" => Compositions::ImageAcquisition.use('acquisition' => 'rightCamera'))
 
         orocos_engine.instanciate
 
@@ -197,8 +211,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
     def test_instance_name_direct_disambiguation
         complete_system_model
         orocos_engine.robot do
-            device "camera", :as => 'leftCamera'
-            device 'camera', :as => 'rightCamera'
+            device Dev::Camera, :as => "leftCamera"
+            device Dev::Camera, :as => "rightCamera"
         end
         orocos_engine.add(Compositions::ImageAcquisition, :as => 'leftImage').
             use("acquisition" => "leftCamera")
@@ -216,11 +230,11 @@ class TC_RobySpec_System < Test::Unit::TestCase
     def test_merge_cycles
         complete_system_model
         orocos_engine.robot do
-            device 'motors'
+            device Dev::Motors
         end
         sys_model.composition 'Control' do
             add SystemTest::Control
-            add DataServices::Motors
+            add Dev::Motors
             autoconnect
         end
         orocos_engine.add(Compositions::Control).
@@ -283,8 +297,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def test_select_slave_data_service
-        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
-        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+        sys_model.data_service_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.data_service_type 'camera', :interface => SystemTest::CameraDriver
 
         SystemTest::StereoCamera.class_eval do
             driver_for 'stereo'
@@ -313,8 +327,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def test_failed_resolve_does_not_impact_the_plan
-        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
-        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+        sys_model.data_service_type 'stereo', :interface => SystemTest::Stereo
+        sys_model.data_service_type 'camera', :interface => SystemTest::CameraDriver
 
         SystemTest::StereoCamera.class_eval do
             driver_for 'stereo'
@@ -355,8 +369,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def test_port_mapping_at_instanciation_time
-        sys_model.data_source_type 'stereo', :interface => SystemTest::Stereo
-        sys_model.data_source_type 'camera', :interface => SystemTest::CameraDriver
+        sys_model.data_service_type 'Stereo', :interface => SystemTest::Stereo
+        sys_model.data_service_type 'Camera', :interface => SystemTest::CameraDriver
 
         SystemTest::StereoCamera.driver_for 'stereo'
         SystemTest::StereoCamera.data_service 'camera', :as => 'left', :slave_of => 'stereo'

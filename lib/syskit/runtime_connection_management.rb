@@ -183,7 +183,7 @@ module Orocos
                     if !dry_run?
                         if !sink.setup? || !source.setup?
                             Engine.debug do
-                                Engine.debug "cannot modify connections from #{source}"
+                                Engine.debug "cannot modify connections from #{source}, either one is not yet set up"
                                 Engine.debug "  to #{sink}"
                                 Engine.debug "  source.executable?:      #{source.executable?}"
                                 Engine.debug "  source.ready_for_setup?: #{source.ready_for_setup?}"
@@ -281,6 +281,12 @@ module Orocos
                 # And create the new ones
                 pending_tasks = ValueSet.new
                 new.each do |(from_task, to_task), mappings|
+                    # The task might have been killed while the connections
+                    # were already added to the data flow graph. Roby's GC will
+                    # deal with that. Ignore.
+                    next if !from_task.orogen_task
+                    next if !to_task.orogen_task
+
                     mappings.each do |(from_port, to_port), policy|
                         Engine.debug do
                             Engine.debug "connecting #{from_task}:#{from_port}"
@@ -337,6 +343,10 @@ module Orocos
             def update
                 tasks = Flows::DataFlow.modified_tasks
 
+                tasks.delete_if do |t|
+                    t.finished?
+                end
+
                 # The modifications to +tasks+ might have removed all input
                 # connection. Make sure that in this case, executable? has been
                 # reset to nil
@@ -354,13 +364,14 @@ module Orocos
                     # need to update the connection graph to remove the old
                     # connections.  However, we should remove these tasks now as they
                     # should not be passed to compute_connection_changes
-                    tasks.delete_if { |t| !t.plan || !t.execution_agent || t.execution_agent.ready_to_die? || t.execution_agent.finished? }
-
                     main_tasks, proxy_tasks = tasks.partition { |t| t.plan == plan }
                     main_tasks = main_tasks.to_value_set
                     if Flows::DataFlow.pending_changes
                         main_tasks.merge(Flows::DataFlow.pending_changes.first)
                     end
+
+                    main_tasks.delete_if { |t| !t.plan || !t.execution_agent || t.execution_agent.ready_to_die? || t.execution_agent.finished? }
+                    proxy_tasks.delete_if { |t| !t.plan }
 
                     Engine.debug do
                         Engine.debug "computing data flow update from modified tasks"

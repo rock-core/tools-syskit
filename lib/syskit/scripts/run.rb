@@ -55,13 +55,12 @@ error = Scripts.run do
                 Roby.app.load_orocos_deployment(deployment_file)
             end
             additional_services.each do |service_name|
-                service_name = Scripts.resolve_service_name(service_name)
-                Roby.app.orocos_engine.add_mission(service_name)
+                Scripts.add_service(service_name)
             end
             Roby.app.orocos_engine.dry_run = dry_run
             Roby.app.orocos_engine.resolve
             if !Roby.engine.scheduler
-                require 'roby/schedulers/basic'
+                require 'roby/schedulers/temporal'
                 Roby.engine.scheduler = Roby::Schedulers::Temporal.new
             end
 

@@ -836,7 +836,7 @@ module Orocos
                 # Define specific events for the extended states (if there is any)
                 state_events = { :EXCEPTION => :exception, :FATAL_ERROR => :fatal_error, :RUNTIME_ERROR => :runtime_error }
                 task_spec.states.each do |name, type|
-                    event_name = name.snakecase.downcase
+                    event_name = name.snakecase.downcase.to_sym
                     klass.event event_name
                     if type == :fatal
                         klass.forward event_name => :fatal_error
@@ -848,9 +848,14 @@ module Orocos
 
                     state_events[name.to_sym] = event_name
                 end
+                if supermodel && supermodel.state_events
+                    state_events = state_events.merge(supermodel.state_events)
+                end
 
                 klass.instance_variable_set :@state_events, state_events
-                Roby.app.orocos_tasks[task_spec.name] = klass
+                if task_spec.name
+                    Roby.app.orocos_tasks[task_spec.name] = klass
+                end
                 klass
             end
 
@@ -919,9 +924,8 @@ module Orocos
         end
 
         module ComponentModelProxy
-            attr_accessor :proxied_data_services
-            def self.proxied_data_services
-                @proxied_data_services
+            module ClassExtension
+                attr_accessor :proxied_data_services
             end
             def proxied_data_services
                 self.model.proxied_data_services
@@ -938,7 +942,7 @@ module Orocos
                 model = task_model.specialize("placeholder_model_for_" + name.gsub(/[^\w]/, '_'))
                 model.name = name
                 model.abstract
-                model.extend ComponentModelProxy
+                model.include ComponentModelProxy
                 model.proxied_data_services = models.dup
             else
                 model = DataServiceProxy.new_submodel(name, models)

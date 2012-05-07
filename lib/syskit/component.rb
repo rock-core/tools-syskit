@@ -466,6 +466,11 @@ module Orocos
                 srv = find_service_from_type(service_model)
                 return srv.as(service_model)
             end
+
+	    # Defined to be compatible, in port mapping code, with the data services
+	    def port_mappings_for_task
+	    	Hash.new { |h,k| k }
+	    end
         end
 
         # Base class for models that represent components (TaskContext,
@@ -539,10 +544,36 @@ module Orocos
                 @reusable = false
             end
 
+            # Returns a set of hints that should be used to disambiguate the
+            # deployment of this task.
+            #
+            # It looks for #deployment_hints in the requirements. If there are
+            # none, it then looks in the parents.
+            def deployment_hints
+                hints = requirements.deployment_hints
+                return hints if !hints.empty?
+
+                result = Set.new
+                each_parent_task do |p|
+                    result |= p.deployment_hints
+                end
+                result
+            end
+
+            # Returns a placeholder task that can be used to require that a
+            # task from this component model is deployed and started at a
+            # certain point in the plan.
+            #
+            # It is usually used implicitely with the plan and relation methods directly:
+            #
+            #   cmp = task.depends_on(Cmp::MyComposition)
+            #
+            # calls this method behind the scenes.
             def self.as_plan
                 Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
             end
 
+            # Returns the set of models this model fullfills
             def self.each_fullfilled_model
                 ancestors.each do |m|
                     if m <= Component || m <= DataService
@@ -551,6 +582,7 @@ module Orocos
                 end
             end
 
+            # Returns the set of models this task fullfills
             def each_fullfilled_model(&block)
                 model.each_fullfilled_model(&block)
             end

@@ -36,6 +36,17 @@ module Orocos
                 tic
             end
 
+            def self.add_service(service_name)
+                if service_name =~ /^\w+(:\w+(,\w+)*)?$/
+                    service_name = Scripts.resolve_service_name(service_name)
+                    Roby.app.orocos_engine.add service_name
+                else
+                    Kernel.eval_dsl(service_name, Roby.orocos_engine,
+                            Orocos::RobyPlugin.constant_search_path,
+                            !Roby.app.filter_backtraces?)
+                end
+            end
+
             def self.resolve_service_name(service)
                 service_name, *service_conf = *service.split(':')
                 service_conf =
@@ -103,6 +114,7 @@ module Orocos
             def self.common_options(opt, with_output = false)
                 opt.on('--debug', "turn debugging output on") do
                     Scripts.debug = true
+                    Roby.app.public_logs = true
                 end
                 if with_output
                     autodetect_output_modes
@@ -244,7 +256,9 @@ module Orocos
                     SystemModel.logger.level = ::Logger::DEBUG
                 end
 
-                Roby.app.setup
+                Roby.display_exception do
+                    Roby.app.setup
+                end
                 toc = Time.now
                 Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
             end

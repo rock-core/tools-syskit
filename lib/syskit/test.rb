@@ -1,4 +1,5 @@
 require 'test/unit'
+require 'flexmock/test_unit'
 require 'roby'
 require 'roby/test/common'
 require 'roby/test/testcase'
@@ -7,6 +8,8 @@ require 'orocos/roby'
 require 'roby/schedulers/temporal'
 require 'utilrb/module/include'
 require 'orocos/process_server'
+require 'roby/tasks/simple'
+require 'orocos/test'
 
 module Orocos
     module RobyPlugin
@@ -34,6 +37,69 @@ module Orocos
             # The execution engine
             attr_reader :orocos_engine
 
+            def prepare_plan(options)
+                result = super
+
+                options, _ = Kernel.filter_options options, :model => nil
+                if options[:model] && options[:model].respond_to?(:should_receive)
+                    # The caller provided a mock class, give him a mock object
+                    result.map do |obj|
+                        if obj.respond_to?(:each)
+                            obj.map do |instance|
+                                mock_task_context(instance)
+                            end
+                        else
+                            mock_task_context(obj)
+                        end
+                    end
+                else
+                    result
+                end
+            end
+
+            include Orocos::Test::Mocks
+
+            def mock_roby_task_context(klass_or_instance, &block)
+                klass_or_instance ||= mock_task_context_model(&block)
+                if klass_or_instance.kind_of?(Class)
+                    mock = flexmock(klass.new)
+                elsif !klass_or_instance.respond_to?(:should_receive)
+                    mock = flexmock(klass_or_instance)
+                else
+                    mock = klass_or_instance
+                end
+
+                mock.should_receive(:to_task).and_return(mock)
+                mock.should_receive(:as_plan).and_return(mock)
+                mock.should_receive(:orogen_task).and_return(mock_task_context(mock.class.orogen_spec))
+                mock
+            end
+
+            Orocos::Test::Mocks::FakeTaskContext.include BGL::Vertex
+
+            class FakeDeploymentTask < Roby::Tasks::Simple
+                event :ready
+                forward :start => :ready
+            end
+
+            def mock_deployment_task
+                task = flexmock(FakeDeploymentTask.new)
+                task.should_receive(:to_task).and_return(task)
+                task.should_receive(:as_plan).and_return(task)
+                plan.add(task)
+                task
+            end
+
+            def mock_configured_task(task)
+                if !task.execution_agent
+                    task.executed_by(deployer = mock_deployment_task)
+                    deployer.should_receive(:ready_to_die?).and_return(false)
+                    deployer.start!
+                    deployer.emit :ready
+                end
+                task.should_receive(:setup?).and_return(true)
+            end
+
             def setup
                 @old_loglevel = Orocos.logger.level
                 Roby.app.using('orocos')
@@ -60,6 +126,7 @@ module Orocos
                 @sys_model = Orocos::RobyPlugin::SystemModel.new
                 @orocos_engine = Engine.new(plan, sys_model)
                 @handler_ids = Orocos::RobyPlugin::Application.plug_engine_in_roby(engine)
+                Orocos::RobyPlugin::Application.connect_to_local_process_server
             end
 
             def teardown

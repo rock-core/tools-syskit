@@ -1,7 +1,7 @@
 module Orocos
     module RobyPlugin
         module TaskScripting
-            module ScriptExtension
+            module ScriptEngineExtension
                 attribute(:data_readers) { Hash.new }
                 attribute(:data_writers) { Hash.new }
 
@@ -70,7 +70,7 @@ module Orocos
                 end
             end
 
-            module DSLLoaderExtension
+            module ScriptExtension
                 def data_reader(name, path, options = Hash.new)
                     if !path.respond_to?(:to_ary)
                         path = [path]
@@ -95,8 +95,8 @@ module Orocos
                     script.data_writers[name.to_sym] = [(path.dup << options), nil]
                 end
             end
+            Roby::TaskScripting::ScriptEngine.include ScriptEngineExtension
             Roby::TaskScripting::Script.include ScriptExtension
-            Roby::TaskScripting::DSLLoader.include DSLLoaderExtension
         end
     end
 end

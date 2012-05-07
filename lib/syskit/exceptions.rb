@@ -574,7 +574,10 @@ module Orocos
             attr_reader :composition_model
             # The user selection (see Composition.instanciate for details)
             attr_reader :selection
-            # The set of possible specializations given the model and the selection
+            # The set of possible specializations given the model and the
+            # selection. This is a list of [merged, set] tuples where +set+ is
+            # a set of specializations and +merged+ the complete specialization
+            # model
             attr_reader :candidates
 
             def initialize(composition_model, selection, candidates)
@@ -612,7 +615,7 @@ module Orocos
                 pp.nest(2) do
                     pp.breakable
                     pp.seplist(candidates) do |spec|
-                        pp.text spec.short_name
+                        pp.text spec[0].short_name
                     end
                 end
             end

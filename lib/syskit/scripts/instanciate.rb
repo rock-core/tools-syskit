@@ -127,8 +127,7 @@ class Instanciate
                 Roby.app.load_orocos_deployment(deployment_file)
             end
             additional_services.each do |service_name|
-                service_name = Scripts.resolve_service_name(service_name)
-                Roby.app.orocos_engine.add service_name
+                Scripts.add_service(service_name)
             end
 
             Scripts.resume_profiling
@@ -161,7 +160,9 @@ class Instanciate
         end
 
         if remove_loggers
-            excluded_models << Orocos::RobyPlugin::Logger::Logger
+            if defined? Orocos::RobyPlugin::Logger::Logger
+                excluded_models << Orocos::RobyPlugin::Logger::Logger
+            end
         end
 
         Scripts.generate_output(:remove_compositions => remove_compositions,
@@ -220,7 +221,7 @@ if test
         cmdline.concat(test_def['services'])
 
         txtlog = File.join(outdir, "#{test_name}-out.txt")
-        shellcmd = "#{$0} '#{cmdline.join("' '")}' >> #{txtlog} 2>&1"
+        shellcmd = "'#{cmdline.join("' '")}' >> #{txtlog} 2>&1"
         File.open(txtlog, 'w') do |io|
             io.puts test_name
             io.puts shellcmd
@@ -228,7 +229,7 @@ if test
         end
 
         STDERR.print "running test #{test_name}... "
-        `#{shellcmd}`
+        `rock-roby instanciate #{shellcmd}`
         if $?.exitstatus != 0
             if $?.exitstatus == 2
                 STDERR.puts "deployment successful, but dot failed to generate the resulting network"
@@ -250,7 +251,6 @@ end
 if Scripts.output_type == 'qt'
     require 'orocos/roby/gui/instanciated_network_display'
     class InstanciateGUI < Qt::Widget
-        attr_reader :reload_btn
         attr_reader :apply_btn
         attr_reader :instance_txt
         attr_reader :network_display
@@ -262,21 +262,18 @@ if Scripts.output_type == 'qt'
             toolbar_layout = Qt::HBoxLayout.new
             main_layout.add_layout(toolbar_layout)
 
-            @reload_btn = Qt::PushButton.new("Reload", self)
-            @apply_btn = Qt::PushButton.new("Apply", self)
+            @apply_btn = Qt::PushButton.new("Reload && Apply", self)
             @instance_txt = Qt::LineEdit.new(self)
-            toolbar_layout.add_widget(@reload_btn)
             toolbar_layout.add_widget(@apply_btn)
             toolbar_layout.add_widget(@instance_txt)
 
             main_layout.add_widget(
                 @network_display = Ui::InstanciatedNetworkDisplay.new(self))
 
-            @reload_btn.connect(SIGNAL('clicked()')) do
+            @apply_btn.connect(SIGNAL('clicked()')) do
                 Roby.app.reload_config
                 compute
             end
-            Qt::Object.connect(apply_btn, SIGNAL('clicked()'), self, SLOT('compute()'))
 
             @instance_txt.text = arguments
             compute

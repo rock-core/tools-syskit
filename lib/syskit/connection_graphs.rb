@@ -290,7 +290,7 @@ module Orocos
             def disconnect_ports(target_task, mappings)
                 if target_task.as_plan != target_task
                     port_mappings = target_task.model.port_mappings_for_task
-                    mappings = mappings.map_key do |(source, sink), _|
+                    mappings = mappings.map do |source, sink|
                         mapped_sink = port_mappings[sink]
                         if !mapped_sink
                             raise ArgumentError, "#{sink} is not a port of #{target_task}"
@@ -308,10 +308,13 @@ module Orocos
 
                 result = Hash.new
                 mappings.delete_if do |port_pair|
+                    if !port_pair.respond_to?(:to_ary)
+                        raise ArgumentError, "invalid connection description #{mappings.inspect}, expected a list of pairs of port names"
+                    end
                     result[port_pair] = connections.delete(port_pair)
                 end
                 if !mappings.empty?
-                    raise ArgumentError, "no such connections #{mappings} for #{self} => #{target_task}"
+                    raise ArgumentError, "no such connections #{mappings.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")} for #{self} => #{target_task}. Existing connections are: #{connections.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")}"
                 end
                 Flows::DataFlow.modified_tasks << self << target_task
                 result

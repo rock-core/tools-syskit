@@ -106,10 +106,15 @@ module Orocos
             # while the underlying engine is instanciating the requirements
             attr_reader :resolved_using_spec
 
+            # A set of hints for deployment disambiguation (as matchers on the
+            # deployment names). New hints can be added with #use_deployments
+            attr_reader :deployment_hints
+
             def initialize(models = [])
                 @models    = @base_models = models
                 @arguments = Hash.new
                 @selections = DependencyInjection.new
+                @deployment_hints = Set.new
             end
 
             def initialize_copy(old)
@@ -117,6 +122,7 @@ module Orocos
                 @base_models = old.base_models.dup
                 @arguments = old.arguments.dup
                 @selections = old.selections.dup
+                @deployment_hints = old.deployment_hints.dup
                 @service = service
             end
 
@@ -153,8 +159,14 @@ module Orocos
                 if !required_models.respond_to?(:each)
                     required_models = [required_models]
                 end
-                required_models.all? do |req_m|
-                    models.any? { |m| m.fullfills?(req_m) }
+                if service
+                    required_models.all? do |req_m|
+                        service.fullfills?(req_m)
+                    end
+                else
+                    required_models.all? do |req_m|
+                        models.any? { |m| m.fullfills?(req_m) }
+                    end
                 end
             end
 
@@ -207,10 +219,12 @@ module Orocos
                 end
                 @selections.merge(other_spec.selections)
                 if service && other_spec.service && service != other_spec.service
-                    raise ArgumentError, "cannot merge #{self} and #{other_spec}: incompatible services selected"
+                    @service = nil
+                else
+                    @service = other_spec.service
                 end
-                @service
 
+                @deployment_hints |= other_spec.deployment_hints
                 # Call modules that could have been included in the class to
                 # extend it
                 super if defined? super
@@ -306,6 +320,11 @@ module Orocos
                 self
             end
 
+            # Use the specified hints to select deployments
+            def use_deployments(*patterns)
+                @deployment_hints |= patterns.to_set
+            end
+
             # Add a new model in the base_models set, and update +models+
             # accordingly
             #
@@ -316,8 +335,8 @@ module Orocos
             # Returns true if +model+ did add a new constraint to the
             # specification, and false otherwise
             def require_model(model)
-                if !model.kind_of?(Module) || !model.kind_of?(Class)
-                    raise ArgumentError, "expected module or class, got #{model}"
+                if !model.kind_of?(Module) && !model.kind_of?(Class)
+                    raise ArgumentError, "expected module or class, got #{model} of class #{model.class}"
                 end
                 need_model = true
                 base_models.delete_if do |m|
@@ -649,7 +668,11 @@ module Orocos
                 if !explicit.empty?
                     pp.nest(2) do
                         pp.breakable
-                        explicit = self.explicit.map { |k, v| [k.to_s, "#{k} => #{v}"] }.sort_by(&:first)
+                        explicit = self.explicit.map do |k, v|
+                            k = k.short_name
+                            v = v.short_name
+                            [k, "#{k} => #{v}"]
+                        end.sort_by(&:first)
                         pp.seplist(explicit) do |kv|
                             pp.text kv[1]
                         end
@@ -968,19 +991,19 @@ module Orocos
                     selection.each_fullfilled_model do |m|
                         if using_spec[m]
                             Engine.debug do
-                                Engine.debug "  rejected #{selection}"
-                                Engine.debug "    for #{m}"
+                                Engine.debug "  rejected #{selection.short_name}"
+                                Engine.debug "    for #{m.short_name}"
                                 Engine.debug "    reason: already explicitely selected"
                                 break
                             end
                         elsif ambiguous_default_selections.has_key?(m)
                             ambiguity = ambiguous_default_selections[m]
                             Engine.debug do
-                                Engine.debug "  rejected #{selection}"
-                                Engine.debug "    for #{m}"
+                                Engine.debug "  rejected #{selection.short_name}"
+                                Engine.debug "    for #{m.short_name}"
                                 Engine.debug "    reason: ambiguity with"
                                 ambiguity.each do |model|
-                                    Engine.debug "      #{model}"
+                                    Engine.debug "      #{model.short_name}"
                                 end
                                 break
                             end
@@ -989,16 +1012,16 @@ module Orocos
                             removed = resolved_default_selections.delete(m)
                             ambiguous_default_selections[m] = [selection, removed].to_set
                             Engine.debug do
-                                Engine.debug "  removing #{removed}"
-                                Engine.debug "    for #{m}"
+                                Engine.debug "  removing #{removed.short_name}"
+                                Engine.debug "    for #{m.short_name}"
                                 Engine.debug "    reason: ambiguity with"
-                                Engine.debug "      #{selection}"
+                                Engine.debug "      #{selection.short_name}"
                                 break
                             end
                         elsif selection != m
                             Engine.debug do
-                                Engine.debug "  adding #{selection}"
-                                Engine.debug "    for #{m}"
+                                Engine.debug "  adding #{selection.short_name}"
+                                Engine.debug "    for #{m.short_name}"
                                 break
                             end
                             resolved_default_selections[m] = selection
@@ -1351,11 +1374,13 @@ module Orocos
                     end
                     result.selected_task = object.task
                     object_requirements.require_model(object.task.model)
+                    object_requirements.select_service(object.provided_service_model)
                 when ProvidedDataService
                     required_model.each do |required|
                         result.selected_services[required] = object
                     end
                     object_requirements.require_model(object.component_model)
+                    object_requirements.select_service(object)
                 when DataServiceModel
                     object_requirements.require_model(object)
                 when Component
@@ -1378,6 +1403,10 @@ module Orocos
 
             def each_fullfilled_model(&block)
                 requirements.each_fullfilled_model(&block)
+            end
+
+            def fullfills?(set)
+                requirements.fullfills?(set)
             end
 
             def to_s

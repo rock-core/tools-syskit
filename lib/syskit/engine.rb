@@ -70,8 +70,8 @@ module Orocos
                     # created it and we're fine- Otherwise, raise an error
                     begin
                         port = input_port(sink_port_name)
-                        if port.type.name != logged_port_type
-                            raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}: a port of same name but different type exists"
+                        if port.orocos_type_name != logged_port_type
+                            raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}: a port of same name but of type #{port.orocos_type_name} exists"
                         end
                     rescue Orocos::NotFound
                         raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}"
@@ -234,6 +234,13 @@ module Orocos
 
                 server   = process_server_for(options[:on])
                 deployer = server.load_orogen_deployment(name)
+
+                if !Roby.app.loaded_orogen_project?(deployer.project.name)
+                    # The project was already loaded on
+                    # Orocos.master_project before Roby kicked in. Just load
+                    # the Roby part
+                    Roby.app.import_orogen_project(deployer.project.name, deployer.project)
+                end
 
                 deployer.used_typekits.each do |tk|
                     next if tk.virtual?
@@ -419,7 +426,11 @@ module Orocos
                         all_services = instance.models.map do |m|
                             m.each_data_service.map(&:first)
                         end.flatten.uniq.sort
-                        raise ArgumentError, "no service #{service_name} can be found for #{name}, known services are #{all_services.join(", ")} on #{instance}"
+                        if all_services.empty?
+                            raise ArgumentError, "no service #{service_name} can be found for #{name}, #{instance} has no known services"
+                        else
+                            raise ArgumentError, "no service #{service_name} can be found for #{name}, known services are #{all_services.join(", ")} on #{instance}"
+                        end
                     end
 
                     instance.select_service(candidates.first)
@@ -514,13 +525,21 @@ module Orocos
             #   ...
             #   add 'piv_control'
             def define(name, model, arguments = Hash.new)
-                selected = main_user_selection.selection_for(model) || model
+                selected = user_selection_for(model)
                 defines[name] = Engine.create_instanciated_component(self, name, selected)
                 export_define_to_planner(::MainPlanner, name)
 		defines[name]
             rescue InstanciationError => e
                 e.instanciation_chain.push("defining #{name} as #{model}")
                 raise
+            end
+
+            def user_selection_for(model)
+                if model.respond_to?(:to_str) || !model.kind_of?(InstanceRequirements)
+                    main_user_selection.selection_for(model) || model
+                else
+                    model
+                end
             end
 
             # Add a new component requirement to the current deployment
@@ -533,7 +552,7 @@ module Orocos
             def add(model, arguments = Hash.new)
                 arguments = Kernel.validate_options arguments, :as => nil
 
-                selected = main_user_selection.selection_for(model) || model
+                selected = user_selection_for(model)
                 instance = Engine.create_instanciated_component(self, arguments[:as], selected)
 
                 @modified = true
@@ -763,10 +782,10 @@ module Orocos
             # One must NOT use this method outside of the instanciation process
             # !
             def add_instance(instance_def, arguments = Hash.new)
-                arguments = Kernel.validate_options arguments, :as => nil, :context => @main_selection
+                arguments = Kernel.validate_options arguments, :as => nil, :context => @main_selection, :mission => false
                 context = arguments[:context]
 
-                selected = main_user_selection.selection_for(instance_def) || instance_def
+                selected = user_selection_for(instance_def)
                 instance = Engine.create_instanciated_component(self, arguments[:as], selected)
 
                 begin
@@ -785,7 +804,12 @@ module Orocos
                 #
                 # However, the permanent flag will be removed at the end
                 # of #resolve
-                plan.add_permanent(task)
+                if arguments[:mission]
+                    instance.mission = true
+                    plan.add_mission(task)
+                else
+                    plan.add_permanent(task)
+                end
 
                 if instance.respond_to?(:selected_services) && (instance.selected_services.size == 1)
                     # The caller is trying to access a particular service. Give
@@ -974,7 +998,9 @@ module Orocos
                 end
                 deployments.each do |machine_name, deployment_names|
                     deployment_names.each do |deployment_name|
-                        model = Roby.app.orocos_deployments[deployment_name]
+                        if !(model = Roby.app.orocos_deployments[deployment_name])
+                            raise InternalError, "no model defined for deployment #{deployment_name}"
+                        end
                         model.orogen_spec.task_activities.each do |deployed_task|
                             all_concrete_models << Roby.app.orocos_tasks[deployed_task.task_model.name]
                         end
@@ -1151,10 +1177,15 @@ module Orocos
             #
             # The deployments are still abstract, i.e. they are not mapped to
             # running tasks yet
-            def deploy_system_network
+            def deploy_system_network(validate_network)
                 instanciate_required_deployments
                 @network_merge_solver.merge_identical_tasks
                 apply_merge_to_stored_instances
+
+                if validate_network
+                    validate_deployed_network
+                    add_timepoint 'validate_deployed_network'
+                end
 
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
@@ -1373,6 +1404,13 @@ module Orocos
                         end
                     plan.add_permanent(logger_task)
                     logger_task.default_logger = true
+                    # Make sure that the tasks are started after the logger was
+                    # started
+                    deployment.each_executed_task do |t|
+                        if t.pending?
+                            t.should_start_after logger_task.start_event
+                        end
+                    end
 
                     if logger_task.setup?
                         # The logger task is already configured. Add the ports
@@ -1383,6 +1421,8 @@ module Orocos
                         required_logging_ports.each do |port_name, logged_task, logged_port|
                             logger_task.createLoggingPort(port_name, logged_task, logged_port)
                         end
+                    else
+                        logger_task.needs_reconfiguration!
                     end
                     required_connections.each do |task, connections|
                         connections = connections.map_value do |(port_name, log_port_name), policy|
@@ -1405,6 +1445,13 @@ module Orocos
                         if !task.arguments[:conf]
                             task.arguments[:conf] = ['default']
                         end
+                    end
+
+                # Mark as permanent any currently running logger
+                plan.find_tasks(Orocos::RobyPlugin::Logger::Logger).
+                    not_finished.
+                    each do |t|
+                        plan.add_permanent(t)
                     end
             end
 
@@ -1525,13 +1572,8 @@ module Orocos
                     # The mapping from this deployed network to the running
                     # tasks is done in #finalize_deployed_tasks
                     if options[:compute_deployments]
-                        deploy_system_network
+                        deploy_system_network(options[:validate_network])
                         add_timepoint 'deploy_system_network'
-                    end
-
-                    if options[:validate_network]
-                        validate_deployed_network
-                        add_timepoint 'validate_deployed_network'
                     end
 
                     # Now that we have a deployed network, we can compute the
@@ -2198,7 +2240,7 @@ module Orocos
                 next if !t.orogen_task
 
                 if !t.execution_agent
-                    raise NotImplementedError, "#{t} is still running, but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
+                    raise NotImplementedError, "#{t} is not yet finished but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
                 elsif !t.execution_agent.ready?
                     raise InternalError, "orogen_task != nil on #{t}, but #{t.execution_agent} is not ready yet"
                 end

@@ -71,7 +71,11 @@ module Orocos
             attribute(:port_mappings) { Hash.new }
 
             def each_fullfilled_model
-                yield(self)
+                ancestors.each do |m|
+                    if m.kind_of?(DataServiceModel)
+                        yield(m)
+                    end
+                end
             end
 
             # Return the config type for the instances of this service, if there

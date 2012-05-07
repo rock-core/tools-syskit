@@ -38,7 +38,6 @@ module Orocos
             end
 
             def mark_changed_configuration_as_not_reusable(changed)
-                changed = changed.map_key { |k| k.name }
                 Roby.execute do
                     TaskContext.configured.each do |task_name, (orogen_model, current_conf)|
                         changed_conf = changed[orogen_model.name]
@@ -118,13 +117,10 @@ module Orocos
 
             # Reloads the configuration files
             def reload_config
-                if File.directory?(dir = File.join(APP_DIR, 'config', 'orogen'))
-                    changed = Orocos.conf.load_dir(dir)
-                    mark_changed_configuration_as_not_reusable(changed)
-                end
-                if Roby.app.robot_name && File.directory?(dir = File.join(APP_DIR, 'config', Roby.app.robot_name, 'orogen'))
-                    changed = Orocos.conf.load_dir(dir)
-                    mark_changed_configuration_as_not_reusable(changed)
+                Roby.app.find_dirs('config', 'orogen','ROBOT', :all => true, :order => :specific_last).each do |dir|
+                        changed = Orocos.conf.load_dir(dir)
+                        puts "changed: #{changed}"
+                        mark_changed_configuration_as_not_reusable(changed)
                 end
                 nil
             end

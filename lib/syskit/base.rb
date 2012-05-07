@@ -4,6 +4,12 @@ require 'utilrb/hash/map_value'
 require 'orocos/roby/exceptions'
 require 'facets/string/snakecase'
 
+class Object
+    def short_name
+        to_s
+    end
+end
+
 module Orocos
     # Roby is a plan management component, i.e. a supervision framework that is
     # based on the concept of plans.
@@ -31,8 +37,8 @@ module Orocos
         end
 
         # Creates a blank orogen interface and returns it
-        def self.create_orogen_interface(name = nil)
-            Orocos::Spec::TaskContext.new(Roby.app.main_orogen_project, name)
+        def self.create_orogen_interface(name = nil, &block)
+            Orocos.create_orogen_interface(name, &block)
         end
 
         # Returns an array of modules. It is used as the search path for DSL

@@ -24,6 +24,58 @@ module Orocos
 
         # Exception raised when CompositionChild#method_missing is called to
         # resolve a port but the port name is ambiguous
+        class AmbiguousChildConnection < ArgumentError
+            attr_reader :composition_model
+            attr_reader :out_p
+            attr_reader :in_p
+
+            def initialize(composition_model, out_p, in_p)
+                @composition_model = composition_model
+                @out_p, @in_p = out_p, in_p
+            end
+
+            def pretty_print(pp)
+                out_explicit = out_p.kind_of?(CompositionChildOutputPort)
+                in_explicit  = in_p.kind_of?(CompositionChildInputPort)
+                if in_explicit && out_explicit
+                    pp.text "cannot connect #{in_p.short_name} to #{out_p.short_name}: incompatible types"
+                    in_model = in_p.child.models
+                    out_model = out_p.child.models
+                elsif in_explicit
+                    pp.text "cannot find a match for #{in_p.short_name} in #{out_p.short_name}"
+                    in_model = in_p.child.models
+                    out_model = out_p.models
+                elsif out_explicit
+                    pp.text "cannot find a match for #{out_p.short_name} in #{in_p.short_name}"
+                    in_model = in_p.models
+                    out_model = out_p.child.models
+                else
+                    pp.text "no compatible ports found while connecting #{out_p.short_name} to #{in_p.short_name}"
+                    in_model  = in_p.models
+                    out_model = out_p.models
+                end
+
+                [["Output candidates", out_model, :each_output_port],
+                    ["Input candidates", in_model, :each_input_port]].
+                    each do |name, models, each|
+                        pp.breakable
+                        pp.text name
+                        pp.breakable
+                        pp.seplist(models) do |m|
+                            pp.text m.short_name
+                            pp.nest(2) do
+                                pp.breakable
+                                pp.seplist(m.send(each)) do |p|
+                                    p.pretty_print(pp)
+                                end
+                            end
+                        end
+                    end
+            end
+        end
+
+        # Exception raised when CompositionChild#method_missing is called to
+        # resolve a port but the port name is ambiguous
         class AmbiguousChildPort < RuntimeError
             attr_reader :composition_child
             attr_reader :port_name
@@ -75,8 +127,16 @@ module Orocos
                 "#<CompositionChild: #{child_name} #{composition}>"
             end
 
+            def short_name
+                "#{composition.short_name}.#{child_name}_child[#{model.map(&:short_name).join(", ")}]"
+            end
+
             # Returns the required model for this compostion child
             def model
+                models
+            end
+
+            def models
                 composition.find_child(child_name).models
             end
 
@@ -87,6 +147,10 @@ module Orocos
             def use(*spec)
                 composition.find_child(child_name).use(*spec)
                 self
+            end
+
+            def pretty_print(pp)
+                pp.text "child #{child_name} of #{composition.short_name}[#{model.map(&:short_name).join(", ")}]"
             end
 
             # Checks if this child fullfills the given model
@@ -159,7 +223,7 @@ module Orocos
                     end
                 end
 
-                raise NoMethodError, "in composition #{composition.short_name}: child #{child_name} of type #{composition.find_child(child_name).models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
+                raise InvalidCompositionChildPort.new(composition, child_name, name), "in composition #{composition.short_name}: child #{child_name} of type #{composition.find_child(child_name).models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
             end
 
             def ==(other) # :nodoc:
@@ -170,6 +234,43 @@ module Orocos
 
             def each_fullfilled_model(&block)
                 composition.find_child(child_name).each_fullfilled_model(&block)
+            end
+        end
+
+        class InvalidCompositionChildPort < RuntimeError
+            attr_reader :composition_model
+            attr_reader :child_name
+            attr_reader :child_model
+            attr_reader :port_name
+
+            def initialize(composition_model, child_name, port_name)
+                @composition_model, @child_name, @port_name =
+                    composition_model, child_name, port_name
+                @child_model = composition_model.find_child(child_name).models.dup
+            end
+
+            def pretty_print(pp)
+                pp.text "port #{port_name} of child #{child_name} of #{composition_model.short_name} does not exist"
+                pp.breakable
+                pp.text "Available ports are:"
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(child_model) do |model|
+                        pp.text model.short_name
+                        pp.nest(2) do
+                            pp.breakable
+                            inputs = model.each_input_port.sort_by(&:name)
+                            outputs = model.each_output_port.sort_by(&:name)
+                            pp.seplist(inputs) do |port|
+                                pp.text "(in)#{port.name}[#{port.type_name}]"
+                            end
+                            pp.breakable
+                            pp.seplist(outputs) do |port|
+                                pp.text "(out)#{port.name}[#{port.type_name}]"
+                            end
+                        end
+                    end
+                end
             end
         end
 
@@ -223,6 +324,15 @@ module Orocos
             # connections
             def multiplexes?
                @port.multiplexes?
+            end
+
+            def short_name
+                "#{child.short_name}.#{name}_port[#{type_name}]"
+            end
+
+            def pretty_print(pp)
+                pp.text "port #{name} of "
+                child.pretty_print(pp)
             end
         end
 
@@ -657,10 +767,31 @@ module Orocos
                 @main_task = add(models, options)
             end
 
+            # Representation of a composition specialization
             class Specialization
+                # The specialization constraints, as a map from child name to
+                # set of models (data services or components)
                 attr_reader :specialized_children
+
+                # The set of blocks that have been passed to the corresponding
+                # specialize calls. These blocks are going to be evaluated in
+                # the task model that will be created (on demand) to create
+                # tasks of this specialization
                 attr_reader :specialization_blocks
+
+                # Cache of compatibilities: this is a cache of other
+                # Specialization objects that can be applied at the same time
+                # that this one.
+                #
+                # Two compositions are compatible if their specialization sets
+                # are either disjoints (they don't specialize on the same
+                # children) or if it is possible that a component provides both
+                # the required models.
                 attr_reader :compatibilities
+
+                # The composition model that can be used to instanciate this
+                # specialization. This is a subclass of the composition that
+                # this specialization specializes.
                 attr_accessor :composition_model
 
                 def initialize(spec = Hash.new, block = nil)
@@ -678,10 +809,21 @@ module Orocos
                     @compatibilities = old.compatibilities.dup
                 end
 
+                # True if this does not specialize on anything
                 def empty?
                     specialized_children.empty?
                 end
 
+                def to_s
+                    specialized_children.map do |child_name, child_models|
+                        "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
+                    end.join(",")
+                end
+
+                # Returns true if +spec+ is compatible with +self+
+                #
+                # See #compatibilities for more information on compatible
+                # specializations
                 def compatible_with?(spec)
                     empty? || spec == self || compatibilities.include?(spec)
                 end
@@ -696,12 +838,16 @@ module Orocos
                     end
                 end
 
+                # Returns true if +self+ specializes on +child_name+ in a way
+                # that is compatible with +model+
                 def has_specialization?(child_name, model)
                     if selected_models = specialized_children[child_name]
                         selected_models.any? { |m| m.fullfills?(model) }
                     end
                 end
 
+                # Add new specializations and blocks to +self+ without checking
+                # for compatibility
                 def add(new_spec, new_blocks)
                     specialized_children.merge!(new_spec) do |child_name, models_a, models_b|
                         result = Set.new
@@ -720,6 +866,8 @@ module Orocos
                     end
                 end
 
+                # Merge the specialization specification of +other_spec+ into
+                # +self+
                 def merge(other_spec)
                     @compatibilities =
                         if empty?
@@ -964,6 +1112,13 @@ module Orocos
                     raise ArgumentError, "#{child_model.short_name} does not specify a specialization of #{parent_models.map(&:short_name)}"
                 end
 
+                if child_model < Component && parent_class = parent_models.find { |m| m < Component }
+                    if !(child_model < parent_class)
+                        throw :invalid_selection if !user_call
+                        raise ArgumentError, "#{child_model.short_name} is not a subclass of #{parent_class.short_name}, cannot specialize #{child_name} with it"
+                    end
+                end
+
                 child_model.each_port do |port|
                     if conflict = parent_models.find { |m| !(child_model < m) && m.has_port?(port.name) }
                         throw :invalid_selection if !user_call
@@ -971,13 +1126,6 @@ module Orocos
                     end
                 end
 
-
-                if child_model < Component && parent_class = parent_models.find { |m| m < Component }
-                    if !(child_model < parent_class)
-                        throw :invalid_selection if !user_call
-                        raise ArgumentError, "#{child_model.short_name} is not a subclass of #{parent_class.short_name}, cannot specialize #{child_name} with it"
-                    end
-                end
                 true
             end
 
@@ -1059,6 +1207,15 @@ module Orocos
                 default_specializations[child] = child_model
             end
 
+            # Partitions a set of specializations into the smallest number of
+            # merged specializations, as a list of
+            #
+            #   |merged, specialization_set]
+            #
+            # tuple, where +merged+ is the merged specialization model (the
+            # specialziation model for all specializations in
+            # +specialization_set+) and +specialization_set+ the single
+            # specializations that are compatible with each other
             def partition_specializations(specialization_set)
                 if specialization_set.empty?
                     return []
@@ -1598,15 +1755,7 @@ module Orocos
                     # probably expects #connect to create some, so raise the
                     # corresponding exception
                     if result.empty?
-                        if in_explicit && out_explicit
-                            raise ArgumentError, "cannot connect #{in_p.child.child_name}.#{in_p.name}[#{in_p.type_name}] to #{out_p.child.child_name}.#{out_p.name}[#{out_p.type_name}]: incompatible types"
-                        elsif in_explicit
-                            raise ArgumentError, "cannot find a match for #{in_p.child.child_name}.#{in_p.name}[#{in_p.type_name}] in #{out_p}"
-                        elsif out_explicit
-                            raise ArgumentError, "cannot find a match for #{out_p.child.child_name}.#{out_p.name}[#{out_p.type_name}] in #{in_p}"
-                        else
-                            raise ArgumentError, "no compatible ports found while connecting #{out_p} to #{in_p}"
-                        end
+                        raise AmbiguousChildConnection.new(self, out_p, in_p)
                     end
 
                     unmapped_explicit_connections.merge!(result) do |k, v1, v2|
@@ -1776,8 +1925,9 @@ module Orocos
                     # selected task
                     port_mappings = Hash.new
                     selected_child.selected_services.each do |expected, selected|
-                        if expected.kind_of?(DataServiceModel) && (existing_mappings = selected.port_mappings_for(expected))
-                            port_mappings = SystemModel.merge_port_mappings(port_mappings, existing_mappings)
+                        if expected.kind_of?(DataServiceModel) && selected.fullfills?(expected)
+                            mappings = selected.port_mappings_for(expected)
+                            port_mappings = SystemModel.merge_port_mappings(port_mappings, mappings)
                         end
                     end
 
@@ -1934,7 +2084,10 @@ module Orocos
             #   children of +self+ whose definition matches the given model.
             #
             def instanciate(engine, context, arguments = Hash.new)
-                arguments = Kernel.validate_options arguments, :as => nil, :task_arguments => Hash.new
+                arguments = Kernel.validate_options arguments, :as => nil, :task_arguments => Hash.new, :specialize => true
+                if arguments[:specialize] && root_model != self
+                    return root_model.instanciate(engine, context, arguments)
+                end
 
                 barrier = Hash.new
                 selection = context.top.added_info
@@ -1952,29 +2105,51 @@ module Orocos
                     break
                 end
 
-                # Apply the selection to our children
-                user_selection, selected_models =
+                # Find what we should use for our children. +explicit_selection+
+                # is the set of children for which a selection existed and
+                # +selected_models+ all the models we should use
+                explicit_selections, selected_models =
                     context.save do
                         context.push(barrier)
                         find_children_models_and_tasks(context)
                     end
 
-                # Find the specializations that apply
-                find_specialization_spec = Hash.new
-                user_selection.each { |name, sel| find_specialization_spec[name] = sel.requirements.models }
-                candidates = find_matching_specializations(find_specialization_spec)
-                if Composition.strict_specialization_selection? && candidates.size > 1
-                    raise AmbiguousSpecialization.new(self, user_selection, candidates)
-                elsif !candidates.empty?
-                    specialized_model = find_common_specialization_subset(candidates)
-                    specialized_model = instanciate_specialization(*specialized_model)
-                    specialized_model = instanciate_specialization(*candidates.first)
-                    if specialized_model != self
-                        Engine.debug do
-                            Engine.debug "using specialization #{specialized_model.short_name} of #{short_name}"
-                            break
+                if arguments[:specialize]
+                    # Find the specializations that apply. We use
+                    # +explicit_selections+ so that we don't under-specialize
+                    #
+                    # For instance, if a composition has
+                    #
+                    #   add(Srv::BaseService, :as => 'child')
+                    #
+                    # And no selection exists in 'context' for that child, then
+                    #
+                    #   explicit_selection['child'] == nil
+                    #
+                    # while
+                    #
+                    #   selected_models['child'] == Srv::BaseService
+                    #
+                    # In the second case, #find_matching_speecializations would
+                    # reject any specialization that do not match
+                    # Srv::BaseService for child, which is not what we want
+                    # (what we want is the specializations that match the other
+                    # selections).
+                    find_specialization_spec = Hash.new
+                    explicit_selections.each { |name, sel| find_specialization_spec[name] = [sel] }
+                    candidates = find_matching_specializations(find_specialization_spec)
+                    if Composition.strict_specialization_selection? && candidates.size > 1
+                        raise AmbiguousSpecialization.new(self, explicit_selections, candidates)
+                    elsif !candidates.empty?
+                        specialized_model = find_common_specialization_subset(candidates)
+                        specialized_model = instanciate_specialization(*specialized_model)
+                        if specialized_model != self
+                            Engine.debug do
+                                Engine.debug "using specialization #{specialized_model.short_name} of #{short_name}"
+                                break
+                            end
+                            return specialized_model.instanciate(engine, context, arguments.merge(:specialize => false))
                         end
-                        return specialized_model.instanciate(engine, context, arguments)
                     end
                 end
 

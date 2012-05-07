@@ -511,10 +511,26 @@ module Orocos
                 end
                 Orocos.master_project.extend(MasterProjectHook)
 
+                Orocos::RobyPlugin.process_servers.each do |name, (client, log_dir)|
+		    client.available_projects.each do |name, orogen_model|
+		    	if !Orocos.available_projects.has_key?(name)
+			    Orocos.master_project.register_orogen_file(orogen_model, name)
+			end
+		    end
+		    client.available_typekits.each do |name, (registry, typelist)|
+		    	if !Orocos.available_typekits.has_key?(name)
+			    Orocos.master_project.register_typekit(name, registry, typelist)
+			end
+		    end
+		end
+
                 all_files =
                     app.find_files_in_dirs("models", "orogen", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
                 all_files.each do |path|
-                    Orocos.register_orogen_files(path)
+                    name = File.basename(path, ".orogen")
+                    if !Orocos.available_projects.has_key?(name)
+                        Orocos.master_project.register_orogen_file(path, name)
+                    end
                 end
 
                 # Load the data services and task models
@@ -590,10 +606,6 @@ module Orocos
                 end
 
                 Orocos.clear
-
-                if Orocos.export_types?
-                    Orocos.registry.clear_exports(Orocos.type_export_namespace)
-                end
 
                 loaded_orogen_projects.clear
             end
@@ -700,7 +712,7 @@ module Orocos
                     FileUtils.mkdir_p(Roby.app.log_dir)
                 end
                 @server_pid = Utilrb.spawn 'orocos_process_server', "--port=#{port}", "--debug",
-                    :redirect => 'local_process_server.txt',
+                    :redirect => (if options[:redirect] then 'local_process_server.txt' end),
                     :working_directory => Roby.app.log_dir
 
                 @server_port = port
@@ -735,7 +747,6 @@ module Orocos
 
 
             def self.register_process_server(name, client, log_dir)
-                client.master_project.extend MasterProjectHook
                 Orocos::RobyPlugin.process_servers[name] = [client, log_dir]
             end
 
@@ -806,6 +817,15 @@ module Orocos
                 client.create_log_dir(options[:log_dir], Roby.app.time_tag)
                 Application.register_process_server(name, client, options[:log_dir])
             end
+
+            ##
+            # :attr: reject_ambiguous_processor_deployments?
+            #
+            # If multiple deployments are available for a task, and this task is
+            # not a device driver, the resolution engine will randomly pick one
+            # if this flag is set to false (the default). If set to true, it
+            # will generate an error
+            attr_predicate :reject_ambiguous_processor_deployments?, true
 
             ##
             # :attr: orocos_only_load_models?
