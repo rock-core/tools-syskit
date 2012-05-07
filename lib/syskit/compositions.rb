@@ -169,9 +169,14 @@ module Orocos
 
             # Specifies the configuration that should be used on the specified
             # child
-            def use_conf(*conf)
-                composition.find_child(child_name).use_conf(*conf)
+            def with_conf(*conf)
+                composition.find_child(child_name).with_conf(*conf)
                 self
+            end
+
+            # @deprecated
+            def use_conf(*conf)
+                with_conf(*conf)
             end
 
             def each_input_port(&block)

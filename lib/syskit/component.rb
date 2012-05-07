@@ -445,6 +445,11 @@ module Orocos
                 Engine.create_instanciated_component(nil, nil, self).with_arguments(*spec, &block)
             end
 
+            # @deprecated
+            def use_conf(*spec, &block)
+                with_conf(*spec, &block)
+            end
+
             # This returns an InstanciatedComponent object that can be used in
             # other #use statements in the deployment spec
             #
@@ -453,8 +458,8 @@ module Orocos
             #   add(Cmp::CorridorServoing).
             #       use(Cmp::Odometry.use_conf('special_conf'))
             #
-            def use_conf(*spec, &block)
-                Engine.create_instanciated_component(nil, nil, self).use_conf(*spec, &block)
+            def with_conf(*spec, &block)
+                Engine.create_instanciated_component(nil, nil, self).with_conf(*spec, &block)
             end
 
             # Returns a view of this component as a producer of the given model

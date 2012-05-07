@@ -507,7 +507,7 @@ module Orocos
 		    planner.method("#{device.name}_device") do
 		        spec = Roby.orocos_engine.device(device.name)
 		        if arguments[:conf]
-		            spec.use_conf(*arguments[:conf])
+		            spec.with_conf(*arguments[:conf])
 		        end
 		        spec.as_plan
 		    end

@@ -313,9 +313,15 @@ module Orocos
                 self
             end
 
+            # @deprecated
+            def use_conf(*conf)
+                Roby.warn_deprecated "InstanceRequirements#use_conf is deprecated. Use #with_conf instead"
+                with_conf(*conf)
+            end
+
             # Specifies that the task that is represented by this requirement
             # should use the given configuration
-            def use_conf(*conf)
+            def with_conf(*conf)
                 @arguments[:conf] = conf
                 self
             end
