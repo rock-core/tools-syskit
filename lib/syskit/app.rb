@@ -731,6 +731,16 @@ module Orocos
                         begin Orocos::ProcessClient.new('localhost', @server_port)
                         rescue Errno::ECONNREFUSED
                             sleep 0.1
+                            is_running = 
+                                begin
+                                    !::Process.waitpid(@server_pid, ::Process::WNOHANG)
+                                rescue Errno::ESRCH
+                                    false
+                                end
+
+                            if !is_running
+                                raise Orocos::ProcessClient::StartupFailed, "the local process server failed to start"
+                            end
                             nil
                         end
                 end
