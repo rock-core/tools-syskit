@@ -18,20 +18,6 @@ module Orocos
             include Roby::Test
             include Roby::Test::Assertions
 
-            module ClassExtension
-                attribute(:needed_orogen_projects) { Set.new }
-                def needs_orogen_projects(*names)
-                    self.needed_orogen_projects |= names.to_set
-                end
-
-                def needs_no_orogen_projects
-                    @needs_no_orogen_projects = true
-                end
-                def needs_no_orogen_projects?
-                    !!@needs_no_orogen_projects
-                end
-            end
-
             # The system model
             attr_reader :sys_model
             # The execution engine
@@ -101,41 +87,32 @@ module Orocos
             end
 
             def setup
-                @required_orocos_deployments = Set.new
-
                 @old_loglevel = Orocos.logger.level
-                Roby.app.using('orocos')
 
                 super
 
                 FileUtils.mkdir_p Roby.app.log_dir
                 @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
 
-                Orocos.disable_sigchld_handler = true
-                ::Orocos.initialize
-                Roby.app.extend Orocos::RobyPlugin::Application
-
-                if self.class.needed_orogen_projects.empty? && !self.class.needs_no_orogen_projects?
-                    Roby.app.orogen_load_all
-                else
-                    self.class.needed_orogen_projects.each do |project_name|
-                        Orocos.master_project.load_orogen_project project_name
-                    end
+                if !Orocos.initialized?
+                    Orocos.disable_sigchld_handler = true
+                    ::Orocos.initialize
                 end
 
                 engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
                 @sys_model = Roby.app.orocos_system_model
+                save_collection Roby.app.orocos_engine.instances
+                puts "#{Roby.app.orocos_engine.instances.size} instances in orocos_engine"
                 @orocos_engine = Roby.app.orocos_engine
                 @handler_ids = Orocos::RobyPlugin::Application.plug_engine_in_roby(engine)
                 Orocos::RobyPlugin::Application.connect_to_local_process_server
             end
 
             def teardown
-                super
-
                 orocos_engine.clear
-                Roby.app.orocos_clear_models
+
+                super
 
                 if plan
                     deployments = plan.find_tasks(Deployment).running.to_a
@@ -199,9 +176,11 @@ module Orocos
                     end
                 end
 
+                # Do a copy of the currently loaded instances in the engine.
+                current_instances = orocos_engine.instances.dup
                 requirements.each do |req_name|
                     orocos_engine.clear
-                    load_required_orocos_deployments
+                    orocos_engine.instances.concat(current_instances)
                     orocos_engine.add(req_name)
                     
                     this = Time.now
@@ -213,17 +192,11 @@ module Orocos
                     puts GC::Profiler.result
                     GC::Profiler.disable
                 end
+
             ensure
-                Roby.plan.clear
-            end
-
-            def load_orocos_deployment(name)
-                @required_orocos_deployments << Roby.app.find_orocos_deployment(name)
-            end
-
-            def load_required_orocos_deployments
-                @required_orocos_deployments.each do |req|
-                    orocos_engine.load_composite_file(req)
+                if current_instances
+                    orocos_engine.clear
+                    orocos_engine.instances.concat(instances)
                 end
             end
         end
