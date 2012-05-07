@@ -103,7 +103,6 @@ module Orocos
 
                 @sys_model = Roby.app.orocos_system_model
                 save_collection Roby.app.orocos_engine.instances
-                puts "#{Roby.app.orocos_engine.instances.size} instances in orocos_engine"
                 @orocos_engine = Roby.app.orocos_engine
                 @handler_ids = Orocos::RobyPlugin::Application.plug_engine_in_roby(engine)
                 Orocos::RobyPlugin::Application.connect_to_local_process_server
@@ -128,9 +127,6 @@ module Orocos
                     Orocos::RobyPlugin::Application.unplug_engine_from_roby(@handler_ids, engine)
                 end
 
-                if !keep_logs?
-                    FileUtils.rm_rf Roby.app.log_dir
-                end
                 ENV['PKG_CONFIG_PATH'] = @old_pkg_config
                 Orocos.logger.level = @old_loglevel if @old_loglevel
             end
