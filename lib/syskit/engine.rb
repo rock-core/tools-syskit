@@ -933,7 +933,7 @@ module Orocos
                 end
                 robot.devices.each do |name, instance|
                     if instance.task && instance.task.transaction_proxy?
-                        raise InternalError, "some transaction proxies are stored in devices definitions"
+                        raise InternalError, "device handler for #{name} contains a transaction proxy: #{instance.task}"
                     end
                 end
 
@@ -1639,6 +1639,12 @@ module Orocos
 
                     fullfilled_models = Hash.new
 
+                    plan.each_task do |task|
+                        if task.transaction_proxy?
+                            @network_merge_solver.register_replacement(task, task.__getobj__)
+                        end
+                    end
+
                     # Update tasks, devices and instances
                     apply_merge_to_stored_instances
                     # Update the dataflow dynamics information to point to the
@@ -1646,8 +1652,6 @@ module Orocos
                     if @dataflow_dynamics
                         apply_merge_to_dataflow_dynamics
                     end
-
-                    apply_merge_to_stored_instances
 
                     # Replace the tasks stored in devices and instances by the
                     # actual new tasks
