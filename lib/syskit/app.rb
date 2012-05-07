@@ -724,6 +724,10 @@ module Orocos
             end
 
             def self.connect_to_local_process_server
+                if !@server_pid
+                    raise Orocos::ProcessClient::StartupFailed, "#connect_to_local_process_server got called but no process server is being started"
+                end
+
                 # Wait for the server to be ready
                 client = nil
                 while !client
