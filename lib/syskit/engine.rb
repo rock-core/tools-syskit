@@ -1778,8 +1778,10 @@ module Orocos
 
             ensure
                 @plan = engine_plan
-                @network_merge_solver.task_replacement_graph.clear
-                @network_merge_solver = nil
+                if @network_merge_solver
+                    @network_merge_solver.task_replacement_graph.clear
+                    @network_merge_solver = nil
+                end
                 @dataflow_dynamics = nil
             end
 
