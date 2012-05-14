@@ -622,6 +622,7 @@ module Orocos
                 if !@got_running_state
                     if orogen_task.runtime_state?(orogen_state)
                         @got_running_state = true
+                        emit :running
                     else
                         return
                     end
