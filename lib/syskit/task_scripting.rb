@@ -75,24 +75,24 @@ module Orocos
                     if !path.respond_to?(:to_ary)
                         path = [path]
                     end
-                    if script.data_writers[name.to_sym]
+                    if script_engine.data_writers[name.to_sym]
                         raise ArgumentError, "a writer called #{name} already exists"
-                    elsif script.data_readers[name.to_sym]
+                    elsif script_engine.data_readers[name.to_sym]
                         raise ArgumentError, "a reader called #{name} already exists"
                     end
-                    script.data_readers[name.to_sym] = [(path.dup << options), nil]
+                    script_engine.data_readers[name.to_sym] = [(path.dup << options), nil]
                 end
 
                 def data_writer(name, path, options = Hash.new)
                     if !path.respond_to?(:to_ary)
                         path = [path]
                     end
-                    if script.data_writers[name.to_sym]
+                    if script_engine.data_writers[name.to_sym]
                         raise ArgumentError, "a writer called #{name} already exists"
-                    elsif script.data_readers[name.to_sym]
+                    elsif script_engine.data_readers[name.to_sym]
                         raise ArgumentError, "a reader called #{name} already exists"
                     end
-                    script.data_writers[name.to_sym] = [(path.dup << options), nil]
+                    script_engine.data_writers[name.to_sym] = [(path.dup << options), nil]
                 end
             end
             Roby::TaskScripting::ScriptEngine.include ScriptEngineExtension
