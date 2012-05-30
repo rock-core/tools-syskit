@@ -2136,7 +2136,7 @@ module Orocos
                                 # finished or finalized, and only then do we
                                 # allow the system to configure +new_task+
                                 new_task.allow_automatic_setup = false
-                                existing_task.stop_event.when_unreachable do |reason|
+                                existing_task.stop_event.when_unreachable do |reason, _|
                                     new_task.allow_automatic_setup = true
                                 end
                             end
