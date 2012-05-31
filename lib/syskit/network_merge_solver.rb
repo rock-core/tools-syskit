@@ -32,6 +32,7 @@ module Orocos
                 @merging_candidates_queries = Hash.new
 		@task_replacement_graph = BGL::Graph.new
                 @task_replacement_graph.name = "#{self}.task_replacement_graph"
+                @resolved_replacements = Hash.new
 
                 if block_given?
                     singleton_class.class_eval do
@@ -42,14 +43,24 @@ module Orocos
 
             def clear
                 @task_replacement_graph.clear
+                @resolved_replacements.clear
             end
 
             def replacement_for(task)
                 if task.plan && task.plan != plan
                     task = plan[task]
                 end
+
+                if replacement = @resolved_replacements[task]
+                    # Verify that this is still a leaf in the replacement graph
+                    if replacement.leaf?(task_replacement_graph)
+                        return replacement
+                    end
+                end
+
                 task_replacement_graph.each_dfs(task, BGL::Graph::TREE) do |_, to, _|
                     if to.leaf?(task_replacement_graph)
+                        @resolved_replacements[task] = to
                         return to
                     end
                 end
