@@ -2206,7 +2206,9 @@ module Orocos
                 while !selected_models.empty?
                     current_size = selected_models.size
                     selected_models.delete_if do |child_name, selected_child|
-                        if !(child_task = selected_child.selected_task)
+                        if child_task = selected_child.selected_task
+                            child_task = engine.replacement_for(child_task)
+                        else
                             # Get out of the selections the parts that are
                             # relevant for our child. We only pass on the
                             # <child_name>.blablabla form, everything else is
