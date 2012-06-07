@@ -1065,6 +1065,10 @@ module Orocos
                 @dataflow_dynamics.apply_merges(@network_merge_solver)
             end
 
+            def replacement_for(task)
+                @network_merge_solver.replacement_for(task)
+            end
+
             # This updates the tasks stored in each instance spec to point to
             # the actual task (i.e. the task that implements that spec in the
             # plan).
@@ -1076,7 +1080,7 @@ module Orocos
                 # actual new tasks
                 mappings = Hash.new
                 instances.each do |instance|
-                    new_task = (mappings[instance.task] ||= @network_merge_solver.replacement_for(instance.task))
+                    new_task = replacement_for(instance.task)
                     if new_task != instance.task
                         NetworkMergeSolver.debug { "updated task of instance #{instance.task} from #{instance.task} to #{new_task}" }
                     end
@@ -1084,21 +1088,21 @@ module Orocos
                 end
                 robot.devices.each do |name, dev|
                     next if !dev.respond_to?(:task=)
-                    new_task = (mappings[dev.task] ||= @network_merge_solver.replacement_for(dev.task))
+                    new_task = replacement_for(dev.task)
                     if new_task != dev.task
                         NetworkMergeSolver.debug { "updated task of device #{name} from #{dev.task} to #{new_task}" }
                     end
                     dev.task = new_task
                 end
                 @tasks = tasks.map_value do |name, task|
-                    new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task.to_component))
+                    new_task = replacement_for(task.to_component)
                     if new_task != task
                         NetworkMergeSolver.debug { "updated named task #{name} from #{task} to #{new_task}" }
                     end
                     if new_task.respond_to?(:child_selection)
                         new_task.child_selection.each_value do |instance_selection|
                             if child_task = instance_selection.selected_task
-                                mapped_child_task = (mappings[child_task] ||= @network_merge_solver.replacement_for(child_task.to_component))
+                                mapped_child_task = replacement_for(child_task.to_component)
                                 instance_selection.selected_task = mapped_child_task
                             end
                         end
@@ -1107,7 +1111,7 @@ module Orocos
                 end
                 if @deployment_tasks
                     @deployment_tasks = @deployment_tasks.map do |task|
-                        new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task))
+                        new_task = replacement_for(task)
                         if new_task != task
                             NetworkMergeSolver.debug { "updated deployment task #{task} to #{new_task}" }
                         end
