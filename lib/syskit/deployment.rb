@@ -393,6 +393,15 @@ module Orocos
                 end
             end
 
+            def self.create(name = nil, deployment_spec)
+                klass = Class.new(Deployment)
+                if name
+                    klass.instance_variable_set :@name, name
+                end
+                klass.instance_variable_set :@orogen_spec, deployment_spec
+                klass
+            end
+
             # Creates a subclass of Deployment that represents the deployment
             # specified by +deployment_spec+.
             #

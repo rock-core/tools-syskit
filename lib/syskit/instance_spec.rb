@@ -1,81 +1,5 @@
 module Orocos
     module RobyPlugin
-        # Class that is used to represent a binding of a service model with an
-        # actual task instance during the instanciation process
-        class DataServiceInstance
-            # The ProvidedDataService instance that represents the data service
-            attr_reader :provided_service_model
-            # The task instance we are bound to
-            attr_reader :task
-            # The ProvidedDataService instance that represents the data service
-            attr_reader :model
-
-            def initialize(task, provided_service_model)
-                @task, @provided_service_model = task, provided_service_model
-                @model = provided_service_model
-                if !task.kind_of?(Component)
-                    raise "expected a task instance, got #{task}"
-                end
-                if !provided_service_model.kind_of?(ProvidedDataService)
-                    raise "expected a provided service, got #{provided_service_model}"
-                end
-            end
-
-            def short_name
-                "#{task}:#{provided_service_model.name}"
-            end
-
-	    def each_fullfilled_model(&block)
-		provided_service_model.component_model.each_fullfilled_model(&block)
-	    end
-
-            def fullfills?(*args)
-                provided_service_model.fullfills?(*args)
-            end
-
-            def find_input_port(port_name)
-                if mapped_name = model.port_mappings_for_task[port_name.to_s]
-                    task.find_input_port(mapped_name)
-                end
-            end
-
-            def find_output_port(port_name)
-                if mapped_name = model.port_mappings_for_task[port_name.to_s]
-                    task.find_output_port(mapped_name)
-                end
-            end
-
-            def as_plan
-                task
-            end
-
-            def to_component
-                task
-            end
-
-            def as(service)
-                result = self.dup
-                result.instance_variable_set(:@model, model.as(service)) 
-                result
-            end
-
-            def to_s
-                "#<DataServiceInstance: #{task.name}.#{model.name}>"
-            end
-
-            def connect_ports(sink, mappings)
-                mapped = Hash.new
-                mappings.each do |(source_port, sink_port), policy|
-                    mapped_source_name = model.port_mappings_for_task[source_port]
-                    if !mapped_source_name
-                        raise ArgumentError, "cannot find port #{source_port} on #{self}"
-                    end
-                    mapped[[mapped_source_name, sink_port]] = policy
-                end
-                task.connect_ports(sink, mapped)
-            end
-        end
-
         # Generic representation of requirements on a component instance
         #
         # Components can be compositions, services and/or 
@@ -537,6 +461,19 @@ module Orocos
                         m.each_fullfilled_model(&block)
                     end
                 end
+            end
+
+            def fullfilled_model
+                task_model = Component
+                tags = []
+                each_fullfilled_model do |m|
+                    if m.kind_of?(Roby::Task)
+                        task_model = m
+                    else
+                        tags << m
+                    end
+                end
+                [task_model, tags, @arguments.dup]
             end
 
             def as_plan

@@ -228,8 +228,11 @@ module Orocos
             #   (i.e., the local machine)
             def use_deployment(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
-                if deployments[options[:on]].include?(name)
-                    return
+
+                if model = Roby.app.orocos_deployments[name]
+                    if deployments[options[:on]].include?(model)
+                        return
+                    end
                 end
 
                 server   = process_server_for(options[:on])
@@ -257,8 +260,9 @@ module Orocos
                     Roby.app.using_task_library(lib.name)
                 end
 
-                deployments[options[:on]] << name
-                Roby.app.orocos_deployments[name]
+                model = Roby.app.orocos_deployments[name]
+                deployments[options[:on]] << model
+                model
             end
 
             # Returns the process server object named +name+
@@ -774,6 +778,7 @@ module Orocos
 
                 instances.each do |instance|
                     instance.task = add_instance(instance, :as => instance.name, :context => main_selection).to_component
+                    instance.task.fullfilled_model = instance.fullfilled_model
                 end
             end
 
@@ -996,11 +1001,8 @@ module Orocos
                     end
                     all_models << composition_model
                 end
-                deployments.each do |machine_name, deployment_names|
-                    deployment_names.each do |deployment_name|
-                        if !(model = Roby.app.orocos_deployments[deployment_name])
-                            raise InternalError, "no model defined for deployment #{deployment_name}"
-                        end
+                deployments.each do |machine_name, deployment_models|
+                    deployment_models.each do |model|
                         model.orogen_spec.task_activities.each do |deployed_task|
                             all_concrete_models << Roby.app.orocos_tasks[deployed_task.task_model.name]
                         end
@@ -1725,9 +1727,13 @@ module Orocos
                     if options[:on_error] == :save
                         Roby.log_pp(e, Roby, :fatal)
                         Engine.fatal "Engine#resolve failed"
-                        output_path = autosave_plan_to_dot
-                        Engine.fatal "the generated plan has been saved into #{output_path}"
-                        Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
+                        begin
+                            output_path = autosave_plan_to_dot
+                            Engine.fatal "the generated plan has been saved into #{output_path}"
+                            Engine.fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
+                        rescue Exception => e
+                            Engine.fatal "failed to save the generated plan: #{e}"
+                        end
                     end
 
                     if options[:on_error] == :commit
@@ -1986,18 +1992,17 @@ module Orocos
                 deployment_tasks = Hash.new
                 deployed_tasks = Hash.new
 
-                deployments.each do |machine_name, deployment_names|
-                    deployment_names.each do |deployment_name|
-                        model = Roby.app.orocos_deployments[deployment_name]
+                deployments.each do |machine_name, deployment_models|
+                    deployment_models.each do |model|
                         task = model.new(:on => machine_name)
                         plan.add(task)
                         task.robot = robot
-                        deployment_tasks[deployment_name] = task
+                        deployment_tasks[model] = task
 
                         new_activities = Set.new
                         task.orogen_spec.task_activities.each do |deployed_task|
                             if ignored_deployed_task?(deployed_task)
-                                Engine.debug { "  ignoring #{deployment_name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
+                                Engine.debug { "  ignoring #{model.name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
                             else
                                 new_activities << deployed_task.name
                             end
@@ -2089,10 +2094,8 @@ module Orocos
                 deployments.each do |deployment_task|
                     Engine.debug { "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})" }
                     # Check for the corresponding task in the plan
-		    Engine.debug deployment_task.deployment_name
                     existing_deployment_tasks = (plan.find_local_tasks(deployment_task.model).not_finished.to_value_set & existing_deployments).
                         find_all { |t| t.deployment_name == deployment_task.deployment_name }
-		    Engine.debug deployment_task.deployment_name
 
                     if existing_deployment_tasks.empty?
                         Engine.debug { "  #{deployment_task.deployment_name} has not yet been deployed" }
@@ -2101,7 +2104,6 @@ module Orocos
                     elsif existing_deployment_tasks.size != 1
                         raise InternalError, "more than one task for #{existing_deployment_task} present in the plan"
                     end
-		    Engine.debug deployment_task.deployment_name
                     existing_deployment_task = existing_deployment_tasks.find { true }
 
                     existing_tasks = Hash.new
@@ -2126,6 +2128,9 @@ module Orocos
                             Engine.debug { "  task #{task.orogen_name} has been deployed, but I can't merge with the existing deployment" }
                         end
 
+                        # puts "#{existing_task} #{existing_task.meaningful_arguments} #{existing_task.arguments} #{existing_task.fullfilled_model}"
+                        # puts "#{task} #{task.meaningful_arguments} #{task.arguments} #{task.fullfilled_model}"
+                        # puts existing_task.can_merge?(task)
                         if !existing_task || existing_task.finishing? || !existing_task.reusable? || !existing_task.can_merge?(task)
                             new_task = plan[existing_deployment_task.task(task.orogen_name, task.model)]
                             Engine.debug { "  creating #{new_task} for #{task} (#{task.orogen_name})" }

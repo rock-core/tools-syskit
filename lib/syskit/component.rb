@@ -1,287 +1,5 @@
 module Orocos
     module RobyPlugin
-        # Data structure used internally to represent the data services that are
-        # provided by a given component model
-        class ProvidedDataService
-            # The task model which provides this service
-            attr_reader :component_model
-            # The service name
-            attr_reader :name
-            # The master service (if there is one)
-            attr_reader :master
-            # The service model
-            attr_reader :model
-            # The mappings needed between the ports in the service interface and
-            # the actual ports on the component
-            attr_reader :port_mappings
-
-            # The service's full name, i.e. the name with which it is referred
-            # to in the task model
-            attr_reader :full_name
-
-            # True if this service is not a slave service
-            def master?; !@master end
-
-            def initialize(name, component_model, master, model, port_mappings)
-                @name, @component_model, @master, @model, @port_mappings = 
-                    name, component_model, master, model, port_mappings
-
-                @full_name =
-                    if master
-                        "#{master.name}.#{name}"
-                    else
-                        name
-                    end
-
-                @declared_dynamic_slaves = Array.new
-            end
-
-            def overload(new_component_model)
-                result = dup
-                result.instance_variable_set :@component_model, new_component_model
-                result
-            end
-
-            def to_s
-                "#<ProvidedDataService: #{component_model.short_name} #{full_name}>"
-            end
-
-            def short_name
-                "#{component_model.short_name}:#{full_name}"
-            end
-
-            # Returns a view of this service as a provider of +service_model+
-            #
-            # It allows to transparently apply port mappings as if +self+ was a
-            # service of type +service_model+
-            def as(service_model)
-                result = dup
-                result.instance_variable_set(:@model, service_model)
-
-                mappings = port_mappings.dup
-                mappings.delete_if do |srv, _|
-                    !service_model.fullfills?(srv)
-                end
-                result.instance_variable_set(:@port_mappings, mappings)
-                result
-            end
-
-            def fullfills?(models)
-                if !models.respond_to?(:each)
-                    models = [models]
-                end
-                components, services = models.partition { |m| m <= Component }
-                (components.empty? || self.component_model.fullfills?(components)) &&
-                    (services.empty? || self.model.fullfills?(services))
-            end
-
-            # Returns the port mappings that should be applied from the service
-            # model +model+ to the providing task
-            #
-            # The returned value is a hash of the form
-            #
-            #   service_port_name => task_port_name
-            #
-            def port_mappings_for_task
-                port_mappings_for(model)
-            end
-
-            # Returns the port mappings that should be applied from the service
-            # model +service_model+ to the providing task
-            #
-            # The returned value is a hash of the form
-            #
-            #   service_port_name => task_port_name
-            #
-            def port_mappings_for(service_model)
-                if !(result = port_mappings[service_model])
-                    raise ArgumentError, "#{service_model} is not provided by #{model.short_name}"
-                end
-                result
-            end
-
-            def each_data_service(&block)
-                self
-            end
-
-            def find_input_port(name)
-                model.find_input_port(name)
-            end
-
-            def find_output_port(name)
-                model.find_output_port(name)
-            end
-
-            def find_all_services_from_type(m)
-                if self.model.fullfills?(m)
-                    [self]
-                else
-                    []
-                end
-            end
-
-            def config_type
-                model.config_type
-            end
-
-            def has_output_port?(name)
-                !!find_output_port(name)
-            end
-
-            def has_input_port?(name)
-                !!find_input_port(name)
-            end
-
-            def each_input_port(with_slaves = false, &block)
-                if !block_given?
-                    return enum_for(:each_input_port, with_slaves)
-                end
-
-                model.each_input_port(&block)
-                if with_slaves
-                    each_slave do |name, srv|
-                        srv.each_input_port(true, &block)
-                    end
-                end
-            end
-
-            def each_output_port(with_slaves = false, &block)
-                if !block_given?
-                    return enum_for(:each_output_port, with_slaves)
-                end
-
-                model.each_output_port(&block)
-                if with_slaves
-                    each_slave do |name, srv|
-                        srv.each_output_port(true, &block)
-                    end
-                end
-            end
-
-            def each_task_input_port(with_slaves = false, &block)
-                if !block_given?
-                    return enum_for(:each_task_input_port, with_slaves)
-                end
-
-                mappings = port_mappings_for_task
-                each_input_port do |port|
-                    yield(component_model.find_input_port(mappings[port.name]))
-                end
-            end
-
-            def each_task_output_port(with_slaves = false, &block)
-                if !block_given?
-                    return enum_for(:each_task_output_port, with_slaves)
-                end
-
-                mappings = port_mappings_for_task
-                each_output_port do |port|
-                    yield(component_model.find_output_port(mappings[port.name]))
-                end
-            end
-
-            def each_slave(&block)
-                component_model.each_slave_data_service(self, &block)
-            end
-
-            # If an unknown method is called on this object, try to return the
-            # corresponding slave service (if there is one)
-            def method_missing(name, *args)
-                if subservice = component_model.find_data_service("#{full_name}.#{name}")
-                    return subservice
-                end
-                super
-            end
-
-            attr_reader :declared_dynamic_slaves
-
-            def dynamic_slaves(model, options = Hash.new, &block)
-                source_model = component_model.system_model.
-                    query_or_create_service_model(model, self.model.class, options)
-
-                declared_dynamic_slaves << [source_model, block, model, options]
-                source_model
-            end
-
-            def require_dynamic_slave(required_service, service_name, reason, component_model = nil)
-                model, specialization_block, _ =
-                    declared_dynamic_slaves.find do |model, specialization_block, _|
-                        model == required_service
-                    end
-
-                return if !model
-
-                component_model ||= self.component_model
-                if !component_model.private_specialization?
-                    component_model = component_model.
-                        specialize("#{component_model.name}<#{reason}>")
-
-                    SystemModel.debug { "created the specialized submodel #{component_model.short_name} of #{component_model.superclass.short_name} as a singleton model for #{reason}" }
-                end
-
-                service_model = required_service.
-                    new_submodel(component_model.name + "." + required_service.short_name + "<" + service_name + ">")
-
-                if specialization_block
-                    service_model.apply_block(service_name, &specialization_block)
-                end
-                srv = component_model.require_dynamic_service(service_model, :as => service_name, :slave_of => name)
-
-                return component_model, srv
-            end
-
-            def each_fullfilled_model
-                model.ancestors.each do |m|
-                    if m <= Component || m <= DataService
-                        yield(m)
-                    end
-                end
-            end
-
-            # Helper class used by #add_slaves to provide the evaluation context
-            class SlaveDefinitionContext
-                def initialize(component_model, master_name)
-                    @component_model = component_model
-                    @master_name = master_name
-                end
-
-                def provides(*args, &block)
-                    options =
-                        if args.last.kind_of?(Hash)
-                            args.pop
-                        else Hash.new
-                        end
-                    options[:slave_of] = @master_name
-                    args << options
-                    @component_model.provides(*args, &block)
-                end
-            end
-
-            # Provides an instanciation context that can be used to add multiple
-            # slaves easily, e.g.:
-            #
-            # driver_for('NewDevice').add_slaves do
-            #   provides Srv::Camera, :as => 'lcamera'
-            #   provides Srv::Laser, :as => 'scans'
-            #   ...
-            # end
-            #
-            def add_slaves(&block)
-                context = SlaveDefinitionContext.new(component_model, name)
-                context.instance_eval(&block)
-                self
-            end
-
-            # Returns the DataServiceInstance object that binds this provided
-            # service to an actual task
-            def bind(task)
-                if !task.fullfills?(component_model)
-                    raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
-                end
-                DataServiceInstance.new(task, self)
-            end
-        end
-
         # Definition of model-level methods for the Component models. See the
         # documentation of Model for an explanation of this.
         module ComponentModel
@@ -476,6 +194,290 @@ module Orocos
 	    def port_mappings_for_task
 	    	Hash.new { |h,k| k }
 	    end
+
+            # Helper method for compute_port_mappings
+            def compute_directional_port_mappings(result, service, direction, explicit_mappings) # :nodoc:
+                remaining = service.model.send("each_#{direction}_port").to_a
+
+                used_ports = service.component_model.
+                    send("each_data_service").
+                    find_all { |_, task_service| task_service.model == service.model }.
+                    inject(Set.new) { |used_ports, (_, task_service)| used_ports |= task_service.port_mappings.values.to_set }
+
+                # 0. check if an explicit port mapping is provided for this port
+                remaining.delete_if do |port|
+                    mapping = explicit_mappings[port.name]
+                    next if !mapping
+
+                    # Verify that the mapping is valid
+                    component_port = service.component_model.
+                        send("find_#{direction}_port", mapping)
+                    if !component_port
+                        raise InvalidPortMapping, "the explicit mapping from #{port.name} to #{mapping} is invalid as #{mapping} is not an #{direction} port of #{service.component_model.name}"
+                    end
+                    if component_port.type != port.type
+                        raise InvalidPortMapping, "the explicit mapping from #{port.name} to #{mapping} is invalid as they have different types (#{port.type_name} != #{component_port.type_name}"
+                    end
+                    result[port.name] = mapping
+                end
+
+                # 1. check if the task model has a port with the same name and
+                #    same type
+                remaining.delete_if do |port|
+                    component_port = service.component_model.
+                        send("find_#{direction}_port", port.name)
+                    if component_port && component_port.type == port.type
+                        used_ports << component_port.name
+                        result[port.name] = port.name
+                    end
+                end
+
+                while !remaining.empty?
+                    current_size = remaining.size
+                    remaining.delete_if do |port|
+                        # 2. look at all ports that have the same type
+                        candidates = service.component_model.send("each_#{direction}_port").
+                            find_all { |p| !used_ports.include?(p.name) && p.type == port.type }
+                        if candidates.empty?
+                            raise InvalidPortMapping, "no candidate to map #{direction} port #{port.name}[#{port.type_name}] from #{service.name} onto #{short_name}"
+                        elsif candidates.size == 1
+                            used_ports << candidates.first.name
+                            result[port.name] = candidates.first.name
+                            next(true)
+                        end
+
+                        # 3. try to filter the ambiguity by name
+                        name_rx = Regexp.new(service.name)
+                        by_name = candidates.find_all { |p| p.name =~ name_rx }
+                        if by_name.empty?
+                            raise InvalidPortMapping, "#{candidates.map(&:name)} are equally valid candidates to map #{port.name}[#{port.type_name}] from the '#{service.name}' service onto the #{short_name} task's interface"
+                        elsif by_name.size == 1
+                            used_ports << by_name.first.name
+                            result[port.name] = by_name.first.name
+                            next(true)
+                        end
+
+                        # 3. try full name if the service is a slave service
+                        next if service.master?
+                        name_rx = Regexp.new(service.master.name)
+                        by_name = by_name.find_all { |p| p.name =~ name_rx }
+                        if by_name.size == 1
+                            used_ports << by_name.first.name
+                            result[port.name] = by_name.first.name
+                            next(true)
+                        end
+                    end
+
+                    if remaining.size == current_size
+                        port = remaining.first
+                        raise InvalidPortMapping, "there are multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
+                    end
+                end
+            end
+
+            def find_service_from_type(type)
+                find_data_service_from_type(type)
+            end
+
+            # Finds a single service that provides +type+
+            #
+            # If multiple services exist with that signature, raises
+            # AmbiguousServiceSelection
+            def find_data_service_from_type(type)
+                candidates = find_all_services_from_type(type)
+                if candidates.size > 1
+                    raise AmbiguousServiceSelection.new(self, type, candidates),
+                        "multiple services match #{type.short_name} on #{short_name}"
+                elsif candidates.size == 1
+                    return candidates.first
+                end
+            end
+
+            def find_all_services_from_type(type)
+                find_all_data_services_from_type(type)
+            end
+
+            # Finds all the services that fullfill the given service type
+            def find_all_data_services_from_type(type)
+                result = []
+                each_data_service do |_, m|
+                    result << m if m.fullfills?(type)
+                end
+                result
+            end
+
+            # Returns the port mappings that are required by the usage of this
+            # component as a service of type +service_type+
+            #
+            # If no name are given, the method will raise
+            # AmbiguousServiceSelection if there are multiple services of the
+            # given type
+            def port_mappings_for(service_type)
+                if service_type.kind_of?(DataServiceModel)
+                    service = find_service_from_type(service_type)
+                    if !service
+                        raise ArgumentError, "#{short_name} does not provide a service of type #{service_type.short_name}"
+                    end
+                else
+                    service, service_type = service_type, service_type.model
+                end
+
+                service.port_mappings_for(service_type).dup
+            end
+
+            # Compute the port mapping from the interface of 'service' onto the
+            # ports of 'self'
+            #
+            # The returned hash is
+            #
+            #   service_interface_port_name => task_model_port_name
+            #
+            def compute_port_mappings(service, explicit_mappings = Hash.new)
+                normalized_mappings = Hash.new
+                explicit_mappings.each do |from, to|
+                    from = from.to_s if from.kind_of?(Symbol)
+                    to   = to.to_s   if to.kind_of?(Symbol)
+                    if from.respond_to?(:to_str) && to.respond_to?(:to_str)
+                        normalized_mappings[from] = to 
+                    end
+                end
+
+                result = Hash.new
+                compute_directional_port_mappings(result, service, "input", normalized_mappings)
+                compute_directional_port_mappings(result, service, "output", normalized_mappings)
+                result
+            end
+
+            DATA_SERVICE_ARGUMENTS = { :as => nil, :slave_of => nil, :config_type => nil }
+
+            # Declares that this component provides the given data service.
+            # +model+ can either be the data service constant name (from
+            # Orocos::RobyPlugin::DataServices), or its plain name.
+            #
+            # If the data service defines an interface, the component must
+            # provide the required input and output ports, *matching the port
+            # name*. See the discussion about the 'main' argument for port name
+            # matching.
+            #
+            # The following arguments are accepted:
+            #
+            # as::
+            #   the data service name on this task context. By default, it
+            #   will be derived from the model name by converting it to snake
+            #   case (i.e. stereo_camera for StereoCamera)
+            # slave_of::
+            #   creates a data service that is slave from another data service.
+            #
+            def provides(model, arguments = Hash.new)
+                source_arguments, arguments = Kernel.filter_options arguments,
+                    DATA_SERVICE_ARGUMENTS
+
+                model = Model.validate_service_model(model, system_model, DataService)
+
+                # Get the source name and the source model
+                name = (source_arguments[:as] || model.name.gsub(/^.+::/, '').snakecase).to_str
+                if data_services[name]
+                    raise ArgumentError, "there is already a source named '#{name}' defined on '#{self.name}'"
+                end
+
+                # If a source with the same name exists, verify that the user is
+                # trying to specialize it
+                if has_data_service?(name)
+                    parent_type = find_data_service(name).model
+                    if !(model <= parent_type)
+                        raise SpecError, "#{self} has a data service named #{name} of type #{parent_type}, which is not a parent type of #{model}"
+                    end
+                end
+
+                if master_source = source_arguments[:slave_of]
+                    if !has_data_service?(master_source.to_str)
+                        raise SpecError, "master source #{master_source} is not registered on #{self}"
+                    end
+                    master = find_data_service(master_source)
+                    if master.component_model != self
+                        # Need to create an overload at this level of the
+                        # hierarchy, or one will not be able to enumerate the
+                        # slaves by using the service's ProvidedDataService
+                        # object
+                        master = master.overload(self)
+                        data_services[master.full_name] = master
+                    end
+                end
+
+                include model
+
+                service = ProvidedDataService.new(name, self, master, model, Hash.new)
+                full_name = service.full_name
+                # TODO: make compute_port_mappings work on the component_model /
+                # service_model instead of on a ProvidedDataService. We should
+                # not create the ProvidedDataService until we know that it can
+                # be created
+
+                begin
+                    new_port_mappings = compute_port_mappings(service, arguments)
+                    service.port_mappings[model] = new_port_mappings
+
+                    # Now, adapt the port mappings from +model+ itself and map
+                    # them into +service.port_mappings+
+                    SystemModel.update_port_mappings(service.port_mappings, new_port_mappings, model.port_mappings)
+
+                    # Remove from +arguments+ the items that were port mappings
+                    new_port_mappings.each do |from, to|
+                        if arguments[from].to_s == to # this was a port mapping !
+                            arguments.delete(from)
+                        elsif arguments[from.to_sym].to_s == to
+                            arguments.delete(from.to_sym)
+                        end
+                    end
+                rescue InvalidPortMapping => e
+                    raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
+                end
+
+                data_services[full_name] = service
+
+                SystemModel.debug do
+                    SystemModel.debug "#{short_name} provides #{model.short_name}"
+                    SystemModel.debug "port mappings"
+                    service.port_mappings.each do |m, mappings|
+                        SystemModel.debug "  #{m.short_name}: #{mappings}"
+                    end
+                    break
+                end
+
+                arguments.each do |key, value|
+                    send("#{key}=", value)
+                end
+                return service
+            end
+
+            def method_missing(m, *args)
+                if args.empty? && !block_given?
+                    if m.to_s =~ /^(\w+)_port/
+                        port_name = $1
+                        if port = find_input_port(port_name)
+                            return port
+                        elsif port = find_output_port(port_name)
+                            return port
+                        elsif port = self.find_port(m.to_s)
+                            return port
+                        else
+                            raise NoMethodError, "#{self} has no port called #{port_name}"
+                        end
+                    elsif m.to_s =~ /^(\w+)_srv/
+                        service_name = $1
+                        if service_model = find_data_service(service_name)
+                            return service_model
+                        else
+                            raise NoMethodError, "#{self} has no service called #{service_name}"
+                        end
+                    elsif port = self.find_port(m.to_s)
+                        return port
+                    elsif service = self.find_data_service(m.to_s)
+                        return service
+                    end
+                end
+                super
+            end
         end
 
         # Base class for models that represent components (TaskContext,
@@ -651,245 +653,6 @@ module Orocos
                 port = candidates.first.instanciate(name)
                 instanciated_dynamic_outputs[name] = port
             end
-
-            DATA_SERVICE_ARGUMENTS = { :as => nil, :slave_of => nil, :config_type => nil }
-
-            # Helper method for compute_port_mappings
-            def self.compute_directional_port_mappings(result, service, direction, explicit_mappings) # :nodoc:
-                remaining = service.model.send("each_#{direction}_port").to_a
-
-                used_ports = service.component_model.
-                    send("each_data_service").
-                    find_all { |_, task_service| task_service.model == service.model }.
-                    inject(Set.new) { |used_ports, (_, task_service)| used_ports |= task_service.port_mappings.values.to_set }
-
-                # 0. check if an explicit port mapping is provided for this port
-                remaining.delete_if do |port|
-                    mapping = explicit_mappings[port.name]
-                    next if !mapping
-
-                    # Verify that the mapping is valid
-                    component_port = service.component_model.
-                        send("find_#{direction}_port", mapping)
-                    if !component_port
-                        raise InvalidPortMapping, "the explicit mapping from #{port.name} to #{mapping} is invalid as #{mapping} is not an #{direction} port of #{service.component_model.name}"
-                    end
-                    if component_port.type != port.type
-                        raise InvalidPortMapping, "the explicit mapping from #{port.name} to #{mapping} is invalid as they have different types (#{port.type_name} != #{component_port.type_name}"
-                    end
-                    result[port.name] = mapping
-                end
-
-                # 1. check if the task model has a port with the same name and
-                #    same type
-                remaining.delete_if do |port|
-                    component_port = service.component_model.
-                        send("find_#{direction}_port", port.name)
-                    if component_port && component_port.type == port.type
-                        used_ports << component_port.name
-                        result[port.name] = port.name
-                    end
-                end
-
-                while !remaining.empty?
-                    current_size = remaining.size
-                    remaining.delete_if do |port|
-                        # 2. look at all ports that have the same type
-                        candidates = service.component_model.send("each_#{direction}_port").
-                            find_all { |p| !used_ports.include?(p.name) && p.type == port.type }
-                        if candidates.empty?
-                            raise InvalidPortMapping, "no candidate to map #{direction} port #{port.name}[#{port.type_name}] from #{service.name} onto #{short_name}"
-                        elsif candidates.size == 1
-                            used_ports << candidates.first.name
-                            result[port.name] = candidates.first.name
-                            next(true)
-                        end
-
-                        # 3. try to filter the ambiguity by name
-                        name_rx = Regexp.new(service.name)
-                        by_name = candidates.find_all { |p| p.name =~ name_rx }
-                        if by_name.empty?
-                            raise InvalidPortMapping, "#{candidates.map(&:name)} are equally valid candidates to map #{port.name}[#{port.type_name}] from the '#{service.name}' service onto the #{short_name} task's interface"
-                        elsif by_name.size == 1
-                            used_ports << by_name.first.name
-                            result[port.name] = by_name.first.name
-                            next(true)
-                        end
-
-                        # 3. try full name if the service is a slave service
-                        next if service.master?
-                        name_rx = Regexp.new(service.master.name)
-                        by_name = by_name.find_all { |p| p.name =~ name_rx }
-                        if by_name.size == 1
-                            used_ports << by_name.first.name
-                            result[port.name] = by_name.first.name
-                            next(true)
-                        end
-                    end
-
-                    if remaining.size == current_size
-                        port = remaining.first
-                        raise InvalidPortMapping, "there are multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
-                    end
-                end
-            end
-
-            # Finds a single service that provides +type+
-            #
-            # If multiple services exist with that signature, raises
-            # AmbiguousServiceSelection
-            def self.find_service_from_type(type)
-                candidates = find_all_services_from_type(type)
-                if candidates.size > 1
-                    raise AmbiguousServiceSelection.new(self, type, candidates),
-                        "multiple services match #{type.short_name} on #{short_name}"
-                elsif candidates.size == 1
-                    return candidates.first
-                end
-            end
-
-            # Finds all the services that fullfill the given service type
-            def self.find_all_services_from_type(type)
-                result = []
-                each_data_service do |_, m|
-                    result << m if m.fullfills?(type)
-                end
-                result
-            end
-
-            # Returns the port mappings that are required by the usage of this
-            # component as a service of type +service_type+
-            #
-            # If no name are given, the method will raise
-            # AmbiguousServiceSelection if there are multiple services of the
-            # given type
-            def self.port_mappings_for(service_type)
-                service = find_service_from_type(service_type)
-                if !service
-                    raise ArgumentError, "#{short_name} does not provide a service of type #{service_type.short_name}"
-                end
-
-                service.port_mappings_for(service_type).dup
-            end
-
-            # Compute the port mapping from the interface of 'service' onto the
-            # ports of 'self'
-            #
-            # The returned hash is
-            #
-            #   service_interface_port_name => task_model_port_name
-            #
-            def self.compute_port_mappings(service, explicit_mappings = Hash.new)
-                normalized_mappings = Hash.new
-                explicit_mappings.each do |from, to|
-                    from = from.to_s if from.kind_of?(Symbol)
-                    to   = to.to_s   if to.kind_of?(Symbol)
-                    if from.respond_to?(:to_str) && to.respond_to?(:to_str)
-                        normalized_mappings[from] = to 
-                    end
-                end
-
-                result = Hash.new
-                compute_directional_port_mappings(result, service, "input", normalized_mappings)
-                compute_directional_port_mappings(result, service, "output", normalized_mappings)
-                result
-            end
-
-            # Declares that this component provides the given data service.
-            # +model+ can either be the data service constant name (from
-            # Orocos::RobyPlugin::DataServices), or its plain name.
-            #
-            # If the data service defines an interface, the component must
-            # provide the required input and output ports, *matching the port
-            # name*. See the discussion about the 'main' argument for port name
-            # matching.
-            #
-            # The following arguments are accepted:
-            #
-            # as::
-            #   the data service name on this task context. By default, it
-            #   will be derived from the model name by converting it to snake
-            #   case (i.e. stereo_camera for StereoCamera)
-            # slave_of::
-            #   creates a data service that is slave from another data service.
-            #
-            def self.provides(model, arguments = Hash.new)
-                source_arguments, arguments = Kernel.filter_options arguments,
-                    DATA_SERVICE_ARGUMENTS
-
-                model = Model.validate_service_model(model, system_model, DataService)
-
-                # Get the source name and the source model
-                name = (source_arguments[:as] || model.name.gsub(/^.+::/, '').snakecase).to_str
-                if data_services[name]
-                    raise ArgumentError, "there is already a source named '#{name}' defined on '#{self.name}'"
-                end
-
-                # If a source with the same name exists, verify that the user is
-                # trying to specialize it
-                if has_data_service?(name)
-                    parent_type = find_data_service(name).model
-                    if !(model <= parent_type)
-                        raise SpecError, "#{self} has a data service named #{name} of type #{parent_type}, which is not a parent type of #{model}"
-                    end
-                end
-
-                if master_source = source_arguments[:slave_of]
-                    if !has_data_service?(master_source.to_str)
-                        raise SpecError, "master source #{master_source} is not registered on #{self}"
-                    end
-                    master = find_data_service(master_source)
-                    if master.component_model != self
-                        # Need to create an overload at this level of the
-                        # hierarchy, or one will not be able to enumerate the
-                        # slaves by using the service's ProvidedDataService
-                        # object
-                        master = master.overload(self)
-                        data_services[master.full_name] = master
-                    end
-                end
-
-                include model
-
-                service = ProvidedDataService.new(name, self, master, model, Hash.new)
-                full_name = service.full_name
-                data_services[full_name] = service
-
-                begin
-                    new_port_mappings = compute_port_mappings(service, arguments)
-                    service.port_mappings[model] = new_port_mappings
-
-                    # Now, adapt the port mappings from +model+ itself and map
-                    # them into +service.port_mappings+
-                    SystemModel.update_port_mappings(service.port_mappings, new_port_mappings, model.port_mappings)
-
-                    # Remove from +arguments+ the items that were port mappings
-                    new_port_mappings.each do |from, to|
-                        if arguments[from].to_s == to # this was a port mapping !
-                            arguments.delete(from)
-                        elsif arguments[from.to_sym].to_s == to
-                            arguments.delete(from.to_sym)
-                        end
-                    end
-                rescue InvalidPortMapping => e
-                    raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
-                end
-
-                SystemModel.debug do
-                    SystemModel.debug "#{short_name} provides #{model.short_name}"
-                    SystemModel.debug "port mappings"
-                    service.port_mappings.each do |m, mappings|
-                        SystemModel.debug "  #{m.short_name}: #{mappings}"
-                    end
-                    break
-                end
-
-                arguments.each do |key, value|
-                    send("#{key}=", value)
-                end
-                return service
-            end
-
 
             # Return the device instance name that is tied to the given provided
             # data service
@@ -1077,6 +840,23 @@ module Orocos
                 self.instanciated_dynamic_inputs =
                     merged_task.instanciated_dynamic_inputs.merge(instanciated_dynamic_inputs)
 
+                # Merge the fullfilled model if set explicitely
+                # TODO: have proper accessors
+                # TODO: change API for merge_fullfilled_model
+                # TODO: make fullfilled_model always manipulate [task_model,
+                # tags, arguments] instead of mixed representations
+                explicit_merged_fullfilled_model = merged_task.instance_variable_get(:@fullfilled_model)
+                explicit_this_fullfilled_model = @fullfilled_model
+                if explicit_this_fullfilled_model && explicit_merged_fullfilled_model
+                    self.fullfilled_model = Roby::TaskStructure::Dependency.merge_fullfilled_model(
+                        explicit_merged_fullfilled_model,
+                        [explicit_this_fullfilled_model[0]] + explicit_this_fullfilled_model[1],
+                        explicit_this_fullfilled_model[2])
+
+                elsif explicit_merged_fullfilled_model
+                    self.fullfilled_model = explicit_merged_fullfilled_model.dup
+                end
+
                 # Merge the InstanceRequirements objects
                 requirements.merge(merged_task.requirements)
 
@@ -1087,17 +867,6 @@ module Orocos
                 # #replace_task to replace it completely
                 plan.replace_task(merged_task, self)
                 nil
-            end
-
-            def self.method_missing(name, *args)
-                if args.empty?
-                    if port = self.find_port(name)
-                        return port
-                    elsif service = self.find_data_service(name.to_s)
-                        return service
-                    end
-                end
-                super
             end
 
             # The set of data readers created with #data_reader. Used to disconnect
@@ -1262,8 +1031,8 @@ module Orocos
                 end
             end
 
-            def method_missing(m, *args, &block)
-                if args.empty? && !block
+            def method_missing(m, *args)
+                if args.empty? && !block_given?
                     if m.to_s =~ /^(\w+)_port/
                         port_name = $1
                         if port = find_input_port(port_name)
@@ -1274,6 +1043,7 @@ module Orocos
                             raise NoMethodError, "#{self} has no port called #{port_name}"
                         end
                     elsif m.to_s =~ /^(\w+)_srv/
+                        service_name = $1
                         if service_model = find_data_service(service_name)
                             return service_model
                         else
