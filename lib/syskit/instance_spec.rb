@@ -313,9 +313,15 @@ module Orocos
                 self
             end
 
+            # @deprecated
+            def use_conf(*conf)
+                Roby.warn_deprecated "InstanceRequirements#use_conf is deprecated. Use #with_conf instead"
+                with_conf(*conf)
+            end
+
             # Specifies that the task that is represented by this requirement
             # should use the given configuration
-            def use_conf(*conf)
+            def with_conf(*conf)
                 @arguments[:conf] = conf
                 self
             end
@@ -774,9 +780,10 @@ module Orocos
                         end
                     end
 
-                    candidates = required_models.map do |m|
-                        selection[m] || selection[m.name]
-                    end.flatten.compact.to_set
+                    candidates = required_models.inject(Set.new) do |candidates, m|
+                        candidates << (selection[m] || selection[m.name])
+                    end
+                    candidates.delete(nil)
                     if !candidates.empty?
                         return candidates
                     end
@@ -1195,6 +1202,11 @@ module Orocos
 
             # Adds a new dependency injection context on the stack
             def push(spec)
+                if spec.empty?
+                    stack << StackLevel.new(stack.last.resolver, DependencyInjection.new)
+                    return
+                end
+
                 spec = DependencyInjection.new(spec)
 
                 new_state = stack.last.resolver.dup

@@ -449,8 +449,8 @@ module Orocos
                 app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
 
-                app.orocos_system_model = SystemModel.new
-                app.orocos_engine = Engine.new(app.plan || Roby::Plan.new, app.orocos_system_model)
+                app.orocos_system_model ||= SystemModel.new
+                app.orocos_engine ||= Engine.new(app.plan || Roby::Plan.new, app.orocos_system_model)
                 Orocos.singleton_class.class_eval do
                     attr_reader :engine
                 end
@@ -550,11 +550,13 @@ module Orocos
                 # deployment files
                 app.find_files_in_dirs('config', 'deployments', 'ROBOT', :all => true, :order => :specific_last, :pattern => /\.rb$/).each do |path|
                     name = File.basename(path, '.rb')
-                    ::MainPlanner.describe "resets the current component network to the state defined in #{path}"
-                    ::MainPlanner.method(name) do
-                        RequirementModificationTask.new do |engine|
-                            engine.clear
-                            engine.load(path)
+                    if !::MainPlanner.has_method?(name)
+                        ::MainPlanner.describe "resets the current component network to the state defined in #{path}"
+                        ::MainPlanner.method(name) do
+                            RequirementModificationTask.new do |engine|
+                                engine.clear
+                                engine.load(path)
+                            end
                         end
                     end
                 end
@@ -724,6 +726,10 @@ module Orocos
             end
 
             def self.connect_to_local_process_server
+                if !@server_pid
+                    raise Orocos::ProcessClient::StartupFailed, "#connect_to_local_process_server got called but no process server is being started"
+                end
+
                 # Wait for the server to be ready
                 client = nil
                 while !client
@@ -731,6 +737,16 @@ module Orocos
                         begin Orocos::ProcessClient.new('localhost', @server_port)
                         rescue Errno::ECONNREFUSED
                             sleep 0.1
+                            is_running = 
+                                begin
+                                    !::Process.waitpid(@server_pid, ::Process::WNOHANG)
+                                rescue Errno::ESRCH
+                                    false
+                                end
+
+                            if !is_running
+                                raise Orocos::ProcessClient::StartupFailed, "the local process server failed to start"
+                            end
                             nil
                         end
                 end

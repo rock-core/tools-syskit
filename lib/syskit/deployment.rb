@@ -169,24 +169,34 @@ module Orocos
                 end
                 options = Hash.new
 
-                # Checking for options which apply in a multi-robot context, 
-                # e.g. such as prefixing
+                # Checking for options which apply in a multi-robot context,
+                # e.g. such as prefixing and service_discovery (distributed
+                # nameservice
                 #
-                # multirobot: 
+                # multirobot:
                 #     use_prefixing: true
-                #     exclude_from_prefixing: 
+                #     exclude_from_prefixing:
                 #         - SIMULATION
                 #         - .*TEST.*
-                if Roby.app.options["multirobot"] && Roby.app.options["multirobot"].key?("use_prefixing")
-                    # When prefixing is in use the argument 'robot_name' will be used to 
-                    # prefix the process according to the following schema
-                    # '<robot_name>_'
-                    if prefix_enable = Roby.app.options["multirobot"]["use_prefixing"]
+                #     service_discovery:
+                #         - domain: _rimres._tcp
+                #         - publish:
+                #             - .*CORE.*
+                if multirobot = Roby.app.options["multirobot"]
+                    # Use prefixing of components in order to allow
+                    # multiple robots to use the same set of deployments,
+                    # since tasks will be renamed using th given prefix
+                    # (robot_name)
+                    # e.g. with prefix enabled:
+                    #     ./scripts/run robot_0 robottype
+                    # the prefix 'robot_0_' will be used
+                    if multirobot.key?("use_prefixing")
+
                         exclude = false
-                        # Exclude deployments from prefixing that match one of the given 
+                        # Exclude deployments from prefixing that match one of the given
                         # regular expressions (matching on complete deployment_name)
-                        if prefix_black_list = Roby.app.options["multirobot"]["exclude_from_prefixing"]
-                            prefix_black_list.each do |pattern| 
+                        if prefix_black_list = multirobot["exclude_from_prefixing"]
+                            prefix_black_list.each do |pattern|
                                 begin
                                     exclude = exclude || deployment_name =~ Regexp.new('^' + pattern + '$')
                                 rescue RegexpError => e
@@ -198,10 +208,32 @@ module Orocos
                             Robot.info "Deployment #{deployment_name} is started with prefix #{Roby.app.robot_name}"
                             args = { :prefix => "#{Roby.app.robot_name}_" }
                             options.merge!(args)
+                        else
+                            Robot.info "Deployment #{deployment_name} is started without prefix #{Roby.app.robot_name}"
                         end
-                    else
-                        Robot.info "Deployment #{deployment_name} is started without prefix #{Roby.app.robot_name}"
-                    end                
+
+                    end
+                    # Check whether the deployment should be started with
+                    # service discovery options, in order to be published within
+                    # the distributed nameservice
+                    if multirobot.key?("service_discovery")
+                        service_discovery = multirobot['service_discovery']
+                        sd_domains = service_discovery["domain"]
+                        publish = false
+			if publish_white_list = service_discovery['publish']
+                            publish_white_list.each do |pattern|
+                                begin
+                                    publish = publish || deployment_name =~ Regexp.new('^' + pattern + '$')
+                                rescue RegexpError => e
+                                    Robot.error "Regular expression in configuration of multirobot with errors: #{e}"
+                                end
+                            end
+			end
+			if publish
+                            args = { 'sd-domain' => sd_domains }
+                            options.merge!(args)
+                        end
+                    end
                 end
                 @orogen_deployment = process_server.start(model.deployment_name, 
                                                           :working_directory => log_dir, 

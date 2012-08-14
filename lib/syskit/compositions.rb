@@ -9,6 +9,10 @@ module Orocos
             attr_accessor :dependency_options
             attr_accessor :port_mappings
 
+            # If set to true, the child is going to be removed automatically if
+            # no selection exists for it
+            attr_predicate :optional?
+
             def initialize(models = ValueSet.new, dependency_options = Hash.new)
                 super(models)
                 @dependency_options = dependency_options
@@ -19,6 +23,10 @@ module Orocos
                 super
                 @dependency_options = old.dependency_options.dup
                 @port_mappings = old.port_mappings.dup
+            end
+
+            def optional
+                @optional = true
             end
         end
 
@@ -167,11 +175,24 @@ module Orocos
                 self
             end
 
+            # Specifies that the child might not be added if no selection exists
+            # for it.
+            #
+            # See CompositionChildDefinition#optional?
+            def optional
+                composition.find_child(child_name).optional
+            end
+
             # Specifies the configuration that should be used on the specified
             # child
-            def use_conf(*conf)
-                composition.find_child(child_name).use_conf(*conf)
+            def with_conf(*conf)
+                composition.find_child(child_name).with_conf(*conf)
                 self
+            end
+
+            # @deprecated
+            def use_conf(*conf)
+                with_conf(*conf)
             end
 
             def each_input_port(&block)
@@ -2177,13 +2198,17 @@ module Orocos
                         merge!([input_name, port.actual_name] => Hash.new)
                 end
 
+                removed_optional_children = Set.new
+
                 # Finally, instanciate the missing tasks and add them to our
                 # children
                 children_tasks = Hash.new
                 while !selected_models.empty?
                     current_size = selected_models.size
                     selected_models.delete_if do |child_name, selected_child|
-                        if !(child_task = selected_child.selected_task)
+                        if child_task = selected_child.selected_task
+                            child_task = engine.replacement_for(child_task)
+                        else
                             # Get out of the selections the parts that are
                             # relevant for our child. We only pass on the
                             # <child_name>.blablabla form, everything else is
@@ -2207,6 +2232,13 @@ module Orocos
                                 # children that are not yet instanciated
                                 next(false)
                             end
+
+                            if child_task.abstract? && find_child(child_name).optional?
+                                Engine.debug "not adding optional child #{child_name}"
+                                removed_optional_children << child_name
+                                next(true)
+                            end
+
                             if child_conf = conf[child_name]
                                 child_task.arguments[:conf] ||= child_conf
                             end
@@ -2293,15 +2325,21 @@ module Orocos
                 end
 
                 exported_outputs.each do |child_name, mappings|
-                    children_tasks[child_name].forward_ports(self_task, mappings)
+                    if !removed_optional_children.include?(child_name)
+                        children_tasks[child_name].forward_ports(self_task, mappings)
+                    end
                 end
                 exported_inputs.each do |child_name, mappings|
-                    self_task.forward_ports(children_tasks[child_name], mappings)
+                    if !removed_optional_children.include?(child_name)
+                        self_task.forward_ports(children_tasks[child_name], mappings)
+                    end
                 end
 
                 connections.each do |(out_name, in_name), mappings|
-                    children_tasks[out_name].
-                        connect_ports(children_tasks[in_name], mappings)
+                    if !removed_optional_children.include?(out_name) && !removed_optional_children.include?(in_name)
+                        children_tasks[out_name].
+                            connect_ports(children_tasks[in_name], mappings)
+                    end
                 end
                 self_task
             end
@@ -2623,7 +2661,11 @@ module Orocos
             end
 
             def fullfills?(models, arguments = Hash.new)
-                models = [*models].map do |other_model|
+                if !models.respond_to?(:map)
+                    models = [models]
+                end
+
+                models = models.map do |other_model|
                     if other_model <= Composition
                         if !(other_model.applied_specializations - model.applied_specializations).empty?
                             return false

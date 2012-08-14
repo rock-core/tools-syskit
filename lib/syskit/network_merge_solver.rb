@@ -31,6 +31,8 @@ module Orocos
                 @plan = plan
                 @merging_candidates_queries = Hash.new
 		@task_replacement_graph = BGL::Graph.new
+                @task_replacement_graph.name = "#{self}.task_replacement_graph"
+                @resolved_replacements = Hash.new
 
                 if block_given?
                     singleton_class.class_eval do
@@ -39,12 +41,26 @@ module Orocos
                 end
             end
 
+            def clear
+                @task_replacement_graph.clear
+                @resolved_replacements.clear
+            end
+
             def replacement_for(task)
                 if task.plan && task.plan != plan
                     task = plan[task]
                 end
+
+                if replacement = @resolved_replacements[task]
+                    # Verify that this is still a leaf in the replacement graph
+                    if replacement.leaf?(task_replacement_graph)
+                        return replacement
+                    end
+                end
+
                 task_replacement_graph.each_dfs(task, BGL::Graph::TREE) do |_, to, _|
                     if to.leaf?(task_replacement_graph)
+                        @resolved_replacements[task] = to
                         return to
                     end
                 end
@@ -96,6 +112,7 @@ module Orocos
                 # replace +task+
 
                 merge_graph = BGL::Graph.new
+                merge_graph.name = "#{self}.merge_graph"
                 for task in task_set
                     # We never replace a transaction proxy. We only use them to
                     # replace new tasks in the transaction
@@ -596,6 +613,7 @@ module Orocos
                 end
 
                 resulting_merge_graph = BGL::Graph.new
+                resulting_merge_graph.name = "#{self}.resulting_merge_graph"
                 merges.each do |replaced_task, task|
                     resulting_merge_graph.link(replaced_task, task, nil)
                 end
@@ -743,10 +761,12 @@ module Orocos
                         end
 
                         applied_merges = apply_merge_mappings(merges)
+                        merges.clear
                         candidates = ValueSet.new
                         applied_merges.each_vertex do |task|
                             candidates << task if task.leaf?(applied_merges)
                         end
+                        applied_merges.clear
                         merged_tasks.merge(candidates)
 
                         debug do

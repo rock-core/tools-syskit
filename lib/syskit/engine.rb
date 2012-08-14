@@ -507,7 +507,7 @@ module Orocos
 		    planner.method("#{device.name}_device") do
 		        spec = Roby.orocos_engine.device(device.name)
 		        if arguments[:conf]
-		            spec.use_conf(*arguments[:conf])
+		            spec.with_conf(*arguments[:conf])
 		        end
 		        spec.as_plan
 		    end
@@ -933,7 +933,7 @@ module Orocos
                 end
                 robot.devices.each do |name, instance|
                     if instance.task && instance.task.transaction_proxy?
-                        raise InternalError, "some transaction proxies are stored in devices definitions"
+                        raise InternalError, "device handler for #{name} contains a transaction proxy: #{instance.task}"
                     end
                 end
 
@@ -1055,10 +1055,7 @@ module Orocos
                 add_timepoint 'default_allocations', 'end'
                 @main_automatic_selection = result
 
-                @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
-
                 add_timepoint 'prepare', 'done'
-
             end
 
             # Updates the tasks in the DataFlowDynamics instance to point to the
@@ -1066,6 +1063,10 @@ module Orocos
             # used during resolution
             def apply_merge_to_dataflow_dynamics
                 @dataflow_dynamics.apply_merges(@network_merge_solver)
+            end
+
+            def replacement_for(task)
+                @network_merge_solver.replacement_for(task)
             end
 
             # This updates the tasks stored in each instance spec to point to
@@ -1079,7 +1080,7 @@ module Orocos
                 # actual new tasks
                 mappings = Hash.new
                 instances.each do |instance|
-                    new_task = (mappings[instance.task] ||= @network_merge_solver.replacement_for(instance.task))
+                    new_task = replacement_for(instance.task)
                     if new_task != instance.task
                         NetworkMergeSolver.debug { "updated task of instance #{instance.task} from #{instance.task} to #{new_task}" }
                     end
@@ -1087,22 +1088,30 @@ module Orocos
                 end
                 robot.devices.each do |name, dev|
                     next if !dev.respond_to?(:task=)
-                    new_task = (mappings[dev.task] ||= @network_merge_solver.replacement_for(dev.task))
+                    new_task = replacement_for(dev.task)
                     if new_task != dev.task
                         NetworkMergeSolver.debug { "updated task of device #{name} from #{dev.task} to #{new_task}" }
                     end
                     dev.task = new_task
                 end
                 @tasks = tasks.map_value do |name, task|
-                    new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task.to_component))
+                    new_task = replacement_for(task.to_component)
                     if new_task != task
                         NetworkMergeSolver.debug { "updated named task #{name} from #{task} to #{new_task}" }
+                    end
+                    if new_task.respond_to?(:child_selection)
+                        new_task.child_selection.each_value do |instance_selection|
+                            if child_task = instance_selection.selected_task
+                                mapped_child_task = replacement_for(child_task.to_component)
+                                instance_selection.selected_task = mapped_child_task
+                            end
+                        end
                     end
                     new_task
                 end
                 if @deployment_tasks
                     @deployment_tasks = @deployment_tasks.map do |task|
-                        new_task = (mappings[task] ||= @network_merge_solver.replacement_for(task))
+                        new_task = replacement_for(task)
                         if new_task != task
                             NetworkMergeSolver.debug { "updated deployment task #{task} to #{new_task}" }
                         end
@@ -1632,7 +1641,19 @@ module Orocos
                         trsc.add_permanent(t)
                     end
 
+                    if options[:compute_deployments]
+                        if defined?(Orocos::RobyPlugin::Logger::Logger)
+                            configure_logging
+                        end
+                    end
+
                     fullfilled_models = Hash.new
+
+                    plan.each_task do |task|
+                        if task.transaction_proxy?
+                            @network_merge_solver.register_replacement(task, task.__getobj__)
+                        end
+                    end
 
                     # Update tasks, devices and instances
                     apply_merge_to_stored_instances
@@ -1649,12 +1670,6 @@ module Orocos
                         new_task = instance.task
                         if instance.mission?
                             trsc.add_mission(trsc[new_task])
-                        end
-
-                        if new_task.transaction_proxy?
-                            instance.task = new_task = new_task.__getobj__
-                        else
-                            instance.task = new_task
                         end
 
                         if old_task && old_task.plan && old_task != new_task
@@ -1677,13 +1692,7 @@ module Orocos
                         next if !robot.devices[name].respond_to?(:task=)
 
                         device_task = robot.devices[name].task
-                        if device_task.plan
-                            if device_task.transaction_proxy?
-                                robot.devices[name].task = device_task.__getobj__
-                            else
-                                robot.devices[name].task = device_task
-                            end
-                        else
+                        if !device_task.plan
                             robot.devices[name].task = nil
                         end
                     end
@@ -1692,12 +1701,6 @@ module Orocos
                     # and compute the connection policies
                     if options[:garbage_collect] && options[:validate_network]
                         validate_final_network(trsc, options)
-                    end
-
-                    if options[:compute_deployments]
-                        if defined?(Orocos::RobyPlugin::Logger::Logger)
-                            configure_logging
-                        end
                     end
 
                     if dry_run?
@@ -1779,6 +1782,11 @@ module Orocos
 
             ensure
                 @plan = engine_plan
+                if @network_merge_solver
+                    @network_merge_solver.task_replacement_graph.clear
+                    @network_merge_solver = nil
+                end
+                @dataflow_dynamics = nil
             end
 
             def autosave_plan_to_dot(dir = Roby.app.log_dir, options = Hash.new)
@@ -2139,7 +2147,7 @@ module Orocos
                             existing_task = new_task
                         end
                         existing_task.merge(task)
-                        @network_merge_solver.register_replacement(task, existing_task)
+                        @network_merge_solver.register_replacement(task, plan.may_unwrap(existing_task))
                         Engine.debug { "  using #{existing_task} for #{task} (#{task.orogen_name})" }
                         plan.remove_object(task)
                         if existing_task.conf != task.conf

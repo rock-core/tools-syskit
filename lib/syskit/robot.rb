@@ -102,9 +102,15 @@ module Orocos
                 name
             end
 
+            # @deprecated
+            def use_conf(*conf)
+                Roby.warn_deprecated "MasterDeviceInstance#use_conf is deprecated. Use #with_conf instead"
+                with_conf(*conf)
+            end
+
             # Declares that the following configuration chain should be used for
             # this device
-            def use_conf(*conf)
+            def with_conf(*conf)
                 task_arguments[:conf] = conf
                 self
             end
