@@ -49,6 +49,7 @@ module Orocos
                 # TODO: define the orogen spec / interface attribute directly on
                 # Component
                 mock = flexmock(Class.new(Component))
+                mock.terminates
                 spec = Orocos::RobyPlugin.create_orogen_interface(name)
                 mock.should_receive(:orogen_spec).and_return(spec)
                 if block
