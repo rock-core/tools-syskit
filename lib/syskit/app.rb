@@ -1,5 +1,5 @@
 require 'utilrb/kernel/load_dsl_file'
-require 'roby/state/state'
+require 'roby/state'
 require 'utilrb/spawn'
 
 require 'typelib'
@@ -98,8 +98,10 @@ module Orocos
         #   Roby::Conf.orocos.disable_logging
         #
         # will completely disable logging (not recommended !)
-        class Configuration < Roby::ExtendedStruct
+        class Configuration
+            include Roby::ExtendedStruct
             def initialize
+                initialize_extended_struct(Roby::ExtendedStruct)
                 super
 
                 @log_enabled = true
