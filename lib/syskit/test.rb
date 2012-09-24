@@ -155,6 +155,7 @@ module Orocos
 
             def teardown
                 orocos_engine.clear
+                Roby.app.orocos_clear_models
 
                 super
 
