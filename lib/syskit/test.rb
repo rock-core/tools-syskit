@@ -55,6 +55,8 @@ module Orocos
                 if block
                     spec.instance_eval(&block)
                 end
+                mock.should_receive(:name).and_return(name || "")
+                mock.should_receive(:short_name).and_return(name || "")
                 mock
             end
 
@@ -95,8 +97,8 @@ module Orocos
                 model
             end
 
-            def mock_roby_composition_model(&block)
-                model = Composition.new_submodel '', sys_model
+            def mock_roby_composition_model(name = '', &block)
+                model = Composition.new_submodel name, sys_model
                 model.instance_eval(&block)
                 model
             end

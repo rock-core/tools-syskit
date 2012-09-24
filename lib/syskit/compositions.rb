@@ -1022,6 +1022,7 @@ module Orocos
                         specialization.compatibilities.delete(spec)
                     end
                 end
+                specialization
             end
 
             def add_specialization_constraint(explicit = nil, &as_block)
@@ -1064,7 +1065,7 @@ module Orocos
             # the required specializations have been merged and
             # +applied_specializations+ the list of the specializations,
             # separate.
-            def instanciate_specialization(composite_spec, applied_specializations)
+            def instanciate_specialization(composite_spec, applied_specializations = [composite_spec])
                 if applied_specializations.empty?
                     return self
                 elsif current_model = instanciated_specializations[composite_spec.specialized_children]
