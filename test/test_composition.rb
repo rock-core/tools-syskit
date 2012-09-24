@@ -47,7 +47,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     end
 
     def test_explicit_connection_applies_port_mappings
-        service, component, composition = setup_with_port_mapping
+        service, component, base = setup_with_port_mapping
         service1 = sys_model.data_service_type('SpecializedService') do
             input_port 'specialized_in', '/int'
             output_port 'specialized_out', '/int'
@@ -55,10 +55,12 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
         component.provides service1
 
-        composition.add(service, :as => 'srv_in')
-        composition.connect(composition.srv => composition.srv_in)
-        composition = Class.new(composition)
+        composition = Class.new(base)
         composition.overload('srv', service1)
+
+        base.add(service, :as => 'srv_in')
+        base.connect(base.srv => base.srv_in)
+
         assert_equal({['srv', 'srv_in'] => {['specialized_out', 'srv_in'] => {}}}.to_set, composition.each_explicit_connection.to_set)
         composition.overload('srv_in', service1)
         assert_equal({['srv', 'srv_in'] => {['specialized_out', 'specialized_in'] => {}}}.to_set, composition.each_explicit_connection.to_set)
@@ -86,8 +88,8 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
         composition = Class.new(composition)
         composition.overload('srv', component)
-        assert_equal([['in', composition.srv.specialized_in]], composition.each_exported_input.to_a)
-        assert_equal([['out', composition.srv.specialized_out]], composition.each_exported_output.to_a)
+        assert_equal([['srv_in', composition.srv.in]], composition.each_exported_input.to_a)
+        assert_equal([['srv_out', composition.srv.out]], composition.each_exported_output.to_a)
     end
 
     def test_child_selection_port_mappings
@@ -127,11 +129,11 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
         # Make sure the forwarding is set up with the relevant port mapping
         # applied
-        component.new_instances.should_receive(:forward_ports).
-            with(composition, ['srv_in', 'in']=>{}).
-            once
         composition.new_instances.should_receive(:forward_ports).
-            with(component, ['out', 'srv_out']=>{}).
+            with(component, ['srv_in', 'in']=>{}).
+            once
+        component.new_instances.should_receive(:forward_ports).
+            with(composition, ['out', 'srv_out']=>{}).
             once
 
         context = DependencyInjectionContext.new('srv' => component)
