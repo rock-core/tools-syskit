@@ -761,7 +761,7 @@ module Orocos
             # Component.data_service for the description of +arguments+
             def self.driver_for(model, arguments = Hash.new, &block)
                 if model.respond_to?(:to_str)
-                    service_options, model_options = Kernel.filter_options arguments, Component::DATA_SERVICE_ARGUMENTS
+                    service_options, model_options = Kernel.filter_options arguments, ComponentModel::DATA_SERVICE_ARGUMENTS
                     model = system_model.query_or_create_service_model(
                         model, DeviceModel, model_options, &block)
                 else
