@@ -33,12 +33,12 @@ rescue Exception => e
 end
 
 def build_orogen(name)
-    require './lib/orocos/test'
+    require './lib/orocos/rake'
     work_dir = File.expand_path(File.join('test', 'working_copy'))
     prefix   = File.join(work_dir, 'prefix')
     data_dir = File.expand_path(File.join('test', 'data'))
 
-    Orocos::Test.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir
+    Orocos::Rake.generate_and_build File.join(data_dir, name, "#{name}.orogen"), work_dir
 end
 
 task :default => ["setup:ext", "setup:uic"]
