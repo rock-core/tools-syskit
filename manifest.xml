@@ -14,5 +14,6 @@
     <depend package="orogen" />
     <depend package="tools/pocolog" />
     <depend package="omniorb" />
+    <depend package="rtt_typelib" />
 </package>
 
