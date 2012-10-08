@@ -12,7 +12,7 @@
     <url>http://orocos.org/dfki</url>
 
     <depend package="orogen" />
-    <depend package="tools/pocolog" />
+    <depend package="tools/pocolog" optional="1"/>
     <depend package="omniorb" />
     <depend package="rtt_typelib" />
 </package>
