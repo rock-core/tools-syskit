@@ -89,7 +89,7 @@ module Orocos
                 # TODO: remove requirement for things to have name here. This
                 # will require to cleanup the oroGen loading / registration
                 # mechanisms so that objects are unique
-                spec = Orocos::Generation::Deployment.new(Orocos.master_project)
+                spec = Orocos::Generation::Deployment.new(Orocos.master_project, nil)
                 spec.task('task', task_model.interface)
                 model = Orocos::RobyPlugin::Deployment.create(nil, spec)
                 orocos_engine.deployments['localhost'] << model
