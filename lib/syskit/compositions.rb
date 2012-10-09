@@ -341,6 +341,11 @@ module Orocos
                 @name = port_name
             end
 
+            def same_port?(other)
+                other.kind_of?(CompositionChildPort) && other.child == child &&
+                    other.port == port
+            end
+
             def ==(other) # :nodoc:
                 other.kind_of?(CompositionChildPort) && other.child == child &&
                     other.port == port &&
@@ -2427,7 +2432,10 @@ module Orocos
             def self.promote_exported_port(export_name, port)
                 if new_child = children[port.child.child_name]
                     if new_port_name = new_child.port_mappings[port.actual_name]
-                        send(port.child.child_name).find_port(new_port_name)
+                        result = send(port.child.child_name).find_port(new_port_name)
+                        result = result.dup
+                        result.name = export_name
+                        result
                     else
                         port
                     end
@@ -2438,13 +2446,13 @@ module Orocos
 
             # Outputs exported from this composition
             def self.promote_exported_output(export_name, port)
-                promote_exported_port(export_name, port)
+                exported_outputs[export_name] = promote_exported_port(export_name, port)
             end
 
             inherited_enumerable(:exported_output, :exported_outputs, :map => true)  { Hash.new }
             # Inputs imported from this composition
             def self.promote_exported_input(export_name, port)
-                promote_exported_port(export_name, port)
+                exported_inputs[export_name] = promote_exported_port(export_name, port)
             end
             inherited_enumerable(:exported_input, :exported_inputs, :map => true)  { Hash.new }
             # Configurations defined on this composition model

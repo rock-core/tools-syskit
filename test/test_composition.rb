@@ -72,6 +72,38 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_equal({['srv', 'srv_in'] => {['out', 'in'] => {}}}.to_set, composition.each_explicit_connection.to_set)
     end
 
+    def assert_single_export(expected_name, expected_port, exports)
+        exports = exports.to_a
+        assert_equal(1, exports.size)
+        export_name, exported_port = *exports.first
+        assert_equal expected_name, export_name
+        assert_equal expected_name, exported_port.name
+        assert(exported_port.same_port?(expected_port))
+    end
+
+    def test_each_exported_input_output_renames_port
+        service = sys_model.data_service_type("Service") do
+            input_port 'in', '/int'
+            output_port 'out', '/int'
+        end
+        srv_in, srv_out = nil
+        composition = mock_roby_composition_model("OdometryComposition") do
+            add service, :as => 'srv'
+
+            srv_in = self.srv.in
+            export srv_in, :as => 'srv_in'
+            srv_out = self.srv.out
+            export srv_out, :as => 'srv_out'
+            provides service
+        end
+        assert_single_export 'srv_out', srv_out, composition.each_exported_output
+        assert_single_export 'srv_in', srv_in, composition.each_exported_input
+
+        # Make sure that the name of the original port is not changed
+        assert_equal 'out', srv_out.name
+        assert_equal 'in', srv_in.name
+    end
+
     def test_each_exported_input_output_applies_port_mappings
         service, component, composition = setup_with_port_mapping
         service1 = sys_model.data_service_type('SpecializedService') do
@@ -81,15 +113,19 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         end
         component.provides service1
 
-        composition = Class.new(composition)
-        composition.overload('srv', service1)
-        assert_equal([['srv_in', composition.srv.specialized_in]], composition.each_exported_input.to_a)
-        assert_equal([['srv_out', composition.srv.specialized_out]], composition.each_exported_output.to_a)
+        c0 = Class.new(composition)
+        c0.overload('srv', service1)
+        assert_single_export 'srv_in', c0.srv.specialized_in, c0.each_exported_input
+        assert_single_export 'srv_out', c0.srv.specialized_out, c0.each_exported_output
 
-        composition = Class.new(composition)
-        composition.overload('srv', component)
-        assert_equal([['srv_in', composition.srv.in]], composition.each_exported_input.to_a)
-        assert_equal([['srv_out', composition.srv.out]], composition.each_exported_output.to_a)
+        c1 = Class.new(c0)
+        c1.overload('srv', component)
+        # Re-test for c0 to make sure that the overload did not touch the base
+        # model
+        assert_single_export 'srv_in', c0.srv.specialized_in, c0.each_exported_input
+        assert_single_export 'srv_out', c0.srv.specialized_out, c0.each_exported_output
+        assert_single_export 'srv_in', c1.srv.in, c1.each_exported_input
+        assert_single_export 'srv_out', c1.srv.out, c1.each_exported_output
     end
 
     def test_child_selection_port_mappings
