@@ -34,10 +34,10 @@ module Orocos
                     result.map do |obj|
                         if obj.respond_to?(:each)
                             obj.map do |instance|
-                                mock_task_context(instance)
+                                mock_roby_task_context(instance)
                             end
                         else
-                            mock_task_context(obj)
+                            mock_roby_task_context(obj)
                         end
                     end
                 else
@@ -61,11 +61,16 @@ module Orocos
             end
 
             def mock_roby_task_context_model(name = nil, &block)
-                flexmock(Orocos::RobyPlugin::TaskContext.create(name, &block))
+                mock = flexmock(Orocos::RobyPlugin::TaskContext.create(name, &block))
+                mock.new_instances
+                mock
             end
 
-            def mock_roby_task_context(klass_or_instance, &block)
-                klass_or_instance ||= mock_roby_task_context_model(&block)
+            def mock_roby_task_context(klass_or_instance = nil, &block)
+                if !klass_or_instance
+                    return mock_roby_task_context_model(&block).new
+                end
+
                 if klass_or_instance.kind_of?(Class)
                     mock = flexmock(klass.new)
                 elsif !klass_or_instance.respond_to?(:should_receive)
@@ -73,10 +78,6 @@ module Orocos
                 else
                     mock = klass_or_instance
                 end
-
-                mock.should_receive(:to_task).and_return(mock)
-                mock.should_receive(:as_plan).and_return(mock)
-                mock.should_receive(:orogen_task).and_return(mock_task_context(mock.class.orogen_spec))
                 mock
             end
 
@@ -99,7 +100,9 @@ module Orocos
 
             def mock_roby_composition_model(name = '', &block)
                 model = Composition.new_submodel name, sys_model
-                model.instance_eval(&block)
+                if block
+                    model.instance_eval(&block)
+                end
                 model
             end
 
@@ -112,13 +115,12 @@ module Orocos
 
             def mock_deployment_task
                 task = flexmock(FakeDeploymentTask.new)
-                task.should_receive(:to_task).and_return(task)
-                task.should_receive(:as_plan).and_return(task)
                 plan.add(task)
                 task
             end
 
             def mock_configured_task(task)
+                task.should_receive(:orogen_task).and_return(mock_task_context(task.model.orogen_spec))
                 if !task.execution_agent
                     task.executed_by(deployer = mock_deployment_task)
                     deployer.should_receive(:ready_to_die?).and_return(false)
