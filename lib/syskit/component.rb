@@ -951,7 +951,7 @@ module Orocos
 
                 port = task.find_output_port(port_name)
                 if !port
-                    raise ArgumentError, "#{task} has no input port #{port_name}"
+                    raise ArgumentError, "#{task} has no output port #{port_name}"
                 end
 
                 result = port.reader(policy)
