@@ -314,7 +314,7 @@ module Orocos
                     raise ArgumentError, "#find_input_port called but we have no task handler yet"
                 end
                 port = orogen_task.port(name)
-		return if port.kind_of?(Orocos::OutputPort)
+		return if !port.respond_to?(:writer)
 		port
 
             rescue Orocos::NotFound
@@ -332,7 +332,7 @@ module Orocos
                     raise ArgumentError, "#find_output_port called but we have no task handler yet"
                 end
                 port = orogen_task.port(name)
-                return if port.kind_of?(Orocos::InputPort)
+                return if !port.respond_to?(:reader)
                 port
 
             rescue Orocos::NotFound
