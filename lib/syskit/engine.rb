@@ -792,7 +792,7 @@ module Orocos
             # !
             def add_instance(instance_def, arguments = Hash.new)
                 arguments = Kernel.validate_options arguments, :as => nil, :context => @main_selection, :mission => false
-                context = arguments[:context]
+                context = arguments[:context] || DependencyInjectionContext.new
 
                 selected = user_selection_for(instance_def)
                 instance = Engine.create_instanciated_component(self, arguments[:as], selected)
