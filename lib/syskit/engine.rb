@@ -732,19 +732,8 @@ module Orocos
                     end
                 end
             end
-
-            # Create the task instances that are currently required by the
-            # deployment specification
-            #
-            # It does not try to merge the result, i.e. after #instanciate the
-            # plan is probably full of abstract tasks.
-            def instanciate
-                self.tasks.clear
-
-                Orocos::RobyPlugin::Compositions.each do |composition_model|
-                    composition_model.reset_autoconnection
-                end
-
+            
+            def update_main_selection
                 # Now prepare the main selection
                 main_selection = DependencyInjectionContext.new
 
@@ -775,6 +764,21 @@ module Orocos
                     break
                 end
                 @main_selection = main_selection
+            end
+
+            # Create the task instances that are currently required by the
+            # deployment specification
+            #
+            # It does not try to merge the result, i.e. after #instanciate the
+            # plan is probably full of abstract tasks.
+            def instanciate
+                self.tasks.clear
+
+                Orocos::RobyPlugin::Compositions.each do |composition_model|
+                    composition_model.reset_autoconnection
+                end
+
+                update_main_selection
 
                 instances.each do |instance|
                     instance.task = add_instance(instance, :as => instance.name, :context => main_selection).to_component
