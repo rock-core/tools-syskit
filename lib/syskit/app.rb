@@ -445,7 +445,6 @@ module Orocos
                 end
 
                 Roby::Conf.orocos = Configuration.new
-                Roby::State.orocos = Roby::Conf.orocos # for backward compatibility
 
                 Orocos.configuration_log_name ||= File.join(app.log_dir, 'properties')
                 app.orocos_auto_configure = true
