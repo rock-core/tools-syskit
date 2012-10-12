@@ -7,42 +7,55 @@ require 'test/roby/common'
 class TC_RobySpec_Composition < Test::Unit::TestCase
     include RobyPluginCommonTest
 
+    attr_reader :simple_component_model
+    attr_reader :simple_task_model
+    attr_reader :simple_service_model
+    attr_reader :simple_composition_model
+
+    def simple_models
+        return simple_service_model, simple_component_model, simple_composition_model
+    end
+
     def setup
 	Roby.app.using 'orocos'
 	Roby.app.orocos_disables_local_process_server = true
+        Roby.app.filter_backtraces = false
 	super
-    end
 
-    def setup_with_port_mapping
-        service = sys_model.data_service_type("Service") do
+        srv = @simple_service_model = sys_model.data_service_type("SimpleService") do
             input_port 'srv_in', '/int'
             output_port 'srv_out', '/int'
         end
-        component = mock_roby_component_model("Component") do
+        @simple_component_model = mock_roby_component_model("SimpleComponent") do
             input_port 'in', '/int'
             output_port 'out', '/int'
         end
-        component.provides service, 'srv_in' => 'in', 'srv_out' => 'out'
-
-        composition = mock_roby_composition_model("OdometryComposition") do
-            add service, :as => 'srv'
+        simple_component_model.provides simple_service_model,
+            'srv_in' => 'in', 'srv_out' => 'out'
+        @simple_task_model = mock_roby_task_context_model("SimpleTask") do
+            input_port 'in', '/int'
+            output_port 'out', '/int'
+        end
+        simple_task_model.provides simple_service_model,
+            'srv_in' => 'in', 'srv_out' => 'out'
+        @simple_composition_model = mock_roby_composition_model("SimpleComposition") do
+            add srv, :as => 'srv'
             export self.srv.srv_in
             export self.srv.srv_out
-            provides service
+            provides srv
         end
-        return service, component, composition
+    end
+
+    def setup_with_port_mapping
+        return simple_service_model, simple_component_model, simple_composition_model
     end
 
     def test_explicit_connection
-        component = mock_roby_component_model("Component") do
-            input_port 'in', '/int'
-            output_port 'out', '/int'
-        end
-        composition = mock_roby_composition_model("Composition") do
-            add component, :as => 'source'
-            add component, :as => 'sink'
-            connect source => sink
-        end
+        component = simple_composition_model
+        composition = mock_roby_composition_model("Composition")
+        composition.add simple_component_model, :as => 'source'
+        composition.add simple_component_model, :as => 'sink'
+        composition.connect composition.source => composition.sink
         assert_equal({['source', 'sink'] => {['out', 'in'] => {}}}.to_set, composition.each_explicit_connection.to_set)
     end
 
