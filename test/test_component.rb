@@ -328,6 +328,73 @@ class TC_RobySpec_Component < Test::Unit::TestCase
         assert_equal([[model], {:id => 'test'}],
                      merging_task.fullfilled_model)
     end
+
+    def test_data_reader_creates_reader_on_associated_port
+        task = flexmock(Component.new)
+        port = flexmock
+        port.should_receive(:reader).once.and_return(expected = Object.new)
+        task.should_receive(:find_output_port).once.with('out').and_return(port)
+        assert_same expected, task.data_reader('out')
+    end
+
+    def test_data_reader_passes_policy
+        task = flexmock(Component.new)
+        port = flexmock
+        policy = Hash[:pull => true, :type => :buffer, :size => 20]
+        port.should_receive(:reader).once.with(policy)
+        task.should_receive(:find_output_port).once.with('out').and_return(port)
+        task.data_reader('out', policy)
+    end
+
+    def test_data_reader_raises_if_the_output_port_does_not_exist
+        task = flexmock(Component.new)
+        task.should_receive(:find_output_port).with('does_not_exist').and_return(nil)
+        assert_raises(ArgumentError) { task.data_reader('does_not_exist') }
+    end
+
+    def test_data_reader_creates_reader_using_pull_by_default
+        task = flexmock(Component.new)
+        port = flexmock
+        port.should_receive(:reader).
+            once.with(:pull => true, :type => :buffer, :size => 20)
+        task.should_receive(:find_output_port).
+            once.with('out').and_return(port)
+        task.data_reader('out', :type => :buffer, :size => 20)
+    end
+
+    def test_data_reader_allows_to_override_pull_flag
+        task = flexmock(Component.new)
+        port = flexmock
+        port.should_receive(:reader).
+            once.with(:pull => false, :type => :buffer, :size => 20)
+        task.should_receive(:find_output_port).
+            once.with('out').and_return(port)
+        task.data_reader('out', :type => :buffer, :size => 20, :pull => false)
+    end
+
+    def test_data_writer_creates_writer_on_associated_port
+        task = flexmock(Component.new)
+        port = flexmock
+        port.should_receive(:writer).once.and_return(expected = Object.new)
+        task.should_receive(:find_input_port).once.with('in').and_return(port)
+        assert_same expected, task.data_writer('in')
+    end
+
+    def test_data_writer_passes_policy
+        task = flexmock(Component.new)
+        port = flexmock
+        policy = Hash[:type => :buffer, :size => 20]
+        port.should_receive(:writer).once.with(policy)
+        task.should_receive(:find_input_port).once.with('in').and_return(port)
+        task.data_writer('in', policy)
+    end
+
+    def test_data_writer_raises_if_the_port_does_not_exist
+        task = flexmock(Component.new)
+        port = flexmock
+        task.should_receive(:find_input_port).once.with('in')
+        assert_raises(ArgumentError) { task.data_writer('in') }
+    end
 end
 
 
