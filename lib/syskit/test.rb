@@ -245,6 +245,10 @@ module Orocos
                     orocos_engine.instances.concat(instances)
                 end
             end
+
+            def instanciate_component(model)
+                orocos_engine.add_instance(model)
+            end
         end
     end
 end
