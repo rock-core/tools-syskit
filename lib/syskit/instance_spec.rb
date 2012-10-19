@@ -542,7 +542,7 @@ module Orocos
             def method_missing(m, *args, &block)
                 if m.to_s =~ /^(\w+)_srv$/ && args.empty? && !block_given?
                     service_name = $1
-                    task_model = models.find { |m| m <= TaskContext }
+                    task_model = models.find { |m| m <= Component }
                     if !task_model
                         raise ArgumentError, "this requirement object does not refer to a task context explicitely, cannot select a service"
                     end
