@@ -188,5 +188,35 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         context = DependencyInjectionContext.new('srv' => component)
         composition.instanciate(orocos_engine, context)
     end
+
+    def test_state_using_child_component
+        cmp_model = mock_roby_composition_model("OdometryComposition")
+        cmp_model.add simple_task_model, :as => 'child'
+        cmp_model.state.pose = cmp_model.child.out
+
+        source = cmp_model.state.pose.data_source
+        assert_equal source, cmp_model.child.out
+        assert_equal source.type, cmp_model.state.pose.type
+
+        cmp = instanciate_component(cmp_model)
+        mock_configured_task(cmp.child_from_role("child"))
+        cmp.resolve_state_sources
+        assert_equal cmp.child_from_role("child").data_reader("out"), cmp.state.data_sources.pose
+    end
+
+    def test_state_using_child_service
+        cmp_model = mock_roby_composition_model("OdometryComposition")
+        cmp_model.add simple_service_model, :as => 'child'
+        cmp_model.state.pose = cmp_model.child.srv_out
+
+        source = cmp_model.state.pose.data_source
+        assert_equal source, cmp_model.child.srv_out
+        assert_equal source.type, cmp_model.state.pose.type
+
+        cmp = instanciate_component(cmp_model.use('child' => simple_task_model))
+        mock_configured_task(cmp.child_from_role("child"))
+        cmp.resolve_state_sources
+        assert_equal cmp.child_child.data_reader("out"), cmp.state.data_sources.pose
+    end
 end
 

@@ -263,6 +263,18 @@ module Orocos
             def each_fullfilled_model(&block)
                 composition.find_child(child_name).each_fullfilled_model(&block)
             end
+
+            def state
+                if @state
+                    return @state
+                elsif component_model = models.find { |c| c <= Component }
+                    @state = Roby::StateFieldModel.new(component_model.state)
+                    @state.__object = self
+                    return @state
+                else
+                    raise ArgumentError, "cannot create a state model on elements that are only data services"
+                end
+            end
         end
 
         class InvalidCompositionChildPort < RuntimeError
@@ -370,7 +382,24 @@ module Orocos
         end
 
         # Specialization of CompositionChildPort for output ports
-        class CompositionChildOutputPort < CompositionChildPort; end
+        class CompositionChildOutputPort < CompositionChildPort
+            # This is needed to use the CompositionChild to represent a data
+            # source on the component's state as e.g.
+            #
+            #   state.position = pose_child.pose_samples
+            #
+            def to_state_variable_model(field, name)
+                model = Roby::StateVariableModel.new(field, name)
+                model.type = type
+                model.data_source = self
+                model
+            end
+
+            def bind(task, state)
+                task.data_reader(child.child_name, actual_name)
+            end
+        end
+
         # Specialization of CompositionChildPort for input ports
         class CompositionChildInputPort  < CompositionChildPort
             def multiplexes?
