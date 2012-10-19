@@ -275,6 +275,14 @@ module Orocos
                 end
             end
 
+            # @return [InstanceRequirements] this component model with the
+            # required service selected
+            def select_service(service)
+                result = InstanceRequirements.new([self])
+                result.select_service(service)
+                result
+            end
+
             def find_service_from_type(type)
                 find_data_service_from_type(type)
             end
