@@ -62,13 +62,18 @@ module Orocos
             # Explicitely selects a given service on the task models required by
             # this task
             def select_service(service)
-                if service.respond_to?(:to_str)
-                    # This is a service name
-                    task_model = @models.find { |m| m.kind_of?(Component) }
+                if service.respond_to?(:to_str) || service.kind_of?(DataServiceModel)
+                    task_model = @models.find { |m| m.kind_of?(RobyPlugin::ComponentModel) }
                     if !task_model
                         raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
                     end
-                    service_model = task_model.find_data_service(service)
+                    service_model =
+                        if service.respond_to?(:to_str)
+                            task_model.find_data_service(service)
+                        else
+                            task_model.find_data_service_from_type(service)
+                        end
+
                     if !service_model
                         raise ArgumentError, "there is no service called #{service} on #{task_model.short_name}"
                     end
