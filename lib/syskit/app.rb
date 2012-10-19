@@ -302,6 +302,7 @@ module Orocos
             end
 
             def import_orogen_project(name, orogen)
+                Orocos::RobyPlugin.info "loading oroGen project #{name}"
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
                 if Orocos.available_task_libraries[name].respond_to?(:to_str)
