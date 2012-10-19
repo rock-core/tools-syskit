@@ -2785,6 +2785,8 @@ module Orocos
                     name = m.to_s
                     if has_child?(name)
                         return CompositionChild.new(self, name)
+                    elsif has_child?(name = name.gsub(/_child$/, ''))
+                        return CompositionChild.new(self, name)
                     end
                 end
                 super
