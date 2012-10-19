@@ -98,10 +98,8 @@ module Orocos
         #   Roby::Conf.orocos.disable_logging
         #
         # will completely disable logging (not recommended !)
-        class Configuration
-            include Roby::ExtendedStruct
+        class Configuration < Roby::OpenStruct
             def initialize
-                initialize_extended_struct(Roby::ExtendedStruct)
                 super
 
                 @log_enabled = true
