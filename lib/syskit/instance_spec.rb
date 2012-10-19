@@ -557,6 +557,14 @@ module Orocos
                     result = self.dup
                     result.select_service(srv)
                     return result
+                elsif m.to_s =~ /^(\w+)_child$/ && args.empty? && !block_given?
+                    child_name = $1
+                    composition = models.find { |m| m <= Composition }
+                    if !composition
+                        raise ArgumentError, "this requirement object does not refer to a composition explicitely, cannot select a child"
+                    end
+                    child = composition.send(m)
+                    return child.rebind(self)
                 end
                 super
             end

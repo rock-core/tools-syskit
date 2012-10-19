@@ -148,6 +148,12 @@ module Orocos
                 composition.find_child(child_name).models
             end
 
+            def rebind(composition)
+                result = dup
+                result.instance_variable_set :@composition, composition
+                result
+            end
+
             # If this child is itself a composition model, give more information
             # as to what specialization should be picked
             #
