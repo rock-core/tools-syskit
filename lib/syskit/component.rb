@@ -44,6 +44,83 @@ module Orocos
             #--
             # This is defined on Component using inherited_enumerable
 
+            # A port attached to a component
+            class Port
+                # A data source for a port attached to a component
+                class DataSource
+                    attr_reader :reader
+
+                    def initialize(task, *port_spec)
+                        task.execute do
+                            @reader = task.data_reader(*port_spec)
+                        end
+                    end
+
+                    def read
+                        reader.read if reader
+                    end
+                end
+
+                # [ComponentModel] The component model this port is part of
+                attr_reader :component_model
+                # [Orocos::Spec::Port] The port model
+                attr_reader :model
+                # [String] The port name on +component_model+. It can be
+                # different from model.name, as the port could be imported from
+                # another component
+                attr_accessor :name
+
+                def initialize(component_model, model, name = model.name)
+                    @component_model, @name, @model =
+                        component_model, name, model
+                end
+
+                def same_port?(other)
+                    other.kind_of?(Port) && other.component_model == component_model &&
+                        other.model == model
+                end
+
+                def ==(other) # :nodoc:
+                    other.kind_of?(Port) && other.component_model == component_model &&
+                    other.model == model &&
+                    other.name == name
+                end
+
+                # This is needed to use the Port to represent a data
+                # source on the component's state as e.g.
+                #
+                #   state.position = Component.pose_samples
+                #
+                def to_state_variable_model(field, name)
+                    model = Roby::StateVariableModel.new(field, name)
+                    model.type = type
+                    model.data_source = self
+                    model
+                end
+
+                # Returns a DataSource that represents this port
+                #
+                # @arg context either an Engine or a task instance. If it is an
+                #              engine, the method adds a new instance of the
+                #              right model and returns the corresponding
+                #              DataSource. Otherwise, simply returns the
+                #              DataSource for the given task.
+                def bind(context)
+                    if context.respond_to?(:add_instance)
+                        context = context.add_instance(component_model)
+                    end
+                    DataSource.new(context, name)
+                end
+
+                # Returns the true name for the port, i.e. the name of the port on
+                # the child
+                def actual_name; model.name end
+
+                def method_missing(*args, &block)
+                    model.send(*args, &block)
+                end
+            end
+
             # Returns the port object that maps to the given name, or nil if it
             # does not exist.
             def find_port(name)

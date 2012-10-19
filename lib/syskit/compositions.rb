@@ -329,23 +329,11 @@ module Orocos
         #   source.port.connect_to sink.port
         #   # source.port and sink.port are both CompositionChildPort instances
         #
-        class CompositionChildPort
+        class CompositionChildPort < ComponentModel::Port
             # [CompositionChild] The child object this port is part of
-            attr_reader :child
+            def child; component_model end
             # [Orocos::Spec::Port] The port object that describes the actual port
-            attr_reader :port
-            # [String] The actual port name. Can be different from port.name in
-            # case of port exports (in compositions) and port aliasing
-            attr_accessor :name
-
-            # Returns the true name for the port, i.e. the name of the port on
-            # the child
-            def actual_name; port.name end
-
-            # The port's type object, as a subclass of Typelib::Type
-            def type; port.type end
-            # [String] The port's type name
-            def type_name; port.type_name end
+            def port; model end
 
             # Declare that this port should be ignored in the automatic
             # connection computation
@@ -354,22 +342,9 @@ module Orocos
             end
 
             def initialize(child, port, port_name)
-                @child = child
-                @port  = port
-                @name = port_name
+                super(child, port, port_name)
             end
 
-            def same_port?(other)
-                other.kind_of?(CompositionChildPort) && other.child == child &&
-                    other.port == port
-            end
-
-            def ==(other) # :nodoc:
-                other.kind_of?(CompositionChildPort) && other.child == child &&
-                    other.port == port &&
-                    other.name == name
-            end
-        
             # Return true if the underlying port multiplexes, i.e. if it is
             # an input port that is expected to have multiple inbound
             # connections
@@ -389,39 +364,12 @@ module Orocos
 
         # Specialization of CompositionChildPort for output ports
         class CompositionChildOutputPort < CompositionChildPort
-            # This is needed to use the CompositionChild to represent a data
-            # source on the component's state as e.g.
-            #
-            #   state.position = pose_child.pose_samples
-            #
-            def to_state_variable_model(field, name)
-                model = Roby::StateVariableModel.new(field, name)
-                model.type = type
-                model.data_source = self
-                model
-            end
-
-            class OutputPortDataSource
-                # The port data reader, when available
-                attr_reader :reader
-                def initialize(task, *port_spec)
-                    task.execute do
-                        @reader = task.data_reader(*port_spec)
-                    end
-                end
-
-                def read
-                    reader.read if reader
-                end
-            end
-
             def bind(context)
-                if !context.kind_of?(Composition)
+                if context.respond_to?(:add_instance)
                     composition = context.add_instance(child.composition)
-                    context = composition.child_from_role(child.child_name)
                 end
                 # The context is our root task
-                OutputPortDataSource.new(context, child.child_name, actual_name)
+                ComponentModel::Port::DataSource.new(context, child.child_name, actual_name)
             end
         end
 
