@@ -421,7 +421,7 @@ module Orocos
                     context = composition.child_from_role(child.child_name)
                 end
                 # The context is our root task
-                OutputPortDataSource.new(context, actual_name)
+                OutputPortDataSource.new(context, child.child_name, actual_name)
             end
         end
 

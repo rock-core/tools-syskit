@@ -199,9 +199,10 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_equal source.type, cmp_model.state.pose.type
 
         cmp = instanciate_component(cmp_model)
-        mock_configured_task(cmp.child_from_role("child"))
+        flexmock(cmp).should_receive(:execute).and_yield
+        flexmock(cmp).should_receive(:data_reader).with('child', 'out').once.and_return(reader = flexmock)
         cmp.resolve_state_sources
-        assert_equal cmp.child_from_role("child").data_reader("out"), cmp.state.data_sources.pose
+        assert_equal reader, cmp.state.data_sources.pose.reader
     end
 
     def test_state_using_child_service
@@ -214,9 +215,10 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         assert_equal source.type, cmp_model.state.pose.type
 
         cmp = instanciate_component(cmp_model.use('child' => simple_task_model))
-        mock_configured_task(cmp.child_from_role("child"))
+        flexmock(cmp).should_receive(:execute).and_yield
+        flexmock(cmp).should_receive(:data_reader).with('child', 'srv_out').once.and_return(reader = flexmock)
         cmp.resolve_state_sources
-        assert_equal cmp.child_child.data_reader("out"), cmp.state.data_sources.pose
+        assert_equal reader, cmp.state.data_sources.pose.reader
     end
 end
 

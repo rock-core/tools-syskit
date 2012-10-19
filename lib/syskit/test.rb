@@ -103,6 +103,8 @@ module Orocos
                 if block
                     model.instance_eval(&block)
                 end
+                model = flexmock(model)
+                model.new_instances
                 model
             end
 
@@ -127,7 +129,8 @@ module Orocos
                     deployer.start!
                     deployer.emit :ready
                 end
-                task.should_receive(:setup?).and_return(true)
+                task.should_receive(:setup?).and_return(true).by_default
+                task.should_receive(:execute).and_yield.by_default
             end
 
             def setup
