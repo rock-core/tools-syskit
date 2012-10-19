@@ -124,6 +124,10 @@ module Orocos
             end
         end
 
+        module PlanExtension
+            attr_accessor :orocos_engine
+        end
+
         # The main deployment algorithm
         #
         # Engine instances are the objects that actually get deployment
@@ -297,6 +301,8 @@ module Orocos
 
             def initialize(plan, model, robot = nil)
                 @plan      = plan
+                plan.extend PlanExtension
+                plan.orocos_engine = self
                 @model     = model
                 @robot     = robot || RobotDefinition.new(self)
 
