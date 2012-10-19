@@ -551,7 +551,7 @@ module Orocos
                     end
                     srv = task_model.find_data_service(service_name)
                     if !srv
-                        raise ArgumentError, "the task model #{task_model.short_name} does not have any service called #{service_name}"
+                        raise ArgumentError, "the task model #{task_model.short_name} does not have any service called #{service_name}, known services are: #{task_model.each_data_service.map(&:last).map(&:name).join(", ")}"
                     end
 
                     result = self.dup
