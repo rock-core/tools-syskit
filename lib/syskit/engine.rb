@@ -746,7 +746,7 @@ module Orocos
                     composition_model.reset_autoconnection
                 end
 
-                update_main_selection
+                main_selection = update_main_selection
 
                 instances.each do |instance|
                     instance.task = add_instance(instance, :as => instance.name, :context => main_selection).to_component
