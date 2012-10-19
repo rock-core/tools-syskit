@@ -106,8 +106,12 @@ module Orocos
                 #              DataSource. Otherwise, simply returns the
                 #              DataSource for the given task.
                 def bind(context)
-                    if context.respond_to?(:add_instance)
-                        context = context.add_instance(component_model)
+                    if context.kind_of?(Roby::Plan)
+                        context.add_permanent(context = component_model.as_plan)
+                    end
+                    context = context.as_service
+                    if !context.respond_to?(:data_reader)
+                        raise ArgumentError, "cannot get a data reader from #{context}"
                     end
                     DataSource.new(context, name)
                 end
@@ -115,6 +119,16 @@ module Orocos
                 # Returns the true name for the port, i.e. the name of the port on
                 # the child
                 def actual_name; model.name end
+
+                # Change the component model
+                def rebind(model)
+                    @component_model = model
+                    self
+                end
+
+                def respond_to?(m, *args)
+                    super || model.respond_to?(m, *args)
+                end
 
                 def method_missing(*args, &block)
                     model.send(*args, &block)
@@ -537,18 +551,19 @@ module Orocos
 
             def method_missing(m, *args)
                 if args.empty? && !block_given?
-                    if m.to_s =~ /^(\w+)_port/
+                    if m.to_s =~ /^(\w+)_port$/
                         port_name = $1
                         if port = find_input_port(port_name)
-                            return port
+                            return Port.new(self, port)
                         elsif port = find_output_port(port_name)
-                            return port
-                        elsif port = self.find_port(m.to_s)
-                            return port
+                            return Port.new(self, port)
+                        elsif port = self.find_port(port_name)
+                            return Port.new(self, port)
                         else
+                            puts caller.join("\n  ")
                             raise NoMethodError, "#{self} has no port called #{port_name}"
                         end
-                    elsif m.to_s =~ /^(\w+)_srv/
+                    elsif m.to_s =~ /^(\w+)_srv$/
                         service_name = $1
                         if service_model = find_data_service(service_name)
                             return service_model
@@ -1066,23 +1081,23 @@ module Orocos
             end
 
             def method_missing(m, *args)
-                if args.empty? && !block_given?
-                    if m.to_s =~ /^(\w+)_port/
-                        port_name = $1
-                        if port = find_input_port(port_name)
-                            return port
-                        elsif port = find_output_port(port_name)
-                            return port
-                        else
-                            raise NoMethodError, "#{self} has no port called #{port_name}"
-                        end
-                    elsif m.to_s =~ /^(\w+)_srv/
-                        service_name = $1
-                        if service_model = find_data_service(service_name)
-                            return service_model
-                        else
-                            raise NoMethodError, "#{self} has no service called #{service_name}"
-                        end
+                return super if !args.empty? || block_given?
+
+                if m.to_s =~ /^(\w+)_port$/
+                    port_name = $1
+                    if port = find_input_port(port_name)
+                        return port
+                    elsif port = find_output_port(port_name)
+                        return port
+                    else
+                        raise NoMethodError, "#{self} has no port called #{port_name}"
+                    end
+                elsif m.to_s =~ /^(\w+)_srv$/
+                    service_name = $1
+                    if service_model = find_data_service(service_name)
+                        return service_model
+                    else
+                        raise NoMethodError, "#{self} has no service called #{service_name}"
                     end
                 end
                 super

@@ -251,10 +251,15 @@ module Orocos
             # Returns a CompositionChildPort instance if +name+ is a valid port
             # name
             def method_missing(name, *args) # :nodoc:
-                if args.empty?
-                    if port = find_port(name)
-                        return port
-                    end
+                return super if !args.empty? || block_given?
+
+                name = name.to_s
+                if name =~ /^(\w+)_port$/
+                    name = $1
+                end
+
+                if port = find_port(name)
+                    return port
                 end
 
                 raise InvalidCompositionChildPort.new(composition, child_name, name), "in composition #{composition.short_name}: child #{child_name} of type #{composition.find_child(child_name).models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)

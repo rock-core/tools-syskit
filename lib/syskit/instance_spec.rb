@@ -83,6 +83,30 @@ module Orocos
                 end
             end
 
+            def find_data_service(service)
+                task_model = @models.find { |m| m.kind_of?(RobyPlugin::ComponentModel) }
+                if !task_model
+                    raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
+                end
+                if service_model = task_model.find_data_service(service)
+                    result = dup
+                    result.select_service(service)
+                    result
+                end
+            end
+
+            def find_data_service_from_type(service)
+                task_model = @models.find { |m| m.kind_of?(RobyPlugin::ComponentModel) }
+                if !task_model
+                    raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
+                end
+                if service_model = task_model.find_data_service_from_type(service)
+                    result = dup
+                    result.select_service(service)
+                    result
+                end
+            end
+
             # Return true if this child provides all of the required models
             def fullfills?(required_models)
                 if !required_models.respond_to?(:each)
@@ -544,8 +568,20 @@ module Orocos
                 super if defined? super
             end
 
-            def method_missing(m, *args, &block)
-                if m.to_s =~ /^(\w+)_srv$/ && args.empty? && !block_given?
+            def find_child(name)
+                composition = models.find { |m| m <= Composition }
+                if !composition
+                    raise ArgumentError, "this requirement object does not refer to a composition explicitely, cannot select a child"
+                end
+                composition.send("#{name}_child")
+            end
+
+            def method_missing(m, *args)
+                if !args.empty? || block_given?
+                    return super
+                end
+
+                if m.to_s =~ /^(\w+)_srv$/
                     service_name = $1
                     task_model = models.find { |m| m <= Component }
                     if !task_model
@@ -562,7 +598,7 @@ module Orocos
                     result = self.dup
                     result.select_service(srv)
                     return result
-                elsif m.to_s =~ /^(\w+)_child$/ && args.empty? && !block_given?
+                elsif m.to_s =~ /^(\w+)_child$/
                     child_name = $1
                     composition = models.find { |m| m <= Composition }
                     if !composition
@@ -570,6 +606,17 @@ module Orocos
                     end
                     child = composition.send(m)
                     return child.rebind(self)
+                elsif m.to_s =~ /^(\w+)_port$/
+                    port_name = $1
+                    if service
+                        port_name = service.port_mappings_for_task[port_name] || port_name
+                    end
+                    component = models.find { |m| m <= Component }
+                    if !component
+                        raise ArgumentError, "this requirement object does not refer to a component explicitely, cannot select a port"
+                    end
+                    port = component.send("#{port_name}_port")
+                    return port.dup.rebind(self)
                 end
                 super
             end

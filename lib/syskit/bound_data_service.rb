@@ -109,6 +109,10 @@ module Orocos
                 self
             end
 
+            def find_port(name)
+                find_input_port(name) || find_output_port(name)
+            end
+
             def find_input_port(name)
                 model.find_input_port(name)
             end
@@ -187,15 +191,6 @@ module Orocos
 
             def each_slave(&block)
                 component_model.each_slave_data_service(self, &block)
-            end
-
-            # If an unknown method is called on this object, try to return the
-            # corresponding slave service (if there is one)
-            def method_missing(name, *args)
-                if subservice = component_model.find_data_service("#{full_name}.#{name}")
-                    return subservice
-                end
-                super
             end
 
             attr_reader :declared_dynamic_slaves
@@ -284,6 +279,21 @@ module Orocos
                     raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
                 end
                 BoundDataService.new(task, self)
+            end
+
+            def method_missing(m, *args, &block)
+                if !args.empty? || block
+                    return super
+                end
+                name = m.to_s
+                if (name =~ /^(\w+)_srv$/) && (subservice = component_model.find_data_service("#{full_name}.#{$1}"))
+                    return subservice
+                elsif (name =~ /^(\w+)_port$/) && (p = find_port($1))
+                    # We have to go through method missing as the representation
+                    # of ports is a real REAL mess
+                    return component_model.send("#{port_mappings[p.name] || p.name}_port")
+                end
+                super
             end
         end
 

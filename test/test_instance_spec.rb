@@ -46,6 +46,12 @@ class TC_RobyPlugin_InstanceSpec < Test::Unit::TestCase
         end
     end
 
+    def test_instance_spec_port
+        spec = InstanceRequirements.new([simple_task_model])
+        port = spec.out_port
+        assert_equal ComponentModel::Port.new(spec, simple_task_model.find_output_port('out')), port
+    end
+
     def test_instance_spec_service
         spec = InstanceRequirements.new([simple_task_model])
         srv = spec.simple_service_srv
@@ -53,10 +59,24 @@ class TC_RobyPlugin_InstanceSpec < Test::Unit::TestCase
         assert_equal simple_task_model.simple_service_srv, srv.service
     end
 
+    def test_instance_spec_service_port
+        spec = InstanceRequirements.new([simple_task_model])
+        srv = spec.simple_service_srv
+        port = srv.srv_out_port
+        assert_equal ComponentModel::Port.new(srv, simple_task_model.find_output_port('out')), port
+    end
+
     def test_instance_spec_child
         spec = simple_composition_model.use(simple_task_model)
         child = spec.srv_child
         assert_same spec, child.composition
+    end
+
+    def test_instance_spec_child_port
+        spec = simple_composition_model.use(simple_task_model)
+        child = spec.srv_child
+        port = child.srv_out_port
+        assert_equal ComponentModel::Port.new(child, simple_service_model.find_output_port('srv_out')), port
     end
 end
 
