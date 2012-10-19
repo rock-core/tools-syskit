@@ -395,8 +395,27 @@ module Orocos
                 model
             end
 
-            def bind(task, state)
-                task.data_reader(child.child_name, actual_name)
+            class OutputPortDataSource
+                # The port data reader, when available
+                attr_reader :reader
+                def initialize(task, *port_spec)
+                    task.execute do
+                        @reader = task.data_reader(*port_spec)
+                    end
+                end
+
+                def read
+                    reader.read if reader
+                end
+            end
+
+            def bind(context)
+                if !context.kind_of?(Composition)
+                    composition = context.add_instance(child.composition)
+                    context = composition.child_from_role(child.child_name)
+                end
+                # The context is our root task
+                OutputPortDataSource.new(context, actual_name)
             end
         end
 
