@@ -445,6 +445,10 @@ module Orocos
                 end
             end
 
+            def resolve_component_definition(model)
+                Engine.create_instanciated_component(self, nil, model)
+            end
+
             # Returns a instanciation specification for the given device
             def device(name)
                 resolve_name(name, name)
