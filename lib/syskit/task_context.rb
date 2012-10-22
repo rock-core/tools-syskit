@@ -322,7 +322,7 @@ module Orocos
 
             def input_port(name)
                 if !(port = find_input_port(name))
-		    raise ArgumentError, "port #{name} is not an input port in #{self}"
+		    raise Orocos::NotFound, "port #{name} is not an input port in #{self}"
 		end
 		port
             end
@@ -340,21 +340,21 @@ module Orocos
 
             def output_port(name)
                 if !(port = find_output_port(name))
-		    raise ArgumentError, "port #{name} is not an output port in #{self}"
+		    raise Orocos::NotFound, "port #{name} is not an output port in #{self}"
 		end
 		port
             end
 
             def input_port_model(name)
                 if !(p = orogen_task.input_port_model(name))
-                    raise ArgumentError, "there is no port #{name} on #{self}"
+                    raise Orocos::NotFound, "there is no port #{name} on #{self}"
                 end
                 p
             end
 
             def output_port_model(name)
                 if !(p = orogen_task.output_port_model(name))
-                    raise ArgumentError, "there is no port #{name} on #{self}"
+                    raise Orocos::NotFound, "there is no port #{name} on #{self}"
                 end
                 p
             end
