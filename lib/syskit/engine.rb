@@ -1414,8 +1414,6 @@ module Orocos
                         required_logging_ports.each do |port_name, logged_task, logged_port|
                             logger_task.createLoggingPort(port_name, logged_task, logged_port)
                         end
-                    else
-                        logger_task.needs_reconfiguration!
                     end
                     required_connections.each do |task, connections|
                         connections = connections.map_value do |(port_name, log_port_name), policy|
