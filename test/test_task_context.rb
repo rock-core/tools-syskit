@@ -70,7 +70,7 @@ class TC_RobyPlugin_TaskContext < Test::Unit::TestCase
     def test_input_port_raises_if_find_input_port_returns_nil
         task = mock_roby_task_context
         task.should_receive(:find_input_port).and_return(nil)
-        assert_raises(ArgumentError) { task.input_port("port") }
+        assert_raises(Orocos::NotFound) { task.input_port("port") }
     end
 
     def test_output_port_passes_if_find_output_port_returns_a_value
@@ -82,7 +82,7 @@ class TC_RobyPlugin_TaskContext < Test::Unit::TestCase
     def test_output_port_raises_if_find_output_port_returns_nil
         task = mock_roby_task_context
         task.should_receive(:find_output_port).and_return(nil)
-        assert_raises(ArgumentError) { task.output_port("port") }
+        assert_raises(Orocos::NotFound) { task.output_port("port") }
     end
 end
 
