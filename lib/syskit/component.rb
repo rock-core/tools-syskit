@@ -562,7 +562,6 @@ module Orocos
                         elsif port = self.find_port(port_name)
                             return Port.new(self, port)
                         else
-                            puts caller.join("\n  ")
                             raise NoMethodError, "#{self} has no port called #{port_name}"
                         end
                     elsif m.to_s =~ /^(\w+)_srv$/
