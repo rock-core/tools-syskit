@@ -2028,7 +2028,7 @@ module Orocos
                 end
 
                 (all_tasks - used_tasks).each do |t|
-                    Engine.debug { "clearing the relations of #{t}" }
+                    Engine.debug { "clearing the dataflow relations of #{t}" }
                     t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
                 end
 
