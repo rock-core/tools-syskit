@@ -52,7 +52,7 @@ module Orocos
             def createLoggingPort(sink_port_name, logged_task, logged_port)
                 return if logged_ports.include?([sink_port_name, logged_port.type.name])
 
-                logged_port_type = logged_port.type.name
+                logged_port_type = logged_port.orocos_type_name
 
                 metadata = Hash[
                     'rock_task_model' => logged_task.model.orogen_spec.name,
