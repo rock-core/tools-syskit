@@ -109,7 +109,7 @@ module Orocos
                 #              DataSource for the given task.
                 def resolve(context)
                     if context.kind_of?(Roby::Plan)
-                        context.add_permanent(context = component_model.as_plan)
+                        context.add(context = component_model.as_plan)
                     end
                     context = context.as_service
                     if !context.respond_to?(:data_reader)
