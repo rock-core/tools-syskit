@@ -64,6 +64,34 @@ class TC_RobyPlugin_Engine < Test::Unit::TestCase
 
         assert_equal([original_task], plan.static_garbage_collect.to_a)
     end
+
+    def test_add_permanent_task
+        plan.engine.scheduler = nil
+        task_model = mock_roby_task_context_model "my::task"
+        deployment = mock_roby_deployment_model(task_model)
+        task = task_model.as_plan
+        plan.add_permanent(task)
+        srv = task.as_service
+        task.planning_task.start!
+        orocos_engine.resolve
+        assert plan.permanent?(srv.task)
+        orocos_engine.resolve
+        assert plan.permanent?(srv.task)
+    end
+
+    def test_add_mission_task
+        plan.engine.scheduler = nil
+        task_model = mock_roby_task_context_model "my::task"
+        deployment = mock_roby_deployment_model(task_model)
+        task = task_model.as_plan
+        plan.add_mission(task)
+        srv = task.as_service
+        task.planning_task.start!
+        orocos_engine.resolve
+        assert plan.mission?(srv.task)
+        orocos_engine.resolve
+        assert plan.mission?(srv.task)
+    end
 end
 
 
