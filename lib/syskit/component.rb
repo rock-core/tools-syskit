@@ -48,9 +48,11 @@ module Orocos
             class Port
                 # A data source for a port attached to a component
                 class DataSource
+                    attr_reader :task
                     attr_reader :reader
 
                     def initialize(task, *port_spec)
+                        @task = task
                         task.execute do
                             @reader = task.data_reader(*port_spec)
                         end
