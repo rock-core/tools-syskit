@@ -1117,6 +1117,22 @@ module Orocos
             def as(service_model)
                 return model.as(service_model).bind(self)
             end
+
+            module Proxying
+                proxy_for Component
+
+                def setup_proxy(object, plan)
+                    super
+                    @do_not_reuse = object.instance_variable_get :@do_not_reuse
+                end
+
+                def commit_transaction
+                    super
+                    if @do_not_reuse
+                        __getobj__.do_not_reuse
+                    end
+                end
+            end
         end
     end
 end

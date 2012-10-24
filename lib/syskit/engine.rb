@@ -1600,10 +1600,12 @@ module Orocos
                         Engine.debug "final garbage collection pass"
                         trsc.static_garbage_collect do |obj|
                             if obj.transaction_proxy?
-                                Engine.debug { "  removing dependency relations from #{obj}" }
-                                # Clear up the dependency relations for the
-                                # obsolete tasks that are in the plan
-                                obj.remove_relations(Roby::TaskStructure::Dependency)
+                                if obj.finished?
+                                    Engine.debug { "  removing dependency relations from #{obj}" }
+                                    # Clear up the dependency relations for the
+                                    # obsolete tasks that are in the plan
+                                    obj.remove_relations(Roby::TaskStructure::Dependency)
+                                end
                             else
                                 Engine.debug { "  removing #{obj}" }
                                 # Remove tasks that we just added and are not
@@ -2039,10 +2041,12 @@ module Orocos
 
                     plan.static_garbage_collect do |obj|
                         used_deployments.delete(obj)
-                        if obj.transaction_proxy?
-                            # Clear up the dependency relations for the
-                            # obsolete tasks that are in the plan
-                            obj.remove_relations(Roby::TaskStructure::Dependency)
+                        if obj.transaction_proxy? 
+                            if obj.finished?
+                                # Clear up the dependency relations for the
+                                # obsolete tasks that are in the plan
+                                obj.remove_relations(Roby::TaskStructure::Dependency)
+                            end
                         else
                             # Remove tasks that we just added and are not
                             # useful anymore
