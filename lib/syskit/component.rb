@@ -107,7 +107,7 @@ module Orocos
                 #              right model and returns the corresponding
                 #              DataSource. Otherwise, simply returns the
                 #              DataSource for the given task.
-                def bind(context)
+                def resolve(context)
                     if context.kind_of?(Roby::Plan)
                         context.add_permanent(context = component_model.as_plan)
                     end

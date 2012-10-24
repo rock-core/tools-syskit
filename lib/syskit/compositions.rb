@@ -369,9 +369,9 @@ module Orocos
 
         # Specialization of CompositionChildPort for output ports
         class CompositionChildOutputPort < CompositionChildPort
-            def bind(context)
-                if context.respond_to?(:add_instance)
-                    composition = context.add_instance(child.composition)
+            def resolve(context)
+                if context.kind_of?(Roby::Plan)
+                    context.add(context = child.composition.as_plan)
                 end
                 # The context is our root task
                 ComponentModel::Port::DataSource.new(context, child.child_name, actual_name)
