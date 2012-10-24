@@ -81,7 +81,7 @@ module Orocos
                 mock
             end
 
-            def mock_roby_deployment_model(task_model)
+            def mock_roby_deployment_model(task_model, name = "#{task_model.name}-deployment")
                 if !task_model.name
                     raise ArgumentError, "cannot create a deployment model for a task that has no name"
                 end
@@ -90,7 +90,7 @@ module Orocos
                 # TODO: remove requirement for things to have name here. This
                 # will require to cleanup the oroGen loading / registration
                 # mechanisms so that objects are unique
-                spec = Orocos::Generation::Deployment.new(Orocos.master_project, nil)
+                spec = Orocos::Generation::Deployment.new(Orocos.master_project, name)
                 spec.task('task', task_model.interface)
                 model = Orocos::RobyPlugin::Deployment.create(nil, spec)
                 orocos_engine.deployments['localhost'] << model
