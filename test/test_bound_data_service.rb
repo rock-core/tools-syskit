@@ -113,7 +113,7 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
         base, parent, model, component_model, service =
             setup_transitive_services
         assert_equal(
-            [component_model.out_base_unmapped, component_model.out_parent_unmapped, component_model.out_port_port].to_set,
+            [component_model.out_base_unmapped, component_model.out_parent_unmapped, component_model.out_port].map(&:model).to_set,
              service.each_task_output_port.to_set)
     end
 
@@ -121,7 +121,7 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
         base, parent, model, component_model, service =
             setup_transitive_services
         assert_equal(
-            [component_model.in_base_unmapped, component_model.in_parent_unmapped, component_model.in_port_port].to_set,
+            [component_model.in_base_unmapped, component_model.in_parent_unmapped, component_model.in_port].map(&:model).to_set,
              service.each_task_input_port.to_set)
     end
 
@@ -129,7 +129,7 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
         base, parent, model, component_model, service =
             setup_transitive_services
         assert_equal(
-            [model.out_base_unmapped, model.out_parent_unmapped, model.out_model].to_set,
+            [model.out_base_unmapped, model.out_parent_unmapped, model.out_model].map(&:model).to_set,
              service.each_output_port.to_set)
     end
 
@@ -137,7 +137,7 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
         base, parent, model, component_model, service =
             setup_transitive_services
         assert_equal(
-            [model.in_base_unmapped, model.in_parent_unmapped, model.in_model].to_set,
+            [model.in_base_unmapped, model.in_parent_unmapped, model.in_model].map(&:model).to_set,
              service.each_input_port.to_set)
     end
 
@@ -179,7 +179,7 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
             setup_transitive_services
         service = service.as(parent)
         assert_equal(
-            [component_model.out_base_unmapped, component_model.out_parent_unmapped, component_model.out_port_port].to_set,
+            [component_model.out_base_unmapped, component_model.out_parent_unmapped, component_model.out_port].map(&:model).to_set,
              service.each_task_output_port.to_set)
     end
 
@@ -188,7 +188,7 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
             setup_transitive_services
         service = service.as(parent)
         assert_equal(
-            [component_model.in_base_unmapped, component_model.in_parent_unmapped, component_model.in_port_port].to_set,
+            [component_model.in_base_unmapped, component_model.in_parent_unmapped, component_model.in_port].map(&:model).to_set,
              service.each_task_input_port.to_set)
     end
 
@@ -197,7 +197,7 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
             setup_transitive_services
         service = service.as(parent)
         assert_equal(
-            [parent.out_base_unmapped, parent.out_parent_unmapped, parent.out_parent].to_set,
+            [parent.out_base_unmapped, parent.out_parent_unmapped, parent.out_parent].map(&:model).to_set,
              service.each_output_port.to_set)
     end
 
@@ -215,7 +215,7 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
             setup_transitive_services
         service = service.as(parent)
         assert_equal(
-            [parent.in_base_unmapped, parent.in_parent_unmapped, parent.in_parent].to_set,
+            [parent.in_base_unmapped, parent.in_parent_unmapped, parent.in_parent].map(&:model).to_set,
              service.each_input_port.to_set)
 
         service.each_output_port do |p|

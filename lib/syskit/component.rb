@@ -553,7 +553,11 @@ module Orocos
 
             def method_missing(m, *args)
                 if args.empty? && !block_given?
-                    if m.to_s =~ /^(\w+)_port$/
+                    if port = self.find_port(m.to_s)
+                        return Port.new(self, port)
+                    elsif service = self.find_data_service(m.to_s)
+                        return service
+                    elsif m.to_s =~ /^(\w+)_port$/
                         port_name = $1
                         if port = find_input_port(port_name)
                             return Port.new(self, port)
@@ -571,10 +575,6 @@ module Orocos
                         else
                             raise NoMethodError, "#{self} has no service called #{service_name}"
                         end
-                    elsif port = self.find_port(m.to_s)
-                        return port
-                    elsif service = self.find_data_service(m.to_s)
-                        return service
                     end
                 end
                 super
