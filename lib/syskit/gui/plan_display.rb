@@ -1,3 +1,4 @@
+require 'utilrb/qt/variant/from_ruby'
 module Ui
     # Widget used to display a network of Orocos tasks represented in a Roby
     # plan
@@ -27,7 +28,7 @@ module Ui
                 end
                 if (sel = items.first) && sel.real_object
                     emit plan_display.
-                        selectedObject(Qt::Variant.fromValue(sel.real_object), event.globalPos)
+                        selectedObject(Qt::Variant.from_ruby(sel.real_object), event.globalPos)
                 end
                 event.accept
             end
@@ -263,7 +264,7 @@ module Ui
                 render_plan(mode, plan, options)
                 emit updated(Qt::Variant.new)
             rescue Exception => e
-                emit updated(Qt::Variant.fromValue(e))
+                emit updated(Qt::Variant.from_ruby(e))
             end
         end
 

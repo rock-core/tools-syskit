@@ -220,7 +220,7 @@ module Ui
         end
 
         def selectedTask(_task, click_pos)
-            task = _task.value
+            task = _task.to_ruby
             models =
                 if task.respond_to?(:proxied_data_services)
                     task.proxied_data_services
