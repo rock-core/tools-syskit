@@ -393,7 +393,7 @@ module Orocos
                 end
             end
 
-            def self.create(name = nil, deployment_spec)
+            def self.create(name, deployment_spec)
                 klass = Class.new(Deployment)
                 if name
                     klass.instance_variable_set :@name, name

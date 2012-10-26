@@ -128,6 +128,10 @@ module Orocos
                     self
                 end
 
+		def type
+		    model.type
+		end
+
                 def respond_to?(m, *args)
                     super || model.respond_to?(m, *args)
                 end

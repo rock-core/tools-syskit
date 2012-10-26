@@ -576,12 +576,13 @@ module Orocos
                 composition.send("#{name}_child")
             end
 
-            def method_missing(m, *args)
+            def method_missing(method, *args)
                 if !args.empty? || block_given?
                     return super
                 end
 
-                if m.to_s =~ /^(\w+)_srv$/
+		case method.to_s
+                when /^(\w+)_srv$/
                     service_name = $1
                     task_model = models.find { |m| m <= Component }
                     if !task_model
@@ -598,15 +599,15 @@ module Orocos
                     result = self.dup
                     result.select_service(srv)
                     return result
-                elsif m.to_s =~ /^(\w+)_child$/
+                when /^(\w+)_child$/
                     child_name = $1
                     composition = models.find { |m| m <= Composition }
                     if !composition
                         raise ArgumentError, "this requirement object does not refer to a composition explicitely, cannot select a child"
                     end
-                    child = composition.send(m)
+                    child = composition.send(method)
                     return child.rebind(self)
-                elsif m.to_s =~ /^(\w+)_port$/
+                when /^(\w+)_port$/
                     port_name = $1
                     if service
                         port_name = service.port_mappings_for_task[port_name] || port_name
