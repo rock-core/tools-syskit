@@ -148,6 +148,12 @@ module Orocos
                 composition.find_child(child_name).models
             end
 
+            def rebind(composition)
+                result = dup
+                result.instance_variable_set :@composition, composition
+                result
+            end
+
             # If this child is itself a composition model, give more information
             # as to what specialization should be picked
             #
@@ -195,6 +201,37 @@ module Orocos
                 with_conf(*conf)
             end
 
+            def find_port(name)
+                name = name.to_s
+                candidates = []
+                composition.find_child(child_name).models.map do |child_model|
+                    if output = child_model.find_output_port(name)
+                        candidates << [child_model, output]
+                    end
+                    if input  = child_model.find_input_port(name)
+                        candidates << [child_model, input]
+                    end
+                end
+
+                if candidates.size > 1
+                    candidates = candidates.map do |model, port|
+                        "#{model.short_name}.#{port.name}"
+                    end
+                    raise AmbiguousChildPort.new(self, name, candidates), "#{name} is ambiguous on the child #{child_name} of #{composition.short_name}: #{candidates.join(", ")}"
+                elsif candidates.size == 1
+                    port = candidates.first[1]
+                    case port
+                    when Orocos::Spec::InputPort, CompositionChildInputPort
+                        return CompositionChildInputPort.new(self, port, name)
+                    when Orocos::Spec::OutputPort, CompositionChildOutputPort
+                        return CompositionChildOutputPort.new(self, port, name)
+                    else
+                        raise InternalError, "child port #{port} is neither a Spec::OutputPort or Spec::InputPort"
+                    end
+                end
+                nil
+            end
+
             def each_input_port(&block)
                 composition.find_child(child_name).models.each do |child_model|
                     child_model.each_input_port do |p|
@@ -214,34 +251,15 @@ module Orocos
             # Returns a CompositionChildPort instance if +name+ is a valid port
             # name
             def method_missing(name, *args) # :nodoc:
-                if args.empty?
-                    name = name.to_s
-                    candidates = []
-                    composition.find_child(child_name).models.map do |child_model|
-                        if output = child_model.find_output_port(name)
-                            candidates << [child_model, output]
-                        end
-                        if input  = child_model.find_input_port(name)
-                            candidates << [child_model, input]
-                        end
-                    end
+                return super if !args.empty? || block_given?
 
-                    if candidates.size > 1
-                        candidates = candidates.map do |model, port|
-                            "#{model.short_name}.#{port.name}"
-                        end
-                        raise AmbiguousChildPort.new(self, name, candidates), "#{name} is ambiguous on the child #{child_name} of #{composition.short_name}: #{candidates.join(", ")}"
-                    elsif candidates.size == 1
-                        port = candidates.first[1]
-                        case port
-                        when Orocos::Spec::InputPort, CompositionChildInputPort
-                            return CompositionChildInputPort.new(self, port, name)
-                        when Orocos::Spec::OutputPort, CompositionChildOutputPort
-                            return CompositionChildOutputPort.new(self, port, name)
-                        else
-                            raise InternalError, "child port #{port} is neither a Spec::OutputPort or Spec::InputPort"
-                        end
-                    end
+                name = name.to_s
+                if name =~ /^(\w+)_port$/
+                    name = $1
+                end
+
+                if port = find_port(name)
+                    return port
                 end
 
                 raise InvalidCompositionChildPort.new(composition, child_name, name), "in composition #{composition.short_name}: child #{child_name} of type #{composition.find_child(child_name).models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
@@ -255,6 +273,18 @@ module Orocos
 
             def each_fullfilled_model(&block)
                 composition.find_child(child_name).each_fullfilled_model(&block)
+            end
+
+            def state
+                if @state
+                    return @state
+                elsif component_model = models.find { |c| c <= Component }
+                    @state = Roby::StateFieldModel.new(component_model.state)
+                    @state.__object = self
+                    return @state
+                else
+                    raise ArgumentError, "cannot create a state model on elements that are only data services"
+                end
             end
         end
 
@@ -304,23 +334,11 @@ module Orocos
         #   source.port.connect_to sink.port
         #   # source.port and sink.port are both CompositionChildPort instances
         #
-        class CompositionChildPort
+        class CompositionChildPort < ComponentModel::Port
             # [CompositionChild] The child object this port is part of
-            attr_reader :child
+            def child; component_model end
             # [Orocos::Spec::Port] The port object that describes the actual port
-            attr_reader :port
-            # [String] The actual port name. Can be different from port.name in
-            # case of port exports (in compositions) and port aliasing
-            attr_accessor :name
-
-            # Returns the true name for the port, i.e. the name of the port on
-            # the child
-            def actual_name; port.name end
-
-            # The port's type object, as a subclass of Typelib::Type
-            def type; port.type end
-            # [String] The port's type name
-            def type_name; port.type_name end
+            def port; model end
 
             # Declare that this port should be ignored in the automatic
             # connection computation
@@ -329,17 +347,9 @@ module Orocos
             end
 
             def initialize(child, port, port_name)
-                @child = child
-                @port  = port
-                @name = port_name
+                super(child, port, port_name)
             end
 
-            def ==(other) # :nodoc:
-                other.kind_of?(CompositionChildPort) && other.child == child &&
-                    other.port == port &&
-                    other.name == name
-            end
-        
             # Return true if the underlying port multiplexes, i.e. if it is
             # an input port that is expected to have multiple inbound
             # connections
@@ -358,7 +368,16 @@ module Orocos
         end
 
         # Specialization of CompositionChildPort for output ports
-        class CompositionChildOutputPort < CompositionChildPort; end
+        class CompositionChildOutputPort < CompositionChildPort
+            def resolve(context)
+                if context.kind_of?(Roby::Plan)
+                    context.add(context = child.composition.as_plan)
+                end
+                # The context is our root task
+                ComponentModel::Port::DataSource.new(context, child.child_name, actual_name)
+            end
+        end
+
         # Specialization of CompositionChildPort for input ports
         class CompositionChildInputPort  < CompositionChildPort
             def multiplexes?
@@ -1022,6 +1041,7 @@ module Orocos
                         specialization.compatibilities.delete(spec)
                     end
                 end
+                specialization
             end
 
             def add_specialization_constraint(explicit = nil, &as_block)
@@ -1064,7 +1084,7 @@ module Orocos
             # the required specializations have been merged and
             # +applied_specializations+ the list of the specializations,
             # separate.
-            def instanciate_specialization(composite_spec, applied_specializations)
+            def instanciate_specialization(composite_spec, applied_specializations = [composite_spec])
                 if applied_specializations.empty?
                     return self
                 elsif current_model = instanciated_specializations[composite_spec.specialized_children]
@@ -1616,10 +1636,6 @@ module Orocos
                 automatic_connections.each(&block)
             end
 
-            def each_explicit_connection(&block)
-                map_connections(each_unmapped_explicit_connection).each(&block)
-            end
-
             # Export the given port to the boundary of the composition (it
             # becomes a composition port). By default, the composition port has
             # the same name than the exported port. This name can be overriden
@@ -1779,7 +1795,7 @@ module Orocos
                         raise AmbiguousChildConnection.new(self, out_p, in_p)
                     end
 
-                    unmapped_explicit_connections.merge!(result) do |k, v1, v2|
+                    explicit_connections.merge!(result) do |k, v1, v2|
                         v1.merge!(v2)
                     end
                 end
@@ -2388,7 +2404,29 @@ module Orocos
             inherited_enumerable(:default_specialization, :default_specializations, :map => true) { Hash.new }
 
             # The set of connections specified by the user for this composition
-            inherited_enumerable(:unmapped_explicit_connection, :unmapped_explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
+            def self.promote_explicit_connection(connections)
+                children, mappings = *connections
+
+                mappings_out =
+                    if child_out = self.children[children[0]]
+                        child_out.port_mappings
+                    else Hash.new
+                    end
+                mappings_in =
+                    if child_in = self.children[children[1]]
+                        child_in.port_mappings
+                    else Hash.new
+                    end
+
+                mapped = Hash.new
+                mappings.each do |(port_name_out, port_name_in), options|
+                    port_name_out = (mappings_out[port_name_out] || port_name_out)
+                    port_name_in  = (mappings_in[port_name_in]   || port_name_in)
+                    mapped[[port_name_out, port_name_in]] = options
+                end
+                [children, mapped]
+            end
+            inherited_enumerable(:explicit_connection, :explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
             # The set of connections automatically generated by
             # compute_autoconnection
             #
@@ -2398,9 +2436,31 @@ module Orocos
                 attr_accessor :automatic_connections
             end
 
+            def self.promote_exported_port(export_name, port)
+                if new_child = children[port.child.child_name]
+                    if new_port_name = new_child.port_mappings[port.actual_name]
+                        result = send(port.child.child_name).find_port(new_port_name)
+                        result = result.dup
+                        result.name = export_name
+                        result
+                    else
+                        port
+                    end
+                else
+                    port
+                end
+            end
+
             # Outputs exported from this composition
+            def self.promote_exported_output(export_name, port)
+                exported_outputs[export_name] = promote_exported_port(export_name, port)
+            end
+
             inherited_enumerable(:exported_output, :exported_outputs, :map => true)  { Hash.new }
             # Inputs imported from this composition
+            def self.promote_exported_input(export_name, port)
+                exported_inputs[export_name] = promote_exported_port(export_name, port)
+            end
             inherited_enumerable(:exported_input, :exported_inputs, :map => true)  { Hash.new }
             # Configurations defined on this composition model
             inherited_enumerable(:configuration, :configurations, :map => true)  { Hash.new }
@@ -2683,6 +2743,8 @@ module Orocos
                 if args.empty?
                     name = m.to_s
                     if has_child?(name)
+                        return CompositionChild.new(self, name)
+                    elsif has_child?(name = name.gsub(/_child$/, ''))
                         return CompositionChild.new(self, name)
                     end
                 end

@@ -15,8 +15,10 @@ module Orocos
     module RobyPlugin
         module Test
             include Orocos::RobyPlugin
-            include Roby::Test
-            include Roby::Test::Assertions
+            include Orocos::Test::Mocks
+
+	    include Roby::Test
+	    include Roby::Test::Assertions
 
             # The system model
             attr_reader :sys_model
@@ -32,10 +34,10 @@ module Orocos
                     result.map do |obj|
                         if obj.respond_to?(:each)
                             obj.map do |instance|
-                                mock_task_context(instance)
+                                mock_roby_task_context(instance)
                             end
                         else
-                            mock_task_context(obj)
+                            mock_roby_task_context(obj)
                         end
                     end
                 else
@@ -43,10 +45,32 @@ module Orocos
                 end
             end
 
-            include Orocos::Test::Mocks
+            def mock_roby_component_model(name = nil, &block)
+                # TODO: define the orogen spec / interface attribute directly on
+                # Component
+                mock = flexmock(Class.new(Component))
+                mock.terminates
+                spec = Orocos::RobyPlugin.create_orogen_interface(name)
+                mock.should_receive(:orogen_spec).and_return(spec)
+                if block
+                    spec.instance_eval(&block)
+                end
+                mock.should_receive(:name).and_return(name || "")
+                mock.should_receive(:short_name).and_return(name || "")
+                mock
+            end
 
-            def mock_roby_task_context(klass_or_instance, &block)
-                klass_or_instance ||= mock_task_context_model(&block)
+            def mock_roby_task_context_model(name = nil, &block)
+                mock = flexmock(Orocos::RobyPlugin::TaskContext.create(name, &block))
+                mock.new_instances
+                mock
+            end
+
+            def mock_roby_task_context(klass_or_instance = nil, &block)
+                if !klass_or_instance
+                    return mock_roby_task_context_model(&block).new
+                end
+
                 if klass_or_instance.kind_of?(Class)
                     mock = flexmock(klass.new)
                 elsif !klass_or_instance.respond_to?(:should_receive)
@@ -54,11 +78,34 @@ module Orocos
                 else
                     mock = klass_or_instance
                 end
-
-                mock.should_receive(:to_task).and_return(mock)
-                mock.should_receive(:as_plan).and_return(mock)
-                mock.should_receive(:orogen_task).and_return(mock_task_context(mock.class.orogen_spec))
                 mock
+            end
+
+            def mock_roby_deployment_model(task_model, name = "#{task_model.name}-deployment")
+                if !task_model.name
+                    raise ArgumentError, "cannot create a deployment model for a task that has no name"
+                end
+
+                # TODO: move the deployment specification to Spec in oroGen
+                # TODO: remove requirement for things to have name here. This
+                # will require to cleanup the oroGen loading / registration
+                # mechanisms so that objects are unique
+                spec = Orocos::Generation::Deployment.new(Orocos.master_project, name)
+                spec.task('task', task_model.interface)
+                model = Orocos::RobyPlugin::Deployment.create(nil, spec)
+                orocos_engine.deployments['localhost'] << model
+                Roby.app.orocos_tasks[task_model.orogen_spec.name] = task_model
+                model
+            end
+
+            def mock_roby_composition_model(name = '', &block)
+                model = Composition.new_submodel name, sys_model
+                if block
+                    model.instance_eval(&block)
+                end
+                model = flexmock(model)
+                model.new_instances
+                model
             end
 
             Orocos::Test::Mocks::FakeTaskContext.include BGL::Vertex
@@ -70,24 +117,25 @@ module Orocos
 
             def mock_deployment_task
                 task = flexmock(FakeDeploymentTask.new)
-                task.should_receive(:to_task).and_return(task)
-                task.should_receive(:as_plan).and_return(task)
                 plan.add(task)
                 task
             end
 
             def mock_configured_task(task)
+                task.should_receive(:orogen_task).and_return(mock_task_context(task.model.orogen_spec))
                 if !task.execution_agent
                     task.executed_by(deployer = mock_deployment_task)
                     deployer.should_receive(:ready_to_die?).and_return(false)
                     deployer.start!
                     deployer.emit :ready
                 end
-                task.should_receive(:setup?).and_return(true)
+                task.should_receive(:setup?).and_return(true).by_default
+                task.should_receive(:execute).and_yield.by_default
             end
 
             def setup
                 @old_loglevel = Orocos.logger.level
+		Roby.app.using 'orocos'
 
                 super
 
@@ -101,15 +149,20 @@ module Orocos
 
                 engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
+                # TODO: remove all references to global singletons
                 @sys_model = Roby.app.orocos_system_model
                 save_collection Roby.app.orocos_engine.instances
                 @orocos_engine = Roby.app.orocos_engine
+                Roby.app.orocos_engine.instance_variable_set :@plan, plan
                 @handler_ids = Orocos::RobyPlugin::Application.plug_engine_in_roby(engine)
-                Orocos::RobyPlugin::Application.connect_to_local_process_server
+		if !Roby.app.orocos_disables_local_process_server?
+                    Orocos::RobyPlugin::Application.connect_to_local_process_server
+		end
             end
 
             def teardown
                 orocos_engine.clear
+                Roby.app.orocos_clear_models
 
                 super
 
@@ -194,6 +247,10 @@ module Orocos
                     orocos_engine.clear
                     orocos_engine.instances.concat(instances)
                 end
+            end
+
+            def instanciate_component(model)
+                orocos_engine.add_instance(model)
             end
         end
     end

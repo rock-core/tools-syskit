@@ -1,81 +1,5 @@
 module Orocos
     module RobyPlugin
-        # Class that is used to represent a binding of a service model with an
-        # actual task instance during the instanciation process
-        class DataServiceInstance
-            # The ProvidedDataService instance that represents the data service
-            attr_reader :provided_service_model
-            # The task instance we are bound to
-            attr_reader :task
-            # The ProvidedDataService instance that represents the data service
-            attr_reader :model
-
-            def initialize(task, provided_service_model)
-                @task, @provided_service_model = task, provided_service_model
-                @model = provided_service_model
-                if !task.kind_of?(Component)
-                    raise "expected a task instance, got #{task}"
-                end
-                if !provided_service_model.kind_of?(ProvidedDataService)
-                    raise "expected a provided service, got #{provided_service_model}"
-                end
-            end
-
-            def short_name
-                "#{task}:#{provided_service_model.name}"
-            end
-
-	    def each_fullfilled_model(&block)
-		provided_service_model.component_model.each_fullfilled_model(&block)
-	    end
-
-            def fullfills?(*args)
-                provided_service_model.fullfills?(*args)
-            end
-
-            def find_input_port(port_name)
-                if mapped_name = model.port_mappings_for_task[port_name.to_s]
-                    task.find_input_port(mapped_name)
-                end
-            end
-
-            def find_output_port(port_name)
-                if mapped_name = model.port_mappings_for_task[port_name.to_s]
-                    task.find_output_port(mapped_name)
-                end
-            end
-
-            def as_plan
-                task
-            end
-
-            def to_component
-                task
-            end
-
-            def as(service)
-                result = self.dup
-                result.instance_variable_set(:@model, model.as(service)) 
-                result
-            end
-
-            def to_s
-                "#<DataServiceInstance: #{task.name}.#{model.name}>"
-            end
-
-            def connect_ports(sink, mappings)
-                mapped = Hash.new
-                mappings.each do |(source_port, sink_port), policy|
-                    mapped_source_name = model.port_mappings_for_task[source_port]
-                    if !mapped_source_name
-                        raise ArgumentError, "cannot find port #{source_port} on #{self}"
-                    end
-                    mapped[[mapped_source_name, sink_port]] = policy
-                end
-                task.connect_ports(sink, mapped)
-            end
-        end
-
         # Generic representation of requirements on a component instance
         #
         # Components can be compositions, services and/or 
@@ -138,19 +62,48 @@ module Orocos
             # Explicitely selects a given service on the task models required by
             # this task
             def select_service(service)
-                if service.respond_to?(:to_str)
-                    # This is a service name
-                    task_model = @models.find { |m| m.kind_of?(Component) }
+                if service.respond_to?(:to_str) || service.kind_of?(DataServiceModel)
+                    task_model = @models.find { |m| m.kind_of?(RobyPlugin::ComponentModel) }
                     if !task_model
                         raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
                     end
-                    service_model = task_model.find_data_service(service)
+                    service_model =
+                        if service.respond_to?(:to_str)
+                            task_model.find_data_service(service)
+                        else
+                            task_model.find_data_service_from_type(service)
+                        end
+
                     if !service_model
                         raise ArgumentError, "there is no service called #{service} on #{task_model.short_name}"
                     end
                     @service = service_model
                 else
                     @service = service
+                end
+            end
+
+            def find_data_service(service)
+                task_model = @models.find { |m| m.kind_of?(RobyPlugin::ComponentModel) }
+                if !task_model
+                    raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
+                end
+                if service_model = task_model.find_data_service(service)
+                    result = dup
+                    result.select_service(service)
+                    result
+                end
+            end
+
+            def find_data_service_from_type(service)
+                task_model = @models.find { |m| m.kind_of?(RobyPlugin::ComponentModel) }
+                if !task_model
+                    raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
+                end
+                if service_model = task_model.find_data_service_from_type(service)
+                    result = dup
+                    result.select_service(service)
+                    result
                 end
             end
 
@@ -539,6 +492,19 @@ module Orocos
                 end
             end
 
+            def fullfilled_model
+                task_model = Component
+                tags = []
+                each_fullfilled_model do |m|
+                    if m.kind_of?(Roby::Task)
+                        task_model = m
+                    else
+                        tags << m
+                    end
+                end
+                [task_model, tags, @arguments.dup]
+            end
+
             def as_plan
                 Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
             end
@@ -602,10 +568,23 @@ module Orocos
                 super if defined? super
             end
 
-            def method_missing(m, *args, &block)
-                if m.to_s =~ /^(\w+)_srv$/ && args.empty? && !block_given?
+            def find_child(name)
+                composition = models.find { |m| m <= Composition }
+                if !composition
+                    raise ArgumentError, "this requirement object does not refer to a composition explicitely, cannot select a child"
+                end
+                composition.send("#{name}_child")
+            end
+
+            def method_missing(method, *args)
+                if !args.empty? || block_given?
+                    return super
+                end
+
+		case method.to_s
+                when /^(\w+)_srv$/
                     service_name = $1
-                    task_model = models.find { |m| m <= TaskContext }
+                    task_model = models.find { |m| m <= Component }
                     if !task_model
                         raise ArgumentError, "this requirement object does not refer to a task context explicitely, cannot select a service"
                     end
@@ -614,12 +593,31 @@ module Orocos
                     end
                     srv = task_model.find_data_service(service_name)
                     if !srv
-                        raise ArgumentError, "the task model #{task_model.short_name} does not have any service called #{service_name}"
+                        raise ArgumentError, "the task model #{task_model.short_name} does not have any service called #{service_name}, known services are: #{task_model.each_data_service.map(&:last).map(&:name).join(", ")}"
                     end
 
                     result = self.dup
                     result.select_service(srv)
                     return result
+                when /^(\w+)_child$/
+                    child_name = $1
+                    composition = models.find { |m| m <= Composition }
+                    if !composition
+                        raise ArgumentError, "this requirement object does not refer to a composition explicitely, cannot select a child"
+                    end
+                    child = composition.send(method)
+                    return child.rebind(self)
+                when /^(\w+)_port$/
+                    port_name = $1
+                    if service
+                        port_name = service.port_mappings_for_task[port_name] || port_name
+                    end
+                    component = models.find { |m| m <= Component }
+                    if !component
+                        raise ArgumentError, "this requirement object does not refer to a component explicitely, cannot select a port"
+                    end
+                    port = component.send("#{port_name}_port")
+                    return port.dup.rebind(self)
                 end
                 super
             end

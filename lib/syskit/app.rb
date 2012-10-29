@@ -1,5 +1,5 @@
 require 'utilrb/kernel/load_dsl_file'
-require 'roby/state/state'
+require 'roby/state'
 require 'utilrb/spawn'
 
 require 'typelib'
@@ -98,7 +98,7 @@ module Orocos
         #   Roby::Conf.orocos.disable_logging
         #
         # will completely disable logging (not recommended !)
-        class Configuration < Roby::ExtendedStruct
+        class Configuration < Roby::OpenStruct
             def initialize
                 super
 
@@ -302,6 +302,7 @@ module Orocos
             end
 
             def import_orogen_project(name, orogen)
+                Orocos::RobyPlugin.info "loading oroGen project #{name}"
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
                 if Orocos.available_task_libraries[name].respond_to?(:to_str)
@@ -443,14 +444,13 @@ module Orocos
                 end
 
                 Roby::Conf.orocos = Configuration.new
-                Roby::State.orocos = Roby::Conf.orocos # for backward compatibility
 
-                Orocos.configuration_log_name = File.join(app.log_dir, 'properties')
+                Orocos.configuration_log_name ||= File.join(app.log_dir, 'properties')
                 app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
 
-                app.orocos_system_model ||= SystemModel.new
-                app.orocos_engine ||= Engine.new(app.plan || Roby::Plan.new, app.orocos_system_model)
+                app.orocos_system_model = SystemModel.new
+                app.orocos_engine = Engine.new(app.plan || Roby::Plan.new, app.orocos_system_model)
                 Orocos.singleton_class.class_eval do
                     attr_reader :engine
                 end
@@ -578,8 +578,8 @@ module Orocos
                 projects = Set.new
 
                 orocos_tasks.each_value do |model|
-                    if model.orogen_spec
-                        project_name = model.orogen_spec.component.name.camelcase(:upper)
+                    if model.orogen_spec && model.orogen_spec.project.name
+                        project_name = model.orogen_spec.project.name.camelcase(:upper)
                         task_name    = model.orogen_spec.basename.camelcase(:upper)
                         projects << project_name
                         constant("Orocos::RobyPlugin::#{project_name}").send(:remove_const, task_name)
@@ -919,6 +919,7 @@ module Orocos
             end
 
             def self.cleanup(app)
+		app.orocos_clear_models
                 stop_process_servers
                 stop_local_process_server
             end

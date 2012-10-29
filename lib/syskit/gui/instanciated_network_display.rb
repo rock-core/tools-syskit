@@ -24,7 +24,7 @@ module Ui
             error_list.connect(SIGNAL('itemClicked(QTreeWidgetItem*,int)')) do |item, col|
                 exception = item.data(0, Qt::UserRole)
                 if exception.valid?
-                    exception = exception.value
+                    exception = exception.to_ruby
 
                     if exception.respond_to?(:task)
                         task = exception.task
@@ -45,7 +45,7 @@ module Ui
                 @current_display_error.dispose
             end
             if error.valid?
-                error = error.value
+                error = error.to_ruby
                 @current_display_error = add_error(error, title)
             end
         end
@@ -72,7 +72,7 @@ module Ui
             backtrace_item = Qt::TreeWidgetItem.new(item, [])
             error_list.setItemWidget(backtrace_item, 0, Qt::Label.new(backtrace_text.join("\n")))
 
-            item.set_data(0, Qt::UserRole, Qt::Variant.fromValue(exception))
+            item.set_data(0, Qt::UserRole, Qt::Variant.from_ruby(exception, item))
             item
         end
 

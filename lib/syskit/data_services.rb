@@ -221,6 +221,12 @@ module Orocos
                     return
                 end
 
+                service_model.each_port do |p|
+                    if find_port(p.name)
+                        new_port_mappings[p.name] ||= p.name
+                    end
+                end
+
                 new_port_mappings.each do |service_name, self_name|
                     if !(source_port = service_model.find_port(service_name))
                         raise SpecError, "#{service_name} is not a port of #{service_model.short_name}"
@@ -229,16 +235,9 @@ module Orocos
                         raise SpecError, "#{self_name} is not a port of #{short_name}"
                     end
                     if target_port.type != source_port.type
-                        raise SpecError, "invalid port mapping #{service_name} => #{self_name} in #{self.name}.provides(#{service_model.name}): port #{source_port.name} is of type #{source_port.type.name} and #{target_port.name} is of type #{target_port.type.name}"
-                    end
-                end
-                service_model.each_port do |p|
-                    if self_p = find_port(p.name)
-                        if self_p.type != p.type
-                            raise SpecError, "#{self.name} does not provide #{service_model.name}: port #{p.name} is of type #{p.type.name} on the former and an #{self_p.type.name} on the latter"
-                        elsif self_p.class != p.class
-                            raise SpecError, "#{self.name} does not provide #{service_model.name}: port #{p.name} is an #{p.class.name} on the former and an #{self_p.class.name} on the latter"
-                        end
+                        raise SpecError, "invalid port mapping #{service_name} => #{self_name} in #{self.short_name}.provides(#{service_model.short_name}): port #{source_port.name} on #{self.short_name} is of type #{source_port.type.name} and #{target_port.name} on #{service_model.short_name} is of type #{target_port.type.name}"
+                    elsif source_port.class != target_port.class
+                        raise SpecError, "invalid port mapping #{service_name} => #{self_name} in #{self.short_name}.provides(#{service_model.short_name}): port #{source_port.name} on #{self.short_name} is a #{target_port.class.name} and #{target_port.name} on #{service_model.short_name} is of a #{source_port.class.name}"
                     end
                 end
 
@@ -250,11 +249,25 @@ module Orocos
                     port_mappings[original_service] =
                         SystemModel.merge_port_mappings(port_mappings[original_service] || Hash.new, updated_mappings)
                 end
+
+                # Now, add the ports that are going to be created because of the
+                # addition of the service
+                service_model.each_port do |p|
+                    new_port_mappings[p.name] ||= p.name
+                end
                 port_mappings[service_model] =
                     SystemModel.merge_port_mappings(port_mappings[service_model] || Hash.new, new_port_mappings)
 
+                # Merging the interface should never raise at this stage. It
+                # should have been validated above.
                 if service_model.interface
                     RobyPlugin.merge_orogen_interfaces(interface, [service_model.interface], new_port_mappings)
+                end
+
+                # For completeness, add port mappings for ourselves
+                port_mappings[self] = Hash.new
+                each_port do |p|
+                    port_mappings[self][p.name] = p.name
                 end
 
                 include service_model

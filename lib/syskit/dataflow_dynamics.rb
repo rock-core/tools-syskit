@@ -541,19 +541,19 @@ module Orocos
                 if !input_dynamics || !reading_latency
                     if fallback_policy
                         if !input_dynamics
-                            Engine.warn do
-                                Engine.warn "Cannot compute the period information for the output port"
-                                Engine.warn "   #{source_task}:#{source_port.name}"
-                                Engine.warn "   This is needed to compute the policy to connect to"
-                                Engine.warn "   #{sink_task}:#{sink_port_name}"
-                                Engine.warn "   The fallback policy #{fallback_policy} will be used"
+                            DataFlowDynamics.warn do
+                                DataFlowDynamics.warn "Cannot compute the period information for the output port"
+                                DataFlowDynamics.warn "   #{source_task}:#{source_port.name}"
+                                DataFlowDynamics.warn "   This is needed to compute the policy to connect to"
+                                DataFlowDynamics.warn "   #{sink_task}:#{sink_port_name}"
+                                DataFlowDynamics.warn "   The fallback policy #{fallback_policy} will be used"
                                 break
                             end
 
                         else
-                            Engine.warn "#{sink_task} has no minimal period"
-                            Engine.warn "This is needed to compute the reading latency on #{sink_port.name}"
-                            Engine.warn "The fallback policy #{fallback_policy} will be used"
+                            DataFlowDynamics.warn "#{sink_task} has no minimal period"
+                            DataFlowDynamics.warn "This is needed to compute the reading latency on #{sink_port.name}"
+                            DataFlowDynamics.warn "The fallback policy #{fallback_policy} will be used"
                         end
                         policy = fallback_policy
                     elsif !input_dynamics

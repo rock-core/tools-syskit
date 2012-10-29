@@ -32,6 +32,13 @@ module Orocos
                 # deployed task context.
                 attr_accessor :orogen_spec
 
+                def interface
+                    orogen_spec
+                end
+                def interface=(spec)
+                    self.orogen_spec = spec
+                end
+
                 # A state_name => event_name mapping that maps the component's
                 # state names to the event names that should be emitted when it
                 # enters a new state.
@@ -307,7 +314,7 @@ module Orocos
                     raise ArgumentError, "#find_input_port called but we have no task handler yet"
                 end
                 port = orogen_task.port(name)
-		return if port.kind_of?(Orocos::OutputPort)
+		return if !port.respond_to?(:writer)
 		port
 
             rescue Orocos::NotFound
@@ -315,7 +322,7 @@ module Orocos
 
             def input_port(name)
                 if !(port = find_input_port(name))
-		    raise ArgumentError, "port #{name} is not an input port in #{self}"
+		    raise Orocos::NotFound, "port #{name} is not an input port in #{self}"
 		end
 		port
             end
@@ -325,7 +332,7 @@ module Orocos
                     raise ArgumentError, "#find_output_port called but we have no task handler yet"
                 end
                 port = orogen_task.port(name)
-                return if port.kind_of?(Orocos::InputPort)
+                return if !port.respond_to?(:reader)
                 port
 
             rescue Orocos::NotFound
@@ -333,21 +340,21 @@ module Orocos
 
             def output_port(name)
                 if !(port = find_output_port(name))
-		    raise ArgumentError, "port #{name} is not an output port in #{self}"
+		    raise Orocos::NotFound, "port #{name} is not an output port in #{self}"
 		end
 		port
             end
 
             def input_port_model(name)
                 if !(p = orogen_task.input_port_model(name))
-                    raise ArgumentError, "there is no port #{name} on #{self}"
+                    raise Orocos::NotFound, "there is no port #{name} on #{self}"
                 end
                 p
             end
 
             def output_port_model(name)
                 if !(p = orogen_task.output_port_model(name))
-                    raise ArgumentError, "there is no port #{name} on #{self}"
+                    raise Orocos::NotFound, "there is no port #{name} on #{self}"
                 end
                 p
             end
@@ -754,7 +761,7 @@ module Orocos
             # Component.data_service for the description of +arguments+
             def self.driver_for(model, arguments = Hash.new, &block)
                 if model.respond_to?(:to_str)
-                    service_options, model_options = Kernel.filter_options arguments, Component::DATA_SERVICE_ARGUMENTS
+                    service_options, model_options = Kernel.filter_options arguments, ComponentModel::DATA_SERVICE_ARGUMENTS
                     model = system_model.query_or_create_service_model(
                         model, DeviceModel, model_options, &block)
                 else
@@ -821,6 +828,58 @@ module Orocos
                 end
             end
 
+            def self.create(spec_or_name = nil, &block)
+                if block || !spec_or_name || spec_or_name.respond_to?(:to_str)
+                    task_spec = RobyPlugin.create_orogen_interface(spec_or_name)
+                    if block
+                        task_spec.instance_eval(&block)
+                    end
+                else
+                    task_spec = spec_or_name
+                end
+                
+                superclass = task_spec.superclass
+                if !(supermodel = Roby.app.orocos_tasks[superclass.name])
+                    supermodel = create(superclass)
+                end
+
+                klass = Class.new(supermodel)
+                klass.instance_variable_set :@orogen_spec, task_spec
+
+                if task_spec.name
+                    roby_name = task_spec.name.split('::').
+                        map { |s| s.camelcase(:upper) }.
+                        join("::")
+
+                    klass.instance_variable_set :@name, roby_name
+                end
+                
+                # Define specific events for the extended states (if there is any)
+                state_events = {
+                    :EXCEPTION => :exception,
+                    :FATAL_ERROR => :fatal_error,
+                    :RUNTIME_ERROR => :runtime_error }
+                task_spec.states.each do |name, type|
+                    event_name = name.snakecase.downcase.to_sym
+                    klass.event event_name
+                    if type == :fatal
+                        klass.forward event_name => :fatal_error
+                    elsif type == :exception
+                        klass.forward event_name => :exception
+                    elsif type == :error
+                        klass.forward event_name => :runtime_error
+                    end
+
+                    state_events[name.to_sym] = event_name
+                end
+                if supermodel && supermodel.state_events
+                    state_events = state_events.merge(supermodel.state_events)
+                end
+                klass.instance_variable_set :@state_events, state_events
+
+                klass
+            end
+
             # Creates a subclass of TaskContext that represents the given task
             # specification. The class is registered as
             # Roby::Orogen::ProjectName::ClassName.
@@ -883,82 +942,6 @@ module Orocos
             end
         end
 
-        # Placeholders used in the plan to represent a data service that has not
-        # been mapped to a task context yet
-        class DataServiceProxy < TaskContext
-            extend Model
-            abstract
-
-            class << self
-                attr_accessor :name
-                attr_accessor :short_name
-            end
-            @name = "Orocos::RobyPlugin::DataServiceProxy"
-
-            def to_s
-                "placeholder for #{self.model.short_name}"
-            end
-
-            def self.new_submodel(name, models = [])
-                Class.new(self) do
-                    abstract
-                    class << self
-                        attr_accessor :name
-                        attr_accessor :short_name
-                    end
-                    @name = name
-                    @short_name = models.map(&:short_name).join(",")
-                end
-            end
-
-            def self.proxied_data_services
-                data_services.values.map(&:model)
-            end
-
-            def proxied_data_services
-                self.model.proxied_data_services
-            end
-
-            def self.provided_services
-                proxied_data_services
-            end
-        end
-
-        module ComponentModelProxy
-            module ClassExtension
-                attr_accessor :proxied_data_services
-            end
-            def proxied_data_services
-                self.model.proxied_data_services
-            end
-        end
-
-        def self.placeholder_model_for(name, models)
-            # If all that is required is a proper task model, just return it
-            if models.size == 1 && (models.find { true } <= Roby::Task)
-                return models.find { true }
-            end
-
-            if task_model = models.find { |t| t < Roby::Task }
-                model = task_model.specialize("placeholder_model_for_" + name.gsub(/[^\w]/, '_'))
-                model.name = name
-                model.abstract
-                model.include ComponentModelProxy
-                model.proxied_data_services = models.dup
-            else
-                model = DataServiceProxy.new_submodel(name, models)
-            end
-
-            orogen_spec = RobyPlugin.create_orogen_interface
-            model.instance_variable_set(:@orogen_spec, orogen_spec)
-            RobyPlugin.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
-            models.each do |m|
-                if m.kind_of?(DataServiceModel)
-                    model.provides m
-                end
-            end
-            model
-        end
     end
 end
 

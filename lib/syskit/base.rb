@@ -96,9 +96,12 @@ module Orocos
             end
 
             # Creates a new class that is a submodel of this model
-            def new_submodel
+            def new_submodel(name = nil)
                 klass = Class.new(self)
                 klass.system_model = system_model
+                if name
+                    klass.instance_variable_set :@name, name
+                end
                 klass
             end
 
@@ -140,10 +143,12 @@ module Orocos
             end
 
             def short_name
-                name.gsub('Orocos::RobyPlugin::', '').
-                    gsub('DataServices', 'Srv').
-                    gsub('Devices', 'Dev').
-                    gsub('Compositions', 'Cmp')
+                if name
+                    name.gsub('Orocos::RobyPlugin::', '').
+                        gsub('DataServices', 'Srv').
+                        gsub('Devices', 'Dev').
+                        gsub('Compositions', 'Cmp')
+                end
             end
         end
 

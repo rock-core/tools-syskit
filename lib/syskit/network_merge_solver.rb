@@ -95,6 +95,53 @@ module Orocos
                     MERGE_SORT_TRUTH_TABLE[ [!!t1.fully_instanciated?, !!t2.fully_instanciated?] ] ||
                     MERGE_SORT_TRUTH_TABLE[ [!!t1.transaction_proxy?, !!t2.transaction_proxy?] ]
             end
+            
+            def can_merge?(task, target_task, possible_cycles)
+                # Cannot merge into target_task if it is marked as not
+                # being usable
+                if !target_task.reusable?
+                    debug { "rejecting #{target_task}.merge(#{task}) as receiver is not reusable" }
+                    return
+                end
+                # We can not replace a non-abstract task with an
+                # abstract one
+                if (!task.abstract? && target_task.abstract?)
+                    debug { "rejecting #{target_task}.merge(#{task}) as abstract attribute mismatches" }
+                    return
+                end
+                # Merges involving a deployed task can only involve a
+                # non-deployed task as well
+                if (task.execution_agent && target_task.execution_agent)
+                    debug { "rejecting #{target_task}.merge(#{task}) as deployment attribute mismatches" }
+                    return
+                end
+
+                # If both tasks are compositions, merge only if +task+
+                # has the same child set than +target+
+                if task.kind_of?(Composition) && target_task.kind_of?(Composition)
+                    task_children   ||= task.merged_relations(:each_child, true, false).to_value_set
+                    target_children = target_task.merged_relations(:each_child, true, false).to_value_set
+                    if task_children != target_children || task_children.any? { |t| t.kind_of?(DataServiceProxy) }
+                        debug { "rejecting #{target_task}.merge(#{task}) as composition have different children" }
+                        return
+                    end
+                end
+
+                # Finally, call #can_merge?
+                can_merge = target_task.can_merge?(task)
+                if can_merge.nil?
+                    # Not a direct merge, but might be a cycle
+                    debug { "possible cycle merge for #{target_task}.merge(#{task})" }
+                    if possible_cycles
+                        possible_cycles << [task, target_task]
+                    end
+                    return
+                elsif !can_merge
+                    debug { "rejected because #{target_task}.can_merge?(#{task}) returned false" }
+                    return
+                end
+                true
+            end
 
             # call-seq:
             #   direct_merge_mappings(task_set, possible_cycles) => merge_graph
@@ -158,52 +205,10 @@ module Orocos
                     # This loop checks in +candidates+ for the tasks that can be
                     # merged INTO +target_task+
                     for target_task in candidates
-                        # Cannot merge into target_task if it is marked as not
-                        # being usable
-                        if !target_task.reusable?
-			    debug { "rejecting #{target_task}.merge(#{task}) as receiver is not reusable" }
-			    next
-			end
-                        # We can not replace a non-abstract task with an
-                        # abstract one
-                        if (!task.abstract? && target_task.abstract?)
-			    debug { "rejecting #{target_task}.merge(#{task}) as abstract attribute mismatches" }
-			    next
-			end
-                        # Merges involving a deployed task can only involve a
-                        # non-deployed task as well
-                        if (task.execution_agent && target_task.execution_agent)
-			    debug { "rejecting #{target_task}.merge(#{task}) as deployment attribute mismatches" }
-			    next
-			end
-
-                        # If both tasks are compositions, merge only if +task+
-                        # has the same child set than +target+
-                        if task.kind_of?(Composition) && target_task.kind_of?(Composition)
-                            task_children   ||= task.merged_relations(:each_child, true, false).to_value_set
-                            target_children = target_task.merged_relations(:each_child, true, false).to_value_set
-                            if task_children != target_children || task_children.any? { |t| t.kind_of?(DataServiceProxy) }
-			        debug { "rejecting #{target_task}.merge(#{task}) as composition have different children" }
-			        next
-			    end
+                        if can_merge?(task, target_task, possible_cycles)
+                            debug { "#{target_task}.merge(#{task})" }
+                            merge_graph.link(target_task, task, nil)
                         end
-
-                        # Finally, call #can_merge?
-                        can_merge = target_task.can_merge?(task)
-                        if can_merge.nil?
-                            # Not a direct merge, but might be a cycle
-                            debug { "possible cycle merge for #{target_task}.merge(#{task})" }
-                            if possible_cycles
-                                possible_cycles << [task, target_task]
-                            end
-                            next
-                        elsif !can_merge
-			    debug { "rejected because #{target_task}.can_merge?(#{task}) returned false" }
-                            next
-                        end
-
-                        debug { "#{target_task}.merge(#{task})" }
-                        merge_graph.link(target_task, task, nil)
                     end
                 end
                 return merge_graph
