@@ -589,7 +589,9 @@ module Orocos
 
                 orocos_deployments.each_key do |name|
                     name = name.camelcase(:upper)
-                    Orocos::RobyPlugin::Deployments.send(:remove_const, name)
+                    begin Orocos::RobyPlugin::Deployments.send(:remove_const, name)
+                    rescue NameError
+                    end
                 end
                 orocos_deployments.clear
 
