@@ -1,5 +1,6 @@
 require 'rake'
 require './lib/orocos/version'
+require 'utilrb/doc/rake'
 
 begin
     require 'hoe'
@@ -121,32 +122,25 @@ task :clean do
     FileUtils.rm_rf "test/working_copy"
 end
 
-do_doc = begin
-             require 'rdoc/task'
-             true
-         rescue LoadError => e
-             STDERR.puts "WARN: cannot load RDoc, documentation generation disabled"
-             STDERR.puts "WARN:   #{e.message}"
-         end
+if Utilrb.doc?
+    namespace 'doc' do
+        Utilrb.doc 'api', :include => ['lib/**/*.rb'],
+            :exclude => [],
+            :target_dir => 'doc',
+            :title => 'orocos.rb'
 
-if do_doc
-    task 'doc' => 'doc:all'
-    task 'clobber_docs' => 'doc:clobber'
+        # desc 'generate all documentation'
+        # task 'all' => 'doc:api'
+    end
+
     task 'redocs' do
-        Rake::Task['clobber_docs'].invoke
-        if !system('rake', 'doc:all')
+        FileUtils.rm_rf 'doc'
+        if !system('rake', 'doc')
             raise "failed to regenerate documentation"
         end
     end
-
-    namespace 'doc' do
-        task 'all' => %w{api}
-        RDoc::Task.new("api") do |rdoc|
-            rdoc.rdoc_dir = 'doc'
-            rdoc.title    = "orocos.rb"
-            rdoc.options << '--show-hash'
-            rdoc.rdoc_files.include('lib/**/*.rb')
-        end
-    end
+    task 'doc' => 'doc:api'
+else
+    STDERR.puts "WARN: cannot load yard or rdoc , documentation generation disabled"
 end
 
