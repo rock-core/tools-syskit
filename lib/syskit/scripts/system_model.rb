@@ -61,7 +61,7 @@ class ModelListWidget < Qt::TreeWidget
 
             item = Qt::TreeWidgetItem.new(root_services)
             item.set_text(0, name)
-            item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_value(srv))
+            item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_ruby(srv))
         end
 
         compositions = Roby.app.orocos_system_model.each_composition.to_a
@@ -84,7 +84,7 @@ class ModelListWidget < Qt::TreeWidget
 
             item = Qt::TreeWidgetItem.new(root_compositions)
             item.set_text(0, name)
-            item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_value(cmp))
+            item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_ruby(cmp))
             if has_errors
                 item.set_background(0, Qt::Brush.new(Qt::Color.new(255, 128, 128)))
             end
@@ -94,7 +94,7 @@ class ModelListWidget < Qt::TreeWidget
         task_contexts.sort_by(&:name).each do |task|
             item = Qt::TreeWidgetItem.new(root_tasks)
             item.set_text(0, task.short_name)
-            item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_value(task))
+            item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_ruby(task))
         end
     end
 
@@ -118,7 +118,7 @@ class ModelDisplayView < Ui::StackedDisplay
     end
 
     def clickedSpecialization(obj_as_variant)
-        object = obj_as_variant.value
+        object = obj_as_variant.to_ruby
         if specializations.values.include?(object)
             clicked  = object.model.applied_specializations.dup.to_set
             selected = current_model.applied_specializations.dup.to_set
@@ -281,7 +281,7 @@ class SystemModelBrowser < Qt::Widget
         model_list.connect(SIGNAL('itemClicked(QTreeWidgetItem*,int)')) do |item, col|
             model = item.data(col, ModelListWidget::ITEM_ROLE_MODEL)
             if model.valid?
-                @current_model = model.value
+                @current_model = model.to_ruby
                 render_current_model
             end
         end
