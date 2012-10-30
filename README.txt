@@ -55,9 +55,12 @@ See the documentation of Orocos::Process for more details.
 
 You can grab an object represeting the remote RTT component with:
 
-  c = TaskContext.get "TaskName"
+  c = TaskContext.new IOR
+  # or 
+  d = Orocos.name_service.get TaskName
 
-where TaskName is the name given to the task during deployment. You can list all
+where TaskName is the name given to the task during deployment and 
+IOR the Interoperable Object Reference (IOR). You can list all
 existing tasks using the orocos_state script included in orocos.rb.
 
 Alternatively, one can get a task based on the interfaces it implements. In
@@ -89,9 +92,9 @@ require a remote control and therefore use controldev::Remote and so on.
 
 Though, the script will be independent from that choice because you can use
 
-  c = TaskContext.get(:provides => "controldev::Device")
+  c = Orocos.name_service.get_provides("controldev::Device")
 
-Orocos::TaskContext.get returns a Orocos::TaskContext instance. See the
+Orocos.name_service.get_provides returns a Orocos::TaskContext instance. See the
 documentation of that class for more details.
 
 == Changing and reading a task context's state
