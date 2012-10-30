@@ -306,6 +306,7 @@ module Orocos
                 @model     = model
                 @robot     = robot || RobotDefinition.new(self)
 
+                @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
                 @use_main_selection = true
                 @service_allocation_candidates = Hash.new
 
@@ -1772,7 +1773,7 @@ module Orocos
                 @plan = engine_plan
                 if @network_merge_solver
                     @network_merge_solver.task_replacement_graph.clear
-                    @network_merge_solver = nil
+                    @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
                 end
                 @dataflow_dynamics = nil
             end
