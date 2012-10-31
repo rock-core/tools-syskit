@@ -133,12 +133,7 @@ if Utilrb.doc?
         # task 'all' => 'doc:api'
     end
 
-    task 'redocs' do
-        FileUtils.rm_rf 'doc'
-        if !system('rake', 'doc')
-            raise "failed to regenerate documentation"
-        end
-    end
+    task 'redocs' => 'doc:reapi'
     task 'doc' => 'doc:api'
 else
     STDERR.puts "WARN: cannot load yard or rdoc , documentation generation disabled"
