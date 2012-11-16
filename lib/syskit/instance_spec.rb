@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         # Generic representation of requirements on a component instance
         #
         # Components can be compositions, services and/or 
@@ -63,7 +62,7 @@ module Orocos
             # this task
             def select_service(service)
                 if service.respond_to?(:to_str) || service.kind_of?(DataServiceModel)
-                    task_model = @models.find { |m| m.kind_of?(RobyPlugin::ComponentModel) }
+                    task_model = @models.find { |m| m.kind_of?(Syskit::ComponentModel) }
                     if !task_model
                         raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
                     end
@@ -84,7 +83,7 @@ module Orocos
             end
 
             def find_data_service(service)
-                task_model = @models.find { |m| m.kind_of?(RobyPlugin::ComponentModel) }
+                task_model = @models.find { |m| m.kind_of?(Syskit::ComponentModel) }
                 if !task_model
                     raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
                 end
@@ -96,7 +95,7 @@ module Orocos
             end
 
             def find_data_service_from_type(service)
-                task_model = @models.find { |m| m.kind_of?(RobyPlugin::ComponentModel) }
+                task_model = @models.find { |m| m.kind_of?(Syskit::ComponentModel) }
                 if !task_model
                     raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
                 end
@@ -506,7 +505,7 @@ module Orocos
             end
 
             def as_plan
-                Orocos::RobyPlugin::SingleRequirementTask.subplan(self)
+                Syskit::SingleRequirementTask.subplan(self)
             end
 
             def to_s
@@ -1446,6 +1445,5 @@ module Orocos
                 end
             end
         end
-    end
 end
 

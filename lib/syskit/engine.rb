@@ -11,8 +11,7 @@ class Object
     end
 end
 
-module Orocos
-    module RobyPlugin
+module Syskit
         # Used by the to_dot* methods for color allocation
         attr_reader :current_color
         # A set of colors to be used in graphiz graphs
@@ -45,7 +44,7 @@ module Orocos
             # Wrapper on top of the createLoggingPort operation
             #
             # +sink_port_name+ is the port name of the logging task,
-            # +logged_task+ the Orocos::RobyPlugin::TaskContext object from
+            # +logged_task+ the Syskit::TaskContext object from
             # which the data is being logged and +logged_port+ the
             # Orocos::Spec::OutputPort model object of the port that we want to
             # log.
@@ -239,7 +238,7 @@ module Orocos
 
             # Returns the process server object named +name+
             def process_server_for(name)
-                server = RobyPlugin.process_servers[name]
+                server = Syskit.process_servers[name]
                 if !server
                     if name == 'localhost' || Roby.app.single?
                         return Roby.app.main_orogen_project
@@ -258,12 +257,12 @@ module Orocos
                 server = process_server_for(options[:on])
                 orogen = server.load_orogen_project(project_name)
 
-                Orocos::RobyPlugin.info "using deployments from #{project_name}"
+                Syskit.info "using deployments from #{project_name}"
 
                 result = []
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install?
-                        Orocos::RobyPlugin.info "  #{deployment_def.name}"
+                        Syskit.info "  #{deployment_def.name}"
                         # Currently, the supervision cannot handle orogen_default tasks 
                         # properly, thus filtering them out for now 
                         if not /^orogen_default/ =~ "#{deployment_def.name}"
@@ -283,7 +282,7 @@ module Orocos
             #
             def robot(&block)
                 if block_given?
-                    @robot.with_module(*RobyPlugin.constant_search_path, &block)
+                    @robot.with_module(*Syskit.constant_search_path, &block)
                 end
                 @robot
             end
@@ -475,7 +474,7 @@ module Orocos
 		end
                 if !planner.has_method?(name)
                     planner.method(name) do
-                        Orocos::RobyPlugin.require_task name
+                        Syskit.require_task name
                     end
                 end
 	    end
@@ -753,7 +752,7 @@ module Orocos
             def instanciate
                 self.tasks.clear
 
-                Orocos::RobyPlugin::Compositions.each do |composition_model|
+                Syskit::Compositions.each do |composition_model|
                     composition_model.reset_autoconnection
                 end
 
@@ -1356,7 +1355,7 @@ module Orocos
                         if !logger_task && t.orocos_name == logger_task_name
                             logger_task = t
                             next
-                        elsif t.model.name == "Orocos::RobyPlugin::Logger::Logger"
+                        elsif t.model.name == "Syskit::Logger::Logger"
                             next
                         end
 
@@ -1432,7 +1431,7 @@ module Orocos
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
-                plan.find_local_tasks(Orocos::RobyPlugin::Logger::Logger).
+                plan.find_local_tasks(Syskit::Logger::Logger).
                     each do |task|
                         if !task.arguments[:conf]
                             task.arguments[:conf] = ['default']
@@ -1440,7 +1439,7 @@ module Orocos
                     end
 
                 # Mark as permanent any currently running logger
-                plan.find_tasks(Orocos::RobyPlugin::Logger::Logger).
+                plan.find_tasks(Syskit::Logger::Logger).
                     not_finished.
                     each do |t|
                         plan.add_permanent(t)
@@ -1627,7 +1626,7 @@ module Orocos
                     end
 
                     if options[:compute_deployments]
-                        if defined?(Orocos::RobyPlugin::Logger::Logger)
+                        if defined?(Syskit::Logger::Logger)
                             configure_logging
                         end
                     end
@@ -1936,7 +1935,7 @@ module Orocos
             # Creates communication busses and links the tasks to them
             def link_to_busses
                 # Get all the tasks that need at least one communication bus
-                candidates = plan.find_local_tasks(Orocos::RobyPlugin::Device).
+                candidates = plan.find_local_tasks(Syskit::Device).
                     inject(Hash.new) do |h, t|
                         required_busses = t.com_busses
                         if !required_busses.empty?
@@ -1959,7 +1958,7 @@ module Orocos
             #
             # For now, the logger is hardcoded there
             def ignored_deployed_task?(deployed_task)
-                Roby.app.orocos_tasks[deployed_task.task_model.name].name == "Orocos::RobyPlugin::Logger::Logger"
+                Roby.app.orocos_tasks[deployed_task.task_model.name].name == "Syskit::Logger::Logger"
             end
 
             # Instanciates all deployments that have been specified by the user.
@@ -2016,7 +2015,7 @@ module Orocos
                 all_tasks.delete_if do |t|
                     if t.finishing? || t.finished?
                         Engine.debug { "clearing the relations of the finished task #{t}" }
-                        t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
+                        t.remove_relations(Syskit::Flows::DataFlow)
                         t.remove_relations(Roby::TaskStructure::Dependency)
                         true
                     elsif t.transaction_proxy?
@@ -2032,7 +2031,7 @@ module Orocos
 
                 (all_tasks - used_tasks).each do |t|
                     Engine.debug { "clearing the dataflow relations of #{t}" }
-                    t.remove_relations(Orocos::RobyPlugin::Flows::DataFlow)
+                    t.remove_relations(Syskit::Flows::DataFlow)
                 end
 
                 if garbage_collect
@@ -2064,7 +2063,7 @@ module Orocos
                 #
                 # That's what this method does
                 deployments = used_deployments
-                existing_deployments = plan.find_tasks(Orocos::RobyPlugin::Deployment).to_value_set - deployments
+                existing_deployments = plan.find_tasks(Syskit::Deployment).to_value_set - deployments
 
                 Engine.debug do
                     Engine.debug "mapping deployments in the network to the existing ones"
@@ -2150,43 +2149,6 @@ module Orocos
                 result
             end
 
-            # Helper class used to load files that contain both system model and
-            # engine requirements
-            #
-            # See Engine#load_composite_file
-            class CompositeLoader < BasicObject
-                def initialize(engine)
-                    @engine = engine
-                end
-
-                def method_missing(m, *args, &block)
-                    if !@engine.respond_to?(m) && @engine.model.respond_to?(m)
-                        @engine.model.send(m, *args, &block)
-                    else
-                        @engine.send(m, *args, &block)
-                    end
-                end
-            end
-
-            # Load a file that contains both system model and engine
-            # requirements
-            def load_composite_file(file)
-                loader = CompositeLoader.new(self)
-                if Kernel.load_dsl_file(file, loader, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
-                    RobyPlugin.info "loaded #{file}"
-                end
-            end
-
-            # Load the given DSL file into this Engine instance
-            def load(file)
-                if Kernel.load_dsl_file(file, self, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
-                    RobyPlugin.info "loaded #{file}"
-                end
-            end
-
-            def load_system_model(file)
-                Roby.app.load_system_model(file)
-            end
 
             # Declare that the services listed in +names+ are available to
             # fullfill the +service+ model.
@@ -2208,13 +2170,13 @@ module Orocos
         # updates the running TaskContext tasks.
         def self.update_task_states(plan) # :nodoc:
             all_dead_deployments = ValueSet.new
-            for name, server in Orocos::RobyPlugin.process_servers
+            for name, server in Syskit.process_servers
                 server = server.first
                 if dead_deployments = server.wait_termination(0)
                     dead_deployments.each do |p, exit_status|
                         d = Deployment.all_deployments[p]
                         if !d.finishing?
-                            Orocos::RobyPlugin.warn "#{p.name} unexpectedly died on #{name}"
+                            Syskit.warn "#{p.name} unexpectedly died on #{name}"
                         end
                         all_dead_deployments << d
                         d.dead!(exit_status)
@@ -2227,7 +2189,7 @@ module Orocos
             end
 
             if !(query = plan.instance_variable_get :@orocos_update_query)
-                query = plan.find_tasks(Orocos::RobyPlugin::TaskContext).
+                query = plan.find_tasks(Syskit::TaskContext).
                     not_finished
                 plan.instance_variable_set :@orocos_update_query, query
             end
@@ -2318,7 +2280,6 @@ module Orocos
                 end
             end
         end
-    end
 end
 
 

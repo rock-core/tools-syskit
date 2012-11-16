@@ -21,7 +21,7 @@ Loads model files to check if there is no errors in them
     end
 end
 
-Orocos::RobyPlugin.logger.level = Logger::INFO
+Syskit.logger.level = Logger::INFO
 error = Roby.display_exception do
     begin
         Roby.app.setup

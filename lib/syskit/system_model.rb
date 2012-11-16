@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         # Access to all the available models
         #
         # The SystemModel instance is an access point to all the models that are
@@ -8,40 +7,6 @@ module Orocos
         class SystemModel
             extend Logger::Forward
             extend Logger::Hierarchy
-
-            # Safe port mapping merging implementation
-            #
-            # It verifies that there is no conflicting mappings, and if there
-            # are, raises Ambiguous
-            def self.merge_port_mappings(a, b)
-                a.merge(b) do |source, target_a, target_b|
-                    if target_a != target_b
-                        raise Ambiguous, "merging conflicting port mappings: #{source} => #{target_a} and #{source} => #{target_b}"
-                    end
-                    target_a
-                end
-            end
-
-            # Updates the port mappings in +result+ by applying +new_mappings+
-            # on +old_mappings+
-            #
-            # +result+ and +old_mappings+ map service models to the
-            # corresponding port mappings, of the form from => to
-            #
-            # +new_mappings+ is a new name mapping of the form from => to
-            #
-            # The method updates result by applying +new_mappings+ to the +to+
-            # fields in +old_mappings+, saving the resulting mappins in +result+
-            def self.update_port_mappings(result, new_mappings, old_mappings)
-                old_mappings.each do |service, mappings|
-                    updated_mappings = Hash.new
-                    mappings.each do |from, to|
-                        updated_mappings[from] = new_mappings[to] || to
-                    end
-                    result[service] =
-                        SystemModel.merge_port_mappings(result[service] || Hash.new, updated_mappings)
-                end
-            end
 
             def self.log_array(level, first_header, header, array)
                 first = true
@@ -57,9 +22,6 @@ module Orocos
 
             def initialize
                 @system_model = self
-                @composition_specializations = Hash.new do |h, k|
-                    h[k] = Hash.new { |a, b| a[b] = Hash.new }
-                end
                 @proxy_task_models = Hash.new
 
                 @export = true
@@ -130,7 +92,7 @@ module Orocos
                 const_name = model.constant_name
                 data_service_models[const_name] = model
                 if export?
-                    Orocos::RobyPlugin::DataServices.const_set(const_name, model)
+                    Syskit::DataServices.const_set(const_name, model)
                 end
             end
 
@@ -138,7 +100,7 @@ module Orocos
                 const_name = model.constant_name
                 device_models[const_name] = model
                 if export?
-                    Orocos::RobyPlugin::Devices.const_set(const_name, model)
+                    Syskit::Devices.const_set(const_name, model)
                 end
             end
 
@@ -147,7 +109,7 @@ module Orocos
                 const_name = model.constant_name
                 composition_models[const_name] = model
                 if export?
-                    Orocos::RobyPlugin::Compositions.const_set(const_name, model)
+                    Syskit::Compositions.const_set(const_name, model)
                 end
             end
 
@@ -299,7 +261,7 @@ module Orocos
                     raise ArgumentError, "there is already a data service type named #{name}"
                 end
 
-                model = DataService.new_submodel("Orocos::RobyPlugin::DataServices::#{name}",
+                model = DataService.new_submodel("Syskit::DataServices::#{name}",
                         :system_model => self,
                         :config_type => options[:config_type], &block)
 
@@ -318,7 +280,7 @@ module Orocos
                     raise ArgumentError, "there is already a device type #{name}"
                 end
 
-                model = Device.new_submodel("Orocos::RobyPlugin::Devices::#{name}", options.merge(:system_model => self), &block)
+                model = Device.new_submodel("Syskit::Devices::#{name}", options.merge(:system_model => self), &block)
                 register_device(model)
                 model
             end
@@ -339,7 +301,7 @@ module Orocos
                     raise ArgumentError, "there is already a device driver called #{name}"
                 end
 
-                model = ComBus.new_submodel("Orocos::RobyPlugin::Devices::#{name}", options.merge(:system_model => self), &block)
+                model = ComBus.new_submodel("Syskit::Devices::#{name}", options.merge(:system_model => self), &block)
                 register_device(model)
                 model
             end
@@ -351,12 +313,12 @@ module Orocos
                 end
 
                 options = Kernel.validate_options options,
-                    :child_of => Orocos::RobyPlugin::TaskContext
+                    :child_of => Syskit::TaskContext
 
                 klass = Class.new(options[:child_of])
                 klass.instance_variable_set :@system_model, self
                 if name
-                    klass.orogen_spec  = RobyPlugin.create_orogen_interface(name)
+                    klass.orogen_spec  = Syskit.create_orogen_interface(name)
                 end
 
                 if name
@@ -367,9 +329,9 @@ module Orocos
 
                     namespace =
                         if namespace
-                            Orocos::RobyPlugin.orogen_project_module(namespace)
+                            Syskit.orogen_project_module(namespace)
                         else
-                            Orocos::RobyPlugin
+                            Syskit
                         end
                     klass.instance_variable_set :@name, "#{namespace.name}::#{basename.camelcase(:upper)}"
                     namespace.const_set(basename.camelcase(:upper), klass)
@@ -408,7 +370,7 @@ module Orocos
 
                 new_model = options[:child_of].new_submodel(name, self)
                 if block_given?
-                    new_model.with_module(*RobyPlugin.constant_search_path, &block)
+                    new_model.with_module(*Syskit.constant_search_path, &block)
                 end
 
                 # Apply existing specializations of the parent model on the
@@ -430,7 +392,7 @@ module Orocos
 
             def pretty_print(pp) # :nodoc:
                 inheritance = Hash.new { |h, k| h[k] = Set.new }
-                inheritance["Orocos::RobyPlugin::Component"] << "Orocos::RobyPlugin::Composition"
+                inheritance["Syskit::Component"] << "Syskit::Composition"
 
                 pp.text "Compositions"; pp.breakable
                 pp.text "------------"; pp.breakable
@@ -449,7 +411,7 @@ module Orocos
                 pp.breakable
                 pp.text "Models"; pp.breakable
                 pp.text "------"; pp.breakable
-                queue = [[0, "Orocos::RobyPlugin::Component"]]
+                queue = [[0, "Syskit::Component"]]
 
                 while !queue.empty?
                     indentation, model = queue.pop
@@ -463,140 +425,6 @@ module Orocos
                 end
             end
 
-            # Load the given DSL file into this SystemModel instance
-            def load(file)
-                relative_path = Roby.app.make_path_relative(file)
-                if file != relative_path
-                    $LOADED_FEATURES << relative_path
-                end
-
-                begin
-                    if Kernel.load_dsl_file(file, self, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
-                        RobyPlugin.info "loaded #{file}"
-                    end
-                rescue Exception
-                    $LOADED_FEATURES.delete(relative_path)
-                    raise
-                end
-
-                self
-            end
-
-            def dot_iolabel(name, inputs, outputs)
-                label = "{{"
-                if !inputs.empty?
-                    label << inputs.sort.map do |port_name|
-                            "<#{port_name}> #{port_name}"
-                    end.join("|")
-                    label << "|"
-                end
-                label << "<main> #{name}"
-
-                if !outputs.empty?
-                    label << "|"
-                    label << outputs.sort.map do |port_name|
-                            "<#{port_name}> #{port_name}"
-                    end.join("|")
-                end
-                label << "}}"
-            end
-
-            def data_services_to_dot(io, models)
-                io << "subgraph cluster_data_services {"
-                io << "  label=\"DataServices\";"
-                io << "  fontsize=18;"
-                models.each do |m|
-                    id = m.object_id.abs
-                    inputs = m.orogen_spec.all_input_ports.map(&:name)
-                    outputs = m.orogen_spec.all_output_ports.map(&:name)
-                    label = dot_iolabel(m.constant_name, inputs, outputs)
-                    io << "  C#{id} [label=\"#{label}\",fontsize=15];"
-
-                    m.parent_models.each do |parent_m|
-                        parent_id = parent_m.object_id.abs
-                        (parent_m.each_input_port.to_a + parent_m.each_output_port.to_a).
-                            each do |parent_p|
-                                io << "  C#{parent_id}:#{parent_p.name} -> C#{id}:#{m.port_mappings_for(parent_m)[parent_p.name]};"
-                            end
-
-                    end
-                end
-                io << "}"
-            end
-
-            # Internal helper for to_dot
-            def composition_to_dot(io, model) # :nodoc:
-                id = model.object_id.abs
-
-                model.connections.each do |(source, sink), mappings|
-                    mappings.each do |(source_port, sink_port), policy|
-                        io << "C#{id}#{source}:#{source_port} -> C#{id}#{sink}:#{sink_port};"
-                    end
-                end
-
-                if !model.is_specialization?
-                    specializations = model.each_specialization.to_a
-                    model.specializations.each do |spec, specialized_model|
-                        composition_to_dot(io, specialized_model)
-
-                        specialized_model.parent_models.each do |parent_compositions|
-                            parent_id = parent_compositions.object_id
-                            specialized_id = specialized_model.object_id
-                            io << "C#{parent_id} -> C#{specialized_id} [ltail=cluster_#{parent_id} lhead=cluster_#{specialized_id} weight=2];"
-                        end
-                    end
-                end
-
-                io << "subgraph cluster_#{id} {"
-                io << "  fontsize=18;"
-                io << "  C#{id} [style=invisible];"
-
-                if !model.exported_inputs.empty? || !model.exported_outputs.empty?
-                    inputs = model.exported_inputs.keys
-                    outputs = model.exported_outputs.keys
-                    label = dot_iolabel("Composition Interface", inputs, outputs)
-                    io << "  Cinterface#{id} [label=\"#{label}\",color=blue,fontsize=15];"
-                    
-                    model.exported_outputs.each do |exported_name, port|
-                        io << "C#{id}#{port.child.child_name}:#{port.port.name} -> Cinterface#{id}:#{exported_name} [style=dashed];"
-                    end
-                    model.exported_inputs.each do |exported_name, port|
-                        io << "Cinterface#{id}:#{exported_name} -> C#{id}#{port.child.child_name}:#{port.port.name} [style=dashed];"
-                    end
-                end
-                label = [model.short_name.dup]
-                provides = model.each_data_service.map do |name, type|
-                    "#{name}:#{type.model.short_name}"
-                end
-                if model.abstract?
-                    label << "Abstract"
-                end
-                if !provides.empty?
-                    label << "Provides:"
-                    label.concat(provides)
-                end
-                io << "  label=\"#{label.join("\\n")}\";"
-                # io << "  label=\"#{model.name}\";"
-                # io << "  C#{id} [style=invisible];"
-                model.each_child do |child_name, child_definition|
-                    child_model = child_definition.models
-
-                    task_label = child_model.map(&:short_name).join(',')
-                    task_label = "#{child_name}[#{task_label}]"
-                    inputs = child_model.map { |m| m.each_input_port.map(&:name) }.
-                        inject(&:concat).to_a
-                    outputs = child_model.map { |m| m.each_output_port.map(&:name) }.
-                        inject(&:concat).to_a
-                    label = dot_iolabel(task_label, inputs, outputs)
-
-                    if child_model.any? { |m| !(m <= Component) || m.abstract? }
-                        color = ", color=\"red\""
-                    end
-                    io << "  C#{id}#{child_name} [label=\"#{label}\"#{color},fontsize=15];"
-                end
-                io << "}"
-            end
-
             # Returns a graphviz file that can be processed by 'dot', which
             # represents all the models defined in this SystemModel instance.
             def to_dot
@@ -606,65 +434,22 @@ module Orocos
                 io << "  compound=true;\n"
                 io << "  rankdir=LR;"
 
-                data_services_to_dot(io, each_data_service)
+                io << "subgraph cluster_data_services {"
+                io << "  label=\"DataServices\";"
+                io << "  fontsize=18;"
+                each_data_service do |m|
+                    m.to_dot(io)
+                end
+                io << "}"
 
                 models = each_composition.
                     find_all { |t| !t.is_specialization? }
                 models.each do |m|
-                    composition_to_dot(io, m)
+                    m.to_dot(io)
                 end
                 io << "}"
                 io.join("\n")
             end
-
-            # Caches the result of #compare_composition_child to speed up the
-            # instanciation process
-            attr_reader :composition_specializations
-
-            # Computes if the child called "child_name" is specialized in
-            # +test_model+, compared to the definition in +base_model+.
-            #
-            # If both compositions have a child called child_name, then returns
-            # 1 if the declared model is specialized in test_model, 0 if they
-            # are equivalent and false in all other cases.
-            #
-            # If +test_model+ has +child_name+ but +base_model+ has not, returns
-            # 1
-            #
-            # If +base_model+ has +child_name+ but not +test_model+, returns
-            # false
-            #
-            # If neither have a child called +child_name+, returns 0
-            def compare_composition_child(child_name, base_model, test_model)
-                cache = composition_specializations[child_name][base_model]
-
-                if cache.has_key?(test_model)
-                    return cache[test_model]
-                end
-
-                base_child = base_model.find_child(child_name)
-                test_child = test_model.find_child(child_name)
-                if !base_child && !test_child
-                    return cache[test_model] = 0
-                elsif !base_child
-                    return cache[test_model] = 1
-                elsif !test_child
-                    return cache[test_model] = false
-                end
-
-                base_child = base_child.models
-                test_child = test_child.models
-
-                flag = Composition.compare_model_sets(base_child, test_child)
-                cache[test_model] = flag
-                if flag == 0
-                    cache[test_model] = 0
-                elsif flag == 1
-                    composition_specializations[child_name][test_model][base_model] = false
-                end
-                flag
-            end
         end
-    end
 end
 

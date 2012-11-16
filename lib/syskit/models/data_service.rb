@@ -1,44 +1,5 @@
-module Orocos
-    module RobyPlugin
-        # Namespace in which data services are stored.
-        #
-        # When a service is declared with
-        #
-        #   data_service 'a_name_in_snake_case'
-        #
-        # The plugin creates a
-        # Orocos::RobyPlugin::DataServices::ANameInSnakeCase instance of the
-        # DataServiceModel class. This instance then gets included in every task
-        # context model and device model that provides the service.
-        #
-        # A Orocos::Generation::TaskContext instance is used to represent the
-        # service interface. This instance is available through the 'interface'
-        # attribute of the DataServiceModel instance.
-        module DataServices
-        end
-
-        # Namespace in which device models are stored.
-        #
-        # When a device is declared with
-        #
-        #   device 'a_name_in_snake_case'
-        #
-        # The plugin creates a
-        # Orocos::RobyPlugin::Devices::ANameInSnakeCase instance of the
-        # DataServiceModel class. This instance then gets included in every task
-        # context model that provides the service.
-        #
-        # A Orocos::Generation::TaskContext instance is used to represent the
-        # service interface. This instance is available through the 'interface'
-        # attribute of the DataServiceModel instance.
-        module Devices
-        end
-
-        # Shortcut for DataServices
-        Srv = DataServices
-        # Shortcut for Devices
-        Dev = Devices
-
+module Syskit
+    module Models
         # Base type for data service models (DataService, Devices,
         # ComBus). Methods defined in this class are available on said
         # models (for instance Device.new_submodel)
@@ -97,7 +58,7 @@ module Orocos
             # Returns the string that should be used to display information
             # about this model to the user
             def short_name
-                name.gsub('Orocos::RobyPlugin::', '').
+                name.gsub('Syskit::', '').
                     gsub('DataServices', 'Srv').
                     gsub('Devices', 'Dev').
                     gsub('Compositions', 'Cmp')
@@ -122,7 +83,7 @@ module Orocos
 
                 child_spec = model.create_orogen_interface
                 if options[:interface]
-                    RobyPlugin.merge_orogen_interfaces(child_spec, [Roby.app.get_orocos_task_model(options[:interface]).orogen_spec])
+                    Syskit.merge_orogen_interfaces(child_spec, [Roby.app.get_orocos_task_model(options[:interface]).orogen_spec])
                 end
                 model.instance_variable_set :@orogen_spec, child_spec
                 model.provides self
@@ -178,7 +139,7 @@ module Orocos
             # If +name+ is given, that string will be reported as the service
             # name in the block, instead of the actual service name
             def apply_block(name = nil, &block)
-                with_module(*RobyPlugin.constant_search_path) do
+                with_module(*Syskit.constant_search_path) do
                     BlockInstanciator.new(self, name).instance_eval(&block)
                 end
             end
@@ -261,7 +222,7 @@ module Orocos
                 # Merging the interface should never raise at this stage. It
                 # should have been validated above.
                 if service_model.interface
-                    RobyPlugin.merge_orogen_interfaces(interface, [service_model.interface], new_port_mappings)
+                    Syskit.merge_orogen_interfaces(interface, [service_model.interface], new_port_mappings)
                 end
 
                 # For completeness, add port mappings for ourselves
@@ -276,7 +237,7 @@ module Orocos
 
             # Creates a new Orocos::Spec::TaskContext object for this service
             def create_orogen_interface
-                RobyPlugin.create_orogen_interface(name)
+                Syskit.create_orogen_interface(name)
             end
 
             # The Orocos::Spec::TaskContext object that is used to describe this
@@ -304,8 +265,8 @@ module Orocos
             # Returns a subclass of Roby::Task that implements the given set of
             # data services
             def self.proxy_task_model(service_models)
-                name = "Orocos::RobyPlugin::PlaceholderTasks::#{service_models.map(&:short_name).sort.join("_").gsub(/:/, '_')}"
-                Orocos::RobyPlugin.placeholder_model_for(name, service_models)
+                name = "Syskit::PlaceholderTasks::#{service_models.map(&:short_name).sort.join("_").gsub(/:/, '_')}"
+                Syskit.placeholder_model_for(name, service_models)
             end
 
             include ComponentModel
@@ -327,7 +288,7 @@ module Orocos
                 end
 
                 def as_plan
-                    Orocos::RobyPlugin::ModalitySelectionTask.
+                    Syskit::ModalitySelectionTask.
                         subplan(model, name)
                 end
             end
@@ -338,9 +299,26 @@ module Orocos
             def modality(modality_name)
                 SelectedModality.new(self, modality_name)
             end
+
+            def to_dot(io)
+                id = object_id.abs
+                inputs = orogen_spec.all_input_ports.map(&:name)
+                outputs = orogen_spec.all_output_ports.map(&:name)
+                label = Graphviz.dot_iolabel(constant_name, inputs, outputs)
+                io << "  C#{id} [label=\"#{label}\",fontsize=15];"
+
+                parent_models.each do |parent_m|
+                    parent_id = parent_m.object_id.abs
+                    (parent_m.each_input_port.to_a + parent_m.each_output_port.to_a).
+                        each do |parent_p|
+                        io << "  C#{parent_id}:#{parent_p.name} -> C#{id}:#{port_mappings_for(parent_m)[parent_p.name]};"
+                    end
+
+                end
+            end
         end
         DataService  = DataServiceModel.new
-        DataService.name = "Orocos::RobyPlugin::DataService"
+        DataService.name = "Syskit::DataService"
         def DataService.orogen_spec
             if !@orogen_spec
                 @orogen_spec = create_orogen_interface
@@ -408,7 +386,7 @@ module Orocos
             end
         end
         Device   = DeviceModel.new
-        Device.name = "Orocos::RobyPlugin::Device"
+        Device.name = "Syskit::Device"
         def Device.orogen_spec
             if !@orogen_spec
                 @orogen_spec = create_orogen_interface
@@ -518,7 +496,7 @@ module Orocos
             end
         end
         ComBus = ComBusModel.new
-        ComBus.name = "Orocos::RobyPlugin::ComBus"
+        ComBus.name = "Syskit::ComBus"
         def ComBus.orogen_spec
             if !@orogen_spec
                 @orogen_spec = create_orogen_interface
@@ -680,11 +658,11 @@ module Orocos
                     merged_service_to_task = other_service.port_mappings_for_task.dup
                     target_to_task         = target_service.port_mappings_for(other_service.model)
 
-                    Engine.debug do
-                        Engine.debug "      mapping service #{merged_task}:#{other_service.name}"
-                        Engine.debug "        to #{self}:#{target_service.name}"
-                        Engine.debug "        from->from_task: #{merged_service_to_task}"
-                        Engine.debug "        from->to_task:   #{target_to_task}"
+                    NetworkMergeSolver.debug do
+                        NetworkMergeSolver.debug "      mapping service #{merged_task}:#{other_service.name}"
+                        NetworkMergeSolver.debug "        to #{self}:#{target_service.name}"
+                        NetworkMergeSolver.debug "        from->from_task: #{merged_service_to_task}"
+                        NetworkMergeSolver.debug "        from->to_task:   #{target_to_task}"
                         break
                     end
 
@@ -725,17 +703,17 @@ module Orocos
                         to = connection_mappings[to] || to
                         new_connections[[from, to]] = policy
                     end
-                    Engine.debug do
-                        Engine.debug "      moving input connections of #{merged_task}"
-                        Engine.debug "        => #{source_task} onto #{self}"
-                        Engine.debug "        mappings: #{connection_mappings}"
-                        Engine.debug "        old:"
+                    NetworkMergeSolver.debug do
+                        NetworkMergeSolver.debug "      moving input connections of #{merged_task}"
+                        NetworkMergeSolver.debug "        => #{source_task} onto #{self}"
+                        NetworkMergeSolver.debug "        mappings: #{connection_mappings}"
+                        NetworkMergeSolver.debug "        old:"
                         connections.each do |(from, to), policy|
-                            Engine.debug "          #{from} => #{to} (#{policy})"
+                            NetworkMergeSolver.debug "          #{from} => #{to} (#{policy})"
                         end
-                        Engine.debug "        new:"
+                        NetworkMergeSolver.debug "        new:"
                         new_connections.each do |(from, to), policy|
-                            Engine.debug "          #{from} => #{to} (#{policy})"
+                            NetworkMergeSolver.debug "          #{from} => #{to} (#{policy})"
                         end
                         break
                     end
@@ -750,18 +728,18 @@ module Orocos
                         new_connections[[from, to]] = policy
                     end
 
-                    Engine.debug do
-                        Engine.debug "      moving output connections of #{merged_task}"
-                        Engine.debug "        => #{sink_task}"
-                        Engine.debug "        onto #{self}"
-                        Engine.debug "        mappings: #{connection_mappings}"
-                        Engine.debug "        old:"
+                    NetworkMergeSolver.debug do
+                        NetworkMergeSolver.debug "      moving output connections of #{merged_task}"
+                        NetworkMergeSolver.debug "        => #{sink_task}"
+                        NetworkMergeSolver.debug "        onto #{self}"
+                        NetworkMergeSolver.debug "        mappings: #{connection_mappings}"
+                        NetworkMergeSolver.debug "        old:"
                         connections.each do |(from, to), policy|
-                            Engine.debug "          #{from} => #{to} (#{policy})"
+                            NetworkMergeSolver.debug "          #{from} => #{to} (#{policy})"
                         end
-                        Engine.debug "        new:"
+                        NetworkMergeSolver.debug "        new:"
                         new_connections.each do |(from, to), policy|
-                            Engine.debug "          #{from} => #{to} (#{policy})"
+                            NetworkMergeSolver.debug "          #{from} => #{to} (#{policy})"
                         end
                         break
                     end

@@ -25,7 +25,7 @@ module Ui
             @system_model = system_model
             @robot        = robot
             @plan   = Roby::Plan.new
-            @engine = Orocos::RobyPlugin::Engine.new(plan, system_model, robot)
+            @engine = Syskit::Engine.new(plan, system_model, robot)
 
         end
 
@@ -203,7 +203,7 @@ module Ui
                 if item = items[instance.name]
                     item.set_check_state(0, Qt::Checked)
                     select(item)
-                elsif composition = instance.base_models.find { |model| model <= Orocos::RobyPlugin::Compositon }
+                elsif composition = instance.base_models.find { |model| model <= Syskit::Compositon }
                     item = add(composition, instance.selections)
                     item.name = instance.name
                     items[item.name] = item

@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         module TaskScripting
             module ScriptEngineExtension
                 attribute(:data_readers) { Hash.new }
@@ -98,6 +97,5 @@ module Orocos
             Roby::TaskScripting::ScriptEngine.include ScriptEngineExtension
             Roby::TaskScripting::Script.include ScriptExtension
         end
-    end
 end
 

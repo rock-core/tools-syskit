@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         # General support to export a generated plan into a dot-compatible
         # format
         #
@@ -404,7 +403,7 @@ module Orocos
                 task_colors = Hash.new
                 used_deployments = all_tasks.map(&:execution_agent).to_value_set
                 used_deployments.each do |task|
-                    task_colors[task] = RobyPlugin.allocate_color
+                    task_colors[task] = Syskit.allocate_color
                 end
 
                 clusters.each do |deployment, task_contexts|
@@ -444,7 +443,7 @@ module Orocos
 
             def dot_id(object, context = nil)
                 case object
-                when Orocos::RobyPlugin::TaskContext
+                when Syskit::TaskContext
                     "label#{object.dot_id}"
                 when Orocos::Spec::InputPort
                     "inputs#{context.dot_id}:#{object.name}"
@@ -555,7 +554,7 @@ module Orocos
                     else
                         name = task.model.name
                     end
-                    name = name.gsub("Orocos::RobyPlugin::", "").tr("<>", '[]')
+                    name = name.gsub("Syskit::", "").tr("<>", '[]')
 
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"
@@ -572,6 +571,24 @@ module Orocos
                 label = "    " + label.join("\n    ")
                 return label
             end
+
+            def self.dot_iolabel(name, inputs, outputs)
+                label = "{{"
+                if !inputs.empty?
+                    label << inputs.sort.map do |port_name|
+                            "<#{port_name}> #{port_name}"
+                    end.join("|")
+                    label << "|"
+                end
+                label << "<main> #{name}"
+
+                if !outputs.empty?
+                    label << "|"
+                    label << outputs.sort.map do |port_name|
+                            "<#{port_name}> #{port_name}"
+                    end.join("|")
+                end
+                label << "}}"
+            end
         end
-    end
 end

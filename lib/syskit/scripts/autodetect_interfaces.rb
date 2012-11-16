@@ -25,7 +25,7 @@ while !tasks.empty?
     end
     tasks.delete(task)
 
-    Orocos::RobyPlugin::Interfaces.each do |source_model|
+    Syskit::Interfaces.each do |source_model|
         next if task < source_model # already set
         next if !(matches = source_model.guess_source_name(task))
 
@@ -43,7 +43,7 @@ while !tasks.empty?
 
     if !result.empty?
         result.each do |source_model, interface_name|
-            task_name = task.name.gsub(/^Orocos::RobyPlugin::/, '')
+            task_name = task.name.gsub(/^Syskit::/, '')
             mod_name, task_name  = task_name.split '::'
             if interface_name == ''
                 task.provides source_model

@@ -1,8 +1,8 @@
 require 'orocos/roby/scripts/common'
-Scripts = Orocos::RobyPlugin::Scripts
+Scripts = Syskit::Scripts
 
 Roby.app.using_plugins 'orocos'
-available_annotations = Orocos::RobyPlugin::Graphviz.available_annotations
+available_annotations = Syskit::Graphviz.available_annotations
 
 compute_policies    = true
 compute_deployments = true
@@ -25,7 +25,7 @@ parser = OptionParser.new do |opt|
     opt.on('--trace=DIR', String, 'generate a dot graph for each step of the generation') do |trace_dir|
         trace_dir = File.expand_path(trace_dir)
         FileUtils.mkdir_p trace_dir
-        Orocos::RobyPlugin::NetworkMergeSolver.tracing_directory = trace_dir
+        Syskit::NetworkMergeSolver.tracing_directory = trace_dir
     end
 
     opt.on('--annotate=LIST', Array, "comma-separated list of annotations that should be added to the output (defaults to #{default_annotations.to_a.join(",")}). Available annotations: #{available_annotations.to_a.sort.join(", ")}") do |ann|
@@ -160,8 +160,8 @@ class Instanciate
         end
 
         if remove_loggers
-            if defined? Orocos::RobyPlugin::Logger::Logger
-                excluded_models << Orocos::RobyPlugin::Logger::Logger
+            if defined? Syskit::Logger::Logger
+                excluded_models << Syskit::Logger::Logger
             end
         end
 

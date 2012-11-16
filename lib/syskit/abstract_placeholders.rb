@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
 	# Model used to create a placeholder task from a concrete task model,
 	# when a mix of data services and task context model cannot yet be
 	# mapped to an actual task context model yet
@@ -27,7 +26,7 @@ module Orocos
 		# A made-up name describing this proxy
                 attr_accessor :short_name
             end
-            @name = "Orocos::RobyPlugin::DataServiceProxy"
+            @name = "Syskit::DataServiceProxy"
 
             def to_s
                 "placeholder for #{self.model.short_name}"
@@ -67,9 +66,9 @@ module Orocos
 		model.fullfilled_model = [Roby::Task, models, Hash.new]
             end
 
-            orogen_spec = RobyPlugin.create_orogen_interface
+            orogen_spec = Syskit.create_orogen_interface
             model.instance_variable_set(:@orogen_spec, orogen_spec)
-            RobyPlugin.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
+            Syskit.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
             models.each do |m|
                 if m.kind_of?(DataServiceModel)
                     model.provides m
@@ -78,5 +77,4 @@ module Orocos
 
             model
         end
-    end
 end

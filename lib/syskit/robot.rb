@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         # A DeviceInstance object is used to represent an actual device on the
         # system
         #
@@ -67,10 +66,9 @@ module Orocos
                 "#{name}[#{model.short_name}]"
             end
 
-            # The selected task model that allows to drive this device
+            # [Models::TaskContext] The selected task model that allows to drive this device
             attr_reader :task_model
-            # The data service that will drive this device, as a
-            # ProvidedDataService instance
+            # [Models::BoundDataService] The data service that will drive this device
             attr_reader :service
             # The task arguments
             attr_reader :task_arguments
@@ -356,7 +354,7 @@ module Orocos
             end
 
             def through(&block)
-                with_module(*RobyPlugin.constant_search_path, &block)
+                with_module(*Syskit.constant_search_path, &block)
             end
 
             # Used by the #through call to override com_bus specification.
@@ -497,7 +495,7 @@ module Orocos
 
                 # If the user gave us an explicit selection, honor it
                 explicit_selection = options[:using]
-                if explicit_selection.kind_of?(ProvidedDataService)
+                if explicit_selection.kind_of?(Models::BoundDataService)
                     task_model = explicit_selection.task_model
                     service = explicit_selection
                 else
@@ -585,6 +583,5 @@ module Orocos
                 super
             end
         end
-    end
 end
 

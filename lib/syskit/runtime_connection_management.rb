@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         # Connection management at runtime
         class RuntimeConnectionManagement
             attr_reader :plan
@@ -16,7 +15,7 @@ module Orocos
                 manager.update
             end
 
-            # Updates an intermediate graph (RobyPlugin::RequiredDataFlow) where
+            # Updates an intermediate graph (Syskit::RequiredDataFlow) where
             # we store the concrete connections. We don't try to be smart:
             # remove all tasks that have to be updated and add their connections
             # again
@@ -55,7 +54,7 @@ module Orocos
             #   new = { [from_task, to_task] => { [from_port, to_port] => policy, ... }, ... }
             #
             # in which +from_task+ and +to_task+ are instances of
-            # Orocos::RobyPlugin::TaskContext (i.e. Roby tasks), +from_port+ and
+            # Syskit::TaskContext (i.e. Roby tasks), +from_port+ and
             # +to_port+ are the port names (i.e. strings) and policy the policy
             # hash that Orocos::OutputPort#connect_to expects.
             #
@@ -448,6 +447,5 @@ module Orocos
                 end
             end
         end
-    end
 end
 

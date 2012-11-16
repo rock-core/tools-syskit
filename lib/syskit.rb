@@ -8,32 +8,45 @@ require 'utilrb/symbol/to_str'
 require 'utilrb/module/define_or_reuse'
 require 'utilrb/timepoints'
 
-require 'orocos/roby/base'
-require 'orocos/roby/component'
-require 'orocos/roby/connection_graphs'
-require 'orocos/roby/data_services'
-require 'orocos/roby/bound_data_service'
+require 'syskit/base'
 
-require 'orocos/roby/instance_spec'
-require 'orocos/roby/compositions'
-require 'orocos/roby/deployment'
-require 'orocos/roby/task_context'
-require 'orocos/roby/abstract_placeholders'
+# Models
+require 'syskit/models/base'
+require 'syskit/models/data_service'
+require 'syskit/models/bound_data_service'
+require 'syskit/models/component'
+require 'syskit/models/composition'
+require 'syskit/models/task_context'
+# Instances
+require 'syskit/component'
+require 'syskit/composition'
+require 'syskit/task_context'
+require 'syskit/bound_data_service'
 
-require 'orocos/roby/exceptions'
-require 'orocos/roby/runtime_exceptions'
+# Algorithms
+require 'syskit/connection_graphs'
 
-require 'orocos/roby/dataflow_computation'
-require 'orocos/roby/dataflow_dynamics'
-require 'orocos/roby/network_merge_solver'
-require 'orocos/roby/runtime_connection_management'
+require 'syskit/instance_spec'
+require 'syskit/deployment'
+require 'syskit/task_context'
+require 'syskit/abstract_placeholders'
 
-require 'orocos/roby/system_model'
-require 'orocos/roby/robot'
-require 'orocos/roby/engine'
-require 'orocos/roby/shell'
+require 'syskit/exceptions'
+require 'syskit/runtime_exceptions'
 
-require 'orocos/roby/task_scripting'
+require 'syskit/dataflow_computation'
+require 'syskit/dataflow_dynamics'
+require 'syskit/network_merge_solver'
+require 'syskit/runtime_connection_management'
 
-require 'orocos/roby/selection_tasks'
-require 'orocos/roby/graphviz'
+require 'syskit/system_model'
+require 'syskit/robot'
+require 'syskit/engine'
+require 'syskit/shell'
+
+require 'syskit/task_scripting'
+
+require 'syskit/selection_tasks'
+require 'syskit/graphviz'
+
+require 'syskit/backward'

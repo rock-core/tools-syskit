@@ -1,6 +1,6 @@
 require 'roby/standalone'
 require 'orocos/roby/scripts/common'
-Scripts = Orocos::RobyPlugin::Scripts
+Scripts = Syskit::Scripts
 
 require 'Qt4'
 require 'orocos/roby/gui/orocos_system_builder'

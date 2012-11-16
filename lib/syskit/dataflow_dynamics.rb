@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         class TaskContext
             attr_accessor :dynamics
 
@@ -563,7 +562,7 @@ module Orocos
                     end
                 else
                     policy[:type] = :buffer
-                    size = (1.0 + Orocos::RobyPlugin.buffer_size_margin) * input_dynamics.queue_size(reading_latency)
+                    size = (1.0 + Syskit.buffer_size_margin) * input_dynamics.queue_size(reading_latency)
                     policy[:size] = Integer(size) + 1
                     DataFlowDynamics.debug do
                         DataFlowDynamics.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"
@@ -579,6 +578,5 @@ module Orocos
                 policy
             end
         end
-    end
 end
 

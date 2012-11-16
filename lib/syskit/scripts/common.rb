@@ -4,7 +4,7 @@ require 'orocos/roby'
 require 'orocos/roby/app'
 
 module Orocos
-    module RobyPlugin
+    module Syskit
         module Scripts
             class << self
                 attr_accessor :debug
@@ -42,7 +42,7 @@ module Orocos
                     Roby.app.orocos_engine.add service_name
                 else
                     Kernel.eval_dsl(service_name, Roby.orocos_engine,
-                            Orocos::RobyPlugin.constant_search_path,
+                            Syskit.constant_search_path,
                             !Roby.app.filter_backtraces?)
                 end
             end
@@ -191,8 +191,8 @@ module Orocos
 
             def self.generate_output(display_options = Hash.new)
                 default_exclude = []
-                if defined? Orocos::RobyPlugin::Logger::Logger
-                    default_exclude << Orocos::RobyPlugin::Logger::Logger
+                if defined? Syskit::Logger::Logger
+                    default_exclude << Syskit::Logger::Logger
                 end
                 display_options = Kernel.validate_options display_options,
                     :remove_compositions => false,
@@ -245,9 +245,9 @@ module Orocos
                     Roby.app.filter_backtraces = false
                 end
                 if debug
-                    RobyPlugin.logger = ::Logger.new(STDOUT)
-                    RobyPlugin.logger.formatter = Roby.logger.formatter
-                    RobyPlugin.logger.level = ::Logger::DEBUG
+                    Syskit.logger = ::Logger.new(STDOUT)
+                    Syskit.logger.formatter = Roby.logger.formatter
+                    Syskit.logger.level = ::Logger::DEBUG
                     Engine.logger = ::Logger.new(STDOUT)
                     Engine.logger.formatter = Roby.logger.formatter
                     Engine.logger.level = ::Logger::DEBUG

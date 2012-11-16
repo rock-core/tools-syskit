@@ -1,7 +1,7 @@
 require 'roby'
 require 'orocos/roby/scripts/common'
 require 'roby/schedulers/temporal'
-Scripts = Orocos::RobyPlugin::Scripts
+Scripts = Syskit::Scripts
 
 dry_run = false
 run_roby = false
@@ -64,7 +64,7 @@ error = Scripts.run do
                 Roby.engine.scheduler = Roby::Schedulers::Temporal.new
             end
 
-            tasks = Roby.plan.find_tasks(Orocos::RobyPlugin::Component).
+            tasks = Roby.plan.find_tasks(Syskit::Component).
                 roots(Roby::TaskStructure::Hierarchy).to_value_set
             tasks.each do |t|
                 Roby.plan.add_mission(t)

@@ -18,7 +18,7 @@ module Ui
 
         def initialize(system_model, robot, main = nil, parent_engine = nil)
             super(main)
-            @selection = Orocos::RobyPlugin::DependencyInjection.new
+            @selection = Syskit::DependencyInjection.new
 
             Qt::Object.connect(self, SIGNAL('selectedObject(QVariant&,QPoint&)'),
                                self, SLOT('selectedTask(QVariant&,QPoint&)'))
@@ -28,7 +28,7 @@ module Ui
             @parent_engine = parent_engine || Roby.app.orocos_engine
             @robot = robot
             @plan   = Roby::Plan.new
-            @engine = Orocos::RobyPlugin::Engine.new(plan, system_model, robot)
+            @engine = Syskit::Engine.new(plan, system_model, robot)
         end
 
         def root_task
@@ -46,9 +46,9 @@ module Ui
 
         def self.selection_to_string(selection, array_is_path)
             case selection
-            when Orocos::RobyPlugin::ProvidedDataService
+            when Syskit::ProvidedDataService
                 "#{selection.model.short_name}.#{selection.full_name}"
-            when Orocos::RobyPlugin::DeviceInstance
+            when Syskit::DeviceInstance
                 selection.name
             when Class
                 if selection.respond_to?(:short_name)
@@ -66,7 +66,7 @@ module Ui
                 else
                     "[#{selection.map { |s| selection_to_string(s) }.join(", ")}]"
                 end
-            when Orocos::RobyPlugin::InstanceRequirements
+            when Syskit::InstanceRequirements
                 to_ruby(selection.base_models.first, selection.selections, nil)
             else
                 raise NotImplementedError, "cannot convert #{selection.class} to a Ruby syntax"
@@ -119,7 +119,7 @@ module Ui
 
             if model
                 begin
-                    Orocos::RobyPlugin::Composition.strict_specialization_selection = false
+                    Syskit::Composition.strict_specialization_selection = false
                     @main = engine.add_mission(model).use(selection)
 
                     parent_engine.deployments.each do |host, names|
@@ -132,7 +132,7 @@ module Ui
                     engine.instanciate
                     plan.static_garbage_collect
                 ensure
-                    Orocos::RobyPlugin::Composition.strict_specialization_selection = true
+                    Syskit::Composition.strict_specialization_selection = true
                 end
             end
         end

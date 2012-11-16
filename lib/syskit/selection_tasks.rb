@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         class ::Roby::Planning::Planner
             # Declares as many planning method as there are modalities available
             # for +service+.
@@ -24,7 +23,7 @@ module Orocos
                 modalities.each do |name|
                     describe "selects #{name} for #{service.name}"
                     method(name) do
-                        Orocos::RobyPlugin::ModalitySelectionTask.subplan(service, name)
+                        Syskit::ModalitySelectionTask.subplan(service, name)
                     end
                 end
             end
@@ -44,7 +43,7 @@ module Orocos
         # Alternatively, if a common modification needs to be done repeatedly,
         # one can define a task model for it
         #
-        #   class StopDriving < Orocos::RobyPlugin::RequirementModificationTask
+        #   class StopDriving < Syskit::RequirementModificationTask
         #       implementation do |engine|
         #           engine.remove Driving
         #       end
@@ -216,6 +215,5 @@ module Orocos
                 main
             end
         end
-    end
 end
 

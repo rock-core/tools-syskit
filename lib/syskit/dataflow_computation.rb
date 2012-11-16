@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         # This class embeds the basic handling of computations that need to
         # follow the dataflow
         #
@@ -443,6 +442,5 @@ module Orocos
                 end
             end
         end
-    end
 end
 

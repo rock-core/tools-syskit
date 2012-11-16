@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         class PortNotFound < Roby::LocalizedError
             attr_reader :port_name
             attr_reader :port_kind
@@ -46,6 +45,5 @@ module Orocos
                 end
             end
         end
-    end
 end
 

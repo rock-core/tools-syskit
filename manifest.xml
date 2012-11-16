@@ -1,7 +1,5 @@
 <package>
-    <description brief="library to control oroGen modules from Ruby">
-        This library allows to control and monitor orogen components from the
-        Ruby programming language.
+    <description brief="model-based coordination of component-based layers">
     </description>
     <author>Sylvain Joyeux/sylvain.joyeux@m4x.org</author>
     <copyright>
@@ -9,10 +7,8 @@
         Sylvain Joyeux/sylvain.joyeux@m4x.org
     </copyright>
     <license>GPL v2 or later</license>
-    <url>http://orocos.org/dfki</url>
 
     <depend package="orogen" />
-    <depend package="tools/pocolog" optional="1"/>
-    <depend package="omniorb" />
+    <depend package="tools/roby" />
 </package>
 

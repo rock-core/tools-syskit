@@ -1,17 +1,16 @@
 require 'roby/interface'
 require 'roby/robot'
-module Orocos
-    module RobyPlugin
+module Syskit
         # Extension added to the Roby remote shell interface
-        # (Roby::RemoteInterface) so that the models in Orocos::RobyPlugin get
+        # (Roby::RemoteInterface) so that the models in Syskit get
         # aliased to Orocos and the root namespace as well
         module RemoteInterfaceExtension
             def new_model(model_name, model)
                 # Compositions, data services and deployments are already taken
                 # care of by aliasing the Compositions, DataServices and
                 # Deployments namespaces. Act only on the task models
-                if model <= Orocos::RobyPlugin::TaskContext
-                    model_name = model_name.gsub('Orocos::RobyPlugin::', '')
+                if model <= Syskit::TaskContext
+                    model_name = model_name.gsub('Syskit::', '')
                     namespace_name, model_name = model_name.split('::')
                     [Orocos, Object].each do |ns|
                         ns = ns.define_or_reuse(namespace_name) { Module.new }
@@ -33,7 +32,7 @@ module Orocos
             end
 
             def dump_all_config(path, name = nil)
-                dump_task_config(Orocos::RobyPlugin::TaskContext, path, name)
+                dump_task_config(Syskit::TaskContext, path, name)
                 nil
             end
 
@@ -61,12 +60,12 @@ module Orocos
             def stop_deployments(*models)
                 Roby.execute do
                     if models.empty?
-                        models << Orocos::RobyPlugin::Deployment
+                        models << Syskit::Deployment
                     end
                     models.each do |m|
                         Roby.plan.find_tasks(m).
                             each do |task|
-                                if task.kind_of?(Orocos::RobyPlugin::TaskContext)
+                                if task.kind_of?(Syskit::TaskContext)
                                     task.execution_agent.stop!
                                 else
                                     task.stop!
@@ -87,7 +86,7 @@ module Orocos
                     protection.start!
 
                     if models.empty?
-                        models << Orocos::RobyPlugin::Deployment
+                        models << Syskit::Deployment
                     end
                     done = Roby::AndGenerator.new
                     done.signals protection.stop_event
@@ -96,7 +95,7 @@ module Orocos
                         agents = ValueSet.new
                         Roby.plan.find_tasks(m).
                             each do |task|
-                                if task.kind_of?(Orocos::RobyPlugin::TaskContext)
+                                if task.kind_of?(Syskit::TaskContext)
                                     agents << task.execution_agent
                                 else
                                     agents << task
@@ -144,12 +143,11 @@ module Orocos
                 nil
             end
         end
-    end
 end
 
 module Robot
     def self.orocos
-        @orocos_interface ||= Orocos::RobyPlugin::ShellInterface.new(Roby.engine)
+        @orocos_interface ||= Syskit::ShellInterface.new(Roby.engine)
     end
 end
 

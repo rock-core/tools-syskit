@@ -11,10 +11,9 @@ require 'orocos/process_server'
 require 'roby/tasks/simple'
 require 'orocos/test'
 
-module Orocos
-    module RobyPlugin
+module Syskit
         module Test
-            include Orocos::RobyPlugin
+            include Syskit
             include Orocos::Test::Mocks
 
 	    include Roby::Test
@@ -50,7 +49,7 @@ module Orocos
                 # Component
                 mock = flexmock(Class.new(Component))
                 mock.terminates
-                spec = Orocos::RobyPlugin.create_orogen_interface(name)
+                spec = Syskit.create_orogen_interface(name)
                 mock.should_receive(:orogen_spec).and_return(spec)
                 if block
                     spec.instance_eval(&block)
@@ -61,7 +60,7 @@ module Orocos
             end
 
             def mock_roby_task_context_model(name = nil, &block)
-                mock = flexmock(Orocos::RobyPlugin::TaskContext.create(name, &block))
+                mock = flexmock(Syskit::TaskContext.create(name, &block))
                 mock.new_instances
                 mock
             end
@@ -92,7 +91,7 @@ module Orocos
                 # mechanisms so that objects are unique
                 spec = Orocos::Generation::Deployment.new(Orocos.master_project, name)
                 spec.task('task', task_model.interface)
-                model = Orocos::RobyPlugin::Deployment.create(nil, spec)
+                model = Syskit::Deployment.create(nil, spec)
                 orocos_engine.deployments['localhost'] << model
                 Roby.app.orocos_tasks[task_model.orogen_spec.name] = task_model
                 model
@@ -154,9 +153,9 @@ module Orocos
                 save_collection Roby.app.orocos_engine.instances
                 @orocos_engine = Roby.app.orocos_engine
                 Roby.app.orocos_engine.instance_variable_set :@plan, plan
-                @handler_ids = Orocos::RobyPlugin::Application.plug_engine_in_roby(engine)
+                @handler_ids = Syskit::Application.plug_engine_in_roby(engine)
 		if !Roby.app.orocos_disables_local_process_server?
-                    Orocos::RobyPlugin::Application.connect_to_local_process_server
+                    Syskit::Application.connect_to_local_process_server
 		end
             end
 
@@ -177,7 +176,7 @@ module Orocos
 
             ensure
                 if @handler_ids
-                    Orocos::RobyPlugin::Application.unplug_engine_from_roby(@handler_ids, engine)
+                    Syskit::Application.unplug_engine_from_roby(@handler_ids, engine)
                 end
 
                 ENV['PKG_CONFIG_PATH'] = @old_pkg_config
@@ -253,7 +252,6 @@ module Orocos
                 orocos_engine.add_instance(model)
             end
         end
-    end
 end
 
 

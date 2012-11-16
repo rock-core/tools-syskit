@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         # Implementation of the algorithms needed to reduce a component network
         # to the minimal set of components that are actually needed
         #
@@ -637,7 +636,7 @@ module Orocos
             end
 
             def complete_merge_graph
-                all_tasks = plan.find_local_tasks(Orocos::RobyPlugin::Component).
+                all_tasks = plan.find_local_tasks(Syskit::Component).
                     to_value_set
                 direct_merge_mappings(all_tasks)
             end
@@ -694,8 +693,8 @@ module Orocos
                 end
 
                 # Get all the tasks we need to consider. That's easy,
-                # they all implement the Orocos::RobyPlugin::Component model
-                all_tasks = plan.find_local_tasks(Orocos::RobyPlugin::Component).
+                # they all implement the Syskit::Component model
+                all_tasks = plan.find_local_tasks(Syskit::Component).
                     to_value_set
 
                 debug do
@@ -815,7 +814,6 @@ module Orocos
                 end
             end
         end
-    end
 end
 
 

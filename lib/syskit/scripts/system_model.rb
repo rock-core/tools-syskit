@@ -3,7 +3,7 @@ require 'orocos/roby/scripts/common'
 require 'Qt'
 require 'orocos/roby/gui/stacked_display'
 
-Scripts = Orocos::RobyPlugin::Scripts
+Scripts = Syskit::Scripts
 
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD
@@ -128,7 +128,7 @@ class ModelDisplayView < Ui::StackedDisplay
                 clicked.each { |s| selected.delete(s) }
                 new_selection = selected
 
-                new_merged_selection = new_selection.inject(Orocos::RobyPlugin::CompositionModel::Specialization.new) do |merged, s|
+                new_merged_selection = new_selection.inject(Syskit::CompositionModel::Specialization.new) do |merged, s|
                     merged.merge(s)
                 end
             else
@@ -136,7 +136,7 @@ class ModelDisplayView < Ui::StackedDisplay
                 # take care that some of the currently selected specializations
                 # might not be compatible
                 new_selection = clicked
-                new_merged_selection = new_selection.inject(Orocos::RobyPlugin::CompositionModel::Specialization.new) do |merged, s|
+                new_merged_selection = new_selection.inject(Syskit::CompositionModel::Specialization.new) do |merged, s|
                     merged.merge(s)
                 end
 
@@ -174,7 +174,7 @@ class ModelDisplayView < Ui::StackedDisplay
         clear
         @current_model = model
 
-        if model <= Orocos::RobyPlugin::Composition
+        if model <= Syskit::Composition
             Roby.plan.clear
             @specializations = render_specialization_graph(model.root_model)
 
@@ -208,14 +208,14 @@ class ModelDisplayView < Ui::StackedDisplay
         end
 
         Roby.plan.clear
-        requirements = Orocos::RobyPlugin::Engine.
+        requirements = Syskit::Engine.
             create_instanciated_component(Roby.app.orocos_engine, "", model)
         task = requirements.instanciate(
             Roby.app.orocos_engine,
-            Orocos::RobyPlugin::DependencyInjectionContext.new)
+            Syskit::DependencyInjectionContext.new)
         Roby.plan.add(task)
 
-        if model <= Orocos::RobyPlugin::Component
+        if model <= Syskit::Component
             push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.orocos_engine, Hash.new)
             default_widget = push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, Hash.new)
 
@@ -227,9 +227,9 @@ class ModelDisplayView < Ui::StackedDisplay
         task.model.each_data_service.sort_by(&:first).each do |service_name, service|
             model_hierarchy = service.model.ancestors.
                 find_all do |m|
-                    m.kind_of?(Orocos::RobyPlugin::DataServiceModel) &&
-                        m != Orocos::RobyPlugin::DataService &&
-                        m != Orocos::RobyPlugin::Device &&
+                    m.kind_of?(Syskit::DataServiceModel) &&
+                        m != Syskit::DataService &&
+                        m != Syskit::Device &&
                         m != task.model
                 end
 

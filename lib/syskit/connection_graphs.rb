@@ -1,11 +1,10 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         # Represents the actual connection graph between task context proxies.
         # Its vertices are instances of Orocos::TaskContext, and edges are
         # mappings from [source_port_name, sink_port_name] pairs to the
         # connection policy between these ports.
         #
-        # Orocos::RobyPlugin::ActualDataFlow is the actual global graph instance
+        # Syskit::ActualDataFlow is the actual global graph instance
         # in which the overall system connections are maintained in practice
         class ConnectionGraph < BGL::Graph
             # Needed for Roby's marshalling (so that we can dump the connection
@@ -95,7 +94,7 @@ module Orocos
         end
 
         ActualDataFlow   = ConnectionGraph.new
-        ActualDataFlow.name = "Orocos::RobyPlugin::ActualDataFlow"
+        ActualDataFlow.name = "Syskit::ActualDataFlow"
         Orocos::TaskContext.include BGL::Vertex
 
         def self.update_connection_policy(old, new)
@@ -443,7 +442,7 @@ module Orocos
                     if source_task.kind_of?(Composition)
                         source_task.each_concrete_input_connection(source_port) do |source_task, source_port, _, connection_policy|
                             begin
-                                this_policy = RobyPlugin.update_connection_policy(policy, connection_policy)
+                                this_policy = Syskit.update_connection_policy(policy, connection_policy)
                             rescue ArgumentError => e
                                 raise SpecError, "incompatible policies in input chain for #{self}:#{sink_port}: #{e.message}"
                             end
@@ -472,7 +471,7 @@ module Orocos
                     if sink_task.kind_of?(Composition)
                         sink_task.each_concrete_output_connection(sink_port) do |_, sink_port, sink_task, connection_policy|
                             begin
-                                this_policy = RobyPlugin.update_connection_policy(policy, connection_policy)
+                                this_policy = Syskit.update_connection_policy(policy, connection_policy)
                             rescue ArgumentError => e
                                 raise SpecError, "incompatible policies in output chain for #{self}:#{source_port}: #{e.message}"
                             end
@@ -579,10 +578,10 @@ module Orocos
                 super
 
                 if !from.transaction_proxy? && !to.transaction_proxy?
-                    if from.kind_of?(Orocos::RobyPlugin::TaskContext)
+                    if from.kind_of?(Syskit::TaskContext)
                         modified_tasks << from
                     end
-		    if to.kind_of?(Orocos::RobyPlugin::TaskContext)
+		    if to.kind_of?(Syskit::TaskContext)
 			modified_tasks << to
 		    end
                 end
@@ -592,10 +591,10 @@ module Orocos
                 super
 
                 if !from.transaction_proxy? && !to.transaction_proxy?
-                    if from.kind_of?(Orocos::RobyPlugin::TaskContext)
+                    if from.kind_of?(Syskit::TaskContext)
                         modified_tasks << from
                     end
-		    if to.kind_of?(Orocos::RobyPlugin::TaskContext)
+		    if to.kind_of?(Syskit::TaskContext)
 			modified_tasks << to
 		    end
                 end
@@ -607,7 +606,7 @@ module Orocos
                 super
 
                 current_mappings.merge(additional_mappings) do |(from, to), old_options, new_options|
-                    RobyPlugin.update_connection_policy(old_options, new_options)
+                    Syskit.update_connection_policy(old_options, new_options)
                 end
             end
 
@@ -615,10 +614,10 @@ module Orocos
                 super
 
                 if !source.transaction_proxy? && !sink.transaction_proxy?
-                    if source.kind_of?(Orocos::RobyPlugin::TaskContext)
+                    if source.kind_of?(Syskit::TaskContext)
                         modified_tasks << source
                     end
-		    if sink.kind_of?(Orocos::RobyPlugin::TaskContext)
+		    if sink.kind_of?(Syskit::TaskContext)
 			modified_tasks << sink
 		    end
                 end
@@ -626,8 +625,7 @@ module Orocos
         end
 
         RequiredDataFlow = ConnectionGraph.new
-        RequiredDataFlow.name = "Orocos::RobyPlugin::RequiredDataFlow"
+        RequiredDataFlow.name = "Syskit::RequiredDataFlow"
         RequiredDataFlow.extend Roby::Distributed::DRobyConstant::Dump
-    end
 end
 

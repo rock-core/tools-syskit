@@ -1,6 +1,6 @@
 require 'roby'
 require 'orocos/roby/scripts/common'
-Scripts = Orocos::RobyPlugin::Scripts
+Scripts = Syskit::Scripts
 
 deploy_all = false
 deploy_only = nil
@@ -86,13 +86,13 @@ error = Scripts.run do
             end
 
 
-            ready_ev = Roby.plan.find_tasks(Orocos::RobyPlugin::Deployment).
+            ready_ev = Roby.plan.find_tasks(Syskit::Deployment).
                 inject(Roby::AndGenerator.new) do |ev, task|
                     task.start!
                     ev << task.ready_event
                 end
 
-            Roby.plan.find_tasks(Orocos::RobyPlugin::TaskContext).
+            Roby.plan.find_tasks(Syskit::TaskContext).
                 each do |t|
                     # Mark it as non-executable to avoid that it gets scheduled
                     t.allow_automatic_setup = false
@@ -106,7 +106,7 @@ error = Scripts.run do
             end
             ready_ev.on do |event|
                 Robot.info "all deployments are up and running"
-                tasks = Roby.plan.find_tasks(Orocos::RobyPlugin::TaskContext).to_a
+                tasks = Roby.plan.find_tasks(Syskit::TaskContext).to_a
 
                 failed = tasks.find_all do |t|
                     begin

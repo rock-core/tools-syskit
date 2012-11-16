@@ -4,7 +4,7 @@ module Ui
     # plan
     #
     # The technique used here is to convert the network to dot and then svg
-    # using Orocos::RobyPlugin::Graphviz. The SVG is then postprocessed to allow
+    # using Syskit::Graphviz. The SVG is then postprocessed to allow
     # the creation of an association between graphical elements (identified
     # through their SVG object ID) and the graphical representation.
     class PlanDisplay < Qt::Widget
@@ -108,7 +108,7 @@ module Ui
 
         DEFAULT_ANNOTATIONS = []
         DEFAULT_REMOVE_COMPOSITIONS = true
-        DEFAULT_EXCLUDED_MODELS = %w{Orocos::RobyPlugin::Logger::Logger}
+        DEFAULT_EXCLUDED_MODELS = %w{Syskit::Logger::Logger}
 
         def initialize(main = nil)
             super(main)
@@ -133,7 +133,7 @@ module Ui
             # Generate the menu for annotations
             annotation_menu = Qt::Menu.new(annotation_btn)
             @annotation_act = Hash.new
-            Orocos::RobyPlugin::Graphviz.available_annotations.sort.each do |ann_name|
+            Syskit::Graphviz.available_annotations.sort.each do |ann_name|
                 act = Qt::Action.new(ann_name, annotation_menu)
                 act.checkable = true
                 act.checked = DEFAULT_ANNOTATIONS.include?(ann_name)
@@ -146,7 +146,7 @@ module Ui
             excluded_models_menu = Qt::Menu.new(excluded_models_btn)
             @excluded_models_act = Hash.new
             Roby.app.orocos_system_model.each_model.sort_by(&:name).each do |model|
-                next if model <= Orocos::RobyPlugin::Deployment
+                next if model <= Syskit::Deployment
 
                 act = Qt::Action.new(model.short_name, excluded_models_menu)
                 act.checkable = true
@@ -272,7 +272,7 @@ module Ui
 
         def render_plan(mode, plan, options)
             svg_io = Tempfile.open(mode)
-            Orocos::RobyPlugin::Graphviz.new(plan).
+            Syskit::Graphviz.new(plan).
                 to_file(mode, 'svg', svg_io, options)
 
             plan.each_task do |task|

@@ -11,8 +11,7 @@ module Typelib
     end
 end
 
-module Orocos
-    module RobyPlugin
+module Syskit
         module MasterProjectHook
             def register_loaded_project(name, project)
                 super
@@ -51,13 +50,13 @@ module Orocos
             # * a string. It can then either be a task name, a port name or a type
             #   name
             def add(object, subname = nil)
-                if object.kind_of?(Class) && object < RobyPlugin::DataService
+                if object.kind_of?(Class) && object < Syskit::DataService
                     if subname
                         ports << [object, subname]
                     else
                         tasks << object
                     end
-                elsif object.kind_of?(Class) && object < RobyPlugin::Deployment
+                elsif object.kind_of?(Class) && object < Syskit::Deployment
                     deployments << object
                 else
                     names << object.to_str
@@ -247,7 +246,7 @@ module Orocos
 
                 def devices(&block)
                     if block
-                        Kernel.dsl_exec(Roby.app.orocos_engine.robot, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?, &block)
+                        Kernel.dsl_exec(Roby.app.orocos_engine.robot, Syskit.constant_search_path, !Roby.app.filter_backtraces?, &block)
 			Roby.app.orocos_engine.export_devices_to_planner(::MainPlanner)
                     else
                         each_device
@@ -261,10 +260,10 @@ module Orocos
             # See #load_orogen_project.
             attribute(:loaded_orogen_projects) { Hash.new }
             # A mapping from task context model name to the corresponding
-            # subclass of Orocos::RobyPlugin::TaskContext
+            # subclass of Syskit::TaskContext
             attribute(:orocos_tasks) { Hash.new }
             # A mapping from deployment name to the corresponding
-            # subclass of Orocos::RobyPlugin::Deployment
+            # subclass of Syskit::Deployment
             attribute(:orocos_deployments) { Hash.new }
 
             def main_orogen_project
@@ -302,7 +301,7 @@ module Orocos
             end
 
             def import_orogen_project(name, orogen)
-                Orocos::RobyPlugin.info "loading oroGen project #{name}"
+                Syskit.info "loading oroGen project #{name}"
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
 
                 if Orocos.available_task_libraries[name].respond_to?(:to_str)
@@ -343,12 +342,12 @@ module Orocos
 
                 orogen.self_tasks.each do |task_def|
                     if !orocos_tasks[task_def.name]
-                        Orocos::RobyPlugin::TaskContext.define_from_orogen(task_def, orocos_system_model)
+                        Syskit::TaskContext.define_from_orogen(task_def, orocos_system_model)
                     end
                 end
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install? && !orocos_deployments[deployment_def.name]
-                        orocos_deployments[deployment_def.name] = Orocos::RobyPlugin::Deployment.define_from_orogen(deployment_def)
+                        orocos_deployments[deployment_def.name] = Syskit::Deployment.define_from_orogen(deployment_def)
                     end
                 end
 
@@ -368,7 +367,7 @@ module Orocos
                 # Finally, import in the Orocos namespace directly
                 const_name = name.camelcase(:upper)
                 if !orogen.self_tasks.empty?
-                    Orocos.const_set(const_name, Orocos::RobyPlugin.const_get(const_name))
+                    Orocos.const_set(const_name, Syskit.const_get(const_name))
                 end
 
                 orogen
@@ -429,13 +428,13 @@ module Orocos
 
                 [Kernel, Orocos].each do |mod|
                     if !mod.const_defined_here?('Cmp')
-                        mod.const_set('Deployments',  Orocos::RobyPlugin::Deployments)
-                        mod.const_set('DataServices', Orocos::RobyPlugin::DataServices)
-                        mod.const_set('Srv',          Orocos::RobyPlugin::DataServices)
-                        mod.const_set('Devices',      Orocos::RobyPlugin::Devices)
-                        mod.const_set('Dev',          Orocos::RobyPlugin::Devices)
-                        mod.const_set('Compositions', Orocos::RobyPlugin::Compositions)
-                        mod.const_set('Cmp',          Orocos::RobyPlugin::Compositions)
+                        mod.const_set('Deployments',  Syskit::Deployments)
+                        mod.const_set('DataServices', Syskit::DataServices)
+                        mod.const_set('Srv',          Syskit::DataServices)
+                        mod.const_set('Devices',      Syskit::Devices)
+                        mod.const_set('Dev',          Syskit::Devices)
+                        mod.const_set('Compositions', Syskit::Compositions)
+                        mod.const_set('Cmp',          Syskit::Compositions)
                     end
                 end
 
@@ -468,13 +467,13 @@ module Orocos
                     end
                 end
 
-                app.orocos_tasks['RTT::TaskContext'] = Orocos::RobyPlugin::TaskContext
+                app.orocos_tasks['RTT::TaskContext'] = Syskit::TaskContext
 
                 rtt_taskmodel = Orocos::Generation::Component.standard_tasks.
                     find { |m| m.name == "RTT::TaskContext" }
-                Orocos::RobyPlugin::TaskContext.instance_variable_set :@orogen_spec, rtt_taskmodel
-                Orocos::RobyPlugin.const_set :RTT, Module.new
-                Orocos::RobyPlugin::RTT.const_set :TaskContext, Orocos::RobyPlugin::TaskContext
+                Syskit::TaskContext.instance_variable_set :@orogen_spec, rtt_taskmodel
+                Syskit.const_set :RTT, Module.new
+                Syskit::RTT.const_set :TaskContext, Syskit::TaskContext
             end
 
             # Hook into the Application#require_config call directly, instead of
@@ -511,7 +510,7 @@ module Orocos
                 end
                 Orocos.master_project.extend(MasterProjectHook)
 
-                Orocos::RobyPlugin.process_servers.each do |name, (client, log_dir)|
+                Syskit.process_servers.each do |name, (client, log_dir)|
 		    client.available_projects.each do |name, orogen_model|
 		    	if !Orocos.available_projects.has_key?(name)
 			    Orocos.master_project.register_orogen_file(orogen_model, name)
@@ -582,14 +581,14 @@ module Orocos
                         project_name = model.orogen_spec.project.name.camelcase(:upper)
                         task_name    = model.orogen_spec.basename.camelcase(:upper)
                         projects << project_name
-                        constant("Orocos::RobyPlugin::#{project_name}").send(:remove_const, task_name)
+                        constant("Syskit::#{project_name}").send(:remove_const, task_name)
                     end
                 end
                 orocos_tasks.clear
 
                 orocos_deployments.each_key do |name|
                     name = name.camelcase(:upper)
-                    begin Orocos::RobyPlugin::Deployments.send(:remove_const, name)
+                    begin Syskit::Deployments.send(:remove_const, name)
                     rescue NameError
                     end
                 end
@@ -597,7 +596,7 @@ module Orocos
 
                 projects.each do |name|
                     name = name.camelcase(:upper)
-                    Orocos::RobyPlugin.send(:remove_const, name)
+                    Syskit.send(:remove_const, name)
                     if Orocos.const_defined_here?(name)
                         Orocos.send(:remove_const, name)
                     end
@@ -621,8 +620,8 @@ module Orocos
                 end
 
                 begin
-                    if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, RobyPlugin.constant_search_path, !Roby.app.filter_backtraces?)
-                        RobyPlugin.info "loaded #{file}"
+                    if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, Syskit.constant_search_path, !Roby.app.filter_backtraces?)
+                        Syskit.info "loaded #{file}"
                     end
                 rescue Exception
                     $LOADED_FEATURES.delete(relative_path)
@@ -702,13 +701,13 @@ module Orocos
 	    end
 
             # Start a process server on the local machine, and register it in
-            # Orocos::RobyPlugin.process_servers under the 'localhost' name
+            # Syskit.process_servers under the 'localhost' name
             def self.start_local_process_server(
                     options = Orocos::ProcessServer::DEFAULT_OPTIONS,
                     port = Orocos::ProcessServer::DEFAULT_PORT)
 
                 options, server_options = Kernel.filter_options options, :redirect => true
-                if Orocos::RobyPlugin.process_servers['localhost']
+                if Syskit.process_servers['localhost']
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
 
@@ -765,7 +764,7 @@ module Orocos
 
 
             def self.register_process_server(name, client, log_dir)
-                Orocos::RobyPlugin.process_servers[name] = [client, log_dir]
+                Syskit.process_servers[name] = [client, log_dir]
             end
 
             # Stop the process server started by start_local_process_server if
@@ -779,7 +778,7 @@ module Orocos
                     @server_pid = nil
                 rescue Errno::ESRCH
                 end
-                Orocos::RobyPlugin.process_servers.delete('localhost')
+                Syskit.process_servers.delete('localhost')
             end
 
             def require_planners
@@ -814,7 +813,7 @@ module Orocos
 
                 if local_only? && host != 'localhost'
                     raise ArgumentError, "in local only mode"
-                elsif Orocos::RobyPlugin.process_servers[name]
+                elsif Syskit.process_servers[name]
                     raise ArgumentError, "there is already a process server called #{name} running"
                 end
 
@@ -877,9 +876,9 @@ module Orocos
 
             def self.plug_engine_in_roby(roby_engine)
                 handler_ids = []
-                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &RobyPlugin.method(:update_task_states))
+                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &Syskit.method(:update_task_states))
                 handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &RuntimeConnectionManagement.method(:update))
-                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &RobyPlugin.method(:apply_requirement_modifications))
+                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &Syskit.method(:apply_requirement_modifications))
                 handler_ids
             end
 
@@ -911,7 +910,7 @@ module Orocos
             ensure
                 remaining = Orocos.each_process.to_a
                 if !remaining.empty?
-                    RobyPlugin.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
+                    Syskit.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
                     Orocos::Process.kill(remaining)
                 end
 
@@ -928,15 +927,14 @@ module Orocos
 
             def self.stop_process_servers
                 # Stop the local process server if we started it ourselves
-                Orocos::RobyPlugin.process_servers.each_value do |client, options|
+                Syskit.process_servers.each_value do |client, options|
                     client.disconnect
                 end
-                Orocos::RobyPlugin.process_servers.clear
+                Syskit.process_servers.clear
             end
         end
-    end
 
-    Roby::Application.register_plugin('orocos', Orocos::RobyPlugin::Application) do
+    Roby::Application.register_plugin('orocos', Syskit::Application) do
         require 'orocos/roby'
         require 'orocos/process_server'
         Orocos.load_orogen_plugins('roby')

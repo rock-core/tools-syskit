@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         class InternalError < RuntimeError; end
         class ConfigError < RuntimeError; end
         class SpecError < RuntimeError; end
@@ -279,7 +278,7 @@ module Orocos
 
                 abstract_tasks.each do |task, (parents, candidates)|
                     pp.breakable
-                    pp.text "#{task.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                    pp.text "#{task.to_s.gsub(/Syskit::/, '')}"
                     pp.nest(2) do
                         pp.breakable
                         if candidates
@@ -298,7 +297,7 @@ module Orocos
                         pp.breakable
                         pp.seplist(parents) do |parent|
                             role, parent = parent
-                            pp.text "child #{role.to_a.first} of #{parent.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                            pp.text "child #{role.to_a.first} of #{parent.to_s.gsub(/Syskit::/, '')}"
                         end
                     end
                 end
@@ -362,13 +361,13 @@ module Orocos
                     candidates = self.candidates[task]
 
                     pp.breakable
-                    pp.text "for #{task.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                    pp.text "for #{task.to_s.gsub(/Syskit::/, '')}"
                     pp.nest(2) do
                         if !parents.empty?
                             pp.breakable
                             pp.seplist(parents) do |parent|
                                 role, parent = parent
-                                pp.text "child #{role.to_a.first} of #{parent.to_s.gsub(/Orocos::RobyPlugin::/, '')}"
+                                pp.text "child #{role.to_a.first} of #{parent.to_s.gsub(/Syskit::/, '')}"
                             end
                         end
 
@@ -620,7 +619,6 @@ module Orocos
                 end
             end
         end
-    end
 end
 
 

@@ -1,5 +1,4 @@
-module Orocos
-    module RobyPlugin
+module Syskit
         class << self
             # The set of known process servers.
             #
@@ -41,7 +40,7 @@ module Orocos
             end
 
             def self.short_name
-                name.gsub("Orocos::RobyPlugin::", "")
+                name.gsub("Syskit::", "")
             end
 
             # Returns the name of this particular deployment instance
@@ -161,9 +160,9 @@ module Orocos
             # running.
             event :start do |context|
                 host = self.arguments['on'] ||= 'localhost'
-                RobyPlugin.info { "starting deployment #{model.deployment_name} on #{host}" }
+                Syskit.info { "starting deployment #{model.deployment_name} on #{host}" }
 
-                process_server, log_dir = Orocos::RobyPlugin.process_servers[host]
+                process_server, log_dir = Syskit.process_servers[host]
                 if !process_server
                     raise ArgumentError, "cannot find the process server for #{host}"
                 end
@@ -247,7 +246,7 @@ module Orocos
 
             def log_dir
                 host = self.arguments['on'] ||= 'localhost'
-                process_server, log_dir = Orocos::RobyPlugin.process_servers[host]
+                process_server, log_dir = Syskit.process_servers[host]
                 log_dir
             end
 
@@ -308,7 +307,7 @@ module Orocos
                                 begin
                                     parent_task.port(source_port).disconnect_from(task.port(sink_port, false))
                                 rescue Exception => e
-                                    Orocos::RobyPlugin.warn "error while disconnecting #{parent_task}:#{source_port} from #{task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
+                                    Syskit.warn "error while disconnecting #{parent_task}:#{source_port} from #{task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
                                 end
                             end
                         end
@@ -325,7 +324,7 @@ module Orocos
                             begin
                                 child_task.port(sink_port).disconnect_all
                             rescue Exception => e
-                                Orocos::RobyPlugin.warn "error while disconnecting #{task}:#{source_port} from #{child_task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
+                                Syskit.warn "error while disconnecting #{task}:#{source_port} from #{child_task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
                             end
                         end
                     end
@@ -408,13 +407,12 @@ module Orocos
             # +deployment_spec+ is an instance of Orogen::Generation::Deployment
             def self.define_from_orogen(deployment_spec)
                 klass = Class.new(Deployment)
-                klass.instance_variable_set :@name, "Orocos::RobyPlugin::Deployments::#{deployment_spec.name.camelcase(:upper)}"
+                klass.instance_variable_set :@name, "Syskit::Deployments::#{deployment_spec.name.camelcase(:upper)}"
                 klass.instance_variable_set :@orogen_spec, deployment_spec
-                Orocos::RobyPlugin::Deployments.const_set(deployment_spec.name.camelcase(:upper), klass)
+                Syskit::Deployments.const_set(deployment_spec.name.camelcase(:upper), klass)
                 klass
             end
         end
-    end
 end
 
 
