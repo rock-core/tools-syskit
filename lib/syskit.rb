@@ -10,34 +10,33 @@ require 'utilrb/timepoints'
 
 require 'syskit/base'
 
+require 'syskit/instance_spec'
 # Models
 require 'syskit/models/base'
+require 'syskit/models/component'
 require 'syskit/models/data_service'
 require 'syskit/models/bound_data_service'
-require 'syskit/models/component'
 require 'syskit/models/composition'
 require 'syskit/models/task_context'
 # Instances
+require 'syskit/data_services'
 require 'syskit/component'
 require 'syskit/composition'
 require 'syskit/task_context'
+require 'syskit/deployment'
 require 'syskit/bound_data_service'
 
 # Algorithms
 require 'syskit/connection_graphs'
-
-require 'syskit/instance_spec'
-require 'syskit/deployment'
-require 'syskit/task_context'
-require 'syskit/abstract_placeholders'
-
-require 'syskit/exceptions'
-require 'syskit/runtime_exceptions'
-
 require 'syskit/dataflow_computation'
 require 'syskit/dataflow_dynamics'
 require 'syskit/network_merge_solver'
 require 'syskit/runtime_connection_management'
+
+require 'syskit/abstract_placeholders'
+
+require 'syskit/exceptions'
+require 'syskit/runtime_exceptions'
 
 require 'syskit/system_model'
 require 'syskit/robot'
@@ -49,4 +48,5 @@ require 'syskit/task_scripting'
 require 'syskit/selection_tasks'
 require 'syskit/graphviz'
 
-require 'syskit/backward'
+require 'syskit/app.rb'
+#require 'syskit/backward'

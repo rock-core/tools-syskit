@@ -295,7 +295,7 @@ module Syskit
                     context.add(context = child.composition.as_plan)
                 end
                 # The context is our root task
-                ComponentModel::Port::DataSource.new(context, child.child_name, actual_name)
+                Component::Port::DataSource.new(context, child.child_name, actual_name)
             end
         end
 
@@ -339,7 +339,7 @@ module Syskit
             # have it applied
             def apply_specialization_block(block)
                 if !definition_blocks.include?(block)
-                    with_module(*Syskit.constant_search_path, &block)
+                    instance_eval(&block)
                     definition_blocks << block
                 end
             end
@@ -361,22 +361,13 @@ module Syskit
         # See the documentation of Model for an explanation of the *Model
         # modules.
         module Composition
-            include Model
+            include Base
 
             # The composition model name
             attr_accessor :name
 
             # The set of configurations declared with #conf
             attr_reader :conf
-
-            # Creates a submodel of this model, in the frame of the given
-            # SystemModel instance.
-            def new_submodel(name, system_model)
-                klass = super()
-                klass.name = "Syskit::Compositions::#{name.camelcase(:upper)}"
-                klass.system_model = system_model
-                klass
-            end
 
             attribute(:autoconnect_ignores) { Set.new }
 
@@ -573,7 +564,7 @@ module Syskit
                     replaced_by = child_model.find_all { |child_m| child_m < parent_m }
                     if !replaced_by.empty?
                         mappings = replaced_by.inject(Hash.new) do |mappings, m|
-                            SystemModel.merge_port_mappings(mappings, m.port_mappings_for(parent_m))
+                            Models.merge_port_mappings(mappings, m.port_mappings_for(parent_m))
                         end
                         result.port_mappings.clear
                         result.port_mappings.merge!(mappings)
@@ -679,14 +670,16 @@ module Syskit
                 models = models.to_value_set
 
                 wrong_type = models.find do |m|
-                    !m.kind_of?(Roby::TaskModelTag) && !(m.kind_of?(Class) && m < Component)
+                    !m.kind_of?(Roby::TaskModelTag) && !(m.kind_of?(Class) && m < Syskit::Component)
                 end
                 if wrong_type
                     raise ArgumentError, "wrong model type #{wrong_type.class} for #{wrong_type}"
                 end
 
                 if models.size == 1
-                    default_name = models.find { true }.snakename
+                    if default_name = models.find { true }.name
+                        default_name = default_name.snake_case
+                    end
                 end
                 options, dependency_options = Kernel.filter_options options,
                     :as => default_name
@@ -1013,7 +1006,7 @@ module Syskit
                 end
 
                 # There's no composition with that spec. Create a new one
-                child_composition = new_submodel('', system_model)
+                child_composition = new_submodel
                 child_composition.parent_models << self
                 child_composition.extend Models::CompositionSpecialization
                 child_composition.specialized_children.merge!(composite_spec.specialized_children)
@@ -1292,126 +1285,6 @@ module Syskit
                 [merged, result]
             end
 
-            # call-seq:
-            #   autoconnect
-            #   autoconnect 'child1', 'child2'
-            #
-            # In the first form, declares that all children added so far should
-            # be automatically connected. In the second form, only the listed
-            # children will.
-            #
-            # Note that ports for which an explicit connection is specified
-            # (using #connect) are ignored.
-            #
-            # Autoconnection matches inputs and outputs of the listed children
-            # to find out matching connections.
-            # 1. port types are matched, i.e. inputs and outputs of the same
-            #    type are candidates for autoconnection.
-            # 2. if multiple connections are possible between two components,
-            #    then a name filter is used: i.e. a connection will be created
-            #    only for ports that have the same name.
-            #
-            def autoconnect(*names)
-                @autoconnect =
-                    if names.empty? 
-                        each_child.map { |n, _| n }
-                    else names
-                    end
-            end
-
-            # The result of #compute_autoconnection is cached. This method
-            # resets the value so that the next call to #compute_autoconnection
-            # does trigger a recompute
-            def reset_autoconnection
-                self.automatic_connections = nil
-                if superclass.respond_to?(:reset_autoconnection)
-                    superclass.reset_autoconnection
-                end
-            end
-
-            # Computes the connections specified by #autoconnect
-            def compute_autoconnection(force = false)
-                if !force && automatic_connections
-                    return self.automatic_connections
-                end
-
-                parent_connections = Hash.new
-                if superclass.respond_to?(:compute_autoconnection)
-                    parent_connections = superclass.compute_autoconnection(force)
-                end
-
-                if @autoconnect && !@autoconnect.empty?
-                    if force || !automatic_connections
-                        do_autoconnect(@autoconnect)
-                    else
-                        self.automatic_connections
-                    end
-                else
-                    self.automatic_connections = map_connections(parent_connections)
-                end
-            end
-
-            # Automatically compute connections between the childrens listed in
-            # children_names. The connections are first determined by port
-            # direction and type, and then disambiguated by port name. An input
-            # port will never be connected by this method to more than one
-            # output.
-            #
-            # If an input port is involved in an explicit connection, it will
-            # be ignored.
-            #
-            # It raises AmbiguousAutoConnection if there is more than one
-            # candidate for an input port.
-            def do_autoconnect(children_names)
-                parent_autoconnections =
-                    if (superclass < Composition)
-                        map_connections(superclass.compute_autoconnection)
-                    else Hash.new
-                    end
-
-                SystemModel.debug do
-                    SystemModel.debug "computing autoconnections on #{short_name}"
-                    SystemModel.debug "  parent connections:"
-                    parent_autoconnections.each do |(child_out, child_in), mappings|
-                        mappings.each do |(port_out, port_in), policy|
-                            SystemModel.debug "    #{child_out}:#{port_out} => #{child_in}: #{port_in} [#{policy}]"
-                        end
-                    end
-                    break
-                end
-
-                # First, gather per-type available inputs and outputs. Both
-                # hashes are:
-                #
-                #   port_type_name => [[child_name, child_port_name], ...]
-                child_inputs  = Array.new
-                child_outputs = Array.new
-                children_names.each do |name|
-                    child = CompositionChild.new(self, name)
-                    seen = Set.new
-                    child.each_output_port do |out_port|
-                        next if seen.include?(out_port.name)
-                        next if exported_port?(out_port)
-                        next if autoconnect_ignores.include?([name, out_port.name])
-                        next if system_model.ignored_for_autoconnection?(out_port.port)
-
-                        child_outputs << out_port
-                        seen << out_port.name
-                    end
-                    child.each_input_port do |in_port|
-                        next if seen.include?(in_port.name)
-                        next if exported_port?(in_port)
-                        next if autoconnect_ignores.include?([name, in_port.name])
-                        next if system_model.ignored_for_autoconnection?(in_port.port)
-                        child_inputs << in_port
-                        seen << in_port.name
-                    end
-                end
-
-                result = autoconnect_children(child_outputs, child_inputs, each_explicit_connection.to_a + parent_autoconnections.to_a)
-                self.automatic_connections = result.merge(parent_autoconnections)
-            end
-
             # Autoconnects the outputs listed in +child_outputs+ to the inputs
             # in child_inputs. +exclude_connections+ is a list of connections
             # whose input ports should be ignored in the autoconnection process.
@@ -1523,13 +1396,8 @@ module Syskit
             def connections
                 result = Hash.new { |h, k| h[k] = Hash.new }
 
-                compute_autoconnection
-
                 # In the following, 'key' is [child_source, child_dest] and
                 # 'mappings' is [port_source, port_sink] => connection_policy
-                each_automatic_connection do |key, mappings|
-                    result[key].merge!(mappings)
-                end
                 each_explicit_connection do |key, mappings|
                     result[key].merge!(mappings)
                 end
@@ -1551,10 +1419,6 @@ module Syskit
                     result[[child_name_out, child_name_in]] = mapped
                 end
                 result
-            end
-
-            def each_automatic_connection(&block)
-                automatic_connections.each(&block)
             end
 
             # Export the given port to the boundary of the composition (it
@@ -1885,7 +1749,7 @@ module Syskit
                     selected_child.selected_services.each do |expected, selected|
                         if expected.kind_of?(DataServiceModel) && selected.fullfills?(expected)
                             mappings = selected.port_mappings_for(expected)
-                            port_mappings = SystemModel.merge_port_mappings(port_mappings, mappings)
+                            port_mappings = Models.merge_port_mappings(port_mappings, mappings)
                         end
                     end
 
@@ -2003,7 +1867,7 @@ module Syskit
 
                 child_arguments = selected_child.requirements.arguments
                 child_arguments.each_key do |key|
-		    value = child_arguments[key]
+	            value = child_arguments[key]
                     if value.respond_to?(:resolve)
                         child_arguments[key] = value.resolve(self)
                     end
@@ -2096,7 +1960,7 @@ module Syskit
                     find_specialization_spec = Hash.new
                     explicit_selections.each { |name, sel| find_specialization_spec[name] = [sel] }
                     candidates = find_matching_specializations(find_specialization_spec)
-                    if Composition.strict_specialization_selection? && candidates.size > 1
+                    if Syskit::Composition.strict_specialization_selection? && candidates.size > 1
                         raise AmbiguousSpecialization.new(self, explicit_selections, candidates)
                     elsif !candidates.empty?
                         specialized_model = find_common_specialization_subset(candidates)
@@ -2352,6 +2216,32 @@ module Syskit
                 end
                 io << "}"
             end
+
+            # Callback called when a new subclass of this class is created
+            def inherited(submodel)
+                super
+
+                return if submodel.is_specialization?
+                specializations.each_value do |spec|
+                    spec.specialization_blocks.each do |block|
+                        specialize(spec.specialized_children, &block)
+                    end
+                end
+            end
+
+            def method_missing(m, *args, &block)
+                if args.empty?
+                    name = m.to_s
+                    if has_child?(name)
+                        return CompositionChild.new(self, name)
+                    elsif has_child?(name = name.gsub(/_child$/, ''))
+                        return CompositionChild.new(self, name)
+                    end
+                end
+                super
+            end
+
         end
+    end
 end
 

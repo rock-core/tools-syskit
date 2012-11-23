@@ -270,8 +270,6 @@ module Syskit
                 Orocos.master_project
             end
 
-            # The system model object
-            attr_accessor :orocos_system_model
             # The orocos engine we are using
             attr_accessor :orocos_engine
             # If true, we will not load the component-specific code in
@@ -342,12 +340,12 @@ module Syskit
 
                 orogen.self_tasks.each do |task_def|
                     if !orocos_tasks[task_def.name]
-                        Syskit::TaskContext.define_from_orogen(task_def, orocos_system_model)
+                        Syskit::TaskContext.define_from_orogen(task_def, :register => true)
                     end
                 end
                 orogen.deployers.each do |deployment_def|
                     if deployment_def.install? && !orocos_deployments[deployment_def.name]
-                        orocos_deployments[deployment_def.name] = Syskit::Deployment.define_from_orogen(deployment_def)
+                        orocos_deployments[deployment_def.name] = Syskit::Deployment.define_from_orogen(deployment_def, :register => true)
                     end
                 end
 
@@ -426,18 +424,6 @@ module Syskit
                     end
                 end
 
-                [Kernel, Orocos].each do |mod|
-                    if !mod.const_defined_here?('Cmp')
-                        mod.const_set('Deployments',  Syskit::Deployments)
-                        mod.const_set('DataServices', Syskit::DataServices)
-                        mod.const_set('Srv',          Syskit::DataServices)
-                        mod.const_set('Devices',      Syskit::Devices)
-                        mod.const_set('Dev',          Syskit::Devices)
-                        mod.const_set('Compositions', Syskit::Compositions)
-                        mod.const_set('Cmp',          Syskit::Compositions)
-                    end
-                end
-
                 if app.shell?
                     return
                 end
@@ -448,8 +434,7 @@ module Syskit
                 app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
 
-                app.orocos_system_model = SystemModel.new
-                app.orocos_engine = Engine.new(app.plan || Roby::Plan.new, app.orocos_system_model)
+                app.orocos_engine = Engine.new(app.plan || Roby::Plan.new)
                 Orocos.singleton_class.class_eval do
                     attr_reader :engine
                 end
@@ -467,13 +452,7 @@ module Syskit
                     end
                 end
 
-                app.orocos_tasks['RTT::TaskContext'] = Syskit::TaskContext
-
-                rtt_taskmodel = Orocos::Generation::Component.standard_tasks.
-                    find { |m| m.name == "RTT::TaskContext" }
-                Syskit::TaskContext.instance_variable_set :@orogen_spec, rtt_taskmodel
-                Syskit.const_set :RTT, Module.new
-                Syskit::RTT.const_set :TaskContext, Syskit::TaskContext
+                Syskit::TaskContext.define_from_orogen(Orocos::Spec::TaskContext.orogen_rtt_task_context, :register => true)
             end
 
             # Hook into the Application#require_config call directly, instead of
@@ -542,7 +521,7 @@ module Syskit
                     app.find_files_in_dirs("tasks", "compositions", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
                     app.find_files_in_dirs("models", "compositions", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/)
                 all_files.each do |path|
-                    app.load_system_model(path)
+                    app.require(path)
                 end
 
                 # Define planning methods on the main planner for the available
@@ -569,26 +548,36 @@ module Syskit
                 orocos_engine.use_deployments_from(*args)
             end
 
+            # Load the specified oroGen project and register the task contexts
+            # and deployments they contain.
             def using_task_library(name)
-                Roby.app.orocos_system_model.using_task_library(name)
+                names.each do |n|
+                    orogen = Orocos.master_project.using_task_library(n)
+                    if !loaded_orogen_project?(n)
+                        # The project was already loaded on
+                        # Orocos.master_project before Roby kicked in. Just load
+                        # the Roby part
+                        import_orogen_project(n, orogen)
+                    end
+                end
             end
 
             def orocos_clear_models
                 projects = Set.new
 
                 orocos_tasks.each_value do |model|
-                    if model.orogen_spec && model.orogen_spec.project.name
-                        project_name = model.orogen_spec.project.name.camelcase(:upper)
-                        task_name    = model.orogen_spec.basename.camelcase(:upper)
+                    if model.orogen_model.project.name
+                        project_name = model.orogen_model.project.name.camelcase(:upper)
+                        task_name    = model.orogen_model.basename.camelcase(:upper)
                         projects << project_name
-                        constant("Syskit::#{project_name}").send(:remove_const, task_name)
+                        constant("::#{project_name}").send(:remove_const, task_name)
                     end
                 end
                 orocos_tasks.clear
 
                 orocos_deployments.each_key do |name|
                     name = name.camelcase(:upper)
-                    begin Syskit::Deployments.send(:remove_const, name)
+                    begin ::Deployments.send(:remove_const, name)
                     rescue NameError
                     end
                 end
@@ -596,16 +585,7 @@ module Syskit
 
                 projects.each do |name|
                     name = name.camelcase(:upper)
-                    Syskit.send(:remove_const, name)
-                    if Orocos.const_defined_here?(name)
-                        Orocos.send(:remove_const, name)
-                    end
-                end
-
-                [DataServices, Compositions, Devices].each do |mod|
-                    mod.constants.each do |const_name|
-                        mod.send(:remove_const, const_name)
-                    end
+                    Object.send(:remove_const, name)
                 end
 
                 Orocos.clear
@@ -620,9 +600,7 @@ module Syskit
                 end
 
                 begin
-                    if Kernel.load_dsl_file(file, Roby.app.orocos_system_model, Syskit.constant_search_path, !Roby.app.filter_backtraces?)
-                        Syskit.info "loaded #{file}"
-                    end
+                    app.require file
                 rescue Exception
                     $LOADED_FEATURES.delete(relative_path)
                     raise
@@ -652,7 +630,7 @@ module Syskit
 
                 path = candidates.first
                 Roby::Application.info "loading system model file #{path}"
-                orocos_system_model.load(path)
+                require(path)
             end
 
             # Load a part of the system definition, i.e. the robot description
@@ -934,8 +912,16 @@ module Syskit
             end
         end
 
+    # For backward compatibility reasons
     Roby::Application.register_plugin('orocos', Syskit::Application) do
-        require 'orocos/roby'
+        require 'syskit'
+        require 'orocos/process_server'
+        Orocos.load_orogen_plugins('roby')
+        Roby.app.filter_out_patterns.push(/^#{Regexp.quote(File.expand_path(File.dirname(__FILE__), ".."))}/)
+    end
+
+    Roby::Application.register_plugin('syskit', Syskit::Application) do
+        require 'syskit'
         require 'orocos/process_server'
         Orocos.load_orogen_plugins('roby')
         Roby.app.filter_out_patterns.push(/^#{Regexp.quote(File.expand_path(File.dirname(__FILE__), ".."))}/)

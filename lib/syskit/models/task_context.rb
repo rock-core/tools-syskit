@@ -6,27 +6,33 @@ module Syskit
             # Creates a subclass of TaskContext that represents the given task
             # specification. The class is registered as
             # Roby::Orogen::ProjectName::ClassName.
-            def define_from_orogen(task_spec, system_model)
-                superclass = task_spec.superclass
-                if !(supermodel = Roby.app.orocos_tasks[superclass.name])
-                    supermodel = define_from_orogen(superclass, system_model)
-                end
-                klass = system_model.
-                    task_context(task_spec.name, :child_of => supermodel)
+            def define_from_orogen(orogen_model, options = Hash.new)
+                options = Kernel.validate_options options,
+                    :register => false
 
-                klass.instance_variable_set :@orogen_spec, task_spec
+                superclass = orogen_model.superclass
+                if !superclass # we are defining a root model
+                    supermodel = Syskit::TaskContext
+                elsif !(supermodel = Roby.app.orocos_tasks[superclass.name])
+                    supermodel = define_from_orogen(superclass)
+                end
+                klass = supermodel.new_submodel(orogen_model)
                 
                 # Define specific events for the extended states (if there is any)
-                state_events = { :EXCEPTION => :exception, :FATAL_ERROR => :fatal_error, :RUNTIME_ERROR => :runtime_error }
-                task_spec.states.each do |name, type|
+                state_events = Hash.new
+                orogen_model.states.each do |name, type|
                     event_name = name.snakecase.downcase.to_sym
-                    klass.event event_name
-                    if type == :fatal
-                        klass.forward event_name => :fatal_error
-                    elsif type == :exception
-                        klass.forward event_name => :exception
-                    elsif type == :error
-                        klass.forward event_name => :runtime_error
+                    if type == :toplevel
+                        klass.event event_name, :terminal => (name == 'EXCEPTION' || name == 'FATAL_ERROR')
+                    else
+                        klass.event event_name, :terminal => (type == :exception || type == :fatal_error)
+                        if type == :fatal
+                            klass.forward event_name => :fatal_error
+                        elsif type == :exception
+                            klass.forward event_name => :exception
+                        elsif type == :error
+                            klass.forward event_name => :runtime_error
+                        end
                     end
 
                     state_events[name.to_sym] = event_name
@@ -35,16 +41,28 @@ module Syskit
                     state_events = state_events.merge(supermodel.state_events)
                 end
 
-                klass.instance_variable_set :@state_events, state_events
-                if task_spec.name
-                    Roby.app.orocos_tasks[task_spec.name] = klass
+                klass.state_events = state_events
+                if orogen_model.name
+                    Roby.app.orocos_tasks[orogen_model.name] = klass
                 end
+                if options[:register] && orogen_model.name
+                    namespace, basename = orogen_model.name.split '::'
+                    namespace = namespace.camelcase(:upper)
+                    namespace =
+                        begin
+                            constant("::#{namespace}")
+                        rescue NameError
+                            Object.const_set(namespace, Module.new)
+                        end
+                    namespace.const_set(basename.camelcase(:upper), klass)
+                end
+
                 klass
             end
 
             def require_dynamic_service(service_model, options)
-                # Verify that there are dynamic ports in orogen_spec that match
-                # the ports in service_model.orogen_spec
+                # Verify that there are dynamic ports in orogen_model that match
+                # the ports in service_model.orogen_model
                 service_model.each_input_port do |p|
                     if !has_dynamic_input_port?(p.name, p.type)
                         raise ArgumentError, "there are no dynamic input ports declared in #{short_name} that match #{p.name}:#{p.type_name}"
@@ -58,7 +76,7 @@ module Syskit
                 
                 # Unlike #data_service, we need to add the service's interface
                 # to our own
-                Syskit.merge_orogen_interfaces(orogen_spec, [service_model.orogen_spec])
+                Syskit::Models.merge_orogen_task_context_models(orogen_model, [service_model.orogen_model])
 
                 # Then we can add the service
                 provides(service_model, options)
@@ -80,7 +98,7 @@ module Syskit
                 end
 
                 klass = Class.new(supermodel)
-                klass.instance_variable_set :@orogen_spec, task_spec
+                klass.instance_variable_set :@orogen_model, task_spec
 
                 if task_spec.name
                     roby_name = task_spec.name.split('::').
@@ -135,7 +153,7 @@ module Syskit
 
                     attr_reader :property_names
 
-                    task_model.orogen_spec.each_property do |p|
+                    task_model.orogen_model.each_property do |p|
                         property_type = Orocos.typelib_type_for(p.type)
 		    	singleton_class.class_eval do
 			    attr_reader p.name
@@ -185,22 +203,13 @@ module Syskit
                 @config_type = config
             end
 
-            attr_accessor :name
-            # The Orocos::Generation::TaskContext that represents this
-            # deployed task context.
-            attr_accessor :orogen_spec
-
-            def interface
-                orogen_spec
-            end
-            def interface=(spec)
-                self.orogen_spec = spec
-            end
+            # [Orocos::Spec::TaskContext] The oroGen model that represents this task context model
+            attribute(:orogen_model) { Orocos::Spec::TaskContext.new }
 
             # A state_name => event_name mapping that maps the component's
             # state names to the event names that should be emitted when it
             # enters a new state.
-            attr_accessor :state_events
+            attribute(:state_events) { Hash.new }
 
             def to_s
                 services = each_data_service.map do |name, srv|
@@ -220,6 +229,21 @@ module Syskit
             # task context model
             attr_predicate :private_specialization?, true
 
+            def new_submodel(orogen_model = nil, &block)
+                model = Class.new(self)
+                if orogen_model
+                    model.orogen_model = orogen_model
+                else
+                    model.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project)
+                    model.orogen_model.subclasses self.orogen_model
+                    model.state_events = self.state_events.dup
+                end
+                if block
+                    model.orogen_model.instance_eval(&block)
+                end
+                model
+            end
+
             # Creates a private specialization of the current model
             def specialize(name)
                 if self == TaskContext
@@ -229,21 +253,15 @@ module Syskit
                 klass.private_specialization = true
                 klass.private_model
                 klass.name = name
-                # The oroGen spec name should be the same, as we need that
-                # for logging. Note that the layer itself does not care about the
-                # name
-                klass.orogen_spec  = Syskit.create_orogen_interface(self.name)
-                klass.state_events = state_events.dup
-                Syskit.merge_orogen_interfaces(klass.orogen_spec, [orogen_spec])
                 klass
             end
 
             def worstcase_processing_time(value)
-                orogen_spec.worstcase_processing_time(value)
+                orogen_model.worstcase_processing_time(value)
             end
 
             def each_event_port(&block)
-                orogen_spec.each_event_port(&block)
+                orogen_model.each_event_port(&block)
             end
         end
     end

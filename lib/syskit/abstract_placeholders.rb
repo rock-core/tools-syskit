@@ -2,7 +2,7 @@ module Syskit
 	# Model used to create a placeholder task from a concrete task model,
 	# when a mix of data services and task context model cannot yet be
 	# mapped to an actual task context model yet
-        module ComponentModelProxy
+        module PlaceholderTask
             module ClassExtension
                 attr_accessor :proxied_data_services
             end
@@ -12,69 +12,42 @@ module Syskit
             end
         end
 
-        # Placeholders used in the plan to represent a data service that has not
-        # been mapped to a task context yet
-        class DataServiceProxy < TaskContext
-            extend Model
-	    include ComponentModelProxy
+        module Models::ComponentModel
+            # Create a task model that can be used as a placeholder in a Roby
+            # plan for this task model and the following service models.
+            #
+            # @see Syskit.proxy_task_model_for
+            def proxy_task_model(service_models)
+                name = "Syskit::PlaceholderTask<#{service_models.map(&:short_name).sort.join(",")}>"
+                model = specialize(name)
+                model.abstract
+                model.include PlaceholderTask
+                model.proxied_data_services = service_models.dup
+		model.fullfilled_model = [self, model.proxied_data_services, Hash.new]
 
-            abstract
-
-            class << self
-		# A made-up name describing this proxy
-                attr_accessor :name
-		# A made-up name describing this proxy
-                attr_accessor :short_name
-            end
-            @name = "Syskit::DataServiceProxy"
-
-            def to_s
-                "placeholder for #{self.model.short_name}"
-            end
-
-            def self.new_submodel(name, models = [])
-                Class.new(self) do
-                    abstract
-                    @name = name
-                    @short_name = models.map(&:short_name).sort.join(",")
-		    @proxied_data_services = models
+                Syskit::Models.merge_orogen_task_context_models(model.orogen_model, service_models.map(&:orogen_model))
+                service_models.each do |m|
+                    model.provides m
                 end
+                model
             end
         end
 
 	# This method creates a task model that can be used to represent the
 	# models listed in +models+ in a plan. The returned task model is
 	# obviously abstract
-        def self.placeholder_model_for(name, models)
-	    task_model = models.find { |t| t < Roby::Task }
+        def self.proxy_task_model_for(models)
+	    task_models, service_models = models.partition { |t| t < Component }
+            if task_models.size > 1
+                raise ArgumentError, "cannot create a proxy for multiple component models at the same time"
+            end
+            task_model = task_models.first || Component
 
             # If all that is required is a proper task model, just return it
-            if models.size == 1 && task_model
+            if service_models.empty?
                 return task_model
             end
 
-            if task_model
-                model = task_model.specialize("placeholder_model_for_" + models.map(&:short_name).join("_"))
-                model.name = name
-                model.abstract
-                model.include ComponentModelProxy
-                model.proxied_data_services = models.dup
-		model.proxied_data_services.delete(task_model)
-		model.fullfilled_model = [task_model, model.proxied_data_services, Hash.new]
-            else
-                model = DataServiceProxy.new_submodel(name, models)
-		model.fullfilled_model = [Roby::Task, models, Hash.new]
-            end
-
-            orogen_spec = Syskit.create_orogen_interface
-            model.instance_variable_set(:@orogen_spec, orogen_spec)
-            Syskit.merge_orogen_interfaces(model.orogen_spec, models.map(&:orogen_spec))
-            models.each do |m|
-                if m.kind_of?(DataServiceModel)
-                    model.provides m
-                end
-            end
-
-            model
+            task_model.proxy_task_model(service_models)
         end
 end

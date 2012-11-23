@@ -19,7 +19,7 @@ class TC_RobyPlugin_Engine < Test::Unit::TestCase
 	super
         plan.engine.scheduler = nil
 
-        srv = @simple_service_model = sys_model.data_service_type("SimpleService") do
+        srv = @simple_service_model = DataModel.new_submodel do
             input_port 'srv_in', '/int'
             output_port 'srv_out', '/int'
         end

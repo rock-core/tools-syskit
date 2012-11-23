@@ -69,7 +69,7 @@ module Syskit
                     return [], []
                 end
 
-                not_running = tasks.find_all { |t| !t.orogen_task }
+                not_running = tasks.find_all { |t| !t.orocos_task }
                 if !not_running.empty?
                     Engine.debug do
                         Engine.debug "not computing connections because the deployment of the following tasks is not yet ready"
@@ -83,7 +83,7 @@ module Syskit
 
                 update_required_dataflow_graph(tasks)
                 new_edges, removed_edges, updated_edges =
-                    RequiredDataFlow.difference(ActualDataFlow, tasks, &:orogen_task)
+                    RequiredDataFlow.difference(ActualDataFlow, tasks, &:orocos_task)
 
                 new = Hash.new
                 new_edges.each do |source_task, sink_task|
@@ -106,7 +106,7 @@ module Syskit
                 # recreate other ones between other components
                 updated_edges.each do |source_task, sink_task|
                     new_mapping = source_task[sink_task, RequiredDataFlow]
-                    old_mapping = source_task.orogen_task[sink_task.orogen_task, ActualDataFlow]
+                    old_mapping = source_task.orocos_task[sink_task.orocos_task, ActualDataFlow]
 
                     new_connections     = Hash.new
                     removed_connections = Set.new
@@ -125,7 +125,7 @@ module Syskit
                         new[[source_task, sink_task]] = new_connections
                     end
                     if !removed_connections.empty?
-                        removed[[source_task.orogen_task, sink_task.orogen_task]] = removed_connections
+                        removed[[source_task.orocos_task, sink_task.orocos_task]] = removed_connections
                     end
                 end
 
@@ -283,8 +283,8 @@ module Syskit
                     # The task might have been killed while the connections
                     # were already added to the data flow graph. Roby's GC will
                     # deal with that. Ignore.
-                    next if !from_task.orogen_task
-                    next if !to_task.orogen_task
+                    next if !from_task.orocos_task
+                    next if !to_task.orocos_task
 
                     mappings.each do |(from_port, to_port), policy|
                         Engine.debug do
@@ -296,13 +296,13 @@ module Syskit
 
                         begin
                             policy, _ = Kernel.filter_options(policy, Orocos::Port::CONNECTION_POLICY_OPTIONS)
-                            from_task.orogen_task.port(from_port).connect_to(to_task.orogen_task.port(to_port), policy)
-                            ActualDataFlow.add_connections(from_task.orogen_task, to_task.orogen_task,
+                            from_task.orocos_task.port(from_port).connect_to(to_task.orocos_task.port(to_port), policy)
+                            ActualDataFlow.add_connections(from_task.orocos_task, to_task.orocos_task,
                                                        [from_port, to_port] => policy)
                         rescue CORBA::ComError
                             # The task will be aborted. Simply ignore
                         rescue Orocos::InterfaceObjectNotFound => e
-                            if e.task == from_task.orogen_task && e.name == from_port
+                            if e.task == from_task.orocos_task && e.name == from_port
                                 plan.engine.add_error(PortNotFound.new(from_task, from_port, :output))
                             else
                                 plan.engine.add_error(PortNotFound.new(to_task, to_port, :input))

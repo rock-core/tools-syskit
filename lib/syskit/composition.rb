@@ -268,7 +268,7 @@ module Syskit
 
                 each_child do |child_task, _|
                     if child_task.kind_of?(TaskContext)
-                        if !child_task.orogen_task
+                        if !child_task.orocos_task
                             return false
                         end
                     elsif child_task.kind_of?(Component)
@@ -441,18 +441,6 @@ module Syskit
                 return super(models, arguments)
             end
 
-
-            def self.method_missing(m, *args, &block)
-                if args.empty?
-                    name = m.to_s
-                    if has_child?(name)
-                        return CompositionChild.new(self, name)
-                    elsif has_child?(name = name.gsub(/_child$/, ''))
-                        return CompositionChild.new(self, name)
-                    end
-                end
-                super
-            end
 
             # Proxy returned by the child_name_child handler
             #

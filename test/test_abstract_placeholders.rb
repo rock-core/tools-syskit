@@ -1,11 +1,7 @@
-BASE_DIR = File.expand_path( '../..', File.dirname(__FILE__))
-APP_DIR = File.join(BASE_DIR, "test")
+require 'syskit/test'
 
-$LOAD_PATH.unshift BASE_DIR
-require 'test/roby/common'
-
-class TC_RobyPlugin_AbstractPlaceholder < Test::Unit::TestCase
-    include RobyPluginCommonTest
+class TC_AbstractPlaceholders < Test::Unit::TestCase
+    include Syskit::SelfTest
 
     def setup
 	Roby.app.using 'orocos'
@@ -14,21 +10,20 @@ class TC_RobyPlugin_AbstractPlaceholder < Test::Unit::TestCase
     end
 
     def test_proxy_simple_task_context
-	task_model = Class.new(Component)
-	proxy = Orocos::RobyPlugin.placeholder_model_for('simple_model', [task_model])
-	assert_same(proxy, task_model)
+	task_model = Component.new_submodel
+	proxy = Syskit.proxy_task_model_for([task_model])
+	assert_kind_of(task_model, proxy)
     end
 
     def test_proxy_data_services
 	services = [
-	    sys_model.data_service_type('B'),
-	    sys_model.data_service_type('A'),
-	    sys_model.data_service_type('C')
+	    data_service_type('B'),
+	    data_service_type('A'),
+	    data_service_type('C')
 	]
-	proxy = Orocos::RobyPlugin.placeholder_model_for('data_services', services)
+	proxy = Syskit.proxy_task_model_for(services)
 	assert(proxy.abstract?)
-	assert_equal('data_services', proxy.name)
-	assert_equal('Srv::A,Srv::B,Srv::C', proxy.short_name)
+	assert_equal('Syskit::PlaceholderTask<A,B,C>', proxy.name)
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
 	assert_equal(services.to_set, proxy.fullfilled_model[1].to_set)
 	services.each do |srv|
@@ -38,17 +33,18 @@ class TC_RobyPlugin_AbstractPlaceholder < Test::Unit::TestCase
 
     def test_proxy_task_and_data_service_mix
 	# TODO: task_model should be allowed to be any component model
-	task_model = mock_roby_task_context_model("a::task")
+	task_model = Component.new_submodel
+        task_model.name = "NewComponentModel"
 	services = [
-	    sys_model.data_service_type('B'),
-	    sys_model.data_service_type('A'),
-	    sys_model.data_service_type('C')
+	    data_service_type('B'),
+	    data_service_type('A'),
+	    data_service_type('C')
 	]
-	proxy = Orocos::RobyPlugin.placeholder_model_for('mix', services + [task_model])
+	proxy = Syskit.proxy_task_model_for(services + [task_model])
 	assert(proxy.abstract?)
 	assert(proxy < task_model)
         assert_not_same(proxy, task_model)
-	assert_equal('mix', proxy.name)
+	assert_equal("Syskit::PlaceholderTask<#{task_model.name},A,B,C>", proxy.name)
 
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
 	assert_same(task_model, proxy.fullfilled_model[0])

@@ -1,9 +1,12 @@
 module Syskit
     module Models
+        extend Logger::Hierarchy
+        extend Logger::Forward
+
         # Definition of model-level methods for the Component models. See the
         # documentation of Model for an explanation of this.
-        module ComponentModel
-            include Model
+        module Component
+            include Models::Base
 
             ##
             # :method: each_data_service
@@ -19,6 +22,7 @@ module Syskit
             # See also #provides
             #--
             # This is defined on Component using inherited_enumerable
+            define_inherited_enumerable(:data_service, :data_services, :map => true) { Hash.new }
 
             ##
             # :method: find_data_service
@@ -155,33 +159,28 @@ module Syskit
             # Returns the output port with the given name, or nil if it does not
             # exist.
             def find_output_port(name)
-                return if !respond_to?(:orogen_spec)
-                orogen_spec.find_output_port(name)
+                orogen_model.find_output_port(name)
             end
 
             # Returns the input port with the given name, or nil if it does not
             # exist.
             def find_input_port(name)
-                return if !respond_to?(:orogen_spec)
-                orogen_spec.find_input_port(name)
+                orogen_model.find_input_port(name)
             end
 
             # Enumerates this component's output ports
             def each_output_port(&block)
-                return [].each(&block) if !respond_to?(:orogen_spec)
-                orogen_spec.each_output_port(&block)
+                orogen_model.each_output_port(&block)
             end
 
             # Enumerates this component's input ports
             def each_input_port(&block)
-                return [].each(&block) if !respond_to?(:orogen_spec)
-                orogen_spec.each_input_port(&block)
+                orogen_model.each_input_port(&block)
             end
 
             # Enumerates all of this component's ports
             def each_port(&block)
-                return [].each(&block) if !respond_to?(:orogen_spec)
-                orogen_spec.each_port(&block)
+                orogen_model.each_port(&block)
             end
 
             # Returns true if +name+ is a valid output port name for instances
@@ -216,8 +215,7 @@ module Syskit
             # One can then match if a given string (+name+) matches one of the
             # dynamic output port declarations using this predicate.
             def has_dynamic_output_port?(name, type = nil)
-                return if !respond_to?(:orogen_spec)
-                orogen_spec.has_dynamic_output_port?(name, type)
+                orogen_model.has_dynamic_output_port?(name, type)
             end
 
             # True if +name+ could be a dynamic input port name.
@@ -232,8 +230,7 @@ module Syskit
             # One can then match if a given string (+name+) matches one of the
             # dynamic input port declarations using this predicate.
             def has_dynamic_input_port?(name, type = nil)
-                return if !respond_to?(:orogen_spec)
-                orogen_spec.has_dynamic_input_port?(name, type)
+                orogen_model.has_dynamic_input_port?(name, type)
             end
 
             # Generic instanciation of a component. 
@@ -453,36 +450,61 @@ module Syskit
                 result
             end
 
-            DATA_SERVICE_ARGUMENTS = { :as => nil, :slave_of => nil, :config_type => nil }
+            PROVIDES_ARGUMENTS = { :as => nil, :slave_of => nil }
 
             # Declares that this component provides the given data service.
             # +model+ can either be the data service constant name (from
             # Syskit::DataServices), or its plain name.
             #
             # If the data service defines an interface, the component must
-            # provide the required input and output ports, *matching the port
-            # name*. See the discussion about the 'main' argument for port name
-            # matching.
+            # provide the required input and output ports. If an ambiguity
+            # exists, explicit port mappings must be provided.
             #
-            # The following arguments are accepted:
+            # @param [Hash] arguments option hash, as well as explicit port
+            #   mappings. The values that are not reserved options (listed
+            #   below) are used as port mappings, of the form:
+            #      component_port_name => service_port_name
+            #   I.e. they specify that service_port_name on the service should
+            #   be mapped to component_port_name on the component
+            # @option arguments [String] :as the name of the service. If it is
+            #   not given, the basename of the model name converted to snake case
+            #   is used, e.g. ImageProvider becomes image_provider.
+            # @option arguments [String] :slave_of the name of another data
+            #   service, of which this service should be a slave.
             #
-            # as::
-            #   the data service name on this task context. By default, it
-            #   will be derived from the model name by converting it to snake
-            #   case (i.e. stereo_camera for StereoCamera)
-            # slave_of::
-            #   creates a data service that is slave from another data service.
+            # @raise ArgumentError if a data service with that name already
+            #   exists
+            # @raise SpecError if the new data service overrides a data service
+            #   from the parent, but does not provide the service from this
+            #   parent. See example below.
+            #
+            # @example Invalid service overriding. This is an error if Service2
+            #   does not provide Service1
+            #
+            #   class TaskModel < Component
+            #     provides Service, :as => 'service'
+            #   end
+            #   class SubTaskModel < TaskModel
+            #     provides Service2, :as => 'service2'
+            #   end
             #
             def provides(model, arguments = Hash.new)
                 source_arguments, arguments = Kernel.filter_options arguments,
-                    DATA_SERVICE_ARGUMENTS
+                    :as => nil,
+                    :slave_of => nil
 
-                model = Model.validate_service_model(model, system_model, DataService)
+                name =
+                    if !source_arguments[:as]
+                        if !model.name
+                            raise ArgumentError, "no service name given, and the model has no name"
+                        end
+                        model.name.gsub(/^.+::/, '').snakecase
+                    else source_arguments[:as]
+                    end
 
                 # Get the source name and the source model
-                name = (source_arguments[:as] || model.name.gsub(/^.+::/, '').snakecase).to_str
                 if data_services[name]
-                    raise ArgumentError, "there is already a source named '#{name}' defined on '#{self.name}'"
+                    raise ArgumentError, "there is already a data service named '#{name}' defined on '#{self.name}'"
                 end
 
                 # If a source with the same name exists, verify that the user is
@@ -540,11 +562,11 @@ module Syskit
 
                 data_services[full_name] = service
 
-                debug do
-                    debug "#{short_name} provides #{model.short_name}"
-                    debug "port mappings"
+                Models.debug do
+                    Models.debug "#{short_name} provides #{model.short_name}"
+                    Models.debug "port mappings"
                     service.port_mappings.each do |m, mappings|
-                        debug "  #{m.short_name}: #{mappings}"
+                        Models.debug "  #{m.short_name}: #{mappings}"
                     end
                     break
                 end
@@ -556,6 +578,9 @@ module Syskit
             end
 
             def method_missing(m, *args)
+                if m == :orogen_model
+                    raise NoMethodError, "tried to use a method to access an oroGen model, but none exists on #{self}"
+                end
                 if args.empty? && !block_given?
                     if port = self.find_port(m.to_s)
                         return Port.new(self, port)
@@ -582,6 +607,46 @@ module Syskit
                     end
                 end
                 super
+            end
+
+            # :attr: private_specialization?
+            #
+            # If true, this model is used internally as specialization of
+            # another component model (as e.g. to represent dynamic service
+            # instantiation). Otherwise, it is an actual component model.
+            attr_predicate :private_specialization?, true
+
+            # Creates a private specialization of the current model
+            def specialize(name)
+                klass = Class.new(self)
+                klass.name = name
+                klass.private_specialization = true
+                klass.private_model
+                klass.state_events = state_events.dup
+                Syskit::Models.merge_orogen_task_context_models(klass.orogen_model, [orogen_model])
+                klass
+            end
+
+            # Returns a placeholder task that can be used to require that a
+            # task from this component model is deployed and started at a
+            # certain point in the plan.
+            #
+            # It is usually used implicitely with the plan and relation methods directly:
+            #
+            #   cmp = task.depends_on(Cmp::MyComposition)
+            #
+            # calls this method behind the scenes.
+            def as_plan
+                Syskit::SingleRequirementTask.subplan(self)
+            end
+
+            # Returns the set of models this model fullfills
+            def each_fullfilled_model
+                ancestors.each do |m|
+                    if m <= Component || m <= DataService
+                        yield(m)
+                    end
+                end
             end
         end
     end

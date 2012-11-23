@@ -14,10 +14,10 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
     end
 
     def setup_stereocamera
-        service_model = sys_model.data_service_type("Image") do
+        service_model = DataModel.new_submodel do
             output_port 'image', '/int'
         end
-        other_service_model = sys_model.data_service_type "Bla"
+        other_service_model = DataModel.new_submodel
         component_model = mock_roby_component_model do
             output_port 'left', '/int'
             output_port 'right', '/int'
@@ -29,20 +29,20 @@ class TC_RobyPlugin_BoundDataService < Test::Unit::TestCase
     end
 
     def setup_transitive_services
-        base = sys_model.data_service_type("Base") do
+        base = DataModel.new_submodel do
             input_port "in_base", "/int"
             input_port 'in_base_unmapped', '/double'
             output_port "out_base", "/int"
             output_port 'out_base_unmapped', '/double'
         end
-        parent = sys_model.data_service_type("Parent") do
+        parent = DataModel.new_submodel do
             input_port "in_parent", "/int"
             input_port 'in_parent_unmapped', '/double'
             output_port "out_parent", "/int"
             output_port 'out_parent_unmapped', '/double'
         end
         parent.provides base, 'in_base' => 'in_parent', 'out_base' => 'out_parent'
-        model = sys_model.data_service_type("Model") do
+        model = DataModel.new_submodel do
             input_port "in_model", "/int"
             output_port "out_model", "/int"
         end

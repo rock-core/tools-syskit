@@ -61,8 +61,8 @@ module Syskit
             # Explicitely selects a given service on the task models required by
             # this task
             def select_service(service)
-                if service.respond_to?(:to_str) || service.kind_of?(DataServiceModel)
-                    task_model = @models.find { |m| m.kind_of?(Syskit::ComponentModel) }
+                if service.respond_to?(:to_str) || service.kind_of?(Models::DataServiceModel)
+                    task_model = @models.find { |m| m.kind_of?(Syskit::Component) }
                     if !task_model
                         raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
                     end
@@ -369,22 +369,12 @@ module Syskit
                 @required_host = name
             end
 
-            # Returns the system model we are attached to, or nil if we are not
-            # attached to any. This is essentially the system model in which
-            # elements of base_models are declared
-            def system_model
-                base_models.each do |mod|
-                    return mod.system_model
-                end
-                nil
-            end
-
             def instanciation_model
                 task_model = models.find { |m| m <= Roby::Task }
                 if task_model && models.size == 1
                     return task_model
                 else 
-                    return (@task_model || system_model.proxy_task_model(models))
+                    return Syskit.proxy_task_model_for(models)
                 end
             end
 
@@ -470,7 +460,7 @@ module Syskit
                     else
                         raise ArgumentError, "#{value} is not a valid explicit selection"
                     end
-                when DataServiceInstance
+                when BoundDataService
                     return value
                 else
                     if value.respond_to?(:to_ary)
@@ -767,7 +757,7 @@ module Syskit
                         end
                     when InstanceRequirements
                         required_models = obj.models
-                    when DataServiceModel
+                    when Models::DataServiceModel
                         required_models = [obj]
                     else
                         if obj <= Component
@@ -1340,7 +1330,7 @@ module Syskit
             def self.compute_service_selection(task_model, required_services, user_call)
                 result = Hash.new
                 required_services.each do |required|
-                    next if !required.kind_of?(DataServiceModel)
+                    next if !required.kind_of?(Models::DataServiceModel)
                     candidate_services =
                         task_model.find_all_services_from_type(required)
 
@@ -1374,7 +1364,7 @@ module Syskit
                     result.selected_services = object.selected_services
                     result.port_mappings = object.port_mappings
                     result.requirements.merge(object.requirements)
-                when DataServiceInstance
+                when BoundDataService
                     if !object.provided_service_model
                         raise InternalError, "#{object} has no provided service model"
                     end
@@ -1384,13 +1374,13 @@ module Syskit
                     result.selected_task = object.task
                     object_requirements.require_model(object.task.model)
                     object_requirements.select_service(object.provided_service_model)
-                when ProvidedDataService
+                when Models::BoundDataService
                     required_model.each do |required|
                         result.selected_services[required] = object
                     end
                     object_requirements.require_model(object.component_model)
                     object_requirements.select_service(object)
-                when DataServiceModel
+                when Models::DataServiceModel
                     object_requirements.require_model(object)
                 when Component
                     result.selected_task = object

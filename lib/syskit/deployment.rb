@@ -1,3 +1,7 @@
+# The module in which all deployment models are defined
+module Deployments
+end
+
 module Syskit
         class << self
             # The set of known process servers.
@@ -7,17 +11,11 @@ module Syskit
         end
         @process_servers = Hash.new
 
-        # The module in which all deployment models are defined
-        module Deployments
-        end
-
         # In oroGen, a deployment is a Unix process that holds a certain number
         # of task contexts. This Roby task represents the unix process itself.
         # Once it gets instanciated, the associated task contexts can be
         # accessed with #task(name)
         class Deployment < ::Roby::Task
-            attr_accessor :robot
-
             def initialize(arguments = Hash.new)
 	    	opts, task_arguments = Kernel.filter_options  arguments, :log => true
 		task_arguments[:log] = opts[:log]
@@ -25,39 +23,11 @@ module Syskit
                 super(task_arguments)
 	    end
 
-            class << self
-                # The Orocos::Generation::StaticDeployment that represents this
-                # deployment.
-                attr_reader :orogen_spec
-
-                def all_deployments; @@all_deployments end
-            end
             @@all_deployments = Hash.new
 
             # The PID of this process
             def pid
-                @pid ||= orogen_deployment.pid
-            end
-
-            def self.short_name
-                name.gsub("Syskit::", "")
-            end
-
-            # Returns the name of this particular deployment instance
-            def self.deployment_name
-                orogen_spec.name
-            end
-
-            # The Orocos::Generation::StaticDeployment object describing this
-            # deployment. This is a shortcut for deployment.model.orogen_spec
-            def orogen_spec; self.class.orogen_spec end
-
-            # The name of the executable, i.e. the name of the deployment as
-            # given in the oroGen file
-            #
-            # This  is a shortcut for deployment.model.deployment_name
-            def deployment_name
-                orogen_spec.name
+                @pid ||= orocos_process.pid
             end
 
             # A name => Orocos::TaskContext instance mapping of all the task
@@ -65,7 +35,7 @@ module Syskit
             attr_reader :task_handles
 
             # The underlying Orocos::Process instance
-            attr_reader :orogen_deployment
+            attr_reader :orocos_process
 
             # The set of ports for which logging has already been set up, as a
             # set of [task_name, port_name] pairs
@@ -88,27 +58,14 @@ module Syskit
             event :signaled
             forward :signaled => :failed
 
-            # An array of Orocos::Generation::TaskDeployment instances that
-            # represent the tasks available in this deployment. Associated plan
-            # objects can be instanciated with #task
-            def self.tasks
-                orogen_spec.task_activities
-            end
-
             # Returns true if +self+ and +task+ are running on the same process
             # server
             def on_same_server?(task)
                 task == self || machine == task.machine
             end
 
-            def self.instanciate(engine, arguments = Hash.new)
-                task = new(arguments)
-                task.robot = engine.robot
-                task
-            end
-
             def instanciate_all_tasks
-                orogen_spec.task_activities.map do |act|
+                model.each_deployed_task_context.map do |act|
                     task(act.name)
                 end
             end
@@ -116,7 +73,8 @@ module Syskit
             # Returns an task instance that represents the given task in this
             # deployment.
             def task(name, model = nil)
-                activity = orogen_spec.task_activities.find { |act| name == act.name }
+                activity = model.each_deployed_task_context.
+                    find { |act| name == act.name }
                 if !activity
                     raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}"
                 end
@@ -130,26 +88,25 @@ module Syskit
                     model = activity_model
                 end
                 plan.add(task = model.new(:orocos_name => activity.name))
-                task.robot = robot
                 task.executed_by self
-                task.orogen_spec = activity
+                task.orogen_model = activity
                 if ready?
                     initialize_running_task(name, task)
                 end
                 task
             end
 
-            # Internal helper to set the #orogen_task and 
+            # Internal helper to set the #orocos_task
             def initialize_running_task(name, task)
-                task.orogen_task = task_handles[name]
-                task.orogen_task.process = orogen_deployment
+                task.orocos_task = task_handles[name]
+                task.orocos_task.process = orocos_process
                 if Conf.orocos.conf_log_enabled?
-                    task.orogen_task.log_all_configuration(Orocos.configuration_log)
+                    task.orocos_task.log_all_configuration(Orocos.configuration_log)
                 end
                 # Override the base model with the new one. The new model
                 # may have been specialized, for instance to handle dynamic
                 # slave creation
-                # task.orogen_task.instance_variable_set(:@model, task.model.orogen_spec)
+                # task.orogen_task.instance_variable_set(:@model, task.model.orogen_deployment_model)
             end
 
             ##
@@ -234,13 +191,13 @@ module Syskit
                         end
                     end
                 end
-                @orogen_deployment = process_server.start(model.deployment_name, 
+                @orocos_process = process_server.start(model.deployment_name, 
                                                           :working_directory => log_dir, 
                                                           :output => "%m-%p.txt", 
                                                           :wait => false,
                                                           :cmdline_args => options)
 
-                Deployment.all_deployments[@orogen_deployment] = self
+                Deployment.all_deployments[@orocos_process] = self
                 emit :start
             end
 
@@ -275,12 +232,12 @@ module Syskit
                     emit :failed, result
                 end
 
-                Deployment.all_deployments.delete(orogen_deployment)
-                orogen_spec.task_activities.each do |act|
+                Deployment.all_deployments.delete(orocos_process)
+                model.each_deployed_task_context do |act|
                     TaskContext.configured.delete(act.name)
                 end
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                    task.orogen_task = nil
+                    task.orocos_task = nil
                 end
             end
 
@@ -349,12 +306,12 @@ module Syskit
             poll do
                 next if ready?
 
-                if orogen_deployment.wait_running(0)
+                if orocos_process.wait_running(0)
                     emit :ready
 
                     @task_handles = Hash.new
-                    orogen_spec.task_activities.each do |activity|
-                        name = orogen_deployment.get_mapped_name(activity.name)
+                    model.each_deployed_task_context do |activity|
+                        name = orocos_process.get_mapped_name(activity.name)
                         task_handles[activity.name] =  
                           ::Orocos::TaskContext.get(name)
                     end
@@ -386,31 +343,10 @@ module Syskit
                         end
                     end
                     ready_to_die!
-                    orogen_deployment.kill(false)
+                    orocos_process.kill(false)
                 rescue CORBA::ComError
                     # Assume that the process is killed as it is not reachable
                 end
-            end
-
-            def self.create(name, deployment_spec)
-                klass = Class.new(Deployment)
-                if name
-                    klass.instance_variable_set :@name, name
-                end
-                klass.instance_variable_set :@orogen_spec, deployment_spec
-                klass
-            end
-
-            # Creates a subclass of Deployment that represents the deployment
-            # specified by +deployment_spec+.
-            #
-            # +deployment_spec+ is an instance of Orogen::Generation::Deployment
-            def self.define_from_orogen(deployment_spec)
-                klass = Class.new(Deployment)
-                klass.instance_variable_set :@name, "Syskit::Deployments::#{deployment_spec.name.camelcase(:upper)}"
-                klass.instance_variable_set :@orogen_spec, deployment_spec
-                Syskit::Deployments.const_set(deployment_spec.name.camelcase(:upper), klass)
-                klass
             end
         end
 end

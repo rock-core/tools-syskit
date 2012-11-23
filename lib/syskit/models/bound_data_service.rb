@@ -195,10 +195,7 @@ module Syskit
 
             attr_reader :declared_dynamic_slaves
 
-            def dynamic_slaves(model, options = Hash.new, &block)
-                source_model = component_model.system_model.
-                    query_or_create_service_model(model, self.model.class, options)
-
+            def dynamic_slaves(source_model, options = Hash.new, &block)
                 declared_dynamic_slaves << [source_model, block, model, options]
                 source_model
             end

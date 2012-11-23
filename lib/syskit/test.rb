@@ -19,8 +19,6 @@ module Syskit
 	    include Roby::Test
 	    include Roby::Test::Assertions
 
-            # The system model
-            attr_reader :sys_model
             # The execution engine
             attr_reader :orocos_engine
 
@@ -50,7 +48,7 @@ module Syskit
                 mock = flexmock(Class.new(Component))
                 mock.terminates
                 spec = Syskit.create_orogen_interface(name)
-                mock.should_receive(:orogen_spec).and_return(spec)
+                mock.should_receive(:orogen_model).and_return(spec)
                 if block
                     spec.instance_eval(&block)
                 end
@@ -93,15 +91,13 @@ module Syskit
                 spec.task('task', task_model.interface)
                 model = Syskit::Deployment.create(nil, spec)
                 orocos_engine.deployments['localhost'] << model
-                Roby.app.orocos_tasks[task_model.orogen_spec.name] = task_model
+                Roby.app.orocos_tasks[task_model.orogen_model.name] = task_model
                 model
             end
 
             def mock_roby_composition_model(name = '', &block)
-                model = Composition.new_submodel name, sys_model
-                if block
-                    model.instance_eval(&block)
-                end
+                model = Composition.new_submodel(&block)
+                model = name if !name.empty?
                 model = flexmock(model)
                 model.new_instances
                 model
@@ -121,7 +117,7 @@ module Syskit
             end
 
             def mock_configured_task(task)
-                task.should_receive(:orogen_task).and_return(mock_task_context(task.model.orogen_spec))
+                task.should_receive(:orocos_task).and_return(mock_task_context(task.model.orogen_model))
                 if !task.execution_agent
                     task.executed_by(deployer = mock_deployment_task)
                     deployer.should_receive(:ready_to_die?).and_return(false)
@@ -149,7 +145,6 @@ module Syskit
                 engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
                 # TODO: remove all references to global singletons
-                @sys_model = Roby.app.orocos_system_model
                 save_collection Roby.app.orocos_engine.instances
                 @orocos_engine = Roby.app.orocos_engine
                 Roby.app.orocos_engine.instance_variable_set :@plan, plan
@@ -168,8 +163,8 @@ module Syskit
                 if plan
                     deployments = plan.find_tasks(Deployment).running.to_a
                     deployments.each do |task|
-                        if task.orogen_deployment.alive?
-                            task.orogen_deployment.kill
+                        if task.orocos_process.alive?
+                            task.orocos_process.kill
                         end
                     end
                 end
@@ -186,8 +181,6 @@ module Syskit
             def method_missing(m, *args, &block)
                 if orocos_engine.respond_to?(m)
                     orocos_engine.send(m, *args, &block)
-                elsif sys_model.respond_to?(m)
-                    sys_model.send(m, *args, &block)
                 else super
                 end
             end
@@ -252,6 +245,20 @@ module Syskit
                 orocos_engine.add_instance(model)
             end
         end
+
+    module SelfTest
+        include Test
+        include Roby::SelfTest
+
+        def setup
+            super
+            Orocos.load
+        end
+
+        def data_service_type(name, &block)
+            DataService.new_submodel(:name => name, &block)
+        end
+    end
 end
 
 

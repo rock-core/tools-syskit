@@ -26,7 +26,7 @@ module Syskit
                 FileUtils.mkdir_p(path)
                 Roby.plan.find_tasks(task_model).
                     each do |t|
-                        Orocos.conf.save(t.orogen_task, path, name || t.orogen_task.name)
+                        Orocos.conf.save(t.orocos_task, path, name || t.orocos_task.name)
                     end
                 nil
             end

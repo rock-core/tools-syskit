@@ -235,11 +235,11 @@ module Syskit
                     break
                 end
 
-                activity_type = task.orogen_spec.activity_type.name
+                activity_type = task.orogen_model.activity_type.name
                 case activity_type
                 when "Periodic"
                     initial_device_information_periodic_triggering(
-                        task, triggering_devices.to_a, task.orogen_spec.period)
+                        task, triggering_devices.to_a, task.orogen_model.period)
                 else
                     initial_device_information_internal_triggering(
                         task, triggering_devices.to_a)
@@ -327,13 +327,13 @@ module Syskit
                     initial_combus_information(task)
                 end
 
-                activity_type = task.orogen_spec.activity_type.name
+                activity_type = task.orogen_model.activity_type.name
                 if activity_type == "Periodic"
-                    DataFlowDynamics.debug { "  adding periodic trigger #{task.orogen_spec.period} 1" }
-                    add_task_trigger(task, "#{task.orocos_name}.main-period", task.orogen_spec.period, 1)
+                    DataFlowDynamics.debug { "  adding periodic trigger #{task.orogen_model.period} 1" }
+                    add_task_trigger(task, "#{task.orocos_name}.main-period", task.orogen_model.period, 1)
                     done_task_info(task)
                 else
-                    if !task.orogen_spec.task_model.each_event_port.find { true }
+                    if !task.orogen_model.task_model.each_event_port.find { true }
                         done_task_info(task)
                     end
                 end
@@ -407,9 +407,9 @@ module Syskit
                     end
                 end
 
-                if task.orogen_spec.activity_type.name == "Periodic"
+                if task.orogen_model.activity_type.name == "Periodic"
                     triggers = triggers.map do |trigger_info|
-                        trigger_info.sampled_at(task.orogen_spec.period)
+                        trigger_info.sampled_at(task.orogen_model.period)
                     end
                 end
 

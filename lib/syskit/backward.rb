@@ -85,3 +85,15 @@ class Syskit::SystemModel
         self
     end
 end
+
+# TODO:
+#   task_model => proxy_task_model
+#   orogen_spec => orogen_model
+#   interface => orogen_model
+#   create_orogen_interface => create_orogen_task_context_model
+#   TaskContext#orogen_name => TaskContext#orocos_name
+#
+#   create Syskit.create_orogen_deployment_model(:name =>, :task_context_model =>)
+#
+#   Orocos::TaskContext#input_port, #output_port, #find_input_port,
+#   #find_output_port

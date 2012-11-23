@@ -354,7 +354,7 @@ module Syskit
             end
 
             def through(&block)
-                with_module(*Syskit.constant_search_path, &block)
+                instance_eval(&block)
             end
 
             # Used by the #through call to override com_bus specification.
@@ -381,23 +381,13 @@ module Syskit
             # The devices that are available on this robot
             attr_reader :devices
 
-            def system_model
-                engine.model
-            end
-
             def clear
                 com_busses.clear
                 devices.clear
             end
 
             # Declares a new communication bus
-            def com_bus(type_spec, options = Hash.new)
-                type =
-                    if type_spec.respond_to?(:to_str)
-                        system_model.device_model(type_spec.to_str)
-                    else type_spec
-                    end
-
+            def com_bus(type, options = Hash.new)
                 bus_options, _ = Kernel.filter_options options, :as => type.snakename
                 name = options[:as].to_str
                 if com_busses[name]
@@ -469,10 +459,6 @@ module Syskit
             def device(device_model, options = Hash.new)
                 if !(device_model < Device)
                     raise ArgumentError, "expected a device model, got #{device_model} of class #{device_model.class.name}"
-                end
-                if device_model.respond_to?(:to_str)
-                    device_model = system_model.
-                        device_model(device_model.to_str)
                 end
 
                 options, device_options = Kernel.filter_options options,

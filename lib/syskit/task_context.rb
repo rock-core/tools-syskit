@@ -18,18 +18,25 @@ module Syskit
         #   static inputs are connected.
         class TaskContext < Component
             extend Models::TaskContext
-            @name = "Syskit::TaskContext"
 
             abstract
 
+            # The task's configuration, as a list of registered configurations
+            # for the underlying task context
+            #
+            # For instance ['default', 'left_camera'] will apply the 'default'
+            # section of config/orogen/orogen_project::TaskClassName.yml and
+            # then override with the 'left_camera' section of the same file
             argument :conf
+            # The name of the remote task context, i.e. the name under which it
+            # can be resolved by Orocos.name_service
             argument :orocos_name
 
             class << self
-                # A name => [orogen_model, current_conf] mapping that says if
+                # A name => [orogen_deployed_task_context, current_conf] mapping that says if
                 # the task named 'name' is configured
                 #
-                # orogen_model is the model for +name+ and +current_conf+ an
+                # orogen_deployed_task_context is the model for +name+ and +current_conf+ an
                 # array of configuration sections as expected by #conf. It
                 # represents the last configuration applied on +name+
                 def configured; @@configured end
@@ -41,34 +48,56 @@ module Syskit
             @@configured = Hash.new
             @@needs_reconfiguration = Set.new
 
-            # Returns the thread ID of the thread running this task
-            #
-            # Beware, the thread might be on a remote machine !
+            # [Orocos::TaskContext,Orocos::ROS::Node] the underlying remote task
+            # context object. It is set only when the task context's deployment
+            # is running
+            attr_accessor :orocos_task
+            # [Orocos::Generation::TaskDeployment] the model of this deployment
+            attr_accessor :orogen_model
+            # The current state for the orogen task. It is a symbol that
+            # represents the state name (i.e. :RUNTIME_ERROR, :RUNNING, ...)
+            attr_reader :orogen_state
+            # The last state before we went to orogen_state
+            attr_reader :last_orogen_state
+
+            # @!attribute r tid
+            #   @return [Integer] The thread ID of the thread running this task
+            #   Beware, the thread might be on a remote machine !
             def tid
-                orogen_task.tid
+                orocos_task.tid
             end
 
-            # Returns the event name that maps to the given component state name
+            # [Symbol] Returns the task's event name that maps to the given component state name
             def state_event(name)
                 model.state_events[name]
             end
 
-            def merge(merged_task)
-                super
-                self.required_host ||= merged_task.required_host
+            # The PortDynamics object that describes the dynamics of the task
+            # itself.
+            #
+            # The sample_size attribute on this object is ignored. Only the
+            # triggers are of any use
+            attr_reader :task_dynamics
 
-                if merged_task.orogen_spec && !orogen_spec
-                    self.orogen_spec = merged_task.orogen_spec
-                end
+            # Returns the minimal period, i.e. the minimum amount of time
+            # between two triggers
+            def minimal_period
+                task_dynamics.minimal_period
+            end
 
-                if merged_task.orogen_task && !orogen_task
-                    self.orogen_task = merged_task.orogen_task
-                end
-                nil
+            # Maximum time between the task is sent a trigger signal and the
+            # time it is actually triggered
+            def trigger_latency
+                orogen_model.worstcase_trigger_latency
             end
 
             def initialize(arguments = Hash.new)
-                super
+                options, task_options = Kernel.filter_options arguments,
+                    :orogen_model => nil
+                super(task_options)
+
+                @orogen_model   = options[:orogen_model] ||
+                    Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
 
                 @allow_automatic_setup = true
 
@@ -80,17 +109,10 @@ module Syskit
                 self.executable = false
             end
 
-            # Returns the task name inside the deployment
-            #
-            # When using CORBA, this is the CORBA name as well
-            def orogen_name
-                orogen_spec.name
-            end
-
             def create_fresh_copy # :nodoc:
                 new_task = super
-                new_task.orogen_task = orogen_task
-                new_task.orogen_spec = orogen_spec
+                new_task.orocos_task  = orocos_task
+                new_task.orogen_model = orogen_model
                 new_task
             end
 
@@ -135,10 +157,10 @@ module Syskit
                 end
             end
 
-            # Reimplemented from Component
+            # Verifies if a task could be replaced by this one
             #
-            # It verifies that the host constraint (i.e. on which host should
-            # this task be started) matches
+            # @return [Boolean] true if #merge(other_task) can be called and
+            # false otherwise
             def can_merge?(other_task) # :nodoc:
                 if !(super_result = super)
                     return super_result
@@ -159,34 +181,26 @@ module Syskit
                 end
             end
 
-            # The PortDynamics object that describes the dynamics of the task
-            # itself.
+            # Replaces the given task by this task
             #
-            # The sample_size attribute on this object is ignored. Only the
-            # triggers are of any use
-            attr_reader :task_dynamics
+            # @param [TaskContext] merged_task the task that should be replaced
+            # @return [void]
+            def merge(merged_task)
+                super
+                self.required_host ||= merged_task.required_host
 
-            # Returns the minimal period, i.e. the minimum amount of time
-            # between two triggers
-            def minimal_period
-                task_dynamics.minimal_period
-            end
+                if merged_task.orogen_model && !orogen_model
+                    self.orogen_model = merged_task.orogen_model
+                end
 
-            # Maximum time between the task is sent a trigger signal and the
-            # time it is actually triggered
-            def trigger_latency
-                orogen_spec.worstcase_trigger_latency
+                if merged_task.orocos_task && !orocos_task
+                    self.orocos_task = merged_task.orocos_task
+                end
+                nil
             end
 
             def find_input_port(name)
-                if !orogen_task
-                    raise ArgumentError, "#find_input_port called but we have no task handler yet"
-                end
-                port = orogen_task.port(name)
-		return if !port.respond_to?(:writer)
-		port
-
-            rescue Orocos::NotFound
+                orocos_task.find_input_port(name)
             end
 
             def input_port(name)
@@ -197,14 +211,7 @@ module Syskit
             end
 
             def find_output_port(name)
-                if !orogen_task
-                    raise ArgumentError, "#find_output_port called but we have no task handler yet"
-                end
-                port = orogen_task.port(name)
-                return if !port.respond_to?(:reader)
-                port
-
-            rescue Orocos::NotFound
+                orocos_task.find_output_port(name)
             end
 
             def output_port(name)
@@ -215,49 +222,34 @@ module Syskit
             end
 
             def input_port_model(name)
-                if !(p = orogen_task.input_port_model(name))
+                if !(p = model.input_port(name))
                     raise Orocos::NotFound, "there is no port #{name} on #{self}"
                 end
                 p
             end
 
             def output_port_model(name)
-                if !(p = orogen_task.output_port_model(name))
+                if !(p = model.output_port(name))
                     raise Orocos::NotFound, "there is no port #{name} on #{self}"
                 end
                 p
             end
 
             def each_input_port(&block)
-                orogen_task.each_input_port(&block)
+                orocos_task.each_input_port(&block)
             end
 
             def each_output_port(&block)
-                orogen_task.each_output_port(&block)
+                orocos_task.each_output_port(&block)
             end
 
             def operation(name)
-                orogen_task.operation(name)
+                orocos_task.operation(name)
             end
 
             def property(name)
-                orogen_task.property(name)
+                orocos_task.property(name)
             end
-
-            # The Orocos::TaskContext instance that gives us access to the
-            # remote task context. Note that it is set only when the task is
-            # started.
-            attr_accessor :orogen_task
-            # The Orocos::Generation::TaskDeployment instance that describes the
-            # underlying task
-            attr_accessor :orogen_spec
-            # The global name of the Orocos task underlying this Roby task
-            def orocos_name; orogen_spec.name end
-            # The current state for the orogen task. It is a symbol that
-            # represents the state name (i.e. :RUNTIME_ERROR, :RUNNING, ...)
-            attr_reader :orogen_state
-            # The last state before we went to orogen_state
-            attr_reader :last_orogen_state
 
             def read_current_state
                 while update_orogen_state
@@ -265,25 +257,38 @@ module Syskit
                 @orogen_state
             end
 
+            # The size of the buffered connection created between this object
+            # and the remote task's state port
             STATE_READER_BUFFER_SIZE = 200
 
+            # If true, the current state (got from the component's state port)
+            # is compared with the RTT state as reported by
+            # the task itself through a port.
+            #
+            # This should only be used for debugging reasons, and if you know
+            # what you are doing: inconsistencies can arise because the state
+            # port is an asynchronous mean of communication while #rtt_state is
+            # synchronous
             attr_predicate :validate_orogen_states, true
 
+            # Validates that the current value in #orogen_state matches the
+            # value returned by orocos_task.rtt_state. This is called
+            # automatically if #validate_orogen_states? is set to true
             def validate_orogen_state_from_rtt_state
                 orogen_state = orogen_state
-                rtt_state    = orogen_task.rtt_state
+                rtt_state    = orocos_task.rtt_state
                 mismatch =
                     case rtt_state
                     when :RUNNING
-                        !orogen_task.runtime_state?(orogen_state)
+                        !orocos_task.runtime_state?(orogen_state)
                     when :STOPPED
                         orogen_state != :STOPPED
                     when :RUNTIME_ERROR
-                        !orogen_task.error_state?(orogen_state)
+                        !orocos_task.error_state?(orogen_state)
                     when :FATAL_ERROR
-                        !orogen_task.fatal_error_state?(orogen_state)
+                        !orocos_task.fatal_error_state?(orogen_state)
                     when :EXCEPTION
-                        !orogen_task.exception_state?(orogen_state)
+                        !orocos_task.exception_state?(orogen_state)
                     end
 
                 if mismatch
@@ -293,14 +298,16 @@ module Syskit
                 end
             end
 
+            # Create a Orocos::StateReader object to read the state from this
+            # task context
             def create_state_reader
-                @state_reader = orogen_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE, :init => true, :transport => Orocos::TRANSPORT_CORBA)
+                @state_reader = orocos_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE, :init => true, :transport => Orocos::TRANSPORT_CORBA)
             end
 
             # Called at each cycle to update the orogen_state attribute for this
-            # task.
-            def update_orogen_state # :nodoc:
-                if orogen_spec.context.extended_state_support? && !@state_reader
+            # task using the values read from the state reader
+            def update_orogen_state
+                if orogen_model.context.extended_state_support? && !@state_reader
                     create_state_reader
                 end
 
@@ -314,7 +321,7 @@ module Syskit
                         @orogen_state = v
                     end
                 else
-                    new_state = orogen_task.rtt_state
+                    new_state = orocos_task.rtt_state
                     if new_state != @orogen_state
                         @last_orogen_state = orogen_state
                         @orogen_state = new_state
@@ -336,11 +343,11 @@ module Syskit
                 # It MUST be kept here
                 if !@allow_automatic_setup
                     return false
-                elsif !orogen_spec || !orogen_task
+                elsif !orogen_model || !orocos_task
                     return false
                 end
 
-                state = begin orogen_task.rtt_state
+                state = begin orocos_task.rtt_state
                         rescue CORBA::ComError
                             return false
                         end
@@ -378,9 +385,7 @@ module Syskit
             # If true, #configure must be called on this task before it is
             # started. This flag is reset after #configure has been called
             def needs_reconfiguration?
-                if orogen_spec
-                    TaskContext.needs_reconfiguration.include?(orocos_name)
-                end
+                TaskContext.needs_reconfiguration.include?(orocos_name)
             end
 
             # Make sure that #configure will be called on this task before it
@@ -388,32 +393,31 @@ module Syskit
             #
             # See also #setup and #needs_reconfiguration?
             def needs_reconfiguration!
-                if orogen_spec
-                    TaskContext.needs_reconfiguration << orocos_name
-                end
+                TaskContext.needs_reconfiguration << orocos_name
             end
 
+            # Tests if this task can be reused in the next deployment run
             def reusable?
                 super && (!setup? || !needs_reconfiguration?)
             end
 
             # Called to configure the component
             def setup
-                if !orogen_task
-                    raise InternalError, "#setup called but there is no orogen_task"
+                if !orocos_task
+                    raise InternalError, "#setup called but there is no orocos_task"
                 end
 
-                state = orogen_task.rtt_state
+                state = orocos_task.rtt_state
 
                 if ![:EXCEPTION, :PRE_OPERATIONAL, :STOPPED].include?(state)
-                    raise InternalError, "wrong state in #setup for #{orogen_task}: got #{state}, but only EXCEPTION, PRE_OPERATIONAL and STOPPED are available"
+                    raise InternalError, "wrong state in #setup for #{orocos_task}: got #{state}, but only EXCEPTION, PRE_OPERATIONAL and STOPPED are available"
                 end
 
                 needs_reconf = false
                 if state == :EXCEPTION
                     ::Robot.info "reconfiguring #{self}: the task was in exception state"
-                    orogen_task.reset_exception(false)
-                    state = orogen_task.rtt_state
+                    orocos_task.reset_exception(false)
+                    state = orocos_task.rtt_state
                     needs_reconf = true
                 elsif state == :PRE_OPERATIONAL
                     needs_reconf = true
@@ -435,10 +439,10 @@ module Syskit
                     is_setup!
                     return
                 end
-                if state == :STOPPED && orogen_task.model.needs_configuration?
+                if state == :STOPPED && orocos_task.model.needs_configuration?
                     ::Robot.info "cleaning up #{self}"
                     cleaned_up = true
-                    orogen_task.cleanup
+                    orocos_task.cleanup
                 end
 
                 ::Robot.info "setting up #{self}"
@@ -448,10 +452,10 @@ module Syskit
                 super
 
                 if !Roby.app.orocos_engine.dry_run? && (cleaned_up || state == :PRE_OPERATIONAL)
-                    orogen_task.configure(false)
+                    orocos_task.configure(false)
                 end
                 TaskContext.needs_reconfiguration.delete(orocos_name)
-                TaskContext.configured[orocos_name] = [orogen_task.model, self.conf.dup]
+                TaskContext.configured[orocos_name] = [orocos_task.model, self.conf.dup]
             end
 
             ##
@@ -468,26 +472,26 @@ module Syskit
             event :start do |context|
                 # Create the state reader right now. Otherwise, we might not get
                 # the state updates related to the task's startup
-                if orogen_spec.context.extended_state_support?
+                if orogen_model.context.extended_state_support?
                     create_state_reader
                 end
 
                 # At this point, we should have already created all the dynamic
                 # ports that are required ... check that
                 each_concrete_output_connection do |source_port, _|
-                    if !orogen_task.has_port?(source_port)
-                        raise "#{orocos_name}(#{orogen_spec.name}) does not have a port named #{source_port}"
+                    if !orocos_task.has_port?(source_port)
+                        raise "#{orocos_name}(#{orogen_model.name}) does not have a port named #{source_port}"
                     end
                 end
                 each_concrete_input_connection do |_, _, sink_port, _|
-                    if !orogen_task.has_port?(sink_port)
-                        raise "#{orocos_name}(#{orogen_spec.name}) does not have a port named #{sink_port}"
+                    if !orocos_task.has_port?(sink_port)
+                        raise "#{orocos_name}(#{orogen_model.name}) does not have a port named #{sink_port}"
                     end
                 end
 
                 ::Robot.info "starting #{to_s} (#{orocos_name})"
                 @last_orogen_state = nil
-                orogen_task.start(false)
+                orocos_task.start(false)
                 emit :start
             end
 
@@ -496,7 +500,7 @@ module Syskit
                 # If we are starting, we should ignore all states until a
                 # runtime state is found
                 if !@got_running_state
-                    if orogen_task.runtime_state?(orogen_state)
+                    if orocos_task.runtime_state?(orogen_state)
                         @got_running_state = true
                         emit :running
                     else
@@ -504,18 +508,18 @@ module Syskit
                     end
                 end
 
-                if orogen_task.exception_state?(orogen_state)
+                if orocos_task.exception_state?(orogen_state)
                     if event = state_event(orogen_state)
                         emit event
                     else emit :exception
                     end
-                elsif orogen_task.fatal_error_state?(orogen_state)
+                elsif orocos_task.fatal_error_state?(orogen_state)
                     if event = state_event(orogen_state)
                         emit event
                     else emit :fatal_error
                     end
 
-                elsif orogen_state == :RUNNING && last_orogen_state && orogen_task.error_state?(last_orogen_state)
+                elsif orogen_state == :RUNNING && last_orogen_state && orocos_task.error_state?(last_orogen_state)
                     emit :running
 
                 elsif orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
@@ -538,11 +542,11 @@ module Syskit
             event :interrupt do |context|
 	        Robot.info "interrupting #{name}"
                 begin
-		    if !orogen_task # already killed
+		    if !orocos_task # already killed
 		        emit :interrupt
 		        emit :aborted
 		    elsif execution_agent && !execution_agent.finishing?
-		        orogen_task.stop(false)
+		        orocos_task.stop(false)
 		    end
                 rescue Orocos::CORBA::ComError
                     # We actually aborted
@@ -551,7 +555,7 @@ module Syskit
                 rescue Orocos::StateTransitionFailed
                     # Use #rtt_state as it has no problem with asynchronous
                     # communication, unlike the port-based state updates.
-		    state = orogen_task.rtt_state
+		    state = orocos_task.rtt_state
                     if state != :RUNNING
 			Engine.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
                         # Nothing to do, the poll block will finalize the task
@@ -601,7 +605,7 @@ module Syskit
 
             on :aborted do |event|
 	        Robot.info "#{event.task} has been aborted"
-                @orogen_task = nil
+                @orocos_task = nil
             end
 
             ##
@@ -630,14 +634,13 @@ module Syskit
             # Component.data_service for the description of +arguments+
             def self.driver_for(model, arguments = Hash.new, &block)
                 if model.respond_to?(:to_str)
-                    service_options, model_options = Kernel.filter_options arguments, ComponentModel::DATA_SERVICE_ARGUMENTS
-                    model = system_model.query_or_create_service_model(
-                        model, DeviceModel, model_options, &block)
+                    service_options, model_options = Kernel.filter_options arguments, Models::Component::PROVIDE_ARGUMENTS
+                    model = parent_module.device_type(model, model_options)
                 else
                     service_options = arguments
                 end
 
-                model = Model.validate_service_model(model, system_model, Device)
+                model = Model.validate_service_model(model, Device)
                 if !model.config_type
                     model.config_type = config_type_from_properties
                 end
@@ -659,8 +662,8 @@ module Syskit
                 # First, set configuration from the configuration files
                 # Note: it can only set properties
                 conf = self.conf || ['default']
-                if Orocos.conf.apply(orogen_task, conf, true)
-                    Robot.info "applied configuration #{conf} to #{orogen_task.name}"
+                if Orocos.conf.apply(orocos_task, conf, true)
+                    Robot.info "applied configuration #{conf} to #{orocos_task.name}"
                 end
 
                 # Then set configuration stored in Conf.orocos
@@ -675,7 +678,7 @@ module Syskit
                         if device.configuration
                             apply_configuration(device.configuration)
                         elsif device.configuration_block
-                            device.configuration_block.call(orogen_task)
+                            device.configuration_block.call(orocos_task)
                         end
                     end
                 end
@@ -689,10 +692,10 @@ module Syskit
             # component
             def apply_configuration(config_type)
                 config_type.each do |name, value|
-                    if orogen_task.has_property?(name)
-                        orogen_task.send("#{name}=", value)
+                    if orocos_task.has_property?(name)
+                        orocos_task.send("#{name}=", value)
                     else
-                        Robot.warn "ignoring field #{name} in configuration of #{orogen_name} (#{model.orogen_name})"
+                        Robot.warn "ignoring field #{name} in configuration of #{orocos_name} (#{model.name})"
                     end
                 end
             end

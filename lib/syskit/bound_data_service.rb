@@ -89,6 +89,5 @@ module Syskit
                 task.connect_ports(sink, mapped)
             end
         end
-
 end
 

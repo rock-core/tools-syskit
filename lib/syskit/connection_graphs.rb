@@ -532,12 +532,12 @@ module Syskit
             def all_inputs_connected?
                 each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     # Our source may not be initialized at all
-                    if !source_task.orogen_task
+                    if !source_task.orocos_task
                         return false
                     end
 
-                    return false if !ActualDataFlow.linked?(source_task.orogen_task, orogen_task)
-                    mappings = source_task.orogen_task[orogen_task, ActualDataFlow]
+                    return false if !ActualDataFlow.linked?(source_task.orocos_task, orocos_task)
+                    mappings = source_task.orocos_task[orocos_task, ActualDataFlow]
                     return false if !mappings.has_key?([source_port, sink_port])
                 end
                 true

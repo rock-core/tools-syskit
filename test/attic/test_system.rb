@@ -19,7 +19,7 @@ class TC_RobySpec_System < Test::Unit::TestCase
             output_port 'disparity', 'camera/Image'
             output_port 'cloud', 'base/PointCloud3D'
         end
-        sys_model.data_service_type 'Camera' do
+        DataModel.new_submodel do
             output_port 'image', 'camera/Image'
         end
         stereo_model = SystemTest::Stereo
@@ -56,27 +56,27 @@ class TC_RobySpec_System < Test::Unit::TestCase
     def complete_system_model
         sys_model.com_bus_type 'Can', :message_type => 'can/Message'
 
-        sys_model.data_service_type 'Image' do
+        DataModel.new_submodel do
             output_port 'image', 'camera/Image'
         end
         sys_model.device_type 'Camera' do
             provides Srv::Image
         end
-        sys_model.data_service_type 'Stereo' do
+        DataModel.new_submodel do
             output_port 'disparity', 'camera/Image'
             output_port 'cloud', 'base/PointCloud3D'
         end
-        sys_model.data_service_type 'Imu' do
+        DataModel.new_submodel do
             output_port 'orientation', 'imu::Orientation'
         end
         sys_model.device_type 'Motors' do
             output_port "motor_state", "control/MotorsState"
         end
-        sys_model.data_service_type 'Joystick' do
+        DataModel.new_submodel do
             output_port "joystick",      "controldev/Joystick"
             output_port "motionCommand", "controldev/MotionCommand"
         end
-        sys_model.data_service_type 'Sliderbox' do
+        DataModel.new_submodel do
             output_port "sliderbox",        "controldev/Sliderbox"
             output_port "fourWheelCommand", "controldev/FourWheelCommand"
         end
@@ -297,8 +297,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def test_select_slave_data_service
-        sys_model.data_service_type 'stereo', :interface => SystemTest::Stereo
-        sys_model.data_service_type 'camera', :interface => SystemTest::CameraDriver
+        DataModel.new_submodel, :interface => SystemTest::Stereo
+        DataModel.new_submodel, :interface => SystemTest::CameraDriver
 
         SystemTest::StereoCamera.class_eval do
             driver_for 'stereo'
@@ -327,8 +327,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def test_failed_resolve_does_not_impact_the_plan
-        sys_model.data_service_type 'stereo', :interface => SystemTest::Stereo
-        sys_model.data_service_type 'camera', :interface => SystemTest::CameraDriver
+        DataModel.new_submodel, :interface => SystemTest::Stereo
+        DataModel.new_submodel, :interface => SystemTest::CameraDriver
 
         SystemTest::StereoCamera.class_eval do
             driver_for 'stereo'
@@ -369,8 +369,8 @@ class TC_RobySpec_System < Test::Unit::TestCase
     end
 
     def test_port_mapping_at_instanciation_time
-        sys_model.data_service_type 'Stereo', :interface => SystemTest::Stereo
-        sys_model.data_service_type 'Camera', :interface => SystemTest::CameraDriver
+        DataModel.new_submodel, :interface => SystemTest::Stereo
+        DataModel.new_submodel, :interface => SystemTest::CameraDriver
 
         SystemTest::StereoCamera.driver_for 'stereo'
         SystemTest::StereoCamera.data_service 'camera', :as => 'left', :slave_of => 'stereo'

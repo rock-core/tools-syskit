@@ -85,35 +85,10 @@ module Syskit
                 result
             end
 
-            # Returns a placeholder task that can be used to require that a
-            # task from this component model is deployed and started at a
-            # certain point in the plan.
-            #
-            # It is usually used implicitely with the plan and relation methods directly:
-            #
-            #   cmp = task.depends_on(Cmp::MyComposition)
-            #
-            # calls this method behind the scenes.
-            def self.as_plan
-                Syskit::SingleRequirementTask.subplan(self)
-            end
-
-            # Returns the set of models this model fullfills
-            def self.each_fullfilled_model
-                ancestors.each do |m|
-                    if m <= Component || m <= DataService
-                        yield(m)
-                    end
-                end
-            end
-
             # Returns the set of models this task fullfills
             def each_fullfilled_model(&block)
                 model.each_fullfilled_model(&block)
             end
-
-            # This is documented on Models::Component
-            inherited_enumerable(:data_service, :data_services, :map => true) { Hash.new }
 
             attribute(:instanciated_dynamic_outputs) { Hash.new }
             attribute(:instanciated_dynamic_inputs) { Hash.new }
@@ -123,7 +98,7 @@ module Syskit
             #
             # It may return an instanciated dynamic port
             def find_output_port_model(name)
-                if port_model = model.orogen_spec.find_output_port(name)
+                if port_model = model.find_output_port(name)
                     port_model
                 else instanciated_dynamic_outputs[name]
                 end
@@ -134,7 +109,7 @@ module Syskit
             #
             # It may return an instanciated dynamic port
             def find_input_port_model(name)
-                if port_model = model.orogen_spec.find_input_port(name)
+                if port_model = model.find_input_port(name)
                     port_model
                 else instanciated_dynamic_inputs[name]
                 end
@@ -147,7 +122,7 @@ module Syskit
                     port
                 end
 
-                candidates = model.orogen_spec.find_dynamic_input_ports(name, type)
+                candidates = model.orogen_model.find_dynamic_input_ports(name, type)
                 if candidates.size > 1
                     raise Ambiguous, "I don't know what to use for dynamic port instanciation"
                 end
@@ -163,7 +138,7 @@ module Syskit
                     port
                 end
 
-                candidates = model.orogen_spec.find_dynamic_output_ports(name, type)
+                candidates = model.orogen_model.find_dynamic_output_ports(name, type)
                 if candidates.size > 1
                     raise Ambiguous, "I don't know what to use for dynamic port instanciation"
                 end

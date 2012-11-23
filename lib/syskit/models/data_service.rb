@@ -4,34 +4,50 @@ module Syskit
         # ComBus). Methods defined in this class are available on said
         # models (for instance Device.new_submodel)
         class DataServiceModel < Roby::TaskModelTag
+            include Models::Base
+            include Models::Component
+
             class << self
                 # Each subclass of DataServiceModel maps to a "base" module that
                 # all instances of DataServiceModel include.
                 #
                 # For instance, for DataServiceModel itself, it is DataService
+                #
+                # This attribute is the base module for this class of
+                # DataServiceModel
                 attr_accessor :base_module
             end
 
-            # The name of the model
-            attr_accessor :name
-            # The parent model, if any
+            def initialize
+                @orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project)
+                super
+            end
+
+            # @!attribute rw parent_models
+            #   @return [ValueSet<DataServiceModel>] the data service models
+            #     that are parent of this one
             attribute(:parent_models) { ValueSet.new }
-            # The configuration type for instances of this service model
-            attr_writer :config_type
-            # Port mappings from this service's parent models to the service
-            # itself
+
+            # @!attribute rw port_mappings
+            #   Port mappings from this service's parent models to the service
+            #   itself
             #
-            # Whenever a data service provides another one, it is possible to
-            # specify that some ports of the provided service are mapped onto th
-            # ports of the new service. This hash keeps track of these port
-            # mappings.
+            #   Whenever a data service provides another one, it is possible to
+            #   specify that some ports of the provided service are mapped onto th
+            #   ports of the new service. This hash keeps track of these port
+            #   mappings.
             #
-            # The mapping is of the form
-            #   
-            #   [service_model, port] => target_port
+            #   The mapping is of the form
+            #     
+            #     [service_model, port] => target_port
+            #
+            #   @return [Hash<DataServiceModel,Hash<String,String>>] the
+            #     mappings
             attribute(:port_mappings) { Hash.new }
 
+            # The set of services that this service provides
             def each_fullfilled_model
+                return enum_for(:each_fullfilled_model) if !block_given?
                 ancestors.each do |m|
                     if m.kind_of?(DataServiceModel)
                         yield(m)
@@ -39,29 +55,10 @@ module Syskit
                 end
             end
 
-            # Return the config type for the instances of this service, if there
-            # is one
-            def config_type
-                if @config_type
-                    @config_type
-                else
-                    ancestors = self.ancestors
-                    for klass in ancestors
-                        if type = klass.instance_variable_get(:@config_type)
-                            return (@config_type = type)
-                        end
-                    end
-                    nil
-                end
-            end
-
             # Returns the string that should be used to display information
             # about this model to the user
             def short_name
-                name.gsub('Syskit::', '').
-                    gsub('DataServices', 'Srv').
-                    gsub('Devices', 'Dev').
-                    gsub('Compositions', 'Cmp')
+                name || "Anonymous"
             end
 
             def to_s # :nodoc:
@@ -69,23 +66,24 @@ module Syskit
             end
 
             # Creates a new DataServiceModel that is a submodel of +self+
-            def new_submodel(name, options = Hash.new, &block)
+            #
+            # @param [Hash] options the option hash
+            # @option options [String] :name the submodel name. Use this option
+            #   only for "anonymous" models, i.e. models that won't be
+            #   registered on a Ruby constant
+            # @option options [Class] :type the type of the submodel. It must be
+            #   DataServiceModel or one of its subclasses
+            #
+            def new_submodel(options = Hash.new, &block)
                 options = Kernel.validate_options options,
-                    :type => self.class,
-                    :interface => nil,
-                    :system_model => system_model,
-                    :config_type => nil
+                    :name => nil, :type => self.class
 
                 model = options[:type].new
-                model.name = name.dup
-                model.system_model = options[:system_model]
-                model.config_type = options[:config_type]
-
-                child_spec = model.create_orogen_interface
-                if options[:interface]
-                    Syskit.merge_orogen_interfaces(child_spec, [Roby.app.get_orocos_task_model(options[:interface]).orogen_spec])
+                if options[:name]
+                    Syskit::Models.validate_model_name(options[:name])
+                    model.name = options[:name].dup
                 end
-                model.instance_variable_set :@orogen_spec, child_spec
+
                 model.provides self
 
                 if block_given?
@@ -119,16 +117,16 @@ module Syskit
                 def initialize(service, name = nil)
                     @service = service
                     @name = name || service.name
-                    @interface = service.interface
+                    @orogen_model = service.orogen_model
 
-                    if !@interface
+                    if !@orogen_model
                         raise InternalError, "no interface for #{service.name}"
                     end
                 end
 
                 def method_missing(m, *args, &block)
-                    if @interface.respond_to?(m)
-                        @interface.send(m, *args, &block)
+                    if @orogen_model.respond_to?(m)
+                        @orogen_model.send(m, *args, &block)
                     else @service.send(m, *args, &block)
                     end
                 end
@@ -139,9 +137,7 @@ module Syskit
             # If +name+ is given, that string will be reported as the service
             # name in the block, instead of the actual service name
             def apply_block(name = nil, &block)
-                with_module(*Syskit.constant_search_path) do
-                    BlockInstanciator.new(self, name).instance_eval(&block)
-                end
+                BlockInstanciator.new(self, name).instance_eval(&block)
             end
 
             # Returns the set of port mappings needed between +service_type+ and
@@ -208,7 +204,7 @@ module Syskit
                         updated_mappings[from] = new_port_mappings[to] || to
                     end
                     port_mappings[original_service] =
-                        SystemModel.merge_port_mappings(port_mappings[original_service] || Hash.new, updated_mappings)
+                        Models.merge_port_mappings(port_mappings[original_service] || Hash.new, updated_mappings)
                 end
 
                 # Now, add the ports that are going to be created because of the
@@ -217,13 +213,11 @@ module Syskit
                     new_port_mappings[p.name] ||= p.name
                 end
                 port_mappings[service_model] =
-                    SystemModel.merge_port_mappings(port_mappings[service_model] || Hash.new, new_port_mappings)
+                    Models.merge_port_mappings(port_mappings[service_model] || Hash.new, new_port_mappings)
 
                 # Merging the interface should never raise at this stage. It
                 # should have been validated above.
-                if service_model.interface
-                    Syskit.merge_orogen_interfaces(interface, [service_model.interface], new_port_mappings)
-                end
+                Models.merge_orogen_task_context_models(orogen_model, [service_model.orogen_model], new_port_mappings)
 
                 # For completeness, add port mappings for ourselves
                 port_mappings[self] = Hash.new
@@ -235,75 +229,35 @@ module Syskit
                 parent_models << service_model
             end
 
-            # Creates a new Orocos::Spec::TaskContext object for this service
-            def create_orogen_interface
-                Syskit.create_orogen_interface(name)
-            end
-
-            # The Orocos::Spec::TaskContext object that is used to describe this
+            # [Orocos::Spec::TaskContext] the object describing the data
             # service's interface
-            attr_reader :orogen_spec
+            attr_reader :orogen_model
 
-            def interface
-                if block_given?
-                    raise ArgumentError, "interface(&block) is not available anymore"
+            # [DataServiceModel] a task model that can be used to represent an
+            # instance of this data service in a Roby plan
+            def proxy_task_model
+                if @proxy_task_model
+                    return @proxy_task_model
                 end
-                orogen_spec
-            end
-
-            def task_model
-                if @task_model
-                    return @task_model
-                end
-                @task_model = DataServiceModel.proxy_task_model([self])
+                @proxy_task_model = Syskit.proxy_task_model_for([self])
             end
 
             def pretty_print(pp)
                 pp.text short_name
             end
 
-            # Returns a subclass of Roby::Task that implements the given set of
-            # data services
-            def self.proxy_task_model(service_models)
-                name = "Syskit::PlaceholderTasks::#{service_models.map(&:short_name).sort.join("_").gsub(/:/, '_')}"
-                Syskit.placeholder_model_for(name, service_models)
-            end
-
-            include ComponentModel
-
             # Create a task instance that can be used in a plan to represent
             # this service
             #
             # The returned task instance is obviously an abstract one
             def instanciate(*args, &block)
-                task_model.instanciate(*args, &block)
-            end
-
-            # Helper class used by DataServices#modality
-            class SelectedModality # :nodoc:
-                attr_reader :model
-                attr_reader :name
-                def initialize(model, name)
-                    @model, @name = model, name
-                end
-
-                def as_plan
-                    Syskit::ModalitySelectionTask.
-                        subplan(model, name)
-                end
-            end
-
-            # Defined to be able to use, when building plans:
-            #
-            #   task.depends_on(Srv::Service.modality('modality'))
-            def modality(modality_name)
-                SelectedModality.new(self, modality_name)
+                proxy_task_model.instanciate(*args, &block)
             end
 
             def to_dot(io)
                 id = object_id.abs
-                inputs = orogen_spec.all_input_ports.map(&:name)
-                outputs = orogen_spec.all_output_ports.map(&:name)
+                inputs = orogen_model.all_input_ports.map(&:name)
+                outputs = orogen_model.all_output_ports.map(&:name)
                 label = Graphviz.dot_iolabel(constant_name, inputs, outputs)
                 io << "  C#{id} [label=\"#{label}\",fontsize=15];"
 
@@ -317,23 +271,15 @@ module Syskit
                 end
             end
         end
-        DataService  = DataServiceModel.new
-        DataService.name = "Syskit::DataService"
-        def DataService.orogen_spec
-            if !@orogen_spec
-                @orogen_spec = create_orogen_interface
-            end
-            @orogen_spec
-        end
-        DataServiceModel.base_module = DataService
 
+        # Metamodel for all devices
         class DeviceModel < DataServiceModel
             def to_s # :nodoc:
                 "#<Device: #{name}>"
             end
 
-            def new_submodel(model, options = Hash.new, &block)
-                model = super(model, options, &block)
+            def new_submodel(options = Hash.new, &block)
+                model = super(options, &block)
                 if device_configuration_module
                     model.device_configuration_module = Module.new
                     model.device_configuration_module.include(device_configuration_module)
@@ -376,36 +322,44 @@ module Syskit
                     device_instance.extend(device_configuration_module)
                 end
             end
+
             def provides(service_model, new_port_mappings = Hash.new)
                 super
 
-                if service_model.respond_to?(:device_configuration_module) && service_model.device_configuration_module
+                # If the provided model has a device_configuration_module,
+                # include it in our own
+                if service_model.respond_to?(:device_configuration_module) &&
+                    service_model.device_configuration_module
                     self.device_configuration_module ||= Module.new
                     self.device_configuration_module.include(service_model.device_configuration_module)
                 end
             end
         end
-        Device   = DeviceModel.new
-        Device.name = "Syskit::Device"
-        def Device.orogen_spec
-            if !@orogen_spec
-                @orogen_spec = create_orogen_interface
-            end
-            @orogen_spec
-        end
-        DeviceModel.base_module = Device
 
+        # Metamodel for all communication busses
         class ComBusModel < DeviceModel
             def initialize(*args, &block)
                 super
                 @override_policy = true
             end
 
-            def new_submodel(model, options = Hash.new, &block)
+            # Creates a new submodel of this communication bus model
+            #
+            # @param [Hash] options the configuration options. See
+            #   DataServiceModel#provides for the list of options from data
+            #   services
+            # @option options [Boolean] :override_policy if true (the default),
+            #   the communication bus handling will mark the associated component's
+            #   input ports as needs_reliable_connection so that relevant
+            #   policies are chosen.
+            # @option options [String] :message_type the type name of the
+            #   type that is used by this combus to communicate with the
+            #   components it supports
+            def new_submodel(options = Hash.new, &block)
                 bus_options, options = Kernel.filter_options options,
                     :override_policy => override_policy?, :message_type => message_type
 
-                model = super(model, options, &block)
+                model = super(options, &block)
                 model.override_policy = bus_options[:override_policy]
                 if bus_options[:message_type]
                     if model.message_type && model.message_type != bus_options[:message_type]
@@ -444,7 +398,8 @@ module Syskit
             #
             # It is true by default
             attr_predicate :override_policy?, true
-            # The message type name
+            # [String] the name of the type used to communicate with the
+            # supported components
             attr_accessor :message_type
 
             def to_s # :nodoc:
@@ -495,538 +450,58 @@ module Syskit
                 "w#{bus_name}"
             end
         end
-        ComBus = ComBusModel.new
-        ComBus.name = "Syskit::ComBus"
-        def ComBus.orogen_spec
-            if !@orogen_spec
-                @orogen_spec = create_orogen_interface
-            end
-            @orogen_spec
-        end
-        ComBusModel.base_module = ComBus
-
-        module DataService
-            module ClassExtension
-                def find_data_services(&block)
-                    each_data_service.find_all(&block)
-                end
-
-                def each_device(&block)
-                    each_data_service.find_all { |_, srv| srv.model < Device }.
-                        each(&block)
-                end
-
-                # Generic data service selection method, based on a service type
-                # and an optional service name. It implements the following
-                # algorithm:
-                #  
-                #  * only services that match +target_model+ are considered
-                #  * if there is only one service of that type and no pattern is
-                #    given, that service is returned
-                #  * if there is a pattern given, it must be either the service
-                #    full name or its subname (for slaves)
-                #  * if an ambiguity is found between root and slave data
-                #    services, and there is only one root data service matching,
-                #    that data service is returned.
-                def find_matching_service(target_model, pattern = nil)
-                    # Find services in +child_model+ that match the type
-                    # specification
-                    matching_services = find_all_services_from_type(target_model)
-
-                    if pattern # match by name too
-                        # Find the selected service. There can be shortcuts, so
-                        # for instance bla.left would be able to select both the
-                        # 'left' main service or the 'bla.blo.left' slave
-                        # service.
-                        rx = /(^|\.)#{pattern}$/
-                        matching_services.delete_if { |service| service.full_name !~ rx }
-                    end
-
-                    if matching_services.size > 1
-                        main_matching_services = matching_services.
-                            find_all { |service| service.master? }
-
-                        if main_matching_services.size != 1
-                            raise Ambiguous, "there is more than one service of type #{target_model.name} in #{self.name}: #{matching_services.map(&:name).join(", ")}); you must select one explicitely with a 'use' statement"
-                        end
-                        selected = main_matching_services.first
-                    else
-                        selected = matching_services.first
-                    end
-
-                    selected
-                end
-
-                # call-seq:
-                #   TaskModel.each_slave_data_service do |name, service|
-                #   end
-                #
-                # Enumerates all services that are slave (i.e. not slave of other
-                # services)
-                def each_slave_data_service(master_service, &block)
-                    each_data_service(nil).
-                        find_all { |name, service| service.master == master_service }.
-                        map { |name, service| [service.name, service] }.
-                        each(&block)
-                end
 
 
-                # call-seq:
-                #   TaskModel.each_root_data_service do |name, source_model|
-                #   end
-                #
-                # Enumerates all services that are root (i.e. not slave of other
-                # services)
-                def each_root_data_service(&block)
-                    each_data_service(nil).
-                        find_all { |name, srv| srv.master? }.
-                        each(&block)
-                end
-            end
-
-            extend ClassExtension
-
-            # Returns true if +self+ can replace +target_task+ in the plan. The
-            # super() call checks graph-declared dependencies (i.e. that all
-            # dependencies that +target_task+ meets are also met by +self+.
+        # This module is used to define the methods that allow to define
+        # module-based models (data services and friends) on Module
+        module ServiceModelsDefinitionDSL
+            # Creates a new data service model and register it on this module
             #
-            # This method checks that +target_task+ and +self+ do not represent
-            # two different data services
-            def can_merge?(target_task)
-                if !(super_result = super)
-                    NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: super returned false" }
-                    return super_result
-                end
-                if !target_task.kind_of?(DataService)
-                    NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: #{target_task} has no services" }
-                    return false
-                end
-
-                # Check that for each data service in +target_task+, we can
-                # allocate a corresponding service in +self+
-                each_service_merge_candidate(target_task) do |selected_source_name, other_service, self_services|
-                    if self_services.empty?
-                        NetworkMergeSolver.debug do
-                            NetworkMergeSolver.debug "cannot merge #{target_task} into #{self} as"
-                            NetworkMergeSolver.debug "  no candidates for #{other_service}"
-                            break
-                        end
-
-                        return false
-                    elsif self_services.size > 1
-                        NetworkMergeSolver.debug do
-                            NetworkMergeSolver.debug "cannot merge #{target_task} into #{self} as"
-                            NetworkMergeSolver.debug "  ambiguous service selection for #{other_service}"
-                            NetworkMergeSolver.debug "  candidates:"
-                            self_services.map(&:to_s).each do |name|
-                                NetworkMergeSolver.debug "    #{name}"
-                            end
-                            break
-                        end
-                        return false
-                    end
-                end
-                true
-            end
-
-            # Replace +merged_task+ by +self+, possibly modifying +self+ so that
-            # it is possible.
-            def merge(merged_task)
-                connection_mappings = Hash.new
-
-                # First thing to do is reassign data services from the merged
-                # task into ourselves. Note that we do that only for services
-                # that are actually in use.
-                each_service_merge_candidate(merged_task) do |selected_source_name, other_service, self_services|
-                    if self_services.empty?
-                        raise SpecError, "trying to merge #{merged_task} into #{self}, but that seems to not be possible"
-                    elsif self_services.size > 1
-                        raise AmbiguousImplicitServiceSelection.new(self, merged_task, other_service, self_services), "merging #{self} and #{merged_task} is ambiguous: the #{self_services.map(&:short_name).join(", ")} data services could be used"
-                    end
-
-                    # "select" one service to use to handle other_name
-                    target_service = self_services.pop
-                    # set the argument
-                    if selected_source_name && arguments["#{target_service.name}_name"] != selected_source_name
-                        arguments["#{target_service.name}_name"] = selected_source_name
-                    end
-
-                    # What we also need to do is map port names from the ports
-                    # in +merged_task+ into the ports in +self+. We do that by
-                    # moving the connections explicitely from +merged_task+ onto
-                    # +self+
-                    merged_service_to_task = other_service.port_mappings_for_task.dup
-                    target_to_task         = target_service.port_mappings_for(other_service.model)
-
-                    NetworkMergeSolver.debug do
-                        NetworkMergeSolver.debug "      mapping service #{merged_task}:#{other_service.name}"
-                        NetworkMergeSolver.debug "        to #{self}:#{target_service.name}"
-                        NetworkMergeSolver.debug "        from->from_task: #{merged_service_to_task}"
-                        NetworkMergeSolver.debug "        from->to_task:   #{target_to_task}"
-                        break
-                    end
-
-                    target_to_task.each do |from, to|
-                        from = merged_service_to_task.delete(from) || from
-                        connection_mappings[from] = to
-                    end
-                    merged_service_to_task.each do |from, to|
-                        connection_mappings[to] = from
-                    end
-                end
-
-                # We have to move the connections in two steps
-                #
-                # We first compute the set of connections that have to be
-                # created on the final task, applying the port mappings to the
-                # existing connections on +merged_tasks+
-                #
-                # Then we remove all connections from +merged_task+ and merge
-                # the rest of the relations (calling super)
-                #
-                # Finally, we create the new connections
-                #
-                # This is needed as we can't forward ports between a task that
-                # is *not* part of a composition and this composition. We
-                # therefore have to merge the Dependency relation before we
-                # create the forwardings
-
-                # The set of connections that need to be recreated at the end of
-                # the method
-                moved_connections = Array.new
-
-                merged_task.each_source do |source_task|
-                    connections = source_task[merged_task, Flows::DataFlow]
-
-                    new_connections = Hash.new
-                    connections.each do |(from, to), policy|
-                        to = connection_mappings[to] || to
-                        new_connections[[from, to]] = policy
-                    end
-                    NetworkMergeSolver.debug do
-                        NetworkMergeSolver.debug "      moving input connections of #{merged_task}"
-                        NetworkMergeSolver.debug "        => #{source_task} onto #{self}"
-                        NetworkMergeSolver.debug "        mappings: #{connection_mappings}"
-                        NetworkMergeSolver.debug "        old:"
-                        connections.each do |(from, to), policy|
-                            NetworkMergeSolver.debug "          #{from} => #{to} (#{policy})"
-                        end
-                        NetworkMergeSolver.debug "        new:"
-                        new_connections.each do |(from, to), policy|
-                            NetworkMergeSolver.debug "          #{from} => #{to} (#{policy})"
-                        end
-                        break
-                    end
-
-                    moved_connections << [source_task, self, new_connections]
-                end
-
-                merged_task.each_sink do |sink_task, connections|
-                    new_connections = Hash.new
-                    connections.each do |(from, to), policy|
-                        from = connection_mappings[from] || from
-                        new_connections[[from, to]] = policy
-                    end
-
-                    NetworkMergeSolver.debug do
-                        NetworkMergeSolver.debug "      moving output connections of #{merged_task}"
-                        NetworkMergeSolver.debug "        => #{sink_task}"
-                        NetworkMergeSolver.debug "        onto #{self}"
-                        NetworkMergeSolver.debug "        mappings: #{connection_mappings}"
-                        NetworkMergeSolver.debug "        old:"
-                        connections.each do |(from, to), policy|
-                            NetworkMergeSolver.debug "          #{from} => #{to} (#{policy})"
-                        end
-                        NetworkMergeSolver.debug "        new:"
-                        new_connections.each do |(from, to), policy|
-                            NetworkMergeSolver.debug "          #{from} => #{to} (#{policy})"
-                        end
-                        break
-                    end
-
-                    moved_connections << [self, sink_task, new_connections]
-                end
-                Flows::DataFlow.remove(merged_task)
-
-                super
-
-                moved_connections.each do |source_task, sink_task, mappings|
-                    source_task.connect_or_forward_ports(sink_task, mappings)
-                end
-            end
-
-            # Returns true if at least one port of the given service (designated
-            # by its name) is connected to something.
-            def using_data_service?(source_name)
-                service = model.find_data_service(source_name)
-                inputs  = service.each_task_input_port.map(&:name)
-                outputs = service.each_task_output_port.map(&:name)
-
-                each_source do |output|
-                    description = output[self, Flows::DataFlow]
-                    if description.any? { |(_, to), _| inputs.include?(to) }
-                        return true
-                    end
-                end
-                each_sink do |input, description|
-                    if description.any? { |(from, _), _| outputs.include?(from) }
-                        return true
-                    end
-                end
-                false
-            end
-
-            # Finds the services on +other_task+ that have been selected Yields
-            # it along with a data source on +self+ in which it can be merged,
-            # either because the source is assigned as well to the same device,
-            # or because it is not assigned yet
-            def each_service_merge_candidate(other_task) # :nodoc:
-                other_task.model.each_root_data_service do |name, other_service|
-                    other_selection = other_task.selected_device(other_service)
-
-                    self_selection = nil
-                    available_services = []
-                    model.each_data_service.find_all do |self_name, self_service|
-                        self_selection = selected_device(self_service)
-                        is_candidate = self_service.model.fullfills?(other_service.model) &&
-                            (!self_selection || !other_selection || self_selection == other_selection)
-                        if is_candidate
-                            available_services << self_service
-                        end
-                    end
-
-                    yield(other_selection, other_service, available_services)
-                end
-            end
-        end
-
-        # Modelling and instance-level functionality for devices
-        #
-        # Devices are, in the Orocos/Roby plugin, the tools that allow to
-        # represent the inputs and outputs of your component network, i.e. the
-        # components that are tied to "something" (usually hardware) that is
-        # not represented in the component network.
-        #
-        # New devices can either be created with
-        # device_model.new_submodel if the source should not be registered in
-        # the system model, or SystemModel#device_type if it should be
-        # registered
-        module Device
-            include DataService
-
-            # This module is defined on Device objects to define new methods
-            # on the classes that provide these devices
+            # If a block is given, it is used to declare the service's
+            # interface, i.e. the input and output ports that are needed on any
+            # task that provides this source.
             #
-            # I.e. for instance, when one does
-            #
-            #   class OroGenProject::Task
-            #     driver_for 'Devices::DeviceType'
-            #   end
-            #
-            # then the methods defined in this module are available on
-            # OroGenProject::Task:
-            #
-            #   OroGenProject::Task.each_master_device
-            #
-            module ClassExtension
-                # Enumerate all the devices that are defined on this
-                # component model
-                def each_master_device(&block)
-                    result = []
-                    each_root_data_service.each do |_, srv|
-                        if srv.model < Device
-                            result << srv
-                        end
-                    end
-                    result.each(&block)
-                end
+            # @return [DataServiceModel] the created model
+            def data_service_type(name, &block)
+                Models.validate_model_name(name)
+
+                model = Syskit::DataService.new_submodel(&block)
+                const_set(name, model)
+                model
             end
 
-            # Enumerates the devices that are mapped to this component
+            # Creates a new device model and register it on this module
             #
-            # It yields the data service and the device model
-            def each_device_name
-                if !block_given?
-                    return enum_for(:each_device_name)
-                end
-
-                seen = Set.new
-                model.each_master_device do |srv|
-                    # Slave devices have the same name than the master device,
-                    # so no need to list them
-                    next if !srv.master?
-
-                    device_name = arguments["#{srv.name}_name"]
-                    if device_name && !seen.include?(device_name)
-                        seen << device_name
-                        yield(srv, device_name)
-                    end
-                end
-            end
-
-            # Enumerates the MasterDeviceInstance and/or SlaveDeviceInstance
-            # objects that are mapped to this task context
+            # The returned value is an instance of DeviceModel in which
+            # Device has been included.
             #
-            # It yields the data service and the device model
+            def device_type(name, &block)
+                Models.validate_model_name(name)
+
+                model = Syskit::Device.new_submodel(&block)
+                const_set(name, model)
+                model
+            end
+
+            # Creates a new communication bus model
             #
-            # See also #each_device_name
-            def each_device
-                if !block_given?
-                    return enum_for(:each_device)
-                end
-
-                each_master_device do |srv, device|
-                    yield(srv, device)
-
-                    device.each_slave do |_, slave|
-                        yield(slave.service, slave)
-                    end
-                end
-            end
-
-            # Enumerates the MasterDeviceInstance objects associated with this
-            # task context
+            # It accepts the same arguments than device_type. In addition, the
+            # 'message_type' option must be used to specify what data type is
+            # used to represent the bus messages:
             #
-            # It yields the data service and the device model
+            #   com_bus 'can', :message_type => '/can/Message'
             #
-            # See also #each_device_name
-            def each_master_device
-                if !block_given?
-                    return enum_for(:each_master_device)
-                end
+            # The returned value is an instance of DataServiceModel, in which
+            # ComBus is included.
+            def com_bus_type(name, options = Hash.new, &block)
+                Models.validate_model_name(name)
 
-                each_device_name do |service, device_name|
-                    if !(device = robot.devices[device_name])
-                        raise SpecError, "#{self} attaches device #{device_name} to #{service.full_name}, but #{device_name} is not a known device"
-                    end
-
-                    yield(service, device)
-                end
-            end
-
-            # Enumerates the devices that are slaves to the service called
-            # +master_service_name+
-            def each_slave_device(master_service_name, expected_device_model = nil) # :yield:slave_service_name, slave_device
-                srv = model.find_data_service(master_service_name)
-                if !srv
-                    raise ArgumentError, "#{model.short_name} has no service called #{master_service_name}"
-                end
-
-                master_device_name = arguments["#{srv.name}_name"]
-                if master_device_name
-                    if !(master_device = robot.devices[master_device_name])
-                        raise SpecError, "#{self} attaches device #{device_name} to #{service.full_name}, but #{device_name} is not a known device"
-                    end
-
-                    master_device.each_slave do |slave_name, slave_device|
-                        if !expected_device_model || slave_device.device_model.fullfills?(expected_device_model)
-                            yield("#{srv.name}.#{slave_name}", slave_device)
-                        end
-                    end
-                end
-            end
-
-            # Returns either the MasterDeviceInstance or SlaveDeviceInstance
-            # that represents the device tied to this component.
-            #
-            # If +subname+ is given, it has to be the corresponding data service
-            # name. It is optional only if there is only one device attached to
-            # this component
-            def robot_device(subname = nil)
-                devices = each_master_device.to_a
-                if !subname
-                    if devices.empty?
-                        raise ArgumentError, "#{self} is not attached to any device"
-                    elsif devices.size > 1
-                        raise ArgumentError, "#{self} handles more than one device, you must specify one explicitely"
-                    end
-                else
-                    devices = devices.find_all { |srv, _| srv.full_name == subname }
-                    if devices.empty?
-                        raise ArgumentError, "there is no data service called #{subname} on #{self}"
-                    end
-                end
-                service, device_instance = devices.first
-                device_instance
-            end
-
-            module ModuleExtension
-                # Returns a task model that can be used to represent data
-                # sources of this type in the plan, when no concrete tasks have
-                # been selected yet
-                def task_model
-                    model = super
-                    model.name = "#{name}DeviceTask"
-                    model
-                end
-            end
-            extend ModuleExtension
-        end
-
-        # Module that represents the communication busses in the task models. It
-        # defines the methods that are available on task instances. For methods
-        # that are added to the task models, see ComBus::ClassExtension
-        module ComBus
-            include Device
-
-            attribute(:port_to_device) { Hash.new { |h, k| h[k] = Array.new } }
-
-            def merge(merged_task)
-                super
-                port_to_device.merge!(merged_task.port_to_device)
-            end
-
-            def each_attached_device(&block)
-                model.each_device do |name, ds|
-                    next if !ds.model.kind_of?(ComBusModel)
-
-                    combus = robot.devices[arguments["#{ds.name}_name"]]
-                    robot.devices.each_value do |dev|
-                        # Only master devices can be attached to a bus
-                        next if !dev.kind_of?(MasterDeviceInstance)
-
-                        if dev.attached_to?(combus)
-                            yield(dev)
-                        end
-                    end
-                end
-            end
-
-            def each_device_connection_helper(port_name) # :nodoc:
-                return if !port_to_device.has_key?(port_name)
-
-                devices = port_to_device[port_name].
-                    map do |d_name|
-                        if !(device = robot.devices[d_name])
-                            raise ArgumentError, "#{self} refers to device #{d_name} for port #{source_port}, but there is no such device"
-                        end
-                        device
-                    end
-
-                if !devices.empty?
-                    yield(port_name, devices)
-                end
-            end
-
-            # Finds out what output port serves what devices by looking at what
-            # tasks it is connected.
-            #
-            # Indeed, for communication busses, the device model is determined
-            # by the sink port of output connections.
-            def each_device_connection(&block)
-                if !block_given?
-                    return enum_for(:each_device_connection)
-                end
-
-                each_concrete_input_connection do |source_task, source_port, sink_port|
-                    each_device_connection_helper(sink_port, &block)
-                end
-                each_concrete_output_connection do |source_port, sink_port, sink_task|
-                    each_device_connection_helper(source_port, &block)
-                end
+                model = Syskit::ComBus.new_submodel(options, &block)
+                const_set(name, model)
+                model
             end
         end
     end
 end
-
+Module.include Syskit::Models::ServiceModelsDefinitionDSL
 

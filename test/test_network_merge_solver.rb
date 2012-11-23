@@ -23,7 +23,7 @@ class TC_RobySpec_NetworkMergeSolver < Test::Unit::TestCase
         Roby.app.filter_backtraces = false
 	super
 
-        srv = @simple_service_model = sys_model.data_service_type("SimpleService") do
+        srv = @simple_service_model = DataModel.new_submodel do
             input_port 'srv_in', '/int'
             output_port 'srv_out', '/int'
         end

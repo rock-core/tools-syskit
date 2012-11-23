@@ -9,9 +9,14 @@ module Syskit
         # For instance, the singleton methods of Component are defined on
         # ComponentModel, Composition on CompositionModel and so on.
         module Base
-            # All models are defined in the context of a SystemModel instance.
-            # This is this instance
-            attr_accessor :system_model
+            # Allows to set a name on private models (i.e. models that are not
+            # registered as Ruby constants)
+            def name=(name)
+                class << self
+                    attr_accessor :name
+                end
+                self.name = name
+            end
 
             # Returns a string suitable to reference an element of type +self+.
             #
@@ -46,62 +51,36 @@ module Syskit
             end
 
             # Creates a new class that is a submodel of this model
-            def new_submodel(name = nil)
-                klass = Class.new(self)
-                klass.system_model = system_model
-                if name
-                    klass.instance_variable_set :@name, name
-                end
-                klass
-            end
-
-            def self.validate_service_model(model, system_model, expected_type = DataService)
-                if !model.kind_of?(DataServiceModel)
-                    raise ArgumentError, "expected a data service, source or combus model, got #{model} of type #{model.class}"
-                elsif !(model < expected_type)
-                    # Try harder. This is meant for DSL loading, as we define
-                    # data services for devices and so on
-                    if query_method = SystemModel::MODEL_QUERY_METHODS[expected_type]
-                        model = system_model.send(query_method, model.name)
-                    end
-                    if !model
-                        raise ArgumentError, "expected a submodel of #{expected_type.short_name} but got #{model} of type #{model.class}"
-                    end
+            def new_submodel
+                model = Class.new(self)
+                if block_given?
+                    model.instance_eval(&proc)
                 end
                 model
             end
 
-            PREFIX_SHORTCUTS =
-                { 'Devices' => %w{Devices Dev},
-                  'DataService' => %w{DataService Srv} }
-
-            def self.validate_model_name(prefix, user_name)
-                name = user_name.dup
-                PREFIX_SHORTCUTS[prefix].each do |str|
-                    name.gsub!(/^#{str}::/, '')
-                end
-                if name =~ /::/
-                    raise ArgumentError, "model names cannot have sub-namespaces"
-                end
-
-                if !name.respond_to?(:to_str)
-                    raise ArgumentError, "expected a string as a model name, got #{name}"
-                elsif !(name.camelcase(:upper) == name)
-                    raise ArgumentError, "#{name} is not a valid model name. Model names must start with an uppercase letter, and are usually written in UpperCamelCase"
-                end
-                name
-            end
-
             def short_name
-                if name
-                    name.gsub('Syskit::', '').
-                        gsub('DataServices', 'Srv').
-                        gsub('Devices', 'Dev').
-                        gsub('Compositions', 'Cmp')
-                end
+                name
             end
         end
 
+
+        # Validates that the given name is a valid model name. Mainly, it makes
+        # sure that +name+ is a valid constant Ruby name without namespaces
+        #
+        # @raises ArgumentError
+        def self.validate_model_name(name)
+            if name =~ /::/
+                raise ArgumentError, "model names cannot have sub-namespaces"
+            end
+
+            if !name.respond_to?(:to_str)
+                raise ArgumentError, "expected a string as a model name, got #{name}"
+            elsif !(name.camelcase(:upper) == name)
+                raise ArgumentError, "#{name} is not a valid model name. Model names must start with an uppercase letter, and are usually written in UpperCamelCase"
+            end
+            name
+        end
 
         # Safe port mapping merging implementation
         #
@@ -134,6 +113,21 @@ module Syskit
                 end
                 result[service] =
                     Models.merge_port_mappings(result[service] || Hash.new, updated_mappings)
+            end
+        end
+
+        # Merge the given orogen interfaces into one subclass
+        def self.merge_orogen_task_context_models(target, interfaces, port_mappings = Hash.new)
+            interfaces.each do |i|
+                if i.name
+                    target.implements i.name
+                end
+                target.merge_ports_from(i, port_mappings)
+
+                i.each_event_port do |port|
+                    target_name = port_mappings[port.name] || port.name
+                    target.port_driven target_name
+                end
             end
         end
     end

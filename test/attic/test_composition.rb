@@ -12,7 +12,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     def define_stereocamera
         Roby.app.load_orogen_project "system_test"
 
-        sys_model.data_service_type 'StereoProvider' do
+        DataService.new_submodel do
             output_port 'disparity', 'camera/Image'
             output_port 'cloud', 'base/PointCloud3D'
         end
@@ -21,7 +21,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
             output_port 'image1', 'camera::Image'
             output_port 'image2', 'camera::Image'
         end
-        sys_model.data_service_type 'Image' do
+        DataService.new_submodel do
             output_port 'image', 'camera::Image'
         end
         sys_model.device_type 'Camera' do

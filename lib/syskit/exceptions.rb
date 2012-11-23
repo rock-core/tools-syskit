@@ -415,7 +415,7 @@ module Syskit
                     candidates = task.
                         enum_parent_objects(merge_graph).
                         find_all { |t| t.execution_agent }.
-                        map { |t| t.orogen_spec.name }
+                        map { |t| t.orogen_model.name }
 
                     @tasks[task] = [parents, candidates]
                 end

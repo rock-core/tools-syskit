@@ -54,7 +54,7 @@ module Syskit
                 logged_port_type = logged_port.orocos_type_name
 
                 metadata = Hash[
-                    'rock_task_model' => logged_task.model.orogen_spec.name,
+                    'rock_task_model' => logged_task.model.orogen_model.name,
                     'rock_task_name' => logged_task.orocos_name,
                     'rock_task_object_name' => logged_port.name,
                     'rock_stream_type' => 'port']
@@ -89,7 +89,7 @@ module Syskit
                         Robot.info "not automatically logging any port in deployment #{name}"
                     else
                         # Only setup the logger
-                        deployment.orogen_deployment.setup_logger(
+                        deployment.orogen_model.setup_logger(
                             :log_dir => deployment.log_dir,
                             :remote => (deployment.machine != 'localhost'))
                     end
@@ -139,8 +139,6 @@ module Syskit
 
             # The plan we are working on
             attr_reader :plan
-            # The model we are working on, as a SystemModel instance
-            attr_reader :model
             # The robot on which the software is running
             attr_reader :robot
             # The instances we are supposed to build
@@ -282,7 +280,7 @@ module Syskit
             #
             def robot(&block)
                 if block_given?
-                    @robot.with_module(*Syskit.constant_search_path, &block)
+                    @robot.instance_eval(&block)
                 end
                 @robot
             end
@@ -298,11 +296,10 @@ module Syskit
                 @modified = true
             end
 
-            def initialize(plan, model, robot = nil)
+            def initialize(plan, robot = nil)
                 @plan      = plan
                 plan.extend PlanExtension
                 plan.orocos_engine = self
-                @model     = model
                 @robot     = robot || RobotDefinition.new(self)
 
                 @network_merge_solver = NetworkMergeSolver.new(plan, &method(:merged_tasks))
@@ -985,7 +982,7 @@ module Syskit
                 end
                 deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
-                        model.orogen_spec.task_activities.each do |deployed_task|
+                        model.orogen_model.task_activities.each do |deployed_task|
                             all_concrete_models << Roby.app.orocos_tasks[deployed_task.task_model.name]
                         end
                     end
@@ -1994,7 +1991,7 @@ module Syskit
                             new_task = task.task(act_name)
                             deployed_task = plan[new_task]
                             Engine.debug do
-                                "  #{deployed_task.orogen_name} on #{task.deployment_name}[machine=#{task.machine}] is represented by #{deployed_task}"
+                                "  #{deployed_task.name} on #{task.deployment_name}[machine=#{task.machine}] is represented by #{deployed_task}"
                             end
                             deployed_tasks[act_name] = deployed_task
                         end
@@ -2093,9 +2090,9 @@ module Syskit
                     existing_tasks = Hash.new
                     existing_deployment_task.each_executed_task do |t|
                         if t.running?
-                            existing_tasks[t.orogen_name] = t
+                            existing_tasks[t.name] = t
                         elsif t.pending?
-                            existing_tasks[t.orogen_name] ||= t
+                            existing_tasks[t.name] ||= t
                         end
                     end
 
@@ -2103,21 +2100,21 @@ module Syskit
 
                     deployed_tasks = deployment_task.each_executed_task.to_value_set
                     deployed_tasks.each do |task|
-                        existing_task = existing_tasks[task.orogen_name]
+                        existing_task = existing_tasks[task.name]
                         if !existing_task
-                            Engine.debug { "  task #{task.orogen_name} has not yet been deployed" }
+                            Engine.debug { "  task #{task.name} has not yet been deployed" }
                         elsif !existing_task.reusable?
-                            Engine.debug { "  task #{task.orogen_name} has been deployed, but the deployment is not reusable" }
+                            Engine.debug { "  task #{task.name} has been deployed, but the deployment is not reusable" }
                         elsif !existing_task.can_merge?(task)
-                            Engine.debug { "  task #{task.orogen_name} has been deployed, but I can't merge with the existing deployment" }
+                            Engine.debug { "  task #{task.name} has been deployed, but I can't merge with the existing deployment" }
                         end
 
                         # puts "#{existing_task} #{existing_task.meaningful_arguments} #{existing_task.arguments} #{existing_task.fullfilled_model}"
                         # puts "#{task} #{task.meaningful_arguments} #{task.arguments} #{task.fullfilled_model}"
                         # puts existing_task.can_merge?(task)
                         if !existing_task || existing_task.finishing? || !existing_task.reusable? || !existing_task.can_merge?(task)
-                            new_task = plan[existing_deployment_task.task(task.orogen_name, task.model)]
-                            Engine.debug { "  creating #{new_task} for #{task} (#{task.orogen_name})" }
+                            new_task = plan[existing_deployment_task.task(task.name, task.model)]
+                            Engine.debug { "  creating #{new_task} for #{task} (#{task.name})" }
                             if existing_task
                                 new_task.start_event.should_emit_after(existing_task.stop_event)
 
@@ -2137,7 +2134,7 @@ module Syskit
                         end
                         existing_task.merge(task)
                         @network_merge_solver.register_replacement(task, plan.may_unwrap(existing_task))
-                        Engine.debug { "  using #{existing_task} for #{task} (#{task.orogen_name})" }
+                        Engine.debug { "  using #{existing_task} for #{task} (#{task.name})" }
                         plan.remove_object(task)
                         if existing_task.conf != task.conf
                             existing_task.needs_reconfiguration!
@@ -2197,12 +2194,12 @@ module Syskit
             query.reset
             for t in query
                 # The task's deployment is not started yet
-                next if !t.orogen_task
+                next if !t.orocos_task
 
                 if !t.execution_agent
                     raise NotImplementedError, "#{t} is not yet finished but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
                 elsif !t.execution_agent.ready?
-                    raise InternalError, "orogen_task != nil on #{t}, but #{t.execution_agent} is not ready yet"
+                    raise InternalError, "orocos_task != nil on #{t}, but #{t.execution_agent} is not ready yet"
                 end
 
                 # Some CORBA implementations (namely, omniORB) may behave weird
@@ -2233,9 +2230,9 @@ module Syskit
                 begin
                     state = nil
                     state_count = 0
-                    while (!state || t.orogen_task.runtime_state?(state)) && t.update_orogen_state
+                    while (!state || t.orocos_task.runtime_state?(state)) && t.update_orogen_state
                         state_count += 1
-                        state = t.orogen_state
+                        state = t.orocos_task
 
                         # Returns nil if we have a communication problem. In this
                         # case, #update_orogen_state will have emitted the right
