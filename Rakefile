@@ -1,5 +1,5 @@
 require 'rake'
-require './lib/orocos/version'
+require './lib/syskit/version'
 require 'utilrb/doc/rake'
 
 begin
@@ -45,7 +45,7 @@ namespace :setup do
         end
 
         UIFILES.each do |file|
-            file = 'lib/orocos/roby/gui/' + file
+            file = 'lib/syskit/gui/' + file
             if !system(rbuic, '-o', file.gsub(/\.ui$/, '_ui.rb'), file)
                 STDERR.puts "Failed to generate #{file}"
             end
@@ -61,7 +61,7 @@ if Utilrb.doc?
         Utilrb.doc 'api', :include => ['lib/**/*.rb'],
             :exclude => [],
             :target_dir => 'doc',
-            :title => 'orocos.rb'
+            :title => 'Syskit'
 
         # desc 'generate all documentation'
         # task 'all' => 'doc:api'
