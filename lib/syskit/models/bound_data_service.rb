@@ -75,7 +75,7 @@ module Syskit
                 if !models.respond_to?(:each)
                     models = [models]
                 end
-                components, services = models.partition { |m| m <= Component }
+                components, services = models.partition { |m| m <= Syskit::Component }
                 (components.empty? || self.component_model.fullfills?(components)) &&
                     (services.empty? || self.model.fullfills?(services))
             end
