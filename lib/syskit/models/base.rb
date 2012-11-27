@@ -40,16 +40,6 @@ module Syskit
                 name.gsub(/.*::/, '').camelcase(:upper)
             end
 
-            def to_s # :nodoc:
-                supermodels = ancestors.map(&:name)
-                i = supermodels.index("Syskit::Component")
-                supermodels = supermodels[0, i]
-                supermodels = supermodels.map do |name|
-                    name.gsub(/Syskit::(.*)/, "\\1") if name
-                end
-                "#<#{supermodels.join(" < ")}>"
-            end
-
             # Creates a new class that is a submodel of this model
             def new_submodel
                 model = Class.new(self)

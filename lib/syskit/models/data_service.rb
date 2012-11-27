@@ -61,10 +61,6 @@ module Syskit
                 name || "Anonymous"
             end
 
-            def to_s # :nodoc:
-                "#<#{self.class.name}: #{name}>"
-            end
-
             # Creates a new DataServiceModel that is a submodel of +self+
             #
             # @param [Hash] options the option hash
@@ -274,10 +270,6 @@ module Syskit
 
         # Metamodel for all devices
         class DeviceModel < DataServiceModel
-            def to_s # :nodoc:
-                "#<Device: #{name}>"
-            end
-
             def new_submodel(options = Hash.new, &block)
                 model = super(options, &block)
                 if device_configuration_module
@@ -401,10 +393,6 @@ module Syskit
             # [String] the name of the type used to communicate with the
             # supported components
             attr_accessor :message_type
-
-            def to_s # :nodoc:
-                "#<ComBus: #{short_name}>"
-            end
 
             attribute(:attached_device_configuration_module) { Module.new }
 

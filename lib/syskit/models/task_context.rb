@@ -211,17 +211,6 @@ module Syskit
             # enters a new state.
             attribute(:state_events) { Hash.new }
 
-            def to_s
-                services = each_data_service.map do |name, srv|
-                        "#{name}[#{srv.model.short_name}]"
-                end.join(", ")
-                if private_specialization?
-                    "#<specialized from #{superclass.name} services: #{services}>"
-                else
-                    "#<#{name} services: #{services}>"
-                end
-            end
-
             # :attr: private_specialization?
             #
             # If true, this model is used internally to represent

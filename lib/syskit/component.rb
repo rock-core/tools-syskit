@@ -21,8 +21,6 @@ module Syskit
         class Component < ::Roby::Task
             extend Models::Component
 
-            def inspect; to_s end
-
             # The Robot instance we are running on
             attr_accessor :robot
 
