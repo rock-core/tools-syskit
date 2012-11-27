@@ -200,7 +200,7 @@ module Syskit
             end
 
             def find_input_port(name)
-                orocos_task.find_input_port(name)
+                orocos_task.find_input_port(nil, name)
             end
 
             def input_port(name)
@@ -211,7 +211,7 @@ module Syskit
             end
 
             def find_output_port(name)
-                orocos_task.find_output_port(name)
+                orocos_task.find_output_port(nil, name)
             end
 
             def output_port(name)
@@ -634,17 +634,29 @@ module Syskit
             # Component.data_service for the description of +arguments+
             def self.driver_for(model, arguments = Hash.new, &block)
                 if model.respond_to?(:to_str)
-                    service_options, model_options = Kernel.filter_options arguments, Models::Component::PROVIDE_ARGUMENTS
-                    model = parent_module.device_type(model, model_options)
-                else
-                    service_options = arguments
+                    has_proper_name =
+                        if self.name
+                            begin constant(self.name)
+                            rescue NameError
+                            end
+                        end
+
+                    if has_proper_name
+                        parent_module_name = name.gsub(/::[^:]+$/, '')
+                        parent_module =
+                            if parent_module_name == model then Object
+                            else constant(parent_module_name)
+                            end
+                    end
+
+                    if parent_module
+                        model = parent_module.device_type(model)
+                    else
+                        model = Device.new_submodel(:name => model)
+                    end
                 end
 
-                model = Model.validate_service_model(model, Device)
-                if !model.config_type
-                    model.config_type = config_type_from_properties
-                end
-                dserv = provides(model, service_options)
+                dserv = provides(model, arguments)
                 argument "#{dserv.name}_name"
                 dserv
             end
@@ -698,6 +710,17 @@ module Syskit
                         Robot.warn "ignoring field #{name} in configuration of #{orocos_name} (#{model.name})"
                     end
                 end
+            end
+
+            # Stub this task context by assigning a {Orocos::RubyTaskContext} to {#orocos_task}
+            def stub!(name = nil)
+                if !name && !orocos_name
+                    raise ArgumentError, "orocos_task is not set on #{self}, you must provide an explicit name in #stub!"
+                end
+                if name
+                    self.orocos_name = name
+                end
+                @orocos_task = Orocos::RubyTaskContext.from_orogen_model(orocos_name, model.orogen_model)
             end
         end
 end

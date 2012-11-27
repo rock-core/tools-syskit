@@ -1,11 +1,8 @@
-BASE_DIR = File.expand_path( '../..', File.dirname(__FILE__))
-APP_DIR = File.join(BASE_DIR, "test")
+require 'syskit'
+require 'syskit/test'
 
-$LOAD_PATH.unshift BASE_DIR
-require 'test/roby/common'
-
-class TC_RobySpec_Composition < Test::Unit::TestCase
-    include RobyPluginCommonTest
+class TC_Composition < Test::Unit::TestCase
+    include Syskit::SelfTest
 
     attr_reader :simple_component_model
     attr_reader :simple_task_model
@@ -22,27 +19,27 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         Roby.app.filter_backtraces = false
 	super
 
-        srv = @simple_service_model = DataModel.new_submodel do
+        srv = @simple_service_model = DataService.new_submodel do
             input_port 'srv_in', '/int'
             output_port 'srv_out', '/int'
         end
-        @simple_component_model = mock_roby_component_model("SimpleComponent") do
+        @simple_component_model = TaskContext.new_submodel do
             input_port 'in', '/int'
             output_port 'out', '/int'
         end
-        simple_component_model.provides simple_service_model,
+        simple_component_model.provides simple_service_model, :as => 'simple_service',
             'srv_in' => 'in', 'srv_out' => 'out'
-        @simple_task_model = mock_roby_task_context_model("SimpleTask") do
+        @simple_task_model = TaskContext.new_submodel do
             input_port 'in', '/int'
             output_port 'out', '/int'
         end
-        simple_task_model.provides simple_service_model,
+        simple_task_model.provides simple_service_model, :as => 'simple_service',
             'srv_in' => 'in', 'srv_out' => 'out'
-        @simple_composition_model = mock_roby_composition_model("SimpleComposition") do
+        @simple_composition_model = Composition.new_submodel do
             add srv, :as => 'srv'
             export self.srv.srv_in
             export self.srv.srv_out
-            provides srv
+            provides srv, :as => 'srv'
         end
     end
 
@@ -52,7 +49,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_explicit_connection
         component = simple_composition_model
-        composition = mock_roby_composition_model("Composition")
+        composition = Composition.new_submodel
         composition.add simple_component_model, :as => 'source'
         composition.add simple_component_model, :as => 'sink'
         composition.connect composition.source => composition.sink
@@ -61,12 +58,12 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_explicit_connection_applies_port_mappings
         service, component, base = setup_with_port_mapping
-        service1 = DataModel.new_submodel do
+        service1 = DataService.new_submodel do
             input_port 'specialized_in', '/int'
             output_port 'specialized_out', '/int'
             provides service, 'srv_out' => 'specialized_out', 'srv_in' => 'specialized_in'
         end
-        component.provides service1
+        component.provides service1, :as => 'specialized_service'
 
         composition = Class.new(base)
         composition.overload('srv', service1)
@@ -95,19 +92,19 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     end
 
     def test_each_exported_input_output_renames_port
-        service = DataModel.new_submodel do
+        service = DataService.new_submodel do
             input_port 'in', '/int'
             output_port 'out', '/int'
         end
         srv_in, srv_out = nil
-        composition = mock_roby_composition_model("OdometryComposition") do
+        composition = Composition.new_submodel do
             add service, :as => 'srv'
 
             srv_in = self.srv.in
             export srv_in, :as => 'srv_in'
             srv_out = self.srv.out
             export srv_out, :as => 'srv_out'
-            provides service
+            provides service, :as => 'srv'
         end
         assert_single_export 'srv_out', srv_out, composition.each_exported_output
         assert_single_export 'srv_in', srv_in, composition.each_exported_input
@@ -119,12 +116,12 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
 
     def test_each_exported_input_output_applies_port_mappings
         service, component, composition = setup_with_port_mapping
-        service1 = DataModel.new_submodel do
+        service1 = DataService.new_submodel do
             input_port 'specialized_in', '/int'
             output_port 'specialized_out', '/int'
             provides service, 'srv_out' => 'specialized_out', 'srv_in' => 'specialized_in'
         end
-        component.provides service1
+        component.provides service1, :as => 'srv1'
 
         c0 = Class.new(composition)
         c0.overload('srv', service1)
@@ -151,6 +148,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     def test_instanciate_applies_port_mappings
         service, component, composition = setup_with_port_mapping
         composition = flexmock(composition)
+        component = flexmock(component)
 
         # Make sure the forwarding is set up with the relevant port mapping
         # applied
@@ -175,6 +173,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
         service, component, composition = setup_with_port_mapping
         composition = composition.instanciate_specialization(composition.specialize('srv' => component))
         composition = flexmock(composition)
+        component = flexmock(component)
 
         # Make sure the forwarding is set up with the relevant port mapping
         # applied
@@ -190,7 +189,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     end
 
     def test_state_using_child_component
-        cmp_model = mock_roby_composition_model("OdometryComposition")
+        cmp_model = Composition.new_submodel
         cmp_model.add simple_task_model, :as => 'child'
         cmp_model.state.pose = cmp_model.child.out
 
@@ -206,7 +205,7 @@ class TC_RobySpec_Composition < Test::Unit::TestCase
     end
 
     def test_state_using_child_service
-        cmp_model = mock_roby_composition_model("OdometryComposition")
+        cmp_model = Composition.new_submodel
         cmp_model.add simple_service_model, :as => 'child'
         cmp_model.state.pose = cmp_model.child.srv_out
 

@@ -617,13 +617,13 @@ module Syskit
             attr_predicate :private_specialization?, true
 
             # Creates a private specialization of the current model
-            def specialize(name)
+            def specialize(name = nil)
                 klass = Class.new(self)
-                klass.name = name
+                if name
+                    klass.name = name
+                end
                 klass.private_specialization = true
                 klass.private_model
-                klass.state_events = state_events.dup
-                Syskit::Models.merge_orogen_task_context_models(klass.orogen_model, [orogen_model])
                 klass
             end
 

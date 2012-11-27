@@ -42,6 +42,14 @@ module Syskit
                 end
             end
 
+            def stub_roby_task_context(name = "task", &block)
+                model = TaskContext.new_submodel(&block)
+                task = model.new
+                task.stub! name
+                @task_stubs << task.orocos_task
+                task
+            end
+
             def mock_roby_component_model(name = nil, &block)
                 # TODO: define the orogen spec / interface attribute directly on
                 # Component
@@ -142,6 +150,8 @@ module Syskit
                     ::Orocos.initialize
                 end
 
+                @task_stubs = Array.new
+
                 engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
                 # TODO: remove all references to global singletons
@@ -167,6 +177,10 @@ module Syskit
                             task.orocos_process.kill
                         end
                     end
+                end
+
+                @task_stubs.each do |t|
+                    t.dispose
                 end
 
             ensure

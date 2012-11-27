@@ -275,7 +275,7 @@ module Syskit
                 if !task.fullfills?(component_model)
                     raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
                 end
-                BoundDataService.new(task, self)
+                Syskit::BoundDataService.new(task, self)
             end
 
             def method_missing(m, *args, &block)

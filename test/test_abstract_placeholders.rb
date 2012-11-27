@@ -1,3 +1,4 @@
+require 'syskit'
 require 'syskit/test'
 
 class TC_AbstractPlaceholders < Test::Unit::TestCase
@@ -10,9 +11,9 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
     end
 
     def test_proxy_simple_task_context
-	task_model = Component.new_submodel
-	proxy = Syskit.proxy_task_model_for([task_model])
-	assert_kind_of(task_model, proxy)
+	task_model = TaskContext.new_submodel
+	proxy_model = Syskit.proxy_task_model_for([task_model])
+        assert_same proxy_model, task_model
     end
 
     def test_proxy_data_services
@@ -23,7 +24,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	]
 	proxy = Syskit.proxy_task_model_for(services)
 	assert(proxy.abstract?)
-	assert_equal('Syskit::PlaceholderTask<A,B,C>', proxy.name)
+	assert_equal('Syskit::PlaceholderTask<Syskit::TaskContext,A,B,C>', proxy.name)
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
 	assert_equal(services.to_set, proxy.fullfilled_model[1].to_set)
 	services.each do |srv|
@@ -33,7 +34,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 
     def test_proxy_task_and_data_service_mix
 	# TODO: task_model should be allowed to be any component model
-	task_model = Component.new_submodel
+	task_model = TaskContext.new_submodel
         task_model.name = "NewComponentModel"
 	services = [
 	    data_service_type('B'),

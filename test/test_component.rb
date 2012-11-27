@@ -1,7 +1,11 @@
+require 'syskit'
 require 'syskit/test'
 
-class TC_RobySpec_Component < Test::Unit::TestCase
-    include RobyPluginCommonTest
+class TC_Component < Test::Unit::TestCase
+    include Syskit::SelfTest
+
+    DataService = Syskit::DataService
+    TaskContext = Syskit::TaskContext
 
     def setup
 	Roby.app.using 'orocos'
@@ -18,10 +22,10 @@ class TC_RobySpec_Component < Test::Unit::TestCase
     end
 
     def test_connect_ports
-        source_model = mock_roby_component_model do
+        source_model = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'
         end
-        sink_model = mock_roby_component_model do
+        sink_model = Syskit::TaskContext.new_submodel do
             input_port 'out', '/double'
             input_port 'other', '/double'
         end
@@ -29,23 +33,23 @@ class TC_RobySpec_Component < Test::Unit::TestCase
         plan.add(sink_task = sink_model.new)
         source_task.connect_ports(sink_task, ['out', 'out'] => {:type => :buffer, :size => 20 })
         assert_equal({['out', 'out'] => {:type => :buffer, :size => 20 }},
-                     source_task[sink_task, Orocos::RobyPlugin::Flows::DataFlow])
+                     source_task[sink_task, Syskit::Flows::DataFlow])
         assert(source_task.connected_to?('out', sink_task, 'out'))
         source_task.connect_ports(sink_task, ['out', 'other'] => {:type => :buffer, :size => 30 })
         assert_equal(
             {
                 ['out', 'out'] => {:type => :buffer, :size => 20 },
                 ['out', 'other'] => {:type => :buffer, :size => 30 }
-            }, source_task[sink_task, Orocos::RobyPlugin::Flows::DataFlow])
+            }, source_task[sink_task, Syskit::Flows::DataFlow])
         assert(source_task.connected_to?('out', sink_task, 'out'))
         assert(source_task.connected_to?('out', sink_task, 'other'))
     end
 
     def test_connect_ports_non_existent_ports
-        source_model = mock_roby_component_model do
+        source_model = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'
         end
-        sink_model = mock_roby_component_model do
+        sink_model = Syskit::TaskContext.new_submodel do
             input_port 'out', '/double'
         end
         plan.add(source_task = source_model.new)
@@ -54,27 +58,23 @@ class TC_RobySpec_Component < Test::Unit::TestCase
         assert_raises(ArgumentError) do
             source_task.connect_ports(sink_task, ['out', 'does_not_exist'] => {:type => :buffer, :size => 20 })
         end
-        assert(!Orocos::RobyPlugin::Flows::DataFlow.include?(source_task))
-        assert(!Orocos::RobyPlugin::Flows::DataFlow.include?(sink_task))
+        assert(!Syskit::Flows::DataFlow.include?(source_task))
+        assert(!Syskit::Flows::DataFlow.include?(sink_task))
 
         assert_raises(ArgumentError) do
             source_task.connect_ports(sink_task, ['does_not_exist', 'out'] => {:type => :buffer, :size => 20 })
         end
-        assert(!Orocos::RobyPlugin::Flows::DataFlow.include?(source_task))
-        assert(!Orocos::RobyPlugin::Flows::DataFlow.include?(sink_task))
-
-        assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task, ['does_not_exist', 'does_not_exist'] => {:type => :buffer, :size => 20 })
-        end
-        assert(!Orocos::RobyPlugin::Flows::DataFlow.include?(source_task))
-        assert(!Orocos::RobyPlugin::Flows::DataFlow.include?(sink_task))
+        assert(!Syskit::Flows::DataFlow.include?(source_task))
+        assert(!Syskit::Flows::DataFlow.include?(sink_task))
+        assert(!Syskit::Flows::DataFlow.include?(source_task))
+        assert(!Syskit::Flows::DataFlow.include?(sink_task))
     end
 
     def test_disconnect_ports
-        source_model = mock_roby_component_model do
+        source_model = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'
         end
-        sink_model = mock_roby_component_model do
+        sink_model = Syskit::TaskContext.new_submodel do
             input_port 'out', '/double'
             input_port 'other', '/double'
         end
@@ -89,16 +89,16 @@ class TC_RobySpec_Component < Test::Unit::TestCase
         assert_equal(
             {
                 ['out', 'out'] => {:type => :buffer, :size => 20 }
-            }, source_task[sink_task, Orocos::RobyPlugin::Flows::DataFlow])
+            }, source_task[sink_task, Syskit::Flows::DataFlow])
         assert(source_task.connected_to?('out', sink_task, 'out'))
         assert(!source_task.connected_to?('out', sink_task, 'other'))
     end
 
     def test_disconnect_ports_non_existent_ports
-        source_model = mock_roby_component_model do
+        source_model = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'
         end
-        sink_model = mock_roby_component_model do
+        sink_model = Syskit::TaskContext.new_submodel do
             input_port 'out', '/double'
         end
         plan.add(source_task = source_model.new)
@@ -109,26 +109,26 @@ class TC_RobySpec_Component < Test::Unit::TestCase
             source_task.disconnect_ports(sink_task, [['out', 'does_not_exist']])
         end
         assert_equal(
-            { ['out', 'out'] => {:type => :buffer, :size => 20 } }, source_task[sink_task, Orocos::RobyPlugin::Flows::DataFlow])
+            { ['out', 'out'] => {:type => :buffer, :size => 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
 
         assert_raises(ArgumentError) do
             source_task.disconnect_ports(sink_task, [['does_not_exist', 'out']])
         end
         assert_equal(
-            { ['out', 'out'] => {:type => :buffer, :size => 20 } }, source_task[sink_task, Orocos::RobyPlugin::Flows::DataFlow])
+            { ['out', 'out'] => {:type => :buffer, :size => 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
 
         assert_raises(ArgumentError) do
             source_task.disconnect_ports(sink_task, [['does_not_exist', 'does_not_exist']])
         end
         assert_equal(
-            { ['out', 'out'] => {:type => :buffer, :size => 20 } }, source_task[sink_task, Orocos::RobyPlugin::Flows::DataFlow])
+            { ['out', 'out'] => {:type => :buffer, :size => 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
     end
 
     def test_disconnect_ports_non_existent_connection
-        source_model = mock_roby_component_model do
+        source_model = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'
         end
-        sink_model = mock_roby_component_model do
+        sink_model = Syskit::TaskContext.new_submodel do
             input_port 'out', '/double'
         end
         plan.add(source_task = source_model.new)
@@ -138,13 +138,12 @@ class TC_RobySpec_Component < Test::Unit::TestCase
         end
     end
 
-
     def test_merge_merges_explicit_fullfilled_model
         # TODO: make #fullfilled_model= and #fullfilled_model work on the same
         # format (currently, the writer wants [task_model, tags, arguments] and
         # the reader returns [models, arguments]
-        model = mock_roby_component_model "Model"
-        submodel = model.new_submodel "Submodel"
+        model = Syskit::TaskContext.new_submodel :name => "Model"
+        submodel = model.new_submodel :name => "Submodel"
 
         plan.add(merged_task = model.new(:id => 'test'))
         merged_task.fullfilled_model = [Component, [], {:id => 'test'}]

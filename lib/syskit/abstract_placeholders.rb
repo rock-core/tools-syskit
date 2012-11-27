@@ -12,13 +12,13 @@ module Syskit
             end
         end
 
-        module Models::ComponentModel
+        module Models::TaskContext
             # Create a task model that can be used as a placeholder in a Roby
             # plan for this task model and the following service models.
             #
             # @see Syskit.proxy_task_model_for
             def proxy_task_model(service_models)
-                name = "Syskit::PlaceholderTask<#{service_models.map(&:short_name).sort.join(",")}>"
+                name = "Syskit::PlaceholderTask<#{self.short_name},#{service_models.map(&:short_name).sort.join(",")}>"
                 model = specialize(name)
                 model.abstract
                 model.include PlaceholderTask
@@ -41,7 +41,7 @@ module Syskit
             if task_models.size > 1
                 raise ArgumentError, "cannot create a proxy for multiple component models at the same time"
             end
-            task_model = task_models.first || Component
+            task_model = task_models.first || TaskContext
 
             # If all that is required is a proper task model, just return it
             if service_models.empty?

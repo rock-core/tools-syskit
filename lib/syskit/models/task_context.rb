@@ -16,7 +16,7 @@ module Syskit
                 elsif !(supermodel = Roby.app.orocos_tasks[superclass.name])
                     supermodel = define_from_orogen(superclass)
                 end
-                klass = supermodel.new_submodel(orogen_model)
+                klass = supermodel.new_submodel(:orogen_model => orogen_model)
                 
                 # Define specific events for the extended states (if there is any)
                 state_events = Hash.new
@@ -211,19 +211,22 @@ module Syskit
             # enters a new state.
             attribute(:state_events) { Hash.new }
 
-            # :attr: private_specialization?
+            # Create a new TaskContext model
             #
-            # If true, this model is used internally to represent
-            # instanciated dynamic services. Otherwise, it is an actual
-            # task context model
-            attr_predicate :private_specialization?, true
-
-            def new_submodel(orogen_model = nil, &block)
+            # @option options [String] name (nil) forcefully set a name for the model.
+            #   This is only useful for "anonymous" models, i.e. models that are
+            #   never assigned in the Ruby constant hierarchy
+            # @option options [Orocos::Spec::TaskContext] orogen_model (nil) the
+            #   oroGen model that should be used. If not given, an empty model
+            #   is created, possibly with the name given to the method as well.
+            def new_submodel(options = Hash.new, &block)
+                options = Kernel.validate_options options,
+                    :name => nil, :orogen_model => nil
                 model = Class.new(self)
-                if orogen_model
+                if orogen_model = options[:orogen_model]
                     model.orogen_model = orogen_model
                 else
-                    model.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project)
+                    model.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, options[:name])
                     model.orogen_model.subclasses self.orogen_model
                     model.state_events = self.state_events.dup
                 end
@@ -231,18 +234,6 @@ module Syskit
                     model.orogen_model.instance_eval(&block)
                 end
                 model
-            end
-
-            # Creates a private specialization of the current model
-            def specialize(name)
-                if self == TaskContext
-                    raise "#specialize should not be used to create a specialization of TaskContext. Use only on \"real\" task context models"
-                end
-                klass = new_submodel
-                klass.private_specialization = true
-                klass.private_model
-                klass.name = name
-                klass
             end
 
             def worstcase_processing_time(value)

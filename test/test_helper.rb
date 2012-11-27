@@ -10,6 +10,7 @@ def start_simple_cov(name)
             SimpleCov.command_name name
             @@simple_cov_started = true
             SimpleCov.root(File.join(File.dirname(__FILE__),".."))
+            SimpleCov.add_filter "/test/"
             SimpleCov.start
         end
     end
