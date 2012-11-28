@@ -18,6 +18,7 @@ require 'syskit/models/data_service'
 require 'syskit/models/bound_data_service'
 require 'syskit/models/composition'
 require 'syskit/models/task_context'
+require 'syskit/models/deployment'
 # Instances
 require 'syskit/data_services'
 require 'syskit/component'

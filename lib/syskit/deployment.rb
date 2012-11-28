@@ -16,6 +16,8 @@ module Syskit
         # Once it gets instanciated, the associated task contexts can be
         # accessed with #task(name)
         class Deployment < ::Roby::Task
+            extend Models::Deployment
+
             def initialize(arguments = Hash.new)
 	    	opts, task_arguments = Kernel.filter_options  arguments, :log => true
 		task_arguments[:log] = opts[:log]
@@ -65,7 +67,7 @@ module Syskit
             end
 
             def instanciate_all_tasks
-                model.each_deployed_task_context.map do |act|
+                model.each_orogen_deployed_task_context_model.map do |act|
                     task(act.name)
                 end
             end
