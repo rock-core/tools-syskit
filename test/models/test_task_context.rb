@@ -140,3 +140,23 @@ end
         assert_same parent_model, model.superclass
     end
 
+    def test_define_from_orogen_propery_defines_state_events
+        orogen = Orocos::Spec::TaskContext.new(Orocos.master_project) do
+            error_states :CUSTOM_ERROR
+            exception_states :CUSTOM_EXCEPTION
+            fatal_states :CUSTOM_FATAL
+            runtime_states :CUSTOM_RUNTIME
+        end
+        model = Syskit::TaskContext.define_from_orogen orogen
+        assert !model.custom_error_event.terminal?
+        assert model.custom_exception_event.terminal?
+        assert model.custom_fatal_event.terminal?
+        assert !model.custom_runtime_event.terminal?
+
+        plan.add(task = model.new)
+        assert task.custom_error_event.child_object?(task.runtime_error_event, Roby::EventStructure::Forwarding)
+        assert task.custom_exception_event.child_object?(task.exception_event, Roby::EventStructure::Forwarding)
+        assert task.custom_fatal_event.child_object?(task.fatal_error_event, Roby::EventStructure::Forwarding)
+    end
+end
+
