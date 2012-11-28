@@ -1770,32 +1770,6 @@ module Syskit
                 return explicit, result
             end
 
-            # Cached set of all the children definitions for this composition
-            # model. This is updated by #update_all_children
-            #
-            # It can be used to limit the impact of using #find_child, which
-            # requires a traversal of the model ancestry.
-            def all_children(force_computation = false)
-                if @all_children
-                    return @all_children
-                else
-                    compute_all_children
-                end
-            end
-            
-            def compute_all_children
-                result = Hash.new
-                each_child do |name, model|
-                    result[name] = model
-                end
-                result
-            end
-
-            # Updates the #all_children hash
-            def prepare
-                @all_children = self.compute_all_children
-            end
-
             # Returns the set of specializations that match the given dependency
             # injection context
             def narrow(context)

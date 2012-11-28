@@ -962,12 +962,6 @@ module Syskit
                     block.call(model)
                 end
 
-                # This caches the mapping from child name to child model to
-                # speed up instanciation
-                model.each_composition do |composition|
-                    composition.prepare
-                end
-
                 # We now compute default selections for data service models. It
                 # computes if there is only one non-abstract task model that
                 # provides a given data service, and -- if it is the case --
