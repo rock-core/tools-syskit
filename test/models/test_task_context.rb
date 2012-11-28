@@ -107,7 +107,6 @@ class TC_Models_TaskContext < Test::Unit::TestCase
         assert_kind_of Syskit::Models::DeviceModel, DefinitionModule::Camera
         assert model.fullfills?(DefinitionModule::Camera)
     end
-end
 
     def test_define_from_orogen_creates_superclass_model_as_well
         orogen_parent = Orocos::Spec::TaskContext.new
