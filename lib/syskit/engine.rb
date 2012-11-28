@@ -1975,7 +1975,7 @@ module Syskit
                         deployment_tasks[model] = task
 
                         new_activities = Set.new
-                        task.orogen_spec.task_activities.each do |deployed_task|
+                        task.each_orogen_deployed_task_context_model do |deployed_task|
                             if ignored_deployed_task?(deployed_task)
                                 Engine.debug { "  ignoring #{model.name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
                             else

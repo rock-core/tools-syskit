@@ -72,6 +72,10 @@ module Syskit
                 end
             end
 
+            def each_orogen_deployed_task_context_model(&block)
+                model.each_orogen_deployed_task_context_model(&block)
+            end
+
             # Returns an task instance that represents the given task in this
             # deployment.
             def task(name, model = nil)
