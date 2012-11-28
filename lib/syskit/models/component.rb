@@ -625,7 +625,7 @@ module Syskit
 
             # Creates a private specialization of the current model
             def specialize(name = nil)
-                klass = Class.new(self)
+                klass = new_submodel
                 if name
                     klass.name = name
                 end

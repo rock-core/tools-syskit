@@ -37,7 +37,7 @@ module Syskit
             # Clears all registered submodels
             def clear_submodels
                 children = self.submodels.dup
-                submodels.clear
+                deregister_submodels(children)
                 children.each do |m|
                     m.clear_submodels
                 end

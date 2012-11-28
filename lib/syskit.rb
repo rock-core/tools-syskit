@@ -34,8 +34,6 @@ require 'syskit/dataflow_dynamics'
 require 'syskit/network_merge_solver'
 require 'syskit/runtime_connection_management'
 
-require 'syskit/abstract_placeholders'
-
 require 'syskit/exceptions'
 require 'syskit/runtime_exceptions'
 
