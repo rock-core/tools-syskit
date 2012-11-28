@@ -744,10 +744,6 @@ module Syskit
             def instanciate
                 self.tasks.clear
 
-                Syskit::Compositions.each do |composition_model|
-                    composition_model.reset_autoconnection
-                end
-
                 main_selection = update_main_selection
 
                 instances.each do |instance|
