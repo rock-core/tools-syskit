@@ -389,19 +389,6 @@ module Syskit
                 end
             end
 
-            def get_orocos_task_model(spec)
-                if spec.respond_to?(:to_str)
-                    if model = orocos_tasks[spec]
-                        return model
-                    end
-                    raise ArgumentError, "there is no orocos task model named #{spec}"
-                elsif !(spec < TaskContext)
-                    raise ArgumentError, "#{spec} is not a task context model"
-                else
-                    spec
-                end
-            end
-
             def orogen_load_all
                 Orocos.available_projects.each_key do |name|
                     Orocos.master_project.load_orogen_project(name)
