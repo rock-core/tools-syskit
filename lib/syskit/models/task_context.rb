@@ -82,58 +82,6 @@ module Syskit
                 provides(service_model, options)
             end
 
-            def create(spec_or_name = nil, &block)
-                if block || !spec_or_name || spec_or_name.respond_to?(:to_str)
-                    task_spec = Syskit.create_orogen_interface(spec_or_name)
-                    if block
-                        task_spec.instance_eval(&block)
-                    end
-                else
-                    task_spec = spec_or_name
-                end
-                
-                superclass = task_spec.superclass
-                if !(supermodel = Roby.app.orocos_tasks[superclass.name])
-                    supermodel = create(superclass)
-                end
-
-                klass = Class.new(supermodel)
-                klass.instance_variable_set :@orogen_model, task_spec
-
-                if task_spec.name
-                    roby_name = task_spec.name.split('::').
-                        map { |s| s.camelcase(:upper) }.
-                        join("::")
-
-                    klass.instance_variable_set :@name, roby_name
-                end
-                
-                # Define specific events for the extended states (if there is any)
-                state_events = {
-                    :EXCEPTION => :exception,
-                    :FATAL_ERROR => :fatal_error,
-                    :RUNTIME_ERROR => :runtime_error }
-                task_spec.states.each do |name, type|
-                    event_name = name.snakecase.downcase.to_sym
-                    klass.event event_name
-                    if type == :fatal
-                        klass.forward event_name => :fatal_error
-                    elsif type == :exception
-                        klass.forward event_name => :exception
-                    elsif type == :error
-                        klass.forward event_name => :runtime_error
-                    end
-
-                    state_events[name.to_sym] = event_name
-                end
-                if supermodel && supermodel.state_events
-                    state_events = state_events.merge(supermodel.state_events)
-                end
-                klass.instance_variable_set :@state_events, state_events
-
-                klass
-            end
-
             # Creates a Ruby class which represents the set of properties that
             # the task context has. The returned class will initialize its
             # members to the default values declared in the oroGen files
