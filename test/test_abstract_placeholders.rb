@@ -55,5 +55,28 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	    assert(proxy.fullfills?(srv))
 	end
     end
+
+    def test_proxy_task_returns_same_model
+	task_model = TaskContext.new_submodel
+	services = [
+	    data_service_type('B'),
+	    data_service_type('A'),
+	    data_service_type('C')
+	]
+	proxy = Syskit.proxy_task_model_for(services + [task_model])
+        assert_same proxy, Syskit.proxy_task_model_for(services.reverse + [task_model])
+    end
+
+    def test_proxy_task_returns_new_value_after_clear_submodels
+	task_model = TaskContext.new_submodel
+	services = [
+	    data_service_type('B'),
+	    data_service_type('A'),
+	    data_service_type('C')
+	]
+	proxy = Syskit.proxy_task_model_for(services + [task_model])
+        task_model.clear_submodels
+        assert_not_same proxy, Syskit.proxy_task_model_for(services.reverse + [task_model])
+    end
 end
 

@@ -13,11 +13,20 @@ module Syskit
         end
 
         module Models::TaskContext
+            # [Hash{Array<DataService> => Models::Task}] a cache of models
+            # creates in #proxy_task_model
+            attribute(:proxy_task_models) { Hash.new }
+
             # Create a task model that can be used as a placeholder in a Roby
             # plan for this task model and the following service models.
             #
             # @see Syskit.proxy_task_model_for
             def proxy_task_model(service_models)
+                service_models = service_models.to_set
+                if task_model = proxy_task_models[service_models]
+                    return task_model
+                end
+
                 name = "Syskit::PlaceholderTask<#{self.short_name},#{service_models.map(&:short_name).sort.join(",")}>"
                 model = specialize(name)
                 model.abstract
@@ -29,6 +38,7 @@ module Syskit
                 service_models.each do |m|
                     model.provides m
                 end
+                proxy_task_models[service_models] = model
                 model
             end
         end
