@@ -1,7 +1,13 @@
 begin
 require 'simplecov'
 rescue Exception
-    puts "!!! Cannot load simplecov. Coverage is disabled !!!"
+    Syskit.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
+end
+
+begin
+require 'pry'
+rescue Exception
+    Syskit.warn "debugging is disabled because the 'pry' gem cannot be loaded"
 end
 
 def start_simple_cov(name)
