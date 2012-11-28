@@ -452,7 +452,7 @@ module Syskit
                         value.service
                     end
                         
-                when EngineRequirement, ProvidedDataService, Roby::Task, CompositionChild
+                when EngineRequirement, Models::BoundDataService, Roby::Task, CompositionChild
                     value
                 when Class
                     if value <= Component

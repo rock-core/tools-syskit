@@ -46,7 +46,7 @@ module Ui
 
         def self.selection_to_string(selection, array_is_path)
             case selection
-            when Syskit::ProvidedDataService
+            when Syskit::Models::BoundDataService
                 "#{selection.model.short_name}.#{selection.full_name}"
             when Syskit::DeviceInstance
                 selection.name

@@ -148,7 +148,7 @@ module Syskit
             # Return the device instance name that is tied to the given provided
             # data service
             #
-            # +data_service+ is a ProvidedDataService instance, i.e. a value
+            # +data_service+ is a Models::BoundDataService, i.e. a value
             # returned by e.g. Component.find_data_service, or the name of a
             # service declared on this component. This service should be a
             # device model. The value returned by this function is then the

@@ -993,7 +993,7 @@ module Syskit
 
                     # If there are multiple candidates, remove the subclasses
                     candidates.delete_if do |candidate_model|
-                        if candidate_model.kind_of?(ProvidedDataService)
+                        if candidate_model.kind_of?(Models::BoundDataService)
                             # Data services are the most precise selection that
                             # we can do ... so no way it is redundant !
                             next
@@ -1002,7 +1002,7 @@ module Syskit
                         candidates.any? do |other_model|
                             if other_model.kind_of?(Class)
                                 other_model != candidate_model && candidate_model <= other_model
-                            elsif other_model.kind_of?(ProvidedDataService) && candidate_model == other_model.component_model
+                            elsif other_model.kind_of?(Models::BoundDataService) && candidate_model == other_model.component_model
                                 all_services = candidate_model.find_all_services_from_type(other_model.model)
                                 all_services.size == 1
                             end
