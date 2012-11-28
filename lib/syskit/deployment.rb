@@ -27,6 +27,7 @@ module Syskit
 
             @@all_deployments = Hash.new
 
+
             # The PID of this process
             def pid
                 @pid ||= orocos_process.pid
@@ -72,14 +73,26 @@ module Syskit
                 end
             end
 
+            # The list of deployed task contexts for this particular deployment
+            #
+            # It takes into account deployment prefix
             def each_orogen_deployed_task_context_model(&block)
                 model.each_orogen_deployed_task_context_model(&block)
+            end
+
+            # The unique name for this particular deployment instance
+            #
+            # It takes into account deployment prefix
+            #
+            # @return [String]
+            def deployment_name
+                model.deployment_name
             end
 
             # Returns an task instance that represents the given task in this
             # deployment.
             def task(name, model = nil)
-                activity = model.each_deployed_task_context.
+                activity = each_orogen_deployed_task_context_model.
                     find { |act| name == act.name }
                 if !activity
                     raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}"

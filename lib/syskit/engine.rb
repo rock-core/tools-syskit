@@ -1960,9 +1960,9 @@ module Syskit
 
                 deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
+                        Engine.debug { "  #{machine_name}: #{model}" }
                         task = model.new(:on => machine_name)
                         plan.add(task)
-                        task.robot = robot
                         deployment_tasks[model] = task
 
                         new_activities = Set.new
@@ -1978,7 +1978,7 @@ module Syskit
                             new_task = task.task(act_name)
                             deployed_task = plan[new_task]
                             Engine.debug do
-                                "  #{deployed_task.name} on #{task.deployment_name}[machine=#{task.machine}] is represented by #{deployed_task}"
+                                "  #{deployed_task.orocos_name} using #{task.deployment_name}[machine=#{task.machine}] is represented by #{deployed_task}"
                             end
                             deployed_tasks[act_name] = deployed_task
                         end
@@ -2100,7 +2100,7 @@ module Syskit
                         # puts "#{task} #{task.meaningful_arguments} #{task.arguments} #{task.fullfilled_model}"
                         # puts existing_task.can_merge?(task)
                         if !existing_task || existing_task.finishing? || !existing_task.reusable? || !existing_task.can_merge?(task)
-                            new_task = plan[existing_deployment_task.task(task.name, task.model)]
+                            new_task = plan[existing_deployment_task.task(task.orocos_name, task.model)]
                             Engine.debug { "  creating #{new_task} for #{task} (#{task.name})" }
                             if existing_task
                                 new_task.start_event.should_emit_after(existing_task.stop_event)
