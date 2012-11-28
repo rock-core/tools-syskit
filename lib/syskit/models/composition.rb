@@ -363,9 +363,6 @@ module Syskit
         module Composition
             include Base
 
-            # The composition model name
-            attr_accessor :name
-
             # The set of configurations declared with #conf
             attr_reader :conf
 

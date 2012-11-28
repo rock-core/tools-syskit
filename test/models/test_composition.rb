@@ -13,6 +13,10 @@ class TC_Models_Composition < Test::Unit::TestCase
     attr_reader :simple_service_model
     attr_reader :simple_composition_model
 
+    module DefinitionModule
+        # Module used when we want to do some "public" models
+    end
+
     def simple_models
         return simple_service_model, simple_component_model, simple_composition_model
     end
@@ -44,6 +48,13 @@ class TC_Models_Composition < Test::Unit::TestCase
             export self.srv.srv_in
             export self.srv.srv_out
             provides srv, :as => 'srv'
+        end
+    end
+
+    def teardown
+        super
+        begin DefinitionModule.send(:remove_const, :Cmp)
+        rescue NameError
         end
     end
 
@@ -96,6 +107,14 @@ class TC_Models_Composition < Test::Unit::TestCase
         assert !Component.submodels.include?(m11)
         assert !Composition.submodels.include?(m11)
     end
+
+    def test_definition_on_modules
+        model = Composition.new_submodel
+        DefinitionModule.const_set :Cmp, model
+        assert_equal "TC_Models_Composition::DefinitionModule::Cmp", model.name
+    end
+
+
     def test_explicit_connection
         component = simple_composition_model
         composition = Composition.new_submodel 
