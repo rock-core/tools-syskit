@@ -1,11 +1,8 @@
-BASE_DIR = File.expand_path( '../..', File.dirname(__FILE__))
-APP_DIR = File.join(BASE_DIR, "test")
+require 'syskit'
+require 'syskit/test'
 
-$LOAD_PATH.unshift BASE_DIR
-require 'test/roby/common'
-
-class TC_RobySpec_NetworkMergeSolver < Test::Unit::TestCase
-    include RobyPluginCommonTest
+class TC_NetworkMergeSolver < Test::Unit::TestCase
+    include Syskit::SelfTest
 
     attr_reader :solver
     attr_reader :simple_component_model
@@ -23,27 +20,27 @@ class TC_RobySpec_NetworkMergeSolver < Test::Unit::TestCase
         Roby.app.filter_backtraces = false
 	super
 
-        srv = @simple_service_model = DataModel.new_submodel do
+        srv = @simple_service_model = DataService.new_submodel do
             input_port 'srv_in', '/int'
             output_port 'srv_out', '/int'
         end
-        @simple_component_model = mock_roby_component_model("SimpleComponent") do
+        @simple_component_model = TaskContext.new_submodel do
             input_port 'in', '/int'
             output_port 'out', '/int'
         end
-        simple_component_model.provides simple_service_model,
+        simple_component_model.provides simple_service_model, :as => 'simple_service',
             'srv_in' => 'in', 'srv_out' => 'out'
-        @simple_task_model = mock_roby_task_context_model("SimpleTask") do
+        @simple_task_model = TaskContext.new_submodel do
             input_port 'in', '/int'
             output_port 'out', '/int'
         end
-        simple_task_model.provides simple_service_model,
+        simple_task_model.provides simple_service_model, :as => 'simple_service',
             'srv_in' => 'in', 'srv_out' => 'out'
-        @simple_composition_model = mock_roby_composition_model("SimpleComposition") do
+        @simple_composition_model = Composition.new_submodel do
             add srv, :as => 'srv'
             export self.srv.srv_in
             export self.srv.srv_out
-            provides srv
+            provides srv, :as => 'srv'
         end
 
         @solver = NetworkMergeSolver.new(plan)
