@@ -16,3 +16,5 @@ build/
 test/roby/*.txt
 *_ui.rb
 doc
+logs/
+coverage/
