@@ -13,12 +13,30 @@ module Syskit
             # On TaskContext, it also clears all orogen-to-syskit model mappings
             def deregister_submodels(set)
                 super
+                set.each do |m|
+                    Syskit::TaskContext.orogen_model_to_syskit_model.delete(m.orogen_model)
+                end
                 if @proxy_task_models
                     set.each do |m|
                         if m.respond_to?(:proxied_data_services)
                             proxy_task_models.delete(m.proxied_data_services.to_set)
                         end
                     end
+                end
+            end
+
+            # Checks whether a syskit model exists for the given orogen model
+            def has_model_for?
+                !!orogen_model_to_syskit_model[orogen_model]
+            end
+
+            # Returns the syskit model for the given oroGen model
+            #
+            # @raises ArgumentError if no syskit model exists 
+            def model_for(orogen_model)
+                if m = orogen_model_to_syskit_model[orogen_model]
+                    return m
+                else raise ArgumentError, "there is no syskit model for #{orogen_model.name}"
                 end
             end
 
@@ -32,7 +50,7 @@ module Syskit
                 superclass = orogen_model.superclass
                 if !superclass # we are defining a root model
                     supermodel = Syskit::TaskContext
-                elsif !(supermodel = Roby.app.orocos_tasks[superclass.name])
+                elsif !(supermodel = orogen_model_to_syskit_model[superclass])
                     supermodel = define_from_orogen(superclass)
                 end
                 klass = supermodel.new_submodel(:orogen_model => orogen_model)
@@ -61,9 +79,6 @@ module Syskit
                 end
 
                 klass.state_events = state_events
-                if orogen_model.name
-                    Roby.app.orocos_tasks[orogen_model.name] = klass
-                end
                 if options[:register] && orogen_model.name
                     namespace, basename = orogen_model.name.split '::'
                     namespace = namespace.camelcase(:upper)
@@ -197,6 +212,7 @@ module Syskit
                     model.orogen_model.subclasses self.orogen_model
                     model.state_events = self.state_events.dup
                 end
+                orogen_model_to_syskit_model[model.orogen_model] = model
                 if block
                     model.orogen_model.instance_eval(&block)
                 end

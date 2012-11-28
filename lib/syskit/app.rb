@@ -259,9 +259,6 @@ module Syskit
             #
             # See #load_orogen_project.
             attribute(:loaded_orogen_projects) { Hash.new }
-            # A mapping from task context model name to the corresponding
-            # subclass of Syskit::TaskContext
-            attribute(:orocos_tasks) { Hash.new }
             # A mapping from deployment name to the corresponding
             # subclass of Syskit::Deployment
             attribute(:orocos_deployments) { Hash.new }
@@ -339,7 +336,7 @@ module Syskit
                 end
 
                 orogen.self_tasks.each do |task_def|
-                    if !orocos_tasks[task_def.name]
+                    if !TaskContext.has_model_for?(task_def)
                         Syskit::TaskContext.define_from_orogen(task_def, :register => true)
                     end
                 end
@@ -574,7 +571,6 @@ module Syskit
                 DataService.clear_submodels
                 Deployment.clear_submodels
 
-                orocos_tasks.clear
                 orocos_deployments.clear
                 Orocos.clear
 

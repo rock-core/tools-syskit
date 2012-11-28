@@ -109,4 +109,34 @@ class TC_Models_TaskContext < Test::Unit::TestCase
     end
 end
 
+    def test_define_from_orogen_creates_superclass_model_as_well
+        orogen_parent = Orocos::Spec::TaskContext.new
+        orogen = Orocos::Spec::TaskContext.new
+        parent_model = Syskit::TaskContext
+        orogen.subclasses orogen_parent
+        flexmock(Syskit::TaskContext).
+            should_receive(:define_from_orogen).with(orogen).
+            pass_thru
+        flexmock(Syskit::TaskContext).
+            should_receive(:define_from_orogen).with(orogen_parent).
+            and_return(parent_model)
+        model = Syskit::TaskContext.define_from_orogen(orogen)
+        assert_same parent_model, model.superclass
+    end
+
+    def test_define_from_orogen_reuses_existing_models
+        orogen_parent = Orocos::Spec::TaskContext.new
+        parent_model = TaskContext.define_from_orogen(orogen_parent)
+
+        orogen = Orocos::Spec::TaskContext.new
+        orogen.subclasses orogen_parent
+        flexmock(Syskit::TaskContext).
+            should_receive(:define_from_orogen).with(orogen).
+            pass_thru
+        flexmock(Syskit::TaskContext).
+            should_receive(:define_from_orogen).with(orogen_parent).
+            never
+        model = Syskit::TaskContext.define_from_orogen(orogen)
+        assert_same parent_model, model.superclass
+    end
 

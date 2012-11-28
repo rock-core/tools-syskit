@@ -204,7 +204,7 @@ module Syskit
                     update_restart_set(restart_task_proxies, source, sink, mappings)
                 end
                 restart_task_proxies.each do |corba_handle|
-                    klass = Roby.app.orocos_tasks[corba_handle.model.name]
+                    klass = TaskContext.model_for(corba_handle.model)
                     task = plan.find_tasks(klass).running.
                         find { |t| t.orocos_name == corba_handle.name }
 

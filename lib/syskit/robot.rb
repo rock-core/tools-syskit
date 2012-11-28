@@ -493,9 +493,8 @@ module Syskit
                     # concrete task model. So, search for one.
                     #
                     # Get all task models that implement this device
-                    tasks = Roby.app.orocos_tasks.
-                        find_all { |_, t| t.fullfills?(device_model) }.
-                        map { |_, t| t }
+                    tasks = TaskContext.submodels.
+                        find_all { |t| t.fullfills?(device_model) }
 
                     # Now, get the most abstract ones
                     tasks.delete_if do |model|

@@ -16,7 +16,7 @@ end
 
 layout = Hash.new { |h, k| h[k] = Array.new }
 
-tasks = Roby.app.orocos_tasks.map { |_, m| m }.to_value_set
+tasks = TaskContext.submodels.dup
 while !tasks.empty?
     result = Array.new
 

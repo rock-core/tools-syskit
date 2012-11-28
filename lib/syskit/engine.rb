@@ -966,7 +966,7 @@ module Syskit
                 deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
                         model.orogen_model.task_activities.each do |deployed_task|
-                            task_model = Roby.app.orocos_tasks[deployed_task.task_model.name]
+                            task_model = TaskContext.model_for(deployed_task.task_model)
                             while task_model
                                 all_concrete_models << task_model
                                 task_model = task_model.supermodel
@@ -1942,7 +1942,7 @@ module Syskit
             #
             # For now, the logger is hardcoded there
             def ignored_deployed_task?(deployed_task)
-                Roby.app.orocos_tasks[deployed_task.task_model.name].name == "Syskit::Logger::Logger"
+                TaskContext.model_for(deployed_task.task_model).name == "Logger::Logger"
             end
 
             # Instanciates all deployments that have been specified by the user.

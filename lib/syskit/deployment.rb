@@ -85,7 +85,7 @@ module Syskit
                     raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}"
                 end
 
-                activity_model = Roby.app.orocos_tasks[activity.context.name]
+                activity_model = TaskContext.model_for(activity.context)
                 if model
                     if !(model <= activity_model)
                         raise ArgumentError, "incompatible explicit selection #{model} for the model of #{name} in #{self}"
@@ -301,7 +301,7 @@ module Syskit
             # +port+ to be logged
             def log_port?(port)
                 result = !Roby::State.orocos.port_excluded_from_log?(self,
-                        Roby.app.orocos_tasks[port.task.name], port)
+                        TaskContext.model_for(port.task), port)
 
                 if !result
                     Robot.info "not logging #{port.task.name}:#{port.name}"
