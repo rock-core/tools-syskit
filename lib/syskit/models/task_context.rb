@@ -233,6 +233,7 @@ module Syskit
                 if block
                     model.orogen_model.instance_eval(&block)
                 end
+                register_submodel(model)
                 model
             end
 

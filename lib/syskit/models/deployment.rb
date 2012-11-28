@@ -1,10 +1,18 @@
 module Syskit
     module Models
         module Deployment
-            # [Orocos::Generation::Deployment] the deployment model
-            attr_reader :orogen_model
+            include Models::Base
 
+            # [Models::Deployment] Returns the parent model for this class, or
+            # nil if it is the root model
+            def supermodel
+                if superclass.respond_to?(:register_submodel)
+                    return superclass
+                end
             end
+
+            # [Orocos::Generation::Deployment] the deployment model
+            attr_accessor :orogen_model
 
             # Returns the name of this particular deployment instance
             def deployment_name
@@ -32,6 +40,7 @@ module Syskit
 
                 klass.orogen_model = options[:orogen_model] ||
                     Orocos::Spec::Deployment.new(Orocos.master_project, options[:name])
+                register_submodel(klass)
                 klass
             end
 

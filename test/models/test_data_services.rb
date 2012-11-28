@@ -26,6 +26,34 @@ module Test_DataServiceModel
         service_type.new_submodel(*args, &block)
     end
 
+    def test_new_submodel_registers_the_submodel
+        submodel = new_submodel
+        assert service_type.submodels.include?(submodel)
+
+        subsubmodel = submodel.new_submodel
+        assert service_type.submodels.include?(subsubmodel)
+        assert submodel.submodels.include?(subsubmodel)
+    end
+
+    def test_clear_submodels_removes_registered_submodels
+        m1 = new_submodel
+        m2 = new_submodel
+        m11 = m1.new_submodel
+
+        m1.clear_submodels
+        assert !m1.submodels.include?(m11)
+        assert service_type.submodels.include?(m1)
+        assert service_type.submodels.include?(m2)
+        assert !service_type.submodels.include?(m11)
+
+        m11 = m1.new_submodel
+        service_type.clear_submodels
+        assert !m1.submodels.include?(m11)
+        assert !service_type.submodels.include?(m1)
+        assert !service_type.submodels.include?(m2)
+        assert !service_type.submodels.include?(m11)
+    end
+
     def test_new_submodel_without_name
         model = new_submodel
         assert_kind_of(DataServiceModel, model)

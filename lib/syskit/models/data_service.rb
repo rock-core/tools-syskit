@@ -61,6 +61,18 @@ module Syskit
                 name || "Anonymous"
             end
 
+            # The model next in the ancestry chain, or nil if +self+ is root
+            def supermodel
+                ancestors = self.ancestors
+                ancestors.shift
+                ancestors.each do |m|
+                    if m.respond_to?(:register_submodel)
+                        return m
+                    end
+                end
+                nil
+            end
+
             # Creates a new DataServiceModel that is a submodel of +self+
             #
             # @param [Hash] options the option hash
@@ -75,6 +87,7 @@ module Syskit
                     :name => nil, :type => self.class
 
                 model = options[:type].new
+                register_submodel(model)
                 if options[:name]
                     Syskit::Models.validate_model_name(options[:name])
                     model.name = options[:name].dup

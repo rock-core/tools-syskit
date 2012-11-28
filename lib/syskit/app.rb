@@ -565,29 +565,30 @@ module Syskit
             def orocos_clear_models
                 projects = Set.new
 
-                orocos_tasks.each_value do |model|
-                    if model.orogen_model.project.name
-                        project_name = model.orogen_model.project.name.camelcase(:upper)
-                        task_name    = model.orogen_model.basename.camelcase(:upper)
-                        projects << project_name
-                        constant("::#{project_name}").send(:remove_const, task_name)
+                all_models = Component.submodels | DataService.submodels | Deployment.submodels
+                all_models.each do |model|
+                    valid_name =
+                        begin
+                            constant(model.name) == model
+                        rescue NameError
+                        end
+
+                    if valid_name
+                        parent_module =
+                            if model.name =~ /::/
+                                model.name.gsub(/::[^:]*$/, '')
+                            else Object
+                            end
+                        constant(parent_module).send(:remove_const, model.name.gsub(/.*::/, ''))
                     end
                 end
+
+                Component.clear_submodels
+                DataService.clear_submodels
+                Deployment.clear_submodels
+
                 orocos_tasks.clear
-
-                orocos_deployments.each_key do |name|
-                    name = name.camelcase(:upper)
-                    begin ::Deployments.send(:remove_const, name)
-                    rescue NameError
-                    end
-                end
                 orocos_deployments.clear
-
-                projects.each do |name|
-                    name = name.camelcase(:upper)
-                    Object.send(:remove_const, name)
-                end
-
                 Orocos.clear
 
                 loaded_orogen_projects.clear

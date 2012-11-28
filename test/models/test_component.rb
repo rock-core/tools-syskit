@@ -13,6 +13,34 @@ class TC_Models_Component < Test::Unit::TestCase
 	super
     end
 
+    def test_new_submodel_registers_the_submodel
+        submodel = Component.new_submodel
+        subsubmodel = submodel.new_submodel
+
+        assert Component.submodels.include?(submodel)
+        assert Component.submodels.include?(subsubmodel)
+        assert submodel.submodels.include?(subsubmodel)
+    end
+
+    def test_clear_submodels_removes_registered_submodels
+        m1 = Component.new_submodel
+        m2 = Component.new_submodel
+        m11 = m1.new_submodel
+
+        m1.clear_submodels
+        assert !m1.submodels.include?(m11)
+        assert Component.submodels.include?(m1)
+        assert Component.submodels.include?(m2)
+        assert !Component.submodels.include?(m11)
+
+        m11 = m1.new_submodel
+        Component.clear_submodels
+        assert !m1.submodels.include?(m11)
+        assert !Component.submodels.include?(m1)
+        assert !Component.submodels.include?(m2)
+        assert !Component.submodels.include?(m11)
+    end
+
     def test_provides
         service = DataService.new_submodel do
             output_port 'out', '/int'

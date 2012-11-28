@@ -18,6 +18,49 @@ module Syskit
                 self.name = name
             end
 
+            # [ValueSet] the set of models that are children of this one
+            attribute(:submodels) { ValueSet.new }
+
+            # Call to register a model that is a submodel of +self+
+            def register_submodel(klass)
+                submodels << klass
+                if m = supermodel
+                    m.register_submodel(klass)
+                end
+            end
+
+            # Enumerates all models that are submodels of this class
+            def each_submodel(&block)
+                submodels.each(&block)
+            end
+
+            # Clears all registered submodels
+            def clear_submodels
+                children = self.submodels.dup
+                submodels.clear
+                children.each do |m|
+                    m.clear_submodels
+                end
+
+                if m = supermodel
+                    m.deregister_submodels(children)
+                end
+            end
+
+            # Deregisters a set of submodels on this model and all its
+            # supermodels
+            #
+            # This is usually not called directly. Use #clear_submodels instead
+            #
+            # @param [ValueSet] set the set of submodels to remove
+            def deregister_submodels(set)
+                current_size = submodels.size
+                submodels.difference!(set)
+                if (submodels.size != current_size) && (m = supermodel)
+                    m.deregister_submodels(set)
+                end
+            end
+
             # Returns a string suitable to reference an element of type +self+.
             #
             # This is for instance used by the composition if no explicit name
@@ -42,7 +85,8 @@ module Syskit
 
             # Creates a new class that is a submodel of this model
             def new_submodel
-                model = Class.new(self)
+                model = self.class.new(self)
+                register_submodel(model)
                 if block_given?
                     model.instance_eval(&proc)
                 end

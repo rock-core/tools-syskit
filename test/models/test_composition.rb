@@ -51,6 +51,51 @@ class TC_Models_Composition < Test::Unit::TestCase
         return simple_service_model, simple_component_model, simple_composition_model
     end
 
+    def test_new_submodel_registers_the_submodel
+        submodel = Composition.new_submodel
+        subsubmodel = submodel.new_submodel
+
+        assert Component.submodels.include?(submodel)
+        assert Component.submodels.include?(subsubmodel)
+        assert Composition.submodels.include?(submodel)
+        assert Composition.submodels.include?(subsubmodel)
+        assert submodel.submodels.include?(subsubmodel)
+    end
+
+    def test_new_submodel_does_not_register_the_submodels_on_provided_services
+        submodel = Composition.new_submodel
+        ds = DataService.new_submodel
+        submodel.provides ds, :as => 'srv'
+        subsubmodel = submodel.new_submodel
+
+        assert !ds.submodels.include?(subsubmodel)
+        assert submodel.submodels.include?(subsubmodel)
+    end
+
+    def test_clear_submodels_removes_registered_submodels
+        m1 = Composition.new_submodel
+        m2 = Composition.new_submodel
+        m11 = m1.new_submodel
+
+        m1.clear_submodels
+        assert !m1.submodels.include?(m11)
+        assert Component.submodels.include?(m1)
+        assert Composition.submodels.include?(m1)
+        assert Component.submodels.include?(m2)
+        assert Composition.submodels.include?(m2)
+        assert !Component.submodels.include?(m11)
+        assert !Composition.submodels.include?(m11)
+
+        m11 = m1.new_submodel
+        Composition.clear_submodels
+        assert !m1.submodels.include?(m11)
+        assert !Component.submodels.include?(m1)
+        assert !Composition.submodels.include?(m1)
+        assert !Component.submodels.include?(m2)
+        assert !Composition.submodels.include?(m2)
+        assert !Component.submodels.include?(m11)
+        assert !Composition.submodels.include?(m11)
+    end
     def test_explicit_connection
         component = simple_composition_model
         composition = Composition.new_submodel 

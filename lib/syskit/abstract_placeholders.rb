@@ -17,6 +17,15 @@ module Syskit
             # creates in #proxy_task_model
             attribute(:proxy_task_models) { Hash.new }
 
+            # Clears all registered submodels, reimplemented from Models::Base
+            #
+            # In addition to removing registered submodels, it also clears the
+            # cache for task model proxies
+            def clear_submodels
+                super
+                proxy_task_models.clear
+            end
+
             # Create a task model that can be used as a placeholder in a Roby
             # plan for this task model and the following service models.
             #

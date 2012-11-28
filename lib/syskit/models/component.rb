@@ -245,6 +245,13 @@ module Syskit
                 task
             end
 
+            # The model next in the ancestry chain, or nil if +self+ is root
+            def supermodel
+                if superclass.respond_to?(:register_submodel)
+                    return superclass
+                end
+            end
+
             # This returns an InstanciatedComponent object that can be used in
             # other #use statements in the deployment spec
             #

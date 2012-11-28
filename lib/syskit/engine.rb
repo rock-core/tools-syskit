@@ -973,17 +973,19 @@ module Syskit
                 # provides a given data service, and -- if it is the case --
                 # will add it to the 'use' sets
                 all_concrete_models = ValueSet.new
-                all_models = ValueSet.new
-                model.each_composition do |composition_model|
-                    if !composition_model.abstract?
-                        all_concrete_models << composition_model 
-                    end
-                    all_models << composition_model
-                end
+                all_models = Composition.submodels.dup
+                all_concrete_models = all_models.
+                    find_all { |m| !m.abstract? }.
+                    to_value_set
+
                 deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
                         model.orogen_model.task_activities.each do |deployed_task|
-                            all_concrete_models << Roby.app.orocos_tasks[deployed_task.task_model.name]
+                            task_model = Roby.app.orocos_tasks[deployed_task.task_model.name]
+                            while task_model
+                                all_concrete_models << task_model
+                                task_model = task_model.supermodel
+                            end
                         end
                     end
                 end
@@ -999,7 +1001,7 @@ module Syskit
 
                 # For each declared data service, look for models that define
                 # them and store the result
-                model.each_data_service do |service|
+                DataService.each_submodel do |service|
                     candidates = all_concrete_models.
                         find_all { |m| m.fullfills?(service) }.
                         to_value_set
