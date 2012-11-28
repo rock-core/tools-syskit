@@ -120,7 +120,7 @@ module Syskit
                 if task.kind_of?(Composition) && target_task.kind_of?(Composition)
                     task_children   ||= task.merged_relations(:each_child, true, false).to_value_set
                     target_children = target_task.merged_relations(:each_child, true, false).to_value_set
-                    if task_children != target_children || task_children.any? { |t| t.kind_of?(DataServiceProxy) }
+                    if task_children != target_children || task_children.any? { |t| t.respond_to?(:proxied_data_services) }
                         debug { "rejecting #{target_task}.merge(#{task}) as composition have different children" }
                         return
                     end
@@ -168,7 +168,7 @@ module Syskit
                     end
                     # Don't do service allocation at this stage. It should be
                     # done at the specification stage already
-                    if task.kind_of?(DataServiceProxy)
+                    if task.respond_to?(:proxied_data_services)
                         debug { "cannot replace #{task}: is a data service proxy" }
                         next
                     end
@@ -184,7 +184,7 @@ module Syskit
                     # this set can be replaced by +task+
                     candidates = query.to_value_set & task_set
                     candidates.delete(task)
-                    candidates.delete_if { |t| t.kind_of?(DataServiceProxy) }
+                    candidates.delete_if { |t| t.respond_to?(:proxied_data_services) }
                     if candidates.empty?
                         debug { "no candidates to replace #{task}, using model #{task.user_required_model}" }
                         next
