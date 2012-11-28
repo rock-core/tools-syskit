@@ -15,3 +15,6 @@ require './test_task_context'
 require './test_engine'
 #require './test_instance_spec'
 require './test_network_merge_solver'
+
+Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
+Syskit.logger.level = Logger::DEBUG
