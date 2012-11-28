@@ -361,11 +361,6 @@ module Syskit
                     instance = Engine.create_instanciated_component(self, instance_name, device)
                 elsif instance = defines[model_name]
                     instance = instance.dup
-                elsif self.model.has_composition?(model_name)
-                    component_model = model.composition_model(model_name)
-                    instance = Engine.create_instanciated_component(self, instance_name, component_model)
-                elsif component_model = Roby.app.orocos_tasks[model_name]
-                    instance = Engine.create_instanciated_component(self, instance_name, component_model)
                 else
                     raise NameResolutionError.new(name), "#{name} does not refer to a known task or device (known tasks: #{tasks.keys.sort.join(", ")}; known devices: #{robot.devices.keys.sort.join(", ")})"
                 end
