@@ -43,97 +43,19 @@ module Syskit
             end
 
             def stub_roby_task_context(name = "task", &block)
-                model = TaskContext.new_submodel(&block)
-                task = model.new
+                task_model = TaskContext.new_submodel(&block)
+                task = task_model.new
                 task.stub! name
                 @task_stubs << task.orocos_task
                 task
             end
 
-            def mock_roby_component_model(name = nil, &block)
-                # TODO: define the orogen spec / interface attribute directly on
-                # Component
-                mock = flexmock(Class.new(Component))
-                mock.terminates
-                spec = Syskit.create_orogen_interface(name)
-                mock.should_receive(:orogen_model).and_return(spec)
-                if block
-                    spec.instance_eval(&block)
-                end
-                mock.should_receive(:name).and_return(name || "")
-                mock.should_receive(:short_name).and_return(name || "")
-                mock
-            end
-
-            def mock_roby_task_context_model(name = nil, &block)
-                mock = flexmock(Syskit::TaskContext.create(name, &block))
-                mock.new_instances
-                mock
-            end
-
-            def mock_roby_task_context(klass_or_instance = nil, &block)
-                if !klass_or_instance
-                    return mock_roby_task_context_model(&block).new
-                end
-
-                if klass_or_instance.kind_of?(Class)
-                    mock = flexmock(klass.new)
-                elsif !klass_or_instance.respond_to?(:should_receive)
-                    mock = flexmock(klass_or_instance)
-                else
-                    mock = klass_or_instance
-                end
-                mock
-            end
-
-            def mock_roby_deployment_model(task_model, name = "#{task_model.name}-deployment")
-                if !task_model.name
-                    raise ArgumentError, "cannot create a deployment model for a task that has no name"
-                end
-
-                # TODO: move the deployment specification to Spec in oroGen
-                # TODO: remove requirement for things to have name here. This
-                # will require to cleanup the oroGen loading / registration
-                # mechanisms so that objects are unique
-                spec = Orocos::Generation::Deployment.new(Orocos.master_project, name)
-                spec.task('task', task_model.interface)
-                model = Syskit::Deployment.create(nil, spec)
+            def stub_roby_deployment_model(task_model, name = task_model.name)
+                orogen_model = Orocos::Spec::Deployment.new(Orocos.master_project, name)
+                orogen_model.task name, task_model.orogen_model
+                model = Deployment.new_submodel(:orogen_model => orogen_model)
                 orocos_engine.deployments['localhost'] << model
-                Roby.app.orocos_tasks[task_model.orogen_model.name] = task_model
                 model
-            end
-
-            def mock_roby_composition_model(name = '', &block)
-                model = Composition.new_submodel(&block)
-                model = name if !name.empty?
-                model = flexmock(model)
-                model.new_instances
-                model
-            end
-
-            Orocos::Test::Mocks::FakeTaskContext.include BGL::Vertex
-
-            class FakeDeploymentTask < Roby::Tasks::Simple
-                event :ready
-                forward :start => :ready
-            end
-
-            def mock_deployment_task
-                task = flexmock(FakeDeploymentTask.new)
-                plan.add(task)
-                task
-            end
-
-            def mock_configured_task(task)
-                task.should_receive(:orocos_task).and_return(mock_task_context(task.model.orogen_model))
-                if !task.execution_agent
-                    task.executed_by(deployer = mock_deployment_task)
-                    deployer.should_receive(:ready_to_die?).and_return(false)
-                    deployer.start!
-                    deployer.emit :ready
-                end
-                task.should_receive(:setup?).and_return(true).by_default
-                task.should_receive(:execute).and_yield.by_default
             end
 
             def setup
@@ -165,7 +87,9 @@ module Syskit
             end
 
             def teardown
-                orocos_engine.clear
+                if orocos_engine
+                    orocos_engine.clear
+                end
                 Roby.app.orocos_clear_models
 
                 super
