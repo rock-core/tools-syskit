@@ -53,5 +53,12 @@ class TC_TaskContext < Test::Unit::TestCase
         task.should_receive(:find_output_port).and_return(nil)
         assert_raises(Orocos::NotFound) { task.output_port("port") }
     end
+
+    def test_instanciate
+        task_model = TaskContext.new_submodel
+        task = task_model.instanciate(orocos_engine, nil, :task_arguments => {:conf => ['default']})
+        assert_equal([[task_model], {:conf => ['default']}], task.fullfilled_model)
+    end
+
 end
 
