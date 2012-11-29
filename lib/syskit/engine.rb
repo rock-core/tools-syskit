@@ -2060,13 +2060,24 @@ module Syskit
 
                 result = ValueSet.new
                 deployments.each do |deployment_task|
-                    Engine.debug { "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})" }
+                    existing_candidates = plan.find_local_tasks(deployment_task.model).not_finished.to_value_set
+                    Engine.debug do
+                        Engine.debug "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})"
+                        Engine.debug "#{existing_candidates.size} candidates:"
+                        existing_candidates.each do |candidate_task|
+                            Engine.debug "  #{candidate_task}"
+                        end
+                        break
+                    end
+
                     # Check for the corresponding task in the plan
-                    existing_deployment_tasks = (plan.find_local_tasks(deployment_task.model).not_finished.to_value_set & existing_deployments).
-                        find_all { |t| t.deployment_name == deployment_task.deployment_name }
+                    existing_deployment_tasks = (existing_candidates & existing_deployments).
+                        find_all do |t|
+                            t.deployment_name == deployment_task.deployment_name
+                        end
 
                     if existing_deployment_tasks.empty?
-                        Engine.debug { "  #{deployment_task.deployment_name} has not yet been deployed" }
+                        Engine.debug { "  deployment #{deployment_task.deployment_name} is not yet represented in the plan" }
                         result << deployment_task
                         next
                     elsif existing_deployment_tasks.size != 1
@@ -2077,9 +2088,9 @@ module Syskit
                     existing_tasks = Hash.new
                     existing_deployment_task.each_executed_task do |t|
                         if t.running?
-                            existing_tasks[t.name] = t
+                            existing_tasks[t.orocos_name] = t
                         elsif t.pending?
-                            existing_tasks[t.name] ||= t
+                            existing_tasks[t.orocos_name] ||= t
                         end
                     end
 
@@ -2087,13 +2098,13 @@ module Syskit
 
                     deployed_tasks = deployment_task.each_executed_task.to_value_set
                     deployed_tasks.each do |task|
-                        existing_task = existing_tasks[task.name]
+                        existing_task = existing_tasks[task.orocos_name]
                         if !existing_task
-                            Engine.debug { "  task #{task.name} has not yet been deployed" }
+                            Engine.debug { "  task #{task.orocos_name} has not yet been deployed" }
                         elsif !existing_task.reusable?
-                            Engine.debug { "  task #{task.name} has been deployed, but the deployment is not reusable" }
+                            Engine.debug { "  task #{task.orocos_name} has been deployed, but the deployment is not reusable" }
                         elsif !existing_task.can_merge?(task)
-                            Engine.debug { "  task #{task.name} has been deployed, but I can't merge with the existing deployment" }
+                            Engine.debug { "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment" }
                         end
 
                         # puts "#{existing_task} #{existing_task.meaningful_arguments} #{existing_task.arguments} #{existing_task.fullfilled_model}"
@@ -2101,8 +2112,9 @@ module Syskit
                         # puts existing_task.can_merge?(task)
                         if !existing_task || existing_task.finishing? || !existing_task.reusable? || !existing_task.can_merge?(task)
                             new_task = plan[existing_deployment_task.task(task.orocos_name, task.model)]
-                            Engine.debug { "  creating #{new_task} for #{task} (#{task.name})" }
+                            Engine.debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
                             if existing_task
+                                Engine.debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
                                 new_task.start_event.should_emit_after(existing_task.stop_event)
 
                                 # The trick with allow_automatic_setup is to
@@ -2121,7 +2133,7 @@ module Syskit
                         end
                         existing_task.merge(task)
                         @network_merge_solver.register_replacement(task, plan.may_unwrap(existing_task))
-                        Engine.debug { "  using #{existing_task} for #{task} (#{task.name})" }
+                        Engine.debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
                         plan.remove_object(task)
                         if existing_task.conf != task.conf
                             existing_task.needs_reconfiguration!
@@ -2160,7 +2172,7 @@ module Syskit
                     dead_deployments.each do |p, exit_status|
                         d = Deployment.all_deployments[p]
                         if !d.finishing?
-                            Syskit.warn "#{p.name} unexpectedly died on #{name}"
+                            Syskit.warn "#{p.deployment_name} unexpectedly died on #{name}"
                         end
                         all_dead_deployments << d
                         d.dead!(exit_status)
