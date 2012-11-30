@@ -173,8 +173,8 @@ module Syskit
             def data_service_type(service_name)
                 service_name = service_name.to_str
                 root_service_name = service_name.gsub /\..*$/, ''
-                root_source = model.each_root_data_service.find do |name, source|
-                    arguments[:"#{name}_name"] == root_service_name
+                root_source = model.each_root_data_service.find do |srv|
+                    arguments[:"#{srv.name}_name"] == root_service_name
                 end
 
                 if !root_source
@@ -506,6 +506,13 @@ module Syskit
             # The same can be done at the model level with Models::Component#as
             def as(service_model)
                 return model.as(service_model).bind(self)
+            end
+
+            def bind(task)
+                if !task.kind_of?(self)
+                    raise TypeError, "cannot bind #{self} to #{task}"
+                end
+                task
             end
 
             module Proxying

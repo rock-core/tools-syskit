@@ -2,6 +2,8 @@ module Syskit
     module Models
         # Representation of a data service as provided by a component model
         class BoundDataService
+            include Models::PortAccess
+
             # The task model which provides this service
             attr_reader :component_model
             # The service name
@@ -41,7 +43,13 @@ module Syskit
                 @declared_dynamic_slaves = Array.new
             end
 
-            def overload(new_component_model)
+            # [Orocos::Spec::TaskContext] the oroGen model for this service's
+            # interface
+            def orogen_model
+                model.orogen_model
+            end
+
+            def attach(new_component_model)
                 result = dup
                 result.instance_variable_set :@component_model, new_component_model
                 result
@@ -68,6 +76,7 @@ module Syskit
                     !service_model.fullfills?(srv)
                 end
                 result.instance_variable_set(:@port_mappings, mappings)
+                result.ports.clear
                 result
             end
 
@@ -109,86 +118,7 @@ module Syskit
                 self
             end
 
-            def find_port(name)
-                find_input_port(name) || find_output_port(name)
-            end
-
-            def find_input_port(name)
-                model.find_input_port(name)
-            end
-
-            def find_output_port(name)
-                model.find_output_port(name)
-            end
-
-            def find_all_services_from_type(m)
-                if self.model.fullfills?(m)
-                    [self]
-                else
-                    []
-                end
-            end
-
-            def config_type
-                model.config_type
-            end
-
-            def has_output_port?(name)
-                !!find_output_port(name)
-            end
-
-            def has_input_port?(name)
-                !!find_input_port(name)
-            end
-
-            def each_input_port(with_slaves = false, &block)
-                if !block_given?
-                    return enum_for(:each_input_port, with_slaves)
-                end
-
-                model.each_input_port(&block)
-                if with_slaves
-                    each_slave do |name, srv|
-                        srv.each_input_port(true, &block)
-                    end
-                end
-            end
-
-            def each_output_port(with_slaves = false, &block)
-                if !block_given?
-                    return enum_for(:each_output_port, with_slaves)
-                end
-
-                model.each_output_port(&block)
-                if with_slaves
-                    each_slave do |name, srv|
-                        srv.each_output_port(true, &block)
-                    end
-                end
-            end
-
-            def each_task_input_port(with_slaves = false, &block)
-                if !block_given?
-                    return enum_for(:each_task_input_port, with_slaves)
-                end
-
-                mappings = port_mappings_for_task
-                each_input_port do |port|
-                    yield(component_model.find_input_port(mappings[port.name]))
-                end
-            end
-
-            def each_task_output_port(with_slaves = false, &block)
-                if !block_given?
-                    return enum_for(:each_task_output_port, with_slaves)
-                end
-
-                mappings = port_mappings_for_task
-                each_output_port do |port|
-                    yield(component_model.find_output_port(mappings[port.name]))
-                end
-            end
-
+            # Enumerates the data services that are slave of this one
             def each_slave(&block)
                 component_model.each_slave_data_service(self, &block)
             end
@@ -228,6 +158,8 @@ module Syskit
             end
 
             def each_fullfilled_model
+                return enum_for(:each_fullfilled_model) if !block_given?
+                yield(component_model)
                 model.ancestors.each do |m|
                     if m <= Component || m <= DataService
                         yield(m)
@@ -278,6 +210,12 @@ module Syskit
                 Syskit::BoundDataService.new(task, self)
             end
 
+            # Returns the BoundDataService object that binds this provided
+            # service to an actual task
+            def resolve(task)
+                bind(component_model.resolve(task))
+            end
+
             def method_missing(m, *args, &block)
                 if !args.empty? || block
                     return super
@@ -286,9 +224,7 @@ module Syskit
                 if (name =~ /^(\w+)_srv$/) && (subservice = component_model.find_data_service("#{full_name}.#{$1}"))
                     return subservice
                 elsif (name =~ /^(\w+)_port$/) && (p = find_port($1))
-                    # We have to go through method missing as the representation
-                    # of ports is a real REAL mess
-                    return component_model.send("#{port_mappings[p.name] || p.name}_port")
+                    return p
                 end
                 super
             end

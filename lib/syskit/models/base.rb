@@ -1,5 +1,8 @@
 module Syskit
     module Models
+        extend Logger::Hierarchy
+        extend Logger::Forward
+
         # Generic module included in all classes that are used as models.
         #
         # The Roby plugin uses, as Roby does, Ruby classes as model objects. To
@@ -84,17 +87,19 @@ module Syskit
             end
 
             # Creates a new class that is a submodel of this model
-            def new_submodel
+            def new_submodel(options = Hash.new, &block)
                 model = self.class.new(self)
                 register_submodel(model)
                 if block_given?
-                    model.instance_eval(&proc)
+                    model.instance_eval(&block)
                 end
                 model
             end
 
             def short_name
-                name
+                if name then name
+                else to_s
+                end
             end
         end
 

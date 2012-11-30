@@ -44,11 +44,24 @@ module Syskit
                 klass
             end
 
-            # Creates a subclass of Deployment that represents the deployment
-            # specified by +deployment_spec+.
-            def define_from_orogen(deployment_spec)
-                model = new_submodel(:orogen_model => deployment_spec)
-                Deployments.const_set(deployment_spec.name.camelcase(:upper), model)
+            # Creates a subclass of Deployment that represents the given
+            # deployment
+            #
+            # @param [Orocos::Spec::Deployment] orogen_model the oroGen
+            #   deployment model
+            #
+            # @options options [Boolean] register (false) if true, and if the
+            #   deployment model has a name, the resulting syskit model is
+            #   registered as a constant in the ::Deployments namespace. The
+            #   constant's name is the camelized orogen model name.
+            #
+            # @return [Models::Deployment] the deployment model
+            def define_from_orogen(orogen_model, options = Hash.new)
+                options = Kernel.validate_options options, :register => false
+                model = new_submodel(:orogen_model => orogen_model)
+                if options[:register] && orogen_model.name
+                    Deployments.const_set(orogen_model.name.camelcase(:upper), model)
+                end
                 model
             end
 

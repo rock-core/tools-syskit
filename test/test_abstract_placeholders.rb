@@ -104,10 +104,25 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	services1 = [ data_service_type('B'), data_service_type('C') ]
 	proxy1 = Syskit.proxy_task_model_for(services1 + [task_model1])
 
-        binding.pry
         task_model0.clear_submodels
         assert_not_same proxy0, Syskit.proxy_task_model_for(services0 + [task_model0])
 	assert_same proxy1, Syskit.proxy_task_model_for(services1 + [task_model1])
+    end
+
+    def test_proxy_task_can_use_anonymous_services
+	task_model = TaskContext.new_submodel
+	services = [DataService.new_submodel]
+	proxy = Syskit.proxy_task_model_for(services + [task_model])
+	assert(proxy.abstract?)
+	assert(proxy < task_model)
+        assert_not_same(proxy, task_model)
+	assert_equal("Syskit::PlaceholderTask<#{task_model.name},Anonymous>", proxy.name)
+    end
+
+    def test_cannot_proxy_multiple_component_models_at_the_same_time
+        task0 = TaskContext.new_submodel
+        task1 = TaskContext.new_submodel
+        assert_raises(ArgumentError) { Syskit.proxy_task_model_for([task0, task1]) }
     end
 end
 

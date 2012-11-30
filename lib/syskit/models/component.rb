@@ -1,8 +1,5 @@
 module Syskit
     module Models
-        extend Logger::Hierarchy
-        extend Logger::Forward
-
         # Definition of model-level methods for the Component models. See the
         # documentation of Model for an explanation of this.
         module Component
@@ -48,200 +45,90 @@ module Syskit
             #--
             # This is defined on Component using inherited_enumerable
 
-            # A port attached to a component
-            class Port
-                # A data source for a port attached to a component
-                class DataSource
-                    attr_reader :task
-                    attr_reader :reader
+            def find_data_services(&block)
+                each_data_service.find_all(&block)
+            end
 
-                    def initialize(task, *port_spec)
-                        @task = task
-                        task.execute do
-                            @reader = task.data_reader(*port_spec)
-                        end
+            def each_device(&block)
+                each_data_service.find_all { |_, srv| srv.model < Device }.
+                    each(&block)
+            end
+
+            # Generic data service selection method, based on a service type
+            # and an optional service name. It implements the following
+            # algorithm:
+            #  
+            #  * only services that match +target_model+ are considered
+            #  * if there is only one service of that type and no pattern is
+            #    given, that service is returned
+            #  * if there is a pattern given, it must be either the service
+            #    full name or its subname (for slaves)
+            #  * if an ambiguity is found between root and slave data
+            #    services, and there is only one root data service matching,
+            #    that data service is returned.
+            def find_matching_service(target_model, pattern = nil)
+                # Find services in +child_model+ that match the type
+                # specification
+                matching_services = find_all_services_from_type(target_model)
+
+                if pattern # match by name too
+                    # Find the selected service. There can be shortcuts, so
+                    # for instance bla.left would be able to select both the
+                    # 'left' main service or the 'bla.blo.left' slave
+                    # service.
+                    rx = /(^|\.)#{pattern}$/
+                    matching_services.delete_if { |service| service.full_name !~ rx }
+                end
+
+                if matching_services.size > 1
+                    main_matching_services = matching_services.
+                        find_all { |service| service.master? }
+
+                    if main_matching_services.size != 1
+                        raise Ambiguous, "there is more than one service of type #{target_model.name} in #{self.name}: #{matching_services.map(&:name).join(", ")}); you must select one explicitely with a 'use' statement"
                     end
+                    selected = main_matching_services.first
+                else
+                    selected = matching_services.first
+                end
 
-                    def read
-                        reader.read if reader
+                selected
+            end
+
+            # Enumerates all services that are slave (i.e. not slave of other
+            # services)
+            #
+            # @yield [Models::BoundDataService]
+            def each_slave_data_service(master_service)
+                return enum_for(:each_slave_data_service, master_service) if !block_given?
+                each_data_service(nil) do |name, service|
+                    if service.master && (service.master.full_name == master_service.full_name)
+                        yield(service)
                     end
                 end
+            end
 
-                # [ComponentModel] The component model this port is part of
-                attr_reader :component_model
-                # [Orocos::Spec::Port] The port model
-                attr_reader :model
-                # [String] The port name on +component_model+. It can be
-                # different from model.name, as the port could be imported from
-                # another component
-                attr_accessor :name
-
-                def initialize(component_model, model, name = model.name)
-                    @component_model, @name, @model =
-                        component_model, name, model
-                end
-
-                def same_port?(other)
-                    other.kind_of?(Port) && other.component_model == component_model &&
-                        other.model == model
-                end
-
-                def ==(other) # :nodoc:
-                    other.kind_of?(Port) && other.component_model == component_model &&
-                    other.model == model &&
-                    other.name == name
-                end
-
-                # This is needed to use the Port to represent a data
-                # source on the component's state as e.g.
-                #
-                #   state.position = Component.pose_samples
-                #
-                def to_state_variable_model(field, name)
-                    model = Roby::StateVariableModel.new(field, name)
-                    model.type = type
-                    model.data_source = self
-                    model
-                end
-
-                # Returns a DataSource that represents this port
-                #
-                # @arg context either an Engine or a task instance. If it is an
-                #              engine, the method adds a new instance of the
-                #              right model and returns the corresponding
-                #              DataSource. Otherwise, simply returns the
-                #              DataSource for the given task.
-                def resolve(context)
-                    if context.kind_of?(Roby::Plan)
-                        context.add(context = component_model.as_plan)
+            # Enumerates all services that are root (i.e. not slave of other
+            # services)
+            #
+            # @yield [Models::BoundDataService]
+            def each_root_data_service(&block)
+                return enum_for(:each_root_data_service, master_service) if !block_given?
+                each_data_service(nil) do |name, service|
+                    if service.master?
+                        yield(service)
                     end
-                    context = context.as_service
-                    if !context.respond_to?(:data_reader)
-                        raise ArgumentError, "cannot get a data reader from #{context}"
-                    end
-                    DataSource.new(context, name)
                 end
-
-                # Returns the true name for the port, i.e. the name of the port on
-                # the child
-                def actual_name; model.name end
-
-                # Change the component model
-                def rebind(model)
-                    @component_model = model
-                    self
-                end
-
-		def type
-		    model.type
-		end
-
-                def respond_to?(m, *args)
-                    super || model.respond_to?(m, *args)
-                end
-
-                def method_missing(*args, &block)
-                    model.send(*args, &block)
-                end
-            end
-
-            # Returns the port object that maps to the given name, or nil if it
-            # does not exist.
-            def find_port(name)
-                name = name.to_str
-                find_output_port(name) || find_input_port(name)
-            end
-
-            def has_port?(name)
-                has_input_port?(name) || has_output_port?(name)
-            end
-
-            # Returns the output port with the given name, or nil if it does not
-            # exist.
-            def find_output_port(name)
-                orogen_model.find_output_port(name)
-            end
-
-            # Returns the input port with the given name, or nil if it does not
-            # exist.
-            def find_input_port(name)
-                orogen_model.find_input_port(name)
-            end
-
-            # Enumerates this component's output ports
-            def each_output_port(&block)
-                orogen_model.each_output_port(&block)
-            end
-
-            # Enumerates this component's input ports
-            def each_input_port(&block)
-                orogen_model.each_input_port(&block)
-            end
-
-            # Enumerates all of this component's ports
-            def each_port(&block)
-                orogen_model.each_port(&block)
-            end
-
-            # Returns true if +name+ is a valid output port name for instances
-            # of +self+. If including_dynamic is set to false, only static ports
-            # will be considered
-            def has_output_port?(name, including_dynamic = true)
-                return true if find_output_port(name)
-                if including_dynamic
-                    has_dynamic_output_port?(name)
-                end
-            end
-
-            # Returns true if +name+ is a valid input port name for instances of
-            # +self+. If including_dynamic is set to false, only static ports
-            # will be considered
-            def has_input_port?(name, including_dynamic = true)
-                return true if find_input_port(name)
-                if including_dynamic
-                    has_dynamic_input_port?(name)
-                end
-            end
-
-            # True if +name+ could be a dynamic output port name.
-            #
-            # Dynamic output ports are declared on the task models using the
-            # #dynamic_output_port statement, e.g.:
-            #
-            #   data_service do
-            #       dynamic_output_port /name_pattern\w+/, "/std/string"
-            #   end
-            #
-            # One can then match if a given string (+name+) matches one of the
-            # dynamic output port declarations using this predicate.
-            def has_dynamic_output_port?(name, type = nil)
-                orogen_model.has_dynamic_output_port?(name, type)
-            end
-
-            # True if +name+ could be a dynamic input port name.
-            #
-            # Dynamic input ports are declared on the task models using the
-            # #dynamic_input_port statement, e.g.:
-            #
-            #   data_service do
-            #       dynamic_input_port /name_pattern\w+/, "/std/string"
-            #   end
-            #
-            # One can then match if a given string (+name+) matches one of the
-            # dynamic input port declarations using this predicate.
-            def has_dynamic_input_port?(name, type = nil)
-                orogen_model.has_dynamic_input_port?(name, type)
             end
 
             # Generic instanciation of a component. 
             #
             # It creates a new task from the component model using
             # Component.new, adds it to the engine's plan and returns it.
-            def instanciate(engine, context, arguments = Hash.new)
+            def instanciate(engine, context = DependencyInjectionContext.new, arguments = Hash.new)
                 task_arguments, instanciate_arguments = Kernel.
                     filter_options arguments, :task_arguments => Hash.new
                 engine.plan.add(task = new(task_arguments[:task_arguments]))
-                task.robot = engine.robot
                 task
             end
 
@@ -508,44 +395,35 @@ module Syskit
                         model.name.gsub(/^.+::/, '').snakecase
                     else source_arguments[:as]
                     end
+                full_name = name
+
+                if master_source = source_arguments[:slave_of]
+                    master = find_data_service(master_source)
+                    if !master
+                        raise ArgumentError, "master data service #{master_source} is not registered on #{self}"
+                    end
+                    full_name = "#{master.full_name}.#{name}"
+                end
 
                 # Get the source name and the source model
-                if data_services[name]
+                if data_services[full_name]
                     raise ArgumentError, "there is already a data service named '#{name}' defined on '#{self.name}'"
                 end
 
                 # If a source with the same name exists, verify that the user is
                 # trying to specialize it
-                if has_data_service?(name)
-                    parent_type = find_data_service(name).model
+                if has_data_service?(full_name)
+                    parent_type = find_data_service(full_name).model
                     if !(model <= parent_type)
-                        raise SpecError, "#{self} has a data service named #{name} of type #{parent_type}, which is not a parent type of #{model}"
+                        raise ArgumentError, "#{self} has a data service named #{full_name} of type #{parent_type}, which is not a parent type of #{model}"
                     end
                 end
 
-                if master_source = source_arguments[:slave_of]
-                    if !has_data_service?(master_source.to_str)
-                        raise SpecError, "master source #{master_source} is not registered on #{self}"
-                    end
-                    master = find_data_service(master_source)
-                    if master.component_model != self
-                        # Need to create an overload at this level of the
-                        # hierarchy, or one will not be able to enumerate the
-                        # slaves by using the service's BoundDataService
-                        # object
-                        master = master.overload(self)
-                        data_services[master.full_name] = master
-                    end
+                if master && (master.component_model != self)
+                    data_services[master.full_name] = master.attach(self)
                 end
-
-                include model
 
                 service = BoundDataService.new(name, self, master, model, Hash.new)
-                full_name = service.full_name
-                # TODO: make compute_port_mappings work on the component_model /
-                # service_model instead of on a Models::BoundDataService. We should
-                # not create the Models::BoundDataService until we know that it can
-                # be created
 
                 begin
                     new_port_mappings = compute_port_mappings(service, arguments)
@@ -566,6 +444,8 @@ module Syskit
                 rescue InvalidPortMapping => e
                     raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
                 end
+
+                include model
 
                 data_services[full_name] = service
 
@@ -589,22 +469,7 @@ module Syskit
                     raise NoMethodError, "tried to use a method to access an oroGen model, but none exists on #{self}"
                 end
                 if args.empty? && !block_given?
-                    if port = self.find_port(m.to_s)
-                        return Port.new(self, port)
-                    elsif service = self.find_data_service(m.to_s)
-                        return service
-                    elsif m.to_s =~ /^(\w+)_port$/
-                        port_name = $1
-                        if port = find_input_port(port_name)
-                            return Port.new(self, port)
-                        elsif port = find_output_port(port_name)
-                            return Port.new(self, port)
-                        elsif port = self.find_port(port_name)
-                            return Port.new(self, port)
-                        else
-                            raise NoMethodError, "#{self} has no port called #{port_name}"
-                        end
-                    elsif m.to_s =~ /^(\w+)_srv$/
+                    if m.to_s =~ /^(\w+)_srv$/
                         service_name = $1
                         if service_model = find_data_service(service_name)
                             return service_model
@@ -647,13 +512,11 @@ module Syskit
                 Syskit::SingleRequirementTask.subplan(self)
             end
 
-            # Returns the set of models this model fullfills
-            def each_fullfilled_model
-                ancestors.each do |m|
-                    if m <= Component || m <= DataService
-                        yield(m)
-                    end
+            def resolve(component)
+                if !component.kind_of?(self)
+                    raise TypeError, "cannot resolve #{self} into #{component}"
                 end
+                component
             end
         end
     end

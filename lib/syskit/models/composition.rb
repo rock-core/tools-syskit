@@ -1,311 +1,5 @@
 module Syskit
     module Models
-        # Used by Composition to define its children. Values returned by
-        # Composition#find_child(name) are instances of that class.
-        class CompositionChildDefinition < InstanceRequirements
-            # The set of models that this child should fullfill. It is a
-            # ValueSet which contains at most one Component model and any number
-            # of data service models 
-            attr_accessor :dependency_options
-            attr_accessor :port_mappings
-
-            # If set to true, the child is going to be removed automatically if
-            # no selection exists for it
-            attr_predicate :optional?
-
-            def initialize(models = ValueSet.new, dependency_options = Hash.new)
-                super(models)
-                @dependency_options = dependency_options
-                @port_mappings = Hash.new
-            end
-
-            def initialize_copy(old)
-                super
-                @dependency_options = old.dependency_options.dup
-                @port_mappings = old.port_mappings.dup
-            end
-
-            def optional
-                @optional = true
-            end
-        end
-
-        # Represents a placeholder in a composition
-        #
-        # Compostion#add returns an instance of CompostionChild to represent the
-        # non-instanciated composition child. It is mainly meant to be used to
-        # access port definitions:
-        #
-        #   source = add Source
-        #   sink   = add Sink
-        #   source.port.connect_to sink.port
-        #
-        # CompositionModel#[] also returns instances from that class.
-        class CompositionChild
-            # The composition this child is defined on
-            attr_reader :composition
-            # The child name
-            attr_reader :child_name
-
-            def initialize(composition, child_name)
-                @composition = composition
-                @child_name  = child_name
-            end
-
-            def to_s # :nodoc:
-                "#<CompositionChild: #{child_name} #{composition}>"
-            end
-
-            def short_name
-                "#{composition.short_name}.#{child_name}_child[#{model.map(&:short_name).join(", ")}]"
-            end
-
-            # Returns the required model for this compostion child
-            def model
-                models
-            end
-
-            def models
-                composition.find_child(child_name).models
-            end
-
-            def rebind(composition)
-                result = dup
-                result.instance_variable_set :@composition, composition
-                result
-            end
-
-            # If this child is itself a composition model, give more information
-            # as to what specialization should be picked
-            #
-            # See CompositionChildDefinition#use
-            def use(*spec)
-                composition.find_child(child_name).use(*spec)
-                self
-            end
-
-            def pretty_print(pp)
-                pp.text "child #{child_name} of #{composition.short_name}[#{model.map(&:short_name).join(", ")}]"
-            end
-
-            # Checks if this child fullfills the given model
-            def fullfills?(model)
-                composition.find_child(child_name).fullfills?(model)
-            end
-
-            # Specifies arguments that should be given to the child at
-            # instanciation time
-            #
-            # See CompositionChildDefinition#with_arguments
-            def with_arguments(spec)
-                composition.find_child(child_name).with_arguments(spec)
-                self
-            end
-
-            # Specifies that the child might not be added if no selection exists
-            # for it.
-            #
-            # See CompositionChildDefinition#optional?
-            def optional
-                composition.find_child(child_name).optional
-            end
-
-            # Specifies the configuration that should be used on the specified
-            # child
-            def with_conf(*conf)
-                composition.find_child(child_name).with_conf(*conf)
-                self
-            end
-
-            # @deprecated
-            def use_conf(*conf)
-                with_conf(*conf)
-            end
-
-            def find_port(name)
-                name = name.to_s
-                candidates = []
-                composition.find_child(child_name).models.map do |child_model|
-                    if output = child_model.find_output_port(name)
-                        candidates << [child_model, output]
-                    end
-                    if input  = child_model.find_input_port(name)
-                        candidates << [child_model, input]
-                    end
-                end
-
-                if candidates.size > 1
-                    candidates = candidates.map do |model, port|
-                        "#{model.short_name}.#{port.name}"
-                    end
-                    raise AmbiguousChildPort.new(self, name, candidates), "#{name} is ambiguous on the child #{child_name} of #{composition.short_name}: #{candidates.join(", ")}"
-                elsif candidates.size == 1
-                    port = candidates.first[1]
-                    case port
-                    when Orocos::Spec::InputPort, CompositionChildInputPort
-                        return CompositionChildInputPort.new(self, port, name)
-                    when Orocos::Spec::OutputPort, CompositionChildOutputPort
-                        return CompositionChildOutputPort.new(self, port, name)
-                    else
-                        raise InternalError, "child port #{port} is neither a Spec::OutputPort or Spec::InputPort"
-                    end
-                end
-                nil
-            end
-
-            def each_input_port(&block)
-                composition.find_child(child_name).models.each do |child_model|
-                    child_model.each_input_port do |p|
-                        yield(CompositionChildInputPort.new(self, p, p.name))
-                    end
-                end
-            end
-
-            def each_output_port(&block)
-                composition.find_child(child_name).models.each do |child_model|
-                    child_model.each_output_port do |p|
-                        yield(CompositionChildOutputPort.new(self, p, p.name))
-                    end
-                end
-            end
-
-            # Returns a CompositionChildPort instance if +name+ is a valid port
-            # name
-            def method_missing(name, *args) # :nodoc:
-                return super if !args.empty? || block_given?
-
-                name = name.to_s
-                if name =~ /^(\w+)_port$/
-                    name = $1
-                end
-
-                if port = find_port(name)
-                    return port
-                end
-
-                raise InvalidCompositionChildPort.new(composition, child_name, name), "in composition #{composition.short_name}: child #{child_name} of type #{composition.find_child(child_name).models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
-            end
-
-            def ==(other) # :nodoc:
-                other.class == self.class &&
-                    other.composition == composition &&
-                    other.child_name == child_name
-            end
-
-            def each_fullfilled_model(&block)
-                composition.find_child(child_name).each_fullfilled_model(&block)
-            end
-
-            def state
-                if @state
-                    return @state
-                elsif component_model = models.find { |c| c <= Component }
-                    @state = Roby::StateFieldModel.new(component_model.state)
-                    @state.__object = self
-                    return @state
-                else
-                    raise ArgumentError, "cannot create a state model on elements that are only data services"
-                end
-            end
-        end
-
-        class InvalidCompositionChildPort < RuntimeError
-            attr_reader :composition_model
-            attr_reader :child_name
-            attr_reader :child_model
-            attr_reader :port_name
-
-            def initialize(composition_model, child_name, port_name)
-                @composition_model, @child_name, @port_name =
-                    composition_model, child_name, port_name
-                @child_model = composition_model.find_child(child_name).models.dup
-            end
-
-            def pretty_print(pp)
-                pp.text "port #{port_name} of child #{child_name} of #{composition_model.short_name} does not exist"
-                pp.breakable
-                pp.text "Available ports are:"
-                pp.nest(2) do
-                    pp.breakable
-                    pp.seplist(child_model) do |model|
-                        pp.text model.short_name
-                        pp.nest(2) do
-                            pp.breakable
-                            inputs = model.each_input_port.sort_by(&:name)
-                            outputs = model.each_output_port.sort_by(&:name)
-                            pp.seplist(inputs) do |port|
-                                pp.text "(in)#{port.name}[#{port.type_name}]"
-                            end
-                            pp.breakable
-                            pp.seplist(outputs) do |port|
-                                pp.text "(out)#{port.name}[#{port.type_name}]"
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        # Represents a port for a composition child, at the model level. It is
-        # the value returned by CompositionChildPort.port_name, and can be used
-        # to set up the data flow at the composition model level:
-        #
-        #   source = add Source
-        #   sink   = add Sink
-        #   source.port.connect_to sink.port
-        #   # source.port and sink.port are both CompositionChildPort instances
-        #
-        class CompositionChildPort < Models::Component::Port
-            # [CompositionChild] The child object this port is part of
-            def child; component_model end
-            # [Orocos::Spec::Port] The port object that describes the actual port
-            def port; model end
-
-            # Declare that this port should be ignored in the automatic
-            # connection computation
-            def ignore
-                child.composition.autoconnect_ignores << [child.child_name, name]
-            end
-
-            def initialize(child, port, port_name)
-                super(child, port, port_name)
-            end
-
-            # Return true if the underlying port multiplexes, i.e. if it is
-            # an input port that is expected to have multiple inbound
-            # connections
-            def multiplexes?
-               @port.multiplexes?
-            end
-
-            def short_name
-                "#{child.short_name}.#{name}_port[#{type_name}]"
-            end
-
-            def pretty_print(pp)
-                pp.text "port #{name} of "
-                child.pretty_print(pp)
-            end
-        end
-
-        # Specialization of CompositionChildPort for output ports
-        class CompositionChildOutputPort < CompositionChildPort
-            def resolve(context)
-                if context.kind_of?(Roby::Plan)
-                    context.add(context = child.composition.as_plan)
-                end
-                # The context is our root task
-                Component::Port::DataSource.new(context, child.child_name, actual_name)
-            end
-        end
-
-        # Specialization of CompositionChildPort for input ports
-        class CompositionChildInputPort  < CompositionChildPort
-            def multiplexes?
-                false
-            end
-        end
-
         # Additional methods that are mixed in composition specialization
         # models. I.e. composition models created by CompositionModel#specialize
         module CompositionSpecialization
@@ -546,7 +240,7 @@ module Syskit
                 end
                 child_task_model = child_task_model.first
 
-                parent_model = find_child(name) || CompositionChildDefinition.new
+                parent_model = find_child(name) || CompositionChild.new(self, name)
                 if child_task_model
                     parent_task_model = parent_model.models.find { |m| m < Component }
                     if parent_task_model && !(child_task_model <= parent_task_model)
@@ -557,32 +251,33 @@ module Syskit
                 # Delete from +parent_model+ everything that is already included
                 # in +child_model+
                 result = parent_model.dup
+                result.port_mappings.clear
                 result.base_models.delete_if do |parent_m|
                     replaced_by = child_model.find_all { |child_m| child_m < parent_m }
                     if !replaced_by.empty?
-                        mappings = replaced_by.inject(Hash.new) do |mappings, m|
-                            Models.merge_port_mappings(mappings, m.port_mappings_for(parent_m))
+                        replaced_by.each do |child_m|
+                            result.port_mappings[parent_m] = 
+                                CompositionChild::PortMapping.new(name, parent_m, child_m, 
+                                                                  child_m.port_mappings_for(parent_m))
                         end
-                        result.port_mappings.clear
-                        result.port_mappings.merge!(mappings)
-                        parent_model.port_mappings.each do |from, to|
-                            result.port_mappings[from] = mappings[to] || to
-                        end
+                        true
                     end
                 end
                 result.add_models(child_model.to_value_set)
                 result.dependency_options = result.dependency_options.merge(dependency_options)
 
-                SystemModel.debug do
-                    SystemModel.debug "added child #{name} to #{short_name}"
-                    SystemModel.debug "  with models #{result.models.map(&:short_name).join(", ")}"
+                Models.debug do
+                    Models.debug "added child #{name} to #{short_name}"
+                    Models.debug "  with models #{result.models.map(&:short_name).join(", ")}"
                     if !parent_model.models.empty?
-                        SystemModel.debug "  updated from #{parent_model.models.map(&:short_name).join(", ")}"
+                        Models.debug "  updated from #{parent_model.models.map(&:short_name).join(", ")}"
                     end
                     if !result.port_mappings.empty?
-                        SystemModel.debug "  port mappings"
-                        result.port_mappings.each do |from, to|
-                            SystemModel.debug "    #{from} => #{to}"
+                        Models.debug "  port mappings"
+                        Models.log_nest(4) do
+                            result.port_mappings.each_value do |mappings|
+                                Models.log_pp(:debug, mappings)
+                            end
                         end
                     end
                     break
@@ -686,7 +381,6 @@ module Syskit
                 end
 
                 add_child(options[:as], models, dependency_options)
-                CompositionChild.new(self, options[:as])
             end
 
             # Returns this composition's main task
@@ -901,13 +595,15 @@ module Syskit
             # 'Control' fullfills both the SimpleController and
             # FourWheelController data services.
             def specialize(options = Hash.new, &block)
-                SystemModel.debug do
-                    SystemModel.debug "trying to specialize #{short_name}"
-                    for_txt = options.map do |name, models|
-                        "#{name} => #{models}"
+                Models.debug do
+                    Models.debug "trying to specialize #{short_name}"
+                    Models.log_nest 2
+                    Models.debug "with"
+                    options.map do |name, models|
+                        Models.debug "  #{name} => #{models}"
                     end
-                    SystemModel.log_array(:debug, "  with ", "      ", for_txt)
-                    SystemModel.debug ""
+
+                    Models.debug ""
                     break
                 end
 
@@ -953,6 +649,12 @@ module Syskit
                     end
                 end
                 specialization
+
+            ensure
+                Models.debug do
+                    Models.log_nest -2
+                    break
+                end
             end
 
             def add_specialization_constraint(explicit = nil, &as_block)
@@ -996,6 +698,12 @@ module Syskit
             # +applied_specializations+ the list of the specializations,
             # separate.
             def instanciate_specialization(composite_spec, applied_specializations = [composite_spec])
+                Models.debug do
+                    Models.debug "instanciating specializations: #{applied_specializations.map(&:to_s).sort.join(", ")}"
+                    Models.log_nest(2)
+                    break
+                end
+
                 if applied_specializations.empty?
                     return self
                 elsif current_model = instanciated_specializations[composite_spec.specialized_children]
@@ -1023,6 +731,11 @@ module Syskit
                 instanciated_specializations[composite_spec.specialized_children] = composite_spec
 
                 child_composition
+            ensure
+                Models.debug do
+                    Models.log_nest -2
+                    break
+                end
             end
 
             # Verifies that the child selection in +new_spec+ is valid
@@ -1224,16 +937,16 @@ module Syskit
                     return []
                 end
 
-                Engine.debug do
-                    Engine.debug "looking for specialization of #{short_name} on"
+                Models.debug do
+                    Models.debug "looking for specialization of #{short_name} on"
                     selection.each do |k, v|
-                        Engine.debug "  #{k} => #{v}"
+                        Models.debug "  #{k} => #{v}"
                     end
                     break
                 end
 
                 if model = instanciated_specializations[selection]
-                    Engine.debug "  cached: #{model.composition_model.short_name}"
+                    Models.debug "  cached: #{model.composition_model.short_name}"
                     return model.composition_model
                 end
 
@@ -1241,10 +954,10 @@ module Syskit
                     spec_model.weak_match?(selection)
                 end
 
-                Engine.debug do
-                    Engine.debug "  #{matching_specializations.size} matching specializations found"
+                Models.debug do
+                    Models.debug "  #{matching_specializations.size} matching specializations found"
                     matching_specializations.each do |m|
-                        Engine.debug "    #{m.specialized_children}"
+                        Models.debug "    #{m.specialized_children}"
                     end
                     break
                 end
@@ -1305,11 +1018,11 @@ module Syskit
 
                 child_outputs = Hash.new { |h, k| h[k] = Array.new }
                 child_output_ports.each do |p|
-                    child_outputs[p.type_name] << [p.child.child_name, p.name]
+                    child_outputs[p.type_name] << [p.component_model.child_name, p.name]
                 end
                 child_inputs = Hash.new { |h, k| h[k] = Array.new }
                 child_input_ports.each do |p|
-                    child_inputs[p.type_name] << [p.child.child_name, p.name]
+                    child_inputs[p.type_name] << [p.component_model.child_name, p.name]
                 end
                 existing_inbound_connections = Set.new
                 exclude_connections.each do |(_, child_in), mappings|
@@ -1367,11 +1080,11 @@ module Syskit
                     end
                 end
 
-                SystemModel.debug do
-                    SystemModel.debug "automatic connection result in #{short_name}"
+                Models.debug do
+                    Models.debug "automatic connection result in #{short_name}"
                     result.each do |(out_child, in_child), connections|
                         connections.each do |(out_port, in_port), policy|
-                            SystemModel.debug "    #{out_child}:#{out_port} => #{in_child}:#{in_port} (#{policy})"
+                            Models.debug "    #{out_child}:#{out_port} => #{in_child}:#{in_port} (#{policy})"
                         end
                     end
                     break
@@ -1449,10 +1162,10 @@ module Syskit
                 end
 
                 case port
-                when CompositionChildInputPort
+                when InputPort
                     exported_inputs[name] = port.dup
                     exported_inputs[name].name = name
-                when CompositionChildOutputPort
+                when OutputPort
                     exported_outputs[name] = port.dup
                     exported_outputs[name].name = name
                 else
@@ -1539,21 +1252,21 @@ module Syskit
                     in_explicit, out_explicit = false
 
                     case out_p
-                    when CompositionChildOutputPort
+                    when OutputPort
                         out_explicit = true
                         child_outputs << out_p
                     when CompositionChild
                         out_p.each_output_port do |p|
                             child_outputs << p
                         end
-                    when CompositionChildInputPort
-                        raise ArgumentError, "#{out_p.name} is an input port of #{out_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    when InputPort
+                        raise ArgumentError, "#{out_p.name} is an input port of #{out_p.component_model.child_name}. The correct syntax is 'connect output => input'"
                     else
                         raise ArgumentError, "#{out_p} is neither an input or output port. The correct syntax is 'connect output => input'"
                     end
 
                     case in_p
-                    when CompositionChildInputPort
+                    when InputPort
                         in_explicit = true
                         child_inputs << in_p
                     when CompositionChild
@@ -1563,8 +1276,8 @@ module Syskit
                             end
                             child_inputs << p
                         end
-                    when CompositionChildOutputPort
-                        raise ArgumentError, "#{in_p.name} is an output port of #{in_p.child.child_name}. The correct syntax is 'connect output => input'"
+                    when OutputPort
+                        raise ArgumentError, "#{in_p.name} is an output port of #{in_p.component_model.child_name}. The correct syntax is 'connect output => input'"
                     else
                         raise ArgumentError, "#{in_p} is neither an input or output port. The correct syntax is 'connect output => input'"
                     end
@@ -1750,14 +1463,15 @@ module Syskit
                         end
                     end
 
-                    Engine.log_nest(2, :debug) do
-                        Engine.debug "selected #{selected_child.selected_task || selected_child.requirements} (#{port_mappings}) for #{child_name} (#{child_requirements})"
+                    Engine.debug do
+                        Models.debug "selected #{selected_child.selected_task || selected_child.requirements} (#{port_mappings}) for #{child_name} (#{child_requirements})"
                         Engine.log_nest(2) do
-                            Engine.debug "services: #{selected_child.selected_services}"
-                            Engine.debug "using"
+                            Models.debug "services: #{selected_child.selected_services}"
+                            Models.debug "using"
                             Engine.log_pp(:debug, context.current_state)
-                            Engine.debug "arguments #{selected_child.requirements.arguments}"
+                            Models.debug "arguments #{selected_child.requirements.arguments}"
                         end
+                        break
                     end
 
                     selected_child.port_mappings = port_mappings
@@ -1834,7 +1548,7 @@ module Syskit
                 end
                 context.push(selections)
 
-                Engine.debug { "instanciating model #{selected_child.requirements} for child #{child_name}" }
+                Models.debug { "instanciating model #{selected_child.requirements} for child #{child_name}" }
 
                 child_arguments = selected_child.requirements.arguments
                 child_arguments.each_key do |key|
@@ -1877,6 +1591,13 @@ module Syskit
             #   children of +self+ whose definition matches the given model.
             #
             def instanciate(engine, context, arguments = Hash.new)
+                Models.debug do
+                    Models.debug "instanciating #{short_name} with"
+                    Models.log_nest(2)
+                    Roby.log_pp(context, Models, :debug)
+                    break
+                end
+
                 arguments = Kernel.validate_options arguments, :as => nil, :task_arguments => Hash.new, :specialize => true
                 if arguments[:specialize] && root_model != self
                     return root_model.instanciate(engine, context, arguments)
@@ -1888,14 +1609,6 @@ module Syskit
                     if !selection.has_selection?(child_name)
                         barrier[child_name] = nil
                     end
-                end
-
-                Engine.debug do
-                    Engine.debug "instanciating #{name} with"
-                    Engine.log_nest(2) do
-                        Roby.log_pp(context, Engine, :debug)
-                    end
-                    break
                 end
 
                 # Find what we should use for our children. +explicit_selection+
@@ -1937,8 +1650,8 @@ module Syskit
                         specialized_model = find_common_specialization_subset(candidates)
                         specialized_model = instanciate_specialization(*specialized_model)
                         if specialized_model != self
-                            Engine.debug do
-                                Engine.debug "using specialization #{specialized_model.short_name} of #{short_name}"
+                            Models.debug do
+                                Models.debug "using specialization #{specialized_model.short_name} of #{short_name}"
                                 break
                             end
                             return specialized_model.instanciate(engine, context, arguments.merge(:specialize => false))
@@ -1961,13 +1674,13 @@ module Syskit
                 connections = self.connections
                 exported_outputs = Hash.new { |h, k| h[k] = Hash.new }
                 each_exported_output do |output_name, port|
-                    exported_outputs[ port.child.child_name ].
-                        merge!([port.actual_name, output_name] => Hash.new)
+                    exported_outputs[ port.component_model.child_name ].
+                        merge!([port.name, output_name] => Hash.new)
                 end
                 exported_inputs = Hash.new { |h, k| h[k] = Hash.new }
                 each_exported_input do |input_name, port|
-                    exported_inputs[ port.child.child_name ].
-                        merge!([input_name, port.actual_name] => Hash.new)
+                    exported_inputs[ port.component_model.child_name ].
+                        merge!([input_name, port.name] => Hash.new)
                 end
 
                 removed_optional_children = Set.new
@@ -2006,7 +1719,7 @@ module Syskit
                             end
 
                             if child_task.abstract? && find_child(child_name).optional?
-                                Engine.debug "not adding optional child #{child_name}"
+                                Models.debug "not adding optional child #{child_name}"
                                 removed_optional_children << child_name
                                 next(true)
                             end
@@ -2017,17 +1730,17 @@ module Syskit
                         end
 
                         if selected_child.port_mappings.empty?
-                            Engine.debug { "no port mappings for #{child_name}" }
+                            Models.debug { "no port mappings for #{child_name}" }
                         else
                             port_mappings = selected_child.port_mappings
-                            Engine.debug do
-                                Engine.debug "applying port mappings for #{child_name}"
+                            Models.debug do
+                                Models.debug "applying port mappings for #{child_name}"
                                 port_mappings.each do |from, to|
-                                    Engine.debug "  #{from} => #{to}"
+                                    Models.debug "  #{from} => #{to}"
                                 end
-                                Engine.debug "on"
+                                Models.debug "on"
                                 connections.each do |(out_name, in_name), mappings|
-                                    Engine.debug "  #{out_name} => #{in_name} (#{mappings})"
+                                    Models.debug "  #{out_name} => #{in_name} (#{mappings})"
                                 end
                                 break
                             end
@@ -2045,10 +1758,10 @@ module Syskit
                                 apply_port_mappings_on_outputs(exported_outputs[child_name], port_mappings)
                             end
 
-                            Engine.debug do
-                                Engine.debug "result"
+                            Models.debug do
+                                Models.debug "result"
                                 connections.each do |(out_name, in_name), mappings|
-                                    Engine.debug "  #{out_name} => #{in_name} (#{mappings})"
+                                    Models.debug "  #{out_name} => #{in_name} (#{mappings})"
                                 end
                                 break
                             end
@@ -2114,6 +1827,10 @@ module Syskit
                     end
                 end
                 self_task
+            ensure
+                Models.debug do
+                    Models.log_nest -2
+                end
             end
 
             def to_dot(io)
@@ -2149,10 +1866,10 @@ module Syskit
                     io << "  Cinterface#{id} [label=\"#{label}\",color=blue,fontsize=15];"
                     
                     exported_outputs.each do |exported_name, port|
-                        io << "C#{id}#{port.child.child_name}:#{port.port.name} -> Cinterface#{id}:#{exported_name} [style=dashed];"
+                        io << "C#{id}#{port.component_model.child_name}:#{port.port.name} -> Cinterface#{id}:#{exported_name} [style=dashed];"
                     end
                     exported_inputs.each do |exported_name, port|
-                        io << "Cinterface#{id}:#{exported_name} -> C#{id}#{port.child.child_name}:#{port.port.name} [style=dashed];"
+                        io << "Cinterface#{id}:#{exported_name} -> C#{id}#{port.component_model.child_name}:#{port.port.name} [style=dashed];"
                     end
                 end
                 label = [short_name.dup]
@@ -2189,8 +1906,8 @@ module Syskit
             end
 
             # Callback called when a new subclass of this class is created
-            def inherited(submodel)
-                super
+            def new_submodel(options = Hash.new, &block)
+                submodel = super
 
                 return if submodel.is_specialization?
                 specializations.each_value do |spec|
@@ -2198,15 +1915,14 @@ module Syskit
                         specialize(spec.specialized_children, &block)
                     end
                 end
+                submodel
             end
 
             def method_missing(m, *args, &block)
-                if args.empty?
+                if args.empty? && !block_given?
                     name = m.to_s
-                    if has_child?(name)
-                        return CompositionChild.new(self, name)
-                    elsif has_child?(name = name.gsub(/_child$/, ''))
-                        return CompositionChild.new(self, name)
+                    if has_child?(name = name.gsub(/_child$/, ''))
+                        return find_child(name)
                     end
                 end
                 super

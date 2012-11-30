@@ -58,6 +58,10 @@ module Syskit
                 model
             end
 
+            def stub_deployed_task(name, task)
+                task.orocos_task = Orocos::RubyTaskContext.from_orogen_model(name, task.model.orogen_model)
+            end
+
             def setup
                 @old_loglevel = Orocos.logger.level
 		Roby.app.using 'orocos'

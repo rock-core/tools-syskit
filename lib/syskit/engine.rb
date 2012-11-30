@@ -1815,7 +1815,8 @@ module Syskit
                 handled    = Hash.new
                 used_ports = Set.new
 
-                task.model.each_root_data_service do |source_name, source_service|
+                task.model.each_root_data_service do |source_service|
+                    source_name  = source_service.name
                     source_model = source_service.model
                     next if !(source_model < Device)
                     device_spec = robot.devices[task.arguments["#{source_name}_name"]]

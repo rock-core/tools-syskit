@@ -12,8 +12,8 @@ module Syskit
             end
 
             def pretty_print(pp)
-                out_explicit = out_p.kind_of?(CompositionChildOutputPort)
-                in_explicit  = in_p.kind_of?(CompositionChildInputPort)
+                out_explicit = out_p.kind_of?(OutputPort)
+                in_explicit  = in_p.kind_of?(InputPort)
                 if in_explicit && out_explicit
                     pp.text "cannot connect #{in_p.short_name} to #{out_p.short_name}: incompatible types"
                     in_model = in_p.child.models
@@ -140,9 +140,9 @@ module Syskit
             end
 
             def self.promote_exported_port(export_name, port)
-                if new_child = children[port.child.child_name]
-                    if new_port_name = new_child.port_mappings[port.actual_name]
-                        result = send(port.child.child_name).find_port(new_port_name)
+                if new_child = children[port.component_model.child_name]
+                    if new_port_name = new_child.port_mappings[port.name]
+                        result = send(port.component_model.child_name).find_port(new_port_name)
                         result = result.dup
                         result.name = export_name
                         result
@@ -349,7 +349,7 @@ module Syskit
 
                 port_name = map_child_port(role, exported_port.actual_name)
                 if task.kind_of?(Composition)
-                    if exported_port.kind_of?(CompositionChildOutputPort)
+                    if exported_port.kind_of?(OutputPort)
                         return task.resolve_output_port(port_name)
                     else
                         return task.resolve_input_port(port_name)

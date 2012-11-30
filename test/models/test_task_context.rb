@@ -1,3 +1,4 @@
+require 'pry'
 require 'syskit'
 require 'syskit/test'
 
@@ -31,7 +32,7 @@ class TC_Models_TaskContext < Test::Unit::TestCase
         assert(model.orogen_model.find_property("property"))
     end
 
-    def test_new_submodel_registers_the_submodel
+    def test_new_submodel_registers_the_submodel_on_parent_classes
         submodel = TaskContext.new_submodel
         subsubmodel = submodel.new_submodel
 
@@ -77,6 +78,29 @@ class TC_Models_TaskContext < Test::Unit::TestCase
         assert submodel.submodels.include?(subsubmodel)
     end
 
+    def test_new_submodel_registers_the_orogen_model_to_syskit_model_mapping
+        submodel = TaskContext.new_submodel
+        assert TaskContext.has_model_for?(submodel.orogen_model)
+        assert_same submodel, TaskContext.model_for(submodel.orogen_model)
+    end
+
+    def test_has_submodel_returns_false_on_unknown_orogen_models
+        model = Orocos::Spec::TaskContext.new
+        assert !TaskContext.has_model_for?(model)
+    end
+
+    def test_model_for_raises_ArgumentError_on_unknown_orogen_models
+        model = Orocos::Spec::TaskContext.new
+        assert_raises(ArgumentError) { TaskContext.model_for(model) }
+    end
+
+    def test_clear_submodels_removes_the_orogen_model_to_syskit_model_mapping
+        submodel = TaskContext.new_submodel
+        subsubmodel = submodel.new_submodel
+        submodel.clear_submodels
+        assert !TaskContext.has_model_for?(subsubmodel.orogen_model)
+    end
+
     def test_task_context_definition_on_modules
         model = TaskContext.new_submodel
         DefinitionModule.const_set :Task, model
@@ -108,10 +132,17 @@ class TC_Models_TaskContext < Test::Unit::TestCase
         assert model.fullfills?(DefinitionModule::Camera)
     end
 
+    def test_define_from_orogen_registers_the_orogen_to_syskit_mapping
+        orogen = Orocos::Spec::TaskContext.new
+        model = Syskit::TaskContext.define_from_orogen(orogen)
+        assert TaskContext.has_model_for?(orogen)
+        assert_same model, TaskContext.model_for(orogen)
+    end
+
     def test_define_from_orogen_creates_superclass_model_as_well
         orogen_parent = Orocos::Spec::TaskContext.new
         orogen = Orocos::Spec::TaskContext.new
-        parent_model = Syskit::TaskContext
+        parent_model = Syskit::TaskContext.new_submodel
         orogen.subclasses orogen_parent
         flexmock(Syskit::TaskContext).
             should_receive(:define_from_orogen).with(orogen).
@@ -134,7 +165,7 @@ class TC_Models_TaskContext < Test::Unit::TestCase
             pass_thru
         flexmock(Syskit::TaskContext).
             should_receive(:define_from_orogen).with(orogen_parent).
-            never
+            never.and_return(parent_model)
         model = Syskit::TaskContext.define_from_orogen(orogen)
         assert_same parent_model, model.superclass
     end

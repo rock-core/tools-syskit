@@ -90,6 +90,89 @@ class TC_Models_Component < Test::Unit::TestCase
         assert_equal({'out' => 'out'}, component.port_mappings_for(bound_service))
     end
 
+    def test_provides_refuses_to_add_a_service_with_an_existing_name
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        component.provides service, :as => 'srv'
+        assert_raises(ArgumentError) { component.provides(service, :as => 'srv') }
+    end
+
+    def test_provides_allows_to_overload_parent_services
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        component.provides service, :as => 'srv'
+        submodel = component.new_submodel
+        submodel.provides service, :as => 'srv'
+    end
+
+    def test_provides_raises_if_a_service_overload_is_with_an_incompatible_type
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        component.provides service, :as => 'srv'
+
+        other_service = DataService.new_submodel
+        submodel = component.new_submodel
+        assert_raises(ArgumentError) { submodel.provides other_service, :as => 'srv' }
+    end
+
+    def test_provides_allows_to_setup_slave_services
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        root_srv = component.provides service, :as => 'root'
+        slave_srv = component.provides service, :as => 'srv', :slave_of => 'root'
+        assert_equal [slave_srv], root_srv.each_slave.to_a
+        assert_same slave_srv, component.find_data_service('root.srv')
+    end
+
+    def test_each_slave_data_service
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        root  = component.provides service, :as => 'root'
+        slave = component.provides service, :as => 'srv', :slave_of => 'root'
+        assert_equal [slave].to_set, component.each_slave_data_service(root).to_set
+    end
+
+    def test_each_slave_data_service_on_submodel
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        root  = component.provides service, :as => 'root'
+        slave = component.provides service, :as => 'srv', :slave_of => 'root'
+        component = component.new_submodel
+        assert_equal [slave].to_set, component.each_slave_data_service(root).to_set
+    end
+
+    def test_each_slave_data_service_on_submodel_with_new_slave
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        root  = component.provides service, :as => 'root'
+        slave1 = component.provides service, :as => 'srv1', :slave_of => 'root'
+        component = component.new_submodel
+        slave2 = component.provides service, :as => 'srv2', :slave_of => 'root'
+        assert_equal [slave1, slave2].to_set, component.each_slave_data_service(root).to_set
+    end
+
+    def test_slave_can_have_the_same_name_than_a_root_service
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        root_srv = component.provides service, :as => 'root'
+        srv = component.provides service, :as => 'srv'
+        root_srv = component.provides service, :as => 'srv', :slave_of => 'root'
+        assert_same srv, component.find_data_service('srv')
+        assert_same root_srv, component.find_data_service('root.srv')
+    end
+
+    def test_slave_enumeration_includes_parent_slaves_when_adding_a_slave_on_a_child_model
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        root = component.provides service, :as => 'root'
+        root_srv1 = component.provides service, :as => 'srv1', :slave_of => 'root'
+
+        submodel = component.new_submodel
+        root_srv2 = submodel.provides service, :as => 'srv2', :slave_of => 'root'
+        assert_equal [root_srv1].to_set, component.root_srv.each_slave.to_set
+        assert_equal [root_srv1, root_srv2].to_set, submodel.root_srv.each_slave.to_set
+    end
+
     def test_find_data_service_from_type
         service = DataService.new_submodel
         component = TaskContext.new_submodel
@@ -206,6 +289,70 @@ class TC_Models_Component < Test::Unit::TestCase
         end
         component.provides(service, :as => 'srv')
         assert_equal({'out' => 'out'}, component.port_mappings_for(service))
+    end
+
+    def test_has_output_port_returns_false_if_find_returns_false
+        model = Syskit::TaskContext.new_submodel
+        flexmock(model).should_receive(:find_output_port).with('p').and_return(Object.new)
+        assert model.has_output_port?('p')
+    end
+
+    def test_has_output_port_returns_true_if_find_returns_true
+        model = Syskit::TaskContext.new_submodel
+        flexmock(model).should_receive(:find_output_port).with('p').and_return(nil)
+        assert !model.has_output_port?('p')
+    end
+
+    def test_has_input_port_returns_false_if_find_returns_false
+        model = Syskit::TaskContext.new_submodel
+        flexmock(model).should_receive(:find_input_port).with('p').and_return(Object.new)
+        assert model.has_input_port?('p')
+    end
+
+    def test_has_input_port_returns_true_if_find_returns_true
+        model = Syskit::TaskContext.new_submodel
+        flexmock(model).should_receive(:find_input_port).with('p').and_return(nil)
+        assert !model.has_input_port?('p')
+    end
+
+    def test_find_output_port
+        port_model = nil
+        model = Syskit::TaskContext.new_submodel { port_model = output_port('p', '/double') }
+        p = model.find_output_port('p')
+        assert_equal 'p', p.name, 'p'
+        assert_equal model, p.component_model
+        assert_equal port_model, p.orogen_model
+    end
+
+    def test_find_output_port_returns_false_on_outputs
+        port_model = nil
+        model = Syskit::TaskContext.new_submodel { port_model = input_port('p', '/double') }
+        assert !model.find_output_port('p')
+    end
+
+    def test_find_output_port_returns_false_on_non_existent_ports
+        model = Syskit::TaskContext.new_submodel
+        assert !model.find_output_port('p')
+    end
+
+    def test_find_input_port
+        port_model = nil
+        model = Syskit::TaskContext.new_submodel { port_model = input_port('p', '/double') }
+        p = model.find_input_port('p')
+        assert_equal 'p', p.name, 'p'
+        assert_equal model, p.component_model
+        assert_equal port_model, p.orogen_model
+    end
+
+    def test_find_input_port_returns_false_on_outputs
+        port_model = nil
+        model = Syskit::TaskContext.new_submodel { port_model = output_port('p', '/double') }
+        assert !model.find_input_port('p')
+    end
+
+    def test_find_input_port_returns_false_on_non_existent_ports
+        model = Syskit::TaskContext.new_submodel
+        assert !model.find_input_port('p')
     end
 end
 

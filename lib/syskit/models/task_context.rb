@@ -1,7 +1,11 @@
 module Syskit
     module Models
+        # This module contains the model-level API for the task context models
+        #
+        # It is used to extend every subclass of Syskit::TaskContext
         module TaskContext
-            include Base
+            include Models::Base
+            include Models::PortAccess
 
             # [Hash{Orocos::Spec::TaskContext => TaskContext}] a cache of
             # mappings from oroGen task context models to the corresponding
@@ -26,7 +30,7 @@ module Syskit
             end
 
             # Checks whether a syskit model exists for the given orogen model
-            def has_model_for?
+            def has_model_for?(orogen_model)
                 !!orogen_model_to_syskit_model[orogen_model]
             end
 
@@ -116,75 +120,6 @@ module Syskit
                 provides(service_model, options)
             end
 
-            # Creates a Ruby class which represents the set of properties that
-            # the task context has. The returned class will initialize its
-            # members to the default values declared in the oroGen files
-            def config_type_from_properties(register = true)
-                if @config_type
-                    return @config_type
-                end
-
-                default_values = Hash.new
-                task_model = self
-
-                config = Class.new do
-                    class << self
-                        attr_accessor :name
-                    end
-                    @name = "#{task_model.name}::ConfigType"
-
-                    attr_reader :property_names
-
-                    task_model.orogen_model.each_property do |p|
-                        property_type = Orocos.typelib_type_for(p.type)
-		    	singleton_class.class_eval do
-			    attr_reader p.name
-			end
-			instance_variable_set "@#{p.name}", property_type
-
-                        default_values[p.name] =
-                            if p.default_value
-                                Typelib.from_ruby(p.default_value, property_type)
-                            else
-                                value = property_type.new
-                                value.zero!
-                                value
-                            end
-
-                        if property_type < Typelib::CompoundType || property_type < Typelib::ArrayType
-                            attr_accessor p.name
-                        else
-                            define_method(p.name) do
-                                Typelib.to_ruby(instance_variable_get("@#{p.name}"))
-                            end
-                            define_method("#{p.name}=") do |value|
-                                value = Typelib.from_ruby(value, property_type)
-                                instance_variable_set("@#{p.name}", value)
-                            end
-                        end
-                    end
-
-                    define_method(:initialize) do
-                        default_values.each do |name, value|
-                            instance_variable_set("@#{name}", value.dup)
-                        end
-                        @property_names = default_values.keys
-                    end
-
-                    class_eval <<-EOD
-                    def each
-                        property_names.each do |name|
-                            yield(name, send(name))
-                        end
-                    end
-                    EOD
-                end
-		if register && !self.constants.include?(:Config)
-		    self.const_set(:Config, config)
-		end
-                @config_type = config
-            end
-
             # [Orocos::Spec::TaskContext] The oroGen model that represents this task context model
             attribute(:orogen_model) { Orocos::Spec::TaskContext.new }
 
@@ -212,7 +147,7 @@ module Syskit
                     model.orogen_model.subclasses self.orogen_model
                     model.state_events = self.state_events.dup
                 end
-                orogen_model_to_syskit_model[model.orogen_model] = model
+                Syskit::TaskContext.orogen_model_to_syskit_model[model.orogen_model] = model
                 if block
                     model.orogen_model.instance_eval(&block)
                 end
@@ -250,8 +185,8 @@ module Syskit
 		model.fullfilled_model = [self, model.proxied_data_services, Hash.new]
 
                 Syskit::Models.merge_orogen_task_context_models(model.orogen_model, service_models.map(&:orogen_model))
-                service_models.each do |m|
-                    model.provides m
+                service_models.each_with_index do |m, i|
+                    model.provides m, :as => "m#{i}"
                 end
                 proxy_task_models[service_models] = model
                 model

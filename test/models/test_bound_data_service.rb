@@ -65,22 +65,65 @@ class TC_Models_BoundDataService < Test::Unit::TestCase
         return base, parent, model, component_model, service
     end
 
-    def test_creation
-        service_model, other_service_model, component_model, left_srv, right_srv =
-            setup_stereocamera
-        assert_equal component_model, left_srv.component_model
-        assert !left_srv.master
-        assert_equal('left', left_srv.full_name)
-        assert(left_srv.fullfills?(service_model))
-        assert(!left_srv.fullfills?(other_service_model))
-        assert(left_srv.fullfills?(component_model))
-        assert(left_srv.fullfills?([component_model, service_model]))
+    def test_root_service
+        component_model = TaskContext.new_submodel
+        service_model = DataService.new_submodel
+        other_service_model = DataService.new_submodel
+        service = component_model.provides service_model, :as => 'service'
+        component_model.provides other_service_model, :as => 'other_service'
+        assert_equal component_model, service.component_model
+        assert service.master?
+        assert_equal('service', service.full_name)
+        assert_equal('service', service.name)
+        assert(service.fullfills?(service_model))
+        assert(!service.fullfills?(other_service_model))
+        assert(service.fullfills?(component_model))
+        assert(service.fullfills?([component_model, service_model]))
+    end
+
+    def test_fullfills_p
+        base, parent, model, component_model, service =
+            setup_transitive_services
+
+        other_service = DataService.new_submodel
+        component_model.provides other_service, :as => 'unrelated_service'
+
+        assert service.fullfills?(component_model)
+        assert service.fullfills?(base)
+        assert service.fullfills?(parent)
+        assert service.fullfills?(model)
+        assert !service.fullfills?(other_service)
+    end
+
+    def test_each_fullfilled_model
+        base, parent, model, component_model, service =
+            setup_transitive_services
+
+        other_service = DataService.new_submodel
+        component_model.provides other_service, :as => 'unrelated_service'
+
+        assert_equal [base,parent,model,DataService,component_model].to_set,
+            service.each_fullfilled_model.to_set
     end
 
     def test_port_mappings
         service_model, other_service_model, component_model, left_srv, right_srv =
             setup_stereocamera
         assert_equal({ 'image' => 'left' }, left_srv.port_mappings_for_task)
+    end
+
+    def test_slave_service_access_through_method_missing
+        service = DataService.new_submodel
+        component = TaskContext.new_submodel
+        root = component.provides service, :as => 'root'
+        slave = component.provides service, :as => 'slave', :slave_of => 'root'
+        assert_same slave, root.slave_srv
+    end
+
+    def test_output_port_access_through_method_missing
+        base, parent, model, component_model, service =
+            setup_transitive_services
+        assert_same service.find_output_port('out_model'), service.out_model_port
     end
 
     def test_port_mappings_transitive_services
@@ -108,127 +151,63 @@ class TC_Models_BoundDataService < Test::Unit::TestCase
                        service.port_mappings_for(base))
     end
 
-    def test_each_task_output_port
-        base, parent, model, component_model, service =
-            setup_transitive_services
-        assert_equal(
-            [component_model.out_base_unmapped, component_model.out_parent_unmapped, component_model.out_port].map(&:model).to_set,
-             service.each_task_output_port.to_set)
-    end
-
-    def test_each_task_input_port
-        base, parent, model, component_model, service =
-            setup_transitive_services
-        assert_equal(
-            [component_model.in_base_unmapped, component_model.in_parent_unmapped, component_model.in_port].map(&:model).to_set,
-             service.each_task_input_port.to_set)
+    def assert_ports_equal(component_model, names, result)
+        result.each do |p|
+            assert_same component_model, p.component_model
+            assert names.include?(p.name), "#{p.name} was not expected to be in the port list #{names.to_a.sort.join(", ")}"
+        end
     end
 
     def test_each_output_port
         base, parent, model, component_model, service =
             setup_transitive_services
-        assert_equal(
-            [model.out_base_unmapped, model.out_parent_unmapped, model.out_model].map(&:model).to_set,
-             service.each_output_port.to_set)
+
+        assert_ports_equal service, ['out_base_unmapped', 'out_parent_unmapped', 'out_model'],
+            service.each_output_port
     end
 
     def test_each_input_port
         base, parent, model, component_model, service =
             setup_transitive_services
-        assert_equal(
-            [model.in_base_unmapped, model.in_parent_unmapped, model.in_model].map(&:model).to_set,
-             service.each_input_port.to_set)
+        assert_ports_equal service, ['in_base_unmapped', 'in_parent_unmapped', 'in_model'],
+            service.each_input_port
     end
 
-    def test_as
-        base, parent, model, component_model, service =
+    def test_narrowed_find_input_port_gives_access_to_unmapped_ports
+        base, parent, model, component_model, service_model =
             setup_transitive_services
-        narrowed = service.as(parent)
-
-        assert_equal({ 'in_parent' => 'in_port',
-                       'in_parent_unmapped' => 'in_parent_unmapped',
-                       'in_base_unmapped' => 'in_base_unmapped',
-                       'out_parent' => 'out_port',
-                       'out_parent_unmapped' => 'out_parent_unmapped',
-                       'out_base_unmapped' => 'out_base_unmapped' },
-                       narrowed.port_mappings_for_task)
-        assert_equal({ 'in_base' => 'in_port',
-                       'in_base_unmapped' => 'in_base_unmapped',
-                       'out_base' => 'out_port',
-                       'out_base_unmapped' => 'out_base_unmapped' },
-                       narrowed.port_mappings_for(base))
-
-        assert(!narrowed.find_output_port('out_port'))
-        assert(!narrowed.find_output_port('in_port'))
-        assert(!narrowed.find_output_port('other_port'))
-        assert(!narrowed.find_output_port('in_model'))
-        assert(!narrowed.find_output_port('in_base'))
-        assert(!narrowed.find_output_port('out_model'))
-        assert(!narrowed.find_output_port('out_base'))
-        assert_equal(parent.find_output_port('out_parent'),
-                     narrowed.find_output_port('out_parent'))
-        assert_equal(parent.find_output_port('out_parent_unmapped'),
-                     narrowed.find_output_port('out_parent_unmapped'))
-        assert_equal(parent.find_output_port('out_base_unmapped'),
-                     narrowed.find_output_port('out_base_unmapped'))
+        service = service_model.as(parent)
+        assert service.find_input_port('in_parent_unmapped')
+        assert service.find_input_port('in_base_unmapped')
     end
 
-    def test_narrowed_model_each_task_output_port
-        base, parent, model, component_model, service =
+    def test_narrowed_find_input_port_returns_nil_on_unmapped_ports_from_its_original_type
+        base, parent, model, component_model, service_model =
             setup_transitive_services
-        service = service.as(parent)
-        assert_equal(
-            [component_model.out_base_unmapped, component_model.out_parent_unmapped, component_model.out_port].map(&:model).to_set,
-             service.each_task_output_port.to_set)
+        service = service_model.as(base)
+        assert !service.find_input_port('in_parent_unmapped')
     end
 
-    def test_narrowed_model_each_task_input_port
-        base, parent, model, component_model, service =
+    def test_narrowed_find_input_port_gives_access_to_mapped_ports
+        base, parent, model, component_model, service_model =
             setup_transitive_services
-        service = service.as(parent)
-        assert_equal(
-            [component_model.in_base_unmapped, component_model.in_parent_unmapped, component_model.in_port].map(&:model).to_set,
-             service.each_task_input_port.to_set)
+        service = service_model.as(parent)
+        assert service.find_input_port('in_parent')
     end
 
-    def test_narrowed_model_each_output_port
-        base, parent, model, component_model, service =
+    def test_narrowed_find_input_port_returns_nil_on_mapped_ports_from_its_original_type
+        base, parent, model, component_model, service_model =
             setup_transitive_services
-        service = service.as(parent)
-        assert_equal(
-            [parent.out_base_unmapped, parent.out_parent_unmapped, parent.out_parent].map(&:model).to_set,
-             service.each_output_port.to_set)
+        service = service_model.as(parent)
+        assert !service.find_input_port('in_port')
     end
 
-    def test_narrowed_model_find_output_port
-        base, parent, model, component_model, service =
+    def test_narrowed_find_input_port_returns_nil_on_the_original_name_of_a_mapped_port
+        base, parent, model, component_model, service_model =
             setup_transitive_services
-        service = service.as(parent)
-        service.each_output_port do |p|
-            assert_same(p, service.find_output_port(p.name))
-        end
+        service = service_model.as(parent)
+        assert !service.find_input_port('in_base')
     end
 
-    def test_narrowed_model_each_input_port
-        base, parent, model, component_model, service =
-            setup_transitive_services
-        service = service.as(parent)
-        assert_equal(
-            [parent.in_base_unmapped, parent.in_parent_unmapped, parent.in_parent].map(&:model).to_set,
-             service.each_input_port.to_set)
-
-        service.each_output_port do |p|
-            assert_same(p, service.find_output_port(p.name))
-        end
-    end
-
-    def test_narrowed_model_find_output_port
-        base, parent, model, component_model, service =
-            setup_transitive_services
-        service = service.as(parent)
-        service.each_input_port do |p|
-            assert_same(p, service.find_input_port(p.name))
-        end
-    end
 end
 

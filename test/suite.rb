@@ -18,3 +18,10 @@ require './test_network_merge_solver'
 
 Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
 Syskit.logger.level = Logger::DEBUG
+
+# OK Coverage for now:
+#   models/base
+#   base
+#   models/data_service
+#   models/deployment
+#   models/component

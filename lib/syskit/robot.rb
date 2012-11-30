@@ -533,7 +533,7 @@ module Syskit
                 device_model.apply_device_configuration_extensions(devices[name])
 
                 # And register all the slave services there is on the driver
-                task_model.each_slave_data_service(service) do |_, slave_service|
+                task_model.each_slave_data_service(service) do |slave_service|
                     slave_device = SlaveDeviceInstance.new(devices[name], slave_service)
                     device_instance.slaves[slave_service.name] = slave_device
                     devices["#{name}.#{slave_service.name}"] = slave_device

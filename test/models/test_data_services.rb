@@ -82,15 +82,16 @@ module Test_DataServiceModel
 
     def test_proxy_task_model
         model = new_submodel
-        fake_task_model = Syskit::TaskContext.new_submodel
-        fake_task_model.provides model, :as => 'service'
-        flexmock(Syskit).should_receive(:proxy_task_model_for).
-            once.
-            with([model]).
-            and_return(fake_task_model)
+        proxy_model = model.proxy_task_model
+        assert(proxy_model <= TaskContext)
+        assert(proxy_model.fullfills?(model))
+        assert_equal([model], proxy_model.proxied_data_services.to_a)
+    end
 
-        placeholder_model = model.proxy_task_model
-        assert_same(fake_task_model, placeholder_model)
+    def test_proxy_task_model_caches_model
+        model = new_submodel
+        proxy_model = model.proxy_task_model
+        assert_same proxy_model, model.proxy_task_model
     end
 
     def test_model_output_port
@@ -235,6 +236,12 @@ module Test_DataServiceModel
         assert_equal({"out" => "new_out"}, model.port_mappings_for(parent_model))
         assert_equal({"out" => "out", "new_out" => "new_out"},
                      model.port_mappings_for(model))
+    end
+
+    def test_instanciate
+        model = data_service_type("A")
+        task = model.instanciate(orocos_engine)
+        assert_kind_of model.proxy_task_model, task
     end
 end
 

@@ -45,8 +45,8 @@ class TC_Models_Composition < Test::Unit::TestCase
             'srv_in' => 'in', 'srv_out' => 'out'
         @simple_composition_model = Composition.new_submodel do
             add srv, :as => 'srv'
-            export self.srv.srv_in
-            export self.srv.srv_out
+            export self.srv_child.srv_in_port
+            export self.srv_child.srv_out_port
             provides srv, :as => 'srv'
         end
     end
@@ -133,7 +133,7 @@ class TC_Models_Composition < Test::Unit::TestCase
         end
         component.provides service1, :as => 'srv1'
 
-        composition = Class.new(base)
+        composition = base.new_submodel
         composition.overload('srv', service1)
 
         base.add(service, :as => 'srv_in')
@@ -143,7 +143,7 @@ class TC_Models_Composition < Test::Unit::TestCase
         composition.overload('srv_in', service1)
         assert_equal({['srv', 'srv_in'] => {['specialized_out', 'specialized_in'] => {}}}.to_set, composition.each_explicit_connection.to_set)
 
-        composition = Class.new(composition)
+        composition = composition.new_submodel
         composition.overload('srv', component)
         assert_equal({['srv', 'srv_in'] => {['out', 'specialized_in'] => {}}}.to_set, composition.each_explicit_connection.to_set)
         composition.overload('srv_in', component)
@@ -168,9 +168,9 @@ class TC_Models_Composition < Test::Unit::TestCase
         composition = Composition.new_submodel do
             add service, :as => 'srv'
 
-            srv_in = self.srv.in
+            srv_in = self.srv_child.in_port
             export srv_in, :as => 'srv_in'
-            srv_out = self.srv.out
+            srv_out = self.srv_child.out_port
             export srv_out, :as => 'srv_out'
             provides service, :as => 'srv'
         end
@@ -191,19 +191,19 @@ class TC_Models_Composition < Test::Unit::TestCase
         end
         component.provides service1, :as => 'srv1'
 
-        c0 = Class.new(composition)
+        c0 = composition.new_submodel
         c0.overload('srv', service1)
-        assert_single_export 'srv_in', c0.srv.specialized_in, c0.each_exported_input
-        assert_single_export 'srv_out', c0.srv.specialized_out, c0.each_exported_output
+        assert_single_export 'srv_in', c0.srv_child.specialized_in_port, c0.each_exported_input
+        assert_single_export 'srv_out', c0.srv_child.specialized_out_port, c0.each_exported_output
 
-        c1 = Class.new(c0)
+        c1 = c0.new_submodel
         c1.overload('srv', component)
         # Re-test for c0 to make sure that the overload did not touch the base
         # model
-        assert_single_export 'srv_in', c0.srv.specialized_in, c0.each_exported_input
-        assert_single_export 'srv_out', c0.srv.specialized_out, c0.each_exported_output
-        assert_single_export 'srv_in', c1.srv.in, c1.each_exported_input
-        assert_single_export 'srv_out', c1.srv.out, c1.each_exported_output
+        assert_single_export 'srv_in', c0.srv_child.specialized_in_port, c0.each_exported_input
+        assert_single_export 'srv_out', c0.srv_child.specialized_out_port, c0.each_exported_output
+        assert_single_export 'srv_in', c1.srv_child.in_port, c1.each_exported_input
+        assert_single_export 'srv_out', c1.srv_child.out_port, c1.each_exported_output
     end
 
     def test_child_selection_port_mappings
@@ -238,8 +238,10 @@ class TC_Models_Composition < Test::Unit::TestCase
     end
 
     def test_specialization_of_service_applies_port_mappings
+        Syskit.logger.level = Logger::DEBUG
         service, component, composition = setup_with_port_mapping
-        composition = composition.instanciate_specialization(composition.specialize('srv' => component))
+        specialized_model = composition.specialize('srv' => component)
+        composition = composition.instanciate_specialization(specialized_model)
         composition = flexmock(composition)
         component = flexmock(component)
 
@@ -254,38 +256,6 @@ class TC_Models_Composition < Test::Unit::TestCase
 
         context = Syskit::DependencyInjectionContext.new('srv' => component)
         composition.instanciate(orocos_engine, context)
-    end
-
-    def test_state_using_child_component
-        cmp_model = Composition.new_submodel 
-        cmp_model.add simple_task_model, :as => 'child'
-        cmp_model.state.pose = cmp_model.child.out
-
-        source = cmp_model.state.pose.data_source
-        assert_equal source, cmp_model.child.out
-        assert_equal source.type, cmp_model.state.pose.type
-
-        cmp = instanciate_component(cmp_model)
-        flexmock(cmp).should_receive(:execute).and_yield
-        flexmock(cmp).should_receive(:data_reader).with('child', 'out').once.and_return(reader = flexmock)
-        cmp.resolve_state_sources
-        assert_equal reader, cmp.state.data_sources.pose.reader
-    end
-
-    def test_state_using_child_service
-        cmp_model = Composition.new_submodel 
-        cmp_model.add simple_service_model, :as => 'child'
-        cmp_model.state.pose = cmp_model.child.srv_out
-
-        source = cmp_model.state.pose.data_source
-        assert_equal source, cmp_model.child.srv_out
-        assert_equal source.type, cmp_model.state.pose.type
-
-        cmp = instanciate_component(cmp_model.use('child' => simple_task_model))
-        flexmock(cmp).should_receive(:execute).and_yield
-        flexmock(cmp).should_receive(:data_reader).with('child', 'srv_out').once.and_return(reader = flexmock)
-        cmp.resolve_state_sources
-        assert_equal reader, cmp.state.data_sources.pose.reader
     end
 end
 

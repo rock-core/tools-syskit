@@ -5,7 +5,7 @@ module Syskit
         # models (for instance Device.new_submodel)
         class DataServiceModel < Roby::TaskModelTag
             include Models::Base
-            include Models::Component
+            include Syskit::Models::PortAccess
 
             class << self
                 # Each subclass of DataServiceModel maps to a "base" module that
@@ -53,12 +53,6 @@ module Syskit
                         yield(m)
                     end
                 end
-            end
-
-            # Returns the string that should be used to display information
-            # about this model to the user
-            def short_name
-                name || "Anonymous"
             end
 
             # The model next in the ancestry chain, or nil if +self+ is root

@@ -2,86 +2,6 @@ module Syskit
         DataService = Models::DataServiceModel.new
         Models::DataServiceModel.base_module = DataService
         module DataService
-            module ClassExtension
-                def find_data_services(&block)
-                    each_data_service.find_all(&block)
-                end
-
-                def each_device(&block)
-                    each_data_service.find_all { |_, srv| srv.model < Device }.
-                        each(&block)
-                end
-
-                # Generic data service selection method, based on a service type
-                # and an optional service name. It implements the following
-                # algorithm:
-                #  
-                #  * only services that match +target_model+ are considered
-                #  * if there is only one service of that type and no pattern is
-                #    given, that service is returned
-                #  * if there is a pattern given, it must be either the service
-                #    full name or its subname (for slaves)
-                #  * if an ambiguity is found between root and slave data
-                #    services, and there is only one root data service matching,
-                #    that data service is returned.
-                def find_matching_service(target_model, pattern = nil)
-                    # Find services in +child_model+ that match the type
-                    # specification
-                    matching_services = find_all_services_from_type(target_model)
-
-                    if pattern # match by name too
-                        # Find the selected service. There can be shortcuts, so
-                        # for instance bla.left would be able to select both the
-                        # 'left' main service or the 'bla.blo.left' slave
-                        # service.
-                        rx = /(^|\.)#{pattern}$/
-                        matching_services.delete_if { |service| service.full_name !~ rx }
-                    end
-
-                    if matching_services.size > 1
-                        main_matching_services = matching_services.
-                            find_all { |service| service.master? }
-
-                        if main_matching_services.size != 1
-                            raise Ambiguous, "there is more than one service of type #{target_model.name} in #{self.name}: #{matching_services.map(&:name).join(", ")}); you must select one explicitely with a 'use' statement"
-                        end
-                        selected = main_matching_services.first
-                    else
-                        selected = matching_services.first
-                    end
-
-                    selected
-                end
-
-                # call-seq:
-                #   TaskModel.each_slave_data_service do |name, service|
-                #   end
-                #
-                # Enumerates all services that are slave (i.e. not slave of other
-                # services)
-                def each_slave_data_service(master_service, &block)
-                    each_data_service(nil).
-                        find_all { |name, service| service.master == master_service }.
-                        map { |name, service| [service.name, service] }.
-                        each(&block)
-                end
-
-
-                # call-seq:
-                #   TaskModel.each_root_data_service do |name, source_model|
-                #   end
-                #
-                # Enumerates all services that are root (i.e. not slave of other
-                # services)
-                def each_root_data_service(&block)
-                    each_data_service(nil).
-                        find_all { |name, srv| srv.master? }.
-                        each(&block)
-                end
-            end
-
-            extend ClassExtension
-
             # Returns true if +self+ can replace +target_task+ in the plan. The
             # super() call checks graph-declared dependencies (i.e. that all
             # dependencies that +target_task+ meets are also met by +self+.
@@ -277,7 +197,7 @@ module Syskit
             # either because the source is assigned as well to the same device,
             # or because it is not assigned yet
             def each_service_merge_candidate(other_task) # :nodoc:
-                other_task.model.each_root_data_service do |name, other_service|
+                other_task.model.each_root_data_service do |other_service|
                     other_selection = other_task.selected_device(other_service)
 
                     self_selection = nil
@@ -332,7 +252,7 @@ module Syskit
                 # component model
                 def each_master_device(&block)
                     result = []
-                    each_root_data_service.each do |_, srv|
+                    each_root_data_service.each do |srv|
                         if srv.model < Device
                             result << srv
                         end
