@@ -43,38 +43,41 @@ class TC_InstanceRequirements < Test::Unit::TestCase
         end
     end
 
-    def test_instance_spec_port
+    def test_port
         spec = InstanceRequirements.new([simple_task_model])
         port = spec.out_port
         assert_equal Models::Component::Port.new(spec, simple_task_model.find_output_port('out')), port
     end
 
-    def test_instance_spec_service
+    def test_service
         spec = InstanceRequirements.new([simple_task_model])
         srv = spec.simple_service_srv
         assert_equal srv.models, spec.models
         assert_equal simple_task_model.simple_service_srv, srv.service
     end
 
-    def test_instance_spec_service_port
+    def test_service_port
         spec = InstanceRequirements.new([simple_task_model])
         srv = spec.simple_service_srv
         port = srv.srv_out_port
         assert_equal Models::Component::Port.new(srv, simple_task_model.find_output_port('out')), port
     end
 
-    def test_instance_spec_child
+    def test_child
         spec = simple_composition_model.use(simple_task_model)
         child = spec.srv_child
         assert_same spec, child.composition
     end
 
-    def test_instance_spec_child_port
+    def test_child_port
         spec = simple_composition_model.use(simple_task_model)
         child = spec.srv_child
         port = child.srv_out_port
         assert_equal Models::Component::Port.new(child, simple_service_model.find_output_port('srv_out')), port
     end
-end
 
+    def test_composition_use_validates_child_name_to_service_mapping
+        raise NotImplementedError
+    end
+end
 

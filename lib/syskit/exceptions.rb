@@ -468,9 +468,30 @@ module Syskit
             end
         end
 
+        # Exception raised when the dependency injection resolves to a selection
+        # that is not compatible with the expected type
+        class InvalidComponentSelection < InstanciationError
+            # [Model<DataService>,Model<Component>] the expected model
+            attr_reader :expected_model
+            # [String] the selection name
+            attr_reader :name
+            # [Model<DataService>,Model<Component>] the model found by the
+            # dependency injection
+            attr_reader :model
+
+            def initialize(expected_model, name, model)
+                @expected_model, @name, @model =
+                    expected_model, name, model
+            end
+
+            def pretty_print(pp)
+                pp.text "model #{expected_model.short_name} found for '#{name}' is incompatible with the expected model #{expected_model.short_name}"
+            end
+        end
+
         # Exception raised when the user provided a composition child selection
         # that is not compatible with the child definition
-        class InvalidSelection < InstanciationError
+        class InvalidCompositionChildSelection < InstanciationError
             # The composition model
             attr_reader :composition_model
             # The child name for which the selection is invalid
@@ -502,18 +523,21 @@ module Syskit
         # Exception raised during instanciation if a name is found that cannot
         # be resolved
         class NameResolutionError < InstanciationError
-            # Selection information about what +missing_name+ was being used for
-            attr_accessor :selection
-            # The missing name
-            attr_reader :missing_name
+            # The names that are missing
+            attr_reader :missing_names
 
-            def initialize(missing_name)
+            def initialize(missing_names)
                 super()
-                @missing_name = missing_name
+                @missing_names =
+                    if !missing_names.respond_to?(:each)
+                        [missing_names]
+                    else
+                        missing_names.to_a
+                    end
             end
 
             def pretty_print(pp)
-                pp.text "#{missing_name} is neither a device nor an instance definition"
+                pp.text "cannot resolve the names #{missing_names.sort.join(", ")}"
                 if !instanciation_chain.empty?
                     pp.breakable
                     super
@@ -617,6 +641,22 @@ module Syskit
                         pp.text spec[0].short_name
                     end
                 end
+            end
+        end
+
+        # Exception raised when two lists of models cannot be merged
+        #
+        # See Models.merge_model_lists
+        class IncompatibleComponentModels < RuntimeError
+            attr_reader :model_a
+            attr_reader :model_b
+
+            def initialize(model_a, model_b)
+                @model_a, @model_b = model_a, model_b
+            end
+            
+            def pretty_print(pp)
+                pp.text "models #{model_a.short_name} and #{model_b.short_name} are incompatible"
             end
         end
 end

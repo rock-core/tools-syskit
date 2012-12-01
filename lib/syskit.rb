@@ -10,10 +10,6 @@ require 'utilrb/timepoints'
 
 require 'syskit/base'
 
-require 'syskit/dependency_injection'
-require 'syskit/instance_requirements'
-require 'syskit/instance_selection'
-require 'syskit/data_service_access'
 # Models
 require 'syskit/models/base'
 require 'syskit/models/port'
@@ -21,7 +17,6 @@ require 'syskit/models/port_access'
 require 'syskit/models/data_service'
 require 'syskit/models/component'
 require 'syskit/models/bound_data_service'
-require 'syskit/models/composition_child'
 require 'syskit/models/composition'
 require 'syskit/models/task_context'
 require 'syskit/models/deployment'
@@ -33,6 +28,13 @@ require 'syskit/composition'
 require 'syskit/task_context'
 require 'syskit/deployment'
 require 'syskit/bound_data_service'
+
+# Dependency injection
+require 'syskit/dependency_injection'
+require 'syskit/instance_requirements'
+require 'syskit/instance_selection'
+
+require 'syskit/models/composition_child'
 
 # Algorithms
 require 'syskit/connection_graphs'

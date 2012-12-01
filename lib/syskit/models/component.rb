@@ -271,26 +271,18 @@ module Syskit
                 result
             end
 
-            def find_service_from_type(type)
-                find_data_service_from_type(type)
-            end
-
             # Finds a single service that provides +type+
             #
             # If multiple services exist with that signature, raises
             # AmbiguousServiceSelection
             def find_data_service_from_type(type)
-                candidates = find_all_services_from_type(type)
+                candidates = find_all_data_services_from_type(type)
                 if candidates.size > 1
                     raise AmbiguousServiceSelection.new(self, type, candidates),
                         "multiple services match #{type.short_name} on #{short_name}"
                 elsif candidates.size == 1
                     return candidates.first
                 end
-            end
-
-            def find_all_services_from_type(type)
-                find_all_data_services_from_type(type)
             end
 
             # Finds all the services that fullfill the given service type

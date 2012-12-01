@@ -4,12 +4,6 @@ require 'syskit/test'
 class TC_Models_BoundDataService < Test::Unit::TestCase
     include Syskit::SelfTest
 
-    def setup
-	Roby.app.using 'orocos'
-	Roby.app.orocos_disables_local_process_server = true
-	super
-    end
-
     DataService = Syskit::DataService
 
     def setup_stereocamera

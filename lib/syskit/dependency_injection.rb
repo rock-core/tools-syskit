@@ -1,6 +1,9 @@
 module Syskit
         # Representation and manipulation of dependency injection selection
         class DependencyInjection
+            extend Logger::Hierarchy
+            extend Logger::Forward
+
             attr_reader :explicit
             attr_reader :defaults
 
@@ -72,10 +75,9 @@ module Syskit
                 end
             end
 
-            # call-seq:
-            #   add(default0, default1, key0 => value0)
-            #   add([default0, default1], key0 => value0)
-            #   add(dependency_injection)
+            # @overload add(default0, default1, key0 => value0)
+            # @overload add([default0, default1], key0 => value0)
+            # @overload add(dependency_injection)
             #
             # Add default and explicit selections in one call
             def add(*mappings)
@@ -83,7 +85,7 @@ module Syskit
                     deps = mappings.first
                     explicit, defaults = deps.explicit, deps.defaults
                 else
-                    explicit, defaults = DependencyInjection.validate_use_argument(*mappings)
+                    explicit, defaults = DependencyInjection.partition_use_arguments(*mappings)
                 end
 
                 add_explicit(explicit)
@@ -96,9 +98,81 @@ module Syskit
             # The new mapping overrides existing mappings
             def add_explicit(mappings)
                 # Invalidate the @resolved cached
-                @resolved = nil
+                if !defaults.empty?
+                    @resolved = nil
+                end
                 explicit.merge!(mappings)
-                @explicit = DependencyInjection.resolve_recursive_selection_mapping(explicit)
+                @explicit = 
+                    DependencyInjection.normalize_selection(
+                        DependencyInjection.resolve_recursive_selection_mapping(explicit))
+            end
+
+            # Normalizes an explicit selection
+            #
+            # The input can map any of string, Component and DataService to
+            # string, Component, DataService and BoundDataService
+            #
+            # A normalized selection has this form:
+            #
+            # * string to String,Component,DataService,BoundDataService,nil
+            # * Component to String,Component,nil
+            # * DataService to String,DataService,BoundDataService,nil
+            #
+            # @raises ArgumentError if the key and value are not valid
+            #   selection (see above)
+            # @raises ArgumentError if the selected component or service does
+            #   not fullfill the key
+            # @raises AmbiguousServiceSelection if a component is selected for a
+            #   data service, but there are multiple services of that type in
+            #   the component
+            def self.normalize_selection(selection)
+                normalized = Hash.new
+                selection.each do |key, value|
+                    # 'key' must be one of String, Component or DataService
+                    if !key.respond_to?(:to_str) &&
+                        !key.kind_of?(Models::DataServiceModel) &&
+                        (!key.kind_of?(Class) || !(key <= Component))
+
+                        raise ArgumentError, "found #{value} as a selection key, but only names, component models and data service models are allowed"
+                    end
+
+                    # 'value' must be one of String,
+                    # Component,DataService,BoundDataService or nil
+                    if value &&
+                        !value.respond_to?(:to_str) &&
+                        !value.kind_of?(Models::BoundDataService) &&
+                        !value.kind_of?(Models::DataServiceModel) &&
+                        (!value.kind_of?(Class) || !(value <= Component))
+
+                        raise ArgumentError, "found #{value} as a selection for #{key}, but only nil, names,component models, data service models and bound data services are allowed"
+                    end
+
+                    if key.respond_to?(:to_str)
+                        normalized[key] = value
+                        next
+                    end
+
+                    if value.respond_to?(:fullfills?)
+                        if !value.fullfills?(key)
+                            raise ArgumentError, "found #{value.short_name} as a selection for #{key.short_name}, but #{value.short_name} does not fullfill #{key.short_name}"
+                        end
+                    end
+
+                    if key <= Component
+                        if value.kind_of?(Models::BoundDataService)
+                            value = value.component_model
+                        end
+                        normalized[key] = value
+                    elsif key <= DataService
+                        if value.kind_of?(Class) && (value <= Component)
+                            value = value.find_data_service_from_type(key)
+                        end
+                        normalized[key] = value
+                    else
+                        raise NotImplementedError, "should not have get there, but did"
+                    end
+                end
+                normalized
             end
 
             # Add a list of objects to the default list. 
@@ -106,81 +180,89 @@ module Syskit
                 # Invalidate the @resolved cached
                 @resolved = nil
                 @defaults |= list
-                seen = Set.new
-                @defaults.delete_if do |obj|
-                    if seen.include?(obj)
-                        true
-                    else
-                        seen << obj
-                        false
-                    end
-                end
             end
 
-            # Returns true if this object contains a selection for the given
-            # criteria
+            # Returns the selected instance based on the given name and
+            # requirements
             #
-            # See #candidates_for for the description of the criteria list
-            def has_selection?(*criteria)
-                !candidates_for(*criteria).empty?
-            end
-
-            # Returns a list of candidates for the given selection criteria
-            # based on the information in +self+
-            def candidates_for(*criteria)
+            # @param [String,nil] name the selection name if there is one, or nil
+            # @param [InstanceRequirements] requirements the requirements for the selected
+            #   instance
+            # @return [InstanceSelection] the selected instance. If no matching
+            #   selection is found, a matching model task proxy is created.
+            def instance_selection_for(name, requirements)
                 if defaults.empty?
                     selection = self.explicit
                 else
                     @resolved ||= resolve
-                    return @resolved.candidates_for(*criteria)
+                    return @resolved.selection_for(name, requirements)
                 end
 
-                criteria.each do |obj|
-                    required_models = []
-                    case obj
-                    when String
-                        if result = selection[obj]
-                            return [result]
-                        end
-                    when InstanceRequirements
-                        required_models = obj.models
-                    when Models::DataServiceModel
-                        required_models = [obj]
-                    else
-                        if obj <= Component
-                            required_models = [obj]
+                candidates = Hash.new
+                if name && (selected_model = selection[name])
+                    requirements.models.each do |required_m|
+                        candidates[required_m] = selected_model
+                    end
+                    candidates = DependencyInjection.normalize_selection(candidates)
+                else
+                    requirements.models.each do |required_m|
+                        if selected = selection[required_m]
+                            candidates[required_m] = selected
                         else
-                            raise ArgumentError, "unknown criteria object #{obj}, expected a string or an InstanceRequirements object"
+                            candidates[required_m] = required_m
                         end
                     end
-
-                    candidates = required_models.inject(Set.new) do |candidates, m|
-                        candidates << (selection[m] || selection[m.name])
-                    end
-                    candidates.delete(nil)
-                    if !candidates.empty?
-                        return candidates
-                    end
                 end
-                []
+
+                component_model, service_selections = resolve_multiple_selections(candidates)
+                port_mappings = Hash.new
+                service_selections.each do |required_m, selected_m|
+                    # We have to apply both the required_m>selected_m and
+                    # selected_m>task
+                    port_mappings.merge!(selected_m.port_mappings_for(required_m))
+                end
+                
+                selection = InstanceSelection.new(requirements)
+                selection.component_model = component_model
+                selection.selected_services = service_selections
+                selection.port_mappings = port_mappings
+                selection
             end
 
-            # Like #candidates_for, but returns a single match
+            # If multiple selections match the parameters of
+            # #selected_task_model_for, this method is called to resolve them
+            # into a single task model.
             #
-            # The match is either nil if there is an ambiguity (multiple
-            # matches) or if there is no match.
-            def selection_for(*criteria)
-                candidates = candidates_for(*criteria)
-                if candidates.size == 1
-                    return candidates.first
+            # @return [Array(Model<Component>,Hash{Model<DataService>=>Models::BoundDataService}] the selected
+            #   task model, and the mappings from required data services to the
+            #   bound data services on the task model
+            def resolve_multiple_selections(candidates)
+                set = Array.new
+                candidates.each do |key, model|
+                    if model.respond_to?(:component_model)
+                        set = Models.merge_model_lists(set, [model.component_model])
+                    else
+                        set = Models.merge_model_lists(set, [model])
+                    end
                 end
+
+                component_model = Models.proxy_task_model_for(set)
+                candidates.delete(component_model)
+
+                mappings = candidates.map_value do |model|
+                    if model.kind_of?(Models::DataServiceModel)
+                        component_model.find_data_service_from_type(model)
+                    else model
+                    end
+                end
+                return component_model, mappings
             end
 
             def initialize_copy(from)
                 @resolved = nil
                 @explicit = from.explicit.map_value do |key, obj|
                     case obj
-                    when InstanceRequirements, InstanceSelection
+                    when InstanceRequirements
                         obj.dup
                     else obj
                     end
@@ -189,7 +271,7 @@ module Syskit
                 from.defaults.each do |obj|
                     obj =
                         case obj
-                        when InstanceRequirements, InstanceSelection
+                        when InstanceRequirements
                             obj.dup
                         else obj
                         end
@@ -205,46 +287,64 @@ module Syskit
                 DependencyInjection.new(DependencyInjection.resolve_recursive_selection_mapping(result))
             end
 
-            def resolve_name(name, mappings)
-                if name =~ /(.*)\.(\w+)$/
+            # Resolves a name into a component object
+            #
+            # @param [String] name the name to be resolved. It can be a plain
+            #   name, i.e. the name of a component in {mappings}, or a
+            #   name.service, i.e. the name of a service for a component in
+            #   {mappings}
+            # @param [Hash] mappings (see DependencyInjection#explicit)
+            # @return [#instanciate,nil] the component model or nil if the name
+            #   cannot be resolved
+            # @raise [NameResolutionError] if the name cannot be resolved,
+            #   either because the base name does not exist or the specified
+            #   service cannot be found in it
+            def self.find_name_resolution(name, mappings)
+                if name =~ /^(\w+)\.(.*)$/
                     object_name, service_name = $1, $2
                 else
                     object_name = name
                 end
 
                 main_object = DependencyInjection.resolve_selection_recursively(object_name, mappings)
-                if main_object.respond_to?(:to_str)
-                    raise NameResolutionError.new(object_name), "#{object_name} is not a known device or definition"
-                end
+                return if !main_object || main_object.respond_to?(:to_str)
 
                 if service_name
-                    main_object = InstanceSelection.from_object(main_object, InstanceRequirements.new, false)
-                    if !(task_model = main_object.requirements.models.find { |m| m <= Roby::Task })
-                        raise ArgumentError, "while resolving #{name}: cannot explicitely select a service on something that is not a task"
+                    if !main_object.respond_to?(:find_data_service)
+                        raise NameResolutionError.new(object_name), "cannot select a service on #{main_object}"
                     end
-
-                    if service = InstanceSelection.select_service_by_name(task_model, service_name)
-                        service
+                    if srv = main_object.find_data_service(service_name)
+                        return srv
                     else
-                        raise ArgumentError, "cannot find service #{service_name} on #{object_name}"
+                        raise NameResolutionError.new(object_name), "#{main_object} has no service called #{service_name}"
                     end
+                else return main_object
                 end
-
-                main_object
             end
 
             # Recursively resolve the selections that are specified as strings
             # using the provided block
-            def resolve_names(mapping = self.explicit, &block)
+            #
+            # @return [Set<String>] the set of names that could not be resolved
+            def resolve_names(mapping = self.explicit)
+                unresolved = Set.new
                 map! do |v|
                     if v.respond_to?(:to_str)
-                        resolve_name(v, mapping)
+                        result = DependencyInjection.find_name_resolution(v, mapping)
+                        if !result
+                            unresolved << v
+                            v
+                        else result
+                        end
+
                     elsif v.respond_to?(:resolve_names)
-                        v.resolve_names(&block)
+                        # The value is e.g. an InstanceRequirements 
+                        unresolved |= v.resolve_names(mapping)
                         v
                     else v
                     end
                 end
+                unresolved
             end
 
             # Removes the unresolved instances from the list of selections
@@ -300,25 +400,6 @@ module Syskit
                 explicit.each_key(&block)
             end
 
-            # Merge the selections in +other+ into +self+.
-            #
-            # If both objects provide selections for the same keys,
-            # raises ArgumentError if the two selections are incompatible
-            def merge(other)
-                # Invalidate the @resolved cached
-                @resolved = nil
-                @explicit.merge!(other.explicit) do |match, model1, model2|
-                    if model1 <= model2
-                        model1
-                    elsif model2 <= model1
-                        model2
-                    else
-                        raise ArgumentError, "cannot use both #{model1} and #{model2} for #{match}"
-                    end
-                end
-                @defaults |= other.defaults
-            end
-
             # Helper method that resolves recursive selections in a dependency
             # injection mapping
             def self.resolve_recursive_selection_mapping(spec)
@@ -338,6 +419,9 @@ module Syskit
                 value
             end
 
+            IGNORED_MODELS = [DataService]
+            ROOT_MODELS = [TaskContext, Component, Composition]
+
             # Helper methods that adds to a dependency inject mapping a list of
             # default selections
             #
@@ -349,16 +433,15 @@ module Syskit
                     return using_spec
                 end
 
-                Engine.debug do
-                    Engine.debug "Resolving default selections"
+                DependencyInjection.debug do
+                    DependencyInjection.debug "Resolving default selections"
                     default_selections.map(&:to_s).sort.each do |sel|
-                        Engine.debug "    #{sel}"
+                        DependencyInjection.debug "    #{sel}"
                     end
-                    Engine.debug "  into"
+                    DependencyInjection.debug "  into"
                     using_spec.map { |k, v| [k.to_s, v.to_s] }.sort.each do |k, v|
-                        Engine.debug "    #{k} => #{v}"
+                        DependencyInjection.debug "    #{k} => #{v}"
                     end
-                    Engine.debug "  rejections:"
                     break
                 end
 
@@ -370,21 +453,23 @@ module Syskit
                 default_selections.each do |selection|
                     selection = resolve_selection_recursively(selection, using_spec)
                     selection.each_fullfilled_model do |m|
+                        next if IGNORED_MODELS.include?(m)
+                        break if ROOT_MODELS.include?(m)
                         if using_spec[m]
-                            Engine.debug do
-                                Engine.debug "  rejected #{selection.short_name}"
-                                Engine.debug "    for #{m.short_name}"
-                                Engine.debug "    reason: already explicitely selected"
+                            DependencyInjection.debug do
+                                DependencyInjection.debug "  rejected #{selection.short_name}"
+                                DependencyInjection.debug "    for #{m.short_name}"
+                                DependencyInjection.debug "    reason: already explicitely selected"
                                 break
                             end
                         elsif ambiguous_default_selections.has_key?(m)
                             ambiguity = ambiguous_default_selections[m]
-                            Engine.debug do
-                                Engine.debug "  rejected #{selection.short_name}"
-                                Engine.debug "    for #{m.short_name}"
-                                Engine.debug "    reason: ambiguity with"
+                            DependencyInjection.debug do
+                                DependencyInjection.debug "  rejected #{selection.short_name}"
+                                DependencyInjection.debug "    for #{m.short_name}"
+                                DependencyInjection.debug "    reason: ambiguity with"
                                 ambiguity.each do |model|
-                                    Engine.debug "      #{model.short_name}"
+                                    DependencyInjection.debug "      #{model.short_name}"
                                 end
                                 break
                             end
@@ -392,27 +477,27 @@ module Syskit
                         elsif resolved_default_selections[m] && resolved_default_selections[m] != selection
                             removed = resolved_default_selections.delete(m)
                             ambiguous_default_selections[m] = [selection, removed].to_set
-                            Engine.debug do
-                                Engine.debug "  removing #{removed.short_name}"
-                                Engine.debug "    for #{m.short_name}"
-                                Engine.debug "    reason: ambiguity with"
-                                Engine.debug "      #{selection.short_name}"
+                            DependencyInjection.debug do
+                                DependencyInjection.debug "  removing #{removed.short_name}"
+                                DependencyInjection.debug "    for #{m.short_name}"
+                                DependencyInjection.debug "    reason: ambiguity with"
+                                DependencyInjection.debug "      #{selection.short_name}"
                                 break
                             end
-                        elsif selection != m
-                            Engine.debug do
-                                Engine.debug "  adding #{selection.short_name}"
-                                Engine.debug "    for #{m.short_name}"
+                        else
+                            DependencyInjection.debug do
+                                DependencyInjection.debug "  adding #{selection.short_name}"
+                                DependencyInjection.debug "    for #{m.short_name}"
                                 break
                             end
                             resolved_default_selections[m] = selection
                         end
                     end
                 end
-                Engine.debug do
-                    Engine.debug "  selected defaults:"
+                DependencyInjection.debug do
+                    DependencyInjection.debug "  selected defaults:"
                     resolved_default_selections.each do |key, sel|
-                        Engine.debug "    #{key.respond_to?(:short_name) ? key.short_name : key}: #{sel}"
+                        DependencyInjection.debug "    #{key.respond_to?(:short_name) ? key.short_name : key}: #{sel}"
                     end
                     break
                 end
@@ -424,7 +509,7 @@ module Syskit
             #
             # @return <Hash, Array> the explicit selections and a list of
             #     default selections
-            def self.validate_use_argument(*mappings)
+            def self.partition_use_arguments(*mappings)
                 explicit = Hash.new
                 defaults = Array.new
                 mappings.each do |element|
@@ -517,6 +602,13 @@ module Syskit
             #
             # The first restore returns to the state in the second save and the
             # second restore returns to the state in thef first save.
+            #
+            # @overload save()
+            #   adds a savepoint that is going to be restored by the matching
+            #   {restore} call
+            # @overload save { }
+            #   saves the current state, executes the block and calls {restore}
+            #   when the execution quits the block
             def save
                 if !block_given?
                     @savepoints << stack.size
@@ -539,7 +631,9 @@ module Syskit
                 stack.last.resolver
             end
 
-            # The opposite of #save
+            # The opposite of {save}
+            #
+            # Save and restore calls are paired. See #save for more information.
             def restore
                 expected_size = @savepoints.pop
                 if !expected_size
@@ -585,7 +679,10 @@ module Syskit
 
                 new_state = stack.last.resolver.dup
                 # Resolve all names
-                spec.resolve_names(new_state.explicit.merge(spec.explicit))
+                unresolved = spec.resolve_names(new_state.explicit.merge(spec.explicit))
+                if !unresolved.empty?
+                    raise NameResolutionError.new(unresolved), "could not resolve names while pushing #{spec} on #{self}"
+                end
                 # Resolve recursive selection, and default selections
                 spec = spec.resolve
                 # Finally, add it to the new state

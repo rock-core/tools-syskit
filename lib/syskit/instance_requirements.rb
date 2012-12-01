@@ -49,6 +49,20 @@ module Syskit
                 @service = service
             end
 
+            def self.from_object(object)
+                if object.kind_of?(InstanceRequirements)
+                    object.dup
+                elsif (object.kind_of?(Class) && object <= Component) || object.kind_of?(Models::DataServiceModel)
+                    InstanceRequirements.new([object])
+                elsif object.kind_of?(Models::BoundDataService)
+                    req = InstanceRequirements.new([object.component_model])
+                    req.select_service(object)
+                    req
+                else
+                    raise ArgumentError, "expected an instance requirement object, a component model, a data service model or a bound data service, got #{object}"
+                end
+            end
+
             # Add new models to the set of required ones
             def add_models(new_models)
                 new_models = new_models.dup
@@ -122,47 +136,12 @@ module Syskit
                 end
             end
 
-            # Merges two lists of models into a single one.
-            #
-            # The resulting list can only have a single class object. Modules
-            # that are already included in these classes get removed from the
-            # list as well
-            #
-            # Raises if +a+ and +b+ contain two classes that can't be mixed.
-            def self.merge_model_lists(a, b)
-                a_classes, a_modules = a.partition { |k| k.kind_of?(Class) }
-                b_classes, b_modules = b.partition { |k| k.kind_of?(Class) }
-
-                klass = a_classes.first || b_classes.first
-                a_classes.concat(b_classes).each do |k|
-                    if k < klass
-                        klass = k
-                    elsif !(klass <= k)
-                        raise ArgumentError, "cannot merge #{a} and #{b}: classes #{k} and #{klass} are not compatible"
-                    end
-                end
-
-                result = ValueSet.new
-                result << klass if klass
-                a_modules.concat(b_modules).each do |m|
-                    do_include = true
-                    result.delete_if do |other_m|
-                        do_include &&= !(other_m <= m)
-                        m < other_m
-                    end
-                    if do_include
-                        result << m
-                    end
-                end
-                result
-            end
-
             # Merges +self+ and +other_spec+ into +self+
             #
             # Throws ArgumentError if the two specifications are not compatible
             # (i.e. can't be merged)
             def merge(other_spec)
-                @base_models = InstanceRequirements.merge_model_lists(@base_models, other_spec.base_models)
+                @base_models = Models.merge_model_lists(@base_models, other_spec.base_models)
                 @arguments = @arguments.merge(other_spec.arguments) do |name, v1, v2|
                     if v1 != v2
                         raise ArgumentError, "cannot merge #{self} and #{other_spec}: argument value mismatch for #{name}, resp. #{v1} and #{v2}"
@@ -283,38 +262,6 @@ module Syskit
                 @deployment_hints |= patterns.to_set
             end
 
-            # Add a new model in the base_models set, and update +models+
-            # accordingly
-            #
-            # This method will keep the base_models consistent: +model+ is added
-            # only if it is not yet provided in base_models, and any model in
-            # +base_models+ that is also provided by +model+ will be removed.
-            #
-            # Returns true if +model+ did add a new constraint to the
-            # specification, and false otherwise
-            def require_model(model)
-                if !model.kind_of?(Module) && !model.kind_of?(Class)
-                    raise ArgumentError, "expected module or class, got #{model} of class #{model.class}"
-                end
-                need_model = true
-                base_models.delete_if do |m|
-                    if model < m
-                        true
-                    elsif m <= model
-                        need_model = false
-                        false
-                    end
-                end
-
-                if need_model
-                    base_models << model
-                    narrow_model
-                    return true
-                else
-                    return false
-                end
-            end
-
             # Computes the value of +model+ based on the current selection
             # (in #selections) and the base model specified in #add or
             # #define
@@ -367,19 +314,10 @@ module Syskit
                 @required_host = name
             end
 
-            def instanciation_model
-                task_model = models.find { |m| m <= Roby::Task }
-                if task_model && models.size == 1
-                    return task_model
-                else 
-                    return Syskit.proxy_task_model_for(models)
-                end
-            end
-
             # Returns a task that can be used in the plan as a placeholder for
             # this instance
-            def create_placeholder_task
-                task_model = instanciation_model
+            def create_proxy_task
+                task_model = Syskit.proxy_task_model_for(models)
                 task = task_model.new(@arguments)
                 task.required_host = self.required_host
                 task.abstract = true
@@ -388,7 +326,11 @@ module Syskit
 
             # Create a concrete task for this requirement
             def instanciate(engine, context, arguments = Hash.new)
-                task_model = instanciation_model
+                task_model =
+                    if models.size == 1 && (models.first <= Component)
+                        models.first
+                    else Syskit.proxy_task_model_for(models)
+                    end
 
                 context.push(selections)
 
@@ -406,10 +348,6 @@ module Syskit
                     raise InternalError, "instanciated task #{@task} does not provide the required models #{base_models.map(&:short_name).join(", ")}"
                 end
 
-                if models.size > 1
-                    task.abstract = true
-                end
-
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host
                 end
@@ -423,50 +361,6 @@ module Syskit
             rescue InstanciationError => e
                 e.instanciation_chain << self
                 raise
-            end
-
-            # Resolves a selection given through the #use method
-            #
-            # It can take, as input, one of:
-            # 
-            # * an array, in which case it is called recursively on each of
-            #   the array's elements.
-            # * an EngineRequirement (returned by Engine#add)
-            # * a name
-            #
-            # In the latter case, the name refers either to a device name,
-            # or to the name given through the ':as' argument to Engine#add.
-            # A particular service can also be selected by adding
-            # ".service_name" to the component name.
-            #
-            # The returned value is either an array of resolved selections,
-            # a Component instance or an InstanciatedDataService instance.
-            def self.resolve_explicit_selection(value, engine)
-                case value
-                when DeviceInstance
-                    if value.task
-                        value.service.bind(value.task)
-                    else
-                        value.service
-                    end
-                        
-                when EngineRequirement, Models::BoundDataService, Roby::Task, CompositionChild
-                    value
-                when Class
-                    if value <= Component
-                        value
-                    else
-                        raise ArgumentError, "#{value} is not a valid explicit selection"
-                    end
-                when BoundDataService
-                    return value
-                else
-                    if value.respond_to?(:to_ary)
-                        value.map { |v| resolve_explicit_selection(v, engine) }
-                    else
-                        raise ArgumentError, "#{value} is not a valid explicit selection"
-                    end
-                end
             end
 
             def each_fullfilled_model(&block)

@@ -109,7 +109,7 @@ module Syskit
                 result
             end
 
-            def self.from_object(object, requirements, user_call = true)
+            def self.from_object(object, requirements = InstanceRequirements.new, user_call = true)
                 result = InstanceSelection.new(requirements.dup)
                 required_model = requirements.models
 

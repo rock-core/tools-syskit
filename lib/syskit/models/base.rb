@@ -169,6 +169,42 @@ module Syskit
                 end
             end
         end
+
+        # Merges two lists of models into a single one.
+        #
+        # The resulting list can only have a single class object. Modules
+        # that are already included in these classes get removed from the
+        # list as well
+        #
+        # @raise [IncompatibleModelLists] if the two lists contain incompatible
+        #   models
+        def self.merge_model_lists(a, b)
+            a_classes, a_modules = a.partition { |k| k.kind_of?(Class) }
+            b_classes, b_modules = b.partition { |k| k.kind_of?(Class) }
+
+            klass = a_classes.first || b_classes.first
+            a_classes.concat(b_classes).each do |k|
+                if k < klass
+                    klass = k
+                elsif !(klass <= k)
+                    raise IncompatibleModelLists, "models #{k.short_name} and #{klass.short_name} are not compatible"
+                end
+            end
+
+            result = ValueSet.new
+            result << klass if klass
+            a_modules.concat(b_modules).each do |m|
+                do_include = true
+                result.delete_if do |other_m|
+                    do_include &&= !(other_m <= m)
+                    m < other_m
+                end
+                if do_include
+                    result << m
+                end
+            end
+            result
+        end
     end
 end
 

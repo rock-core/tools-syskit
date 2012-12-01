@@ -193,6 +193,9 @@ module Syskit
         include Roby::SelfTest
 
         def setup
+            Roby.app.using 'orocos'
+            Roby.app.orocos_disables_local_process_server = true
+
             super
             Orocos.load
         end
