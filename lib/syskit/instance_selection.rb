@@ -1,17 +1,67 @@
 module Syskit
         # A representation of a selection matching a given requirement
         class InstanceSelection
-            attr_reader :requirements
+            # [InstanceRequirements] the required instance
+            attr_reader :required
+            # [InstanceRequirements] the selected instance. It can only refer to
+            # a single component model. This model is available with
+            # {#component_model}
+            attr_reader :selected
+            # [{Model<DataService> => Models::BoundDataService}] a mapping from
+            # the services in {#required} to the services of {#component_model}.
+            attr_reader :service_selection
 
-            attr_predicate :explicit?, true
-            attr_accessor :selected_task
-            attr_accessor :selected_services
-            attr_accessor :port_mappings
+            def initialize(selected, required, mappings = Hash.new)
+                if selected.base_models.size != 1 || !selected.base_models.first.kind_of?(Models::Component)
+                    raise ArgumentError, "a selected instance in InstanceSelection can only have a single component model (composite models are not allowed)"
+                end
+                @selected = selected
+                @required = required
+                @service_selection = Hash.new
+                compute_service_selection(mappings)
+            end
 
-            def initialize(requirements)
-                @requirements = requirements
-                @selected_services = Hash.new
-                @port_mappings = Hash.new
+            # Returns the selected component model
+            def component_model
+                selected.base_models.first
+            end
+
+            # Computes the service selection that will allow to replace a
+            # placeholder representing the required models by the given
+            # component model. The additional mappings are only used as hints.
+            #
+            # @param [Model<Component>] component_m the component model
+            # @param [Array<Model<Component>,Model<DataService>>] required
+            #   the set of models that are required
+            # @param [{Model<DataService>=>Models::BoundDataService}] mappings a mapping
+            #   from data service models to the corresponding selected model on
+            #   the component model
+            # @return [{Model<DataService>=>Models::BoundDataService}] the
+            #   mapping from the data service models in required_models to the
+            #   corresponding bound data services in component_m
+            #
+            # @raise [ArgumentError] if a service in mappings is either not a
+            #   service of component_model, or does not fullfill the data service
+            #   it is selected for
+            # @raise (see Models::Component#find_data_service_from_type)
+            def self.compute_service_selection(component_m, required, mappings)
+                selection = Hash.new
+                component_m = component_model
+
+                required.base_models.each do |required_m|
+                    if selected_m = mappings[required_m]
+                        # Verify that it is of the right type
+                        if !selected_m.fullfills?(component_m)
+                            raise ArgumentError, "#{selected_m} was explicitly selected for #{required_m}, but is not a service of the selected component model #{component_m}"
+                        elsif !selected_m.fullfills?(required_m)
+                            raise ArgumentError, "#{selected_m} was explicitly selected for #{required_m}, but does not provide it"
+                        end
+                    else
+                        selected_m = component_m.find_data_service_from_type(required_m)
+                    end
+                    service_selection[required_m] = selected_m
+                end
+                selection
             end
 
             def to_component

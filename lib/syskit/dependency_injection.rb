@@ -183,6 +183,12 @@ module Syskit
                 @defaults |= list
             end
 
+            # Returns the 
+            def instance_selection_for(name, requirements)
+                component_model, selected_services = component_model_for(name, requirements)
+                InstanceSelection.new(InstanceRequirements.new(component_model), requirements, selected_services)
+            end
+
             # Returns the selected instance based on the given name and
             # requirements
             #
@@ -191,72 +197,34 @@ module Syskit
             #   instance
             # @return [InstanceSelection] the selected instance. If no matching
             #   selection is found, a matching model task proxy is created.
-            def instance_selection_for(name, requirements)
+            # @raise [IncompatibleComponentModels] if the various selections
+            #   lead to component models that are incompatible (i.e. to two
+            #   component models that are different and not subclassing one
+            #   another)
+            def component_model_for(name, requirements)
                 if defaults.empty?
                     selection = self.explicit
                 else
                     @resolved ||= resolve
-                    return @resolved.selection_for(name, requirements)
+                    return @resolved.component_model_for(name, requirements)
                 end
 
-                candidates = Hash.new
-                if name && (selected_model = selection[name])
+                selected_services = Hash.new
+                if !name || !(component_model = selection[name])
+                    set = Set.new
                     requirements.models.each do |required_m|
-                        candidates[required_m] = selected_model
-                    end
-                    candidates = DependencyInjection.normalize_selection(candidates)
-                else
-                    requirements.models.each do |required_m|
-                        if selected = selection[required_m]
-                            candidates[required_m] = selected
+                        selected = selection[required_m] || required_m
+
+                        if selected.respond_to?(:component_model)
+                            set = Models.merge_model_lists(set, [selected.component_model])
+                            selected_services[required_m] = selected
                         else
-                            candidates[required_m] = required_m
+                            set = Models.merge_model_lists(set, [selected])
                         end
                     end
+                    component_model = Syskit.proxy_task_model_for(set)
                 end
-
-                component_model, service_selections = resolve_multiple_selections(candidates)
-                port_mappings = Hash.new
-                service_selections.each do |required_m, selected_m|
-                    # We have to apply both the required_m>selected_m and
-                    # selected_m>task
-                    port_mappings.merge!(selected_m.port_mappings_for(required_m))
-                end
-                
-                selection = InstanceSelection.new(requirements)
-                selection.component_model = component_model
-                selection.selected_services = service_selections
-                selection.port_mappings = port_mappings
-                selection
-            end
-
-            # If multiple selections match the parameters of
-            # #selected_task_model_for, this method is called to resolve them
-            # into a single task model.
-            #
-            # @return [Array(Model<Component>,Hash{Model<DataService>=>Models::BoundDataService}] the selected
-            #   task model, and the mappings from required data services to the
-            #   bound data services on the task model
-            def resolve_multiple_selections(candidates)
-                set = Array.new
-                candidates.each do |key, model|
-                    if model.respond_to?(:component_model)
-                        set = Models.merge_model_lists(set, [model.component_model])
-                    else
-                        set = Models.merge_model_lists(set, [model])
-                    end
-                end
-
-                component_model = Models.proxy_task_model_for(set)
-                candidates.delete(component_model)
-
-                mappings = candidates.map_value do |model|
-                    if model.kind_of?(Models::DataServiceModel)
-                        component_model.find_data_service_from_type(model)
-                    else model
-                    end
-                end
-                return component_model, mappings
+                return component_model, selected_services
             end
 
             def initialize_copy(from)
