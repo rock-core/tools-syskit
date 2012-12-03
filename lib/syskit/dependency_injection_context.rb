@@ -65,7 +65,6 @@ module Syskit
                 @savepoints  = obj.savepoints.dup
             end
 
-
             # Pushes the current state of the context. #restore will go back to
             # this exact state, regardless of the number of #push calls.
             #
@@ -131,6 +130,11 @@ module Syskit
                 current_state.candidates_for(*criteria)
             end
 
+            # (see DependencyInjection#has_selection_for?)
+            def has_selection_for?(name)
+                current_state.has_selection_for?(name)
+            end
+
             # Returns a non-ambiguous selection for the given criteria
             #
             # Returns nil if no selection is defined, or if there is an
@@ -140,8 +144,8 @@ module Syskit
             # +criteria+
             #
             # See also #candidates_for
-            def selection_for(*criteria)
-                current_state.selection_for(*criteria)
+            def instance_selection_for(name, requirements)
+                current_state.instance_selection_for(name, requirements)
             end
 
             # Adds a new dependency injection context on the stack

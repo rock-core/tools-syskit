@@ -27,23 +27,23 @@ class TC_Models_Composition < Test::Unit::TestCase
         Roby.app.filter_backtraces = false
 	super
 
-        srv = @simple_service_model = DataService.new_submodel do
+        srv = @simple_service_model = DataService.new_submodel(:name => "SimpleServiceModel") do
             input_port 'srv_in', '/int'
             output_port 'srv_out', '/int'
         end
-        @simple_component_model = TaskContext.new_submodel do
+        @simple_component_model = TaskContext.new_submodel(:name => "SimpleComponentModel") do
             input_port 'in', '/int'
             output_port 'out', '/int'
         end
         simple_component_model.provides simple_service_model, :as => 'srv',
             'srv_in' => 'in', 'srv_out' => 'out'
-        @simple_task_model = TaskContext.new_submodel do
+        @simple_task_model = TaskContext.new_submodel(:name => "SimpleTaskModel") do
             input_port 'in', '/int'
             output_port 'out', '/int'
         end
         simple_task_model.provides simple_service_model, :as => 'srv',
             'srv_in' => 'in', 'srv_out' => 'out'
-        @simple_composition_model = Composition.new_submodel do
+        @simple_composition_model = Composition.new_submodel(:name => "SimpleCompositionModel") do
             add srv, :as => 'srv'
             export self.srv_child.srv_in_port
             export self.srv_child.srv_out_port
@@ -156,7 +156,7 @@ class TC_Models_Composition < Test::Unit::TestCase
         export_name, exported_port = *exports.first
         assert_equal expected_name, export_name
         assert_equal expected_name, exported_port.name
-        assert(exported_port.same_port?(expected_port))
+        assert(exported_port.same_port?(expected_port), "expected #{expected_port} but got #{exported_port}")
     end
 
     def test_each_exported_input_output_renames_port
@@ -184,26 +184,55 @@ class TC_Models_Composition < Test::Unit::TestCase
 
     def test_each_exported_input_output_applies_port_mappings
         service, component, composition = setup_with_port_mapping
-        service1 = DataService.new_submodel do
+        service1 = DataService.new_submodel(:name => "Service1") do
             input_port 'specialized_in', '/int'
             output_port 'specialized_out', '/int'
             provides service, 'srv_out' => 'specialized_out', 'srv_in' => 'specialized_in'
         end
         component.provides service1, :as => 'srv1'
 
-        c0 = composition.new_submodel
+        c0 = composition.new_submodel(:name => "C0")
         c0.overload('srv', service1)
         assert_single_export 'srv_in', c0.srv_child.specialized_in_port, c0.each_exported_input
         assert_single_export 'srv_out', c0.srv_child.specialized_out_port, c0.each_exported_output
 
-        c1 = c0.new_submodel
+        c1 = c0.new_submodel(:name => "C1")
         c1.overload('srv', component)
         # Re-test for c0 to make sure that the overload did not touch the base
         # model
         assert_single_export 'srv_in', c0.srv_child.specialized_in_port, c0.each_exported_input
         assert_single_export 'srv_out', c0.srv_child.specialized_out_port, c0.each_exported_output
+        puts c0.srv_child.specialized_in_port
         assert_single_export 'srv_in', c1.srv_child.in_port, c1.each_exported_input
         assert_single_export 'srv_out', c1.srv_child.out_port, c1.each_exported_output
+    end
+
+    def test_overload_computes_port_mappings
+        service, component, composition = setup_with_port_mapping
+        service1 = DataService.new_submodel(:name => "Service1") do
+            input_port 'specialized_in', '/int'
+            output_port 'specialized_out', '/int'
+            provides service, 'srv_out' => 'specialized_out', 'srv_in' => 'specialized_in'
+        end
+        component.provides service1, :as => 'srv1'
+
+        c0 = composition.new_submodel(:name => "C0")
+        c0.overload('srv', service1)
+        child = c0.find_child('srv')
+        assert_same composition.find_child('srv'), child.overload_info.required
+        assert_equal [service], child.overload_info.required.base_models.to_a
+        assert_equal [service1], child.overload_info.selected.base_models.to_a
+        assert_equal Hash['srv_in' => 'specialized_in', 'srv_out' => 'specialized_out'],
+            child.port_mappings
+
+        c1 = c0.new_submodel(:name => "C1")
+        c1.overload('srv', component)
+        child = c1.find_child('srv')
+        assert_same c0.find_child('srv'), child.overload_info.required
+        assert_equal [service1], child.overload_info.required.base_models.to_a
+        assert_equal [component], child.overload_info.selected.base_models.to_a
+        assert_equal Hash['specialized_in' => 'in', 'specialized_out' => 'out'],
+            child.port_mappings
     end
 
     def test_child_selection_port_mappings
@@ -238,7 +267,6 @@ class TC_Models_Composition < Test::Unit::TestCase
     end
 
     def test_specialization_of_service_applies_port_mappings
-        Syskit.logger.level = Logger::DEBUG
         service, component, composition = setup_with_port_mapping
         specialized_model = composition.specialize('srv' => component)
         composition = composition.instanciate_specialization(specialized_model)

@@ -7,7 +7,7 @@ module Syskit
             # [Orocos::Spec::Port] The port model
             attr_reader :orogen_model
             # [String] The port name on +component_model+. It can be
-            # different from model.name, as the port could be imported from
+            # different from orogen_model.name, as the port could be imported from
             # another component
             attr_accessor :name
 
@@ -17,7 +17,7 @@ module Syskit
             end
 
             def same_port?(other)
-                other.kind_of?(Port) && other.component_model == component_model &&
+                other.kind_of?(Port) && (other.component_model <=> component_model) &&
                     other.orogen_model == orogen_model
             end
 
@@ -34,6 +34,10 @@ module Syskit
                 new_model
             end
 
+            def actual_name
+                orogen_model.name
+            end
+
             def type
                 orogen_model.type
             end
@@ -47,6 +51,10 @@ module Syskit
             end
 
             def short_name
+                "#{component_model.short_name}.#{name}_port[#{type.name}]"
+            end
+
+            def to_s
                 "#{component_model.short_name}.#{name}_port[#{type.name}]"
             end
 

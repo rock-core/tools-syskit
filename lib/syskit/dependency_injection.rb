@@ -107,6 +107,11 @@ module Syskit
                         DependencyInjection.resolve_recursive_selection_mapping(explicit))
             end
 
+            # True if there is an explicit selection for the given name
+            def has_selection_for?(name)
+                !!explicit[name]
+            end
+
             # Normalizes an explicit selection
             #
             # The input can map any of string, Component and DataService to
@@ -186,7 +191,7 @@ module Syskit
             # Returns the 
             def instance_selection_for(name, requirements)
                 component_model, selected_services = component_model_for(name, requirements)
-                InstanceSelection.new(InstanceRequirements.new(component_model), requirements, selected_services)
+                InstanceSelection.new(InstanceRequirements.new([component_model]), requirements, selected_services)
             end
 
             # Returns the selected instance based on the given name and
@@ -486,6 +491,25 @@ module Syskit
                     end
                 end
                 return explicit, defaults
+            end
+
+            # Merge the selections in +other+ into +self+.
+            #
+            # If both objects provide selections for the same keys,
+            # raises ArgumentError if the two selections are incompatible
+            def merge(other)
+                # Invalidate the @resolved cached
+                @resolved = nil
+                @explicit.merge!(other.explicit) do |match, model1, model2|
+                    if model1 <= model2
+                        model1
+                    elsif model2 <= model1
+                        model2
+                    else
+                        raise ArgumentError, "cannot use both #{model1} and #{model2} for #{match}"
+                    end
+                end
+                @defaults |= other.defaults
             end
         end
 end

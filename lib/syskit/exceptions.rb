@@ -659,6 +659,22 @@ module Syskit
                 pp.text "models #{model_a.short_name} and #{model_b.short_name} are incompatible"
             end
         end
+
+        # Exception raised when port mappings cannot be computed because two
+        # source ports have the same name
+        class AmbiguousPortMappings < Ambiguous
+            attr_reader :model_a
+            attr_reader :model_b
+            attr_reader :port_name
+            def initialize(model_a, model_b, port_name)
+                @model_a, @model_b, @port_name = 
+                    model_a, model_b, port_name
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot compute port mappings: #{model_a.short_name} and #{model_b.short_name} share the same port name #{port_name}"
+            end
+        end
 end
 
 

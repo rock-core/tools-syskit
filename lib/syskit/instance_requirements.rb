@@ -34,7 +34,7 @@ module Syskit
             attr_reader :deployment_hints
 
             def initialize(models = [])
-                @models    = @base_models = models
+                @models    = @base_models = models.to_value_set
                 @arguments = Hash.new
                 @selections = DependencyInjection.new
                 @deployment_hints = Set.new
@@ -332,20 +332,30 @@ module Syskit
                     else Syskit.proxy_task_model_for(models)
                     end
 
+                # Add a barrier for the names that our models expect. This is
+                # required to avoid recursively reusing names (which was once
+                # upon a time, and is a very confusing feature)
+                barrier = Hash.new
+                models.each do |m|
+                    m.dependency_injection_names.each do |n|
+                        barrier[n] = nil
+                    end
+                end
+                if !barrier.empty?
+                    context.push(DependencyInjection.new(barrier))
+                end
                 context.push(selections)
 
                 arguments = Kernel.validate_options arguments, :task_arguments => nil
-                instanciate_arguments = {
-                    :as => name,
-                    :task_arguments => self.arguments }
+                instanciate_arguments = { :task_arguments => self.arguments }
                 if arguments[:task_arguments]
                     instanciate_arguments[:task_arguments].merge!(arguments[:task_arguments])
                 end
 
-                @task = task_model.instanciate(engine, context, instanciate_arguments)
+                task = task_model.instanciate(engine, context, instanciate_arguments)
                 task.requirements.merge(self)
                 if !task_model.fullfills?(base_models)
-                    raise InternalError, "instanciated task #{@task} does not provide the required models #{base_models.map(&:short_name).join(", ")}"
+                    raise InternalError, "instanciated task #{task} does not provide the required models #{base_models.map(&:short_name).join(", ")}"
                 end
 
                 if required_host && task.respond_to?(:required_host=)
@@ -355,7 +365,7 @@ module Syskit
                 if service
                     service.bind(task)
                 else
-                    @task
+                    task
                 end
 
             rescue InstanciationError => e
@@ -410,14 +420,12 @@ module Syskit
 
             def pretty_print(pp)
                 if base_models.empty?
-                    pp.breakable
                     pp.text "No models"
                 else
-                    pp.breakable
                     pp.text "Base Models:"
                     pp.nest(2) do
                         pp.breakable
-                        pp.seplist(base_models) do |mod|
+                        pp.seplist(base_models, ",") do |mod|
                             pp.text mod.short_name
                         end
                     end
@@ -445,8 +453,6 @@ module Syskit
                     pp.breakable
                     pp.text "Arguments: #{arguments}"
                 end
-
-                super if defined? super
             end
 
             def find_child(name)

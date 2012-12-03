@@ -50,6 +50,10 @@ module Syskit
                 end
             end
 
+            # List of names that are valid for this model in the context of
+            # DependencyInjection
+            def dependency_injection_names; [] end
+
             # Deregisters a set of submodels on this model and all its
             # supermodels
             #

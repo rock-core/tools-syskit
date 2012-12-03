@@ -3,32 +3,6 @@ module Syskit
         # Used by Composition to define its children. Values returned by
         # {Models::Composition#find_child} are instances of that class.
         class CompositionChild < InstanceRequirements
-            # Class that holds information about port mappings along the
-            # composition models
-            class PortMapping
-                # The model in the parent
-                attr_reader :parent_model
-                # The model in the child
-                attr_reader :model
-                # The port mappings to replace {#parent_model} with {#model}
-                attr_reader :port_mappings
-
-                def initialize(child_name, parent_model, model, port_mappings)
-                    @child_name, @parent_model, @model, @port_mappings =
-                        child_name, parent_model, model, port_mappings
-                end
-
-                def pretty_print(pp)
-                    pp.text "mappings for #{parent_model.short_name}=>#{model.short_name}"
-                    if !port_mappings.empty?
-                        pp.breakable
-                    end
-                    pp.seplist(port_mappings) do |map|
-                        pp.text "  #{map[0]} => #{map[1]}"
-                    end
-                end
-            end
-
             # [Models::Composition] the model of the composition this child is
             # part of
             attr_reader :composition_model
@@ -38,30 +12,33 @@ module Syskit
             # ValueSet which contains at most one Component model and any number
             # of data service models 
             attr_accessor :dependency_options
-            # [Hash{Model=>PortMapping}] port mappings between this composition
-            # child and the same child in the composition's parent model. Model
-            # is the overloaded model in the parent's child and PortMapping
-            # holds the mapping information itself
-            attr_accessor :port_mappings
+            # [InstanceSelection] information needed to update the composition's
+            # parent models about the child (mainly port mappings)
+            def overload_info
+                @overload_info ||= InstanceSelection.new(self, @parent_model || InstanceRequirements.new)
+            end
 
             # If set to true, the child is going to be removed automatically if
             # no selection exists for it
             attr_predicate :optional?
 
-            def initialize(composition_model, child_name, models = ValueSet.new, dependency_options = Hash.new)
+            def initialize(composition_model, child_name, models = ValueSet.new, dependency_options = Hash.new,
+                          parent_model = nil)
                 @composition_model, @child_name = composition_model, child_name
                 super(models)
-                @dependency_options = dependency_options
-                @port_mappings = Hash.new
+                @dependency_options = Roby::TaskStructure::Dependency.validate_options(dependency_options)
+                @parent_model = parent_model
             end
 
             def initialize_copy(old)
                 super
                 @dependency_options = old.dependency_options.dup
-                @port_mappings = Hash.new
-                old.port_mappings.each do |m, mappings|
-                    port_mappings[m] = mappings.dup
-                end
+                @overload_info = nil
+            end
+
+            # The port mappings from this child's parent model to this model
+            def port_mappings
+                overload_info.port_mappings
             end
 
             def optional
@@ -171,7 +148,7 @@ module Syskit
             end
 
             def short_name
-                "#{composition_model.short_name}.#{child_name}_child[#{model.map(&:short_name).join(", ")}]"
+                "#{composition_model.short_name}.#{child_name}_child[#{models.map(&:short_name).join(", ")}]"
             end
 
             def attach(composition_model)

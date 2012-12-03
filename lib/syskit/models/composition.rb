@@ -61,8 +61,10 @@ module Syskit
             # The set of configurations declared with #conf
             attr_reader :conf
 
-            # [Hash{String=>CompositionChild}] the set of children defined for
-            # this composition model, at its level of the hierarchy
+            # The composition children
+            #
+            # @key_name child_name
+            # @return [Hash<String,CompositionChild>]
             define_inherited_enumerable(:child, :children, :map => true) { Hash.new }
 
             define_inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
@@ -96,14 +98,20 @@ module Syskit
             end
 
             # The set of connections specified by the user for this composition
+            #
+            # @return [Hash{(String,String)=>{(String,String)=>Hash}}] the set
+            # of connections defined on this composition model. The first level
+            # is a mapping from the (output child name, input child name) to a
+            # set of connections. The set of connections is specified as a
+            # mapping from the output port name (on the output child) and the
+            # input port name (on the input child) to the desired connection policy.
+            #
+            # Empty connection policies means "autodetect policy"
             define_inherited_enumerable(:explicit_connection, :explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
 
-            # Returns the composition models that are parent to this one
+            # [ValueSet<Model<Composition>>] the composition models that are parent to this one
             attribute(:parent_models) { ValueSet.new }
 
-            ##
-            # :attr: specializations
-            #
             # The set of specializations defined at this level of the model
             # hierarchy, as an array of Specialization instances. See
             # #specialize for more details
@@ -170,47 +178,6 @@ module Syskit
                 specializations.each_value(&block)
             end
 
-            #--
-            # Documentation of the inherited_enumerable attributes defined on
-            # Composition
-            #++
-
-            ##
-            # :method: each_child
-            # :call-seq:
-            #   each_child { |child_name, child_models| }
-            # 
-            # Yields all children defined on this composition. +child_models+ is
-            # a ValueSet of task classes (subclasses of Roby::Task) and/or task
-            # tags (instances of Roby::TaskModelTag)
-
-            ##
-            # :method: find_child
-            # :call-seq:
-            #   find_child(child_name) -> child
-            #
-            # Returns the model requirements for the given child. The return
-            # value is a ValueSet of task classes (subclasses of Roby::Task)
-            # and/or task tags (instances of Roby::TaskModelTag)
-
-            ##
-            # :method: each_exported_input
-            # :call-seq: each_exported_input { |export_name, port| }
-            #
-            # Yields the input ports that are exported by this composition.
-            # +export_name+ is the name of the composition's port and +port+ the
-            # CompositionChildPort object that represents the port that is being
-            # exported.
-
-            ##
-            # :method: each_exported_output
-            # :call-seq: each_exported_output { |export_name, port| }
-            #
-            # Yields the output ports that are exported by this composition.
-            # +export_name+ is the name of the composition's port and +port+ the
-            # CompositionChildPort object that represents the port that is being
-            # exported.
-
             # Enumerates the input ports that are defined on this composition,
             # i.e.  the ports created by #export
             def each_input_port
@@ -253,10 +220,7 @@ module Syskit
             end
 
             # Internal helper to add a child to the composition
-            #
-            # Raises ArgumentError if +name+ is already used by a child
-            # definition at this level of the model hierarchy:
-            def add_child(name, child_model, dependency_options)
+            def add_child(name, child_models, dependency_options)
                 name = name.to_str
                 dependency_options = Roby::TaskStructure::Dependency.validate_options(dependency_options)
 
@@ -269,39 +233,13 @@ module Syskit
                 #
                 # Anyway, the remainder checks that the new definition is a
                 # valid overloading of the previous one.
-
-                child_task_model = child_model.find_all { |m| m < Component }
-                if child_task_model.size > 1
-                    raise ArgumentError, "more than one task model specified for #{name}"
-                end
-                child_task_model = child_task_model.first
-
+                
                 parent_model = find_child(name) || CompositionChild.new(self, name)
-                if child_task_model
-                    parent_task_model = parent_model.models.find { |m| m < Component }
-                    if parent_task_model && !(child_task_model <= parent_task_model)
-                        raise ArgumentError, "trying to overload the child #{name} of #{short_name} of type #{parent_model.models.map(&:short_name).join(", ")} with #{child_model.map(&:short_name).join(", ")}"
-                    end
-                end
+                child_models = Models.merge_model_lists(child_models, parent_model.base_models)
+                dependency_options = Roby::TaskStructure::DependencyGraphClass.
+                    merge_dependency_options(parent_model.dependency_options, dependency_options)
 
-                # Delete from +parent_model+ everything that is already included
-                # in +child_model+
-                result = parent_model.dup
-                result.port_mappings.clear
-                result.base_models.delete_if do |parent_m|
-                    replaced_by = child_model.find_all { |child_m| child_m < parent_m }
-                    if !replaced_by.empty?
-                        replaced_by.each do |child_m|
-                            result.port_mappings[parent_m] = 
-                                CompositionChild::PortMapping.new(name, parent_m, child_m, 
-                                                                  child_m.port_mappings_for(parent_m))
-                        end
-                        true
-                    end
-                end
-                result.add_models(child_model.to_value_set)
-                result.dependency_options = result.dependency_options.merge(dependency_options)
-
+                result = CompositionChild.new(self, name, child_models, dependency_options, parent_model)
                 Models.debug do
                     Models.debug "added child #{name} to #{short_name}"
                     Models.debug "  with models #{result.models.map(&:short_name).join(", ")}"
@@ -406,7 +344,7 @@ module Syskit
 
                 if models.size == 1
                     if default_name = models.find { true }.name
-                        default_name = default_name.snake_case
+                        default_name = default_name.snakecase
                     end
                 end
                 options, dependency_options = Kernel.filter_options options,
@@ -1150,23 +1088,6 @@ module Syskit
                 result
             end
 
-            def map_connections(connections)
-                result = Hash.new
-                connections.each do |(child_name_out, child_name_in), mappings|
-                    child_out = find_child(child_name_out)
-                    child_in  = find_child(child_name_in)
-
-                    mapped = Hash.new
-                    mappings.each do |(port_name_out, port_name_in), options|
-                        port_name_out = (child_out.port_mappings[port_name_out] || port_name_out)
-                        port_name_in  = (child_in.port_mappings[port_name_in]   || port_name_in)
-                        mapped[[port_name_out, port_name_in]] = options
-                    end
-                    result[[child_name_out, child_name_in]] = mapped
-                end
-                result
-            end
-
             # Export the given port to the boundary of the composition (it
             # becomes a composition port). By default, the composition port has
             # the same name than the exported port. This name can be overriden
@@ -1365,76 +1286,6 @@ module Syskit
                 result
             end
 
-            attr_reader :child_proxy_models
-
-            # Creates a task model to proxy the services and/or task listed in
-            # +models+
-            def child_proxy_model(child_name, models)
-                @child_proxy_models ||= Hash.new
-                if m = child_proxy_models[child_name]
-                    return m
-                end
-
-                name = "#{name}::#{child_name.camelcase(:upper)}::PlaceholderTask"
-                model = Syskit.placeholder_model_for(name, models)
-                child_proxy_models[child_name] = model
-            end
-
-            # call-seq:
-            #   find_selected_model_and_task(child_name, selection) -> SelectedChild
-            #
-            # Finds a possible child model for +child_name+. +selection+ is an
-            # explicit selection hash of the form
-            #
-            #   selection_hint => [task_name|task_model|task_instance]
-            #
-            # selection_hint::
-            #   the selection hint can either be a child name, a child model or
-            #   a child model name, with this order of precedence. The child
-            #   name can be recursively specified as child1.child2.child3, to
-            #   avoid broad selection. Moreover, it is possible to indirectly
-            #   select a composition by using the child1.child2 => model syntax.
-            #
-            # selected_object::
-            #   if given by name, it can either be a device name, or the name
-            #   given to a task instance in Engine#add. Otherwise, it can eithe
-            #   be a task model (as a class object) or a task instance (as a
-            #   Component instance).
-            #
-            def find_selected_model_and_task(child_name, context, user_call = true) # :nodoc:
-                requirements   = InstanceRequirements.new(find_child(child_name).models)
-
-                # Search for candidates in the user selection, from the
-                # child models
-                candidates = context.candidates_for(child_name, requirements)
-                if candidates.size > 1
-                    throw :invalid_selection if !user_call
-                    raise AmbiguousExplicitSelection.new(self, child_name, candidates), "there are multiple selections applying to #{child_name}: #{candidates.map(&:to_s).join(", ")}"
-                end
-
-                if !candidates.empty?
-                    result = InstanceSelection.from_object(candidates.first, requirements)
-                    result.explicit = true
-                else
-                    result = InstanceSelection.new(find_child(child_name))
-                end
-
-                # Must compute the data service selection. We need to
-                # finish cleanup all of that once and for all
-                services = requirements.base_models.
-                    find_all { |m| m.kind_of?(DataServiceModel) }
-                result.select_services_for(services)
-
-                return result
-
-            rescue AmbiguousServiceSelection => e
-                raise AmbiguousServiceMapping.new(
-                    self, child_name, e.task_model, e.required_service, e.candidates), e.message, e.backtrace
-            rescue NoMatchingService => e
-                raise NoMatchingServiceForCompositionChild.new(
-                    self, child_name, e.task_model, e.required_service), e.message, e.backtrace
-            end
-
             # Verifies that +selected_model+ is an acceptable selection for
             # +child_name+ on +self+. Raises InvalidSelection if it is not the case,
             # and ArgumentError if the specified child is not a child of this
@@ -1467,6 +1318,14 @@ module Syskit
                 return false
             end
 
+            # The list of names that will be used by this model as keys in a
+            # DependencyInjection object,
+            #
+            # For compositions, this is the list of children names
+            def dependency_injection_names
+                each_child.map(&:first)
+            end
+
             # Computes the required models and task instances for each of the
             # composition's children. It returns two mappings for the form
             #
@@ -1485,33 +1344,20 @@ module Syskit
                 explicit = Hash.new
                 result   = Hash.new
                 each_child do |child_name, child_requirements|
-                    selected_child =
-                        find_selected_model_and_task(child_name, context, user_call)
-
-                    # If the model is a plain data service (i.e. not a task
-                    # model), we must map this service to a service on the
-                    # selected task
-                    port_mappings = Hash.new
-                    selected_child.selected_services.each do |expected, selected|
-                        if expected.kind_of?(DataServiceModel) && selected.fullfills?(expected)
-                            mappings = selected.port_mappings_for(expected)
-                            port_mappings = Models.merge_port_mappings(port_mappings, mappings)
-                        end
-                    end
-
-                    Engine.debug do
-                        Models.debug "selected #{selected_child.selected_task || selected_child.requirements} (#{port_mappings}) for #{child_name} (#{child_requirements})"
-                        Engine.log_nest(2) do
-                            Models.debug "services: #{selected_child.selected_services}"
-                            Models.debug "using"
-                            Engine.log_pp(:debug, context.current_state)
-                            Models.debug "arguments #{selected_child.requirements.arguments}"
+                    selected_child = context.instance_selection_for(child_name, child_requirements)
+                    Models.debug do
+                        Models.debug "selected #{child_name}:"
+                        Models.log_nest(2) do
+                            Models.log_pp(:debug, selected_child)
+                            Models.debug "on the basis of"
+                            Models.log_nest(2) do
+                                Models.log_pp(:debug, context.current_state)
+                            end
                         end
                         break
                     end
 
-                    selected_child.port_mappings = port_mappings
-                    if selected_child.explicit?
+                    if context.has_selection_for?(child_name)
                         explicit[child_name] = selected_child
                     end
                     result[child_name] = selected_child
@@ -1539,7 +1385,7 @@ module Syskit
             #       use(Cmp::Odometry.use(XsensImu::Task))
             #
             def use(*spec)
-                Engine.create_instanciated_component(nil, nil, self).use(*spec)
+                InstanceRequirements.new([self]).use(*spec)
             end
 
             ##
@@ -1558,35 +1404,13 @@ module Syskit
 
             # Instanciates a task for the required child
             def instanciate_child(engine, context, self_task, child_name, selected_child) # :nodoc:
-                # Make sure we can resolve all the children needed to
-                # instanciate this level (if referred to by CompositionChild)
-                requirements = selected_child.requirements
-                selections = requirements.selections.map do |sel|
-                    child_role =
-                        if sel.respond_to?(:to_str) && sel =~ /^parent\.(.*)$/
-                            $1
-                        elsif sel.kind_of?(CompositionChild)
-                            sel.child_name
-                        end
-
-                    if child_role
-                        begin self_task.child_from_role(child_role)
-                        rescue ArgumentError
-                            # The using spec of this child refers to another
-                            # task's child, but that other child is not
-                            # instanciated yet. Pass on, and get called
-                            # later
-                            return
-                        end
-                    else
-                        sel
-                    end
+                Models.debug do
+                    Models.debug "instanciating child #{child_name}"
+                    Models.log_nest 2
+                    break
                 end
-                context.push(selections)
 
-                Models.debug { "instanciating model #{selected_child.requirements} for child #{child_name}" }
-
-                child_arguments = selected_child.requirements.arguments
+                child_arguments = selected_child.required.arguments
                 child_arguments.each_key do |key|
 	            value = child_arguments[key]
                     if value.respond_to?(:resolve)
@@ -1594,9 +1418,42 @@ module Syskit
                     end
                 end
 
-                child_task = selected_child.instanciate(engine, context, :task_arguments => child_arguments)
-                child_task.required_host = find_child(child_name).required_host || self_task.required_host
-                child_task
+                selected_child.instanciate(engine, context, :task_arguments => child_arguments)
+            ensure
+                Models.debug do
+                    Models.log_nest -2
+                    break
+                end
+            end
+
+            def apply_connections(self_task, selected_children, children_tasks)
+                # The set of connections we must create on our children. This is
+                # self.connections on which we will apply port mappings for the
+                # instanciated children
+                connections = self.connections.map do |(out_name, in_name), conn|
+                    if (out_task = children_tasks[out_name]) && (in_task = children_tasks[in_name])
+                        child_out = selected_children[out_name]
+                        apply_port_mappings_on_outputs(conn, child_out.port_mappings)
+                        child_in = selected_children[in_name]
+                        apply_port_mappings_on_inputs(conn, child_in.port_mappings)
+                        out_task.connect_ports(in_task, conn)
+                    end
+                end
+
+                exported_inputs.each do |child_name, conn|
+                    if child_task = children_tasks[child_name]
+                        child = selected_children[child_name]
+                        apply_port_mappings_on_inputs(conn, child.port_mappings)
+                        self_task.forward_ports(child_task, conn)
+                    end
+                end
+                exported_outputs.each do |child_name, conn|
+                    if child_task = children_tasks[child_name]
+                        child = selected_children[child_name]
+                        apply_port_mappings_on_outputs(conn, child.port_mappings)
+                        child_task.forward_ports(self_task, conn)
+                    end
+                end
             end
 
             # Returns a Composition task with instanciated children. If
@@ -1639,22 +1496,11 @@ module Syskit
                     return root_model.instanciate(engine, context, arguments)
                 end
 
-                barrier = Hash.new
-                selection = context.top.added_info
-                each_child do |child_name, _|
-                    if !selection.has_selection?(child_name)
-                        barrier[child_name] = nil
-                    end
-                end
-
                 # Find what we should use for our children. +explicit_selection+
                 # is the set of children for which a selection existed and
                 # +selected_models+ all the models we should use
                 explicit_selections, selected_models =
-                    context.save do
-                        context.push(barrier)
-                        find_children_models_and_tasks(context)
-                    end
+                    find_children_models_and_tasks(context)
 
                 if arguments[:specialize]
                     # Find the specializations that apply. We use
@@ -1697,29 +1543,19 @@ module Syskit
 
                 # First of all, add the task for +self+
                 engine.plan.add(self_task = new(arguments[:task_arguments]))
-                self_task.robot = engine.robot
-
                 conf = if self_task.has_argument?(:conf)
                            self_task.conf(self_task.arguments[:conf])
                        else Hash.new
                        end
 
-                # The set of connections we must create on our children. This is
-                # self.connections on which port mappings rules have been
-                # applied. Idem for exported inputs and outputs
-                connections = self.connections
-                exported_outputs = Hash.new { |h, k| h[k] = Hash.new }
-                each_exported_output do |output_name, port|
-                    exported_outputs[ port.component_model.child_name ].
-                        merge!([port.name, output_name] => Hash.new)
-                end
-                exported_inputs = Hash.new { |h, k| h[k] = Hash.new }
-                each_exported_input do |input_name, port|
-                    exported_inputs[ port.component_model.child_name ].
-                        merge!([input_name, port.name] => Hash.new)
-                end
-
                 removed_optional_children = Set.new
+
+                # We need the context without the child selections for the
+                # composition itself. Dup the current context and pop the
+                # composition use flags
+                child_selection_context = context.dup
+                composition_use_flags = child_selection_context.pop
+                child_use_flags = Hash.new
 
                 # Finally, instanciate the missing tasks and add them to our
                 # children
@@ -1727,84 +1563,41 @@ module Syskit
                 while !selected_models.empty?
                     current_size = selected_models.size
                     selected_models.delete_if do |child_name, selected_child|
-                        if child_task = selected_child.selected_task
-                            child_task = engine.replacement_for(child_task)
-                        else
-                            # Get out of the selections the parts that are
-                            # relevant for our child. We only pass on the
-                            # <child_name>.blablabla form, everything else is
-                            # removed
-
-                            child_selection_context = context.dup
-                            last = child_selection_context.pop
-
-                            child_user_selection = Hash.new
-                            last.added_info.explicit.each do |name, sel|
-                                if name =~ /^#{child_name}\.(.*)$/
-                                    child_user_selection[$1] = sel
-                                end
-                            end
-                            child_selection_context.push(child_user_selection)
-                            child_task = instanciate_child(engine, child_selection_context,
-                                                           self_task, child_name, selected_child)
-                            if !child_task
-                                # Cannot instanciate yet, probably because the
-                                # instantiation of this child depends on other
-                                # children that are not yet instanciated
-                                next(false)
-                            end
-
-                            if child_task.abstract? && find_child(child_name).optional?
-                                Models.debug "not adding optional child #{child_name}"
-                                removed_optional_children << child_name
-                                next(true)
-                            end
-
-                            if child_conf = conf[child_name]
-                                child_task.arguments[:conf] ||= child_conf
+                        # Get out of the selections the parts that are
+                        # relevant for our child. We only pass on the
+                        # <child_name>.blablabla form, everything else is
+                        # removed
+                        child_user_selection = Hash.new
+                        composition_use_flags.added_info.explicit.each do |name, sel|
+                            if name =~ /^#{child_name}\.(.*)$/
+                                child_user_selection[$1] = sel
                             end
                         end
+                        child_selection_context.push(child_user_selection.merge(child_use_flags))
+                        child_task = instanciate_child(engine, child_selection_context,
+                                                       self_task, child_name, selected_child)
+                        child_selection_context.pop
+                        if !child_task
+                            # Cannot instanciate yet, probably because the
+                            # instantiation of this child depends on other
+                            # children that are not yet instanciated
+                            next(false)
+                        end
 
-                        if selected_child.port_mappings.empty?
-                            Models.debug { "no port mappings for #{child_name}" }
-                        else
-                            port_mappings = selected_child.port_mappings
-                            Models.debug do
-                                Models.debug "applying port mappings for #{child_name}"
-                                port_mappings.each do |from, to|
-                                    Models.debug "  #{from} => #{to}"
-                                end
-                                Models.debug "on"
-                                connections.each do |(out_name, in_name), mappings|
-                                    Models.debug "  #{out_name} => #{in_name} (#{mappings})"
-                                end
-                                break
-                            end
-                            connections.each do |(out_name, in_name), mappings|
-                                if out_name == child_name
-                                    apply_port_mappings_on_outputs(mappings, port_mappings)
-                                elsif in_name == child_name
-                                    apply_port_mappings_on_inputs(mappings, port_mappings)
-                                end
-                            end
-                            if exported_inputs.has_key?(child_name)
-                                apply_port_mappings_on_inputs(exported_inputs[child_name], port_mappings)
-                            end
-                            if exported_outputs.has_key?(child_name)
-                                apply_port_mappings_on_outputs(exported_outputs[child_name], port_mappings)
-                            end
+                        if child_task.abstract? && find_child(child_name).optional?
+                            Models.debug "not adding optional child #{child_name}"
+                            removed_optional_children << child_name
+                            next(true)
+                        end
 
-                            Models.debug do
-                                Models.debug "result"
-                                connections.each do |(out_name, in_name), mappings|
-                                    Models.debug "  #{out_name} => #{in_name} (#{mappings})"
-                                end
-                                break
-                            end
+                        if child_conf = conf[child_name]
+                            child_task.arguments[:conf] ||= child_conf
                         end
 
                         role = [child_name].to_set
                         children_tasks[child_name] = child_task
+                        child_use_flags[find_child(child_name)] = child_task
+                        child_use_flags["parent.#{child_name}"] = child_task
 
                         dependent_models    = find_child(child_name).models.to_a
                         dependent_arguments = dependent_models.inject(Hash.new) do |result, m|
@@ -1813,18 +1606,15 @@ module Syskit
                         if child_task.has_argument?(:conf)
                             dependent_arguments[:conf] = child_task.arguments[:conf]
                         end
-                        if dependent_models.size == 1
-                            dependent_models = dependent_models.first
-                        end
 
                         dependency_options = find_child(child_name).dependency_options
                         dependency_options = { :success => [], :failure => [:stop], :model => [dependent_models, dependent_arguments], :roles => role }.
                             merge(dependency_options)
 
-                        Engine.info do
-                            Engine.info "adding dependency #{self_task}"
-                            Engine.info "    => #{child_task}"
-                            Engine.info "   options; #{dependency_options}"
+                        Models.info do
+                            Models.info "adding dependency #{self_task}"
+                            Models.info "    => #{child_task}"
+                            Models.info "   options; #{dependency_options}"
                             break
                         end
 
@@ -1845,23 +1635,7 @@ module Syskit
                     end
                 end
 
-                exported_outputs.each do |child_name, mappings|
-                    if !removed_optional_children.include?(child_name)
-                        children_tasks[child_name].forward_ports(self_task, mappings)
-                    end
-                end
-                exported_inputs.each do |child_name, mappings|
-                    if !removed_optional_children.include?(child_name)
-                        self_task.forward_ports(children_tasks[child_name], mappings)
-                    end
-                end
-
-                connections.each do |(out_name, in_name), mappings|
-                    if !removed_optional_children.include?(out_name) && !removed_optional_children.include?(in_name)
-                        children_tasks[out_name].
-                            connect_ports(children_tasks[in_name], mappings)
-                    end
-                end
+                apply_connections(self_task, selected_models, children_tasks)
                 self_task
             ensure
                 Models.debug do
@@ -1968,7 +1742,7 @@ module Syskit
             # {#promote_exported_input}
             def promote_exported_port(export_name, port)
                 if new_child = children[port.component_model.child_name]
-                    if new_port_name = new_child.port_mappings[port.name]
+                    if new_port_name = new_child.port_mappings[port.actual_name]
                         result = send(port.component_model.child_name).find_port(new_port_name)
                         result = result.dup
                         result.name = export_name
