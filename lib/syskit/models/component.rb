@@ -143,7 +143,7 @@ module Syskit
             # case, one would have to first explicitely select the service and
             # only then call #as on the returned BoundDataService object
             def as(service_model)
-                srv = find_service_from_type(service_model)
+                srv = find_data_service_from_type(service_model)
                 return srv.as(service_model)
             end
 
@@ -271,7 +271,7 @@ module Syskit
             # given type
             def port_mappings_for(service_type)
                 if service_type.kind_of?(DataServiceModel)
-                    service = find_service_from_type(service_type)
+                    service = find_data_service_from_type(service_type)
                     if !service
                         raise ArgumentError, "#{short_name} does not provide a service of type #{service_type.short_name}"
                     end

@@ -221,7 +221,7 @@ module Syskit
                 # If slave_service is a string, it should refer to an actual
                 # service on +task_model+
                 if slave_service.respond_to?(:to_str)
-                    srv = task_model.find_service(slave_service)
+                    srv = task_model.find_data_service(slave_service)
                     if !srv
                         raise ArgumentError, "there is no service in #{task_model.short_name} named #{slave_service}"
                     end
