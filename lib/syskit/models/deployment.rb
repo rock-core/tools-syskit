@@ -50,7 +50,7 @@ module Syskit
             # @param [Orocos::Spec::Deployment] orogen_model the oroGen
             #   deployment model
             #
-            # @options options [Boolean] register (false) if true, and if the
+            # @option options [Boolean] register (false) if true, and if the
             #   deployment model has a name, the resulting syskit model is
             #   registered as a constant in the ::Deployments namespace. The
             #   constant's name is the camelized orogen model name.

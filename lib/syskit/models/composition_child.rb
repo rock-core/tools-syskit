@@ -1,7 +1,7 @@
 module Syskit
     module Models
         # Used by Composition to define its children. Values returned by
-        # Composition#find_child(name) are instances of that class.
+        # {Models::Composition#find_child} are instances of that class.
         class CompositionChild < InstanceRequirements
             # Class that holds information about port mappings along the
             # composition models
@@ -10,7 +10,7 @@ module Syskit
                 attr_reader :parent_model
                 # The model in the child
                 attr_reader :model
-                # The port mappings to replace {parent_model} with {model}
+                # The port mappings to replace {#parent_model} with {#model}
                 attr_reader :port_mappings
 
                 def initialize(child_name, parent_model, model, port_mappings)
@@ -32,7 +32,7 @@ module Syskit
             # [Models::Composition] the model of the composition this child is
             # part of
             attr_reader :composition_model
-            # [String] the name of this child on {composition_model}
+            # [String] the name of this child on {#composition_model}
             attr_reader :child_name
             # The set of models that this child should fullfill. It is a
             # ValueSet which contains at most one Component model and any number

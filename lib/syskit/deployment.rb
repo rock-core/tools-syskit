@@ -310,7 +310,7 @@ module Syskit
                 end
             end
 
-            # Returns true if the orocos/roby plugin configuration requires
+            # Returns true if the syskit plugin configuration requires
             # +port+ to be logged
             def log_port?(port)
                 result = !Roby::State.orocos.port_excluded_from_log?(self,
