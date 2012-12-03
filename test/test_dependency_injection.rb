@@ -1,8 +1,15 @@
+require 'simplecov'
 require 'syskit'
 require 'syskit/test'
 
 class TC_DependencyInjection < Test::Unit::TestCase
     include Syskit::SelfTest
+
+    def test_to_s
+        # Just checking that it does not raise and returns a string
+        di = DependencyInjection.new('val', 'name' => 'value')
+        assert_respond_to di.to_s, :to_s
+    end
 
     def test_new_object_with_initial_selection
         component_model = Component.new_submodel
@@ -21,6 +28,14 @@ class TC_DependencyInjection < Test::Unit::TestCase
         dep.add 'name' => 'value'
         dep.clear
         assert dep.empty?
+    end
+
+    def test_add_dependency_injection
+        di = DependencyInjection.new('val', 'name' => 'value')
+        new_di = flexmock(DependencyInjection.new)
+        new_di.should_receive(:add_explicit).with(di.explicit).once
+        new_di.should_receive(:add_defaults).with(di.defaults).once
+        new_di.add(di)
     end
 
     def test_adding_explicit_selection_makes_the_object_not_empty
@@ -56,7 +71,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(Class.new => 'value') }
     end
 
-    def test_normalize_selection_accepts_string_to_any
+    def test_normalize_selection_accepts_string_to_allowed_values
         srv = DataService.new_submodel
         component = Component.new_submodel
         component.provides srv, :as => 'srv'
@@ -70,6 +85,11 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal(Hash[key => req], DependencyInjection.normalize_selection(key => req))
     end
 
+    def test_normalize_selection_rejects_string_to_arbitrary
+        key = 'key'
+        assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => Object.new) }
+    end
+
     def test_normalize_selection_accepts_component_to_nil_string_and_identity
         srv = DataService.new_submodel
         component = Component.new_submodel
@@ -79,6 +99,11 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal(Hash[key => nil], DependencyInjection.normalize_selection(key => nil))
         assert_equal(Hash[key => 'value'], DependencyInjection.normalize_selection(key => 'value'))
         assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
+    end
+
+    def test_normalize_selection_rejects_string_to_arbitrary
+        key = Component.new_submodel
+        assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => Object.new) }
     end
 
     def test_normalize_selection_refuses_component_to_data_service
@@ -122,6 +147,11 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal(Hash[key => nil], DependencyInjection.normalize_selection(key => nil))
         assert_equal(Hash[key => 'value'], DependencyInjection.normalize_selection(key => 'value'))
         assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
+    end
+
+    def test_normalize_selection_rejects_string_to_arbitrary
+        key = DataService.new_submodel
+        assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => Object.new) }
     end
 
     def test_normalize_selection_accepts_data_service_to_data_service_that_fullfill_the_key
@@ -178,7 +208,9 @@ class TC_DependencyInjection < Test::Unit::TestCase
         c0.provides srv1, :as => 'srv1'
         c1 = Component.new_submodel
         c1.provides srv0, :as => 'srv0'
-        assert_equal(Hash[srv1 => c0, c0 => c0, c1 => c1], DependencyInjection.resolve_default_selections(Hash.new, [c0, c1]))
+        c2 = Component.new_submodel
+        c2.provides srv0, :as => 'srv0'
+        assert_equal(Hash[srv1 => c0, c0 => c0, c1 => c1, c2 => c2], DependencyInjection.resolve_default_selections(Hash.new, [c0, c1, c2]))
     end
 
     def test_resolve_default_selections_does_not_override_explicit_selections
