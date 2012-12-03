@@ -55,6 +55,20 @@ class TC_Models_Component < Test::Unit::TestCase
         assert_equal(service, component.find_data_service('image').model)
     end
 
+    def test_new_submodel_can_give_name_to_anonymous_models
+        assert_equal 'C', Component.new_submodel(:name => 'C').name
+    end
+
+    def test_short_name_returns_name_if_there_is_one
+        assert_equal 'C', Component.new_submodel(:name => 'C').short_name
+    end
+
+    def test_short_name_returns_to_s_if_there_are_no_name
+        m = Component.new_submodel
+        flexmock(m).should_receive(:to_s).and_return("my_name").once
+        assert_equal 'my_name', m.short_name
+    end
+
     def test_provides_uses_the_service_name_if_available
         service = DataService.new_submodel(:name => "MyServiceModel")
         component = TaskContext.new_submodel

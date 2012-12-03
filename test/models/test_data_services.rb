@@ -35,6 +35,20 @@ module Test_DataServiceModel
         assert submodel.submodels.include?(subsubmodel)
     end
 
+    def test_new_submodel_can_give_name_to_anonymous_models
+        assert_equal 'Srv', new_submodel(:name => 'Srv').name
+    end
+
+    def test_short_name_returns_name_if_there_is_one
+        assert_equal 'Srv', new_submodel(:name => 'Srv').short_name
+    end
+
+    def test_short_name_returns_to_s_if_there_are_no_name
+        m = new_submodel
+        flexmock(m).should_receive(:to_s).and_return("my_name").once
+        assert_equal 'my_name', m.short_name
+    end
+
     def test_clear_submodels_removes_registered_submodels
         m1 = new_submodel
         m2 = new_submodel

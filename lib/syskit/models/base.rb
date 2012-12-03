@@ -88,7 +88,13 @@ module Syskit
 
             # Creates a new class that is a submodel of this model
             def new_submodel(options = Hash.new, &block)
+                options = Kernel.validate_options options, :name => nil
+
                 model = self.class.new(self)
+                if name = options[:name]
+                    Models.validate_model_name(name)
+                    model.name = name
+                end
                 register_submodel(model)
                 if block_given?
                     model.instance_eval(&block)

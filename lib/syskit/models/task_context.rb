@@ -147,6 +147,9 @@ module Syskit
                     model.orogen_model.subclasses self.orogen_model
                     model.state_events = self.state_events.dup
                 end
+                if options[:name]
+                    model.name = options[:name]
+                end
                 Syskit::TaskContext.orogen_model_to_syskit_model[model.orogen_model] = model
                 if block
                     model.orogen_model.instance_eval(&block)
