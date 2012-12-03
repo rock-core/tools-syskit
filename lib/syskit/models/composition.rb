@@ -56,11 +56,47 @@ module Syskit
         # modules.
         module Composition
             include Base
+            include Component
 
             # The set of configurations declared with #conf
             attr_reader :conf
 
-            attribute(:autoconnect_ignores) { Set.new }
+            # [Hash{String=>CompositionChild}] the set of children defined for
+            # this composition model, at its level of the hierarchy
+            define_inherited_enumerable(:child, :children, :map => true) { Hash.new }
+
+            define_inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
+            define_inherited_enumerable(:default_specialization, :default_specializations, :map => true) { Hash.new }
+
+            # Method that maps connections from this composition's parent models
+            # to this composition's own interface
+            #
+            # It is called as needed when calling {#each_explicit_connection}
+            def promote_explicit_connection(connections)
+                children, mappings = *connections
+
+                mappings_out =
+                    if child_out = self.children[children[0]]
+                        child_out.port_mappings
+                    else Hash.new
+                    end
+                mappings_in =
+                    if child_in = self.children[children[1]]
+                        child_in.port_mappings
+                    else Hash.new
+                    end
+
+                mapped = Hash.new
+                mappings.each do |(port_name_out, port_name_in), options|
+                    port_name_out = (mappings_out[port_name_out] || port_name_out)
+                    port_name_in  = (mappings_in[port_name_in]   || port_name_in)
+                    mapped[[port_name_out, port_name_in]] = options
+                end
+                [children, mapped]
+            end
+
+            # The set of connections specified by the user for this composition
+            define_inherited_enumerable(:explicit_connection, :explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
 
             # Returns the composition models that are parent to this one
             attribute(:parent_models) { ValueSet.new }
@@ -1905,7 +1941,7 @@ module Syskit
                 io << "}"
             end
 
-            # Callback called when a new subclass of this class is created
+            # Create a new submodel of this composition model
             def new_submodel(options = Hash.new, &block)
                 submodel = super
 
@@ -1926,6 +1962,97 @@ module Syskit
                     end
                 end
                 super
+            end
+
+            # Helper method for {#promote_exported_output} and
+            # {#promote_exported_input}
+            def promote_exported_port(export_name, port)
+                if new_child = children[port.component_model.child_name]
+                    if new_port_name = new_child.port_mappings[port.name]
+                        result = send(port.component_model.child_name).find_port(new_port_name)
+                        result = result.dup
+                        result.name = export_name
+                        result
+                    else
+                        port
+                    end
+                else
+                    port
+                end
+            end
+
+            # Method that maps exports from this composition's parent models to
+            # this composition's own interface
+            #
+            # It is called as needed when calling {#each_exported_output}
+            def promote_exported_output(export_name, port)
+                exported_outputs[export_name] = promote_exported_port(export_name, port)
+            end
+
+            # Outputs exported from components in this composition to this
+            # composition's interface
+            #
+            # @key_name exported_port_name
+            # @return [Hash<String,Port>]
+            define_inherited_enumerable(:exported_output, :exported_outputs, :map => true)  { Hash.new }
+
+            # Method that maps exports from this composition's parent models to
+            # this composition's own interface
+            #
+            # It is called as needed when calling {#each_exported_input}
+            def promote_exported_input(export_name, port)
+                exported_inputs[export_name] = promote_exported_port(export_name, port)
+            end
+
+            # Inputs exported from components in this composition to this
+            # composition's interface
+            #
+            # @key_name exported_port_name
+            # @return [Hash<String,Port>]
+            define_inherited_enumerable(:exported_input, :exported_inputs, :map => true)  { Hash.new }
+
+            # Configurations defined on this composition model
+            #
+            # @key_name conf_name
+            # @return [Hash<String,Hash<String,String>>] the mapping from a
+            #   composition configuration name to the corresponding
+            #   configurations that should be applied to its children
+            # @see {#conf}
+            define_inherited_enumerable(:configuration, :configurations, :map => true)  { Hash.new }
+
+            # Declares a composition configuration
+            #
+            # Composition configurations are named selections of configurations.
+            #
+            # For instance, if
+            #
+            #   conf 'narrow',
+            #       'monitoring' => ['default', 'narrow_window'],
+            #       'sonar' => ['default', 'narrow_window']
+            #
+            # is declared, and the composition is instanciated with
+            #
+            #   Cmp::SonarMonitoring.use_conf('narrow')
+            #
+            # Then the composition children called 'monitoring' and 'sonar' will
+            # be both instanciated with ['default', 'narrow_window']
+            def conf(name, mappings = Hash.new)
+                configurations[name] = mappings
+            end
+
+            # Reimplemented from Roby::Task to take into account the multiple
+            # inheritance mechanisms that is the composition specializations
+            def fullfills?(models)
+                models = [models] if !models.respond_to?(:each)
+                compo, normal = models.partition { |m| m <= Composition }
+                if !super(normal)
+                    return false
+                elsif compo.empty?
+                    return true
+                else
+                    (self <= compo.first) ||
+                        compo.first.parent_model_of?(self)
+                end
             end
 
         end
