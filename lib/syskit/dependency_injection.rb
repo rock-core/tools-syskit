@@ -118,11 +118,11 @@ module Syskit
             # * Component to String,Component,nil
             # * DataService to String,DataService,BoundDataService,nil
             #
-            # @raises ArgumentError if the key and value are not valid
+            # @raise ArgumentError if the key and value are not valid
             #   selection (see above)
-            # @raises ArgumentError if the selected component or service does
+            # @raise ArgumentError if the selected component or service does
             #   not fullfill the key
-            # @raises AmbiguousServiceSelection if a component is selected for a
+            # @raise AmbiguousServiceSelection if a component is selected for a
             #   data service, but there are multiple services of that type in
             #   the component
             def self.normalize_selection(selection)
@@ -290,10 +290,10 @@ module Syskit
             # Resolves a name into a component object
             #
             # @param [String] name the name to be resolved. It can be a plain
-            #   name, i.e. the name of a component in {mappings}, or a
+            #   name, i.e. the name of a component in 'mappings', or a
             #   name.service, i.e. the name of a service for a component in
-            #   {mappings}
-            # @param [Hash] mappings (see DependencyInjection#explicit)
+            #   'mappings'
+            # @param [Hash] mappings (see {DependencyInjection#explicit})
             # @return [#instanciate,nil] the component model or nil if the name
             #   cannot be resolved
             # @raise [NameResolutionError] if the name cannot be resolved,
@@ -605,9 +605,9 @@ module Syskit
             #
             # @overload save()
             #   adds a savepoint that is going to be restored by the matching
-            #   {restore} call
+            #   {#restore} call
             # @overload save { }
-            #   saves the current state, executes the block and calls {restore}
+            #   saves the current state, executes the block and calls {#restore}
             #   when the execution quits the block
             def save
                 if !block_given?
@@ -631,7 +631,7 @@ module Syskit
                 stack.last.resolver
             end
 
-            # The opposite of {save}
+            # The opposite of {#save}
             #
             # Save and restore calls are paired. See #save for more information.
             def restore
