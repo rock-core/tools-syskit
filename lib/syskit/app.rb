@@ -896,14 +896,6 @@ module Syskit
             end
         end
 
-    # For backward compatibility reasons
-    Roby::Application.register_plugin('orocos', Syskit::Application) do
-        require 'syskit'
-        require 'orocos/process_server'
-        Orocos.load_orogen_plugins('roby')
-        Roby.app.filter_out_patterns.push(/^#{Regexp.quote(File.expand_path(File.dirname(__FILE__), ".."))}/)
-    end
-
     Roby::Application.register_plugin('syskit', Syskit::Application) do
         require 'syskit'
         require 'orocos/process_server'
