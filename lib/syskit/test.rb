@@ -11,6 +11,27 @@ require 'orocos/process_server'
 require 'roby/tasks/simple'
 require 'orocos/test'
 
+begin
+    require 'simplecov'
+    if ENV['SYSKIT_ENABLE_COVERAGE'] == '1'
+        SimpleCov.command_name 'syskit'
+        root = File.expand_path(File.join("..", ".."), File.dirname(__FILE__))
+        SimpleCov.root(root)
+        SimpleCov.add_filter "/test/"
+        SimpleCov.start
+    end
+rescue LoadError
+    Syskit.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
+rescue Exception => e
+    Syskit.warn "coverage is disabled: #{e.message}"
+end
+
+begin
+require 'pry'
+rescue Exception
+    Syskit.warn "debugging is disabled because the 'pry' gem cannot be loaded"
+end
+
 module Syskit
         module Test
             include Syskit
