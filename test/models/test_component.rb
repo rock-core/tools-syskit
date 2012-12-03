@@ -368,6 +368,20 @@ class TC_Models_Component < Test::Unit::TestCase
         model = Syskit::TaskContext.new_submodel
         assert !model.find_input_port('p')
     end
+
+    def test_find_data_service_return_value_is_bound_to_actual_model
+        s = DataService.new_submodel
+        c = Syskit::TaskContext.new_submodel { provides s, :as => 'srv' }
+        sub_c = c.new_submodel
+        assert_equal sub_c, sub_c.find_data_service('srv').component_model
+    end
+
+    def test_find_data_service_from_type_return_value_is_bound_to_actual_model
+        s = DataService.new_submodel
+        c = Syskit::TaskContext.new_submodel { provides s, :as => 'srv' }
+        sub_c = c.new_submodel
+        assert_equal sub_c, sub_c.find_data_service_from_type(s).component_model
+    end
 end
 
 

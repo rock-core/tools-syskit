@@ -5,7 +5,13 @@ module Syskit
         module Component
             include Models::Base
 
+            # Method that maps data services from this component's parent models
+            # to this composition's own
             #
+            # It is called as needed when calling {#each_data_service}
+            def promote_data_service(full_name, service)
+                service.attach(self)
+            end
 
             # The data services defined on this task, as a mapping from the data
             # service full name to the BoundDataService object.
