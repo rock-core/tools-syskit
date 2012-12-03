@@ -5,50 +5,19 @@ module Syskit
         module Component
             include Models::Base
 
-            ##
-            # :method: each_data_service
-            # :call-seq:
-            #     each_data_service { |service_name, service| }
             #
-            # Enumerates all the data services that are provided by this
-            # component model, as pairs of source name and DataService instances.
-            # Unlike #data_services, it enumerates both the sources added at
-            # this level of the model hierarchy and the ones that are provided
-            # by the model's parents.
+
+            # The data services defined on this task, as a mapping from the data
+            # service full name to the BoundDataService object.
             #
-            # See also #provides
-            #--
-            # This is defined on Component using inherited_enumerable
+            # @key_name full_name
+            # @return [Hash<String,BoundDataService>]
             define_inherited_enumerable(:data_service, :data_services, :map => true) { Hash.new }
 
-            ##
-            # :method: find_data_service
-            # :call-seq:
-            #   find_data_service(name) -> service
+            # Enumerates all the device models this component is a driver for
             #
-            # Returns the DataService instance that has the given name, or nil if
-            # there is none.
-            #
-            # See also #provides
-            #--
-            # This is defined on Component using inherited_enumerable
-
-            ## :attr_reader: data_services
-            #
-            # The data services that are provided by this particular component
-            # model, as a hash mapping the source name to the corresponding
-            # DataService instance. This only includes new sources that have been
-            # added at this level of the component hierarchy, not the ones that
-            # have already been added to the model parents.
-            #
-            # See also #provides
-            #--
-            # This is defined on Component using inherited_enumerable
-
-            def find_data_services(&block)
-                each_data_service.find_all(&block)
-            end
-
+            # @yields [Model<Device>]
+            # @return [void]
             def each_device(&block)
                 each_data_service.find_all { |_, srv| srv.model < Device }.
                     each(&block)
