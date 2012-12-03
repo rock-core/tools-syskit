@@ -31,6 +31,7 @@ require 'syskit/bound_data_service'
 
 # Dependency injection
 require 'syskit/dependency_injection'
+require 'syskit/dependency_injection_context'
 require 'syskit/instance_requirements'
 require 'syskit/instance_selection'
 
