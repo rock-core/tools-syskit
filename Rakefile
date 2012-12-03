@@ -61,7 +61,8 @@ if Utilrb.doc?
         Utilrb.doc 'api', :include => ['lib/**/*.rb'],
             :exclude => [],
             :target_dir => 'doc',
-            :title => 'Syskit'
+            :title => 'Syskit',
+            :plugins => ['utilrb', 'roby']
 
         # desc 'generate all documentation'
         # task 'all' => 'doc:api'
