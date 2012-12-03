@@ -193,7 +193,7 @@ module Syskit
                 if k < klass
                     klass = k
                 elsif !(klass <= k)
-                    raise IncompatibleModelLists, "models #{k.short_name} and #{klass.short_name} are not compatible"
+                    raise IncompatibleComponentModels.new(k, klass), "models #{k.short_name} and #{klass.short_name} are not compatible"
                 end
             end
 
