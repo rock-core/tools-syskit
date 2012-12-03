@@ -46,7 +46,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
         srv1 = DataService.new_submodel
         srv1.provides srv0
         mapping = { 'name' => 'value', 'value' => srv0, srv0 => srv1 }
-        assert_equal({ 'name' => srv1, 'value' => srv1, srv0 => srv1 },
+        assert_equal({ 'name' => 'value', 'value' => srv1, srv0 => srv1 },
             DependencyInjection.resolve_recursive_selection_mapping(mapping))
     end
 
@@ -175,9 +175,9 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal c0, DependencyInjection.find_name_resolution('name', 'name' => c0)
     end
 
-    def test_find_name_resolution_works_recursively
+    def test_find_name_resolution_does_not_resolve_names_recursively
         c0 = Component.new_submodel
-        assert_equal c0, DependencyInjection.find_name_resolution('name', 'name' => 'value', 'value' => c0)
+        assert !DependencyInjection.find_name_resolution('name', 'name' => 'value', 'value' => c0)
     end
 
     def test_find_name_resolution_name_does_not_exist
@@ -222,6 +222,13 @@ class TC_DependencyInjection < Test::Unit::TestCase
         srv = DataService.new_submodel
         c0.provides srv, :as => 'srv'
         assert_raises(Syskit::NameResolutionError) { DependencyInjection.find_name_resolution('name.srv.slave', 'name' => c0) }
+    end
+
+    def test_resolve_names_only_uses_provided_mappings
+        c0 = Component.new_submodel
+        obj = DependencyInjection.new('name' => 'bla', 'bla' => 'blo')
+        assert_equal %w{bla blo}.to_set, obj.resolve_names
+        assert_equal %w{blo}.to_set, obj.resolve_names('bla' => c0)
     end
 
     def test_resolve_names_applies_on_explicit_and_defaults

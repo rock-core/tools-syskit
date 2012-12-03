@@ -306,7 +306,7 @@ module Syskit
                     object_name = name
                 end
 
-                main_object = DependencyInjection.resolve_selection_recursively(object_name, mappings)
+                main_object = mappings[object_name]
                 return if !main_object || main_object.respond_to?(:to_str)
 
                 if service_name
@@ -326,7 +326,7 @@ module Syskit
             # using the provided block
             #
             # @return [Set<String>] the set of names that could not be resolved
-            def resolve_names(mapping = self.explicit)
+            def resolve_names(mapping = Hash.new)
                 unresolved = Set.new
                 map! do |v|
                     if v.respond_to?(:to_str)
@@ -404,16 +404,13 @@ module Syskit
             # injection mapping
             def self.resolve_recursive_selection_mapping(spec)
                 spec.map_value do |key, value|
-                    while (new_value = spec[value])
-                        value = new_value
-                    end
-                    value
+                    resolve_selection_recursively(value, spec)
                 end
             end
 
             # Helper method that resolves one single object recursively
             def self.resolve_selection_recursively(value, spec)
-                while (new_value = spec[value])
+                while !value.respond_to?(:to_str) && (new_value = spec[value])
                     value = new_value
                 end
                 value
@@ -679,7 +676,7 @@ module Syskit
 
                 new_state = stack.last.resolver.dup
                 # Resolve all names
-                unresolved = spec.resolve_names(new_state.explicit.merge(spec.explicit))
+                unresolved = spec.resolve_names(new_state.explicit)
                 if !unresolved.empty?
                     raise NameResolutionError.new(unresolved), "could not resolve names while pushing #{spec} on #{self}"
                 end
