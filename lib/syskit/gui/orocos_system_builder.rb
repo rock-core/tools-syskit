@@ -1,7 +1,7 @@
-require 'orocos/roby/gui/orocos_composer'
-require 'orocos/roby/gui/orocos_system_builder_ui'
-require 'orocos/roby/gui/instanciate_composition'
-require 'orocos/roby/gui/plan_display'
+require 'syskit/gui/orocos_composer'
+require 'syskit/gui/orocos_system_builder_ui'
+require 'syskit/gui/instanciate_composition'
+require 'syskit/gui/plan_display'
 
 module Ui
     # Main UI window for the instanciation GUI

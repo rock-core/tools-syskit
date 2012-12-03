@@ -1,8 +1,8 @@
 require 'roby/standalone'
 require 'optparse'
 require 'orocos'
-require 'orocos/roby'
-require 'orocos/roby/app'
+require 'syskit'
+require 'syskit/app'
 
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD

@@ -1,5 +1,5 @@
 require 'roby'
-require 'orocos/roby/scripts/common'
+require 'syskit/scripts/common'
 Scripts = Syskit::Scripts
 
 deploy_all = false

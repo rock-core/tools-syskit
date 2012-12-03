@@ -1,7 +1,7 @@
 require 'logger'
 require 'utilrb/logger'
 require 'utilrb/hash/map_value'
-require 'orocos/roby/exceptions'
+require 'syskit/exceptions'
 require 'facets/string/snakecase'
 
 class Object

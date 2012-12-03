@@ -368,13 +368,13 @@ module Syskit
                 orogen
             end
 
-            # Searches for the given file in OROCOS_ROBY_MODEL_PATH, if the
+            # Searches for the given file in SYSKIT_MODEL_PATH, if the
             # environment variable is set.
             #
             # Returns the first file found, if there is one, and otherwise
             # returns nil
             def self.find_in_model_path(*basename)
-                if path = ENV['OROCOS_ROBY_MODEL_PATH']
+                if path = ENV['SYSKIT_MODEL_PATH']
                     path = path.split(':')
                     path.each do |p|
                         p = File.join(p, *basename)

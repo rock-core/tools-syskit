@@ -1,4 +1,4 @@
-require 'orocos/roby/scripts/common'
+require 'syskit/scripts/common'
 Scripts = Syskit::Scripts
 
 Roby.app.using_plugins 'orocos'
@@ -249,7 +249,7 @@ end
 
 # If we are using the Qt GUI, do everything in there
 if Scripts.output_type == 'qt'
-    require 'orocos/roby/gui/instanciated_network_display'
+    require 'syskit/gui/instanciated_network_display'
     class InstanciateGUI < Qt::Widget
         attr_reader :apply_btn
         attr_reader :instance_txt

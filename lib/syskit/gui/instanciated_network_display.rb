@@ -1,4 +1,4 @@
-require 'orocos/roby/gui/stacked_display'
+require 'syskit/gui/stacked_display'
 
 module Ui
     # Widget used by rock-roby instanciate as the main widget

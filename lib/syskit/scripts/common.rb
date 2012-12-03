@@ -1,7 +1,7 @@
 require 'optparse'
 require 'orocos'
-require 'orocos/roby'
-require 'orocos/roby/app'
+require 'syskit'
+require 'syskit/app'
 
 module Orocos
     module Syskit
@@ -217,7 +217,7 @@ module Orocos
                     io.flush
                     io.close
                 when "qt"
-                    require 'orocos/roby/gui/instanciated_network_display'
+                    require 'syskit/gui/instanciated_network_display'
                     if !$qApp
                         app = Qt::Application.new(ARGV)
                     end

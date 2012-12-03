@@ -1,9 +1,9 @@
 require 'roby/standalone'
 require 'orocos'
-require 'orocos/roby'
-require 'orocos/roby/app'
+require 'syskit'
+require 'syskit/app'
 
-Roby.app.using 'orocos'
+Roby.app.using 'syskit'
 
 if ARGV[0] == "--all"
     Roby.app.orocos_load_component_extensions = false

@@ -29,7 +29,7 @@ module Syskit
             end
         end
 
-        # Type of task that allows to modify the Orocos/Roby engine's
+        # Type of task that allows to modify the Syskit engine's
         # requirements. The modifications will be applied when the task is
         # started, and the task will fail if the modification failed.
         #

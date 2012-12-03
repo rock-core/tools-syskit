@@ -1,9 +1,9 @@
 require 'roby/standalone'
-require 'orocos/roby/scripts/common'
+require 'syskit/scripts/common'
 Scripts = Syskit::Scripts
 
 require 'Qt4'
-require 'orocos/roby/gui/orocos_system_builder'
+require 'syskit/gui/orocos_system_builder'
 
 parser = OptionParser.new do |opt|
     opt.banner = "Usage: scripts/orocos/instanciate_gui [options] deployments

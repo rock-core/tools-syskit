@@ -221,7 +221,7 @@ module Syskit
 
         # Modelling and instance-level functionality for devices
         #
-        # Devices are, in the Orocos/Roby plugin, the tools that allow to
+        # Devices are, in Syskit plugin, the tools that allow to
         # represent the inputs and outputs of your component network, i.e. the
         # components that are tied to "something" (usually hardware) that is
         # not represented in the component network.

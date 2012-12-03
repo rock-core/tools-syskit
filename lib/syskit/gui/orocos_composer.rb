@@ -1,5 +1,5 @@
-require 'orocos/roby/gui/orocos_composer_ui'
-require 'orocos/roby/gui/instanciate_composition'
+require 'syskit/gui/orocos_composer_ui'
+require 'syskit/gui/instanciate_composition'
 
 module Ui
     # UI window to instanciate compositions

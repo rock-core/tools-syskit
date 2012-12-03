@@ -12,7 +12,7 @@ Bundles.load(true)
 mode = ARGV.shift
 
 begin
-    require "orocos/roby/scripts/#{mode}"
+    require "syskit/scripts/#{mode}"
 rescue LoadError
     begin
         require "roby/app/scripts/#{mode}"

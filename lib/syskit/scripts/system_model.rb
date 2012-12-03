@@ -1,7 +1,7 @@
 require 'roby/standalone'
-require 'orocos/roby/scripts/common'
+require 'syskit/scripts/common'
 require 'Qt'
-require 'orocos/roby/gui/stacked_display'
+require 'syskit/gui/stacked_display'
 
 Scripts = Syskit::Scripts
 
@@ -25,7 +25,7 @@ end
 
 app = Qt::Application.new(ARGV)
 
-require 'orocos/roby/gui/plan_display'
+require 'syskit/gui/plan_display'
 
 class ModelListWidget < Qt::TreeWidget
     # The TreeWidgetItem that is root of all the data service items

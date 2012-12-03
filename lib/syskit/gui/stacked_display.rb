@@ -1,4 +1,4 @@
-require 'orocos/roby/gui/plan_display'
+require 'syskit/gui/plan_display'
 module Ui
     # A Qt::ToolBox-based widget that has some convenience functions to display
     # Roby::Plan objects using the PlanDisplay widget
