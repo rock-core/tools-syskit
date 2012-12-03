@@ -1,0 +1,11 @@
+if ENV['SYSKIT_ENABLE_COVERAGE'] == '1'
+    SimpleCov.command_name 'syskit'
+    SimpleCov.start do
+        add_filter "/test/"
+    end
+
+    require 'syskit'
+    Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
+    Syskit.logger.level = Logger::DEBUG
+end
+
