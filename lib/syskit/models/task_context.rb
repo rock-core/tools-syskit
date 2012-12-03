@@ -152,7 +152,8 @@ module Syskit
                 end
                 Syskit::TaskContext.orogen_model_to_syskit_model[model.orogen_model] = model
                 if block
-                    model.orogen_model.instance_eval(&block)
+                    evaluation = DataServiceModel::BlockInstanciator.new(model)
+                    evaluation.instance_eval(&block)
                 end
                 register_submodel(model)
                 model

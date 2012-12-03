@@ -32,6 +32,19 @@ class TC_Models_TaskContext < Test::Unit::TestCase
         assert(model.orogen_model.find_property("property"))
     end
 
+    def test_new_submodel_can_setup_ports_and_provide_services
+        srv = DataService.new_submodel
+        model = TaskContext.new_submodel do
+            input_port "port", "int"
+            property "property", "int"
+            provides srv, :as => 'srv'
+        end
+        assert(model < Syskit::TaskContext)
+        assert(model.orogen_model.find_input_port("port"))
+        assert(model.orogen_model.find_property("property"))
+        assert model.find_data_service('srv')
+    end
+
     def test_new_submodel_registers_the_submodel_on_parent_classes
         submodel = TaskContext.new_submodel
         subsubmodel = submodel.new_submodel

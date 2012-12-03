@@ -117,20 +117,20 @@ module Syskit
             # DataServiceModel#apply_block
             class BlockInstanciator < BasicObject
                 attr_reader :name
-                def initialize(service, name = nil)
-                    @service = service
-                    @name = name || service.name
-                    @orogen_model = service.orogen_model
+                def initialize(model, name = nil)
+                    @model = model
+                    @name = name || model.name
+                    @orogen_model = model.orogen_model
 
                     if !@orogen_model
-                        raise InternalError, "no interface for #{service.name}"
+                        raise InternalError, "no interface for #{model.short_name}"
                     end
                 end
 
                 def method_missing(m, *args, &block)
                     if @orogen_model.respond_to?(m)
                         @orogen_model.send(m, *args, &block)
-                    else @service.send(m, *args, &block)
+                    else @model.send(m, *args, &block)
                     end
                 end
             end
