@@ -141,16 +141,17 @@ module Syskit
                         raise ArgumentError, "found #{value} as a selection key, but only names, component models and data service models are allowed"
                     end
 
-                    # 'value' must be one of String,
-                    # Component,DataService,BoundDataService or nil
+                    # 'value' must be one of String,Model<Component>,Component,DataService,Model<BoundDataService>,BoundDataService or nil
                     if value &&
                         !value.respond_to?(:to_str) &&
+                        !value.kind_of?(Component) &&
+                        !value.kind_of?(BoundDataService) &&
                         !value.kind_of?(Models::BoundDataService) &&
                         !value.kind_of?(Models::DataServiceModel) &&
                         !value.kind_of?(InstanceRequirements) &&
                         (!value.kind_of?(Class) || !(value <= Component))
 
-                        raise ArgumentError, "found #{value} as a selection for #{key}, but only nil, names,component models, data service models and bound data services are allowed"
+                        raise ArgumentError, "found #{value} as a selection for #{key}, but only nil,name,component models,components,data service models and bound data services are allowed"
                     end
 
                     if key.respond_to?(:to_str)
@@ -167,10 +168,12 @@ module Syskit
                     if key <= Component
                         if value.kind_of?(Models::BoundDataService)
                             value = value.component_model
+			elsif value.kind_of?(Syskit::BoundDataService)
+                            value = value.component
                         end
                         normalized[key] = value
                     elsif key <= DataService
-                        if value.kind_of?(Class) && (value <= Component)
+                        if value.respond_to?(:find_data_service_from_type)
                             value = value.find_data_service_from_type(key)
                         end
                         normalized[key] = value

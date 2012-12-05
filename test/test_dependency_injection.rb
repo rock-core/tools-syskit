@@ -81,6 +81,9 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal(Hash[key => srv], DependencyInjection.normalize_selection(key => srv))
         assert_equal(Hash[key => component], DependencyInjection.normalize_selection(key => component))
         assert_equal(Hash[key => component.srv_srv], DependencyInjection.normalize_selection(key => component.srv_srv))
+	component = component.new
+        assert_equal(Hash[key => component], DependencyInjection.normalize_selection(key => component))
+        assert_equal(Hash[key => component.srv_srv], DependencyInjection.normalize_selection(key => component.srv_srv))
         req = InstanceRequirements.new
         assert_equal(Hash[key => req], DependencyInjection.normalize_selection(key => req))
     end
@@ -119,6 +122,9 @@ class TC_DependencyInjection < Test::Unit::TestCase
 
         assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent))
         assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent.srv_srv))
+	subcomponent = subcomponent.new
+        assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent))
+        assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent.srv_srv))
     end
 
     def test_normalize_selection_accepts_component_to_instance_requirements_that_fullfill_the_key
@@ -132,6 +138,9 @@ class TC_DependencyInjection < Test::Unit::TestCase
         srv = DataService.new_submodel
         component = Component.new_submodel { provides(srv, :as => 'srv') }
         
+        assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component) }
+        assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component.srv_srv) }
+	component = component.new
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component) }
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component.srv_srv) }
     end
@@ -169,6 +178,8 @@ class TC_DependencyInjection < Test::Unit::TestCase
     def test_normalize_selection_accepts_data_service_to_component_that_fullfill_the_key_and_maps_the_service
         srv0 = DataService.new_submodel
         c = Component.new_submodel { provides srv0, :as => 'srv' }
+        assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
+	c = c.new
         assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
     end
 
