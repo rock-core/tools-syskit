@@ -59,8 +59,17 @@ module Syskit
             end
 
             def pretty_print(pp)
-                pp.text "port #{name} of "
-                component_model.pretty_print(pp)
+                pp.text "port '#{name}' of "
+                pp.nest(2) do
+                    pp.breakable
+                    component_model.pretty_print(pp)
+                    pp.breakable
+                    pp.text "Defined with"
+                    pp.nest(2) do
+                        pp.breakable
+                        orogen_model.pretty_print(pp)
+                    end
+                end
             end
 
             def to_orocos_port(component)
