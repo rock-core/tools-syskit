@@ -675,6 +675,55 @@ module Syskit
                 pp.text "cannot compute port mappings: #{model_a.short_name} and #{model_b.short_name} share the same port name #{port_name}"
             end
         end
+
+        # Exception raised in InstanceRequirements when two models share the
+        # same port name
+        class AmbiguousPortName < Ambiguous
+            attr_reader :requirements
+            attr_reader :name
+            attr_reader :candidates
+            def initialize(requirements, name, candidates)
+                @requirements, @name, @candidates =
+                    requirements, name, candidates
+            end
+            def pretty_print(pp)
+                pp.text "more than one port matches #{name} in"
+                pp.nest(2) do
+                    pp.nest(2) do
+                        pp.breakable
+                        requirements.pretty_print(pp)
+                    end
+                    pp.breakable
+                    pp.text "Candidates:"
+                    pp.breakable
+                    pp.seplist(candidates) do |obj|
+                        obj.pretty_print(pp)
+                    end
+                end
+            end
+        end
+
+        # Exception raised in SpecializationManager when it detects that a
+        # constraint added with
+        # {SpecializationManager#add_specialization_constraint} is not symmetric
+        class NonSymmetricSpecializationConstraint < RuntimeError
+            # The constraint block
+            attr_reader :validator
+            # The validator arguments that trigger the bug
+            attr_reader :specializations
+
+            def initialize(validator, specializations)
+                @validator, @specializations = validator, specializations
+            end
+
+            def pretty_print(pp)
+                pp.text "the specialization constraint block #{validator} is not symmetric:"
+                pp.breakable
+                pp.text "  #{validator}[#{specializations[0]},#{specializations[1]}] => #{validator[*specializations]}"
+                pp.breakable
+                pp.text "  #{validator}[#{specializations[1]},#{specializations[0]}] => #{validator[*specializations.reverse]}"
+            end
+        end
 end
 
 

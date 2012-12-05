@@ -1,55 +1,5 @@
 module Syskit
     module Models
-        # Additional methods that are mixed in composition specialization
-        # models. I.e. composition models created by CompositionModel#specialize
-        module CompositionSpecialization
-            def is_specialization?; true end
-
-            # The root composition model in the specialization chain
-            attr_accessor :root_model
-            # The set of definition blocks that have been applied on +self+ in
-            # the process of specializing +root_model+
-            attribute(:definition_blocks) { Array.new }
-
-            # Returns the model name
-            #
-            # This is formatted as
-            # root_model/child_name.is_a?(specialized_list),other_child.is_a?(...)
-            def name
-                specializations = self.specialized_children.map do |child_name, child_models|
-                    "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
-                end
-
-                "#{root_model.short_name}/#{specializations}"
-            end
-
-            # Applies the specialization block +block+ on +self+. If +recursive+
-            # is true, also applies it on the children of this particular
-            # specialization
-            #
-            # Whenever a new specialization block is applied on an existing
-            # specialization, calling this method with recursive = true ensures
-            # that the block is applied on all specialization models that should
-            # have it applied
-            def apply_specialization_block(block)
-                if !definition_blocks.include?(block)
-                    instance_eval(&block)
-                    definition_blocks << block
-                end
-            end
-
-            # Registers a new composition model that is a specialization of
-            # +self+. The generated model is registered on the root model (not
-            # this one)
-            def instanciate_specialization(merged, list)
-                applied_specializations.each do |s|
-                    merged.merge(s)
-                end
-                list = list + applied_specializations.to_a
-                root_model.instanciate_specialization(merged, list)
-            end
-        end
-
         # Model-level instances and attributes for compositions
         #
         # See the documentation of Model for an explanation of the *Model
@@ -61,6 +11,10 @@ module Syskit
             # The set of configurations declared with #conf
             attr_reader :conf
 
+            # [SpecializationManager] the object that manages all
+            # specializations defined on this composition model
+            attribute(:specializations) { SpecializationManager.new(self) }
+
             # The composition children
             #
             # @key_name child_name
@@ -68,7 +22,6 @@ module Syskit
             define_inherited_enumerable(:child, :children, :map => true) { Hash.new }
 
             define_inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
-            define_inherited_enumerable(:default_specialization, :default_specializations, :map => true) { Hash.new }
 
             # Method that maps connections from this composition's parent models
             # to this composition's own interface
@@ -112,15 +65,6 @@ module Syskit
             # [ValueSet<Model<Composition>>] the composition models that are parent to this one
             attribute(:parent_models) { ValueSet.new }
 
-            # The set of specializations defined at this level of the model
-            # hierarchy, as an array of Specialization instances. See
-            # #specialize for more details
-            attribute(:specializations) { Hash.new }
-
-            ##
-            # :attr: instanciated_specializations
-            attribute(:instanciated_specializations) { Hash.new }
-
             # The root composition model in the specialization hierarchy
             def root_model; self end
 
@@ -140,12 +84,10 @@ module Syskit
             # model graph up to this model
             attribute(:applied_specializations) { Set.new }
 
-            # A set of blocks that are used to evaluate if two specializations
-            # can be applied at the same time
-            #
-            # The block should take as input two Specialization instances and
-            # return true if it is compatible and false otherwise
-            attribute(:specialization_constraints) { Array.new }
+            # (see SpecializationManager#specialize)
+            def specialize(options = Hash.new, &block)
+                specializations.specialize(options, &block)
+            end
 
             # Returns true if this composition model is a model created by
             # specializing another one on +child_name+ with +child_model+
@@ -171,11 +113,6 @@ module Syskit
             def parent_model_of?(child_model)
                 (child_model < self) ||
                     specializations.values.include?(child_model)
-            end
-
-            # Enumerates all compositions that are specializations of this model
-            def each_specialization(&block)
-                specializations.each_value(&block)
             end
 
             # Enumerates the input ports that are defined on this composition,
@@ -209,15 +146,6 @@ module Syskit
             # Returns the output port of this composition named +name+, or nil
             # if there are none
             def find_output_port(name); find_exported_output(name) end
-
-            # Returns the CompositionChild object that represents the given
-            # child, or nil if it does not exist.
-            def [](name)
-                name = name.to_str 
-                if find_child(name)
-                    CompositionChild.new(self, name)
-                end
-            end
 
             # Internal helper to add a child to the composition
             def add_child(name, child_models, dependency_options)
@@ -386,388 +314,6 @@ module Syskit
                 @main_task = add(models, options)
             end
 
-            # Representation of a composition specialization
-            class Specialization
-                # The specialization constraints, as a map from child name to
-                # set of models (data services or components)
-                attr_reader :specialized_children
-
-                # The set of blocks that have been passed to the corresponding
-                # specialize calls. These blocks are going to be evaluated in
-                # the task model that will be created (on demand) to create
-                # tasks of this specialization
-                attr_reader :specialization_blocks
-
-                # Cache of compatibilities: this is a cache of other
-                # Specialization objects that can be applied at the same time
-                # that this one.
-                #
-                # Two compositions are compatible if their specialization sets
-                # are either disjoints (they don't specialize on the same
-                # children) or if it is possible that a component provides both
-                # the required models.
-                attr_reader :compatibilities
-
-                # The composition model that can be used to instanciate this
-                # specialization. This is a subclass of the composition that
-                # this specialization specializes.
-                attr_accessor :composition_model
-
-                def initialize(spec = Hash.new, block = nil)
-                    @specialized_children = spec
-                    @specialization_blocks = Array.new
-                    if block
-                        @specialization_blocks << block
-                    end
-                    @compatibilities = Set.new
-                end
-
-                def initialize_copy(old)
-                    @specialized_children = old.specialized_children.dup
-                    @specialization_blocks = old.specialization_blocks.dup
-                    @compatibilities = old.compatibilities.dup
-                end
-
-                # True if this does not specialize on anything
-                def empty?
-                    specialized_children.empty?
-                end
-
-                def to_s
-                    specialized_children.map do |child_name, child_models|
-                        "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
-                    end.join(",")
-                end
-
-                # Returns true if +spec+ is compatible with +self+
-                #
-                # See #compatibilities for more information on compatible
-                # specializations
-                def compatible_with?(spec)
-                    empty? || spec == self || compatibilities.include?(spec)
-                end
-
-                def find_specialization(child_name, model)
-                    if selected_models = specialized_children[child_name]
-                        if matches = selected_models.find_all { |m| m.fullfills?(model) }
-                            if !matches.empty?
-                                return matches
-                            end
-                        end
-                    end
-                end
-
-                # Returns true if +self+ specializes on +child_name+ in a way
-                # that is compatible with +model+
-                def has_specialization?(child_name, model)
-                    if selected_models = specialized_children[child_name]
-                        selected_models.any? { |m| m.fullfills?(model) }
-                    end
-                end
-
-                # Add new specializations and blocks to +self+ without checking
-                # for compatibility
-                def add(new_spec, new_blocks)
-                    specialized_children.merge!(new_spec) do |child_name, models_a, models_b|
-                        result = Set.new
-                        (models_a | models_b).each do |m|
-                            if !result.any? { |result_m| result_m <= m }
-                                result.delete_if { |result_m| m < result_m }
-                                result << m
-                            end
-                        end
-                        result
-                    end
-                    if new_blocks.respond_to?(:to_ary)
-                        specialization_blocks.concat(new_blocks)
-                    elsif new_blocks
-                        specialization_blocks << new_blocks
-                    end
-                end
-
-                # Merge the specialization specification of +other_spec+ into
-                # +self+
-                def merge(other_spec)
-                    @compatibilities =
-                        if empty?
-                            other_spec.compatibilities.dup
-                        else
-                            compatibilities & other_spec.compatibilities.dup
-                        end
-                    @compatibilities << other_spec
-
-                    add(other_spec.specialized_children, other_spec.specialization_blocks)
-                    self
-                end
-
-                def weak_match?(selection)
-                    has_selection = false
-                    selection.each do |child_name, selected_child|
-                        this_selection = specialized_children[child_name]
-                        next if !this_selection
-
-                        has_selection = true
-
-                        does_match =
-                            if selected_child.respond_to?(:fullfills?)
-                                selected_child.fullfills?(this_selection)
-                            else
-                                selected_child.any? do |submodel|
-                                    submodel.fullfills?(this_selection)
-                                end
-                            end
-
-                        if !does_match
-                            return false
-                        end
-                    end
-                    return has_selection
-                end
-
-                def strong_match?(selection)
-                    selection.all? do |child_name, selected_child|
-                        if this_selection = specialized_children[child_name]
-                            if selected_child.respond_to?(:fullfills?)
-                                selected_child.fullfills?(this_selection)
-                            else
-                                selected_child.any? do |submodel|
-                                    submodel.fullfills?(this_selection)
-                                end
-                            end
-                        else
-                            return false
-                        end
-                    end
-                end
-            end
-
-            # Create a child of this composition model in which +child_name+ is
-            # constrained to implement the +child_model+ interface. If a block
-            # is given, it is used to set up the new composition.
-            #
-            # At instanciation time, this child will be preferentially selected
-            # in place of the parent model in case the selected child is
-            # actually of the given model. If two specializations match and are
-            # not related to each other (i.e. there is not one that is less
-            # abstract than the other), then an error is raised. This ambiguity
-            # can be solved by declaring a default specialization with
-            # #default_specialization.
-            #
-            # If it is known that a specialization is in conflict with another,
-            # the :not option can be used. For instance, in the following code,
-            # only two specialization will exist: the one in which the Control
-            # child is a SimpleController and the one in which it is a
-            # FourWheelController.
-            #
-            #   specialize 'Control', SimpleController, :not => FourWheelController do
-            #   end
-            #   specialize 'Control', FourWheelController, :not => SimpleController do
-            #   end
-            #
-            # If the :not option had not been used, three specializations would
-            # have been added: the same two than above, and the one case where
-            # 'Control' fullfills both the SimpleController and
-            # FourWheelController data services.
-            def specialize(options = Hash.new, &block)
-                Models.debug do
-                    Models.debug "trying to specialize #{short_name}"
-                    Models.log_nest 2
-                    Models.debug "with"
-                    options.map do |name, models|
-                        Models.debug "  #{name} => #{models}"
-                    end
-
-                    Models.debug ""
-                    break
-                end
-
-                options, mappings = Kernel.filter_options options, :not => []
-                if !options[:not].respond_to?(:to_ary)
-                    options[:not] = [options[:not]]
-                end
-
-                # Normalize the user-provided specialization mapping
-                new_spec = Hash.new
-                mappings.each do |child, child_model|
-                    if child.kind_of?(Module)
-                        children = each_child.
-                            find_all { |name, child_definition| child_definition.models.include?(child) }.
-                            map { |name, _| name }
-
-                        children.each do |child_name|
-                            new_spec[child_name] = [child_model].to_set
-                        end
-                    elsif !child_model.respond_to?(:each)
-                        new_spec[child.to_str] = [child_model].to_set
-                    else
-                        new_spec[child.to_str] = child_model.to_set
-                    end
-                end
-
-                # validate it
-                verify_acceptable_specialization(new_spec)
-
-                # register it
-                specialization = (specializations[new_spec] ||= Specialization.new)
-                specialization.add(new_spec, block)
-
-                # and update compatibilities
-                specializations.each_value do |spec|
-                    next if spec == specialization
-                    if compatible_specializations?(spec, specialization)
-                        spec.compatibilities << specialization
-                        specialization.compatibilities << spec
-                    else
-                        spec.compatibilities.delete(specialization)
-                        specialization.compatibilities.delete(spec)
-                    end
-                end
-                specialization
-
-            ensure
-                Models.debug do
-                    Models.log_nest -2
-                    break
-                end
-            end
-
-            def add_specialization_constraint(explicit = nil, &as_block)
-                specialization_constraints << (explicit || as_block)
-            end
-
-            def compatible_specializations?(spec1, spec2)
-                specialization_constraints.each do |validator|
-                    if !validator[spec1, spec2]
-                        return false
-                    end
-                end
-                return true
-            end
-
-            def instanciate_all_possible_specializations
-                all = partition_specializations(specializations.values)
-
-                done_subsets = Set.new
-
-                result = []
-                all.each do |merged, set|
-                    (1..set.size).each do |subset_size|
-                        set.to_a.combination(subset_size) do |subset|
-                            subset = subset.to_set
-                            if !done_subsets.include?(subset)
-                                merged = Specialization.new
-                                subset.each { |spec| merged.merge(spec) }
-                                result << instanciate_specialization(merged, subset)
-                                done_subsets << subset
-                            end
-                        end
-                    end
-                end
-                result
-            end
-
-            # Registers a new composition model that is a specialization of
-            # +self+. +composite_spec+ is a Specialization object in which all
-            # the required specializations have been merged and
-            # +applied_specializations+ the list of the specializations,
-            # separate.
-            def instanciate_specialization(composite_spec, applied_specializations = [composite_spec])
-                Models.debug do
-                    Models.debug "instanciating specializations: #{applied_specializations.map(&:to_s).sort.join(", ")}"
-                    Models.log_nest(2)
-                    break
-                end
-
-                if applied_specializations.empty?
-                    return self
-                elsif current_model = instanciated_specializations[composite_spec.specialized_children]
-                    return current_model.composition_model
-                end
-
-                # There's no composition with that spec. Create a new one
-                child_composition = new_submodel
-                child_composition.parent_models << self
-                child_composition.extend Models::CompositionSpecialization
-                child_composition.specialized_children.merge!(composite_spec.specialized_children)
-                child_composition.applied_specializations = applied_specializations
-                composite_spec.compatibilities.each do |single_spec|
-                    child_composition.specializations[single_spec.specialized_children] ||= single_spec
-                end
-                child_composition.private_model
-                child_composition.root_model = root_model
-                composite_spec.specialized_children.each do |child_name, child_models|
-                    child_composition.add child_models, :as => child_name
-                end
-                composite_spec.specialization_blocks.each do |block|
-                    child_composition.apply_specialization_block(block)
-                end
-                composite_spec.composition_model = child_composition
-                instanciated_specializations[composite_spec.specialized_children] = composite_spec
-
-                child_composition
-            ensure
-                Models.debug do
-                    Models.log_nest -2
-                    break
-                end
-            end
-
-            # Verifies that the child selection in +new_spec+ is valid
-            #
-            # +new_spec+ has to be formatted as a mapping from child name to a
-            # set of models that should be tested against the definition of the
-            # child name, i.e.
-            #
-            #   child_name => child_models
-            #--
-            # +user_call+ is for internal use only. If set to false, instead of
-            # raising an exception, it will throw :invalid_selection. This is
-            # meant to avoid the (costly) creation of the exception message in
-            # cases we don't have to report to the user.
-            def verify_acceptable_specialization(new_spec, user_call = true)
-                new_spec.each do |child_name, child_models|
-                    if !has_child?(child_name)
-                        raise ArgumentError, "there is no child called #{child_name} in #{short_name}"
-                    end
-                    child_models.each do |m|
-                        verify_acceptable_child_specialization(child_name, m, user_call)
-                    end
-                end
-            end
-
-            # Checks if an instance of +child_model+ would be acceptable as
-            # the +child_name+ child of +self+.
-            #
-            # Raises ArgumentError if the choice is not acceptable
-            #--
-            # +user_call+ is for internal use only. If set to false, instead of
-            # raising an exception, it will throw :invalid_selection. This is
-            # meant to avoid the (costly) creation of the exception message in
-            # cases we don't have to report to the user.
-            def verify_acceptable_child_specialization(child_name, child_model, user_call) # :nodoc:
-                parent_models = find_child(child_name).models
-                if parent_models.any? { |m| m <= child_model }
-                    throw :invalid_selection if !user_call
-                    raise ArgumentError, "#{child_model.short_name} does not specify a specialization of #{parent_models.map(&:short_name)}"
-                end
-
-                if child_model < Component && parent_class = parent_models.find { |m| m < Component }
-                    if !(child_model < parent_class)
-                        throw :invalid_selection if !user_call
-                        raise ArgumentError, "#{child_model.short_name} is not a subclass of #{parent_class.short_name}, cannot specialize #{child_name} with it"
-                    end
-                end
-
-                child_model.each_port do |port|
-                    if conflict = parent_models.find { |m| !(child_model < m) && m.has_port?(port.name) }
-                        throw :invalid_selection if !user_call
-                        raise ArgumentError, "#{child_model.short_name} has a port called #{port.name}, which is already used by #{conflict.short_name}"
-                    end
-                end
-
-                true
-            end
-
             # Returns true if this composition model is a specialized version of
             # its superclass, and false otherwise
             def is_specialization?; false end
@@ -808,165 +354,6 @@ module Syskit
                         end
                     end
                 end
-            end
-
-            # Declares a preferred specialization in case two specializations
-            # match that are not related to each other.
-            #
-            # In the following case:
-            #
-            #  composition 'ManualDriving' do
-            #    specialize 'Control', SimpleController, :not => FourWheelController do
-            #    end
-            #    specialize 'Control', FourWheelController, :not => SimpleController do
-            #    end
-            #  end
-            #
-            # If a Control model is selected that fullfills both
-            # SimpleController and FourWheelController, then there is an
-            # ambiguity as both specializations apply and one cannot be
-            # preferred w.r.t. the other.
-            #
-            # By using
-            #   default_specialization 'Control', SimpleController
-            #
-            # the first one will be preferred by default. The second one can
-            # then be selected at instanciation time with
-            #
-            #   add 'ManualDriving',
-            #       'Control' => controller_model.as(FourWheelController)
-            def default_specialization(child, child_model)
-                raise NotImplementedError
-
-                child = if child.respond_to?(:to_str)
-                            child.to_str
-                        else child.name.gsub(/.*::/, '')
-                        end
-
-                default_specializations[child] = child_model
-            end
-
-            # Partitions a set of specializations into the smallest number of
-            # merged specializations, as a list of
-            #
-            #   |merged, specialization_set]
-            #
-            # tuple, where +merged+ is the merged specialization model (the
-            # specialziation model for all specializations in
-            # +specialization_set+) and +specialization_set+ the single
-            # specializations that are compatible with each other
-            def partition_specializations(specialization_set)
-                if specialization_set.empty?
-                    return []
-                end
-
-                candidates = []
-                seed = specialization_set.first
-                candidates << [seed.dup, [seed].to_set]
-                specialization_set[1..-1].each do |spec_model|
-                    new_candidates = []
-                    candidates.each do |merged, all|
-                        if merged.compatible_with?(spec_model)
-                            merged.merge(spec_model)
-                            all << spec_model
-                        else
-                            new_merged = spec_model.dup
-                            new_all = all.find_all do |m|
-                                if new_merged.compatible_with?(m)
-                                    new_merged.merge(m)
-                                    true
-                                end
-                            end
-                            new_all << spec_model
-                            new_candidates << [new_merged, new_all.to_set]
-                        end
-                    end
-                    new_candidates.each do |new_merged, new_all|
-                        if !candidates.any? { |_, all| all == new_all }
-                            candidates << [new_merged, new_all]
-                        end
-                    end
-                end
-                candidates
-            end
-
-            # Find the sets of specializations that match +selection+
-            #
-            # The returned value is a set of [merged_specialization,
-            # [atomic_specializations]], tuples. In each of these tuples,
-            # 
-            # * +merged_specialization+ is the Specialization instance
-            #   representing the desired composite specialization
-            # * +atomic_specializations+ is the set of single specializations
-            #   that have been merged to obtain +merged_specialization+
-            # 
-            # Further disambiguation would, for instance, have to pick one of
-            # these sets and call
-            #
-            #   instanciate_specialization(*candidates[selected_element])
-            #
-            # to get the corresponding composition model
-            def find_matching_specializations(selection)
-                if specializations.empty?
-                    return []
-                end
-
-                Models.debug do
-                    Models.debug "looking for specialization of #{short_name} on"
-                    selection.each do |k, v|
-                        Models.debug "  #{k} => #{v}"
-                    end
-                    break
-                end
-
-                if model = instanciated_specializations[selection]
-                    Models.debug "  cached: #{model.composition_model.short_name}"
-                    return model.composition_model
-                end
-
-                matching_specializations = specializations.values.find_all do |spec_model|
-                    spec_model.weak_match?(selection)
-                end
-
-                Models.debug do
-                    Models.debug "  #{matching_specializations.size} matching specializations found"
-                    matching_specializations.each do |m|
-                        Models.debug "    #{m.specialized_children}"
-                    end
-                    break
-                end
-
-                if matching_specializations.empty?
-                    return []
-                end
-
-                return partition_specializations(matching_specializations)
-            end
-
-            # Returns a single composition that can be used as a base model for
-            # +selection+. Returns +self+ if the possible specializations are
-            # ambiguous, or if no specializations apply. 
-            def find_suitable_specialization(selection)
-                all = find_matching_specializations(selection)
-                if all.size != 1
-                    return self
-                else
-                    return instanciate_specialization(*all.first)
-                end
-            end
-
-            # Given a set of specialization sets, returns subset common to all
-            # of the contained sets
-            def find_common_specialization_subset(candidates)
-                result = candidates[0][1].to_set
-                candidates[1..-1].each do |merged, subset|
-                    result &= subset.to_set
-                end
-
-                merged = result.inject(Specialization.new) do |merged, spec|
-                    merged.merge(spec)
-                end
-                [merged, result]
             end
 
             # Autoconnects the outputs listed in +child_outputs+ to the inputs
@@ -1253,26 +640,6 @@ module Syskit
                 end
             end
 
-            def apply_port_mappings_on_inputs(connections, port_mappings)
-                mapped_connections = Hash.new
-                connections.delete_if do |(out_port, in_port), options|
-                    if mapped_port = port_mappings[in_port]
-                        mapped_connections[ [out_port, mapped_port] ] = options
-                    end
-                end
-                connections.merge!(mapped_connections)
-            end
-
-            def apply_port_mappings_on_outputs(connections, port_mappings)
-                mapped_connections = Hash.new
-                connections.delete_if do |(out_port, in_port), options|
-                    if mapped_port = port_mappings[out_port]
-                        mapped_connections[ [mapped_port, in_port] ] = options
-                    end
-                end
-                connections.merge!(mapped_connections)
-            end
-
             # Returns the set of constraints that exist for the given child.
             # I.e. the set of types that, at instanciation time, the chosen
             # child must provide.
@@ -1388,20 +755,6 @@ module Syskit
                 InstanceRequirements.new([self]).use(*spec)
             end
 
-            ##
-            # :method: strict_specialization_selection?
-            #
-            # If true, any ambiguity in the selection of composition
-            # specializations will lead to an error. If false, the common parent
-            # of all the possible specializations will be instanciated. One can
-            # note that it is less dangerous that it sounds, as this parent is
-            # most likely abstract and will therefore be rejected later in the
-            # system deployment process.
-            #
-            # However, don't set this to false unless you know what you are
-            # doing
-            attr_predicate :strict_specialization_selection, true
-
             # Instanciates a task for the required child
             def instanciate_child(engine, context, self_task, child_name, selected_child) # :nodoc:
                 Models.debug do
@@ -1426,32 +779,40 @@ module Syskit
                 end
             end
 
-            def apply_connections(self_task, selected_children, children_tasks)
+            def instanciate_connections(self_task, selected_children, children_tasks)
                 # The set of connections we must create on our children. This is
                 # self.connections on which we will apply port mappings for the
                 # instanciated children
-                connections = self.connections.map do |(out_name, in_name), conn|
+                each_explicit_connection do |(out_name, in_name), conn|
                     if (out_task = children_tasks[out_name]) && (in_task = children_tasks[in_name])
-                        child_out = selected_children[out_name]
-                        apply_port_mappings_on_outputs(conn, child_out.port_mappings)
-                        child_in = selected_children[in_name]
-                        apply_port_mappings_on_inputs(conn, child_in.port_mappings)
-                        out_task.connect_ports(in_task, conn)
+                        child_out    = selected_children[out_name]
+                        child_in     = selected_children[in_name]
+                        mappings_out = child_out.port_mappings
+                        mappings_in  = child_in.port_mappings
+
+                        mapped = Hash.new
+                        conn.each do |(port_out, port_in), policy|
+                            mapped_port_out = mappings_out[port_out] || port_out
+                            mapped_port_in  = mappings_in[port_in] || port_in
+                            mapped[[mapped_port_out, mapped_port_in]] = policy
+                        end
+                            
+                        out_task.connect_ports(in_task, mapped)
                     end
                 end
 
-                exported_inputs.each do |child_name, conn|
+                each_exported_input do |export_name, port|
+                    child_name = port.component_model.child_name
                     if child_task = children_tasks[child_name]
                         child = selected_children[child_name]
-                        apply_port_mappings_on_inputs(conn, child.port_mappings)
-                        self_task.forward_ports(child_task, conn)
+                        self_task.forward_ports(child_task, [export_name, child.port_mappings[port.actual_name]] => Hash.new)
                     end
                 end
-                exported_outputs.each do |child_name, conn|
+                each_exported_output do |export_name, port|
+                    child_name = port.component_model.child_name
                     if child_task = children_tasks[child_name]
                         child = selected_children[child_name]
-                        apply_port_mappings_on_outputs(conn, child.port_mappings)
-                        child_task.forward_ports(self_task, conn)
+                        child_task.forward_ports(self_task, [child.port_mappings[port.actual_name], export_name] => Hash.new)
                     end
                 end
             end
@@ -1504,40 +865,20 @@ module Syskit
 
                 if arguments[:specialize]
                     # Find the specializations that apply. We use
-                    # +explicit_selections+ so that we don't under-specialize
-                    #
+                    # +explicit_selections+ so that we don't under-specialize.
                     # For instance, if a composition has
-                    #
                     #   add(Srv::BaseService, :as => 'child')
                     #
                     # And no selection exists in 'context' for that child, then
-                    #
                     #   explicit_selection['child'] == nil
-                    #
                     # while
-                    #
                     #   selected_models['child'] == Srv::BaseService
                     #
-                    # In the second case, #find_matching_speecializations would
-                    # reject any specialization that do not match
-                    # Srv::BaseService for child, which is not what we want
-                    # (what we want is the specializations that match the other
-                    # selections).
-                    find_specialization_spec = Hash.new
-                    explicit_selections.each { |name, sel| find_specialization_spec[name] = [sel] }
-                    candidates = find_matching_specializations(find_specialization_spec)
-                    if Syskit::Composition.strict_specialization_selection? && candidates.size > 1
-                        raise AmbiguousSpecialization.new(self, explicit_selections, candidates)
-                    elsif !candidates.empty?
-                        specialized_model = find_common_specialization_subset(candidates)
-                        specialized_model = instanciate_specialization(*specialized_model)
-                        if specialized_model != self
-                            Models.debug do
-                                Models.debug "using specialization #{specialized_model.short_name} of #{short_name}"
-                                break
-                            end
-                            return specialized_model.instanciate(engine, context, arguments.merge(:specialize => false))
-                        end
+                    # In the second case, any specialization that does not match
+                    # Srv::BaseService for child would be rejected.
+                    specialized_model = specializations.matching_specialized_model(explicit_selection.map_value { |sel| [sel] })
+                    if specialized_model != self
+                        return specialized_model.instanciate(engine, context, arguments.merge(:specialize => false))
                     end
                 end
 
@@ -1560,9 +901,10 @@ module Syskit
                 # Finally, instanciate the missing tasks and add them to our
                 # children
                 children_tasks = Hash.new
-                while !selected_models.empty?
-                    current_size = selected_models.size
-                    selected_models.delete_if do |child_name, selected_child|
+                remaining_children_models = selected_models.dup
+                while !remaining_children_models.empty?
+                    current_size = remaining_children_models.size
+                    remaining_children_models.delete_if do |child_name, selected_child|
                         # Get out of the selections the parts that are
                         # relevant for our child. We only pass on the
                         # <child_name>.blablabla form, everything else is
@@ -1596,7 +938,6 @@ module Syskit
 
                         role = [child_name].to_set
                         children_tasks[child_name] = child_task
-                        child_use_flags[find_child(child_name)] = child_task
                         child_use_flags["parent.#{child_name}"] = child_task
 
                         dependent_models    = find_child(child_name).models.to_a
@@ -1628,14 +969,14 @@ module Syskit
                             end
                             child_task.success_event.forward_to self_task.success_event
                         end
-                        true # it has been processed, delete from selected_models
+                        true # it has been processed, delete from remaining_children_models
                     end
-                    if selected_models.size == current_size
+                    if remaining_children_models.size == current_size
                         raise InternalError, "cannot resolve #{child_name}"
                     end
                 end
 
-                apply_connections(self_task, selected_models, children_tasks)
+                instanciate_connections(self_task, selected_models, children_tasks)
                 self_task
             ensure
                 Models.debug do
@@ -1720,7 +1061,7 @@ module Syskit
                 submodel = super
 
                 return if submodel.is_specialization?
-                specializations.each_value do |spec|
+                specializations.each_specialization do |spec|
                     spec.specialization_blocks.each do |block|
                         specialize(spec.specialized_children, &block)
                     end

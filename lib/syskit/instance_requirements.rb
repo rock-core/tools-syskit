@@ -396,7 +396,8 @@ module Syskit
                     end
                 end
                 if !barrier.empty?
-                    context.push(DependencyInjection.new(barrier))
+                    selections = selections.dup
+                    selections.add_explicit(barrier)
                 end
                 context.push(selections)
 
