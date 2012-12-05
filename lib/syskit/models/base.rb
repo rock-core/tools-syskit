@@ -215,6 +215,10 @@ module Syskit
             end
             result
         end
+
+        def self.is_model?(m)
+            m.kind_of?(Module) && (m.singleton_class <= Syskit::Models::Base)
+        end
     end
 end
 

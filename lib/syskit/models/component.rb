@@ -4,6 +4,7 @@ module Syskit
         # documentation of Model for an explanation of this.
         module Component
             include Models::Base
+            include Syskit::DataService
 
             # Method that maps data services from this component's parent models
             # to this composition's own
