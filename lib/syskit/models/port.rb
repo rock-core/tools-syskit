@@ -21,8 +21,8 @@ module Syskit
                     other.orogen_model == orogen_model
             end
 
-            def ==(other) # :nodoc:
-                other.kind_of?(Port) && other.component_model == component_model &&
+            def ==(other)
+                other.kind_of?(self.class) && other.component_model == component_model &&
                 other.orogen_model == orogen_model &&
                 other.name == name
             end
