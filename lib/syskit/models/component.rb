@@ -61,7 +61,7 @@ module Syskit
                         find_all { |service| service.master? }
 
                     if main_matching_services.size != 1
-                        raise Ambiguous, "there is more than one service of type #{target_model.name} in #{self.name}: #{matching_services.map(&:name).join(", ")}); you must select one explicitely with a 'use' statement"
+                        raise AmbiguousServiceSelection.new(self, target_model, main_matching_services), "there is more than one service of type #{target_model.name} in #{self.name}#{" matching name hint #{pattern}" if pattern}"
                     end
                     selected = main_matching_services.first
                 else
@@ -426,7 +426,7 @@ module Syskit
                         if service_model = find_data_service(service_name)
                             return service_model
                         else
-                            raise NoMethodError, "#{self} has no service called #{service_name}"
+                            raise NoMethodError, "#{short_name} has no service called #{service_name}"
                         end
                     end
                 end
