@@ -74,49 +74,73 @@ module Syskit
 
             # Explicitely selects a given service on the task models required by
             # this task
+            #
+            # @param [Models::BoundDataService] the data service that should be
+            #   selected
+            # @raise [ArgumentError] if the provided service is not a service on
+            #   a model in self (i.e. not a service of a component model in
+            #   {#base_models}
+            # @return [Models::BoundDataService] the selected service. If
+            #   'service' is a service of a supermodel of a model in {#model},
+            #   the resulting BoundDataService is attached to the actual model
+            #   in {#model} and this return value is different from 'service'
             def select_service(service)
-                if service.respond_to?(:to_str) || service.kind_of?(Models::DataServiceModel)
-                    task_model = @models.find { |m| m.kind_of?(Syskit::Component) }
-                    if !task_model
-                        raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
-                    end
-                    service_model =
-                        if service.respond_to?(:to_str)
-                            task_model.find_data_service(service)
-                        else
-                            task_model.find_data_service_from_type(service)
-                        end
-
-                    if !service_model
-                        raise ArgumentError, "there is no service called #{service} on #{task_model.short_name}"
-                    end
-                    @service = service_model
-                else
-                    @service = service
+                # Make sure that the service is bound to one of our models
+                component_model = models.find { |m| m.fullfills?(service.component_model) }
+                if !component_model
+                    raise ArgumentError, "#{service} is not a service of #{self}"
                 end
+                @service = service.attach(component_model)
             end
 
-            def find_data_service(service)
-                task_model = @models.find { |m| m.kind_of?(Syskit::ComponentModel) }
+            # Finds a data service by name
+            #
+            # This only works if there is a single component model in {#models}.
+            #
+            # @param [String] service_name the service name
+            # @return [InstanceRequirements,nil] the requirements with the requested
+            #   data service selected or nil if there are no service with the
+            #   requested name
+            # @raise [ArgumentError] if there are no component models in
+            #   {#models}
+            def find_data_service(service_name)
+                task_model = models.find { |m| m <= Syskit::Component }
                 if !task_model
                     raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
                 end
-                if service_model = task_model.find_data_service(service)
+                if service = task_model.find_data_service(service_name)
                     result = dup
                     result.select_service(service)
                     result
                 end
             end
 
-            def find_data_service_from_type(service)
-                task_model = @models.find { |m| m.kind_of?(Syskit::ComponentModel) }
-                if !task_model
-                    raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
+            # Finds the only data service that matches the given service type
+            #
+            # @param [Model<DataService>] the data service type
+            # @return [InstanceRequirements,nil] this instance requirement object
+            #   with the relevant service selected; nil if there are no matches
+            # @raise [AmbiguousServiceSelection] if more than one service
+            #   matches
+            def find_data_service_from_type(service_type)
+                candidates = models.find_all do |m|
+                    m.fullfills?(service_type)
                 end
-                if service_model = task_model.find_data_service_from_type(service)
+                if candidates.size > 1
+                    raise AmbiguousServiceSelection.new(self, service_type, candidates)
+                elsif candidates.empty?
+                    return
+                end
+
+                model = candidates.first
+                if model.respond_to?(:find_data_service_from_type)
                     result = dup
-                    result.select_service(service)
+                    result.select_service(model.find_data_service_from_type(service_type))
                     result
+                else self
+                end
+            end
+
             # Finds the composition's child by name
             #
             # @raise [ArgumentError] if this InstanceRequirements object does
@@ -198,7 +222,7 @@ module Syskit
                 obj.kind_of?(InstanceRequirements) &&
                     obj.selections == selections &&
                     obj.arguments == arguments &&
-                    (super if defined? super)
+		    obj.service == service
             end
             def ==(obj)
                 eql?(obj)
@@ -248,7 +272,7 @@ module Syskit
                     end
                 end
 
-                explicit, defaults = DependencyInjection.validate_use_argument(*mappings)
+                explicit, defaults = DependencyInjection.partition_use_arguments(*mappings)
                 selections.add_explicit(explicit)
                 selections.add_defaults(defaults)
                 composition_model = narrow_model || composition_model
@@ -469,6 +493,15 @@ module Syskit
                         end
                     end
                 end
+
+		if service
+		    pp.breakable
+		    pp.text "Service:"
+		    pp.nest(2) do
+			pp.breakable
+			service.pretty_print(pp)
+		    end
+		end
 
                 if !selections.empty?
                     pp.breakable
