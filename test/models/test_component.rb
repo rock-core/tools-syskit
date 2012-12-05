@@ -48,10 +48,10 @@ class TC_Models_Component < Test::Unit::TestCase
         component = TaskContext.new_submodel do
             output_port 'out', '/int'
         end
-        component.provides service, :as => 'image'
+        bound_service = component.provides service, :as => 'image'
 
         assert(component.fullfills?(service))
-        assert_equal({'out' => 'out'}, component.port_mappings_for(service))
+        assert_equal({'out' => 'out'}, bound_service.port_mappings_for_task)
         assert_equal(service, component.find_data_service('image').model)
     end
 
@@ -97,11 +97,7 @@ class TC_Models_Component < Test::Unit::TestCase
             output_port 'out', '/int'
         end
         bound_service = component.provides service, :as => 'camera'
-
         assert_equal(bound_service, component.find_data_service('camera'))
-        assert(component.fullfills?(service))
-        assert_equal({'out' => 'out'}, component.port_mappings_for(service))
-        assert_equal({'out' => 'out'}, component.port_mappings_for(bound_service))
     end
 
     def test_provides_refuses_to_add_a_service_with_an_existing_name
@@ -225,30 +221,7 @@ class TC_Models_Component < Test::Unit::TestCase
         end
         bound_service = component.provides service, 'out' => 'other', :as => 'camera'
         assert_equal(bound_service, component.find_data_service('camera'))
-        assert(component.fullfills?(service))
-        assert_equal({'out' => 'other'}, component.port_mappings_for(service))
-        assert_equal({'out' => 'other'}, component.port_mappings_for(bound_service))
-    end
-
-    def test_port_mappings_for_raises_for_unknown_service_types
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        assert_raises(ArgumentError) { component.port_mappings_for(service) }
-    end
-
-    def test_port_mappings_for_services_that_are_provided_multiple_times
-        service = DataService.new_submodel do
-            output_port 'image', '/int'
-        end
-        component = TaskContext.new_submodel do
-            output_port 'left', '/int'
-            output_port 'right', '/int'
-        end
-        left = component.provides service, :as => 'left', 'image' => 'left'
-        right = component.provides service, :as => 'right', 'image' => 'right'
-        assert_raises(Syskit::AmbiguousServiceSelection) { component.port_mappings_for(service) }
-        assert_equal({'image' => 'left'}, component.port_mappings_for(left))
-        assert_equal({'image' => 'right'}, component.port_mappings_for(right))
+        assert_equal({'out' => 'other'}, bound_service.port_mappings_for_task)
     end
 
     def test_provides_automatic_mapping_on_type
@@ -259,8 +232,8 @@ class TC_Models_Component < Test::Unit::TestCase
             output_port 'out', '/double'
             output_port 'other', '/int'
         end
-        component.provides service, :as => 'srv'
-        assert_equal({'out' => 'other'}, component.port_mappings_for(service))
+        bound_service = component.provides service, :as => 'srv'
+        assert_equal({'out' => 'other'}, bound_service.port_mappings_for_task)
     end
 
     def test_provides_validation
@@ -293,16 +266,16 @@ class TC_Models_Component < Test::Unit::TestCase
             input_port 'other1', '/int'
             output_port 'other2', '/int'
         end
-        component.provides(service, :as => 'srv')
-        assert_equal({'out' => 'other2'}, component.port_mappings_for(service))
+        bound_service = component.provides(service, :as => 'srv')
+        assert_equal({'out' => 'other2'}, bound_service.port_mappings_for_task)
 
         # Ambiguous type mapping, exact match on the name
         component = TaskContext.new_submodel do
             output_port 'out', '/int'
             output_port 'other2', '/int'
         end
-        component.provides(service, :as => 'srv')
-        assert_equal({'out' => 'out'}, component.port_mappings_for(service))
+        bound_service = component.provides(service, :as => 'srv')
+        assert_equal({'out' => 'out'}, bound_service.port_mappings_for_task)
     end
 
     def test_has_output_port_returns_false_if_find_returns_false

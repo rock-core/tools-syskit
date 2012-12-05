@@ -239,14 +239,6 @@ module Syskit
                 end
             end
 
-            # @return [InstanceRequirements] this component model with the
-            # required service selected
-            def select_service(service)
-                result = InstanceRequirements.new([self])
-                result.select_service(service)
-                result
-            end
-
             # Finds a single service that provides +type+
             #
             # If multiple services exist with that signature, raises
@@ -268,25 +260,6 @@ module Syskit
                     result << m if m.fullfills?(type)
                 end
                 result
-            end
-
-            # Returns the port mappings that are required by the usage of this
-            # component as a service of type +service_type+
-            #
-            # If no name are given, the method will raise
-            # AmbiguousServiceSelection if there are multiple services of the
-            # given type
-            def port_mappings_for(service_type)
-                if service_type.kind_of?(DataServiceModel)
-                    service = find_data_service_from_type(service_type)
-                    if !service
-                        raise ArgumentError, "#{short_name} does not provide a service of type #{service_type.short_name}"
-                    end
-                else
-                    service, service_type = service_type, service_type.model
-                end
-
-                service.port_mappings_for(service_type).dup
             end
 
             # Compute the port mapping from the interface of 'service' onto the
