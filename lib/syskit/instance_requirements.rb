@@ -117,6 +117,36 @@ module Syskit
                     result = dup
                     result.select_service(service)
                     result
+            # Finds the composition's child by name
+            #
+            # @raise [ArgumentError] if this InstanceRequirements object does
+            #   not refer to a composition
+            def find_child(name)
+                composition = models.find { |m| m <= Composition }
+                if !composition
+                    raise ArgumentError, "this requirement object does not refer to a composition explicitely, cannot select a child"
+                end
+                if child = composition.find_child(name)
+                    child.attach(self)
+                end
+            end
+
+            def find_port(name)
+                candidates = []
+                if service
+                    candidates << service.find_port(name)
+                end
+
+                models.each do |m|
+                    if !service || service.component_model != m
+                        candidates << m.find_port(name)
+                    end
+                end
+                if candidates.size > 1
+                    raise AmbiguousPortName.new(self, name, candidates)
+                end
+                if port = candidates.first
+                    port.attach(self)
                 end
             end
 
@@ -455,14 +485,6 @@ module Syskit
                 end
             end
 
-            def find_child(name)
-                composition = models.find { |m| m <= Composition }
-                if !composition
-                    raise ArgumentError, "this requirement object does not refer to a composition explicitely, cannot select a child"
-                end
-                composition.send("#{name}_child")
-            end
-
             def method_missing(method, *args)
                 if !args.empty? || block_given?
                     return super
@@ -471,40 +493,27 @@ module Syskit
 		case method.to_s
                 when /^(\w+)_srv$/
                     service_name = $1
-                    task_model = models.find { |m| m <= Component }
-                    if !task_model
-                        raise ArgumentError, "this requirement object does not refer to a task context explicitely, cannot select a service"
+                    if srv = find_data_service(service_name)
+                        return srv
                     end
-                    if service
-                        service_name = "#{service.name}.#{service_name}"
-                    end
-                    srv = task_model.find_data_service(service_name)
-                    if !srv
-                        raise ArgumentError, "the task model #{task_model.short_name} does not have any service called #{service_name}, known services are: #{task_model.each_data_service.map(&:last).map(&:name).join(", ")}"
-                    end
+                    model =
+                        if service then service
+                        else models.find { |m| m <= Component }.short_name
+                        end
 
-                    result = self.dup
-                    result.select_service(srv)
-                    return result
+                    raise NoMethodError, "#{model.short_name} has no data service called #{service_name}"
                 when /^(\w+)_child$/
                     child_name = $1
-                    composition = models.find { |m| m <= Composition }
-                    if !composition
-                        raise ArgumentError, "this requirement object does not refer to a composition explicitely, cannot select a child"
+                    if child = find_child(child_name)
+                        return child
                     end
-                    child = composition.send(method)
-                    return child.attach(self)
+                    raise NoMethodError, "#{models.find { |m| m <= Composition }.short_name} has no child called #{child_name}"
                 when /^(\w+)_port$/
                     port_name = $1
-                    if service
-                        port_name = service.port_mappings_for_task[port_name] || port_name
+                    if port = find_port(port_name)
+                        return port
                     end
-                    component = models.find { |m| m <= Component }
-                    if !component
-                        raise ArgumentError, "this requirement object does not refer to a component explicitely, cannot select a port"
-                    end
-                    port = component.send("#{port_name}_port")
-                    return port.dup.attach(self)
+                    raise NoMethodError, "no port called #{port_name} in any of #{models.map(&:short_name).short.join(", ")}"
                 end
                 super(method.to_sym, *args)
             end

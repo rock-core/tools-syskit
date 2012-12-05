@@ -28,11 +28,6 @@ module Syskit
                 find_output_port(name) || find_input_port(name)
             end
 
-            def has_port?(name)
-                name = name.to_str
-                has_input_port?(name) || has_output_port?(name)
-            end
-
             # Returns the output port with the given name, or nil if it does not
             # exist.
             def find_output_port(name)
@@ -51,6 +46,13 @@ module Syskit
                 end
             end
 
+            # Enumerates all of this component's ports
+            def each_port(&block)
+                return enum_for(:each_port) if !block_given?
+                each_output_port(&block)
+                each_input_port(&block)
+            end
+
             # Enumerates this component's output ports
             def each_output_port
                 return enum_for(:each_output_port) if !block_given?
@@ -67,11 +69,9 @@ module Syskit
                 end
             end
 
-            # Enumerates all of this component's ports
-            def each_port(&block)
-                return enum_for(:each_port) if !block_given?
-                each_output_port(&block)
-                each_input_port(&block)
+            def has_port?(name)
+                name = name.to_str
+                has_input_port?(name) || has_output_port?(name)
             end
 
             # Returns true if +name+ is a valid output port name for instances

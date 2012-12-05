@@ -61,7 +61,7 @@ module Syskit
                     raise AmbiguousChildPort.new(self, name, candidates), "#{name} is ambiguous on the child #{child_name} of #{composition_model.short_name}: #{candidates.join(", ")}"
                 elsif candidates.size == 1
                     port = candidates.first[1]
-                    return InputPort.new(self, port, name)
+                    return InputPort.new(self, port.orogen_model, name)
                 end
                 nil
             end
@@ -82,7 +82,7 @@ module Syskit
                     raise AmbiguousChildPort.new(self, name, candidates), "#{name} is ambiguous on the child #{child_name} of #{composition_model.short_name}: #{candidates.join(", ")}"
                 elsif candidates.size == 1
                     port = candidates.first[1]
-                    return OutputPort.new(self, port, name)
+                    return OutputPort.new(self, port.orogen_model, name)
                 end
                 nil
             end

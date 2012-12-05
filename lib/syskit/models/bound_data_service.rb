@@ -49,6 +49,34 @@ module Syskit
                 model.orogen_model
             end
 
+            def find_output_port(name)
+                name = name.to_str
+                if (mapped = port_mappings_for_task[name]) && (port = component_model.find_output_port(mapped))
+                    ports[name] ||= OutputPort.new(self, port.orogen_model, name)
+                end
+            end
+
+            def find_input_port(name)
+                name = name.to_str
+                if (mapped = port_mappings_for_task[name]) && (port = component_model.find_input_port(mapped))
+                    ports[name] ||= InputPort.new(self, port.orogen_model, name)
+                end
+            end
+
+            def each_output_port
+                return enum_for(:each_output_port) if !block_given?
+                orogen_model.each_output_port do |p|
+                    yield(find_output_port(p.name))
+                end
+            end
+
+            def each_input_port
+                return enum_for(:each_input_port) if !block_given?
+                orogen_model.each_input_port do |p|
+                    yield(find_input_port(p.name))
+                end
+            end
+
             def attach(new_component_model)
                 result = dup
                 result.instance_variable_set :@component_model, new_component_model

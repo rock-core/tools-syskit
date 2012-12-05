@@ -472,6 +472,12 @@ module Syskit
                 end
             end
 
+	    def find_data_service_from_type(service_type)
+                if service_model = model.find_data_service_from_type(service_type)
+                    return service_model.bind(self)
+                end
+	    end
+
             def method_missing(m, *args)
                 return super if !args.empty? || block_given?
 

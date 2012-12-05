@@ -37,8 +37,8 @@ class TC_InstanceRequirements < Test::Unit::TestCase
             'srv_in' => 'in', 'srv_out' => 'out'
         @simple_composition_model = Composition.new_submodel do
             add srv, :as => 'srv'
-            export self.srv.srv_in
-            export self.srv.srv_out
+            export srv_child.srv_in_port
+            export srv_child.srv_out_port
             provides srv, :as => 'srv'
         end
     end
@@ -46,7 +46,8 @@ class TC_InstanceRequirements < Test::Unit::TestCase
     def test_port
         spec = InstanceRequirements.new([simple_task_model])
         port = spec.out_port
-        assert_equal Models::Component::Port.new(spec, simple_task_model.find_output_port('out')), port
+
+        assert_equal Models::OutputPort.new(spec, simple_task_model.find_output_port('out').orogen_model), port
     end
 
     def test_service
@@ -60,7 +61,7 @@ class TC_InstanceRequirements < Test::Unit::TestCase
         spec = InstanceRequirements.new([simple_task_model])
         srv = spec.simple_service_srv
         port = srv.srv_out_port
-        assert_equal Models::Component::Port.new(srv, simple_task_model.find_output_port('out')), port
+        assert_equal Models::OutputPort.new(srv, simple_task_model.find_output_port('out').orogen_model, 'srv_out'), port
     end
 
     def test_child
@@ -73,7 +74,45 @@ class TC_InstanceRequirements < Test::Unit::TestCase
         spec = simple_composition_model.use(simple_task_model)
         child = spec.srv_child
         port = child.srv_out_port
-        assert_equal Models::Component::Port.new(child, simple_service_model.find_output_port('srv_out')), port
+        assert_equal Models::OutputPort.new(child, simple_service_model.find_output_port('srv_out').orogen_model), port
+    end
+
+    def test_find_data_service_from_type_with_matching_service
+        s = DataService.new_submodel
+        subs = s.new_submodel
+        req = InstanceRequirements.new([subs])
+        assert_same req, req.find_data_service_from_type(s)
+    end
+
+    def test_find_data_service_from_type_with_matching_component
+        s = DataService.new_submodel
+        c = Component.new_submodel { provides s, :as => 's' }
+        subc = c.new_submodel
+        req = InstanceRequirements.new([subc])
+
+        expected = req.dup
+        expected.select_service(subc.s_srv)
+        assert_equal expected, req.find_data_service_from_type(s)
+    end
+
+    def test_find_data_service_from_type_ambiguous
+        s = DataService.new_submodel
+        c = Component.new_submodel do
+            provides s, :as => 'srv'
+            provides s, :as => 'srv1'
+        end
+        req = InstanceRequirements.new([c])
+
+        assert_raises(AmbiguousServiceSelection) { req.find_data_service_from_type(s) }
+    end
+
+    def test_find_data_service_from_type_no_match
+        s = DataService.new_submodel
+        c = Component.new_submodel
+        key = DataService.new_submodel
+        req = InstanceRequirements.new([key])
+
+        assert !req.find_data_service_from_type(s)
     end
 
     def test_composition_use_validates_child_name_to_service_mapping

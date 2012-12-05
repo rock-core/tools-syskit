@@ -148,7 +148,7 @@ class TC_Models_Component < Test::Unit::TestCase
         root  = component.provides service, :as => 'root'
         slave = component.provides service, :as => 'srv', :slave_of => 'root'
         component = component.new_submodel
-        assert_equal [slave].to_set, component.each_slave_data_service(root).to_set
+        assert_equal [slave.attach(component)], component.each_slave_data_service(root).to_a
     end
 
     def test_each_slave_data_service_on_submodel_with_new_slave
@@ -158,7 +158,7 @@ class TC_Models_Component < Test::Unit::TestCase
         slave1 = component.provides service, :as => 'srv1', :slave_of => 'root'
         component = component.new_submodel
         slave2 = component.provides service, :as => 'srv2', :slave_of => 'root'
-        assert_equal [slave1, slave2].to_set, component.each_slave_data_service(root).to_set
+        assert_equal [slave1.attach(component), slave2].to_a, component.each_slave_data_service(root).sort_by { |srv| srv.full_name }
     end
 
     def test_slave_can_have_the_same_name_than_a_root_service
@@ -179,8 +179,8 @@ class TC_Models_Component < Test::Unit::TestCase
 
         submodel = component.new_submodel
         root_srv2 = submodel.provides service, :as => 'srv2', :slave_of => 'root'
-        assert_equal [root_srv1].to_set, component.root_srv.each_slave.to_set
-        assert_equal [root_srv1, root_srv2].to_set, submodel.root_srv.each_slave.to_set
+        assert_equal [root_srv1], component.root_srv.each_slave.to_a
+        assert_equal [root_srv1.attach(submodel), root_srv2], submodel.root_srv.each_slave.sort_by(&:full_name)
     end
 
     def test_find_data_service_from_type
