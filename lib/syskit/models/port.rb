@@ -11,6 +11,10 @@ module Syskit
             # another component
             attr_accessor :name
 
+            # @param [#instanciate] component_model the component model
+            # @param [Orocos::Spec::Port] orogen_model the oroGen port model
+            # @param [String] name the port name if it is different than the
+            #   name in 'orogen_model'
             def initialize(component_model, orogen_model, name = orogen_model.name)
                 @component_model, @name, @orogen_model =
                     component_model, name, orogen_model

@@ -241,8 +241,13 @@ module Syskit
 
             # Finds a single service that provides +type+
             #
-            # If multiple services exist with that signature, raises
-            # AmbiguousServiceSelection
+            # @see #find_all_data_services_from_type
+            #
+            # @param [Model<DataService>] type the data service type
+            # @return [Models::BoundDataService,nil] the data service found, or
+            #   nil if none can be found with the specified type
+            # @raise AmbiguousServiceSelection if multiple services exist with
+            #   that type
             def find_data_service_from_type(type)
                 candidates = find_all_data_services_from_type(type)
                 if candidates.size > 1
@@ -253,7 +258,13 @@ module Syskit
                 end
             end
 
-            # Finds all the services that fullfill the given service type
+            # Finds a single service that provides +type+
+            #
+            # @see #find_data_service_from_type
+            #
+            # @param [Model<DataService>] type the data service type
+            # @return [Array<Models::BoundDataService>] the list of data
+            #   services that match the given type
             def find_all_data_services_from_type(type)
                 result = []
                 each_data_service do |_, m|
