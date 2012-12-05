@@ -11,6 +11,8 @@ require 'orocos/process_server'
 require 'roby/tasks/simple'
 require 'orocos/test'
 
+require 'minitest/spec'
+
 begin
     require 'simplecov'
 rescue LoadError
@@ -78,7 +80,9 @@ module Syskit
 
             def setup
                 @old_loglevel = Orocos.logger.level
-		Roby.app.using 'orocos'
+                Roby.app.using 'orocos'
+                Roby.app.orocos_disables_local_process_server = true
+                Roby.app.filter_backtraces = false
 
                 super
 
@@ -205,6 +209,8 @@ module Syskit
     module SelfTest
         include Test
         include Roby::SelfTest
+        include FlexMock::ArgumentTypes
+        include FlexMock::MockContainer
 
         def setup
             Roby.app.using 'orocos'
@@ -212,6 +218,11 @@ module Syskit
 
             super
             Orocos.load
+        end
+
+        def teardown
+            super
+            flexmock_teardown
         end
 
         def data_service_type(name, &block)
