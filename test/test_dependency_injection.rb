@@ -175,6 +175,15 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal(Hash[key => req], DependencyInjection.normalize_selection(key => req))
     end
 
+    def test_normalize_selection_accepts_data_service_to_instance_requirements_that_fullfill_the_key_and_selects_the_corresponding_service
+        key = DataService.new_submodel
+	c = Component.new_submodel { provides key, :as => 'srv' }
+        req = InstanceRequirements.new([c])
+	normalized = DependencyInjection.normalize_selection(key => req)
+	req_srv = req.dup
+	req_srv.select_service(c.srv_srv)
+        assert_equal(Hash[key => req_srv], normalized)
+    end
     def test_normalize_selection_accepts_data_service_to_component_that_fullfill_the_key_and_maps_the_service
         srv0 = DataService.new_submodel
         c = Component.new_submodel { provides srv0, :as => 'srv' }
@@ -183,7 +192,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
     end
 
-    def test_normalize_selection_rejects_data_service_to_instance_requirements_that_fullfill_the_key
+    def test_normalize_selection_rejects_data_service_to_instance_requirements_that_does_not_fullfill_the_key
         key = DataService.new_submodel
         req = InstanceRequirements.new([DataService.new_submodel])
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => req) }
