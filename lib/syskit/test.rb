@@ -106,7 +106,6 @@ module Syskit
                 engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
                 # TODO: remove all references to global singletons
-                save_collection Roby.app.orocos_engine.instances
                 @orocos_engine = Roby.app.orocos_engine
                 Roby.app.orocos_engine.instance_variable_set :@plan, plan
                 @handler_ids = Syskit::Application.plug_engine_in_roby(engine)
