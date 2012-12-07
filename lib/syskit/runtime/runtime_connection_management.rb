@@ -11,7 +11,7 @@ module Syskit
             end
 
             def self.update(plan, dry_run = false)
-                manager = RuntimeConnectionManagement.new(plan)
+                manager = ConnectionManagement.new(plan)
                 manager.dry_run = dry_run
                 manager.update
             end

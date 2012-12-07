@@ -5,7 +5,7 @@ module Syskit
         module MasterProjectHook
             def register_loaded_project(name, project)
                 super
-                Roby.app.import_orogen_project(name, project)
+                Roby.app.project_define_from_orogen(name, project)
             end
         end
 
@@ -39,15 +39,17 @@ module Syskit
 
             # Load the given orogen project and defines the associated task
             # models. It also loads the projects this one depends on.
-            def load_orogen_project(name)
-                if !orogen
-                    Orocos.master_project.load_orogen_project(name)
-                else
-                    project_define_from_orogen(name, orogen)
-                end
+            #
+            # @returns [Orocos::Generation::Project] the project object
+            def load_orogen_project(name, options = Hash.new)
+                options = Kernel.validate_options :on => 'localhost'
+                server = Roby::Conf.process_server_for(options[:on])
+                server.load_orogen_project(project_name)
             end
 
             # Registers all objects contained in a given oroGen project
+            #
+            # @returns [Orocos::Generation::Project] the project object
             def project_define_from_orogen(name, orogen)
                 Syskit.info "loading oroGen project #{name}"
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
@@ -111,6 +113,7 @@ module Syskit
                         Application.load_task_extension(file, self)
                     end
                 end
+                orogen
             end
 
             # Loads all available oroGen projects
@@ -127,26 +130,18 @@ module Syskit
                     return
                 end
 
-                Roby::Conf.orocos = Configuration.new
-
                 Orocos.configuration_log_name ||= File.join(app.log_dir, 'properties')
-                app.orocos_auto_configure = true
                 Orocos.disable_sigchld_handler = true
-
-                app.orocos_engine = Engine.new(app.plan || Roby::Plan.new)
-                Orocos.singleton_class.class_eval do
-                    attr_reader :engine
-                end
-                Orocos.instance_variable_set :@engine, app.orocos_engine
+                app.plan.orocos_engine = NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
 
                 # Change to the log dir so that the IOR file created by the
                 # CORBA bindings ends up there
                 Dir.chdir(app.log_dir) do
-                    if !app.orocos_only_load_models?
+                    if !Syskit.conf.only_load_models?
                         Orocos.initialize
                     end
 
-                    if !app.shell? && !app.orocos_disables_local_process_server?
+                    if !app.shell? && !Syskit.conf.disables_local_process_server?
                         start_local_process_server(:redirect => app.redirect_local_process_server?)
                     end
                 end
@@ -157,7 +152,7 @@ module Syskit
             # Called by the main Roby application to clear all before redoing a
             # setup
             def self.reload_config(app)
-                app.conf.orocos.clear
+                Syskit.conf.clear
             end
 
             def self.require_models(app)
@@ -323,14 +318,16 @@ module Syskit
             end
 
 
-            def self.register_process_server(name, client, log_dir)
-                Syskit.process_servers[name] = [client, log_dir]
-            end
-
             # Loads the oroGen deployment model for the given name and returns
-            # the corresponding 
+            # the corresponding syskit model
+            #
+            # @option options [String] :on the name of the process server this
+            #   deployment should be on. It is used for loading as well, i.e.
+            #   the model for the deployment will be loaded from that process
+            #   server
             def load_deployment_model(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
+                server   = Roby::Conf.process_server_for(options[:on])
                 deployer = server.load_orogen_deployment(name)
 
                 if !loaded_orogen_project?(deployer.project.name)
@@ -342,7 +339,7 @@ module Syskit
 
                 deployer.used_typekits.each do |tk|
                     next if tk.virtual?
-                    if Roby.conf.orocos.only_load_models?
+                    if Syskit.conf.only_load_models?
                         Orocos.load_typekit_registry(tk.name)
                     else
                         Orocos.load_typekit(tk.name)
@@ -381,52 +378,10 @@ module Syskit
             # machines/servers
             attr_predicate :local_only?, true
 
-            # Call to add a process server to to the set of servers that can be
-            # used by this plan manager
-            #
-            # If 'host' is set to localhost, it disables the automatic startup
-            # of the local process server (i.e. sets
-            # orocos_disables_local_process_server to false)
-            def orocos_process_server(name, host, options = Hash.new)
-                if single?
-                    if orocos_disables_local_process_server?
-                        return
-                    else
-                        client = Orocos::ProcessClient.new('localhost')
-                        return Application.register_process_server(name, client, Roby.app.log_dir)
-                    end
-                end
-
-                if local_only? && host != 'localhost'
-                    raise ArgumentError, "in local only mode"
-                elsif Syskit.process_servers[name]
-                    raise ArgumentError, "there is already a process server called #{name} running"
-                end
-
-                options = Kernel.validate_options options, :port => ProcessServer::DEFAULT_PORT, :log_dir => 'logs', :result_dir => 'results'
-
-                port = options[:port]
-                if host =~ /^(.*):(\d+)$/
-                    host = $1
-                    port = Integer($2)
-                end
-
-                if host == 'localhost'
-                    self.orocos_disables_local_process_server = true
-                end
-
-                client = Orocos::ProcessClient.new(host, port)
-                client.save_log_dir(options[:log_dir], options[:result_dir])
-                client.create_log_dir(options[:log_dir], Roby.app.time_tag)
-                Application.register_process_server(name, client, options[:log_dir])
-            end
-
-
             def self.plug_engine_in_roby(roby_engine)
                 handler_ids = []
-                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &Syskit.method(:update_task_states))
-                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &RuntimeConnectionManagement.method(:update))
-                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &Syskit.method(:apply_requirement_modifications))
+                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_task_states))
+                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime::ConnectionManagement.method(:update))
                 handler_ids
             end
 
@@ -468,7 +423,6 @@ module Syskit
             end
 
             def self.cleanup(app)
-                app.orocos_engine.clear
 		app.orocos_clear_models
                 stop_process_servers
                 stop_local_process_server

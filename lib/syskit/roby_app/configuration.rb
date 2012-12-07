@@ -1,13 +1,9 @@
 module Syskit
     module RobyApp
-        # Orocos engine configuration interface
+        # Syskit engine configuration interface
         #
-        # The main instance of this object can be accessed as Roby::Conf.orocos. For
-        # instance,
-        #
-        #   Roby::Conf.orocos.disable_logging
-        #
-        # will completely disable logging (not recommended !)
+        # The main configuration instance is accessible as Syskit.conf or (if
+        # running in a Roby application) as Conf.syskit
         class Configuration < Roby::OpenStruct
             def initialize
                 super
@@ -83,6 +79,12 @@ module Syskit
                 main_group.add(object, subname)
             end
 
+            # Turns logging on for the named group. The modification will only
+            # be applied at the next network generation.
+            #
+            # Groups are declared with {#log_group}
+            #
+            # @raise [ArgumentError] if no group with this name exists
             def enable_log_group(name)
 	        name = name.to_s
 	        if !log_groups.has_key?(name)
@@ -91,6 +93,12 @@ module Syskit
                 log_groups[name].enabled = true
             end
 
+            # Turns logging off for the named group. The modification will only
+            # be applied at the next network generation.
+            #
+            # Groups are declared with {#log_group}
+            #
+            # @raise [ArgumentError] if no group with this name exists
             def disable_log_group(name)
 	        name = name.to_s
 	        if !log_groups.has_key?(name)
@@ -144,20 +152,17 @@ module Syskit
                 end
             end
 
-            ##
-            # :attr: reject_ambiguous_processor_deployments?
-            #
             # If multiple deployments are available for a task, and this task is
             # not a device driver, the resolution engine will randomly pick one
             # if this flag is set to false (the default). If set to true, it
             # will generate an error
-            attr_predicate :reject_ambiguous_processor_deployments?, true
+            attr_predicate :reject_ambiguous_deployments?, true
 
+            # If true (the default), the runtime management will automatically
+            # configure the tasks. If not, it will wait for you (or other
+            # processes) to do it manually
             attr_predicate :auto_configure?, true
 
-            ##
-            # :attr: orocos_only_load_models?
-            #
             # In normal operations, the plugin initializes the CORBA layer,
             # which takes some time.
             #
@@ -165,49 +170,70 @@ module Syskit
             # which case we don't need to waste time initializing the layer.
             #
             # Set this value to true to avoid initializing the CORBA layer
-            attr_predicate :orocos_only_load_models?, true
+            attr_predicate :only_load_models?, true
 
-            ##
-            # :attr: orocos_disables_local_process_server?
-            #
             # In normal operations, a local proces server called 'localhost' is
             # automatically started on the local machine. If this predicate is
             # set to true, using self.orocos_disables_local_process_server = true), then
             # this will be disabled
             #
             # See also #orocos_process_server
-            attr_predicate :orocos_disables_local_process_server?, true
+            attr_predicate :disables_local_process_server?, true
 
             # If true, all deployments declared with use_deployment or
             # use_deployments_from are getting started at the very beginning of
             # the execution
             #
             # This greatly reduces latency during operations
-            attr_predicate :orocos_start_all_deployments?, true
+            attr_predicate :start_all_deployments?, true
 
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.
             #
-            # The following options are allowed:
-            # on::
-            #   if given, it is the name of a process server as declared with
-            #   Application#orocos_process_server. The deployment will be
-            #   started only on that process server. It defaults to "localhost"
-            #   (i.e., the local machine)
+            # @option options [String] :on (localhost) the name of the process
+            #   server on which this deployment should be started
             def use_deployment(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
 
                 begin
                     model = Deployment.model_for(name)
                 rescue ArgumentError
-                    model = load_deployment_model(name)
+                    model = Roby.app.orocos_load_deployment_model(name)
                 end
-                server   = process_server_for(options[:on])
                 deployments[options[:on]] << model
+                model
+            end
+
+            # Add all the deployments defined in the given oroGen project to the
+            # set of deployments that the engine can use.
+            #
+            # @option options [String] :on the name of the process server this
+            #   project should be loaded from
+            # @return [Array<Model<Deployment>>] the set of deployments
+            # @see #use_deployment
+            def use_deployments_from(project_name, options = Hash.new)
+                Syskit.info "using deployments from #{project_name}"
+                orogen = Roby.app.load_orogen_project(project_name, options)
+
+                result = []
+                orogen.deployers.each do |deployment_def|
+                    if deployment_def.install?
+                        Syskit.info "  #{deployment_def.name}"
+                        # Currently, the supervision cannot handle orogen_default tasks 
+                        # properly, thus filtering them out for now 
+                        if /^orogen_default/ !~ "#{deployment_def.name}"
+                            result << use_deployment(deployment_def.name, options)
+                        end
+                    end
+                end
+                result
             end
 
             # Returns the process server object named +name+
+            #
+            # @param [String] name the process server name
+            # @raise [ArgumentError] if no such process server exists
             def process_server_for(name)
                 server = Syskit.process_servers[name]
                 if server then return server
@@ -219,31 +245,61 @@ module Syskit
                 end
             end
 
-            # Add all the deployments defined in the given oroGen project to the
-            # set of deployments that the engine can use.
+            # True if this application should not try to contact other
+            # machines/servers
+            attr_predicate :local_only?, true
+
+            # Call to declare a new process server to to the set of servers that
+            # can be used by this plan manager
             #
-            # See #use_deployment
-            def use_deployments_from(project_name, options = Hash.new)
-                options = Kernel.validate_options options, :on => 'localhost'
-                server = process_server_for(options[:on])
-                orogen = server.load_orogen_project(project_name)
-
-                Syskit.info "using deployments from #{project_name}"
-
-                result = []
-                orogen.deployers.each do |deployment_def|
-                    if deployment_def.install?
-                        Syskit.info "  #{deployment_def.name}"
-                        # Currently, the supervision cannot handle orogen_default tasks 
-                        # properly, thus filtering them out for now 
-                        if not /^orogen_default/ =~ "#{deployment_def.name}"
-                            result << use_deployment(deployment_def.name, options)
-                        end
+            # If 'host' is set to localhost, it disables the automatic startup
+            # of the local process server (i.e. sets
+            # orocos_disables_local_process_server to false)
+            #
+            # @return [Orocos::ProcessClient,Orocos::Generation::Project]
+            #
+            # @raise [ArgumentError] if host is not 'localhost' and
+            #   {#local_only?} is set
+            # @raise [ArgumentError] if there is already a process server
+            #   registered with that name
+            def process_server(name, host, options = Hash.new)
+                if Roby.app.single?
+                    if disables_local_process_server?
+                        return Orocos.master_project
+                    else
+                        client = Orocos::ProcessClient.new('localhost')
+                        Syskit.register_process_server(name, client, Roby.app.log_dir)
+                        return client
                     end
                 end
-                result
-            end
 
+                if local_only? && host != 'localhost'
+                    raise ArgumentError, "in local only mode"
+                elsif Syskit.process_servers[name]
+                    raise ArgumentError, "there is already a process server called #{name} running"
+                end
+
+                options = Kernel.validate_options options,
+                    :port => Orocos::ProcessServer::DEFAULT_PORT,
+                    :log_dir => 'logs',
+                    :result_dir => 'results'
+
+                port = options[:port]
+                if host =~ /^(.*):(\d+)$/
+                    host = $1
+                    port = Integer($2)
+                end
+
+                if host == 'localhost'
+                    self.disables_local_process_server = true
+                end
+
+                client = Orocos::ProcessClient.new(host, port)
+                client.save_log_dir(options[:log_dir], options[:result_dir])
+                client.create_log_dir(options[:log_dir], Roby.app.time_tag)
+                Syskit.register_process_server(name, client, options[:log_dir])
+                client
+            end
         end
     end
 end

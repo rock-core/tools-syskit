@@ -682,9 +682,9 @@ module Syskit
                     Robot.info "applied configuration #{conf} to #{orocos_task.name}"
                 end
 
-                # Then set configuration stored in Conf.orocos
-                if Roby::Conf.orocos.send("#{orogen_name}?")
-                    config = Roby::Conf.orocos.send(orogen_name)
+                # Then set configuration stored in Syskit.conf
+                if Syskit.conf.send("#{orogen_name}?")
+                    config = Syskit.conf.send(orogen_name)
                     apply_configuration(config)
                 end
 

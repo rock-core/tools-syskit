@@ -593,7 +593,7 @@ module Syskit
 
             # Registers a system-wide post-processing stage for the final
             # network. This is the last stage before the last validation
-            def self.register_deployment_postprocessing(&block)
+            def self.register_final_network_postprocessing(&block)
                 final_network_postprocessing << block
             end
 

@@ -600,7 +600,7 @@ module Syskit
 
                     # 4. if target_task is not a device driver and possible
                     # merges have the same model, pick one randomly
-                    if !Roby.app.reject_ambiguous_processor_deployments?
+                    if !Syskit.conf.reject_ambiguous_deployments?
                         ambiguous = merge_allocation(ambiguous, merges, merge_graph) do |target_task, task_set|
                             if !target_task.respond_to?(:each_device_name)
                                 candidate = task_set.find { true }

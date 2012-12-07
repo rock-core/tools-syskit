@@ -8,6 +8,12 @@ module Syskit
             #
             # It maps the server name to the Orocos::ProcessServer instance
             attr_reader :process_servers
+
+            # Registers the given process server to the set of usable process
+            # servers
+            def register_process_server(name, client, log_dir)
+                Syskit.process_servers[name] = [client, log_dir]
+            end
         end
         @process_servers = Hash.new
 
@@ -26,7 +32,6 @@ module Syskit
 	    end
 
             @@all_deployments = Hash.new
-
 
             # The PID of this process
             def pid
@@ -119,13 +124,9 @@ module Syskit
             def initialize_running_task(name, task)
                 task.orocos_task = task_handles[name]
                 task.orocos_task.process = orocos_process
-                if Conf.orocos.conf_log_enabled?
+                if Syskit.conf.conf_log_enabled?
                     task.orocos_task.log_all_configuration(Orocos.configuration_log)
                 end
-                # Override the base model with the new one. The new model
-                # may have been specialized, for instance to handle dynamic
-                # slave creation
-                # task.orogen_task.instance_variable_set(:@model, task.model.orogen_deployment_model)
             end
 
             ##

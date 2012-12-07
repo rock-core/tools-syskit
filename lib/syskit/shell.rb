@@ -127,19 +127,19 @@ module Syskit
             # Require the engine to redeploy the current network. Useful to
             # apply changed configuration files
             def redeploy
-                Roby.app.orocos_engine.modified!
+                # TODO: trigger redeployment
                 nil
             end
 
             def enable_logging_of(string)
-		Conf.orocos.enable_log_group(string)
-                Roby.app.orocos_engine.modified!
+		Syskit.conf.enable_log_group(string)
+                # TODO: trigger redeployment
                 nil
             end
 
             def disable_logging_of(string)
-                Conf.orocos.disable_log_group(string)
-                Roby.app.orocos_engine.modified!
+                Syskit.conf.disable_log_group(string)
+                # TODO: trigger redeployment
                 nil
             end
         end

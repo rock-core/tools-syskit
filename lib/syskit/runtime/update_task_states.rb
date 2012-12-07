@@ -50,7 +50,7 @@ module Syskit
 		end
 
                 if t.pending? && !t.setup? 
-                    if t.ready_for_setup? && Roby.app.orocos_auto_configure?
+                    if t.ready_for_setup? && Syskit.conf.auto_configure?
                         begin
                             t.setup 
                             t.is_setup!

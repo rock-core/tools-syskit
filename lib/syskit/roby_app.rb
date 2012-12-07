@@ -9,7 +9,19 @@ module Syskit
 end
 
 require 'syskit/roby_app/log_group'
-require 'syskit/roby_app/robot'
+require 'syskit/roby_app/robot_extension'
 require 'syskit/roby_app/toplevel'
 require 'syskit/roby_app/configuration'
 require 'syskit/roby_app/plugin'
+
+
+module Syskit
+    class << self
+        # The main configuration object
+        #
+        # For consistency reasons, it is also available as Roby.conf.syskit when
+        # running in a Roby application
+        attr_reader :conf
+    end
+    @conf = RobyApp::Configuration.new
+end

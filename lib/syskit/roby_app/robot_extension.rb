@@ -1,7 +1,7 @@
 module Syskit
     module RobyApp
         # Extensions to Roby's main Robot object
-        module Robot
+        module RobotExtension
             def each_device(&block)
                 Roby.app.orocos_engine.robot.devices.each_value(&block)
             end

@@ -3,8 +3,8 @@ Roby::Application.register_plugin('syskit', Syskit::RobyApp::Plugin) do
     require 'syskit'
     require 'orocos/process_server'
 
-    ::Robot.include Syskit::RobyApp::Robot
-    ::Roby::Conf.extend Syskit::RobyApp::Configuration::ConfExtension
+    ::Robot.include Syskit::RobyApp::RobotExtension
+    ::Roby.conf.syskit = Syskit.conf
     ::Roby.extend Syskit::RobyApp::Toplevel
 
     Orocos.load_orogen_plugins('syskit')

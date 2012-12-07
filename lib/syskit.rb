@@ -54,4 +54,4 @@ require 'syskit/selection_tasks'
 # App support
 require 'syskit/graphviz'
 require 'syskit/shell'
-require 'syskit/app'
+require 'syskit/roby_app'

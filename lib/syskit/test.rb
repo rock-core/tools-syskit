@@ -81,7 +81,6 @@ module Syskit
             def setup
                 @old_loglevel = Orocos.logger.level
                 Roby.app.using 'syskit'
-                Roby.app.orocos_disables_local_process_server = true
                 Roby.app.filter_backtraces = false
 
                 super
@@ -99,11 +98,10 @@ module Syskit
                 engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
                 # TODO: remove all references to global singletons
-                @orocos_engine = Roby.app.orocos_engine
-                Roby.app.orocos_engine.instance_variable_set :@plan, plan
-                @handler_ids = Syskit::Application.plug_engine_in_roby(engine)
-		if !Roby.app.orocos_disables_local_process_server?
-                    Syskit::Application.connect_to_local_process_server
+                @orocos_engine = Syskit::NetworkGeneration::Engine.new(plan)
+                @handler_ids = Syskit::RobyApp::Plugin.plug_engine_in_roby(engine)
+		if !Syskit.conf.disables_local_process_server?
+                    Syskit::RobyApp::Plugin.connect_to_local_process_server
 		end
             end
 
@@ -125,7 +123,7 @@ module Syskit
 
             ensure
                 if @handler_ids
-                    Syskit::Application.unplug_engine_from_roby(@handler_ids, engine)
+                    Syskit::RobyApp::Plugin.unplug_engine_from_roby(@handler_ids, engine)
                 end
 
                 ENV['PKG_CONFIG_PATH'] = @old_pkg_config
@@ -208,7 +206,7 @@ module Syskit
 
         def setup
             Roby.app.using 'syskit'
-            Roby.app.orocos_disables_local_process_server = true
+            Syskit.conf.disables_local_process_server = true
 
             super
             Orocos.load

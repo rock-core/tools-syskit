@@ -3,14 +3,11 @@ module Syskit
         # RobotDefinition objects describe a robot through the devices that are
         # available on it.
         class RobotDefinition
-            def initialize(engine)
-                @engine     = engine
+            def initialize
                 @com_busses = Hash.new
                 @devices    = Hash.new
             end
 
-            # The underlying engine
-            attr_reader :engine
             # The available communication busses
             attr_reader :com_busses
             # The devices that are available on this robot

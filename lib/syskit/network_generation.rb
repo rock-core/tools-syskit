@@ -5,8 +5,8 @@ module Syskit
     end
 end
 
-require 'network_generation/dataflow_computation'
-require 'network_generation/dataflow_dynamics'
-require 'network_generation/network_merge_solver'
-require 'network_generation/engine'
-require 'network_generation/logger'
+require 'syskit/network_generation/dataflow_computation'
+require 'syskit/network_generation/dataflow_dynamics'
+require 'syskit/network_generation/network_merge_solver'
+require 'syskit/network_generation/engine'
+require 'syskit/network_generation/logger'
