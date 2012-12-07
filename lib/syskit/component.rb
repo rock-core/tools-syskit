@@ -23,8 +23,6 @@ module Syskit
 
             abstract
 
-            # The Robot instance we are running on
-            attr_accessor :robot
             # See Models::Base#permanent_model?
             @permanent_model = true
 
