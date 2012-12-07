@@ -296,7 +296,7 @@ module Syskit
                     end
 
                 if mismatch
-                    Engine.warn "state mismatch on #{self} between state=#{orogen_state} and rtt_state=#{rtt_state}"
+                    Runtime.warn "state mismatch on #{self} between state=#{orogen_state} and rtt_state=#{rtt_state}"
                     @orogen_state = rtt_state
                     handle_state_changes
                 end
@@ -380,9 +380,9 @@ module Syskit
                 @setup = true
                 if all_inputs_connected?
                     self.executable = nil
-                    Engine.debug { "#{self} is setup and all its inputs are connected, set executable to nil and executable? = #{executable?}" }
+                    Runtime.debug { "#{self} is setup and all its inputs are connected, set executable to nil and executable? = #{executable?}" }
                 else
-                    Engine.debug { "#{self} is setup but some of its inputs are not connected, keep executable = #{executable?}" }
+                    Runtime.debug { "#{self} is setup but some of its inputs are not connected, keep executable = #{executable?}" }
                 end
             end
 
@@ -561,7 +561,7 @@ module Syskit
                     # communication, unlike the port-based state updates.
 		    state = orocos_task.rtt_state
                     if state != :RUNNING
-			Engine.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
+			Runtime.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
                         # Nothing to do, the poll block will finalize the task
                     else
                         raise

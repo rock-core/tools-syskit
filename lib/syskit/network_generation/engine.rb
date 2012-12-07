@@ -130,10 +130,10 @@ module Syskit
                 # Finally, the explicit selections
                 main_selection.push(main_user_selection)
 
-                Engine.debug do
-                    Engine.debug "Resolved main selection"
-                    Engine.log_nest(2) do
-                        Engine.log_pp(:debug, main_selection)
+                debug do
+                    debug "Resolved main selection"
+                    log_nest(2) do
+                        log_pp(:debug, main_selection)
                     end
                     break
                 end
@@ -444,7 +444,7 @@ module Syskit
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
                 plan.static_garbage_collect do |obj|
-                    Engine.debug { "  removing #{obj}" }
+                    debug { "  removing #{obj}" }
                     # Remove tasks that we just added and are not
                     # useful anymore
                     plan.remove_object(obj)
@@ -474,7 +474,7 @@ module Syskit
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
                 plan.static_garbage_collect do |obj|
-                    Engine.debug { "  removing #{obj}" }
+                    debug { "  removing #{obj}" }
                     # Remove tasks that we just added and are not
                     # useful anymore
                     plan.remove_object(obj)
@@ -776,17 +776,17 @@ module Syskit
                     fix_toplevel_mission_permanent
 
                     if options[:garbage_collect]
-                        Engine.debug "final garbage collection pass"
+                        debug "final garbage collection pass"
                         trsc.static_garbage_collect do |obj|
                             if obj.transaction_proxy?
                                 if obj.finished?
-                                    Engine.debug { "  removing dependency relations from #{obj}" }
+                                    debug { "  removing dependency relations from #{obj}" }
                                     # Clear up the dependency relations for the
                                     # obsolete tasks that are in the plan
                                     obj.remove_relations(Roby::TaskStructure::Dependency)
                                 end
                             else
-                                Engine.debug { "  removing #{obj}" }
+                                debug { "  removing #{obj}" }
                                 # Remove tasks that we just added and are not
                                 # useful anymore
                                 trsc.remove_object(obj)
@@ -1055,10 +1055,10 @@ module Syskit
             # Instanciates all deployments that have been specified by the user.
             # Reuses deployments in the current plan manager's plan if possible
             def instanciate_required_deployments
-                Engine.debug do
-                    Engine.debug ""
-                    Engine.debug "----------------------------------------------------"
-                    Engine.debug "Instanciating deployments"
+                debug do
+                    debug ""
+                    debug "----------------------------------------------------"
+                    debug "Instanciating deployments"
                     break
                 end
 
@@ -1067,7 +1067,7 @@ module Syskit
 
                 deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
-                        Engine.debug { "  #{machine_name}: #{model}" }
+                        debug { "  #{machine_name}: #{model}" }
                         task = model.new(:on => machine_name)
                         plan.add(task)
                         deployment_tasks[model] = task
@@ -1075,7 +1075,7 @@ module Syskit
                         new_activities = Set.new
                         task.each_orogen_deployed_task_context_model do |deployed_task|
                             if ignored_deployed_task?(deployed_task)
-                                Engine.debug { "  ignoring #{model.name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
+                                debug { "  ignoring #{model.name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
                             else
                                 new_activities << deployed_task.name
                             end
@@ -1084,17 +1084,17 @@ module Syskit
                         new_activities.each do |act_name|
                             new_task = task.task(act_name)
                             deployed_task = plan[new_task]
-                            Engine.debug do
+                            debug do
                                 "  #{deployed_task.orocos_name} using #{task.deployment_name}[machine=#{task.machine}] is represented by #{deployed_task}"
                             end
                             deployed_tasks[act_name] = deployed_task
                         end
                     end
                 end
-                Engine.debug do
-                    Engine.debug "Done instanciating deployments"
-                    Engine.debug "----------------------------------------------------"
-                    Engine.debug ""
+                debug do
+                    debug "Done instanciating deployments"
+                    debug "----------------------------------------------------"
+                    debug ""
                     break
                 end
 
@@ -1105,7 +1105,7 @@ module Syskit
                 all_tasks = plan.find_tasks(Component).to_value_set
                 all_tasks.delete_if do |t|
                     if t.finishing? || t.finished?
-                        Engine.debug { "clearing the relations of the finished task #{t}" }
+                        debug { "clearing the relations of the finished task #{t}" }
                         t.remove_relations(Syskit::Flows::DataFlow)
                         t.remove_relations(Roby::TaskStructure::Dependency)
                         true
@@ -1121,7 +1121,7 @@ module Syskit
                 end
 
                 (all_tasks - used_tasks).each do |t|
-                    Engine.debug { "clearing the dataflow relations of #{t}" }
+                    debug { "clearing the dataflow relations of #{t}" }
                     t.remove_relations(Syskit::Flows::DataFlow)
                 end
 
@@ -1156,23 +1156,23 @@ module Syskit
                 deployments = used_deployments
                 existing_deployments = plan.find_tasks(Syskit::Deployment).to_value_set - deployments
 
-                Engine.debug do
-                    Engine.debug "mapping deployments in the network to the existing ones"
-                    Engine.debug "network deployments:"
-                    deployments.each { |dep| Engine.debug "  #{dep}" }
-                    Engine.debug "existing deployments:"
-                    existing_deployments.each { |dep| Engine.debug "  #{dep}" }
+                debug do
+                    debug "mapping deployments in the network to the existing ones"
+                    debug "network deployments:"
+                    deployments.each { |dep| debug "  #{dep}" }
+                    debug "existing deployments:"
+                    existing_deployments.each { |dep| debug "  #{dep}" }
                     break
                 end
 
                 result = ValueSet.new
                 deployments.each do |deployment_task|
                     existing_candidates = plan.find_local_tasks(deployment_task.model).not_finished.to_value_set
-                    Engine.debug do
-                        Engine.debug "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})"
-                        Engine.debug "#{existing_candidates.size} candidates:"
+                    debug do
+                        debug "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})"
+                        debug "#{existing_candidates.size} candidates:"
                         existing_candidates.each do |candidate_task|
-                            Engine.debug "  #{candidate_task}"
+                            debug "  #{candidate_task}"
                         end
                         break
                     end
@@ -1184,7 +1184,7 @@ module Syskit
                         end
 
                     if existing_deployment_tasks.empty?
-                        Engine.debug { "  deployment #{deployment_task.deployment_name} is not yet represented in the plan" }
+                        debug { "  deployment #{deployment_task.deployment_name} is not yet represented in the plan" }
                         result << deployment_task
                         next
                     elsif existing_deployment_tasks.size != 1
@@ -1201,17 +1201,17 @@ module Syskit
                         end
                     end
 
-		    Engine.debug existing_tasks
+		    debug existing_tasks
 
                     deployed_tasks = deployment_task.each_executed_task.to_value_set
                     deployed_tasks.each do |task|
                         existing_task = existing_tasks[task.orocos_name]
                         if !existing_task
-                            Engine.debug { "  task #{task.orocos_name} has not yet been deployed" }
+                            debug { "  task #{task.orocos_name} has not yet been deployed" }
                         elsif !existing_task.reusable?
-                            Engine.debug { "  task #{task.orocos_name} has been deployed, but the deployment is not reusable" }
+                            debug { "  task #{task.orocos_name} has been deployed, but the deployment is not reusable" }
                         elsif !existing_task.can_merge?(task)
-                            Engine.debug { "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment" }
+                            debug { "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment" }
                         end
 
                         # puts "#{existing_task} #{existing_task.meaningful_arguments} #{existing_task.arguments} #{existing_task.fullfilled_model}"
@@ -1219,9 +1219,9 @@ module Syskit
                         # puts existing_task.can_merge?(task)
                         if !existing_task || existing_task.finishing? || !existing_task.reusable? || !existing_task.can_merge?(task)
                             new_task = plan[existing_deployment_task.task(task.orocos_name, task.model)]
-                            Engine.debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
+                            debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
                             if existing_task
-                                Engine.debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
+                                debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
                                 new_task.start_event.should_emit_after(existing_task.stop_event)
 
                                 # The trick with allow_automatic_setup is to
@@ -1240,7 +1240,7 @@ module Syskit
                         end
                         existing_task.merge(task)
                         @network_merge_solver.register_replacement(task, plan.may_unwrap(existing_task))
-                        Engine.debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
+                        debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
                         plan.remove_object(task)
                         if existing_task.conf != task.conf
                             existing_task.needs_reconfiguration!

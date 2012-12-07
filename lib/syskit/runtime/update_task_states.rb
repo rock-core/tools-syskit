@@ -82,7 +82,7 @@ module Syskit
 
 
                     if state_count >= TaskContext::STATE_READER_BUFFER_SIZE
-                        Engine.warn "got #{state_count} state updates for #{t}, we might have lost some state updates in the process"
+                        Runtime.warn "got #{state_count} state updates for #{t}, we might have lost some state updates in the process"
                     end
 
                 rescue Orocos::CORBA::ComError => e

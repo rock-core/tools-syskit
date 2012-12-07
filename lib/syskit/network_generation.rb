@@ -2,6 +2,7 @@ module Syskit
     # Namespace for all the functionality that allows to generate a complete
     # network from a set of requirements
     module NetworkGeneration
+        extend Logger::Hierarchy
     end
 end
 

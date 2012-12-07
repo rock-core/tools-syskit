@@ -138,7 +138,7 @@ module Syskit
                         begin
                             deployment.task(logger_task_name)
                         rescue ArgumentError
-                            Engine.warn "deployment #{deployment.deployment_name} has no logger (#{logger_task_name})"
+                            warn "deployment #{deployment.deployment_name} has no logger (#{logger_task_name})"
                             next
                         end
                     engine.plan.add_permanent(logger_task)

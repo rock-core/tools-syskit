@@ -248,12 +248,6 @@ module Orocos
                     Syskit.logger = ::Logger.new(STDOUT)
                     Syskit.logger.formatter = Roby.logger.formatter
                     Syskit.logger.level = ::Logger::DEBUG
-                    Engine.logger = ::Logger.new(STDOUT)
-                    Engine.logger.formatter = Roby.logger.formatter
-                    Engine.logger.level = ::Logger::DEBUG
-                    SystemModel.logger = ::Logger.new(STDOUT)
-                    SystemModel.logger.formatter = Roby.logger.formatter
-                    SystemModel.logger.level = ::Logger::DEBUG
                 end
 
                 Roby.display_exception do

@@ -2,6 +2,9 @@ module Syskit
     module Runtime
         # Connection management at runtime
         class ConnectionManagement
+            extend Logger::Hierarchy
+            include Logger::Hierarchy
+
             attr_reader :plan
 
             attr_predicate :dry_run?, true
@@ -72,10 +75,10 @@ module Syskit
 
                 not_running = tasks.find_all { |t| !t.orocos_task }
                 if !not_running.empty?
-                    Engine.debug do
-                        Engine.debug "not computing connections because the deployment of the following tasks is not yet ready"
+                    debug do
+                        debug "not computing connections because the deployment of the following tasks is not yet ready"
                         tasks.each do |t|
-                            Engine.debug "  #{t}"
+                            debug "  #{t}"
                         end
                         break
                     end
@@ -182,15 +185,15 @@ module Syskit
                 new.each do |(source, sink), mappings|
                     if !dry_run?
                         if !sink.setup? || !source.setup?
-                            Engine.debug do
-                                Engine.debug "cannot modify connections from #{source}, either one is not yet set up"
-                                Engine.debug "  to #{sink}"
-                                Engine.debug "  source.executable?:      #{source.executable?}"
-                                Engine.debug "  source.ready_for_setup?: #{source.ready_for_setup?}"
-                                Engine.debug "  source.setup?:           #{source.setup?}"
-                                Engine.debug "  sink.executable?:        #{sink.executable?}"
-                                Engine.debug "  sink.ready_for_setup?:   #{sink.ready_for_setup?}"
-                                Engine.debug "  sink.setup?:             #{sink.setup?}"
+                            debug do
+                                debug "cannot modify connections from #{source}, either one is not yet set up"
+                                debug "  to #{sink}"
+                                debug "  source.executable?:      #{source.executable?}"
+                                debug "  source.ready_for_setup?: #{source.ready_for_setup?}"
+                                debug "  source.setup?:           #{source.setup?}"
+                                debug "  sink.executable?:        #{sink.executable?}"
+                                debug "  sink.ready_for_setup?:   #{sink.ready_for_setup?}"
+                                debug "  sink.setup?:             #{sink.setup?}"
                                 break
                             end
                             throw :cancelled
@@ -219,9 +222,9 @@ module Syskit
                     all_stopped = Roby::AndGenerator.new
 
                     restart_tasks.each do |task|
-                        Engine.debug { "restarting #{task}" }
+                        debug { "restarting #{task}" }
                         replacement = plan.recreate(task)
-                        Engine.debug { "  replaced by #{replacement}" }
+                        debug { "  replaced by #{replacement}" }
                         new_tasks << replacement
                         all_stopped << task.stop_event
                     end
@@ -234,9 +237,9 @@ module Syskit
                 # Remove connections first
                 removed.each do |(source_task, sink_task), mappings|
                     mappings.each do |source_port, sink_port|
-                        Engine.debug do
-                            Engine.debug "disconnecting #{source_task}:#{source_port}"
-                            Engine.debug "     => #{sink_task}:#{sink_port}"
+                        debug do
+                            debug "disconnecting #{source_task}:#{source_port}"
+                            debug "     => #{sink_task}:#{sink_port}"
                             break
                         end
 
@@ -269,7 +272,7 @@ module Syskit
                         # externally. This is not a common case however.
                         # begin
                         #     if !ActualDataFlow.has_in_connections?(sink_task, sink_port)
-                        #         Engine.debug { "calling #disconnect_all on the input port #{sink_task.name}:#{sink_port} since it has no input connections anymore" }
+                        #         debug { "calling #disconnect_all on the input port #{sink_task.name}:#{sink_port} since it has no input connections anymore" }
                         #         sink.disconnect_all
                         #     end
                         # rescue Orocos::NotFound
@@ -288,10 +291,10 @@ module Syskit
                     next if !to_task.orocos_task
 
                     mappings.each do |(from_port, to_port), policy|
-                        Engine.debug do
-                            Engine.debug "connecting #{from_task}:#{from_port}"
-                            Engine.debug "     => #{to_task}:#{to_port}"
-                            Engine.debug "     with policy #{policy}"
+                        debug do
+                            debug "connecting #{from_task}:#{from_port}"
+                            debug "     => #{to_task}:#{to_port}"
+                            debug "     with policy #{policy}"
                             break
                         end
 
@@ -322,10 +325,10 @@ module Syskit
                 # Check tasks for which we created an input. If they are not
                 # executable and all_inputs_connected? returns true, set their
                 # executable flag to nil
-                Engine.debug do
-                    Engine.debug "#{pending_tasks.size} pending tasks"
+                debug do
+                    debug "#{pending_tasks.size} pending tasks"
                     pending_tasks.each do |t|
-                        Engine.debug "  #{t}: all_inputs_connected=#{t.all_inputs_connected?} executable=#{t.executable?}"
+                        debug "  #{t}: all_inputs_connected=#{t.all_inputs_connected?} executable=#{t.executable?}"
                     end
                     break
                 end
@@ -333,7 +336,7 @@ module Syskit
                 pending_tasks.each do |t|
                     if t.all_inputs_connected?
                         t.executable = nil
-                        Engine.debug { "#{t} has all its inputs connected, set executable to nil and executable? = #{t.executable?}" }
+                        debug { "#{t} has all its inputs connected, set executable to nil and executable? = #{t.executable?}" }
                     end
                 end
 
@@ -373,27 +376,27 @@ module Syskit
                     main_tasks.delete_if { |t| !t.plan || !t.execution_agent || t.execution_agent.ready_to_die? || t.execution_agent.finished? }
                     proxy_tasks.delete_if { |t| !t.plan }
 
-                    Engine.debug do
-                        Engine.debug "computing data flow update from modified tasks"
+                    debug do
+                        debug "computing data flow update from modified tasks"
                         for t in main_tasks
-                            Engine.debug "  #{t}"
+                            debug "  #{t}"
                         end
                         break
                     end
 
                     new, removed = compute_connection_changes(main_tasks)
                     if new
-                        Engine.debug do
-                            Engine.debug "  new connections:"
+                        debug do
+                            debug "  new connections:"
                             new.each do |(from_task, to_task), mappings|
-                                Engine.debug "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
-                                Engine.debug "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
+                                debug "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
+                                debug "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
                                 mappings.each do |(from_port, to_port), policy|
-                                    Engine.debug "      #{from_port}:#{to_port} #{policy}"
+                                    debug "      #{from_port}:#{to_port} #{policy}"
                                 end
                             end
-                            Engine.debug "  removed connections:"
-                            Engine.debug "  disable debug display because it is unstable in case of process crashes"
+                            debug "  removed connections:"
+                            debug "  disable debug display because it is unstable in case of process crashes"
                             #removed.each do |(from_task, to_task), mappings|
                             #    Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
                             #    Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
@@ -414,35 +417,35 @@ module Syskit
                         Flows::DataFlow.modified_tasks.clear
                         Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_value_set)
                     else
-                        Engine.debug "cannot compute changes, keeping the tasks queued"
+                        debug "cannot compute changes, keeping the tasks queued"
                     end
                 end
 
                 if Flows::DataFlow.pending_changes
                     _, new, removed, pending_replacement = Flows::DataFlow.pending_changes
                     if pending_replacement && !pending_replacement.happened? && !pending_replacement.unreachable?
-                        Engine.debug "waiting for replaced tasks to stop"
+                        debug "waiting for replaced tasks to stop"
                     else
                         if pending_replacement
-                            Engine.debug "successfully started replaced tasks, now applying pending changes"
+                            debug "successfully started replaced tasks, now applying pending changes"
                             pending_replacement.clear_vertex
                             plan.unmark_permanent(pending_replacement)
                         end
 
                         pending_replacement = catch :cancelled do
-                            Engine.debug "applying pending changes from the data flow graph"
+                            debug "applying pending changes from the data flow graph"
                             apply_connection_changes(new, removed)
                             Flows::DataFlow.pending_changes = nil
                         end
 
                         if !Flows::DataFlow.pending_changes
-                            Engine.debug "successfully applied pending changes"
+                            debug "successfully applied pending changes"
                         elsif pending_replacement
-                            Engine.debug "waiting for replaced tasks to stop"
+                            debug "waiting for replaced tasks to stop"
                             plan.add_permanent(pending_replacement)
                             Flows::DataFlow.pending_changes[3] = pending_replacement
                         else
-                            Engine.debug "failed to apply pending changes"
+                            debug "failed to apply pending changes"
                         end
                     end
                 end

@@ -1,13 +1,9 @@
 module Syskit
-        # Generic representation of requirements on a component instance
-        #
-        # Components can be compositions, services and/or 
-        #
-        # It is used by compositions to represent the requirements on their
-        # children (through the Models::CompositionChild class) and by the
-        # Engine to represent instanciation requirements as set by #add or
-        # #define (through the EngineRequirement class)
+        # Generic representation of a configured component instance
         class InstanceRequirements
+            extend Logger::Hierarchy
+            include Logger::Hierarchy
+
             # The component model narrowed down from +base_models+ using
             # +using_spec+
             attr_reader :models
@@ -258,7 +254,7 @@ module Syskit
             #
             # See also Composition#instanciate
             def use(*mappings)
-                Engine.debug "adding use mappings #{mappings} to #{self}"
+                debug "adding use mappings #{mappings} to #{self}"
 
                 composition_model = base_models.find { |m| m <= Composition }
                 if !composition_model
@@ -329,25 +325,25 @@ module Syskit
                     return
                 end
 
-                Engine.debug do
-                    Engine.debug "narrowing model"
-                    Engine.debug "  from #{composition_model.short_name}"
+                debug do
+                    debug "narrowing model"
+                    debug "  from #{composition_model.short_name}"
                     break
                 end
 
-                context = Engine.log_nest(4) do
+                context = log_nest(4) do
                     selection = self.selections.dup
                     selection.remove_unresolved
                     DependencyInjectionContext.new(selection)
                 end
 
-                result = Engine.log_nest(2) do
+                result = log_nest(2) do
                     composition_model.narrow(context)
                 end
 
-                Engine.debug do
+                debug do
                     if result
-                        Engine.debug "  using #{result.short_name}"
+                        debug "  using #{result.short_name}"
                     end
                     break
                 end

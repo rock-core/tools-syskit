@@ -2,6 +2,7 @@ module Syskit
     # Namespace containing all the system management at runtime (propagation of
     # states, triggering of connection updates, ...)
     module Runtime
+        extend Logger::Hierarchy
     end
 end
 
