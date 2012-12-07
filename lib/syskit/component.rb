@@ -21,6 +21,8 @@ module Syskit
         class Component < ::Roby::Task
             extend Models::Component
 
+            abstract
+
             # The Robot instance we are running on
             attr_accessor :robot
             # See Models::Base#permanent_model?
