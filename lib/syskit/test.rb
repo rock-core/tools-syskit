@@ -118,7 +118,6 @@ module Syskit
                 if orocos_engine
                     orocos_engine.clear
                 end
-                Roby.app.orocos_clear_models
 
                 super
 
