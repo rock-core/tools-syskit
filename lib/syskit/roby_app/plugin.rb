@@ -132,7 +132,8 @@ module Syskit
 
                 Orocos.configuration_log_name ||= File.join(app.log_dir, 'properties')
                 Orocos.disable_sigchld_handler = true
-                app.plan.orocos_engine = NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
+                # Engine registers itself as plan.orocos_engine
+                NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
 
                 # Change to the log dir so that the IOR file created by the
                 # CORBA bindings ends up there

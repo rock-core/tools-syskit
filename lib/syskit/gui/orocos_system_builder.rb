@@ -25,7 +25,7 @@ module Ui
             @system_model = system_model
             @robot        = robot
             @plan   = Roby::Plan.new
-            @engine = Syskit::Engine.new(plan, system_model, robot)
+            @engine = Syskit::NetworkGeneration::Engine.new(plan, robot)
 
         end
 

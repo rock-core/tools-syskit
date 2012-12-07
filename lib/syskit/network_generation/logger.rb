@@ -120,7 +120,7 @@ module Syskit
                             next if !deployment.log_port?(p)
 
                             log_port_name = "#{t.orocos_name}.#{port_name}"
-                            connections[[port_name, log_port_name]] = { :fallback_policy => { :type => :buffer, :size => Engine.default_logging_buffer_size } }
+                            connections[[port_name, log_port_name]] = { :fallback_policy => { :type => :buffer, :size => Syskit.conf.default_logging_buffer_size } }
                             required_logging_ports << [log_port_name, t, p]
                         end
                         required_connections << [t, connections]

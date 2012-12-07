@@ -124,7 +124,7 @@ module Syskit
             #       use(Cmp::Odometry.with_arguments('special_behaviour' => true))
             #
             def with_arguments(*spec, &block)
-                Engine.create_instanciated_component(nil, nil, self).with_arguments(*spec, &block)
+                InstanceRequirements.new([self]).with_arguments(*spec, &block)
             end
 
             # @deprecated
@@ -141,7 +141,7 @@ module Syskit
             #       use(Cmp::Odometry.use_conf('special_conf'))
             #
             def with_conf(*spec, &block)
-                Engine.create_instanciated_component(nil, nil, self).with_conf(*spec, &block)
+                InstanceRequirements.new([self]).with_conf(*spec, &block)
             end
 
             # Returns a view of this component as a producer of the given model

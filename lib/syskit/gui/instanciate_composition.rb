@@ -28,7 +28,7 @@ module Ui
             @parent_engine = parent_engine || Roby.app.orocos_engine
             @robot = robot
             @plan   = Roby::Plan.new
-            @engine = Syskit::Engine.new(plan, system_model, robot)
+            @engine = Syskit::NetworkGeneration::Engine.new(plan, robot)
         end
 
         def root_task
