@@ -11,6 +11,14 @@ module Syskit
                 @log_enabled = true
                 @conf_log_enabled = true
                 @redirect_local_process_server = true
+                @redirect_local_process_server = true
+                @default_logging_buffer_size = 25
+                @reject_ambiguous_deployments = false
+                @auto_configure = true
+                @only_load_models = false
+                @disables_local_process_server = false
+                @start_all_deployments = false
+                @local_only = false
 
                 @log_groups = { nil => LogGroup.new(false) }
 
@@ -23,7 +31,16 @@ module Syskit
                 end
 
                 @robot = Robot::RobotDefinition.new
+
             end
+
+            # The default buffer size that should be used when setting up a
+            # logger connection
+            #
+            # Defaults to 25
+            #
+            # @return [Integer]
+            attr_accessor :default_logging_buffer_size
 
             # Describes the robot. Example:
             #
