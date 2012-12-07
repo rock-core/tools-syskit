@@ -395,6 +395,7 @@ module Syskit
                         barrier[n] = nil
                     end
                 end
+                selections = self.selections
                 if !barrier.empty?
                     selections = selections.dup
                     selections.add_explicit(barrier)
