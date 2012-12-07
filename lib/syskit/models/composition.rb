@@ -893,7 +893,7 @@ module Syskit
                     #
                     # In the second case, any specialization that does not match
                     # Srv::BaseService for child would be rejected.
-                    specialized_model = specializations.matching_specialized_model(explicit_selection.map_value { |sel| [sel] })
+                    specialized_model = specializations.matching_specialized_model(explicit_selections.map_value { |sel| [sel] })
                     if specialized_model != self
                         return specialized_model.instanciate(engine, context, arguments.merge(:specialize => false))
                     end
