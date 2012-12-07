@@ -507,31 +507,38 @@ module Syskit
 
                 case port
                 when InputPort
-                    exported_inputs[name] = port.dup
-                    exported_inputs[name].name = name
+                    exported_inputs[name] = port
                 when OutputPort
-                    exported_outputs[name] = port.dup
-                    exported_outputs[name].name = name
+                    exported_outputs[name] = port
                 else
                     raise TypeError, "invalid port #{port.port} of type #{port.port.class}"
                 end
+                find_port(name)
             end
 
             # Returns true if +port_model+, which has to be a child's port, is
             # exported in this composition
             #
-            # See #export
+            # @return [Boolean]
+            # @see #export
             #
-            # Example usage:
+            # @example
             #
-            #   child = Compositions::Test['Source']
-            #   Compositions::Test.exported_port?(child.output)
-            def exported_port?(port_model)
-                if exported = find_exported_output(port_model.name)
-                    exported == port_model
-                elsif exported = find_exported_input(port_model.name)
-                    exported == port_model
+            #   class C < Syskit::Composition
+            #     add srv, :as => 'srv'
+            #     export srv.output_port
+            #   end
+            #
+            #   C.exported_port?(C.srv_child.output_port) => true
+            #
+            def exported_port?(port)
+                each_exported_output do |name, p|
+                    return true if p == port
                 end
+                each_exported_input do |name, p|
+                    return true if p == port
+                end
+                false
             end
 
             # Returns the port named 'name' in this composition
@@ -545,12 +552,22 @@ module Syskit
             # Returns the composition's output port named 'name'
             #
             # See #port, and #export to create ports on a composition
-            def find_output_port(name); find_exported_output(name.to_str) end
+            def find_output_port(name)
+                name = name.to_str
+                if p = find_exported_output(name.to_str)
+                    return OutputPort.new(self, p.orogen_model, name)
+                end
+            end
 
             # Returns the composition's input port named 'name'
             #
             # See #port, and #export to create ports on a composition
-            def find_input_port(name); find_exported_input(name.to_str) end
+            def find_input_port(name)
+                name = name.to_str
+                if p = find_exported_input(name.to_str)
+                    return InputPort.new(self, p.orogen_model, name)
+                end
+            end
 
             # Returns true if +name+ is a valid dynamic input port.
             #
