@@ -26,11 +26,12 @@ require 'orocos/test'
 
 require 'minitest/spec'
 
-
-begin
-require 'pry'
-rescue Exception
-    Syskit.warn "debugging is disabled because the 'pry' gem cannot be loaded"
+if ENV['SYSKIT_ENABLE_PRY'] != '0'
+    begin
+        require 'pry'
+    rescue Exception
+        Syskit.warn "debugging is disabled because the 'pry' gem cannot be loaded"
+    end
 end
 
 module Syskit
