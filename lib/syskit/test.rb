@@ -1,5 +1,6 @@
 # simplecov must be loaded FIRST. Only the files required after it gets loaded
 # will be profiled !!!
+if ENV['SYSKIT_ENABLE_COVERAGE'] == '1'
     begin
         require 'simplecov'
     rescue LoadError
@@ -9,6 +10,7 @@
         require 'syskit'
         Syskit.warn "coverage is disabled: #{e.message}"
     end
+end
 require 'test/unit'
 require 'flexmock/test_unit'
 require 'roby'
