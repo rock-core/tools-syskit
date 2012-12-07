@@ -16,7 +16,10 @@ module Syskit
             #
             # On TaskContext, it also clears all orogen-to-syskit model mappings
             def deregister_submodels(set)
-                super
+                if !super
+                    return
+                end
+
                 set.each do |m|
                     Syskit::TaskContext.orogen_model_to_syskit_model.delete(m.orogen_model)
                 end
@@ -27,6 +30,7 @@ module Syskit
                         end
                     end
                 end
+                true
             end
 
             # Checks whether a syskit model exists for the given orogen model

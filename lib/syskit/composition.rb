@@ -87,8 +87,14 @@ module Syskit
         # See the Models::Composition for class-level methods
         class Composition < Component
             extend Models::Composition
+            Component.submodels << Composition
 
-            @name = "Syskit::Composition"
+            abstract
+
+            # See Models::Base#permanent_model?
+            @permanent_model = true
+
+            # See Models::Composition#strict_specialization_selection?
             @strict_specialization_selection = true
 
             terminates

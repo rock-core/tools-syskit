@@ -23,6 +23,8 @@ module Syskit
 
             # The Robot instance we are running on
             attr_accessor :robot
+            # See Models::Base#permanent_model?
+            @permanent_model = true
 
             # The name of the process server that should run this component
             #

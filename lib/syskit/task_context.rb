@@ -18,8 +18,12 @@ module Syskit
         #   static inputs are connected.
         class TaskContext < Component
             extend Models::TaskContext
+            Component.submodels << TaskContext
 
             abstract
+
+            # See Models::Base#permanent_model?
+            @permanent_model = true
 
             # The task's configuration, as a list of registered configurations
             # for the underlying task context
