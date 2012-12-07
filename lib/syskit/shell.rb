@@ -24,7 +24,7 @@ module Syskit
         class ShellInterface < Roby::ShellInterface
             def dump_task_config(task_model, path, name = nil)
                 FileUtils.mkdir_p(path)
-                Roby.plan.find_tasks(task_model).
+                plan.find_tasks(task_model).
                     each do |t|
                         Orocos.conf.save(t.orocos_task, path, name || t.orocos_task.name)
                     end
@@ -51,19 +51,19 @@ module Syskit
             class ShellDeploymentRestart < Roby::Task
                 event :start, :controlable => true
                 event :stop do |context|
-                    Roby.app.orocos_engine.modified!
+                    plan.orocos_engine.resolve
                     emit :stop
                 end
             end
 
             # Stops all deployment processes
             def stop_deployments(*models)
-                Roby.execute do
+                engine.execute do
                     if models.empty?
                         models << Syskit::Deployment
                     end
                     models.each do |m|
-                        Roby.plan.find_tasks(m).
+                        plan.find_tasks(m).
                             each do |task|
                                 if task.kind_of?(Syskit::TaskContext)
                                     task.execution_agent.stop!
@@ -80,9 +80,9 @@ module Syskit
             #
             # If no deployments are given, restart all of them
             def restart_deployments(*models)
-                Roby.execute do
+                engine.execute do
                     protection = ShellDeploymentRestart.new
-                    Roby.plan.add(protection)
+                    plan.add(protection)
                     protection.start!
 
                     if models.empty?
@@ -93,7 +93,7 @@ module Syskit
 
                     models.each do |m|
                         agents = ValueSet.new
-                        Roby.plan.find_tasks(m).
+                        plan.find_tasks(m).
                             each do |task|
                                 if task.kind_of?(Syskit::TaskContext)
                                     agents << task.execution_agent
@@ -127,19 +127,21 @@ module Syskit
             # Require the engine to redeploy the current network. Useful to
             # apply changed configuration files
             def redeploy
-                # TODO: trigger redeployment
+                engine.execute do
+                    plan.orocos_engine.resolve
+                end
                 nil
             end
 
             def enable_logging_of(string)
 		Syskit.conf.enable_log_group(string)
-                # TODO: trigger redeployment
+                redeploy
                 nil
             end
 
             def disable_logging_of(string)
                 Syskit.conf.disable_log_group(string)
-                # TODO: trigger redeployment
+                redeploy
                 nil
             end
         end
