@@ -1,3 +1,14 @@
+# simplecov must be loaded FIRST. Only the files required after it gets loaded
+# will be profiled !!!
+    begin
+        require 'simplecov'
+    rescue LoadError
+        require 'syskit'
+        Syskit.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
+    rescue Exception => e
+        require 'syskit'
+        Syskit.warn "coverage is disabled: #{e.message}"
+    end
 require 'test/unit'
 require 'flexmock/test_unit'
 require 'roby'
@@ -13,13 +24,6 @@ require 'orocos/test'
 
 require 'minitest/spec'
 
-begin
-    require 'simplecov'
-rescue LoadError
-    Syskit.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
-rescue Exception => e
-    Syskit.warn "coverage is disabled: #{e.message}"
-end
 
 begin
 require 'pry'
