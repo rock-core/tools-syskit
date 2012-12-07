@@ -15,9 +15,6 @@ class TC_NetworkMergeSolver < Test::Unit::TestCase
     end
 
     def setup
-	Roby.app.using 'orocos'
-	Roby.app.orocos_disables_local_process_server = true
-        Roby.app.filter_backtraces = false
 	super
 
         srv = @simple_service_model = DataService.new_submodel do

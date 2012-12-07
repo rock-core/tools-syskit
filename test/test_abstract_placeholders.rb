@@ -4,12 +4,6 @@ require 'syskit/test'
 class TC_AbstractPlaceholders < Test::Unit::TestCase
     include Syskit::SelfTest
 
-    def setup
-	Roby.app.using 'orocos'
-	Roby.app.orocos_disables_local_process_server = true
-	super
-    end
-
     def test_proxy_simple_task_context
 	task_model = TaskContext.new_submodel
 	proxy_model = Syskit.proxy_task_model_for([task_model])

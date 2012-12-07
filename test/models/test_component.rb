@@ -7,12 +7,6 @@ class TC_Models_Component < Test::Unit::TestCase
     DataService = Syskit::DataService
     TaskContext = Syskit::TaskContext
 
-    def setup
-	Roby.app.using 'orocos'
-	Roby.app.orocos_disables_local_process_server = true
-	super
-    end
-
     def test_new_submodel_registers_the_submodel
         submodel = Component.new_submodel
         subsubmodel = submodel.new_submodel

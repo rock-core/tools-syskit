@@ -10,9 +10,6 @@ class TC_Engine < Test::Unit::TestCase
     attr_reader :simple_composition_model
 
     def setup
-	Roby.app.using 'orocos'
-        Roby.app.filter_backtraces = false
-	Roby.app.orocos_disables_local_process_server = true
 	super
         plan.engine.scheduler = nil
 

@@ -9,12 +9,6 @@ module Test_DataServiceModel
 
     DataServiceModel = Syskit::Models::DataServiceModel
 
-    def setup
-	Roby.app.using 'orocos'
-	Roby.app.orocos_disables_local_process_server = true
-	super
-    end
-
     def teardown
         super
         begin DataServiceDefinitionTest.send(:remove_const, :Image)

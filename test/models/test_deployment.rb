@@ -8,12 +8,6 @@ class TC_Models_Deployment < Test::Unit::TestCase
         # Module used when we want to do some "public" models
     end
 
-    def setup
-	Roby.app.using 'orocos'
-	Roby.app.orocos_disables_local_process_server = true
-	super
-    end
-
     def teardown
         super
         begin DefinitionModule.send(:remove_const, :Deployment)

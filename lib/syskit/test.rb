@@ -80,7 +80,7 @@ module Syskit
 
             def setup
                 @old_loglevel = Orocos.logger.level
-                Roby.app.using 'orocos'
+                Roby.app.using 'syskit'
                 Roby.app.orocos_disables_local_process_server = true
                 Roby.app.filter_backtraces = false
 
@@ -213,7 +213,7 @@ module Syskit
         include FlexMock::MockContainer
 
         def setup
-            Roby.app.using 'orocos'
+            Roby.app.using 'syskit'
             Roby.app.orocos_disables_local_process_server = true
 
             super

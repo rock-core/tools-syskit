@@ -7,12 +7,6 @@ class TC_Component < Test::Unit::TestCase
     DataService = Syskit::DataService
     TaskContext = Syskit::TaskContext
 
-    def setup
-	Roby.app.using 'orocos'
-	Roby.app.orocos_disables_local_process_server = true
-	super
-    end
-
     def test_get_bound_data_service_using_servicename_srv_syntax
         service_model = DataService.new_submodel
         component_model = TaskContext.new_submodel

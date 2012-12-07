@@ -4,12 +4,6 @@ require 'syskit/test'
 class TC_TaskContext < Test::Unit::TestCase
     include Syskit::SelfTest
 
-    def setup
-	Roby.app.using 'orocos'
-	Roby.app.orocos_disables_local_process_server = true
-	super
-    end
-
     def test_find_input_port
         task = stub_roby_task_context do
             input_port "in", "int"
