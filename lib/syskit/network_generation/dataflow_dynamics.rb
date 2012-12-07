@@ -1,4 +1,5 @@
 module Syskit
+    module NetworkGeneration
         class TaskContext
             attr_accessor :dynamics
 
@@ -578,5 +579,6 @@ module Syskit
                 policy
             end
         end
+    end
 end
 

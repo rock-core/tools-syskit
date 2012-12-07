@@ -1,6 +1,7 @@
 module Syskit
+    module Runtime
         # Connection management at runtime
-        class RuntimeConnectionManagement
+        class ConnectionManagement
             attr_reader :plan
 
             attr_predicate :dry_run?, true
@@ -447,5 +448,6 @@ module Syskit
                 end
             end
         end
+    end
 end
 

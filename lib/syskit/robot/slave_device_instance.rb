@@ -1,0 +1,70 @@
+module Syskit
+    module Robot
+        # A SlaveDeviceInstance represents slave devices, i.e. data services
+        # that are provided by other devices. For instance, a camera image from
+        # a stereocamera device.
+        class SlaveDeviceInstance < DeviceInstance
+            # The MasterDeviceInstance that we depend on
+            attr_reader :master_device
+            # The actual service on master_device's task model
+            attr_reader :service
+
+            def robot
+                master_device.robot
+            end
+
+            def task_model
+                master_device.task_model
+            end
+
+            def device_model
+                service.model
+            end
+
+            # The slave name. It is the same name than the corresponding service
+            # on the task model
+            def name
+                service.name
+            end
+
+            def full_name
+                "#{master_device.name}.#{name}"
+            end
+
+            # Defined to be consistent with task and data service models
+            def short_name
+                "#{name}[#{service.model.short_name}]"
+            end
+
+            def initialize(master_device, service)
+                @master_device = master_device
+                @service = service
+            end
+
+            def task; master_device.task end
+
+            def period(*args)
+                if args.empty?
+                    super || master_device.period
+                else
+                    super
+                end
+            end
+            def sample_size(*args)
+                if args.empty?
+                    super || master_device.sample_size
+                else
+                    super
+                end
+            end
+            def burst(*args)
+                if args.empty?
+                    super || master_device.burst
+                else
+                    super
+                end
+            end
+        end
+    end
+end
+

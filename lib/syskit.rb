@@ -23,6 +23,7 @@ require 'syskit/models/composition_specialization'
 require 'syskit/models/composition'
 require 'syskit/models/task_context'
 require 'syskit/models/deployment'
+
 # Instances
 require 'syskit/port'
 require 'syskit/component'
@@ -37,27 +38,20 @@ require 'syskit/dependency_injection_context'
 require 'syskit/instance_requirements'
 require 'syskit/instance_selection'
 
+# The composition child goes there as it is a subclass of InstanceRequirements
 require 'syskit/models/composition_child'
 
 # Algorithms
 require 'syskit/connection_graphs'
-require 'syskit/dataflow_computation'
-require 'syskit/dataflow_dynamics'
-require 'syskit/network_merge_solver'
-require 'syskit/runtime_connection_management'
-
 require 'syskit/exceptions'
-require 'syskit/runtime_exceptions'
-
-require 'syskit/system_model'
 require 'syskit/robot'
-require 'syskit/engine'
-require 'syskit/shell'
+require 'syskit/network_generation'
+require 'syskit/runtime'
 
 require 'syskit/task_scripting'
-
 require 'syskit/selection_tasks'
-require 'syskit/graphviz'
 
-require 'syskit/app.rb'
-#require 'syskit/backward'
+# App support
+require 'syskit/graphviz'
+require 'syskit/shell'
+require 'syskit/app'

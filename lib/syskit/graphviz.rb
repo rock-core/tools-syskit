@@ -1,4 +1,26 @@
+class Object
+    def dot_id
+        id = object_id
+        if id < 0
+            0xFFFFFFFFFFFFFFFF + id
+        else
+            id
+        end
+    end
+end
 module Syskit
+        # Used by the to_dot* methods for color allocation
+        attr_reader :current_color
+        # A set of colors to be used in graphiz graphs
+        COLOR_PALETTE = %w{#FF9955 #FF0000 #bb9c21 #37c637 #62816e #2A7FFF #AA00D4 #D40055 #0000FF}
+        # Returns a color from COLOR_PALETTE, rotating each time the method is
+        # called. It is used by the to_dot* methods.
+        def self.allocate_color
+            @current_color = (@current_color + 1) % COLOR_PALETTE.size
+            COLOR_PALETTE[@current_color]
+        end
+        @current_color = 0
+
         # General support to export a generated plan into a dot-compatible
         # format
         #

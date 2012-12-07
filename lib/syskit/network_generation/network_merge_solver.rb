@@ -1,10 +1,11 @@
 module Syskit
+    module NetworkGeneration
         # Implementation of the algorithms needed to reduce a component network
         # to the minimal set of components that are actually needed
         #
         # This is the core of the system deployment algorithm implemented in
         # Engine
-        class NetworkMergeSolver
+        class MergeSolver
             include Utilrb::Timepoints
             extend Logger::Hierarchy
             include Logger::Hierarchy
@@ -814,6 +815,7 @@ module Syskit
                 end
             end
         end
+    end
 end
 
 

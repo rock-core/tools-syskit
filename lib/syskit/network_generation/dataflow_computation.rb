@@ -1,4 +1,5 @@
 module Syskit
+    module NetworkGeneration
         # This class embeds the basic handling of computations that need to
         # follow the dataflow
         #
@@ -442,5 +443,6 @@ module Syskit
                 end
             end
         end
+    end
 end
 
