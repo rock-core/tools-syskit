@@ -35,8 +35,8 @@ class TC_NetworkMergeSolver < Test::Unit::TestCase
             'srv_in' => 'in', 'srv_out' => 'out'
         @simple_composition_model = Composition.new_submodel do
             add srv, :as => 'srv'
-            export self.srv.srv_in
-            export self.srv.srv_out
+            export self.srv_child.srv_in_port
+            export self.srv_child.srv_out_port
             provides srv, :as => 'srv'
         end
 

@@ -182,8 +182,11 @@ describe Syskit::InstanceRequirements do
     end
 
     describe "#use" do
-        it "should raise if a name is used as key, that is not a composition child name" do
-            raise NotImplementedError
+        it "should raise if a name to value mapping is invalid for a known child" do
+            simple_composition_model.overload('srv', simple_component_model)
+            assert_raises(ArgumentError) do
+                simple_composition_model.use('srv' => Syskit::TaskContext.new_submodel)
+            end
         end
     end
 end

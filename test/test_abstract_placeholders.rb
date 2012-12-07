@@ -20,7 +20,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	assert(proxy.abstract?)
 	assert_equal('Syskit::PlaceholderTask<Syskit::TaskContext,A,B,C>', proxy.name)
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
-	assert_equal(services.to_set, proxy.fullfilled_model[1].to_set)
+	assert_equal(([Syskit::TaskContext] + services).to_set, proxy.fullfilled_model.to_set)
 	services.each do |srv|
 	    assert(proxy.fullfills?(srv))
 	end
@@ -43,7 +43,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
 	assert_same(task_model, proxy.fullfilled_model[0])
-	assert_equal(services.to_set, proxy.fullfilled_model[1].to_set)
+	assert_equal(([task_model] + services).to_set, proxy.fullfilled_model.to_set)
 	assert(proxy.fullfills?(task_model))
 	services.each do |srv|
 	    assert(proxy.fullfills?(srv))
@@ -104,13 +104,13 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
     end
 
     def test_proxy_task_can_use_anonymous_services
-	task_model = TaskContext.new_submodel
-	services = [DataService.new_submodel]
+	task_model = TaskContext.new_submodel(:name => 'A')
+	services = [DataService.new_submodel(:name => 'S')]
 	proxy = Syskit.proxy_task_model_for(services + [task_model])
 	assert(proxy.abstract?)
 	assert(proxy < task_model)
         assert_not_same(proxy, task_model)
-	assert_equal("Syskit::PlaceholderTask<#{task_model.name},Anonymous>", proxy.name)
+	assert_equal("Syskit::PlaceholderTask<A,S>", proxy.name)
     end
 
     def test_cannot_proxy_multiple_component_models_at_the_same_time

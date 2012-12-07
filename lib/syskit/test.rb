@@ -11,19 +11,14 @@ if ENV['SYSKIT_ENABLE_COVERAGE'] == '1'
         Syskit.warn "coverage is disabled: #{e.message}"
     end
 end
-require 'test/unit'
-require 'flexmock/test_unit'
+
+require 'syskit'
 require 'roby'
 require 'roby/test/common'
-require 'roby/test/testcase'
-require 'syskit/app'
-require 'syskit'
 require 'roby/schedulers/temporal'
-require 'utilrb/module/include'
-require 'orocos/process_server'
-require 'roby/tasks/simple'
-require 'orocos/test'
 
+require 'test/unit'
+require 'flexmock/test_unit'
 require 'minitest/spec'
 
 if ENV['SYSKIT_ENABLE_PRY'] != '0'
@@ -37,8 +32,6 @@ end
 module Syskit
         module Test
             include Syskit
-            include Orocos::Test::Mocks
-
 	    include Roby::Test
 	    include Roby::Test::Assertions
 
@@ -115,7 +108,6 @@ module Syskit
             end
 
             def teardown
-
                 super
 
                 if plan

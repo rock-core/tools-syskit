@@ -1,6 +1,9 @@
 require 'syskit'
 require 'syskit/test'
 
+describe Syskit::Models::Component do
+end
+
 class TC_Models_Component < Test::Unit::TestCase
     include Syskit::SelfTest
 
