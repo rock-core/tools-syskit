@@ -115,9 +115,6 @@ module Syskit
             end
 
             def teardown
-                if orocos_engine
-                    orocos_engine.clear
-                end
 
                 super
 

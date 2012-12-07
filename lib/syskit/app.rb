@@ -880,6 +880,7 @@ module Syskit
             end
 
             def self.cleanup(app)
+                app.orocos_engine.clear
 		app.orocos_clear_models
                 stop_process_servers
                 stop_local_process_server
