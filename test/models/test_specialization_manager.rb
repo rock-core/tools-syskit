@@ -163,22 +163,22 @@ describe Syskit::Models::SpecializationManager do
 
         it "should return the same model for the same specializations" do
             srv2 = Syskit::DataService.new_submodel
-            spec = Syskit::Models::CompositionSpecialization.new('srv' => simple_component_model, 'srv2' => srv2)
+            spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model], 'srv2' => [srv2])
             value = mng.specialized_model(spec)
             assert_same value, mng.specialized_model(spec)
         end
 
         it "should overload the specialized children" do
             srv2 = Syskit::DataService.new_submodel
-            specialized_model.should_receive(:overload).with('srv', simple_component_model).once
-            specialized_model.should_receive(:overload).with('srv2', srv2).once
-            spec = Syskit::Models::CompositionSpecialization.new('srv' => simple_component_model, 'srv2' => srv2)
+            specialized_model.should_receive(:overload).with('srv', [simple_component_model]).once
+            specialized_model.should_receive(:overload).with('srv2', [srv2]).once
+            spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model], 'srv2' => [srv2])
             mng.specialized_model(spec)
         end
 
         it "should apply the specialization blocks" do
             srv2 = Syskit::DataService.new_submodel
-            spec = Syskit::Models::CompositionSpecialization.new('srv' => simple_component_model, 'srv2' => srv2)
+            spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model], 'srv2' => [srv2])
             blocks = (1..2).map { Object.new }
             spec.add(Hash.new, blocks)
             specialized_model.should_receive(:apply_specialization_block).with(blocks[0]).once
@@ -199,8 +199,8 @@ describe Syskit::Models::SpecializationManager do
 
         it "should register the specializations in #applied_specializations" do
             srv2 = Syskit::DataService.new_submodel
-            spec0 = Syskit::Models::CompositionSpecialization.new('srv2' => srv2)
-            spec1 = Syskit::Models::CompositionSpecialization.new('srv' => simple_component_model)
+            spec0 = Syskit::Models::CompositionSpecialization.new('srv2' => [srv2])
+            spec1 = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model])
             model = mng.specialized_model(spec0.merge(spec1), [spec0, spec1])
             assert_equal model.applied_specializations, [spec0, spec1]
         end
