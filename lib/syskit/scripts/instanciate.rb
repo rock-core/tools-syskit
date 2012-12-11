@@ -25,7 +25,7 @@ parser = OptionParser.new do |opt|
     opt.on('--trace=DIR', String, 'generate a dot graph for each step of the generation') do |trace_dir|
         trace_dir = File.expand_path(trace_dir)
         FileUtils.mkdir_p trace_dir
-        Syskit::NetworkMergeSolver.tracing_directory = trace_dir
+        Syskit::NetworkGeneration::MergeSolver.tracing_directory = trace_dir
     end
 
     opt.on('--annotate=LIST', Array, "comma-separated list of annotations that should be added to the output (defaults to #{default_annotations.to_a.join(",")}). Available annotations: #{available_annotations.to_a.sort.join(", ")}") do |ann|

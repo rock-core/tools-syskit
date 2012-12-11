@@ -230,7 +230,7 @@ module Syskit
 
             def can_merge?(target_task)
                 if !(super_result = super)
-                    NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: super returned false" }
+                    NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: super returned false" }
                     return super_result
                 end
 
@@ -243,7 +243,7 @@ module Syskit
                 # that target_task has (without considering target_task itself).
                 models = user_required_model
                 if !fullfills?(models)
-                    NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: does not fullfill required model #{models.map(&:name).join(", ")}" }
+                    NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: does not fullfill required model #{models.map(&:name).join(", ")}" }
                     return false
                 end
 
@@ -271,7 +271,7 @@ module Syskit
                     # the policies match
                     if conn_policy = self_inputs[sink_port][[source_task, source_port]]
                         if !policy.empty? && (Syskit.update_connection_policy(conn_policy, policy) != policy)
-                            NetworkMergeSolver.debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
+                            NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
                             return false
                         end
                         next
@@ -300,12 +300,12 @@ module Syskit
                     if found
                         might_be_cycle = true
                     else
-                        NetworkMergeSolver.debug do
-                            NetworkMergeSolver.debug "cannot merge #{target_task} into #{self}: incompatible connections on #{sink_port}, resp."
-                            NetworkMergeSolver.debug "    #{source_task}.#{source_port}"
-                            NetworkMergeSolver.debug "    --"
+                        NetworkGeneration.debug do
+                            NetworkGeneration.debug "cannot merge #{target_task} into #{self}: incompatible connections on #{sink_port}, resp."
+                            NetworkGeneration.debug "    #{source_task}.#{source_port}"
+                            NetworkGeneration.debug "    --"
                             self_inputs[sink_port].each_key do |conn|
-                                NetworkMergeSolver.debug "    #{conn[0]}.#{conn[1]}"
+                                NetworkGeneration.debug "    #{conn[0]}.#{conn[1]}"
                             end
                             break
                         end

@@ -68,7 +68,7 @@ module Syskit
             end
 
             def self.merge_identical_tasks(plan, &block)
-                solver = NetworkMergeSolver.new(plan, &block)
+                solver = MergeSolver.new(plan, &block)
                 solver.merge_identical_tasks
             end
 
@@ -224,10 +224,10 @@ module Syskit
                 end
 
                 debug { "    #{task}.merge(#{target_task})" }
-                if NetworkMergeSolver.tracing_directory
+                if MergeSolver.tracing_directory
                     Engine.autosave_plan_to_dot(plan,
-                            NetworkMergeSolver.tracing_directory,
-                            NetworkMergeSolver.tracing_options.merge(:highlights => [target_task, task].to_set, :suffix => "0"))
+                            MergeSolver.tracing_directory,
+                            MergeSolver.tracing_options.merge(:highlights => [target_task, task].to_set, :suffix => "0"))
                 end
 
                 if task.respond_to?(:merge)
@@ -241,10 +241,10 @@ module Syskit
                 register_replacement(target_task, task)
                 all_merges[target_task] = task
 
-                if NetworkMergeSolver.tracing_directory
+                if MergeSolver.tracing_directory
                     Engine.autosave_plan_to_dot(plan,
-                            NetworkMergeSolver.tracing_directory,
-                            NetworkMergeSolver.tracing_options.merge(:highlights => [target_task, task].to_set, :suffix => "1"))
+                            MergeSolver.tracing_directory,
+                            MergeSolver.tracing_options.merge(:highlights => [target_task, task].to_set, :suffix => "1"))
                 end
 
                 # Since we modified +task+, we now have to update the graph.
