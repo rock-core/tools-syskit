@@ -388,6 +388,9 @@ module Syskit
             # Helper method that resolves one single object recursively
             def self.resolve_selection_recursively(value, spec)
                 while !value.respond_to?(:to_str) && (new_value = spec[value])
+                    if value == new_value
+                        return new_value
+                    end
                     value = new_value
                 end
                 value
