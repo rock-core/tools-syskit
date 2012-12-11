@@ -236,8 +236,10 @@ module Syskit
             # service's interface
             attr_reader :orogen_model
 
-            # [DataServiceModel] a task model that can be used to represent an
+            # A task model that can be used to represent an
             # instance of this data service in a Roby plan
+            #
+            # @return [Model<TaskContext>]
             def proxy_task_model
                 if @proxy_task_model
                     return @proxy_task_model
@@ -257,6 +259,8 @@ module Syskit
             # this service
             #
             # The returned task instance is obviously an abstract one
+            #
+            # @return [TaskContext]
             def instanciate(*args, &block)
                 proxy_task_model.instanciate(*args, &block)
             end

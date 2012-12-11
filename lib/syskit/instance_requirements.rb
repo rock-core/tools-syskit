@@ -365,7 +365,9 @@ module Syskit
             end
 
             # Returns a task that can be used in the plan as a placeholder for
-            # this instance
+            # this instance requirements
+            #
+            # The returned task is always marked as abstract
             def create_proxy_task
                 task_model = Syskit.proxy_task_model_for(models)
                 task = task_model.new(@arguments)
