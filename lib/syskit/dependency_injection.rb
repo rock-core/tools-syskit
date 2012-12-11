@@ -194,7 +194,7 @@ module Syskit
             # Returns the 
             def instance_selection_for(name, requirements)
                 component_model, selected_services = component_model_for(name, requirements)
-                InstanceSelection.new(InstanceRequirements.new([component_model]), requirements, selected_services)
+                InstanceSelection.new(InstanceRequirements.from_object(component_model), requirements, selected_services)
             end
 
             # Returns the selected instance based on the given name and
