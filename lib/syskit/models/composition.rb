@@ -862,7 +862,7 @@ module Syskit
             # * a child model or model name, in which case it will match the
             #   children of +self+ whose definition matches the given model.
             #
-            def instanciate(engine, context, arguments = Hash.new)
+            def instanciate(engine, context = DependencyInjectionContext.new, arguments = Hash.new)
                 Models.debug do
                     Models.debug "instanciating #{short_name} with"
                     Models.log_nest(2)
