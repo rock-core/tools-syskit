@@ -439,9 +439,11 @@ module Syskit
                 task_model = Component
                 tags = []
                 each_fullfilled_model do |m|
-                    if m.kind_of?(Roby::Task)
-                        task_model = m
-                    else
+                    if m <= Roby::Task
+                        if m <= task_model
+                            task_model = m
+                        end
+                    elsif m != DataService
                         tags << m
                     end
                 end
