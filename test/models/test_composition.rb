@@ -206,6 +206,88 @@ describe Syskit::Models::Composition do
             context = Syskit::DependencyInjectionContext.new('srv' => component)
             composition.instanciate(orocos_engine, context)
         end
+
+        it "adds its children as dependencies" do
+            composition_m = simple_composition_model
+            flexmock(simple_component_model).should_receive(:new).
+                and_return(srv_child = simple_task_model.new).once
+            flexmock(composition_m).new_instances.
+                should_receive(:depends_on).by_default.pass_thru
+            flexmock(composition_m).new_instances.
+                should_receive(:depends_on).with(srv_child, any).once.pass_thru
+            composition_m.instanciate(orocos_engine, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
+        end
+
+        it "adds its instanciated children with the child name as role" do
+            task = simple_composition_model.instanciate(orocos_engine)
+            child_task = simple_component_model.new
+            flexmock(simple_component_model).should_receive(:new).once.and_return(child_task)
+            task = simple_composition_model.
+                instanciate(orocos_engine, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
+            assert task.has_role?('srv'), "no child of task #{task} with role srv, existing roles: #{task.each_role.to_a.sort.join(", ")}"
+        end
+
+        describe "dependency relation definition based on information in the child definition" do
+            attr_reader :composition_m, :srv_child
+            before do
+                @srv_child = simple_component_model.new
+                flexmock(simple_component_model).should_receive(:new).
+                    and_return(srv_child).once
+            end
+            
+            def composition_model(dependency_options)
+                m = simple_service_model
+                @composition_m = Syskit::Composition.new_submodel do
+                    add m, dependency_options.merge(:as => 'srv')
+                end
+            end
+            def instanciate
+                @composition = @composition_m.instanciate(orocos_engine, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
+            end
+            def assert_dependency_contains(flags)
+                options = @composition[@srv_child, Roby::TaskStructure::Dependency]
+                flags.each do |flag_name, flag_options|
+                    actual = options[flag_name]
+                    assert_equal flag_options, actual, "#{flag_name} option differs, expected #{flag_options} but got #{actual}"
+                end
+            end
+
+            it "overrides the :success flag" do
+                composition_model :success => [:failed]
+                task = instanciate
+                assert_dependency_contains :success => :failed.to_unbound_task_predicate
+            end
+            it "resets the :failure flag if explicitly given the :success flag" do
+                composition_model :success => [:failed]
+                task = instanciate
+                assert_dependency_contains :failure => nil
+            end
+            it "overrides the :failure flag" do
+                composition_model :failure => [:success]
+                task = instanciate
+                assert_dependency_contains :failure => (:start.never.or(:success.to_unbound_task_predicate))
+            end
+            it "resets the :success flag if explicitly given the :failure flag" do
+                composition_model :failure => [:success]
+                task = instanciate
+                assert_dependency_contains :success => nil
+            end
+            it "adds additional roles to the default ones" do
+                composition_model :roles => ['a_new_role']
+                task = instanciate
+                assert_dependency_contains :roles => ['a_new_role', 'srv'].to_set
+            end
+            it "overrides remove_when_done" do
+                composition_model :remove_when_done => true
+                task = instanciate
+                assert_dependency_contains :remove_when_done => true
+            end
+            it "overrides consider_in_pending" do
+                composition_model :consider_in_pending => true
+                task = instanciate
+                assert_dependency_contains :consider_in_pending => true
+            end
+        end
     end
 
     describe "composition submodels" do
@@ -230,7 +312,6 @@ describe Syskit::Models::Composition do
                 # model
                 assert_single_export 'srv_in', c0.srv_child.specialized_in_port, c0.each_exported_input
                 assert_single_export 'srv_out', c0.srv_child.specialized_out_port, c0.each_exported_output
-                puts c0.srv_child.specialized_in_port
                 assert_single_export 'srv_in', c1.srv_child.in_port, c1.each_exported_input
                 assert_single_export 'srv_out', c1.srv_child.out_port, c1.each_exported_output
             end

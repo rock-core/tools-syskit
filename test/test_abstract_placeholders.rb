@@ -42,7 +42,6 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	assert_equal("Syskit::PlaceholderTask<#{task_model.name},A,B,C>", proxy.name)
 
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
-	assert_same(task_model, proxy.fullfilled_model[0])
 	assert_equal(([task_model] + services).to_set, proxy.fullfilled_model.to_set)
 	assert(proxy.fullfills?(task_model))
 	services.each do |srv|

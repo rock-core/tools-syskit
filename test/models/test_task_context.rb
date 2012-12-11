@@ -95,10 +95,10 @@ describe Syskit::Models::TaskContext do
         end
 
         it "deregisters models on its child classs" do
-            m1 = Syskit::TaskContext.new_submodel
-            assert Syskit::TaskContext.submodels.include?(m1)
+            m1 = RTT::TaskContext.new_submodel
+            assert RTT::TaskContext.submodels.include?(m1)
             m11 = m1.new_submodel
-            Syskit::TaskContext.clear_submodels
+            RTT::TaskContext.clear_submodels
             assert !m1.submodels.include?(m11)
             assert !Syskit::Component.submodels.include?(m1)
             assert !Syskit::TaskContext.submodels.include?(m1)
@@ -109,6 +109,29 @@ describe Syskit::Models::TaskContext do
             subsubmodel = submodel.new_submodel
             submodel.clear_submodels
             assert !Syskit::TaskContext.has_model_for?(subsubmodel.orogen_model)
+        end
+    end
+
+    describe "#has_model_for?" do
+        it "returns true if the given oroGen model has a corresponding syskit model" do
+            orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, "my_project::Task")
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model)
+            assert Syskit::TaskContext.has_model_for?(orogen_model)
+        end
+        it "returns false if the given oroGen model does not have a corresponding syskit model" do
+            orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, "my_project::Task")
+            assert !Syskit::TaskContext.has_model_for?(orogen_model)
+        end
+    end
+
+    describe "#find_model_from_orogen_name" do
+        it "returns the syskit model if there is one for an oroGen model with the given name" do
+            orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, "my_project::Task")
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model)
+            assert_same syskit_model, Syskit::TaskContext.find_model_from_orogen_name("my_project::Task")
+        end
+        it "returns nil if there is no oroGen model with the given name that has a corresponding syskit model" do
+            assert !Syskit::TaskContext.find_model_from_orogen_name("my_project::Task")
         end
     end
 
@@ -215,6 +238,46 @@ describe Syskit::Models::TaskContext do
             assert task.custom_error_event.child_object?(task.runtime_error_event, Roby::EventStructure::Forwarding)
             assert task.custom_exception_event.child_object?(task.exception_event, Roby::EventStructure::Forwarding)
             assert task.custom_fatal_event.child_object?(task.fatal_error_event, Roby::EventStructure::Forwarding)
+        end
+
+        it "can register the model as a constant whose name is based on the oroGen model name" do
+            orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, "my_project::Task")
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            assert_same syskit_model, ::MyProject::Task
+        end
+
+        it "issues a warning if requested to register a model as a constant that already exists" do
+            orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, "definition_module::Task")
+            DefinitionModule.const_set(:Task, (obj = Object.new))
+            flexmock(Syskit::TaskContext).should_receive(:warn).once
+            Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+        end
+        it "refuses to register the model as a constant if the constant already exists" do
+            Syskit.logger.level = Logger::FATAL
+            orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, "definition_module::Task")
+            DefinitionModule.const_set(:Task, (obj = Object.new))
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            assert_same obj, ::DefinitionModule::Task
+            DefinitionModule.send(:remove_const, :Task)
+        end
+    end
+
+    describe "#instanciate" do
+        attr_reader :task_model
+        before { @task_model = Syskit::TaskContext.new_submodel }
+        it "returns a task using the receiver as model" do
+            task = task_model.instanciate(orocos_engine)
+            assert_kind_of task_model, task
+        end
+
+        it "passes the :task_arguments option as arguments to the newly created task" do
+            task = task_model.instanciate(orocos_engine, Syskit::DependencyInjectionContext.new, :task_arguments => {:conf => ['default']})
+            assert_equal Hash[:conf => ['default']], task.arguments
+        end
+        it "sets the fullfilled model properly" do
+            arguments = Hash[:conf => ['default']]
+            task = task_model.instanciate(orocos_engine, Syskit::DependencyInjectionContext.new, :task_arguments => arguments)
+            assert_equal([[task_model], arguments], task.fullfilled_model)
         end
     end
 end

@@ -1,58 +1,74 @@
 require 'syskit'
 require 'syskit/test'
 
-class TC_TaskContext < Test::Unit::TestCase
+describe Syskit::TaskContext do
     include Syskit::SelfTest
-
-    def test_find_input_port
-        task = stub_roby_task_context do
-            input_port "in", "int"
-            output_port "out", "int"
+    describe "#find_input_port" do
+        attr_reader :task
+        before do
+            @task = stub_roby_task_context do
+                input_port "in", "int"
+                output_port "out", "int"
+            end
         end
-        assert_equal task.orocos_task.port("in"), task.find_input_port("in")
-        assert_equal nil, task.find_input_port("out")
-        assert_equal nil, task.find_input_port("does_not_exist")
-    end
 
-    def test_find_output_port
-        task = stub_roby_task_context do
-            input_port "in", "int"
-            output_port "out", "int"
+        it "should return the port from #orocos_task if it exists" do
+            assert_equal task.orocos_task.port("in"), task.find_input_port("in")
         end
-        assert_equal task.orocos_task.port("out"), task.find_output_port("out")
-        assert_equal nil, task.find_output_port("does_not_exist")
-        assert_equal nil, task.find_output_port("in")
+        it "should return nil for an output port" do
+            assert_equal nil, task.find_input_port("out")
+        end
+        it "should return nil for a port that does not exist" do
+            assert_equal nil, task.find_input_port("does_not_exist")
+        end
     end
 
-    def test_input_port_passes_if_find_input_port_returns_a_value
-        task = flexmock(stub_roby_task_context)
-        task.should_receive(:find_input_port).and_return(port = Object.new)
-        assert_same port, task.input_port("port")
+    describe "#input_port" do
+        attr_reader :task
+        before { @task = flexmock(stub_roby_task_context) }
+
+        it "returns the result of #find_input_port if it is not nil" do
+            task.should_receive(:find_input_port).and_return(port = Object.new)
+            assert_same port, task.input_port("port")
+        end
+        it "raises if #find_input_port returns nil" do
+            task.should_receive(:find_input_port).and_return(nil)
+            assert_raises(Orocos::NotFound) { task.input_port("port") }
+        end
     end
 
-    def test_input_port_raises_if_find_input_port_returns_nil
-        task = flexmock(stub_roby_task_context)
-        task.should_receive(:find_input_port).and_return(nil)
-        assert_raises(Orocos::NotFound) { task.input_port("port") }
+    describe "#find_output_port" do
+        attr_reader :task
+        before do
+            @task = stub_roby_task_context do
+                input_port "in", "int"
+                output_port "out", "int"
+            end
+        end
+
+        it "should return the port from #orocos_task if it exists" do
+            assert_equal task.orocos_task.port("out"), task.find_output_port("out")
+        end
+        it "should return nil for an input port" do
+            assert_equal nil, task.find_output_port("in")
+        end
+        it "should return nil for a port that does not exist" do
+            assert_equal nil, task.find_output_port("does_not_exist")
+        end
     end
 
-    def test_output_port_passes_if_find_output_port_returns_a_value
-        task = flexmock(stub_roby_task_context)
-        task.should_receive(:find_output_port).and_return(port = Object.new)
-        assert_same port, task.output_port("port")
-    end
+    describe "#output_port" do
+        attr_reader :task
+        before { @task = flexmock(stub_roby_task_context) }
 
-    def test_output_port_raises_if_find_output_port_returns_nil
-        task = flexmock(stub_roby_task_context)
-        task.should_receive(:find_output_port).and_return(nil)
-        assert_raises(Orocos::NotFound) { task.output_port("port") }
+        it "returns the result of #find_output_port if it is not nil" do
+            task.should_receive(:find_output_port).with("port").and_return(port = Object.new)
+            assert_same port, task.output_port("port")
+        end
+        it "raises if #find_output_port returns nil" do
+            task.should_receive(:find_output_port).with("port").and_return(nil)
+            assert_raises(Orocos::NotFound) { task.output_port("port") }
+        end
     end
-
-    def test_instanciate
-        task_model = TaskContext.new_submodel
-        task = task_model.instanciate(orocos_engine, nil, :task_arguments => {:conf => ['default']})
-        assert_equal([[task_model], {:conf => ['default']}], task.fullfilled_model)
-    end
-
 end
 

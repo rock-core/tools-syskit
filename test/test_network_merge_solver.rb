@@ -40,7 +40,7 @@ class TC_NetworkMergeSolver < Test::Unit::TestCase
             provides srv, :as => 'srv'
         end
 
-        @solver = NetworkMergeSolver.new(plan)
+        @solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
     end
 
     def test_can_merge_empty_compositions

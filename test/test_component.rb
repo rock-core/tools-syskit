@@ -223,6 +223,14 @@ class TC_Component < Test::Unit::TestCase
         task.should_receive(:find_input_port).once.with('in')
         assert_raises(ArgumentError) { task.data_writer('in') }
     end
+
+    def test_do_not_reuse_propagates_to_transaction
+        plan.add(task = Component.new)
+        task.do_not_reuse
+        plan.in_transaction do |trsc|
+            assert !trsc[task].reusable?
+        end
+    end
 end
 
 

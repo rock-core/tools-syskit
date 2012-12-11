@@ -65,6 +65,10 @@ class TC_DependencyInjection < Test::Unit::TestCase
             DependencyInjection.resolve_recursive_selection_mapping(mapping))
     end
 
+    def test_resolve_recursive_selection_mapping_handles_identity_properly
+        raise NotImplementedError
+    end
+
     def test_normalize_selection_raises_on_invalid_keys
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(nil => 'value') }
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(Object.new => 'value') }

@@ -142,6 +142,14 @@ describe Syskit::Models::SpecializationManager do
             mng.specialize 'srv' => simple_component_model
             assert_raises(Syskit::NonSymmetricSpecializationConstraint) { mng.specialize 'srv' => simple_composition_model }
         end
+
+        it "should validate the given specialization block" do
+            assert_raises(NoMethodError) do
+                mng.specialize 'srv' => simple_composition_model do
+                    this_method_does_not_exist
+                end
+            end
+        end
     end
 
     describe "#specialized_model" do

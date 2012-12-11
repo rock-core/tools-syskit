@@ -246,6 +246,13 @@ module Test_DataServiceModel
                      model.port_mappings_for(model))
     end
 
+    def test_create_proxy_task
+        model = data_service_type("A")
+        task = model.create_proxy_task
+        assert task.abstract?
+        assert_kind_of model.proxy_task_model, task
+    end
+
     def test_instanciate
         model = data_service_type("A")
         task = model.instanciate(orocos_engine)

@@ -189,5 +189,32 @@ describe Syskit::InstanceRequirements do
             end
         end
     end
+
+    describe "#fullfilled_model" do
+        it "should return Syskit::Component as first element if the models do not contain any component models" do
+            assert_equal Syskit::Component, Syskit::InstanceRequirements.new([]).fullfilled_model[0]
+        end
+        it "should return the component model as first element" do
+            component_model = Syskit::Component.new_submodel
+            assert_equal component_model, Syskit::InstanceRequirements.new([component_model]).fullfilled_model[0]
+        end
+        it "should return an empty list as second element if no data services are present" do
+            component_model = Syskit::Component.new_submodel
+            assert_equal [], Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1]
+        end
+        it "should list the data services as second element" do
+            srv1, srv2 = Syskit::DataService.new_submodel, Syskit::DataService.new_submodel
+            component_model = Syskit::Component.new_submodel do
+                provides srv1, :as => "1"
+                provides srv2, :as => "2"
+            end
+            assert_equal [srv1, srv2].to_set, Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1].to_set
+        end
+        it "should return the required arguments as third element" do
+            arguments = Hash['an argument' => 'for the task']
+            req = Syskit::InstanceRequirements.new([]).with_arguments(arguments)
+            assert_equal arguments, req.fullfilled_model[2]
+        end
+    end
 end
 
