@@ -159,86 +159,6 @@ module Syskit
 	    	Hash.new { |h,k| k }
 	    end
 
-            # Helper method for compute_port_mappings
-            def compute_directional_port_mappings(result, service, direction, explicit_mappings) # :nodoc:
-                remaining = service.model.send("each_#{direction}_port").to_a
-
-                used_ports = service.component_model.
-                    send("each_data_service").
-                    find_all { |_, task_service| task_service.model == service.model }.
-                    inject(Set.new) { |used_ports, (_, task_service)| used_ports |= task_service.port_mappings.values.to_set }
-
-                # 0. check if an explicit port mapping is provided for this port
-                remaining.delete_if do |port|
-                    mapping = explicit_mappings[port.name]
-                    next if !mapping
-
-                    # Verify that the mapping is valid
-                    component_port = service.component_model.
-                        send("find_#{direction}_port", mapping)
-                    if !component_port
-                        raise InvalidPortMapping, "the explicit mapping from #{port.name} to #{mapping} is invalid as #{mapping} is not an #{direction} port of #{service.component_model.name}"
-                    end
-                    if component_port.type != port.type
-                        raise InvalidPortMapping, "the explicit mapping from #{port.name} to #{mapping} is invalid as they have different types (#{port.type_name} != #{component_port.type_name}"
-                    end
-                    result[port.name] = mapping
-                end
-
-                # 1. check if the task model has a port with the same name and
-                #    same type
-                remaining.delete_if do |port|
-                    component_port = service.component_model.
-                        send("find_#{direction}_port", port.name)
-                    if component_port && component_port.type == port.type
-                        used_ports << component_port.name
-                        result[port.name] = port.name
-                    end
-                end
-
-                while !remaining.empty?
-                    current_size = remaining.size
-                    remaining.delete_if do |port|
-                        # 2. look at all ports that have the same type
-                        candidates = service.component_model.send("each_#{direction}_port").
-                            find_all { |p| !used_ports.include?(p.name) && p.type == port.type }
-                        if candidates.empty?
-                            raise InvalidPortMapping, "no candidate to map #{direction} port #{port.name}[#{port.type_name}] from #{service.name} onto #{short_name}"
-                        elsif candidates.size == 1
-                            used_ports << candidates.first.name
-                            result[port.name] = candidates.first.name
-                            next(true)
-                        end
-
-                        # 3. try to filter the ambiguity by name
-                        name_rx = Regexp.new(service.name)
-                        by_name = candidates.find_all { |p| p.name =~ name_rx }
-                        if by_name.empty?
-                            raise InvalidPortMapping, "#{candidates.map(&:name)} are equally valid candidates to map #{port.name}[#{port.type_name}] from the '#{service.name}' service onto the #{short_name} task's interface"
-                        elsif by_name.size == 1
-                            used_ports << by_name.first.name
-                            result[port.name] = by_name.first.name
-                            next(true)
-                        end
-
-                        # 3. try full name if the service is a slave service
-                        next if service.master?
-                        name_rx = Regexp.new(service.master.name)
-                        by_name = by_name.find_all { |p| p.name =~ name_rx }
-                        if by_name.size == 1
-                            used_ports << by_name.first.name
-                            result[port.name] = by_name.first.name
-                            next(true)
-                        end
-                    end
-
-                    if remaining.size == current_size
-                        port = remaining.first
-                        raise InvalidPortMapping, "there are multiple candidates to map #{port.name}[#{port.type_name}] from #{service.name} onto #{name}"
-                    end
-                end
-            end
-
             # Finds a single service that provides +type+
             #
             # @see #find_all_data_services_from_type
@@ -280,7 +200,7 @@ module Syskit
             #
             #   service_interface_port_name => task_model_port_name
             #
-            def compute_port_mappings(service, explicit_mappings = Hash.new)
+            def compute_port_mappings(service_model, explicit_mappings = Hash.new)
                 normalized_mappings = Hash.new
                 explicit_mappings.each do |from, to|
                     from = from.to_s if from.kind_of?(Symbol)
@@ -291,11 +211,66 @@ module Syskit
                 end
 
                 result = Hash.new
-                compute_directional_port_mappings(result, service, "input", normalized_mappings)
-                compute_directional_port_mappings(result, service, "output", normalized_mappings)
+                service_model.each_output_port do |port|
+                    if mapped_name = find_directional_port_mapping('output', port, normalized_mappings[port.name])
+                        result[port.name] = mapped_name
+                    else
+                        raise InvalidPortMapping, "cannot find an equivalent output port for #{port.name}[#{port.type_name}] on #{short_name}"
+                    end
+                end
+                service_model.each_input_port do |port|
+                    if mapped_name = find_directional_port_mapping('input', port, normalized_mappings[port.name])
+                        result[port.name] = mapped_name
+                    else
+                        raise InvalidPortMapping, "cannot find an equivalent input port for #{port.name}[#{port.type_name}] on #{short_name}"
+                    end
+                end
                 result
             end
 
+            # Finds the port of self that should be used for a service port
+            # 'port'
+            #
+            # @param [String] direction it is 'input' or 'output' and
+            #   caracterizes the direction of port
+            # @param [Orocos::Spec::Port] port the port to be mapped
+            # @param [String,nil] expected_name if not nil, it is an explicitly
+            #   given port name for the component port
+            #
+            # @return [String,nil] the name of the port of self that should be
+            #   used to map 'port'. It returns nil if there are no matching
+            #   ports.
+            # @raise InvalidPortMapping if expected_name is given but it is not
+            #   a port of self, or not a port with the expected direction
+            # @raise InvalidPortMapping if expected_name is given but the
+            #   corresponding port has a wrong type
+            # @raise InvalidPortMapping if expected_name was nil, no port exists
+            #   on self with the same name than port and there are multiple ports
+            #   with the same type than port
+            def find_directional_port_mapping(direction, port, expected_name)
+                port_name = expected_name || port.name
+                component_port = send("find_#{direction}_port", port_name)
+
+                if component_port && component_port.type == port.type
+                    return port_name
+                elsif expected_name
+                    if !component_port
+                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is not a #{direction} port in #{short_name}"
+                    else
+                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is of type #{component_port.type_name} in #{short_name} and I was expecting #{port.type}"
+                    end
+                end
+
+                candidates = send("each_#{direction}_port").
+                    find_all { |p| p.type == port.type }
+                if candidates.empty?
+                    return
+                elsif candidates.size == 1
+                    return candidates.first.name
+                else
+                    raise InvalidPortMapping, "there are multiple candidates to map #{port.name}[#{port.type_name}]: #{candidates.map(&:name).sort.join(", ")}"
+                end
+            end
             PROVIDES_ARGUMENTS = { :as => nil, :slave_of => nil }
 
             # Declares that this component provides the given data service.
@@ -375,26 +350,26 @@ module Syskit
                     data_services[master.full_name] = master.attach(self)
                 end
 
-                service = BoundDataService.new(name, self, master, model, Hash.new)
-
                 begin
-                    new_port_mappings = compute_port_mappings(service, arguments)
-                    service.port_mappings[model] = new_port_mappings
-
-                    # Now, adapt the port mappings from +model+ itself and map
-                    # them into +service.port_mappings+
-                    Models.update_port_mappings(service.port_mappings, new_port_mappings, model.port_mappings)
-
-                    # Remove from +arguments+ the items that were port mappings
-                    new_port_mappings.each do |from, to|
-                        if arguments[from].to_s == to # this was a port mapping !
-                            arguments.delete(from)
-                        elsif arguments[from.to_sym].to_s == to
-                            arguments.delete(from.to_sym)
-                        end
-                    end
+                    new_port_mappings = compute_port_mappings(model, arguments)
                 rescue InvalidPortMapping => e
                     raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
+                end
+
+                service = BoundDataService.new(name, self, master, model, Hash.new)
+                service.port_mappings[model] = new_port_mappings
+
+                # Now, adapt the port mappings from +model+ itself and map
+                # them into +service.port_mappings+
+                Models.update_port_mappings(service.port_mappings, new_port_mappings, model.port_mappings)
+
+                # Remove from +arguments+ the items that were port mappings
+                new_port_mappings.each do |from, to|
+                    if arguments[from].to_s == to # this was a port mapping !
+                        arguments.delete(from)
+                    elsif arguments[from.to_sym].to_s == to
+                        arguments.delete(from.to_sym)
+                    end
                 end
 
                 include model
