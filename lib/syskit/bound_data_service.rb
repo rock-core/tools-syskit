@@ -17,6 +17,11 @@ module Syskit
             attr_reader :component
             # [Models::BoundDataService] the data service we are an instance of
             attr_reader :model
+            # The data service name
+            # @return [String]
+            def name
+                model.name
+            end
 
             def ==(other)
                 other.kind_of?(self.class) &&
