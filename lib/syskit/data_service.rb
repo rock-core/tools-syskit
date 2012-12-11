@@ -41,74 +41,47 @@ module Syskit
         module Device
             include DataService
 
-            # This module is defined on Device objects to define new methods
-            # on the classes that provide these devices
+            # Returns the device object that is attached to the given service.
             #
-            # I.e. for instance, when one does
-            #
-            #   class OroGenProject::Task
-            #     driver_for 'Devices::DeviceType'
-            #   end
-            #
-            # then the methods defined in this module are available on
-            # OroGenProject::Task:
-            #
-            #   OroGenProject::Task.each_master_device
-            #
-            module ClassExtension
-                # Enumerate all the devices that are defined on this
-                # component model
-                def each_master_device(&block)
-                    result = []
-                    each_root_data_service.each do |srv|
-                        if srv.model < Device
-                            result << srv
+            # @param [BoundDataService,String,nil] service the service for which
+            #   we want the attached device. It can be omitted in the (very
+            #   common) case of tasks that are driving only one device
+            # @return [MasterDeviceInstance,nil] the device object, or nil if
+            #   there is no device attached to the required service
+            # @raise [ArgumentError] if the provided service name does not
+            #   exist, or if it is nil and this task context drives more than
+            #   one device.
+            def find_device_attached_to(service = nil)
+                if service
+                    if service.respond_to?(:to_str)
+                        if !(service = find_data_service(service))
+                            raise ArgumentError, "#{service} is not a known service of #{self}, known services are: #{each_data_service.map(&:name).sort.join(', ')}"
                         end
                     end
-                    result.each(&block)
+                else
+                    driver_services = model.each_master_driver_service.to_a
+                    if driver_services.empty?
+                        raise ArgumentError, "#{self} is not attached to any device"
+                    elsif driver_services.size > 1
+                        raise ArgumentError, "#{self} handles more than one device, you must specify one of #{driver_services.map(&:name).sort.join(", ")} explicitely"
+                    end
+                    service = driver_services.first
+                end
+
+                device_name = arguments["#{service.name}_name"]
+                if device_name
+                    if !(device = robot.devices[device_name])
+                        raise SpecError, "#{self} attaches device #{device_name} to #{service.full_name}, but #{device_name} is not a known device"
+                    end
+                    device
                 end
             end
 
-            # Enumerates the devices that are mapped to this component
+            # Alias for #find_device_attached_to for user code
             #
-            # It yields the data service and the device model
-            def each_device_name
-                if !block_given?
-                    return enum_for(:each_device_name)
-                end
-
-                seen = Set.new
-                model.each_master_device do |srv|
-                    # Slave devices have the same name than the master device,
-                    # so no need to list them
-                    next if !srv.master?
-
-                    device_name = arguments["#{srv.name}_name"]
-                    if device_name && !seen.include?(device_name)
-                        seen << device_name
-                        yield(srv, device_name)
-                    end
-                end
-            end
-
-            # Enumerates the MasterDeviceInstance and/or SlaveDeviceInstance
-            # objects that are mapped to this task context
-            #
-            # It yields the data service and the device model
-            #
-            # See also #each_device_name
-            def each_device
-                if !block_given?
-                    return enum_for(:each_device)
-                end
-
-                each_master_device do |srv, device|
-                    yield(srv, device)
-
-                    device.each_slave do |_, slave|
-                        yield(slave.service, slave)
-                    end
-                end
+            # (see #find_device_attached_to)
+            def robot_device(subname = nil)
+                find_device_attached_to(subname)
             end
 
             # Enumerates the MasterDeviceInstance objects associated with this
@@ -116,65 +89,20 @@ module Syskit
             #
             # It yields the data service and the device model
             #
-            # See also #each_device_name
+            # @yields [MasterDeviceInstance]
+            # @see #each_device
             def each_master_device
                 if !block_given?
                     return enum_for(:each_master_device)
                 end
 
-                each_device_name do |service, device_name|
-                    if !(device = robot.devices[device_name])
-                        raise SpecError, "#{self} attaches device #{device_name} to #{service.full_name}, but #{device_name} is not a known device"
-                    end
-
-                    yield(service, device)
-                end
-            end
-
-            # Enumerates the devices that are slaves to the service called
-            # +master_service_name+
-            def each_slave_device(master_service_name, expected_device_model = nil) # :yield:slave_service_name, slave_device
-                srv = model.find_data_service(master_service_name)
-                if !srv
-                    raise ArgumentError, "#{model.short_name} has no service called #{master_service_name}"
-                end
-
-                master_device_name = arguments["#{srv.name}_name"]
-                if master_device_name
-                    if !(master_device = robot.devices[master_device_name])
-                        raise SpecError, "#{self} attaches device #{device_name} to #{service.full_name}, but #{device_name} is not a known device"
-                    end
-
-                    master_device.each_slave do |slave_name, slave_device|
-                        if !expected_device_model || slave_device.device_model.fullfills?(expected_device_model)
-                            yield("#{srv.name}.#{slave_name}", slave_device)
-                        end
+                seen = Set.new
+                model.each_master_driver_service do |srv|
+                    if (device = find_device_attached_to(srv)) && !seen.include?(device.name)
+                        yield(device)
+                        seen << device.name
                     end
                 end
-            end
-
-            # Returns either the MasterDeviceInstance or SlaveDeviceInstance
-            # that represents the device tied to this component.
-            #
-            # If +subname+ is given, it has to be the corresponding data service
-            # name. It is optional only if there is only one device attached to
-            # this component
-            def robot_device(subname = nil)
-                devices = each_master_device.to_a
-                if !subname
-                    if devices.empty?
-                        raise ArgumentError, "#{self} is not attached to any device"
-                    elsif devices.size > 1
-                        raise ArgumentError, "#{self} handles more than one device, you must specify one explicitely"
-                    end
-                else
-                    devices = devices.find_all { |srv, _| srv.full_name == subname }
-                    if devices.empty?
-                        raise ArgumentError, "there is no data service called #{subname} on #{self}"
-                    end
-                end
-                service, device_instance = devices.first
-                device_instance
             end
         end
 
@@ -187,6 +115,10 @@ module Syskit
         module ComBus
             include Device
 
+            # Enumerates all the devices that are attached to this communication bus
+            #
+            # @yieldparam device [DeviceInstance] a device that is using self as
+            #   a communication bus
             attribute(:port_to_device) { Hash.new { |h, k| h[k] = Array.new } }
 
             def merge(merged_task)
@@ -195,14 +127,10 @@ module Syskit
             end
 
             def each_attached_device(&block)
-                model.each_device do |name, ds|
-                    next if !ds.model.kind_of?(ComBusModel)
+                each_master_device do |combus|
+                    next if !combus.model.kind_of?(ComBusModel)
 
-                    combus = robot.devices[arguments["#{ds.name}_name"]]
-                    robot.devices.each_value do |dev|
-                        # Only master devices can be attached to a bus
-                        next if !dev.kind_of?(MasterDeviceInstance)
-
+                    robot.each_master_device do |name, dev|
                         if dev.attached_to?(combus)
                             yield(dev)
                         end

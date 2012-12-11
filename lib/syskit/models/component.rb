@@ -89,7 +89,7 @@ module Syskit
             #
             # @yield [Models::BoundDataService]
             def each_root_data_service(&block)
-                return enum_for(:each_root_data_service, master_service) if !block_given?
+                return enum_for(:each_root_data_service) if !block_given?
                 each_data_service(nil) do |name, service|
                     if service.master?
                         yield(service)
