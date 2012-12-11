@@ -99,10 +99,6 @@ module Syskit
 
                 klass.state_events = state_events
                 if options[:register] && orogen_model.name
-                end
-
-                klass
-            end
                     # Verify that there is not already something registered with
                     # that name
                     begin
@@ -118,27 +114,10 @@ module Syskit
                                 Object.const_set(namespace, Module.new)
                             end
                         namespace.const_set(basename.camelcase(:upper), klass)
-
-            def require_dynamic_service(service_model, options)
-                # Verify that there are dynamic ports in orogen_model that match
-                # the ports in service_model.orogen_model
-                service_model.each_input_port do |p|
-                    if !has_dynamic_input_port?(p.name, p.type)
-                        raise ArgumentError, "there are no dynamic input ports declared in #{short_name} that match #{p.name}:#{p.type_name}"
                     end
                 end
-                service_model.each_output_port do |p|
-                    if !has_dynamic_output_port?(p.name, p.type)
-                        raise ArgumentError, "there are no dynamic output ports declared in #{short_name} that match #{p.name}:#{p.type_name}"
-                    end
-                end
-                
-                # Unlike #data_service, we need to add the service's interface
-                # to our own
-                Syskit::Models.merge_orogen_task_context_models(orogen_model, [service_model.orogen_model])
 
-                # Then we can add the service
-                provides(service_model, options)
+                klass
             end
 
             # [Orocos::Spec::TaskContext] The oroGen model that represents this task context model
