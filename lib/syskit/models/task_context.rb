@@ -38,6 +38,17 @@ module Syskit
                 !!orogen_model_to_syskit_model[orogen_model]
             end
 
+            # Finds the Syskit model that represents an oroGen model with that
+            # name
+            def find_model_from_orogen_name(name)
+                orogen_model_to_syskit_model.each do |orogen_model, syskit_model|
+                    if orogen_model.name == name
+                        return syskit_model
+                    end
+                end
+                nil
+            end
+
             # Returns the syskit model for the given oroGen model
             #
             # @raise ArgumentError if no syskit model exists 
