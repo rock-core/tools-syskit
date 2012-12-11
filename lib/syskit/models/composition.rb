@@ -866,7 +866,7 @@ module Syskit
                 Models.debug do
                     Models.debug "instanciating #{short_name} with"
                     Models.log_nest(2)
-                    Roby.log_pp(context, Models, :debug)
+                    Models.log_pp(:debug, context)
                     break
                 end
 
