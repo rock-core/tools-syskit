@@ -390,7 +390,9 @@ module Syskit
                 barrier = Hash.new
                 models.each do |m|
                     m.dependency_injection_names.each do |n|
-                        barrier[n] = nil
+                        if !selections.has_selection_for?(n)
+                            barrier[n] = nil
+                        end
                     end
                 end
                 selections = self.selections
