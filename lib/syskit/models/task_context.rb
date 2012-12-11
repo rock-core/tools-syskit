@@ -88,19 +88,25 @@ module Syskit
 
                 klass.state_events = state_events
                 if options[:register] && orogen_model.name
-                    namespace, basename = orogen_model.name.split '::'
-                    namespace = namespace.camelcase(:upper)
-                    namespace =
-                        begin
-                            constant("::#{namespace}")
-                        rescue NameError
-                            Object.const_set(namespace, Module.new)
-                        end
-                    namespace.const_set(basename.camelcase(:upper), klass)
                 end
 
                 klass
             end
+                    # Verify that there is not already something registered with
+                    # that name
+                    begin
+                        constant(orogen_model.name.camelcase(:upper))
+                        warn "there is already a constant with the name #{orogen_model.name.camelcase(:upper)}, I am not registering the model for #{orogen_model.name} there"
+                    rescue NameError
+                        namespace, basename = orogen_model.name.split '::'
+                        namespace = namespace.camelcase(:upper)
+                        namespace =
+                            begin
+                                constant("::#{namespace}")
+                            rescue NameError
+                                Object.const_set(namespace, Module.new)
+                            end
+                        namespace.const_set(basename.camelcase(:upper), klass)
 
             def require_dynamic_service(service_model, options)
                 # Verify that there are dynamic ports in orogen_model that match
