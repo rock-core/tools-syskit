@@ -245,8 +245,12 @@ module Syskit
                 @proxy_task_model = Syskit.proxy_task_model_for([self])
             end
 
-            def pretty_print(pp)
-                pp.text short_name
+            # Create a task that can be used as a placeholder for #self in the
+            # plan
+            #
+            # @return [TaskContext]
+            def create_proxy_task
+                proxy_task_model.new
             end
 
             # Create a task instance that can be used in a plan to represent
@@ -255,6 +259,10 @@ module Syskit
             # The returned task instance is obviously an abstract one
             def instanciate(*args, &block)
                 proxy_task_model.instanciate(*args, &block)
+            end
+
+            def pretty_print(pp)
+                pp.text short_name
             end
 
             def to_dot(io)
