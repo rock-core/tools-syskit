@@ -41,7 +41,7 @@ module Syskit
                 @savepoints = []
 
                 # Add a guard on the stack, so that #push does not have to care
-                stack << StackLevel.new(DependencyInjection.new, Hash.new)
+                stack << StackLevel.new(DependencyInjection.new, DependencyInjection.new)
 
                 case base
                 when Hash
@@ -184,7 +184,7 @@ module Syskit
             # nil in this case
             def pop
                 if stack.size == 1
-                    return
+                    return StackLevel.new(DependencyInjection.new, DependencyInjection.new)
                 end
 
                 expected_size = @savepoints.last
