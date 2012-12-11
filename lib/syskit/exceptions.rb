@@ -333,7 +333,7 @@ module Syskit
                 candidates = Hash.new
                 abstract_task.model.each_master_device do |srv|
                     if !abstract_task.arguments["#{srv.name}_name"]
-                        candidates[srv] = engine.plan.find_local_tasks(srv.model).to_value_set
+                        candidates[srv] = engine.work_plan.find_local_tasks(srv.model).to_value_set
                         candidates[srv].delete(abstract_task)
                         all_tasks |= candidates[srv]
                     end

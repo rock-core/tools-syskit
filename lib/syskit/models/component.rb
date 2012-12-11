@@ -109,7 +109,7 @@ module Syskit
             def instanciate(engine, context = DependencyInjectionContext.new, arguments = Hash.new)
                 task_arguments, instanciate_arguments = Kernel.
                     filter_options arguments, :task_arguments => Hash.new
-                engine.plan.add(task = new(task_arguments[:task_arguments]))
+                engine.work_plan.add(task = new(task_arguments[:task_arguments]))
                 task
             end
 
@@ -441,7 +441,7 @@ module Syskit
             #
             # calls this method behind the scenes.
             def as_plan
-                Syskit::SingleRequirementTask.subplan(self)
+                Syskit::InstanceRequirementsTask.subplan(self)
             end
 
             def resolve(component)

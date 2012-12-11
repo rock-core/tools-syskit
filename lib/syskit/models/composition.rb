@@ -901,7 +901,7 @@ module Syskit
                 end
 
                 # First of all, add the task for +self+
-                engine.plan.add(self_task = new(arguments[:task_arguments]))
+                engine.work_plan.add(self_task = new(arguments[:task_arguments]))
                 conf = if self_task.has_argument?(:conf)
                            self_task.conf(self_task.arguments[:conf])
                        else Hash.new

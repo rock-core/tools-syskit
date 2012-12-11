@@ -34,6 +34,10 @@ module Syskit
 
             end
 
+            def create_subfield(name)
+                Roby::OpenStruct.new(model, self, name)
+            end
+
             # The default buffer size that should be used when setting up a
             # logger connection
             #

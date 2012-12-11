@@ -37,6 +37,18 @@ module Syskit
             # instanciated.
             attr_reader :requirements
 
+            # Returns the Robot::RobotDefinition that describes the robot we are
+            # running on
+            #
+            # It returns a valid value only on tasks that are currently included
+            # in a plan
+            #
+            # @return [Robot::RobotDefinition]
+            def robot
+                return if !plan
+                plan.root_plan.orocos_engine.robot
+            end
+
             # Returns the set of communication busses names that this task
             # needs.
             def com_busses

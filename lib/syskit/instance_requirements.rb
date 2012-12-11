@@ -449,7 +449,7 @@ module Syskit
             end
 
             def as_plan
-                Syskit::SingleRequirementTask.subplan(self)
+                Syskit::InstanceRequirementsTask.subplan(self)
             end
 
             def to_s

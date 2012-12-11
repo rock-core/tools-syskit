@@ -38,6 +38,18 @@ module Syskit
             # The execution engine
             attr_reader :orocos_engine
 
+            # @overload robot the robot definition
+            #   @returns [Robot::RobotDefinition]
+            # @overload robot { } modifies the robot definition
+            #   @returns [Robot::RobotDefinition]
+            def robot
+                if block_given?
+                    orocos_engine.robot.instance_eval(&proc)
+                else
+                    orocos_engine.robot
+                end
+            end
+
             def prepare_plan(options)
                 result = super
 
@@ -163,7 +175,7 @@ module Syskit
                     Roby::TaskStructure::Dependency.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info, kind|
                         planner = to.planning_task
                         puts "task=#{to} planner=#{planner}"
-                        if planner.kind_of?(SingleRequirementTask)
+                        if planner.kind_of?(InstanceRequirementsTask)
                             requirements << planner.arguments[:name]
                         end
                     end
@@ -194,7 +206,7 @@ module Syskit
             end
 
             def instanciate_component(model)
-                orocos_engine.add_instance(model)
+                model.instanciate(orocos_engine, DependencyInjectionContext.new)
             end
         end
 
@@ -209,10 +221,17 @@ module Syskit
             Syskit.conf.disables_local_process_server = true
 
             super
+            Syskit::NetworkGeneration::Engine.keep_internal_data_structures = true
             Orocos.load
+
+            if @handler_ids
+                Syskit::RobyApp::Plugin.unplug_engine_from_roby(@handler_ids, engine)
+                @handler_ids = nil
+            end
         end
 
         def teardown
+            orocos_engine.finalize
             super
             flexmock_teardown
         end

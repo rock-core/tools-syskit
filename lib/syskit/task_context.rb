@@ -20,6 +20,9 @@ module Syskit
             extend Models::TaskContext
             Component.submodels << TaskContext
 
+            extend Logger::Hierarchy
+            include Logger::Hierarchy
+
             abstract
 
             # See Models::Base#permanent_model?

@@ -49,7 +49,7 @@ require 'syskit/network_generation'
 require 'syskit/runtime'
 
 require 'syskit/task_scripting'
-require 'syskit/selection_tasks'
+require 'syskit/instance_requirements_task'
 
 # App support
 require 'syskit/graphviz'
