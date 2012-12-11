@@ -1,30 +1,5 @@
 module Syskit
     module NetworkGeneration
-        class TaskContext
-            attr_accessor :dynamics
-
-            attribute(:port_dynamics) { Hash.new }
-
-            # Tries to update the port dynamics information for the input port
-            # +port_name+ based on its inputs
-            #
-            # Returns the new PortDynamics object if successful, and nil
-            # otherwise
-            def update_input_port_dynamics(port_name)
-                dynamics = []
-                each_concrete_input_connection(port_name) do |source_task, source_port, sink_port|
-                    if dyn = source_task.port_dynamics[source_port]
-                        dynamics << dyn
-                    else
-                        return
-                    end
-                end
-                dyn = PortDynamics.new("#{name}.#{port_name}")
-                dynamics.each { |d| dyn.merge(d) }
-                port_dynamics[port_name] = dyn
-            end
-        end
-
         class << self
             # Margin that should be added to the computed buffer sizes. It is a
             # ratio of the optimal buffer size

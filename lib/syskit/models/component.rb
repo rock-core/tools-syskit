@@ -21,13 +21,18 @@ module Syskit
             # @return [Hash<String,BoundDataService>]
             define_inherited_enumerable(:data_service, :data_services, :map => true) { Hash.new }
 
-            # Enumerates all the device models this component is a driver for
+            # Enumerate all the devices that are defined on this
+            # component model
             #
-            # @yields [Model<Device>]
+            # @yields [MasterDeviceInstance]
             # @return [void]
-            def each_device(&block)
-                each_data_service.find_all { |_, srv| srv.model < Device }.
-                    each(&block)
+            def each_master_driver_service(&block)
+                return enum_for(:each_master_driver_service) if !block_given?
+                each_root_data_service.each do |srv|
+                    if srv.model < Device
+                        yield(srv)
+                    end
+                end
             end
 
             # Generic data service selection method, based on a service type
