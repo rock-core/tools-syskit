@@ -26,7 +26,7 @@ module Syskit
                           parent_model = nil)
                 @composition_model, @child_name = composition_model, child_name
                 super(models)
-                @dependency_options = Roby::TaskStructure::Dependency.validate_options(dependency_options)
+                @dependency_options = Roby::TaskStructure::DependencyGraphClass.validate_options(dependency_options)
                 @parent_model = parent_model
             end
 
