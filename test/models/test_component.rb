@@ -359,14 +359,7 @@ class TC_Models_Component < Test::Unit::TestCase
         assert_equal 'my_name', m.short_name
     end
 
-    def test_provides_uses_the_service_name_if_available
-        service = DataService.new_submodel(:name => "MyServiceModel")
-        component = TaskContext.new_submodel
-        srv = component.provides service
-        assert_equal "my_service_model", srv.name
-    end
-
-    def test_provides_raises_if_the_service_has_no_name_and_none_is_given
+    def test_provides_raises_if_no_name_is_given
         service = DataService.new_submodel
         component = TaskContext.new_submodel
         assert_raises(ArgumentError) { component.provides(service) }

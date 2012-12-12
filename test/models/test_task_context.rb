@@ -161,7 +161,7 @@ describe Syskit::Models::TaskContext do
                 input_port "port", "int"
                 property "property", "int"
             end
-            service = model.driver_for "Camera"
+            service = model.driver_for "Camera", :as => 'camera'
 
             device_model = service.model
             assert_equal "Camera", device_model.name
@@ -175,7 +175,7 @@ describe Syskit::Models::TaskContext do
                 property "property", "int"
             end
             DefinitionModule.const_set :Task, model
-            model.driver_for "Camera"
+            model.driver_for "Camera", :as => 'camera'
 
             assert_kind_of Syskit::Models::DeviceModel, DefinitionModule::Camera
             assert model.fullfills?(DefinitionModule::Camera)

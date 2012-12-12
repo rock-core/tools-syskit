@@ -522,14 +522,10 @@ module Syskit
                     :as => nil,
                     :slave_of => nil
 
-                name =
-                    if !source_arguments[:as]
-                        if !model.name
-                            raise ArgumentError, "no service name given, and the model has no name"
-                        end
-                        model.name.gsub(/^.+::/, '').snakecase
-                    else source_arguments[:as]
-                    end
+                if !source_arguments[:as]
+                    raise ArgumentError, "no service name given, please add the :as option"
+                else name = source_arguments[:as]
+                end
                 full_name = name
 
                 if master_source = source_arguments[:slave_of]
@@ -542,7 +538,7 @@ module Syskit
 
                 # Get the source name and the source model
                 if data_services[full_name]
-                    raise ArgumentError, "there is already a data service named '#{name}' defined on '#{self.name}'"
+                    raise ArgumentError, "there is already a data service named '#{name}' defined on '#{short_name}'"
                 end
 
                 # If a source with the same name exists, verify that the user is
