@@ -140,23 +140,34 @@ module Syskit
                 options = Kernel.validate_options options,
                     :name => nil, :orogen_model => nil
                 model = Class.new(self)
+                register_submodel(model)
+                if options[:name]
+                    model.name = options[:name]
+                end
+
                 if orogen_model = options[:orogen_model]
                     model.orogen_model = orogen_model
                 else
-                    model.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, options[:name])
-                    model.orogen_model.subclasses self.orogen_model
-                    model.state_events = self.state_events.dup
-                end
-                if options[:name]
-                    model.name = options[:name]
+                    model.setup_submodel
                 end
                 Syskit::TaskContext.orogen_model_to_syskit_model[model.orogen_model] = model
                 if block
                     evaluation = DataServiceModel::BlockInstanciator.new(model)
                     evaluation.instance_eval(&block)
                 end
-                register_submodel(model)
                 model
+            end
+
+            # Sets up self on the basis of {#supermodel}
+            #
+            # @param [String] name an optional name for this submodel
+            # @return [void]
+            def setup_submodel
+                super
+
+                self.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, self.name)
+                self.orogen_model.subclasses supermodel.orogen_model
+                self.state_events = supermodel.state_events.dup
             end
 
             def worstcase_processing_time(value)

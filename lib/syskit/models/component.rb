@@ -304,9 +304,15 @@ module Syskit
                 attr_reader :dynamic_service
                 # The instantiated service
                 attr_reader :service
+                # A set of options that are accessible from the instanciation
+                # block. This allows to create protocols for dynamic service
+                # creation, and is specific to the client component model
+                # @return [Hash]
+                attr_reader :options
 
-                def initialize(component_model, name, dynamic_service)
-                    @component_model, @name, @dynamic_service = component_model, name, dynamic_service
+                def initialize(component_model, name, dynamic_service, options = Hash.new)
+                    @component_model, @name, @dynamic_service, @options =
+                        component_model, name, dynamic_service, options
                 end
 
                 # Proxy for component_model#provides which does some sanity
@@ -391,14 +397,27 @@ module Syskit
                     @component_model, @name, @service_model, @block = component_model, name, service_model, block
                 end
 
-                def instanciate(name)
-                    instantiator = DynamicServiceInstantiationContext.new(component_model, name, self)
+                def attach(component_model)
+                    result = dup
+                    result.instance_variable_set(:@component_model, component_model)
+                    result
+                end
+
+                def instanciate(name, options = Hash.new)
+                    instantiator = DynamicServiceInstantiationContext.new(component_model, name, self, options)
                     instantiator.instance_eval(&block)
                     if !instantiator.service
-                        raise ArgumentError, "the block #{block} used to instantiate the dynamic service #{name} on #{component_model.short_name} did not provide any service"
+                        raise InvalidDynamicServiceBlock.new(self), "the block #{block} used to instantiate the dynamic service #{name} on #{component_model.short_name} with options #{options} did not provide any service"
                     end
                     instantiator.service
                 end
+            end
+
+            # Called by the dynamic_service accessors to promote dynamic
+            # services from our parent model to the corresponding dynamic
+            # services on the child models
+            def promote_dynamic_service(name, dyn)
+                dyn.attach(self)
             end
 
             # The set of dynamic services instantiated with #dynamic_service
@@ -583,11 +602,11 @@ module Syskit
                 super
             end
 
-            # :attr: private_specialization?
-            #
             # If true, this model is used internally as specialization of
             # another component model (as e.g. to represent dynamic service
             # instantiation). Otherwise, it is an actual component model.
+            #
+            # @return [Model<TaskContext>]
             attr_predicate :private_specialization?, true
 
             # Creates a private specialization of the current model

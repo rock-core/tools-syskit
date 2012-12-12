@@ -59,12 +59,18 @@ module Syskit
                     model.name = name
                 end
                 register_submodel(model)
+
+                model.setup_submodel
+
                 if block_given?
                     model.instance_eval(&block)
                 end
                 model
             end
 
+            # Sets up internal attributes on the basis of {#supermodel}
+            def setup_submodel
+            end
             def short_name
                 if name then name
                 else to_s

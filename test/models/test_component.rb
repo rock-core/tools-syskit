@@ -97,6 +97,17 @@ describe Syskit::Models::Component do
             end
         end
 
+        describe "#find_dynamic_service" do
+            it "should return a dynamic service bound to the current component model" do
+                srv_m = self.srv_m
+                dyn = task_m.dynamic_service srv_m, :as => "dyn" do
+                    provides srv_m, "out" => "#{name}_out", "in" => "#{name}_in"
+                end
+                subtask_m = task_m.new_submodel
+                assert_equal subtask_m, subtask_m.find_dynamic_service('dyn').component_model
+            end
+        end
+
         describe "#dynamic_service" do
             it "should create a DynamicService instance" do
                 srv_m = self.srv_m
@@ -140,9 +151,9 @@ describe Syskit::Models::Component do
 
         describe Syskit::Models::Component::DynamicService do
             describe "#instanciate" do
-                attr_reader :dyn
+                attr_reader :dyn, :srv_m
                 before do
-                    srv_m = self.srv_m
+                    srv_m = @srv_m = self.srv_m
                     @dyn = task_m.dynamic_service srv_m, :as => "dyn" do
                         provides srv_m, "out" => "#{name}_out", "in" => "#{name}_in"
                     end
@@ -162,11 +173,22 @@ describe Syskit::Models::Component do
                     context = flexmock(Syskit::Models::Component::DynamicServiceInstantiationContext).new_instances
                     context.should_receive(:instance_eval).once
                     context.should_receive(:service).once
-                    assert_raises(ArgumentError) { dyn.instanciate('service_name') }
+                    assert_raises(Syskit::InvalidDynamicServiceBlock) { dyn.instanciate('service_name') }
                 end
                 it "should not allow to have a colliding service name" do
                     task_m.provides Syskit::DataService.new_submodel, :as => 'srv'
                     assert_raises(ArgumentError) { dyn.instanciate('srv') }
+                end
+                it "should pass the option hash to the dyn service instantiation block" do
+                    received_options = nil
+                    srv_m = self.srv_m
+                    dyn_srv = task_m.dynamic_service srv_m, :as => 'ddd' do
+                        received_options = self.options
+                        provides srv_m, "out" => "#{name}_out", "in" => "#{name}_in"
+                    end
+                    options = {'test' => 'bla'}
+                    dyn_srv.instanciate('srv', options)
+                    assert_equal options, received_options
                 end
             end
         end

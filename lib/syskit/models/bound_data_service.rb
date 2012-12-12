@@ -39,8 +39,6 @@ module Syskit
                     else
                         name
                     end
-
-                @declared_dynamic_slaves = Array.new
             end
 
             # (see Component#self_port_to_component_port)
@@ -152,42 +150,8 @@ module Syskit
             end
 
             # Enumerates the data services that are slave of this one
-            def each_slave(&block)
+            def each_slave_data_service(&block)
                 component_model.each_slave_data_service(self, &block)
-            end
-
-            attr_reader :declared_dynamic_slaves
-
-            def dynamic_slaves(source_model, options = Hash.new, &block)
-                declared_dynamic_slaves << [source_model, block, model, options]
-                source_model
-            end
-
-            def require_dynamic_slave(required_service, service_name, reason, component_model = nil)
-                model, specialization_block, _ =
-                    declared_dynamic_slaves.find do |model, specialization_block, _|
-                        model == required_service
-                    end
-
-                return if !model
-
-                component_model ||= self.component_model
-                if !component_model.private_specialization?
-                    component_model = component_model.
-                        specialize("#{component_model.name}<#{reason}>")
-
-                    SystemModel.debug { "created the specialized submodel #{component_model.short_name} of #{component_model.superclass.short_name} as a singleton model for #{reason}" }
-                end
-
-                service_model = required_service.
-                    new_submodel(component_model.name + "." + required_service.short_name + "<" + service_name + ">")
-
-                if specialization_block
-                    service_model.apply_block(service_name, &specialization_block)
-                end
-                srv = component_model.require_dynamic_service(service_model, :as => service_name, :slave_of => name)
-
-                return component_model, srv
             end
 
             def each_fullfilled_model
@@ -198,40 +162,6 @@ module Syskit
                         yield(m)
                     end
                 end
-            end
-
-            # Helper class used by #add_slaves to provide the evaluation context
-            class SlaveDefinitionContext
-                def initialize(component_model, master_name)
-                    @component_model = component_model
-                    @master_name = master_name
-                end
-
-                def provides(*args, &block)
-                    options =
-                        if args.last.kind_of?(Hash)
-                            args.pop
-                        else Hash.new
-                        end
-                    options[:slave_of] = @master_name
-                    args << options
-                    @component_model.provides(*args, &block)
-                end
-            end
-
-            # Provides an instanciation context that can be used to add multiple
-            # slaves easily, e.g.:
-            #
-            # driver_for('NewDevice').add_slaves do
-            #   provides Srv::Camera, :as => 'lcamera'
-            #   provides Srv::Laser, :as => 'scans'
-            #   ...
-            # end
-            #
-            def add_slaves(&block)
-                context = SlaveDefinitionContext.new(component_model, name)
-                context.instance_eval(&block)
-                self
             end
 
             # Returns the BoundDataService object that binds this provided

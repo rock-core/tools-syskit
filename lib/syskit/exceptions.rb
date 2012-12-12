@@ -744,6 +744,16 @@ module Syskit
                 pp.text "  #{validator}[#{specializations[1]},#{specializations[0]}] => #{validator[*specializations.reverse]}"
             end
         end
+
+        # Exception raised when a dynamic service block does something forbidden
+        #
+        # The reason is in the exception message
+        class InvalidDynamicServiceBlock < RuntimeError
+            attr_reader :dynamic_service
+            def initialize(dynamic_service)
+                @dynamic_service = dynamic_service
+            end
+        end
 end
 
 

@@ -1,6 +1,87 @@
 require 'syskit'
 require 'syskit/test'
 
+describe Syskit::Component do
+    include Syskit::SelfTest
+
+    describe "#specialize" do
+        attr_reader :task, :task_m
+        before do
+            @task_m = Syskit::TaskContext.new_submodel
+            @task = task_m.new
+        end
+
+        it "should make sure that the task has its own private model" do
+            task.specialize
+            refute_same task_m, task.model
+        end
+        it "should be possible to declare that the specialized model provides a service without touching the source model" do
+            task.specialize
+            srv_m = Syskit::DataService.new_submodel
+            task.model.provides srv_m, :as => 'srv'
+            assert task.fullfills?(srv_m)
+            assert !task_m.fullfills?(srv_m)
+        end
+        it "should create a specialized model with a submodel of the oroGen model" do
+            task.specialize
+            refute_same task_m.orogen_model, task.model.orogen_model
+            assert_same task_m.orogen_model, task.model.orogen_model.superclass
+        end
+
+        it "should return true if it creates a new model" do
+            task_m = Syskit::TaskContext.new_submodel
+            task = task_m.new
+            assert task.specialize
+        end
+        it "should not specialize an already specialized model, and return false" do
+            task_m = Syskit::TaskContext.new_submodel
+            task = task_m.new
+            task.specialize
+            current_model = task.model
+            assert !task.specialize
+            assert_same current_model, task.model
+        end
+    end
+
+    describe "#require_dynamic_service" do
+        attr_reader :task_m, :srv_m, :dyn, :task
+        before do
+            @task_m = Syskit::TaskContext.new_submodel do
+                output_port "out", "int"
+                dynamic_output_port /\w+_out/, "bool"
+                dynamic_input_port /\w+_in/, "double"
+            end
+            srv_m = @srv_m = Syskit::DataService.new_submodel do
+                output_port "out", "bool"
+                input_port "in", "double"
+            end
+            @dyn = task_m.dynamic_service srv_m, :as => "dyn" do
+                provides srv_m, "out" => "#{name}_out", "in" => "#{name}_in"
+            end
+            @task = task_m.new
+        end
+
+        it "replaces the task with a specialized version of it" do
+            flexmock(task).should_receive(:specialize).once.pass_thru
+            task.require_dynamic_service 'dyn', 'service_name'
+        end
+        it "marks the task as needing reconfiguration" do
+            flexmock(task).should_receive(:needs_reconfiguration!).once.pass_thru
+            task.require_dynamic_service 'dyn', 'service_name'
+        end
+        it "creates a new dynamic service on the specialized model" do
+            bound_service = task.require_dynamic_service 'dyn', 'service_name'
+            assert_equal bound_service, task.find_data_service('service_name')
+            assert !task_m.find_data_service('service_name')
+            assert_same bound_service.model.component_model, task.model
+        end
+        it "does nothing if requested to create a service that already exists" do
+            bound_service = task.require_dynamic_service 'dyn', 'service_name'
+            assert_equal bound_service, task.require_dynamic_service('dyn', 'service_name')
+        end
+    end
+end
+
 class TC_Component < Test::Unit::TestCase
     include Syskit::SelfTest
 

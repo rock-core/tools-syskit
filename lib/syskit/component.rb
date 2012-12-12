@@ -568,6 +568,53 @@ module Syskit
                 task
             end
 
+            # Requires a new dynamic service on this task context
+            #
+            # As {Models::Component#dynamic_service} already stated, the new
+            # dynamic service is a description of what the task should provide.
+            # One needs to reimplement the model's #configure method to actually
+            # configure the task properly.
+            #
+            # @return [BoundDataService] the newly created service
+            def require_dynamic_service(dynamic_service_name, options = Hash.new)
+                options, dyn_options = Kernel.filter_options options,
+                    :as => nil
+                if !options[:as]
+                    raise ArgumentError, "no name given, please provide the :as option"
+                end
+                service_name = options[:as]
+
+                specialize
+                dyn = model.find_dynamic_service(dynamic_service_name)
+                if !dyn
+                    raise ArgumentError, "#{model.name} has no dynamic service called #{dynamic_service_name}, available dynamic services are: #{model.each_dynamic_service.map(&:name).sort.join(", ")}"
+                end
+
+                if srv = find_data_service(service_name)
+                    if srv.fullfills?(dyn.service_model)
+                        return srv
+                    else raise ArgumentError, "there is already a service #{service_name}, but it is of type #{srv.model.short_name} while the dynamic service #{dynamic_service_name} expects #{dyn.service_model.short_name}"
+                    end
+                end
+                bound_service = dyn.instanciate(service_name, dyn_options)
+
+                needs_reconfiguration!
+                bound_service.bind(self)
+            end
+
+            # Sets up this task to use its singleton class as model instead of
+            # the plain class. It is useful in particular for dynamic services
+            def specialize
+                if model != singleton_class
+                    @model = singleton_class
+                    model.name = self.class.name
+                    model.private_specialization = true
+                    model.private_model
+                    model.setup_submodel
+                    true
+                end
+            end
+
             module Proxying
                 proxy_for Component
 
