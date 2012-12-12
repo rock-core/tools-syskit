@@ -493,7 +493,7 @@ module Syskit
                 specialize
                 dyn = model.find_dynamic_service(dynamic_service_name)
                 if !dyn
-                    raise ArgumentError, "#{model.name} has no dynamic service called #{dynamic_service_name}, available dynamic services are: #{model.each_dynamic_service.map(&:name).sort.join(", ")}"
+                    raise ArgumentError, "#{model.name} has no dynamic service called #{dynamic_service_name}, available dynamic services are: #{model.each_dynamic_service.map { |name, _| name }.sort.join(", ")}"
                 end
 
                 if srv = find_data_service(service_name)
