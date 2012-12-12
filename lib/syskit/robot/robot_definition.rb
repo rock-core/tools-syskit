@@ -4,31 +4,19 @@ module Syskit
         # available on it.
         class RobotDefinition
             def initialize
-                @com_busses = Hash.new
                 @devices    = Hash.new
             end
 
-            # The available communication busses
-            attr_reader :com_busses
             # The devices that are available on this robot
             attr_reader :devices
 
             def clear
-                com_busses.clear
                 devices.clear
             end
 
             # Declares a new communication bus
             def com_bus(type, options = Hash.new)
-                bus_options, _ = Kernel.filter_options options, :as => type.snakename
-                name = options[:as].to_str
-                if com_busses[name]
-                    raise ArgumentError, "there is already a communication bus called #{name}"
-                end
-
-                device = device(type, options)
-                com_busses[name] = CommunicationBus.new(self, bus_options[:as].to_str, device, options)
-                device
+                device(type, options.merge(:expected_model => Syskit::ComBus, :class => ComBus))
             end
 
             # Returns true if +name+ is the name of a device registered on this
@@ -52,9 +40,15 @@ module Syskit
             #       attach_to('can0')
             #
             def through(com_bus, &block)
-                bus = com_busses[com_bus.to_str]
-                if !bus
-                    raise SpecError, "communication bus #{com_bus} does not exist"
+                if com_bus.respond_to?(:to_str)
+                    bus = device[com_bus.to_str]
+                    if !bus
+                        raise ArgumentError, "communication bus #{com_bus} does not exist"
+                    end
+                end
+
+                if !bus.respond_to?(:through)
+                    raise ArgumentError, "#{bus} is not a communication bus"
                 end
                 bus.through(&block)
                 bus
@@ -89,38 +83,31 @@ module Syskit
             # This method returns the MasterDeviceInstance instance that
             # describes the actual device
             def device(device_model, options = Hash.new)
-                if !(device_model < Device)
-                    raise ArgumentError, "expected a device model, got #{device_model} of class #{device_model.class.name}"
-                end
-
                 options, device_options = Kernel.filter_options options,
-                    :as => device_model.snakename,
+                    :as => nil,
                     :using => nil,
-                    :expected_model => Device
+                    :expected_model => Syskit::Device,
+                    :class => MasterDeviceInstance
                 device_options, task_arguments = Kernel.filter_options device_options,
                     MasterDeviceInstance::KNOWN_PARAMETERS
 
                 # Check for duplicates
-                name = options[:as].to_str
+                if !options[:as]
+                    raise ArgumentError, "no name given, please provide the :as option"
+                end
+                name = options[:as]
                 if devices[name]
-                    raise SpecError, "device #{name} is already defined"
+                    raise ArgumentError, "device #{name} is already defined"
                 end
 
                 # Verify that the provided device model matches what we expect
                 if !(device_model < options[:expected_model])
-                    raise SpecError, "#{device_model} is not a #{options[:expected_model].name}"
+                    raise ArgumentError, "#{device_model} is not a #{options[:expected_model].short_name}"
                 end
 
                 # If the user gave us an explicit selection, honor it
-                explicit_selection = options[:using]
-                if explicit_selection.kind_of?(Models::BoundDataService)
-                    task_model = explicit_selection.task_model
-                    service = explicit_selection
-                else
-                    task_model = explicit_selection
-                end
-
-                if !task_model
+                driver_model = options[:using]
+                if !driver_model
                     # Since we want to drive a particular device, we actually need a
                     # concrete task model. So, search for one.
                     #
@@ -136,36 +123,26 @@ module Syskit
                     if tasks.size > 1
                         raise Ambiguous, "#{tasks.map(&:short_name).join(", ")} can all handle '#{device_model.short_name}', please select one explicitely with the 'using' statement"
                     elsif tasks.empty?
-                        raise SpecError, "no task can handle devices of type '#{device_model.short_name}'"
+                        raise ArgumentError, "no task can handle devices of type '#{device_model.short_name}'"
                     end
-                    task_model = tasks.first
+                    driver_model = tasks.first
                 end
 
-                if service
-                    if !service.fullfills?(device_model)
-                        raise ArgumentError, "selected service #{service.name} from #{task_model.short_name} cannot handle devices of type #{device_model.short_name}"
-                    end
-                else
-                    service_candidates = task_model.find_all_services_from_type(device_model)
-                    if service_candidates.empty?
-                        raise ArgumentError, "#{task_model.short_name} has no service of type #{device_model.short_name}"
-                    elsif service_candidates.size > 1
-                        raise ArgumentError, "more than one service in #{task_model.short_name} provide #{device_model.short_name}, you need to select one with the 'using_service' statement"
-                    end
-                    service = service_candidates.first
+                if driver_model.respond_to?(:find_data_service_from_type)
+                    driver_model = driver_model.find_data_service_from_type(device_model)
                 end
 
-                root_task_arguments = { "#{service.name}_name" => name }.
+                root_task_arguments = { "#{driver_model.name}_name" => name }.
                     merge(task_arguments)
 
-                device_instance = MasterDeviceInstance.new(
+                device_instance = options[:class].new(
                     self, name, device_model, device_options,
-                    task_model, service, root_task_arguments)
+                    driver_model, root_task_arguments)
                 devices[name] = device_instance
                 device_model.apply_device_configuration_extensions(devices[name])
 
                 # And register all the slave services there is on the driver
-                task_model.each_slave_data_service(service) do |slave_service|
+                driver_model.each_slave_data_service do |slave_service|
                     slave_device = SlaveDeviceInstance.new(devices[name], slave_service)
                     device_instance.slaves[slave_service.name] = slave_device
                     devices["#{name}.#{slave_service.name}"] = slave_device
@@ -179,15 +156,15 @@ module Syskit
             end
 
             # Enumerates all master devices that are available on this robot
-            def each_master_device(&block)
+            def each_master_device
                 devices.find_all { |name, instance| instance.kind_of?(MasterDeviceInstance) }.
-                    each(&block)
+                    each { |_, instance| yield(instance) }
             end
 
             # Enumerates all slave devices that are available on this robot
-            def each_slave_device(&block)
+            def each_slave_device
                 devices.find_all { |name, instance| instance.kind_of?(SlaveDeviceInstance) }.
-                    each(&block)
+                    each { |_, instance| yield(instance) }
             end
 
             def method_missing(m, *args, &block)

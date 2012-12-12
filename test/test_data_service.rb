@@ -71,22 +71,76 @@ end
 describe Syskit::ComBus do
     include Syskit::SelfTest
 
-    attr_reader :task_m, :combus_m, :devices
+    attr_reader :device_driver_m, :combus_driver_m, :combus_m, :combus, :device
     before do
-        @task_m = Syskit::TaskContext.new_submodel
-        combus_m = @combus_m = Syskit::ComBus.new_submodel
+        combus_m = @combus_m = Syskit::ComBus.new_submodel(:message_type => '/double')
         device_m = @device_m = Syskit::Device.new_submodel
-        robot do
-            com_bus combus_m, :as => 'COM', 'combus'
-            device device_m, :as => 'DEV', :attach_to => 'combus'
+        @device_driver_m = Syskit::TaskContext.new_submodel do
+            input_port 'from_bus', '/double'
+            output_port 'to_bus', '/double'
+            driver_for device_m, :as => 'dev'
+            provides combus_m.client_srv, :as => 'combus_client'
+        end
+        @combus_driver_m = Syskit::TaskContext.new_submodel { driver_for combus_m, :as => 'com' }
+        @combus = robot.com_bus combus_m, :as => 'COM'
+        @device = robot.device(device_m, :as => 'DEV').
+            attach_to('COM')
+    end
+    describe "#each_com_bus_device" do
+        it "lists the combus devices the task is driving" do
+            plan.add(combus_task = combus_driver_m.new('com_name' => 'COM'))
+            combus_task.each_com_bus_device.to_a
+            assert_equal [robot.devices['COM']], combus_task.each_com_bus_device.to_a
         end
     end
     describe "#each_attached_device" do
-        combus_task = TaskContext.new_submodel { provides combus_m, :as => 'com' }.new('com_name' => 'COM')
-        device_task = TaskContext.new_submodel { provides device_m, :as => 'dev' }.new('dev_name' => 'DEV')
-        assert_equal [device_task], combus_task.each_attached_device.to_a
+        it "can list the devices attached to the combus" do
+            plan.add(combus_task = combus_driver_m.new('com_name' => 'COM'))
+            plan.add(device_task = device_driver_m.new('dev_name' => 'DEV'))
+            assert_equal [robot.devices['DEV']], combus_task.each_attached_device.to_a
+        end
     end
-    describe "#each_device_connection" do
+    describe "#attach" do
+        attr_reader :combus_task, :device_task
+        before do
+            plan.add(@combus_task = combus_driver_m.new('com_name' => 'COM'))
+            plan.add(@device_task = device_driver_m.new('dev_name' => 'DEV'))
+            flexmock(combus_m).should_receive(:dynamic_in_srv_name).and_return('dyn_in_srv')
+            flexmock(combus_m).should_receive(:dynamic_out_srv_name).and_return('dyn_out_srv')
+        end
+        it "creates an input service on the combus task" do
+            flexmock(combus_task).should_receive(:require_dynamic_service).
+                with('dyn_in_srv', 'in_DEV').once.pass_thru
+            combus_task.attach(device_task)
+        end
+        it "does not create an input service on the combus task if the device does not have an output service" do
+            flexmock(device).should_receive(:combus_out_srv)
+            flexmock(combus_task).should_receive(:require_dynamic_service).
+                with('dyn_in_srv').never
+            combus_task.attach(device_task)
+        end
+        it "creates an output service on the combus task" do
+            flexmock(combus_task).should_receive(:require_dynamic_service).
+                with('dyn_out_srv', 'out_DEV').once.pass_thru
+            combus_task.attach(device_task)
+        end
+        it "does not create an output service on the combus task if the device does not have an input service" do
+            flexmock(device).should_receive(:combus_in_srv)
+            flexmock(combus_task).should_receive(:require_dynamic_service).
+                with('dyn_out_srv').never
+            combus_task.attach(device_task)
+        end
+        it "ignores devices that are not attached to the bus" do
+            flexmock(device).should_receive(:attached_to?).with(combus).and_return(false).once
+            flexmock(combus_task).should_receive(:require_dynamic_service).never
+            combus_task.attach(device_task)
+        end
+        it "connects the combus output service to the client input service" do
+        end
+        it "connects the combus input service to the client output service" do
+        end
+        it "ignores com bus driver services that are not tied to an actual device" do
+        end
     end
 end
 

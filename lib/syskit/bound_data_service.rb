@@ -59,6 +59,12 @@ module Syskit
                 "#{component}:#{provided_service_model.name}"
             end
 
+            def each_slave_data_service(&block)
+                component.model.each_slave_data_service(self.model) do |slave_m|
+                    yield(slave_m.bind(component))
+                end
+            end
+
 	    def each_fullfilled_model(&block)
 		model.each_fullfilled_model(&block)
 	    end

@@ -41,6 +41,15 @@ module Syskit
         module Device
             include DataService
 
+            # Returns the bound data service that is attached to the given
+            # device
+            def find_all_driver_services_for(device)
+                services = model.each_master_driver_service.find_all do |driver_srv|
+                    arguments["#{driver_srv.name}_device"] == device.name
+                end
+                services.map { |drv| drv.bind(self) }
+            end
+
             # Returns the device object that is attached to the given service.
             #
             # @param [BoundDataService,String,nil] service the service for which
@@ -115,22 +124,26 @@ module Syskit
         module ComBus
             include Device
 
+            # Enumerates the communication busses this task is a driver for
+            #
+            # @yieldparam [Robot::ComBus] the communication bus device
+            # @yieldreturn [void]
+            # @return [void]
+            def each_com_bus_device
+                return enum_for(:each_com_bus_device) if !block_given?
+                each_master_device do |device|
+                    yield(device) if device.kind_of?(Robot::ComBus)
+                end
+            end
+
             # Enumerates all the devices that are attached to this communication bus
             #
             # @yieldparam device [DeviceInstance] a device that is using self as
             #   a communication bus
-            attribute(:port_to_device) { Hash.new { |h, k| h[k] = Array.new } }
-
-            def merge(merged_task)
-                super
-                port_to_device.merge!(merged_task.port_to_device)
-            end
-
-            def each_attached_device(&block)
-                each_master_device do |combus|
-                    next if !combus.model.kind_of?(ComBusModel)
-
-                    robot.each_master_device do |name, dev|
+            def each_attached_device
+                return enum_for(:each_attached_device) if !block_given?
+                each_com_bus_device do |combus|
+                    robot.each_master_device do |dev|
                         if dev.attached_to?(combus)
                             yield(dev)
                         end
@@ -138,37 +151,28 @@ module Syskit
                 end
             end
 
-            def each_device_connection_helper(port_name) # :nodoc:
-                return if !port_to_device.has_key?(port_name)
+            # Attaches the given task to the communication bus
+            def attach(task)
+                model.each_com_bus_driver_service do |combus_srv|
+                    # Do we have a device for this bus ?
+                    next if !(combus = find_device_attached_to(combus_srv))
+                    task.each_master_device do |dev|
+                        next if !dev.attached_to?(combus)
+                        client_in_srv  = dev.combus_in_srv
+                        client_out_srv = dev.combus_out_srv
 
-                devices = port_to_device[port_name].
-                    map do |d_name|
-                        if !(device = robot.devices[d_name])
-                            raise ArgumentError, "#{self} refers to device #{d_name} for port #{source_port}, but there is no such device"
+                        if client_in_srv && client_out_srv
+                            bus_srv = require_dynamic_service(combus_srv.model.dynamic_srv_name, :as => dev.name, :direction => 'inout')
+                            bus_srv.connect_to client_in_srv
+                            client_out_srv.connect_to bus_srv
+                        elsif client_in_srv
+                            bus_out_srv = require_dynamic_service(combus_srv.model.dynamic_srv_name, :as => dev.name, :direction => 'out')
+                            bus_out_srv.connect_to client_in_srv
+                        elsif client_out_srv
+                            bus_in_srv = require_dynamic_service(combus_srv.model.dynamic_in_srv_name, :as => dev.name, :direction => 'in')
+                            client_out_srv.connect_to bus_in_srv
                         end
-                        device
                     end
-
-                if !devices.empty?
-                    yield(port_name, devices)
-                end
-            end
-
-            # Finds out what output port serves what devices by looking at what
-            # tasks it is connected.
-            #
-            # Indeed, for communication busses, the device model is determined
-            # by the sink port of output connections.
-            def each_device_connection(&block)
-                if !block_given?
-                    return enum_for(:each_device_connection)
-                end
-
-                each_concrete_input_connection do |source_task, source_port, sink_port|
-                    each_device_connection_helper(sink_port, &block)
-                end
-                each_concrete_output_connection do |source_port, sink_port, sink_task|
-                    each_device_connection_helper(source_port, &block)
                 end
             end
         end

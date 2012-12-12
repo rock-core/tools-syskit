@@ -24,12 +24,26 @@ module Syskit
             # Enumerate all the devices that are defined on this
             # component model
             #
-            # @yields [MasterDeviceInstance]
+            # @yields [Model<Device>]
             # @return [void]
             def each_master_driver_service(&block)
                 return enum_for(:each_master_driver_service) if !block_given?
-                each_root_data_service.each do |srv|
-                    if srv.model < Device
+                each_root_data_service do |srv|
+                    if srv.model < Syskit::Device
+                        yield(srv)
+                    end
+                end
+            end
+
+            # Enumerate all the combus that are defined on this
+            # component model
+            #
+            # @yields [Model<ComBus>]
+            # @return [void]
+            def each_com_bus_driver_service(&block)
+                return enum_for(:each_com_bus_driver_service) if !block_given?
+                each_root_data_service do |srv|
+                    if srv.model < Syskit::ComBus
                         yield(srv)
                     end
                 end
@@ -584,6 +598,42 @@ module Syskit
                 end
                 return service
             end
+
+            # Declares that this task context model can be used as a driver for
+            # the device +model+.
+            #
+            # It will create the corresponding device model if it does not
+            # already exist, and return it. See the documentation of
+            # Component.data_service for the description of +arguments+
+            def driver_for(model, arguments = Hash.new, &block)
+                if model.respond_to?(:to_str)
+                    has_proper_name =
+                        if self.name
+                            begin constant(self.name)
+                            rescue NameError
+                            end
+                        end
+
+                    if has_proper_name
+                        parent_module_name = name.gsub(/::[^:]+$/, '')
+                        parent_module =
+                            if parent_module_name == model then Object
+                            else constant(parent_module_name)
+                            end
+                    end
+
+                    if parent_module
+                        model = parent_module.device_type(model)
+                    else
+                        model = Device.new_submodel(:name => model)
+                    end
+                end
+
+                dserv = provides(model, arguments)
+                argument "#{dserv.name}_name"
+                dserv
+            end
+
 
             def method_missing(m, *args)
                 if m == :orogen_model

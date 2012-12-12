@@ -47,19 +47,7 @@ module Syskit
             # @return [Robot::RobotDefinition]
             def robot
                 return if !plan
-                plan.root_plan.orocos_engine.robot
-            end
-
-            # Returns the set of communication busses names that this task
-            # needs.
-            def com_busses
-                result = Set.new
-                arguments.find_all do |arg_name, bus_name| 
-                    if arg_name.to_s =~ /_com_bus$/
-                        result << bus_name
-                    end
-                end
-                result
+                plan.real_plan.orocos_engine.robot
             end
 
             def initialize(options = Hash.new)
@@ -124,10 +112,29 @@ module Syskit
                 end
             end
 
+            # Finds a data service by its name
             #
+            # @param [String] the data service name
+            # @return [BoundDataService,nil] the found data service, or nil if
+            #   there are no services with that name in self
+            def find_data_service(service_name)
+                if service_model = model.find_data_service(service_name)
+                    return service_model.bind(self)
                 end
+            end
 
+            # Finds a data service by its data service model
+            #
+            # @param [Model<DataService>] the data service model we want to find
+            #   in self
+            # @return [BoundDataService,nil] the found data service, or nil if there
+            #   are no services of that type in self
+            # @raise (see Models::DataService#find_data_service_from_type)
+	    def find_data_service_from_type(service_type)
+                if service_model = model.find_data_service_from_type(service_type)
+                    return service_model.bind(self)
                 end
+	    end
 
             # Returns true if the underlying Orocos task is in a state that
             # allows it to be configured
@@ -391,18 +398,6 @@ module Syskit
             end
 
             def to_component; self end
-
-            def find_data_service(service_name)
-                if service_model = model.find_data_service(service_name)
-                    return service_model.bind(self)
-                end
-            end
-
-	    def find_data_service_from_type(service_type)
-                if service_model = model.find_data_service_from_type(service_type)
-                    return service_model.bind(self)
-                end
-	    end
 
             def method_missing(m, *args)
                 return super if !args.empty? || block_given?

@@ -297,70 +297,6 @@ class TC_Models_DataService < Test::Unit::TestCase
     end
 end
 
-class TC_Models_ComBus < Test::Unit::TestCase
-    include Test_DataServiceModel
-
-    def setup
-        @service_type = Syskit::ComBus
-        @dsl_service_type_name = :com_bus_type
-        super
-    end
-
-    def test_each_fullfilled_model
-        parent_model = new_submodel
-        assert_equal [parent_model, service_type, Syskit::Device, Syskit::DataService].to_set, parent_model.each_fullfilled_model.to_set
-        child_model = new_submodel do
-            provides parent_model
-        end
-        assert_equal [parent_model, child_model, service_type, Syskit::Device, Syskit::DataService].to_set, child_model.each_fullfilled_model.to_set
-    end
-
-    def new_submodel(options = Hash.new, &block)
-        options = Kernel.validate_options options,
-            :name => nil, :message_type => '/int'
-        Syskit::ComBus.new_submodel(options, &block)
-    end
-
-    def test_module_dsl_service_type_definition
-        DataServiceDefinitionTest.send(dsl_service_type_name, "Image", :message_type => '/nil')
-        srv = DataServiceDefinitionTest::Image
-        assert_equal "Test_DataServiceModel::DataServiceDefinitionTest::Image", srv.name
-    end
-
-    def test_can_set_message_type_directly
-        combus = ComBus.new_submodel :message_type => '/int32_t'
-        assert_equal '/int32_t', combus.message_type
-    end
-
-    def test_can_set_message_type_with_provides
-        parent_combus = ComBus.new_submodel :message_type => '/int32_t'
-        combus = ComBus.new_submodel { provides parent_combus }
-        assert_equal '/int32_t', combus.message_type
-    end
-
-    def test_cannot_override_message_type_in_submodel_directly
-        combus = ComBus.new_submodel :message_type => '/int'
-        assert_raises(ArgumentError) { combus.new_submodel :message_type => '/float' }
-    end
-
-    def test_cannot_override_message_type_in_submodel_with_provides
-        parent_combus = ComBus.new_submodel :message_type => '/int32_t'
-        combus = ComBus.new_submodel { provides parent_combus }
-        other_combus = ComBus.new_submodel :message_type => '/double'
-        assert_raises(ArgumentError) { combus.provides other_combus }
-    end
-
-    def test_cannot_provide_a_combus_that_has_not_the_same_message_type
-        combus = ComBus.new_submodel :message_type => '/int'
-        other_combus = ComBus.new_submodel :message_type => '/float'
-        assert_raises(ArgumentError) { combus.provides other_combus }
-    end
-
-    def test_requires_message_type
-        assert_raises(ArgumentError) { ComBus.new_submodel }
-    end
-end
-
 class TC_Models_Device < Test::Unit::TestCase
     include Test_DataServiceModel
 
@@ -392,3 +328,154 @@ class TC_Models_Device < Test::Unit::TestCase
     end
 end
 
+class TC_Models_ComBus < Test::Unit::TestCase
+    include Test_DataServiceModel
+
+    def setup
+        @service_type = Syskit::ComBus
+        @dsl_service_type_name = :com_bus_type
+        super
+    end
+
+    def test_each_fullfilled_model
+        parent_model = new_submodel
+        assert_equal [parent_model, service_type, Syskit::Device, Syskit::DataService].to_set, parent_model.each_fullfilled_model.to_set
+        child_model = new_submodel do
+            provides parent_model
+        end
+        assert_equal [parent_model, child_model, service_type, Syskit::Device, Syskit::DataService].to_set, child_model.each_fullfilled_model.to_set
+    end
+
+    def new_submodel(options = Hash.new, &block)
+        options = Kernel.validate_options options,
+            :name => nil, :message_type => '/int'
+        Syskit::ComBus.new_submodel(options, &block)
+    end
+
+    def test_module_dsl_service_type_definition
+        DataServiceDefinitionTest.send(dsl_service_type_name, "Image", :message_type => '/double')
+        srv = DataServiceDefinitionTest::Image
+        assert_equal "Test_DataServiceModel::DataServiceDefinitionTest::Image", srv.name
+    end
+
+    def test_can_set_message_type_directly
+        combus = ComBus.new_submodel :message_type => '/int32_t'
+        assert_equal '/int32_t', combus.message_type
+    end
+
+    def test_can_set_message_type_with_provides
+        parent_combus = ComBus.new_submodel :message_type => '/int32_t'
+        combus = ComBus.new_submodel { provides parent_combus }
+        assert_equal '/int32_t', combus.message_type
+    end
+
+    def test_cannot_override_message_type_in_submodel_directly
+        combus = ComBus.new_submodel :message_type => '/int'
+        assert_raises(ArgumentError) { combus.new_submodel :message_type => '/double' }
+    end
+
+    def test_cannot_override_message_type_in_submodel_with_provides
+        parent_combus = ComBus.new_submodel :message_type => '/int32_t'
+        combus = ComBus.new_submodel { provides parent_combus }
+        other_combus = ComBus.new_submodel :message_type => '/double'
+        assert_raises(ArgumentError) { combus.provides other_combus }
+    end
+
+    def test_cannot_provide_a_combus_that_has_not_the_same_message_type
+        combus = ComBus.new_submodel :message_type => '/int'
+        other_combus = ComBus.new_submodel :message_type => '/double'
+        assert_raises(ArgumentError) { combus.provides other_combus }
+    end
+
+    def test_requires_message_type
+        assert_raises(ArgumentError) { ComBus.new_submodel }
+    end
+
+    def test_defines_client_in_srv
+        combus = ComBus.new_submodel :message_type => '/int'
+        assert combus.client_in_srv
+    end
+    def test_defines_client_out_srv
+        combus = ComBus.new_submodel :message_type => '/int'
+        assert combus.client_out_srv
+    end
+    def test_defines_bus_in_srv
+        combus = ComBus.new_submodel :message_type => '/int'
+        assert combus.bus_in_srv
+    end
+    def test_defines_bus_out_srv
+        combus = ComBus.new_submodel :message_type => '/int'
+        assert combus.bus_out_srv
+    end
+end
+
+describe Syskit::ComBus do
+    include Test_DataServiceModel
+
+    def new_submodel(options = Hash.new, &block)
+        options = Kernel.validate_options options,
+            :name => nil, :message_type => '/int'
+        Syskit::ComBus.new_submodel(options, &block)
+    end
+
+
+    def setup
+        @service_type = Syskit::ComBus
+        @dsl_service_type_name = :com_bus_type
+        super
+    end
+
+    it "declares the necesary dynamic service when provided on its driver" do
+        combus = Syskit::ComBus.new_submodel :message_type => '/int'
+        driver_m = Syskit::TaskContext.new_submodel
+        flexmock(combus).should_receive(:dynamic_service_name).and_return('dyn_srv')
+        flexmock(driver_m).should_receive(:dynamic_service).with(combus.bus_base_srv, Hash[:as => 'dyn_srv'], Proc).once
+        driver_m.provides combus, :as => 'name'
+    end
+
+    describe "the dynamic service definition" do
+        attr_reader :combus_m, :driver_m
+        before do
+            @combus_m = Syskit::ComBus.new_submodel :message_type => '/double'
+            @driver_m = Syskit::TaskContext.new_submodel do
+                dynamic_input_port /\w+/, '/double'
+                dynamic_output_port /\w+/, '/double'
+            end
+            flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv')
+            driver_m.driver_for combus_m, :as => 'combus_driver'
+        end
+        it "instanciates an input bus service if requested one" do
+            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'in')
+            assert_same combus_m.bus_in_srv, srv.model.model
+        end
+        it "provides the mapping of from_bus to input_name_for if requested an input service" do
+            flexmock(combus_m).should_receive(:input_name_for).with('dev').and_return('in_DEV')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'in')
+            assert_equal Hash['to_bus' => 'in_DEV'], srv.model.port_mappings_for_task
+        end
+        it "instanciates an output bus service if requested one" do
+            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'out')
+            assert_same combus_m.bus_out_srv, srv.model.model
+        end
+        it "provides the mapping of from_bus to output_name_for if requested an output service" do
+            flexmock(combus_m).should_receive(:output_name_for).with('dev').and_return('out_DEV')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'out')
+            assert_equal Hash['from_bus' => 'out_DEV'], srv.model.port_mappings_for_task
+        end
+        it "instanciates bidirectional service if requested one" do
+            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'inout')
+            assert_same combus_m.bus_srv, srv.model.model
+        end
+        it "provides the proper mappings if requested a bidirectional service" do
+            flexmock(combus_m).should_receive(:output_name_for).with('dev').and_return('out_DEV')
+            flexmock(combus_m).should_receive(:input_name_for).with('dev').and_return('in_DEV')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'inout')
+            assert_equal Hash['from_bus' => 'out_DEV', 'to_bus' => 'in_DEV'], srv.model.port_mappings_for_task
+        end
+        it "raises if the :direction option is invalid" do
+            assert_raises(ArgumentError) do
+                driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'bla')
+            end
+        end
+    end
+end

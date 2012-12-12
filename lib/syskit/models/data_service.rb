@@ -354,6 +354,15 @@ module Syskit
                 @override_policy = true
             end
 
+            attr_reader :bus_base_srv
+            attr_reader :bus_in_srv
+            attr_reader :bus_out_srv
+            attr_reader :bus_srv
+
+            attr_reader :client_in_srv
+            attr_reader :client_out_srv
+            attr_reader :client_srv
+
             # Creates a new submodel of this communication bus model
             #
             # @param [Hash] options the configuration options. See
@@ -372,15 +381,14 @@ module Syskit
 
                 model = super(options, &block)
                 model.override_policy = bus_options[:override_policy]
-                if bus_options[:message_type]
-                    if model.message_type && model.message_type != bus_options[:message_type]
-                        raise ArgumentError, "cannot override message types. The current message type of #{name} is #{message_type}, which might come from another provided com bus"
-                    elsif !model.message_type
-                        model.message_type    = bus_options[:message_type]
-                    end
-                end
                 if !bus_options[:message_type] && !model.message_type
                     raise ArgumentError, "com bus types must either have a message_type or provide another com bus type that does"
+                elsif bus_options[:message_type] && model.message_type
+                    if model.message_type != bus_options[:message_type]
+                        raise ArgumentError, "cannot override message types. The current message type of #{name} is #{message_type}, which might come from another provided com bus"
+                    end
+                elsif !model.message_type
+                    model.message_type = bus_options[:message_type]
                 end
 
                 if attached_device_configuration_module
@@ -388,6 +396,33 @@ module Syskit
                     model.attached_device_configuration_module.include(attached_device_configuration_module)
                 end
                 model
+            end
+
+            # The name of the bus_in_srv dynamic service defined on driver tasks
+            def dynamic_service_name
+                name = "com_bus"
+                if self.name
+                    name = "#{name}_#{self.name}"
+                end
+                name
+            end
+
+            def included(mod)
+                if mod <= Syskit::Component
+                    # declare the relevant dynamic service
+                    combus_m = self
+                    mod.dynamic_service bus_base_srv, :as => dynamic_service_name do
+                        options = Kernel.validate_options self.options, :direction => nil
+                        if options[:direction] == 'inout'
+                            provides combus_m.bus_srv, 'from_bus' => combus_m.output_name_for(name), 'to_bus' => combus_m.input_name_for(name)
+                        elsif options[:direction] == 'in'
+                            provides combus_m.bus_in_srv, 'to_bus' => combus_m.input_name_for(name)
+                        elsif options[:direction] == 'out'
+                            provides combus_m.bus_out_srv, 'from_bus' => combus_m.output_name_for(name)
+                        else raise ArgumentError, "invalid :direction option given, expected 'in', 'out' or 'inout' and got #{options[:direction]}"
+                        end
+                    end
+                end
             end
 
             def provides(service_model, new_port_mappings = Hash.new)
@@ -401,6 +436,13 @@ module Syskit
 
                 if service_model.respond_to?(:message_type) && !message_type
                     @message_type = service_model.message_type
+                    @bus_base_srv   = service_model.bus_base_srv
+                    @bus_in_srv     = service_model.bus_in_srv
+                    @bus_out_srv    = service_model.bus_out_srv
+                    @bus_srv        = service_model.bus_srv
+                    @client_in_srv  = service_model.client_in_srv
+                    @client_out_srv = service_model.client_out_srv
+                    @client_srv     = service_model.client_srv
                 end
             end
 
@@ -409,9 +451,30 @@ module Syskit
             #
             # It is true by default
             attr_predicate :override_policy?, true
-            # [String] the name of the type used to communicate with the
-            # supported components
-            attr_accessor :message_type
+
+            # The name of the type used to communicate with the supported
+            # components
+            #
+            # @return [String]
+            attr_reader :message_type
+
+            def message_type=(message_type)
+                @message_type = message_type
+                @bus_base_srv = DataService.new_submodel
+                @bus_in_srv  = DataService.new_submodel { input_port 'to_bus', message_type }
+                @bus_out_srv = DataService.new_submodel { output_port 'from_bus', message_type }
+                @bus_srv     = DataService.new_submodel
+                bus_in_srv.provides bus_base_srv
+                bus_out_srv.provides bus_base_srv
+                bus_srv.provides bus_in_srv
+                bus_srv.provides bus_out_srv
+
+                @client_in_srv  = DataService.new_submodel { input_port 'from_bus', message_type }
+                @client_out_srv = DataService.new_submodel { output_port 'to_bus', message_type }
+                @client_srv     = DataService.new_submodel
+                client_srv.provides client_in_srv
+                client_srv.provides client_out_srv
+            end
 
             attribute(:attached_device_configuration_module) { Module.new }
 
@@ -446,15 +509,16 @@ module Syskit
                 end
             end
 
-            # The output port name for the +bus_name+ device attached on this
-            # bus
-            def output_name_for(bus_name)
-                bus_name
+            # The name of the port that will send data from the bus to the
+            # device of the given name
+            def output_name_for(device_name)
+                device_name
             end
 
-            # The input port name for the +bus_name+ device attached on this bus
-            def input_name_for(bus_name)
-                "w#{bus_name}"
+            # The name of the port that will receive data from the device of the
+            # given name to the bus
+            def input_name_for(device_name)
+                "w#{device_name}"
             end
         end
 

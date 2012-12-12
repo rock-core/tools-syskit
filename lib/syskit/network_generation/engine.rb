@@ -823,152 +823,12 @@ module Syskit
                 output_path
             end
 
-            def link_task_to_bus(task, bus_name)
-                if !(com_bus_task = tasks[bus_name])
-                    raise SpecError, "there is no task that handles a communication bus named #{bus_name}"
-                end
-                # Assume that if the com bus is one of our dependencies,
-                # then it means we are already linked to it
-                return if task.depends_on?(com_bus_task)
-
-                if !(com_bus = robot.com_busses[bus_name])
-                    raise SpecError, "there is no communication bus named #{bus_name}"
-                end
-
-                # Enumerate in/out ports on task of the bus datatype
-                message_type = Orocos.registry.get(com_bus.model.message_type).name
-                out_candidates = task.model.each_output_port.find_all do |p|
-                    p.type.name == message_type
-                end
-                in_candidates = task.model.each_input_port.find_all do |p|
-                    p.type.name == message_type
-                end
-                if out_candidates.empty? && in_candidates.empty?
-                    raise SpecError, "#{task} is supposed to be connected to #{bus_name}, but #{task.model.name} has no ports of type #{message_type} that would allow to connect to it"
-                end
-                task.depends_on com_bus_task
-                task.start_event.ensure com_bus_task.start_event
-
-                com_bus_in = com_bus_task.model.each_input_port.
-                    find_all { |p| p.type.name == message_type }
-                com_bus_in =
-                    if com_bus_in.size == 1
-                        com_bus_in.first.name
-                    end
-
-                in_connections  = Hash.new
-                out_connections = Hash.new
-                handled    = Hash.new
-                used_ports = Set.new
-
-                task.model.each_root_data_service do |source_service|
-                    source_name  = source_service.name
-                    source_model = source_service.model
-                    next if !(source_model < Device)
-                    device_spec = robot.devices[task.arguments["#{source_name}_name"]]
-                    next if !device_spec || !device_spec.com_bus_names.include?(bus_name)
-                    
-                    in_ports =
-                        if in_candidates.size > 1
-                            in_candidates.
-                                find_all { |p| p.name =~ /#{source_name}/i }
-                        else
-                            in_candidates
-                        end
-
-                    out_ports =
-                        if out_candidates.size > 1
-                            out_candidates.
-                                find_all { |p| p.name =~ /#{source_name}/i }
-                        else
-                            out_candidates
-                        end
-
-                    if in_ports.size > 1
-                        raise Ambiguous, "there are multiple options to connect #{bus_name} to #{source_name} in #{task}: #{in_ports.map(&:name)}"
-                    elsif out_ports.size > 1
-                        raise Ambiguous, "there are multiple options to connect #{source_name} in #{task} to #{bus_name}: #{out_ports.map(&:name)}"
-                    end
-
-                    handled[source_name] = [!out_ports.empty?, !in_ports.empty?]
-                    if !in_ports.empty?
-                        port = in_ports.first
-                        used_ports << port.name
-                        com_out_port = com_bus.model.output_name_for(device_spec.name)
-                        com_bus_task.port_to_device[com_out_port] << device_spec.name
-                        in_connections[ [com_out_port, port.name] ] = Hash.new
-                    end
-                    if !out_ports.empty?
-                        port = out_ports.first
-                        used_ports << port.name
-                        com_in_port = com_bus_in || com_bus.model.input_name_for(device_spec.name)
-                        com_bus_task.port_to_device[com_in_port] << device_spec.name
-                        out_connections[ [port.name, com_in_port] ] = Hash.new
-                    end
-                end
-
-                # if there are some unconnected devices, search for
-                # generic ports (input and/or output) on the task, and link
-                # to it.
-                if handled.values.any? { |v| v == [false, false] }
-                    generic_name = handled.find_all { |_, v| v == [false, false] }.
-                        map(&:first).join("_")
-                    in_candidates.delete_if  { |p| used_ports.include?(p.name) }
-                    out_candidates.delete_if { |p| used_ports.include?(p.name) }
-
-                    if in_candidates.size > 1
-                        raise Ambiguous, "could not find a connection to the bus #{bus_name} for the input ports #{in_candidates.map(&:name).join(", ")} of #{task}"
-                    elsif in_candidates.size == 1
-                        com_out_port = com_bus.model.output_name_for(generic_name)
-                        task.each_master_device do |service, device|
-                            if device.attached_to?(bus_name)
-                                com_bus_task.port_to_device[com_out_port] << device.name
-                            end
-                        end
-                        in_connections[ [com_out_port, in_candidates.first.name] ] = Hash.new
-                    end
-
-                    if out_candidates.size > 1
-                        raise Ambiguous, "could not find a connection to the bus #{bus_name} for the output ports #{out_candidates.map(&:name).join(", ")} of #{task}"
-                    elsif out_candidates.size == 1
-                        # One generic output port
-                        com_in_port = com_bus_in || com_bus.model.input_name_for(generic_name)
-                        task.each_master_device do |service, device|
-                            if device.attached_to?(bus_name)
-                                com_bus_task.port_to_device[com_in_port] << device.name
-                            end
-                        end
-                        out_connections[ [out_candidates.first.name, com_in_port] ] = Hash.new
-                    end
-                end
-                
-                if !in_connections.empty?
-                    com_bus_task.connect_ports(task, in_connections)
-                end
-                if !out_connections.empty?
-                    task.connect_ports(com_bus_task, out_connections)
-                end
-
-                # If the combus model asks us to do it, make sure all
-                # connections will be computed as "reliable"
-                if com_bus.model.override_policy?
-                    in_connections.each_key do |_, sink_port|
-                        task.find_input_port_model(sink_port).
-                            needs_reliable_connection
-                    end
-                    out_connections.each_key do |_, sink_port|
-                        com_bus_task.find_input_port_model(sink_port).
-                            needs_reliable_connection
-                    end
-                end
-            end
-
             # Creates communication busses and links the tasks to them
             def link_to_busses
                 # Get all the tasks that need at least one communication bus
                 candidates = work_plan.find_local_tasks(Syskit::Device).
                     inject(Hash.new) do |h, t|
-                        required_busses = t.com_busses
+                        required_busses = t.each_com_bus_device.to_a
                         if !required_busses.empty?
                             h[t] = required_busses
                         end
@@ -976,8 +836,13 @@ module Syskit
                     end
 
                 candidates.each do |task, needed_busses|
-                    needed_busses.each do |bus_name|
-                        link_task_to_bus(task, bus_name)
+                    needed_busses.each do |bus_device|
+                        if !(com_bus_task = tasks[bus_device.name])
+                            raise SpecError, "there is no task that handles the communication bus #{bus_device}"
+                        end
+                        com_bus_task.attach(task)
+                        task.depends_on com_bus_task
+                        task.should_configure_after com_bus_task.start_event
                     end
                 end
                 nil

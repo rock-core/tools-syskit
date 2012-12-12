@@ -19,14 +19,11 @@ module Syskit
                 "#{name}[#{model.short_name}]"
             end
 
-            # [Models::TaskContext] The selected task model that allows to drive this device
-            attr_reader :task_model
-            # [Models::BoundDataService] The data service that will drive this device
-            attr_reader :service
+            # The driver for this device
+            # @return [BoundDataService]
+            attr_reader :driver_model
             # The task arguments
             attr_reader :task_arguments
-            # The actual task
-            attr_accessor :task
             # Configuration data structure
             attr_reader :configuration
             # Block given to #configure to configure the device. It will be
@@ -39,9 +36,9 @@ module Syskit
             attr_reader :configuration_block
 
             def initialize(robot, name, device_model, options,
-                           task_model, service, task_arguments)
-                @robot, @name, @device_model, @task_model, @service, @task_arguments =
-                    robot, name, device_model, task_model, service, task_arguments
+                           driver_model, task_arguments)
+                @robot, @name, @device_model, @driver_model, @task_arguments =
+                    robot, name, device_model, driver_model, task_arguments
                 @slaves      = Hash.new
                 @conf = Array.new
 
@@ -81,58 +78,84 @@ module Syskit
             # True if this device is attached to the given combus
             def attached_to?(com_bus)
                 com_bus = com_bus.name if com_bus.respond_to?(:name)
-                task_arguments["#{service.name}_com_bus"] == com_bus
+                task_arguments["#{driver_model.name}_com_bus"] == com_bus
             end
 
+            # The data service of {#task_model} that is used to receive data from
+            # the attached com bus for this device. If nil, the task is not
+            # expecting to receive any data from the communication bus (only
+            # send)
+            #
+            # @return [BoundDataService,nil]
+            attr_reader :combus_in_srv
+
+            # The data service of {#task_model} that is used to send data to
+            # the attached com bus for this device. If nil, the task is not
+            # expecting to send any data from the communication bus (only
+            # receives)
+            #
+            # @return [BoundDataService,nil]
+            attr_reader :combus_out_srv
+
             # Attaches this device on the given communication bus
-            def attach_to(com_bus)
-                if !com_bus.kind_of?(CommunicationBus)
-                    com_bus = robot.com_busses[com_bus.to_str]
+	    #
+	    # @option options [String] :in the name of the service on the device
+	    #   driver task context that should be used to get data from the
+	    #   communication bus. It is needed only if there is an ambiguity
+	    # @option options [String] :out the name of the service on the device
+	    #   driver task context that should be used to send data to the
+	    #   communication bus. It is needed only if there is an ambiguity
+            def attach_to(com_bus, options = Hash.new)
+                if !com_bus.respond_to?(:name)
+                    com_bus_name = com_bus.to_str
+                    com_bus = robot.devices[com_bus_name]
+                    if !com_bus
+                        raise ArgumentError, "#{com_bus_name} is not a known communication bus"
+                    end
                 end
-                task_arguments["#{service.name}_com_bus"] = com_bus.name
+
+                client_in_srv = com_bus.model.client_in_srv
+                client_out_srv = com_bus.model.client_out_srv
+
+		options = Kernel.validate_options options,
+		    :in => nil, :out => nil
+                task_arguments["#{driver_model.name}_com_bus"] = com_bus.name
+
+                @combus_in_srv  = find_combus_client_srv(com_bus.model.client_in_srv, options[:in])
+                @combus_out_srv = find_combus_client_srv(com_bus.model.client_out_srv, options[:out])
+		if !combus_out_srv && !combus_in_srv
+		    raise ArgumentError, "#{driver_model.component_model.short_name} provides neither an input nor an output service for combus #{com_bus.name}"
+		end
                 com_bus.model.apply_attached_device_configuration_extensions(self)
                 self
             end
-
-            # call-seq:
-            #   device.configure { |p| }
+            
+            # Finds in {#driver_model}.component_model the data service that should be used to
+            # interface with a combus
             #
-            # Yields a data structure that can be used to configure the given
-            # device. The type of the data structure is declared in the
-            # driver_for and data_service statement using the :config_type
-            # option.
-            #
-            # It will raise ArgumentError if the driver model did *not* declare
-            # a configuration type.
-            #
-            # See the documentation of each task context for details on the
-            # specific configuration parameters.
-            def configure(base_config = nil, &config_block)
-		if base_config
-		    @configuration = base_config.dup
+            # @param [Model<DataService>] the data service model for the client
+            #   interface to the combus
+            # @param [String,nil] the expected data service name, or nil if none
+            #   is given. In this case, one is searched by type
+            def find_combus_client_srv(srv_m, srv_name)
+		if srv_name
+		    result = driver_model.component_model.find_data_service(srv_name)
+		    if !result
+			raise ArgumentError, "#{srv_name} is specified as a client service on device #{name} for combus #{com_bus.name}, but it is not a data service on #{driver_model.component_model.short_name}"
+                    elsif !result.fullfills?(srv_m)
+                        raise ArgumentError, "#{srv_name} is specified as a client service on device #{name} for combus #{com_bus.name}, but it does not provide the required service from #{com_bus.model.short_name}"
+		    end
+                    result
+		else
+		    driver_model.component_model.find_data_service_from_type(srv_m)
 		end
-                if block_given?
-                    if @configuration
-                        yield(@configuration)
-                    else
-                        if !service.config_type
-                            raise ArgumentError, "#configure called on #{self.name}, but there is no configuration type for this device"
-                        end
-
-                        # Just verify that there is no error in
-                        # configuration_block
-                        yield(service.config_type.new)
-                    end
-                end
-                @configuration_block = config_block
-                self
             end
 
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
 
             def instanciate(engine, context, options = Hash.new)
                 options[:task_arguments] = task_arguments.merge(options[:task_arguments] || Hash.new)
-                task_model.instanciate(engine, context, options)
+                driver_model.instanciate(engine, context, options)
             end
 
             ## 
@@ -166,57 +189,6 @@ module Syskit
             # [slave_name, SlaveDeviceInstance object] pairs
             def each_slave(&block)
                 slaves.each(&block)
-            end
-
-            def slave(slave_service, options = Hash.new)
-                options = Kernel.validate_options options, :as => nil
-
-                # If slave_service is a string, it should refer to an actual
-                # service on +task_model+
-                if slave_service.respond_to?(:to_str)
-                    srv = task_model.find_data_service(slave_service)
-                    if !srv
-                        raise ArgumentError, "there is no service in #{task_model.short_name} named #{slave_service}"
-                    end
-                elsif slave_service.kind_of?(DataServiceModel)
-                    srv = task_model.find_matching_service(slave_service, options[:as])
-                    if !srv
-                        options[:as] ||= slave_service.snakename
-                        new_task_model, srv = self.service.
-                            require_dynamic_slave(slave_service, options[:as], name, task_model)
-
-                        if !srv
-                            raise ArgumentError, "there is no service in #{task_model.short_name} of type #{slave_service.short_name}"
-                        end
-
-                        @task_model = new_task_model
-
-                        SystemModel.debug do
-                            SystemModel.debug "dynamically created slave service #{name}.#{srv.name} of type #{srv.model.short_name} from #{slave_service.short_name}"
-                            break
-                        end
-                        device_instance = SlaveDeviceInstance.new(self, srv)
-                        slaves[srv.name] = device_instance
-                        srv.model.apply_device_configuration_extensions(device_instance)
-                        robot.devices["#{name}.#{srv.name}"] = device_instance
-                    end
-                else
-                    raise ArgumentError, "expected #{slave_service} to be either a string or a data service model"
-                end
-            end
-
-            # Allows calling
-            #
-            #   device.blabla_slave
-            #
-            # to access a device slave
-            def method_missing(m, *args, &block)
-                if m.to_s =~ /(.*)_slave$/ && (!block && args.empty?)
-                    if s = slaves[$1]
-                        return s
-                    end
-                end
-                return super
             end
         end
     end

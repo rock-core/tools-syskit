@@ -420,7 +420,7 @@ class TC_Models_Component < Test::Unit::TestCase
         component = TaskContext.new_submodel
         root_srv = component.provides service, :as => 'root'
         slave_srv = component.provides service, :as => 'srv', :slave_of => 'root'
-        assert_equal [slave_srv], root_srv.each_slave.to_a
+        assert_equal [slave_srv], root_srv.each_slave_data_service.to_a
         assert_same slave_srv, component.find_data_service('root.srv')
     end
 
@@ -469,8 +469,8 @@ class TC_Models_Component < Test::Unit::TestCase
 
         submodel = component.new_submodel
         root_srv2 = submodel.provides service, :as => 'srv2', :slave_of => 'root'
-        assert_equal [root_srv1], component.root_srv.each_slave.to_a
-        assert_equal [root_srv1.attach(submodel), root_srv2], submodel.root_srv.each_slave.sort_by(&:full_name)
+        assert_equal [root_srv1], component.root_srv.each_slave_data_service.to_a
+        assert_equal [root_srv1.attach(submodel), root_srv2], submodel.root_srv.each_slave_data_service.sort_by(&:full_name)
     end
 
     def test_find_data_service_from_type

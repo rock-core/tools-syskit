@@ -425,6 +425,7 @@ module Syskit
             end
 
             def self.cleanup(app)
+                app.plan.orocos_engine.robot.clear
 		app.orocos_clear_models
                 stop_process_servers
                 stop_local_process_server
