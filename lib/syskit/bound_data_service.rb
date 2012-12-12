@@ -4,6 +4,8 @@ module Syskit
         # It is usually created from a Models::BoundDataService instance using
         # Models::BoundDataService#bind(component)
         class BoundDataService
+            include Syskit::PortAccess
+
             # @deprecated
             #
             # [Models::BoundDataService] the data service we are an instance of
@@ -40,6 +42,19 @@ module Syskit
                 end
             end
 
+            # (see Component#self_port_to_component_port)
+            def self_port_to_component_port(port)
+                return component.find_port(model.port_mappings_for_task[port.name])
+            end
+
+            # Automatically computes connections from the output ports of self
+            # to the given port or to the input ports of the given component
+            #
+            # (see Syskit.connect)
+            def connect_to(port_or_component)
+                Syskit.connect(self, port_or_component)
+            end
+
             def short_name
                 "#{component}:#{provided_service_model.name}"
             end
@@ -52,24 +67,12 @@ module Syskit
                 model.fullfills?(*args)
             end
 
-            def find_input_port(port_name)
-                if mapped_name = model.port_mappings_for_task[port_name.to_s]
-                    component.find_input_port(mapped_name)
-                end
-            end
-
-            def find_output_port(port_name)
-                if mapped_name = model.port_mappings_for_task[port_name.to_s]
-                    component.find_output_port(mapped_name)
-                end
-            end
-
             def data_writer(*names)
-                component.data_writer(port_mappings_for_task[names.first], *names[1..-1])
+                component.data_writer(model.port_mappings_for_task[names.first], *names[1..-1])
             end
 
             def data_reader(*names)
-                component.data_reader(port_mappings_for_task[names.first], *names[1..-1])
+                component.data_reader(model.port_mappings_for_task[names.first], *names[1..-1])
             end
 
             def as_plan
@@ -88,18 +91,6 @@ module Syskit
 
             def to_s
                 "#<BoundDataService: #{component.name}.#{model.name}>"
-            end
-
-            def connect_ports(sink, mappings)
-                mapped = Hash.new
-                mappings.each do |(source_port, sink_port), policy|
-                    mapped_source_name = model.port_mappings_for_task[source_port]
-                    if !mapped_source_name
-                        raise ArgumentError, "cannot find port #{source_port} on #{self}"
-                    end
-                    mapped[[mapped_source_name, sink_port]] = policy
-                end
-                component.connect_ports(sink, mapped)
             end
         end
 end

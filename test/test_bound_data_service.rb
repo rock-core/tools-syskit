@@ -64,8 +64,8 @@ class TC_BoundDataService < Test::Unit::TestCase
             setup_transitive_services
         service = service_model.bind(task = component_model.new)
         stub_deployed_task("task", task)
-        assert_same task.find_input_port('in_parent_unmapped'), service.find_input_port('in_parent_unmapped')
-        assert_same task.find_input_port('in_base_unmapped'), service.find_input_port('in_base_unmapped')
+        assert_equal task.find_input_port('in_parent_unmapped'), service.find_input_port('in_parent_unmapped').to_component_port
+        assert_equal task.find_input_port('in_base_unmapped'), service.find_input_port('in_base_unmapped').to_component_port
     end
 
     def test_find_input_port_gives_access_to_mapped_ports
@@ -73,7 +73,7 @@ class TC_BoundDataService < Test::Unit::TestCase
             setup_transitive_services
         service = service_model.bind(task = component_model.new)
         stub_deployed_task("task", task)
-        assert_same task.find_input_port('in_port'), service.find_input_port('in_model')
+        assert_equal task.find_input_port('in_port'), service.find_input_port('in_model').to_component_port
     end
 
     def test_find_input_port_returns_nil_on_the_original_name_of_a_mapped_port
@@ -96,8 +96,8 @@ class TC_BoundDataService < Test::Unit::TestCase
             setup_transitive_services
         service = service_model.as(parent).bind(task = component_model.new)
         stub_deployed_task("task", task)
-        assert_same task.find_input_port('in_parent_unmapped'), service.find_input_port('in_parent_unmapped')
-        assert_same task.find_input_port('in_base_unmapped'), service.find_input_port('in_base_unmapped')
+        assert_equal task.find_input_port('in_parent_unmapped'), service.find_input_port('in_parent_unmapped').to_component_port
+        assert_equal task.find_input_port('in_base_unmapped'), service.find_input_port('in_base_unmapped').to_component_port
     end
 
     def test_narrowed_find_input_port_returns_nil_on_unmapped_ports_from_its_original_type
@@ -112,7 +112,7 @@ class TC_BoundDataService < Test::Unit::TestCase
             setup_transitive_services
         service = service_model.as(parent).bind(task = component_model.new)
         stub_deployed_task("task", task)
-        assert_same task.find_input_port('in_port'), service.find_input_port('in_parent')
+        assert_equal task.find_input_port('in_port'), service.find_input_port('in_parent').to_component_port
     end
 
     def test_narrowed_find_input_port_returns_nil_on_mapped_ports_from_its_original_type
@@ -139,24 +139,7 @@ class TC_BoundDataService < Test::Unit::TestCase
         # and pass on to add_sink
         flexmock(source_task).should_receive(:add_sink).
             once.with(sink_task, {['out_port', 'in_port'] => Hash.new})
-        source_task.connect_ports(sink_task.test_srv,
-            ['out_port', 'in_model'] => Hash.new)
-
-        # Cannot connect to a port that is not part of the service
-        assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task.test_srv,
-                ['out_port', 'in_port'] => Hash.new)
-        end
-        assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task.test_srv,
-                ['out_port', 'in_parent'] => Hash.new)
-        end
-
-        # Cannot connect to a completely nonexistent port
-        assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task.test_srv,
-                ['out_port', 'does_not_exist'] => Hash.new)
-        end
+        source_task.out_port_port.connect_to sink_task.test_srv.in_model_port
     end
 
     def test_connect_ports_task_to_narrowed_service
@@ -171,24 +154,7 @@ class TC_BoundDataService < Test::Unit::TestCase
         # and pass on to add_sink
         flexmock(source_task).should_receive(:add_sink).
             once.with(sink_task, {['out_port', 'in_port'] => Hash.new})
-        source_task.connect_ports(sink,
-            ['out_port', 'in_parent'] => Hash.new)
-
-        # Cannot connect to a port that is not part of the service
-        assert_raises(ArgumentError) do
-            source_task.connect_ports(sink,
-                ['out_port', 'in_port'] => Hash.new)
-        end
-        assert_raises(ArgumentError) do
-            source_task.connect_ports(sink,
-                ['out_port', 'in_model'] => Hash.new)
-        end
-
-        # Cannot connect to a completely nonexistent port
-        assert_raises(ArgumentError) do
-            source_task.connect_ports(sink,
-                ['out_port', 'does_not_exist'] => Hash.new)
-        end
+        source_task.out_port_port.connect_to sink.in_parent_port
     end
 
     def test_connect_ports_service_to_task
@@ -201,24 +167,7 @@ class TC_BoundDataService < Test::Unit::TestCase
 
         flexmock(source_task).should_receive(:add_sink).
             once.with(sink_task, {['out_port', 'in_port'] => Hash.new})
-        source.connect_ports(sink_task,
-            ['out_model', 'in_port'] => Hash.new)
-
-        # Cannot connect to a port that is not part of the service
-        assert_raises(ArgumentError) do
-            source.connect_ports(sink_task,
-                ['out_port', 'in_port'] => Hash.new)
-        end
-        assert_raises(ArgumentError) do
-            source.connect_ports(sink_task,
-                ['out_parent', 'in_port'] => Hash.new)
-        end
-
-        # Cannot connect to a completely nonexistent port
-        assert_raises(ArgumentError) do
-            source.connect_ports(sink_task,
-                ['does_not_exist', 'in_port'] => Hash.new)
-        end
+        source.out_model_port.connect_to sink_task.in_port_port
     end
 
     def test_connect_ports_narrowed_service_to_task
@@ -231,24 +180,8 @@ class TC_BoundDataService < Test::Unit::TestCase
 
         flexmock(source_task).should_receive(:add_sink).
             once.with(sink_task, {['out_port', 'in_port'] => Hash.new})
-        source.connect_ports(sink_task,
-            ['out_parent', 'in_port'] => Hash.new)
 
-        # Cannot connect to a port that is not part of the service
-        assert_raises(ArgumentError) do
-            source.connect_ports(sink_task,
-                ['out_port', 'in_port'] => Hash.new)
-        end
-        assert_raises(ArgumentError) do
-            source.connect_ports(sink_task,
-                ['out_port', 'in_model'] => Hash.new)
-        end
-
-        # Cannot connect to a completely nonexistent port
-        assert_raises(ArgumentError) do
-            source.connect_ports(sink_task,
-                ['out_port', 'does_not_exist'] => Hash.new)
-        end
+        source.out_parent_port.connect_to sink_task.in_port_port
     end
 
     def test_fullfills_p

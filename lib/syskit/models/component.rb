@@ -198,6 +198,20 @@ module Syskit
                 result
             end
 
+            # Resolves the given port model into a component model where
+            # {#component_model} is a proper component (e.g. not a
+            # BoundDataService)
+            #
+            # It is not meant to be used directly. Use {Port#to_component_port}
+            # instead
+            #
+            # @param [Models::Port] a port in which {Port#component_model} == self
+            # @return [Models::Port] a port in which {Port#component_model} is
+            #   the "proper" component model that corresponds to self
+            def self_port_to_component_port(port)
+                return port
+            end
+
             # Compute the port mapping from the interface of 'service' onto the
             # ports of 'self'
             #

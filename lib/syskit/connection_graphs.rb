@@ -140,6 +140,110 @@ module Syskit
             merged
         end
 
+        # Resolves possible connections between a set of output ports and a set
+        # of input ports
+        #
+        # @param [Array<Port>] output_ports the set of output ports
+        # @param [Array<Port>] input_ports the set of output ports
+        # @return [Array<(Port,Port)>] the set of connections
+        # @raise [AmbiguousAutoConnection] if more than one input port is found
+        #   for a given output port
+        def self.resolve_connections(output_ports, input_ports)
+            Models.debug do
+                Models.debug "resolving connections from #{output_ports.map(&:name).sort.join(",")} to #{input_ports.map(&:name).sort.join(",")}"
+                break
+            end
+
+            result = Array.new
+            matched_input_ports = Set.new
+
+            # First resolve the exact matches
+            remaining_outputs = output_ports.dup
+            remaining_outputs.delete_if do |out_port|
+                in_port = input_ports.
+                    find do |in_port|
+                        in_port.name == out_port.name &&
+                            in_port.type == out_port.type
+                    end
+                if in_port
+                    result << [out_port, in_port]
+                    matched_input_ports << in_port
+                    true
+                end
+            end
+
+            # In the second stage, we match by type. If there are ambiguities,
+            # we try to resolve them by excluding the ports that had an exact
+            # match. This is, by experience, expected behaviour in practice
+            remaining_outputs.each do |out_port|
+                candidates = input_ports.
+                    find_all { |in_port| in_port.type == out_port.type }
+                if candidates.size > 1
+                    filtered_candidates = candidates.
+                        find_all { |p| !matched_input_ports.include?(p) }
+                    if filtered_candidates.size == 1
+                        candidates = filtered_candidates
+                    end
+                end
+                if candidates.size > 1
+                    raise AmbiguousAutoConnection.new(out_port, candidates)
+                elsif candidates.size == 1
+                    result << [out_port, candidates.first]
+                end
+            end
+
+            Models.debug do
+                result.each do |out_port, in_port|
+                    Models.debug "  #{out_port.name} => #{in_port.name}"
+                end
+                if !remaining_outputs.empty?
+                    Models.debug "  no matches found for outputs #{remaining_outputs.map(&:name).sort.join(",")}"
+                end
+                break
+            end
+            result
+        end
+
+        # Generic implementation of connection handling
+        #
+        # This is used to connect everything that can be connected: component
+        # and service instances, composition child models. The method resolves
+        # both source and sinks as a set of ports using #each_output_port and
+        # #each_input_port if they are not plain ports, finds which connections
+        # need to be created using {Syskit.resolve_connections} and then calls
+        # output_port.connect_to input_port for each of these connections.
+        #
+        # @param [Port,Models::Port,#each_output_port] source the source part of
+        #   the connection
+        # @param [Port,Models::Port,#each_input_port] sink the sink part of the
+        #   connection
+        # @param [Hash] policy the connection policy
+        # @return [Array<(Port,Port)>] the set of connections actually created
+        # @raise (see Syskit.resolve_connections)
+        def self.connect(source, sink, policy)
+            output_ports =
+                if source.respond_to?(:each_output_port)
+                    source.each_output_port.to_a
+                else [source]
+                end
+            input_ports =
+                if sink.respond_to?(:each_input_port)
+                    sink.each_input_port.to_a
+                else [sink]
+                end
+
+            connections = resolve_connections(output_ports, input_ports)
+            if connections.empty?
+                raise InvalidAutoConnection.new(source, sink) 
+            end
+
+            connections.each do |out_port, in_port|
+                out_port.connect_to in_port, policy
+            end
+
+            connections
+        end
+
         Flows = Roby::RelationSpace(Component)
         Flows.relation :DataFlow, :child_name => :sink, :parent_name => :source, :dag => false, :weak => true do
             # Makes sure that +self+ has an output port called +name+. It will
@@ -272,18 +376,6 @@ module Syskit
             #
             # Raises ArgumentError if one of the ports do not exist.
             def connect_ports(target_task, mappings)
-                if target_task.as_plan != target_task
-                    port_mappings = target_task.model.port_mappings_for_task
-                    mappings = mappings.map_key do |(source, sink), _|
-                        mapped_sink = port_mappings[sink]
-                        if !mapped_sink
-                            raise ArgumentError, "#{sink} is not a port of #{target_task}"
-                        end
-                        [source, mapped_sink]
-                    end
-                    target_task = target_task.as_plan
-                end
-
                 mappings.each do |(out_port, in_port), options|
                     ensure_has_output_port(out_port)
                     target_task.ensure_has_input_port(in_port)
@@ -293,18 +385,6 @@ module Syskit
             end
 
             def disconnect_ports(target_task, mappings)
-                if target_task.as_plan != target_task
-                    port_mappings = target_task.model.port_mappings_for_task
-                    mappings = mappings.map do |source, sink|
-                        mapped_sink = port_mappings[sink]
-                        if !mapped_sink
-                            raise ArgumentError, "#{sink} is not a port of #{target_task}"
-                        end
-                        [source, mapped_sink]
-                    end
-                    target_task = target_task.as_plan
-                end
-
                 if !Flows::DataFlow.linked?(self, target_task)
                     raise ArgumentError, "no such connections #{mappings} for #{self} => #{target_task}"
                 end

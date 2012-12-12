@@ -91,7 +91,8 @@ module Syskit
                 find_input_port(name) || find_output_port(name)
             end
 
-            def each_input_port(&block)
+            def each_input_port
+                return enum_for(:each_input_port) if !block_given?
                 models.each do |child_model|
                     child_model.each_input_port do |p|
                         yield(p.attach(self))
@@ -99,7 +100,8 @@ module Syskit
                 end
             end
 
-            def each_output_port(&block)
+            def each_output_port
+                return enum_for(:each_output_port) if !block_given?
                 models.each do |child_model|
                     child_model.each_output_port do |p|
                         yield(p.attach(self))
@@ -107,9 +109,36 @@ module Syskit
                 end
             end
 
-            # Returns a CompositionChildPort instance if +name+ is a valid port
-            # name
-            def method_missing(name, *args) # :nodoc:
+            # Automatically computes the connections between the output ports of
+            # self to the given port or component interface
+            #
+            # @param [Port,CompositionChild] the sink side of the connection. If
+            #   a Port is given, it has to be a port on a CompositionChild of
+            #   the same composition than self
+            # @return [Array<Port>] the set of created connections
+            def connect_to(sink, policy = Hash.new)
+                Syskit.connect(self, sink, policy)
+            end
+
+            # (see Component#self_port_to_component_port)
+            def self_port_to_component_port(port)
+                return port
+            end
+
+            # (see Component#connect_ports)
+            def connect_ports(other_component, connections)
+                if !other_component.respond_to?(:composition_model)
+                    raise ArgumentError, "cannot connect ports of #{self} to ports of #{sink}: #{sink} is not a composition child"
+                elsif other_component.composition_model != composition_model
+                    raise ArgumentError, "cannot connect ports of #{self} to ports of #{sink}: #{composition_child} and #{self} are children of different composition models"
+                end
+                cmp_connections = composition_model.explicit_connections[[child_name, other_component.child_name]]
+                connections.each do |port_pair, policy|
+                    cmp_connections[port_pair] = policy
+                end
+            end
+
+            def method_missing(name, *args)
                 return super if !args.empty? || block_given?
 
                 name = name.to_s

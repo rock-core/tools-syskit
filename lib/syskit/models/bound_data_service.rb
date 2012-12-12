@@ -43,6 +43,11 @@ module Syskit
                 @declared_dynamic_slaves = Array.new
             end
 
+            # (see Component#self_port_to_component_port)
+            def self_port_to_component_port(port)
+                return component_model.find_port(port_mappings_for_task[port.name])
+            end
+
             # [Orocos::Spec::TaskContext] the oroGen model for this service's
             # interface
             def orogen_model

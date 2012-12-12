@@ -15,6 +15,7 @@ require './test/models/test_task_context'
 
 require './test/test_abstract_placeholders'
 require './test/test_bound_data_service'
+require './test/test_port'
 require './test/test_component'
 require './test/test_composition'
 require './test/test_task_context'

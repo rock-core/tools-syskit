@@ -1,6 +1,11 @@
 module Syskit
     module Models
-        # A port attached to a component
+        # Representation of a component port on a component instance.
+        #
+        # The sibling class Syskit::Port represents a port on a component
+        # instance. For instance, an object of class Syskit::Models::Port could
+        # be used to represent a port on a subclass of TaskContext while
+        # Syskit::Port would represent it for an object of that subclass.
         class Port
             # [ComponentModel] The component model this port is part of
             attr_reader :component_model
@@ -36,6 +41,29 @@ module Syskit
                 new_model = dup
                 new_model.instance_variable_set(:@component_model, model)
                 new_model
+            end
+
+            # Returns the Port object corresponding to self, in which
+            # {#component_model} is a "proper" component model (i.e. a subclass
+            # of Component and not a data service)
+            #
+            # @return [Port]
+            def to_component_port
+                if component_model.respond_to?(:self_port_to_component_port)
+                    component_model.self_port_to_component_port(self)
+                else raise ArgumentError, "cannot resolve a port of #{component_model.short_name} into a component port"
+                end
+            end
+
+            # Connects this port to the other given port, using the given policy
+            def connect_to(in_port, policy)
+                out_port = self.to_component_port
+                if out_port == self
+                    in_port = in_port.to_component_port
+                    component_model.connect_ports(in_port.component_model, [out_port.name, in_port.name] => policy)
+                else
+                    out_port.connect_to(in_port, policy)
+                end
             end
 
             def actual_name

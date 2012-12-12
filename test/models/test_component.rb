@@ -265,6 +265,13 @@ describe Syskit::Models::Component do
             end
         end
     end
+
+    describe "#self_port_to_component_port" do
+        it "should return its argument" do
+            task_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
+            assert_equal task_m.out_port, task_m.self_port_to_component_port(task_m.out_port)
+        end
+    end
 end
 
 class TC_Models_Component < Test::Unit::TestCase

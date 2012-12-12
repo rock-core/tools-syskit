@@ -545,48 +545,68 @@ module Syskit
             end
         end
 
-        class AmbiguousAutoConnection < Ambiguous
-            # The composition model in which the automatic connection was to be
-            # computed
-            attr_reader :composition_model
-            # The type name of the ports are involved
-            attr_reader :type_name
-            # The set of output candidates
-            attr_reader :outputs
-            # The set of input candidates
-            attr_reader :inputs
-
-            def initialize(composition_model, type_name, inputs, outputs)
-                @composition_model, @type_name, @inputs, @outputs =
-                    composition_model, type_name, inputs, outputs
+        # Raised when trying to autoconnect two objects, but no connections
+        # could be found
+        class InvalidAutoConnection < RuntimeError
+            def initialize(source, sink)
+                @source, @sink = source, sink
             end
 
-            def pretty_print_ports(pp, port_set)
-                pp.nest(2) do
-                    pp.breakable
-                    pp.seplist(port_set) do |port_description|
-                        child_name, port_name = port_description
-                        child_spec   = composition_model.find_child(child_name)
-                        child_models = child_spec.models.map(&:short_name)
-                        pp.text "#{child_name}.#{port_name} where"
+            def pretty_print(pp)
+                pp.text "could not find any connections from #{source.short_name} to #{sink.short_name}"
+                if source.respond_to?(:each_output_port)
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.text "the outputs of #{source.short_name} are"
                         pp.nest(2) do
                             pp.breakable
-                            pp.text "#{child_name}'s model is #{child_models.join(", ")}"
+                            pp.seplist(source.each_output_port) do |out_p|
+                                pp.text out_p.short_name
+                            end
+                        end
+                    end
+                end
+                if sink.respond_to?(:each_input_port)
+                    pp.nest(2) do
+                        pp.breakable
+                        pp.text "the inputs of #{sink.short_name} are"
+                        pp.nest(2) do
+                            pp.breakable
+                            pp.seplist(sink.each_input_port) do |in_p|
+                                pp.text in_p.short_name
+                            end
                         end
                     end
                 end
             end
+        end
+
+        # Raised when trying to compute connection between a port and a set of
+        # ports (such as connecting a port to a service or component) and more
+        # than one match is found
+        class AmbiguousAutoConnection < Ambiguous
+            # The output for which we were trying to find an input
+            attr_reader :output
+            # The set of input candidates
+            attr_reader :input_candidates
+
+            def initialize(output, input_candidates)
+                @input_candidates, @output =
+                    input_candidates, output
+            end
 
             def pretty_print(pp)
-                pp.text "there is an ambiguity while automatically computing connections in #{composition_model.short_name}"
+                pp.text "there is an ambiguity while automatically connecting "
+                pp.text output.short_name
                 pp.breakable
-                pp.text "the considered port type is #{type_name}"
-                pp.breakable
-                pp.text "involved outputs:"
-                pretty_print_ports(pp, outputs)
-                pp.breakable
-                pp.text "involved inputs:"
-                pretty_print_ports(pp, inputs)
+                pp.text "candidates:"
+                input_candidates = self.input_candidates.sort_by(&:name)
+                pp.nest(2) do
+                    pp.breakable
+                    pp.seplist(input_candidates) do |input_port|
+                        pp.text input_port.short_name
+                    end
+                end
             end
         end
     

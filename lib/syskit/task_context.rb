@@ -228,50 +228,6 @@ module Syskit
                 nil
             end
 
-            def find_input_port(name)
-                orocos_task.find_input_port(nil, name)
-            end
-
-            def input_port(name)
-                if !(port = find_input_port(name))
-		    raise Orocos::NotFound, "port #{name} is not an input port in #{self}"
-		end
-		port
-            end
-
-            def find_output_port(name)
-                orocos_task.find_output_port(nil, name)
-            end
-
-            def output_port(name)
-                if !(port = find_output_port(name))
-		    raise Orocos::NotFound, "port #{name} is not an output port in #{self}"
-		end
-		port
-            end
-
-            def input_port_model(name)
-                if !(p = model.input_port(name))
-                    raise Orocos::NotFound, "there is no port #{name} on #{self}"
-                end
-                p
-            end
-
-            def output_port_model(name)
-                if !(p = model.output_port(name))
-                    raise Orocos::NotFound, "there is no port #{name} on #{self}"
-                end
-                p
-            end
-
-            def each_input_port(&block)
-                orocos_task.each_input_port(&block)
-            end
-
-            def each_output_port(&block)
-                orocos_task.each_output_port(&block)
-            end
-
             def operation(name)
                 orocos_task.operation(name)
             end

@@ -1,5 +1,23 @@
 require 'syskit'
 require 'syskit/test'
+require './test/fixtures/simple_composition_model'
+
+describe Syskit::Models::BoundDataService do
+    include Syskit::SelfTest
+    include Syskit::Fixtures::SimpleCompositionModel
+
+    describe "#self_port_to_component_port" do
+        it "should return the port mapped on the task" do
+            create_simple_composition_model
+            task_m = simple_component_model
+            srv_m  = task_m.srv_srv
+            port = flexmock(:name => 'srv_port')
+            flexmock(srv_m).should_receive(:port_mappings_for_task).and_return('srv_port' => 'component_port')
+            flexmock(task_m).should_receive(:find_port).with('component_port').and_return(obj = Object.new)
+            assert_equal obj, srv_m.self_port_to_component_port(port)
+        end
+    end
+end
 
 class TC_Models_BoundDataService < Test::Unit::TestCase
     include Syskit::SelfTest
