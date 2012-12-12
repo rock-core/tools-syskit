@@ -6,21 +6,6 @@ class TC_BoundDataService < Test::Unit::TestCase
 
     DataService = Syskit::DataService
 
-    def setup_stereocamera
-        service_model = DataService.new_submodel do
-            output_port 'image', '/int'
-        end
-        other_service_model = DataService.new_submodel
-        component_model = Syskit::TaskContext.new_submodel do
-            output_port 'left', '/int'
-            output_port 'right', '/int'
-        end
-        left_srv  = component_model.provides service_model, :as => 'left', 'image' => 'left'
-        right_srv = component_model.provides service_model, :as => 'right', 'image' => 'right'
-        component_model.provides other_service_model, :as => 'other_srv'
-        return service_model, other_service_model, component_model, left_srv, right_srv
-    end
-
     def setup_transitive_services
         base = DataService.new_submodel do
             input_port "in_base", "/int"
