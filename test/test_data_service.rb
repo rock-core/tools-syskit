@@ -81,7 +81,11 @@ describe Syskit::ComBus do
             driver_for device_m, :as => 'dev'
             provides combus_m.client_srv, :as => 'combus_client'
         end
-        @combus_driver_m = Syskit::TaskContext.new_submodel { driver_for combus_m, :as => 'com' }
+        @combus_driver_m = Syskit::TaskContext.new_submodel do
+            dynamic_input_port /^w\w+$/, '/double'
+            dynamic_output_port /^\w+$/, '/double'
+            driver_for combus_m, :as => 'com'
+        end
         @combus = robot.com_bus combus_m, :as => 'COM'
         @device = robot.device(device_m, :as => 'DEV').
             attach_to('COM')
@@ -105,29 +109,26 @@ describe Syskit::ComBus do
         before do
             plan.add(@combus_task = combus_driver_m.new('com_name' => 'COM'))
             plan.add(@device_task = device_driver_m.new('dev_name' => 'DEV'))
-            flexmock(combus_m).should_receive(:dynamic_in_srv_name).and_return('dyn_in_srv')
-            flexmock(combus_m).should_receive(:dynamic_out_srv_name).and_return('dyn_out_srv')
+            flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv')
         end
-        it "creates an input service on the combus task" do
+        it "creates a service on the combus task" do
+            srv = combus_task.require_dynamic_service('com_bus', :as => 'DEV', :direction => 'inout')
             flexmock(combus_task).should_receive(:require_dynamic_service).
-                with('dyn_in_srv', 'in_DEV').once.pass_thru
+                with('dyn_srv', :as => 'DEV', :direction => 'inout').once.and_return(srv)
             combus_task.attach(device_task)
         end
         it "does not create an input service on the combus task if the device does not have an output service" do
+            srv = combus_task.require_dynamic_service('com_bus', :as => 'DEV', :direction => 'out')
             flexmock(device).should_receive(:combus_out_srv)
             flexmock(combus_task).should_receive(:require_dynamic_service).
-                with('dyn_in_srv').never
-            combus_task.attach(device_task)
-        end
-        it "creates an output service on the combus task" do
-            flexmock(combus_task).should_receive(:require_dynamic_service).
-                with('dyn_out_srv', 'out_DEV').once.pass_thru
+                with('dyn_srv', :as => 'DEV', :direction => 'out').once.and_return(srv)
             combus_task.attach(device_task)
         end
         it "does not create an output service on the combus task if the device does not have an input service" do
+            srv = combus_task.require_dynamic_service('com_bus', :as => 'DEV', :direction => 'in')
             flexmock(device).should_receive(:combus_in_srv)
             flexmock(combus_task).should_receive(:require_dynamic_service).
-                with('dyn_out_srv').never
+                with('dyn_srv', :as => 'DEV', :direction => 'in').once.and_return(srv)
             combus_task.attach(device_task)
         end
         it "ignores devices that are not attached to the bus" do

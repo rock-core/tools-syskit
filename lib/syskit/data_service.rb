@@ -162,15 +162,15 @@ module Syskit
                         client_out_srv = dev.combus_out_srv
 
                         if client_in_srv && client_out_srv
-                            bus_srv = require_dynamic_service(combus_srv.model.dynamic_srv_name, :as => dev.name, :direction => 'inout')
-                            bus_srv.connect_to client_in_srv
-                            client_out_srv.connect_to bus_srv
+                            bus_srv = require_dynamic_service(combus_srv.model.dynamic_service_name, :as => dev.name, :direction => 'inout')
+                            bus_srv.connect_to client_in_srv.bind(task)
+                            client_out_srv.bind(task).connect_to bus_srv
                         elsif client_in_srv
-                            bus_out_srv = require_dynamic_service(combus_srv.model.dynamic_srv_name, :as => dev.name, :direction => 'out')
-                            bus_out_srv.connect_to client_in_srv
+                            bus_out_srv = require_dynamic_service(combus_srv.model.dynamic_service_name, :as => dev.name, :direction => 'out')
+                            bus_out_srv.connect_to client_in_srv.bind(task)
                         elsif client_out_srv
-                            bus_in_srv = require_dynamic_service(combus_srv.model.dynamic_in_srv_name, :as => dev.name, :direction => 'in')
-                            client_out_srv.connect_to bus_in_srv
+                            bus_in_srv = require_dynamic_service(combus_srv.model.dynamic_service_name, :as => dev.name, :direction => 'in')
+                            client_out_srv.bind(task).connect_to bus_in_srv
                         end
                     end
                 end
