@@ -16,53 +16,6 @@ module Syskit
                 @name = name
             end
 
-            # Create new connections between +source_task+ and +sink_task+.
-            #
-            # +mappings+ is a map from port name pairs to the connection policy
-            # that should be used:
-            #
-            #    [output_port_name, input_port_name] => policy
-            #
-            # Raises Roby::ModelViolation if the connection already exists with
-            # an incompatible policy
-            def add_connections(source_task, sink_task, mappings) # :nodoc:
-                if mappings.empty?
-                    raise ArgumentError, "the connection set is empty"
-                end
-                if linked?(source_task, sink_task)
-                    current_mappings = source_task[sink_task, self]
-                    new_mappings = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
-                        if old_options.empty? then new_options
-                        elsif new_options.empty? then old_options
-                        elsif old_options != new_options
-                            raise Roby::ModelViolation, "cannot override connection setup with #connect_to (#{old_options} != #{new_options})"
-                        end
-                        old_options
-                    end
-                    source_task[sink_task, self] = new_mappings
-                else
-                    link(source_task, sink_task, mappings)
-                end
-            end
-
-            # Removes the given set of connections between +source_task+ and
-            # +sink_task+.
-            #
-            # +mappings+ is an array of port name pairs [output_port_name,
-            # input_port_name]
-            def remove_connections(source_task, sink_task, mappings) # :nodoc:
-                current_mappings = source_task[sink_task, self]
-                mappings.each do |source_port, sink_port|
-                    current_mappings.delete([source_port, sink_port])
-                end
-                if current_mappings.empty?
-                    unlink(source_task, sink_task)
-                else
-                    # To make the relation system call #update_info
-                    source_task[sink_task, self] = current_mappings
-                end
-            end
-
             # Tests if +port+, which has to be an output port, is connected
             def has_out_connections?(task, port)
                 task.each_child_vertex(self) do |child_task|
@@ -252,17 +205,8 @@ module Syskit
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_output_port(name)
                 if !model.find_output_port(name)
-                    if model.has_dynamic_output_port?(name)
-                        instanciate_dynamic_output(name)
-                    else
-                        raise ArgumentError, "#{self} has no output port called #{name}"
-                    end
+                    raise ArgumentError, "#{self} has no output port called #{name}"
                 end
-            end
-
-            def may_have_output_port?(name)
-                model.find_output_port(name) ||
-                    model.has_dynamic_output_port?(name)
             end
 
             # Makes sure that +self+ has an input port called +name+. It will
@@ -271,17 +215,8 @@ module Syskit
             # Raises ArgumentError if no such port can ever exist on +self+
             def ensure_has_input_port(name)
                 if !model.find_input_port(name)
-                    if model.has_dynamic_input_port?(name)
-                        instanciate_dynamic_input(name)
-                    else
-                        raise ArgumentError, "#{self} has no input port called #{name}"
-                    end
+                    raise ArgumentError, "#{self} has no input port called #{name}"
                 end
-            end
-
-            def may_have_input_port?(name)
-                model.find_input_port(name) ||
-                    model.has_dynamic_input_port?(name)
             end
 
             def clear_relations
@@ -438,15 +373,15 @@ module Syskit
                 connections = Hash.new
                 forwards   = Hash.new
                 mappings.each do |(out_port_name, in_port_name), policy|
-                    source_has_output = may_have_output_port?(out_port_name)
-                    target_has_input  = target_task.may_have_input_port?(in_port_name)
+                    source_has_output = has_output_port?(out_port_name)
+                    target_has_input  = target_task.has_input_port?(in_port_name)
                     if source_has_output && target_has_input
                         connections[[out_port_name, in_port_name]] = policy
                         next
                     end
 
                     if kind_of?(Composition)
-                        source_has_input = may_have_input_port?(out_port_name)
+                        source_has_input = has_input_port?(out_port_name)
                         if source_has_input
                             forwards[[out_port_name, in_port_name]] = policy
                             next
@@ -458,7 +393,7 @@ module Syskit
                     end
 
                     if target_task.kind_of?(Composition)
-                        target_has_output = target_task.may_have_output_port?(in_port_name)
+                        target_has_output = target_task.has_output_port?(in_port_name)
                         if target_has_output
                             forwards[[out_port_name, in_port_name]] = policy
                             next
