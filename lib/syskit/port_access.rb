@@ -31,6 +31,7 @@ module Syskit
 
         # Enumerates this component's output ports
         def each_output_port
+            return enum_for(:each_output_port) if !block_given?
             model.each_output_port do |p|
                 yield(p.bind(self))
             end
@@ -38,6 +39,7 @@ module Syskit
 
         # Enumerates this component's input ports
         def each_input_port
+            return enum_for(:each_input_port) if !block_given?
             model.each_input_port do |p|
                 yield(p.bind(self))
             end
