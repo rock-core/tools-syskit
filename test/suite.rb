@@ -9,12 +9,16 @@ require './test/suite_robot'
 require './test/test_abstract_placeholders'
 require './test/test_bound_data_service'
 require './test/test_port'
+require './test/test_data_service'
 require './test/test_component'
 require './test/test_composition'
 require './test/test_task_context'
 require './test/test_engine'
 require './test/test_instance_requirements'
 require './test/test_network_merge_solver'
+require './test/test_connection_graphs'
+require './test/test_dependency_injection'
+require './test/test_instance_requirements_task'
 
 Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
 Syskit.logger.level = Logger::DEBUG

@@ -176,7 +176,7 @@ module Syskit
 
                     query = @merging_candidates_queries[task.model]
                     if !query
-                        required_model = task.model.each_fullfilled_model
+                        required_model = task.model.fullfilled_model
                         query = @merging_candidates_queries[task.model] = plan.find_local_tasks(required_model)
                     end
                     query.reset

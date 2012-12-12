@@ -9,6 +9,7 @@ describe Syskit::InstanceRequirementsTask do
     before do
         create_simple_composition_model
         plan.engine.scheduler = nil
+        @handler_ids = Syskit::RobyApp::Plugin.plug_engine_in_roby(engine)
     end
 
     it "triggers a network resolution when started" do
