@@ -103,63 +103,6 @@ module Syskit
                 model.each_fullfilled_model(&block)
             end
 
-            attribute(:instanciated_dynamic_outputs) { Hash.new }
-            attribute(:instanciated_dynamic_inputs) { Hash.new }
-
-            # Returns the output port model for the given name, or nil if the
-            # model has no port named like this.
-            #
-            # It may return an instanciated dynamic port
-            def find_output_port_model(name)
-                if port_model = model.find_output_port(name)
-                    port_model
-                else instanciated_dynamic_outputs[name]
-                end
-            end
-
-            # Returns the input port model for the given name, or nil if the
-            # model has no port named like this.
-            #
-            # It may return an instanciated dynamic port
-            def find_input_port_model(name)
-                if port_model = model.find_input_port(name)
-                    port_model
-                else instanciated_dynamic_inputs[name]
-                end
-            end
-
-            # Instanciate a dynamic port, i.e. request a dynamic port to be
-            # available at runtime on this component instance.
-            def instanciate_dynamic_input(name, type = nil)
-                if port = instanciated_dynamic_inputs[name]
-                    port
-                end
-
-                candidates = model.orogen_model.find_dynamic_input_ports(name, type)
-                if candidates.size > 1
-                    raise Ambiguous, "I don't know what to use for dynamic port instanciation"
-                end
-
-                port = candidates.first.instanciate(name)
-                instanciated_dynamic_inputs[name] = port
-            end
-
-            # Instanciate a dynamic port, i.e. request a dynamic port to be
-            # available at runtime on this component instance.
-            def instanciate_dynamic_output(name, type = nil)
-                if port = instanciated_dynamic_outputs[name]
-                    port
-                end
-
-                candidates = model.orogen_model.find_dynamic_output_ports(name, type)
-                if candidates.size > 1
-                    raise Ambiguous, "I don't know what to use for dynamic port instanciation"
-                end
-
-                port = candidates.first.instanciate(name)
-                instanciated_dynamic_outputs[name] = port
-            end
-
             # Return the device instance name that is tied to the given provided
             # data service
             #
@@ -181,32 +124,10 @@ module Syskit
                 end
             end
 
-            # Returns the data service model for the given service name
             #
-            # Raises ArgumentError if service_name is not the name of a data
-            # service name declared on this component model.
-            def data_service_type(service_name)
-                service_name = service_name.to_str
-                root_service_name = service_name.gsub /\..*$/, ''
-                root_source = model.each_root_data_service.find do |srv|
-                    arguments[:"#{srv.name}_name"] == root_service_name
                 end
 
-                if !root_source
-                    raise ArgumentError, "there is no source named #{root_service_name}"
                 end
-                if root_service_name == service_name
-                    return root_source.last.model
-                end
-
-                subname = service_name.gsub /^#{root_service_name}\./, ''
-
-                model = self.model.data_service_type("#{root_source.first}.#{subname}")
-                if !model
-                    raise ArgumentError, "#{subname} is not a slave source of #{root_service_name} (#{root_source.first}) in #{self.model.name}"
-                end
-                model
-            end
 
             # Returns true if the underlying Orocos task is in a state that
             # allows it to be configured
@@ -254,9 +175,9 @@ module Syskit
                 # In that particular case, the only thing the automatic merging
                 # can do is replace +target_task+ iff +self+ fullfills all tags
                 # that target_task has (without considering target_task itself).
-                models = user_required_model
-                if !fullfills?(models)
-                    NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: does not fullfill required model #{models.map(&:name).join(", ")}" }
+                target_models = target_task.model.each_fullfilled_model
+                if !fullfills?(target_models)
+                    NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: #{self} does not fullfill the required model #{target_models.map(&:name).join(", ")}" }
                     return false
                 end
 
@@ -340,17 +261,7 @@ module Syskit
                     arguments[key] = value if !arguments.set?(key)
                 end
 
-                # Instanciate missing dynamic ports
-                self.instanciated_dynamic_outputs =
-                    merged_task.instanciated_dynamic_outputs.merge(instanciated_dynamic_outputs)
-                self.instanciated_dynamic_inputs =
-                    merged_task.instanciated_dynamic_inputs.merge(instanciated_dynamic_inputs)
-
                 # Merge the fullfilled model if set explicitely
-                # TODO: have proper accessors
-                # TODO: change API for merge_fullfilled_model
-                # TODO: make fullfilled_model always manipulate [task_model,
-                # tags, arguments] instead of mixed representations
                 explicit_merged_fullfilled_model = merged_task.instance_variable_get(:@fullfilled_model)
                 explicit_this_fullfilled_model = @fullfilled_model
                 if explicit_this_fullfilled_model && explicit_merged_fullfilled_model

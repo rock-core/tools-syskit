@@ -176,7 +176,7 @@ module Syskit
 
                     query = @merging_candidates_queries[task.model]
                     if !query
-                        required_model = task.user_required_model
+                        required_model = task.model.each_fullfilled_model
                         query = @merging_candidates_queries[task.model] = plan.find_local_tasks(required_model)
                     end
                     query.reset
@@ -187,7 +187,7 @@ module Syskit
                     candidates.delete(task)
                     candidates.delete_if { |t| t.respond_to?(:proxied_data_services) }
                     if candidates.empty?
-                        debug { "no candidates to replace #{task}, using model #{task.user_required_model}" }
+                        debug { "no candidates to replace #{task}, using model #{task.model.each_fullfilled_model.map(&:short_name).join(",")}" }
                         next
                     end
 
