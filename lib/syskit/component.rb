@@ -161,14 +161,6 @@ module Syskit
                 super if defined? super
             end
 
-            def user_required_model
-                if model.respond_to?(:proxied_data_services)
-                    model.proxied_data_services
-                else
-                    [model]
-                end
-            end
-
             def can_merge?(target_task)
                 if !(super_result = super)
                     NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: super returned false" }
