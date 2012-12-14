@@ -428,16 +428,59 @@ module Syskit
             # We are still purely within {#work_plan}, the mapping to
             # {#real_plan} is done by calling {#finalize_deployed_tasks}
             def deploy_system_network
-                instanciate_required_deployments
-                merge_solver.merge_identical_tasks
+                debug "deploying the system network"
 
-                if options[:garbage_collect]
-                    work_plan.static_garbage_collect do |obj|
-                        debug { "  removing #{obj}" }
-                        # Remove tasks that we just added and are not
-                        # useful anymore
-                        work_plan.remove_object(obj)
+                deployed_models = Hash.new
+                deployments.each do |machine_name, deployment_models|
+                    deployment_models.each do |model|
+                        model.each_orogen_deployed_task_context_model do |task_orogen_model|
+                            task_model = TaskContext.model_for(task_orogen_model.task_model)
+                            deployed_models[task_model] ||= ValueSet.new
+                            deployed_models[task_model] << [machine_name, model, task_orogen_model.name]
+                        end
                     end
+                end
+
+                deployment_tasks = Hash.new
+                deployed_tasks = Set.new
+                all_tasks = work_plan.find_local_tasks(TaskContext).to_a
+                all_tasks.each do |task|
+                    next if task.execution_agent # This is already deployed
+
+                    # task.model would be wrong here as task.model could be the
+                    # singleton class (if there are dynamic services)
+                    candidates = deployed_models[task.class]
+                    if candidates.empty?
+                        debug { "no deployments found for #{task} (#{task.model.name})" }
+                        next
+                    elsif candidates.size > 1
+                        # Look to disambiguate using deployment hints
+                        resolved = candidates.find_all do |_, deployment_model, task_name|
+                            task.requirements.deployment_hints.any? do |rx|
+                                rx === task_name
+                            end
+                        end
+                        if resolved.size != 1
+                            debug do
+                               debug "ambiguous deployment for #{task} (#{task.model.name})"
+                               candidates.each do |machine, deployment_model, task_name|
+                                   debug "  #{task_name} of #{deployment_model.short_name} on #{machine}"
+                               end
+                               break
+                            end
+                            next
+                        end
+
+                        candidates = resolved
+                    end
+                    
+                    # Not available for other tasks
+                    deployed_models[task.class].delete(candidates.first)
+                    machine, deployment_model, task_name = candidates.first
+                    deployment_task = (deployment_tasks[deployment_model] ||= deployment_model.new(:on => machine))
+                    deployed_task = deployment_task.task(task_name)
+                    debug { "deploying #{task} with #{task_name} of #{deployment_model.short_name} (#{deployed_task})" }
+                    merge_solver.merge(task, deployed_task)
                 end
 
                 if options[:validate_network]
@@ -848,61 +891,15 @@ module Syskit
                 nil
             end
 
-            # Returns true if +deployed_task+ should be completely ignored by
-            # the engine when deployed tasks are injected into the system
-            # deployer
-            #
-            # For now, the logger is hardcoded there
-            def ignored_deployed_task?(deployed_task)
-                TaskContext.model_for(deployed_task.task_model).name == "Logger::Logger"
-            end
 
-            def instanciate_required_deployments
-                debug do
-                    debug ""
-                    debug "----------------------------------------------------"
-                    debug "Instanciating deployments"
-                    break
-                end
-
-                deployment_tasks = Hash.new
-                deployed_tasks = Hash.new
-
-                deployments.each do |machine_name, deployment_models|
-                    deployment_models.each do |model|
-                        debug { "  #{machine_name}: #{model}" }
-                        task = model.new(:on => machine_name)
-                        work_plan.add(task)
-                        deployment_tasks[model] = task
-
-                        new_activities = Set.new
-                        task.each_orogen_deployed_task_context_model do |deployed_task|
-                            if ignored_deployed_task?(deployed_task)
-                                debug { "  ignoring #{model.name}.#{deployed_task.name} as it is of type #{deployed_task.task_model.name}" }
-                            else
-                                new_activities << deployed_task.name
-                            end
+                if options[:compute_deployments]
+                    # Check for the presence of non-deployed tasks
+                    not_deployed = plan.find_local_tasks(TaskContext).
+                        not_finished.
+                        find_all { |t| !t.execution_agent }.
+                        delete_if do |p|
+                            p.abstract?
                         end
-
-                        new_activities.each do |act_name|
-                            new_task = task.task(act_name)
-                            deployed_task = work_plan[new_task]
-                            debug do
-                                "  #{deployed_task.orocos_name} using #{task.deployment_name}[machine=#{task.machine}] is represented by #{deployed_task}"
-                            end
-                            deployed_tasks[act_name] = deployed_task
-                        end
-                    end
-                end
-                debug do
-                    debug "Done instanciating deployments"
-                    debug "----------------------------------------------------"
-                    debug ""
-                    break
-                end
-
-                return deployment_tasks, deployed_tasks
-            end
 
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one

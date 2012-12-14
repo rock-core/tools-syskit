@@ -161,96 +161,43 @@ module Syskit
                 super if defined? super
             end
 
-            def can_merge?(target_task)
-                if !(super_result = super)
-                    NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: super returned false" }
-                    return super_result
+            # Test if the given task could be merged in self
+            #
+            # This method should only consider intrinsic criteria for the
+            # merge, as e.g. compatibility of models or the value abstract? It
+            # should never look into the task's neighborhood
+            def can_merge?(task)
+                if !super
+                    debug { "cannot merge #{target_task} into #{self}: super returned false" }
+                    return
                 end
 
-                # The orocos bindings are a special case: if +target_task+ is
-                # abstract, it means that it is a proxy task for data
-                # source/device drivers model
-                #
-                # In that particular case, the only thing the automatic merging
-                # can do is replace +target_task+ iff +self+ fullfills all tags
-                # that target_task has (without considering target_task itself).
-                target_models = target_task.model.each_fullfilled_model
-                if !fullfills?(target_models)
-                    NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: #{self} does not fullfill the required model #{target_models.map(&:name).join(", ")}" }
+                # Cannot merge into target_task if it is marked as not
+                # being usable
+                if !reusable?
+                    debug { "rejecting #{self}.merge(#{task}) as receiver is not reusable" }
+                    return
+                end
+                # We can not replace a non-abstract task with an
+                # abstract one
+                if !task.abstract? && abstract?
+                    debug { "rejecting #{self}.merge(#{task}): cannot merge a non-abstract task into an abstract one" }
+                    return
+                end
+                # Merges involving a deployed task can only involve a
+                # non-deployed task as well
+                if task.execution_agent && execution_agent
+                    debug { "rejecting #{self}.merge(#{task}) as deployment attribute mismatches" }
+                    return
+                end
+
+                required_models = task.model.each_fullfilled_model
+                if !fullfills?(required_models)
+                    debug { "rejecting #{self}.merge(#{task}): #{self} does not fullfill the required model #{required_models.map(&:short_name).join(", ")}" }
                     return false
                 end
 
-                # Now check that the connections are compatible
-                #
-                # We search for connections that use the same input port, and
-                # verify that they are coming from the same output
-                self_inputs = Hash.new { |h, k| h[k] = Hash.new }
-                each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    self_inputs[sink_port][[source_task, source_port]] = policy
-                end
-
-                might_be_cycle = false
-                target_task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    if (port_model = model.find_input_port(sink_port)) && port_model.multiplexes?
-                        next
-                    end
-
-                    # If +self+ has no connection on +sink_port+, it is valid
-                    if !self_inputs.has_key?(sink_port)
-                        next
-                    end
-
-                    # If the exact same connection is provided, verify that
-                    # the policies match
-                    if conn_policy = self_inputs[sink_port][[source_task, source_port]]
-                        if !policy.empty? && (Syskit.update_connection_policy(conn_policy, policy) != policy)
-                            NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
-                            return false
-                        end
-                        next
-                    end
-
-                    # Otherwise, we look for potential cycles, i.e. for
-                    # connections where:
-                    #
-                    #  * the port names are the same
-                    #  * the tasks are different
-                    #  * but the tasks are interlinked
-                    #
-                    # If there seem to be a cycle, return a "maybe".
-                    # Otherwise, return false
-                    found = false
-                    self_inputs[sink_port].each do |conn, conn_policy|
-                        next if conn[1] != source_port
-
-                        if Flows::DataFlow.reachable?(self, conn[0]) && Flows::DataFlow.reachable?(target_task, source_task)
-                            if Syskit.update_connection_policy(conn_policy, policy) == policy
-                                found = true
-                            end
-                        end
-                    end
-
-                    if found
-                        might_be_cycle = true
-                    else
-                        NetworkGeneration.debug do
-                            NetworkGeneration.debug "cannot merge #{target_task} into #{self}: incompatible connections on #{sink_port}, resp."
-                            NetworkGeneration.debug "    #{source_task}.#{source_port}"
-                            NetworkGeneration.debug "    --"
-                            self_inputs[sink_port].each_key do |conn|
-                                NetworkGeneration.debug "    #{conn[0]}.#{conn[1]}"
-                            end
-                            break
-                        end
-                        return false
-                    end
-                end
-
-                if might_be_cycle
-                    return nil # undecided
-                else
-                    return true
-                end
+                return true
             end
 
             def merge(merged_task)
