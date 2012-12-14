@@ -79,6 +79,39 @@ module Syskit
 	    # See #disabled?
 	    def enable_updates; @enabled = true end
 
+            # The set of tasks that represent the running deployments
+            attr_reader :deployment_tasks
+
+            # The DataFlowDynamics instance that has been used to compute
+            # +port_dynamics+. It is only valid at the postprocesing stage of
+            # the deployed network
+            #
+            # It can be used to compute some connection policy by calling
+            # DataFlowDynamics#policy_for
+            attr_reader :dataflow_dynamics
+
+            # A mapping of type
+            #
+            #   task_name => port_name => PortDynamics instance
+            #
+            # that represent the dynamics of the given ports. The PortDynamics
+            # instance might be nil, in which case it means some of the ports'
+            # dynamics could not be computed
+            attr_reader :port_dynamics
+
+            class << self
+                # The buffer size used to create connections to the logger in
+                # case the dataflow dynamics can't be computed
+                #
+                # Defaults to 25
+                attr_accessor :default_logging_buffer_size
+            end
+            @default_logging_buffer_size = 25
+
+            # The set of options last given to #instanciate. It is used by
+            # plugins to configure their behaviours
+            attr_accessor :options
+
             def initialize(plan, robot = Syskit.conf.robot)
                 @real_plan = plan
                 @work_plan = plan
@@ -191,7 +224,11 @@ module Syskit
 
                 add_timepoint 'prepare', 'done'
             end
-
+            
+            # Resets the state of the solver to be ready for another call to
+            # #resolve
+            #
+            # It should be called as soon as #prepare has been called
             def finalize
                 if work_plan != real_plan
                     if !work_plan.finalized?
@@ -205,6 +242,15 @@ module Syskit
                     @required_instances.clear
                 end
             end
+
+            # If true, the engine will compute for each service the set of
+            # concrete task models that provides it. If that set is one element,
+            # it will automatically add it to the set of default selection.
+            #
+            # If false, this mechanism is ignored
+            #
+            # It is true by default
+            attr_predicate :use_automatic_selection?, true
 
             # Computes the dependency injection object that contains the devices
             # and the main automatic selection (if use_automatic_selection? is
@@ -269,6 +315,87 @@ module Syskit
                     end
             end
 
+            # Creates communication busses and links the tasks to them
+            def link_to_busses
+                # Get all the tasks that need at least one communication bus
+                candidates = work_plan.find_local_tasks(Syskit::Device).
+                    inject(Hash.new) do |h, t|
+                        required_busses = t.each_com_bus_device.to_a
+                        if !required_busses.empty?
+                            h[t] = required_busses
+                        end
+                        h
+                    end
+
+                candidates.each do |task, needed_busses|
+                    needed_busses.each do |bus_device|
+                        if !(com_bus_task = tasks[bus_device.name])
+                            raise SpecError, "there is no task that handles the communication bus #{bus_device}"
+                        end
+                        com_bus_task.attach(task)
+                        task.depends_on com_bus_task
+                        task.should_configure_after com_bus_task.start_event
+                    end
+                end
+                nil
+            end
+
+            # Compute in #plan the network needed to fullfill the requirements
+            #
+            # This network is neither validated nor tied to actual deployments
+            def compute_system_network
+                add_timepoint 'compute_system_network', 'start'
+                instanciate
+                Engine.instanciation_postprocessing.each do |block|
+                    block.call(self, work_plan)
+                end
+                add_timepoint 'compute_system_network', 'instanciate'
+                merge_solver.merge_identical_tasks
+
+                add_timepoint 'compute_system_network', 'merge'
+                Engine.instanciated_network_postprocessing.each do |block|
+                    block.call(self, work_plan)
+                    add_timepoint 'compute_system_network', 'postprocessing', block.to_s
+                end
+                link_to_busses
+                add_timepoint 'compute_system_network', 'link_to_busses'
+                merge_solver.merge_identical_tasks
+                add_timepoint 'compute_system_network', 'merge'
+
+                # Finally, select 'default' as configuration for all
+                # remaining tasks that do not have a 'conf' argument set
+                work_plan.find_local_tasks(Component).
+                    each do |task|
+                        if !task.arguments[:conf]
+                            task.arguments[:conf] = ['default']
+                        end
+                    end
+                add_timepoint 'compute_system_network', 'default_conf'
+
+                # Cleanup the remainder of the tasks that are of no use right
+                # now (mostly devices)
+                if options[:garbage_collect]
+                    work_plan.static_garbage_collect do |obj|
+                        debug { "  removing #{obj}" }
+                        # Remove tasks that we just added and are not
+                        # useful anymore
+                        work_plan.remove_object(obj)
+                    end
+                    add_timepoint 'compute_system_network', 'static_garbage_collect'
+                end
+
+                Engine.system_network_postprocessing.each do |block|
+                    block.call(self)
+                end
+                add_timepoint 'compute_system_network', 'postprocessing'
+
+                if options[:validate_network]
+                    validate_generated_network(work_plan, options)
+                    add_timepoint 'validate_generated_network'
+                end
+            end
+            
+            # Validates the network generated by {#compute_system_network}
             def validate_generated_network(plan, options = Hash.new)
                 # Check for the presence of abstract tasks
                 all_tasks = plan.find_local_tasks(Component).
@@ -329,97 +456,6 @@ module Syskit
 
                 # Call hooks that we might have
                 super if defined? super
-            end
-
-            def validate_final_network(plan, options = Hash.new)
-                # Check that all device instances are proper tasks (not proxies)
-                required_instances.each do |req_task, task|
-                    if task.transaction_proxy?
-                        raise InternalError, "instance definition #{instance} contains a transaction proxy: #{instance.task}"
-                    end
-                end
-
-                if options[:compute_deployments]
-                    # Check for the presence of non-deployed tasks
-                    not_deployed = plan.find_local_tasks(TaskContext).
-                        not_finished.
-                        find_all { |t| !t.execution_agent }.
-                        delete_if do |p|
-                            p.abstract?
-                        end
-
-                    if !not_deployed.empty?
-                        remaining_merges = merge_solver.complete_merge_graph
-                        raise MissingDeployments.new(not_deployed, remaining_merges),
-                            "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
-                    end
-                end
-
-                super if defined? super
-            end
-
-            # If true, the engine will compute for each service the set of
-            # concrete task models that provides it. If that set is one element,
-            # it will automatically add it to the set of default selection.
-            #
-            # If false, this mechanism is ignored
-            #
-            # It is true by default
-            attr_predicate :use_automatic_selection?, true
-
-            # Compute in #plan the network needed to fullfill the requirements
-            #
-            # This network is neither validated nor tied to actual deployments
-            def compute_system_network
-                add_timepoint 'compute_system_network', 'start'
-                instanciate
-                Engine.instanciation_postprocessing.each do |block|
-                    block.call(self, work_plan)
-                end
-                add_timepoint 'compute_system_network', 'instanciate'
-                merge_solver.merge_identical_tasks
-
-                add_timepoint 'compute_system_network', 'merge'
-                Engine.instanciated_network_postprocessing.each do |block|
-                    block.call(self, work_plan)
-                    add_timepoint 'compute_system_network', 'postprocessing', block.to_s
-                end
-                link_to_busses
-                add_timepoint 'compute_system_network', 'link_to_busses'
-                merge_solver.merge_identical_tasks
-                add_timepoint 'compute_system_network', 'merge'
-
-                # Finally, select 'default' as configuration for all
-                # remaining tasks that do not have a 'conf' argument set
-                work_plan.find_local_tasks(Component).
-                    each do |task|
-                        if !task.arguments[:conf]
-                            task.arguments[:conf] = ['default']
-                        end
-                    end
-                add_timepoint 'compute_system_network', 'default_conf'
-
-                # Cleanup the remainder of the tasks that are of no use right
-                # now (mostly devices)
-                if options[:garbage_collect]
-                    work_plan.static_garbage_collect do |obj|
-                        debug { "  removing #{obj}" }
-                        # Remove tasks that we just added and are not
-                        # useful anymore
-                        work_plan.remove_object(obj)
-                    end
-                    add_timepoint 'compute_system_network', 'static_garbage_collect'
-                end
-
-                Engine.system_network_postprocessing.each do |block|
-                    block.call(self)
-                end
-                add_timepoint 'compute_system_network', 'postprocessing'
-
-                if options[:validate_network]
-                    validate_generated_network(work_plan, options)
-                    add_timepoint 'validate_generated_network'
-                end
             end
 
             # Called after compute_system_network to map the required component
@@ -663,39 +699,6 @@ module Syskit
                 end
             end
 
-            # The set of tasks that represent the running deployments
-            attr_reader :deployment_tasks
-
-            # The DataFlowDynamics instance that has been used to compute
-            # +port_dynamics+. It is only valid at the postprocesing stage of
-            # the deployed network
-            #
-            # It can be used to compute some connection policy by calling
-            # DataFlowDynamics#policy_for
-            attr_reader :dataflow_dynamics
-
-            # A mapping of type
-            #
-            #   task_name => port_name => PortDynamics instance
-            #
-            # that represent the dynamics of the given ports. The PortDynamics
-            # instance might be nil, in which case it means some of the ports'
-            # dynamics could not be computed
-            attr_reader :port_dynamics
-
-            class << self
-                # The buffer size used to create connections to the logger in
-                # case the dataflow dynamics can't be computed
-                #
-                # Defaults to 25
-                attr_accessor :default_logging_buffer_size
-            end
-            @default_logging_buffer_size = 25
-
-            # The set of options last given to #instanciate. It is used by
-            # plugins to configure their behaviours
-            attr_accessor :options
-
             def validate_resolve_options(options)
                 options = Kernel.validate_options options,
                     :compute_policies    => true,
@@ -727,6 +730,122 @@ module Syskit
                     options[:validate_network] = false
                 end
                 options
+            end
+
+            # Given the network with deployed tasks, this method looks at how we
+            # could adapt the running network to the new one
+            def finalize_deployed_tasks(used_tasks)
+                used_deployments = work_plan.find_local_tasks(Deployment).to_a
+                used_tasks       = work_plan.find_local_tasks(TaskContext).to_a
+
+                all_tasks = work_plan.find_tasks(Component).to_value_set
+                all_tasks.delete_if do |t|
+                    if t.finishing? || t.finished?
+                        debug { "clearing the relations of the finished task #{t}" }
+                        t.remove_relations(Syskit::Flows::DataFlow)
+                        t.remove_relations(Roby::TaskStructure::Dependency)
+                        true
+                    elsif t.transaction_proxy?
+                        if t.abstract?
+                            work_plan.remove_object(t)
+                            true
+                        end
+                    end
+                end
+
+                (all_tasks - used_tasks).each do |t|
+                    debug { "#{t} is not used in the new network, clearing its dataflow relations" }
+                    t.remove_relations(Syskit::Flows::DataFlow)
+                end
+
+                existing_deployments = work_plan.find_tasks(Syskit::Deployment).to_value_set - used_deployments
+
+                debug do
+                    debug "mapping deployments in the network to the existing ones"
+                    debug "network deployments:"
+                    used_deployments.each { |dep| debug "  #{dep}" }
+                    debug "existing deployments:"
+                    existing_deployments.each { |dep| debug "  #{dep}" }
+                    break
+                end
+
+                result = ValueSet.new
+                used_deployments.each do |deployment_task|
+                    # We need to search for #class and not #model here as
+                    # otherwise we would never find anything for tasks with
+                    # dynamic services
+                    existing_candidates = work_plan.find_local_tasks(deployment_task.class).not_finished.to_value_set
+                    debug do
+                        debug "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})"
+                        debug "#{existing_candidates.size} candidates:"
+                        existing_candidates.each do |candidate_task|
+                            debug "  #{candidate_task}"
+                        end
+                        break
+                    end
+
+                    # Check for the corresponding task in the plan
+                    existing_deployment_tasks = (existing_candidates & existing_deployments).
+                        find_all do |t|
+                            t.deployment_name == deployment_task.deployment_name
+                        end
+
+                    if existing_deployment_tasks.empty?
+                        debug { "  deployment #{deployment_task.deployment_name} is not yet represented in the plan" }
+                        # Nothing to do, we leave the plan as it is
+                        result << deployment_task
+                    elsif existing_deployment_tasks.size != 1
+                        raise InternalError, "more than one task for #{existing_deployment_task} present in the plan"
+                    else
+                        adapt_existing_deployment(deployment_task, existing_deployment_tasks.first)
+                        work_plan.remove_object(deployment_task)
+                        result << existing_deployment_tasks.first
+                    end
+                end
+                result
+            end
+
+            # Given a required deployment task in {#work_plan} and a proxy
+            # representing an existing deployment task in {#real_plan}, modify
+            # the plan to reuse the existing deployment
+            def adapt_existing_deployment(deployment_task, existing_deployment_task)
+                existing_tasks = Hash.new
+                existing_deployment_task.each_executed_task do |t|
+                    if t.running?
+                        existing_tasks[t.orocos_name] = t
+                    elsif t.pending?
+                        existing_tasks[t.orocos_name] ||= t
+                    end
+                end
+
+                deployed_tasks = deployment_task.each_executed_task.to_value_set
+                deployed_tasks.each do |task|
+                    existing_task = existing_tasks[task.orocos_name]
+                    if !existing_task
+                        debug { "  task #{task.orocos_name} has not yet been deployed" }
+                    elsif !existing_task.reusable?
+                        debug { "  task #{task.orocos_name} has been deployed, but the deployment is not reusable" }
+                    elsif !existing_task.can_merge?(task)
+                        debug { "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment" }
+                    end
+
+                    if !existing_task || existing_task.finishing? || !existing_task.reusable? || !existing_task.can_merge?(task)
+                        new_task = existing_deployment_task.task(task.orocos_name, task.model)
+                        debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
+                        if existing_task
+                            debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
+                            new_task.should_configure_after(existing_task.stop_event)
+                        end
+                        existing_task = new_task
+                    end
+                    existing_task.merge(task)
+                    merge_solver.register_replacement(task, existing_task)
+                    debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
+                    work_plan.remove_object(task)
+                    if existing_task.conf != task.conf
+                        existing_task.needs_reconfiguration!
+                    end
+                end
             end
 
             # Generate the deployment according to the current requirements, and
@@ -855,42 +974,14 @@ module Syskit
                 finalize
             end
 
-            @@dot_index = 0
-            def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, options = Hash.new)
-                options, dot_options = Kernel.filter_options options,
-                    :prefix => nil, :suffix => nil
-                output_path = File.join(dir, "orocos-engine-plan-#{options[:prefix]}%04i#{options[:suffix]}.dot" % [@@dot_index += 1])
-                File.open(output_path, 'w') do |io|
-                    io.write Graphviz.new(plan).dataflow(dot_options)
-                end
-                output_path
-            end
-
-            # Creates communication busses and links the tasks to them
-            def link_to_busses
-                # Get all the tasks that need at least one communication bus
-                candidates = work_plan.find_local_tasks(Syskit::Device).
-                    inject(Hash.new) do |h, t|
-                        required_busses = t.each_com_bus_device.to_a
-                        if !required_busses.empty?
-                            h[t] = required_busses
-                        end
-                        h
-                    end
-
-                candidates.each do |task, needed_busses|
-                    needed_busses.each do |bus_device|
-                        if !(com_bus_task = tasks[bus_device.name])
-                            raise SpecError, "there is no task that handles the communication bus #{bus_device}"
-                        end
-                        com_bus_task.attach(task)
-                        task.depends_on com_bus_task
-                        task.should_configure_after com_bus_task.start_event
+            # Validates the state of the network at the end of #resolve
+            def validate_final_network(plan, options = Hash.new)
+                # Check that all device instances are proper tasks (not proxies)
+                required_instances.each do |req_task, task|
+                    if task.transaction_proxy?
+                        raise InternalError, "instance definition #{instance} contains a transaction proxy: #{instance.task}"
                     end
                 end
-                nil
-            end
-
 
                 if options[:compute_deployments]
                     # Check for the presence of non-deployed tasks
@@ -901,126 +992,25 @@ module Syskit
                             p.abstract?
                         end
 
-            # Given the network with deployed tasks, this method looks at how we
-            # could adapt the running network to the new one
-            def finalize_deployed_tasks(used_tasks, used_deployments)
-                all_tasks = work_plan.find_tasks(Component).to_value_set
-                all_tasks.delete_if do |t|
-                    if t.finishing? || t.finished?
-                        debug { "clearing the relations of the finished task #{t}" }
-                        t.remove_relations(Syskit::Flows::DataFlow)
-                        t.remove_relations(Roby::TaskStructure::Dependency)
-                        true
-                    elsif t.transaction_proxy?
-                        if t.abstract?
-                            work_plan.remove_object(t)
-                            true
-                        end
+                    if !not_deployed.empty?
+                        remaining_merges = merge_solver.complete_merge_graph
+                        raise MissingDeployments.new(not_deployed, remaining_merges),
+                            "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
                     end
                 end
 
-                (all_tasks - used_tasks).each do |t|
-                    debug { "#{t} is not used in the new network, clearing its dataflow relations" }
-                    t.remove_relations(Syskit::Flows::DataFlow)
-                end
-
-                existing_deployments = work_plan.find_tasks(Syskit::Deployment).to_value_set - used_deployments
-
-                debug do
-                    debug "mapping deployments in the network to the existing ones"
-                    debug "network deployments:"
-                    used_deployments.each { |dep| debug "  #{dep}" }
-                    debug "existing deployments:"
-                    existing_deployments.each { |dep| debug "  #{dep}" }
-                    break
-                end
-
-                result = ValueSet.new
-                used_deployments.each do |deployment_task|
-                    existing_candidates = work_plan.find_local_tasks(deployment_task.model).not_finished.to_value_set
-                    debug do
-                        debug "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})"
-                        debug "#{existing_candidates.size} candidates:"
-                        existing_candidates.each do |candidate_task|
-                            debug "  #{candidate_task}"
-                        end
-                        break
-                    end
-
-                    # Check for the corresponding task in the plan
-                    existing_deployment_tasks = (existing_candidates & existing_deployments).
-                        find_all do |t|
-                            t.deployment_name == deployment_task.deployment_name
-                        end
-
-                    if existing_deployment_tasks.empty?
-                        debug { "  deployment #{deployment_task.deployment_name} is not yet represented in the plan" }
-                        # Nothing to do, we leave the plan as it is
-                        result << deployment_task
-                    elsif existing_deployment_tasks.size != 1
-                        raise InternalError, "more than one task for #{existing_deployment_task} present in the plan"
-                    else
-                        adapt_existing_deployment(deployment_task, existing_deployment_tasks.first)
-                        work_plan.remove_object(deployment_task)
-                        result << existing_deployment_tasks.first
-                    end
-                end
-                result
+                super if defined? super
             end
 
-            # Given a required deployment task in {#work_plan} and a proxy
-            # representing an existing deployment task in {#real_plan}, modify
-            # the plan to reuse the existing deployment
-            def adapt_existing_deployment(deployment_task, existing_deployment_task)
-                existing_tasks = Hash.new
-                existing_deployment_task.each_executed_task do |t|
-                    if t.running?
-                        existing_tasks[t.orocos_name] = t
-                    elsif t.pending?
-                        existing_tasks[t.orocos_name] ||= t
-                    end
+            @@dot_index = 0
+            def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, options = Hash.new)
+                options, dot_options = Kernel.filter_options options,
+                    :prefix => nil, :suffix => nil
+                output_path = File.join(dir, "orocos-engine-plan-#{options[:prefix]}%04i#{options[:suffix]}.dot" % [@@dot_index += 1])
+                File.open(output_path, 'w') do |io|
+                    io.write Graphviz.new(plan).dataflow(dot_options)
                 end
-
-                deployed_tasks = deployment_task.each_executed_task.to_value_set
-                deployed_tasks.each do |task|
-                    existing_task = existing_tasks[task.orocos_name]
-                    if !existing_task
-                        debug { "  task #{task.orocos_name} has not yet been deployed" }
-                    elsif !existing_task.reusable?
-                        debug { "  task #{task.orocos_name} has been deployed, but the deployment is not reusable" }
-                    elsif !existing_task.can_merge?(task)
-                        debug { "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment" }
-                    end
-
-                    if !existing_task || existing_task.finishing? || !existing_task.reusable? || !existing_task.can_merge?(task)
-                        new_task = existing_deployment_task.task(task.orocos_name, task.model)
-                        debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
-                        if existing_task
-                            debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
-                            new_task.start_event.should_emit_after(existing_task.stop_event)
-
-                            # The trick with allow_automatic_setup is to
-                            # force the sequencing of stop / configure /
-                            # start
-                            #
-                            # So we wait for the existing task to either be
-                            # finished or finalized, and only then do we
-                            # allow the system to configure +new_task+
-                            new_task.allow_automatic_setup = false
-                            existing_task.stop_event.when_unreachable do |reason, _|
-                                new_task.allow_automatic_setup = true
-                            end
-                        end
-                        existing_task = new_task
-                    end
-                    existing_task.merge(task)
-                    merge_solver.register_replacement(task, existing_task)
-                    debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
-                    work_plan.remove_object(task)
-                    if existing_task.conf != task.conf
-                        existing_task.needs_reconfiguration!
-                    end
-                end
+                output_path
             end
 
             # Generate a svg file representing the current state of the
