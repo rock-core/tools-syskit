@@ -52,7 +52,6 @@ module Syskit
 
             def initialize(options = Hash.new)
                 super
-                @reusable = true
                 @requirements = InstanceRequirements.new
             end
 
@@ -60,14 +59,6 @@ module Syskit
                 new_task = super
                 new_task.robot = robot
                 new_task
-            end
-
-            def reusable?
-                super && @reusable
-            end
-
-            def do_not_reuse
-                @reusable = false
             end
 
             # Returns a set of hints that should be used to disambiguate the
@@ -457,22 +448,6 @@ module Syskit
                     model.private_model
                     model.setup_submodel
                     true
-                end
-            end
-
-            module Proxying
-                proxy_for Component
-
-                def setup_proxy(object, plan)
-                    super
-                    @do_not_reuse = object.instance_variable_get :@do_not_reuse
-                end
-
-                def commit_transaction
-                    super
-                    if @do_not_reuse
-                        __getobj__.do_not_reuse
-                    end
                 end
             end
         end
