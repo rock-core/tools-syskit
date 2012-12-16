@@ -71,6 +71,10 @@ module Syskit
             # Sets up internal attributes on the basis of {#supermodel}
             def setup_submodel
             end
+
+            # The model name that should be used in messages that are displayed
+            # to the user. Note that Syskit defines Class#short_name as an
+            # alias to #name so that #short_name can be used everywhere
             def short_name
                 if name then name
                 else to_s

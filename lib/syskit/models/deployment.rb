@@ -72,6 +72,10 @@ module Syskit
                 orogen_model.task_activities
             end
 
+            # Enumerates the deployed tasks this deployment contains
+            #
+            # @yieldparam [Orocos::Generation::DeployedTask] deployed_task
+            # @return [void]
             def each_orogen_deployed_task_context_model(&block)
                 orogen_model.task_activities.each(&block)
             end
