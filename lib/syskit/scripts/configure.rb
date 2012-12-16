@@ -95,7 +95,7 @@ error = Scripts.run do
             Roby.plan.find_tasks(Syskit::TaskContext).
                 each do |t|
                     # Mark it as non-executable to avoid that it gets scheduled
-                    t.allow_automatic_setup = false
+                    t.executable = false
                 end
 
             # Wait for the deployments to be started

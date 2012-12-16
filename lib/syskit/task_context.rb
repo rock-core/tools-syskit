@@ -128,8 +128,6 @@ module Syskit
                 @orogen_model   = options[:orogen_model] ||
                     Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
 
-                @allow_automatic_setup = true
-
                 # All tasks start with executable? and setup? set to false
                 #
                 # Then, the engine will call setup, which will do what it should
@@ -317,16 +315,10 @@ module Syskit
                 @orogen_state = nil
             end
 
-            attr_predicate :allow_automatic_setup?, true
-
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
             def ready_for_setup?
-                # @allow_automatic_setup is being used to sequence the end of a
-                # running task with the reconfiguration of the a new one.
-                #
-                # It MUST be kept here
-                if !@allow_automatic_setup
+                if !super
                     return false
                 elsif !orogen_model || !orocos_task
                     return false

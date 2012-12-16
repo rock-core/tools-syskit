@@ -1,4 +1,7 @@
 module Syskit
+        Roby::EventStructure.relation 'SyskitConfigurationPrecedence'
+        Roby::EventStructure::CausalLink.superset_of Roby::EventStructure::SyskitConfigurationPrecedence
+
         # Base class for models that represent components (TaskContext,
         # Composition)
         #
@@ -127,10 +130,22 @@ module Syskit
                 end
 	    end
 
+            # Declare that this component should not be configured until +event+
+            # has been emitted. This is used to sequence configurations with
+            # other system events, but should not be required in most cases
+            def should_configure_after(object)
+                if !object.respond_to?(:add_causal_link)
+                    object = object.start_event
+                end
+                object.add_syskit_configuration_precedence(start_event)
+            end
+
             # Returns true if the underlying Orocos task is in a state that
             # allows it to be configured
             def ready_for_setup? # :nodoc:
-                true
+                start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).all? do |event|
+                    event.happened?
+                end
             end
 
             # Returns true if the underlying Orocos task has been properly
