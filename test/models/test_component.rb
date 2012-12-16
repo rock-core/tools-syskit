@@ -191,6 +191,69 @@ describe Syskit::Models::Component do
                     assert_equal options, received_options
                 end
             end
+
+            describe "#update_component_model_interface" do
+                attr_reader :subject
+                before do
+                    @subject = flexmock(Syskit::Models::Component::DynamicService)
+                end
+
+                it "should validate each service port and mapping using #directional_port_mapping and merge" do
+                    expected_mappings = Hash['out' => 'bla_out', 'in' => 'bla_in']
+
+                    subject.should_receive(:directional_port_mapping).with(task_m, 'output', srv_m.out_port, 'explicit_out').
+                        once.and_return(expected_mappings['out'])
+                    subject.should_receive(:directional_port_mapping).with(task_m, 'input', srv_m.in_port, nil).
+                        once.and_return(expected_mappings['in'])
+                    flexmock(Syskit::Models).should_receive(:merge_orogen_task_context_models).
+                        with(task_m.orogen_model, [srv_m.orogen_model], expected_mappings).
+                        once
+                    subject.update_component_model_interface(task_m, srv_m, 'out' => 'explicit_out')
+                end
+                it "should return the updated port mappings" do
+                    expected_mappings = Hash['out' => 'bla_out', 'in' => 'bla_in']
+                    subject.should_receive(:directional_port_mapping).with(task_m, 'output', srv_m.out_port, 'explicit_out').
+                        once.and_return(expected_mappings['out'])
+                    subject.should_receive(:directional_port_mapping).with(task_m, 'input', srv_m.in_port, nil).
+                        once.and_return(expected_mappings['in'])
+                    flexmock(Syskit::Models).should_receive(:merge_orogen_task_context_models).
+                        with(task_m.orogen_model, [srv_m.orogen_model], expected_mappings).
+                        once
+                    assert_equal expected_mappings, subject.update_component_model_interface(task_m, srv_m, 'out' => 'explicit_out')
+                end
+            end
+            describe "#directional_port_mapping" do
+                attr_reader :task_m, :port, :context
+                before do
+                    @task_m = flexmock
+                    @port = flexmock(:name => 'port_name', :type => Object.new, :type_name => '/bla/type')
+                    @context = flexmock(Syskit::Models::Component::DynamicService)
+                end
+
+                it "should return the expected name if it is an existing component port" do
+                    flexmock(task_m).should_receive(:find_bla_port).with('expected_name').and_return(Object.new)
+                    assert_equal 'expected_name', context.directional_port_mapping(task_m, 'bla', port, 'expected_name')
+                end
+                it "should not test whether an existing component port is a valid dynamic port" do
+                    flexmock(task_m).should_receive(:find_bla_port).with('expected_name').and_return(Object.new)
+                    flexmock(task_m).should_receive('has_dynamic_bla_port?').never
+                    context.directional_port_mapping(task_m, 'bla', port, 'expected_name')
+                end
+                it "should raise if an implicit mapping is not an existing component port" do
+                    flexmock(task_m).should_receive(:find_directional_port_mapping).with('bla', port, nil).and_return(nil)
+                    assert_raises(ArgumentError) { context.directional_port_mapping(task_m, 'bla', port, nil) }
+                end
+                it "should return the expected name if it validates as an existing dynamic port" do
+                    flexmock(task_m).should_receive(:find_bla_port).and_return(nil)
+                    flexmock(task_m).should_receive(:has_dynamic_bla_port?).with('expected_name', port.type).and_return(true)
+                    assert_equal 'expected_name', context.directional_port_mapping(task_m, 'bla', port, 'expected_name')
+                end
+                it "should raise if the expected name is neither a static port nor a dynamic one" do
+                    flexmock(task_m).should_receive(:find_bla_port).and_return(nil)
+                    flexmock(task_m).should_receive(:has_dynamic_bla_port?).with('expected_name', port.type).and_return(false)
+                    assert_raises(ArgumentError) { context.directional_port_mapping(task_m, 'bla', port, 'expected_name') }
+                end
+            end
         end
         describe Syskit::Models::Component::DynamicServiceInstantiationContext do
             attr_reader :dyn, :context
@@ -203,15 +266,12 @@ describe Syskit::Models::Component do
                     new(task_m, "dyn", dyn)
             end
             describe "#provides" do
-                it "should extend the component model's orogen model using #update_component_model_interface and then provide using the resulting port mappings" do
+                it "should call provides_dynamic" do
                     srv_m = self.srv_m.new_submodel
-                    flexmock(context).should_receive(:update_component_model_interface).
-                        with(srv_m, 'out' => 'expected_out').
-                        and_return('out' => 'out_port', 'in' => 'in_port')
-                    flexmock(task_m).should_receive(:provides).
+                    flexmock(task_m).should_receive(:provides_dynamic).once.
                         with(srv_m, 'out' => 'out_port', 'in' => 'in_port', :as => 'dyn').
                         and_return(result = Object.new)
-                    assert_same result, context.provides(srv_m, 'out' => 'expected_out')
+                context.provides(srv_m, 'out' => 'out_port', 'in' => 'in_port')
                 end
                 it "should raise if the given service model does not match the dynamic service model" do
                     srv_m = Syskit::DataService.new_submodel
@@ -226,63 +286,6 @@ describe Syskit::Models::Component do
                 it "should raise if #provides has already been called" do
                     context.provides(srv_m, 'out' => 'bla_out', 'in' => 'bla_in')
                     assert_raises(ArgumentError) { context.provides(srv_m, 'out' => 'bla_out', 'in' => 'bla_in') }
-                end
-            end
-            describe "#update_component_model_interface" do
-                it "should validate each service port and mapping using #directional_port_mapping and merge" do
-                    expected_mappings = Hash['out' => 'bla_out', 'in' => 'bla_in']
-                    flexmock(context).should_receive(:directional_port_mapping).with('output', srv_m.out_port, 'explicit_out').
-                        once.and_return(expected_mappings['out'])
-                    flexmock(context).should_receive(:directional_port_mapping).with('input', srv_m.in_port, nil).
-                        once.and_return(expected_mappings['in'])
-                    flexmock(Syskit::Models).should_receive(:merge_orogen_task_context_models).
-                        with(task_m.orogen_model, [srv_m.orogen_model], expected_mappings).
-                        once
-                    context.update_component_model_interface(srv_m, 'out' => 'explicit_out')
-                end
-                it "should return the updated port mappings" do
-                    expected_mappings = Hash['out' => 'bla_out', 'in' => 'bla_in']
-                    flexmock(context).should_receive(:directional_port_mapping).with('output', srv_m.out_port, 'explicit_out').
-                        once.and_return(expected_mappings['out'])
-                    flexmock(context).should_receive(:directional_port_mapping).with('input', srv_m.in_port, nil).
-                        once.and_return(expected_mappings['in'])
-                    flexmock(Syskit::Models).should_receive(:merge_orogen_task_context_models).
-                        with(task_m.orogen_model, [srv_m.orogen_model], expected_mappings).
-                        once
-                    assert_equal expected_mappings, context.update_component_model_interface(srv_m, 'out' => 'explicit_out')
-                end
-            end
-            describe "#directional_port_mapping" do
-                attr_reader :task_m, :port, :context
-                before do
-                    @task_m = flexmock
-                    @port = flexmock(:name => 'port_name', :type => Object.new, :type_name => '/bla/type')
-                    @context = Syskit::Models::Component::DynamicServiceInstantiationContext.
-                        new(task_m, "dyn", nil)
-                end
-
-                it "should return the expected name if it is an existing component port" do
-                    flexmock(task_m).should_receive(:find_bla_port).with('expected_name').and_return(Object.new)
-                    assert_equal 'expected_name', context.directional_port_mapping('bla', port, 'expected_name')
-                end
-                it "should not test whether an existing component port is a valid dynamic port" do
-                    flexmock(task_m).should_receive(:find_bla_port).with('expected_name').and_return(Object.new)
-                    flexmock(task_m).should_receive('has_dynamic_bla_port?').never
-                    context.directional_port_mapping('bla', port, 'expected_name')
-                end
-                it "should raise if an implicit mapping is not an existing component port" do
-                    flexmock(task_m).should_receive(:find_directional_port_mapping).with('bla', port, nil).and_return(nil)
-                    assert_raises(ArgumentError) { context.directional_port_mapping('bla', port, nil) }
-                end
-                it "should return the expected name if it validates as an existing dynamic port" do
-                    flexmock(task_m).should_receive(:find_bla_port).and_return(nil)
-                    flexmock(task_m).should_receive(:has_dynamic_bla_port?).with('expected_name', port.type).and_return(true)
-                    assert_equal 'expected_name', context.directional_port_mapping('bla', port, 'expected_name')
-                end
-                it "should raise if the expected name is neither a static port nor a dynamic one" do
-                    flexmock(task_m).should_receive(:find_bla_port).and_return(nil)
-                    flexmock(task_m).should_receive(:has_dynamic_bla_port?).with('expected_name', port.type).and_return(false)
-                    assert_raises(ArgumentError) { context.directional_port_mapping('bla', port, 'expected_name') }
                 end
             end
         end

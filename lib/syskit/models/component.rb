@@ -340,58 +340,11 @@ module Syskit
                         raise ArgumentError, "#{service_model.short_name} does not fullfill the model for the dynamic service #{dynamic_service.name}, #{dynamic_service.service_model.short_name}"
                     end
 
-                    # Do not use #filter_options here, it will transform the
-                    # port names into symbols
                     arg_name = arguments.delete('as') || arguments.delete(:as)
                     if arg_name && arg_name != name
                         raise ArgumentError, "a :as argument of \"#{arg_name}\" was given but it is required to be #{name}. Note that it can be omitted in a dynamic service block"
                     end
-                    port_mappings = update_component_model_interface(service_model, arguments)
-                    @service = component_model.provides(service_model, port_mappings.merge(:as => name))
-                end
-
-                # Updates the component_model's oroGen interface description to
-                # include the newly created ports
-                #
-                # @return [Hash{String=>String}] the updated port mappings
-                def update_component_model_interface(service_model, user_port_mappings)
-                    port_mappings = Hash.new
-                    service_model.each_output_port do |service_port|
-                        port_mappings[service_port.name] = directional_port_mapping('output', service_port, user_port_mappings[service_port.name])
-                    end
-                    service_model.each_input_port do |service_port|
-                        port_mappings[service_port.name] = directional_port_mapping('input', service_port, user_port_mappings[service_port.name])
-                    end
-
-                    # Unlike #data_service, we need to add the service's interface
-                    # to our own
-                    Syskit::Models.merge_orogen_task_context_models(component_model.orogen_model, [service_model.orogen_model], port_mappings)
-                    port_mappings
-                end
-
-                # Validates the setup for a single data service port, and
-                # computes the port mapping for it. It validates the port
-                # creation rule that a mapping must be given for a port to be
-                # created.
-                def directional_port_mapping(direction, port, expected_name)
-                    # Filter out the ports that already exist on the component
-                    if expected_name
-                        if component_model.send("find_#{direction}_port", expected_name)
-                            return expected_name
-                        end
-                    else
-                        expected_name = component_model.find_directional_port_mapping(direction, port, nil)
-                        if !expected_name
-                            raise ArgumentError, "no explicit mapping has been given for the service port #{port.name} and no port on #{component_model.short_name} matches. You must give an explicit mapping of the form 'service_port_name' => 'task_port_name' if you expect the port to be dynamically created."
-                        end
-                        return expected_name
-                    end
-
-                    # Now verify that the rest can be instanciated
-                    if !component_model.send("has_dynamic_#{direction}_port?", expected_name, port.type)
-                        raise ArgumentError, "there are no dynamic #{direction} ports declared in #{component_model.short_name} that match #{expected_name}:#{port.type_name}"
-                    end
-                    return expected_name
+                    @service = component_model.provides_dynamic(service_model, arguments.merge(:as => name))
                 end
             end
 
@@ -425,6 +378,60 @@ module Syskit
                     end
                     instantiator.service
                 end
+
+                # Updates the component_model's oroGen interface description to
+                # include the ports needed for the given dynamic service model
+                #
+                # @return [Hash{String=>String}] the updated port mappings
+                def self.update_component_model_interface(component_model, service_model, user_port_mappings)
+                    port_mappings = Hash.new
+                    service_model.each_output_port do |service_port|
+                        port_mappings[service_port.name] = directional_port_mapping(component_model, 'output', service_port, user_port_mappings[service_port.name])
+                    end
+                    service_model.each_input_port do |service_port|
+                        port_mappings[service_port.name] = directional_port_mapping(component_model, 'input', service_port, user_port_mappings[service_port.name])
+                    end
+
+                    # Unlike #data_service, we need to add the service's interface
+                    # to our own
+                    Syskit::Models.merge_orogen_task_context_models(component_model.orogen_model, [service_model.orogen_model], port_mappings)
+                    port_mappings
+                end
+
+                # Validates the setup for a single data service port, and
+                # computes the port mapping for it. It validates the port
+                # creation rule that a mapping must be given for a port to be
+                # created.
+                def self.directional_port_mapping(component_model, direction, port, expected_name)
+                    # Filter out the ports that already exist on the component
+                    if expected_name
+                        if component_model.send("find_#{direction}_port", expected_name)
+                            return expected_name
+                        end
+                    else
+                        expected_name = component_model.find_directional_port_mapping(direction, port, nil)
+                        if !expected_name
+                            raise ArgumentError, "no explicit mapping has been given for the service port #{port.name} and no port on #{component_model.short_name} matches. You must give an explicit mapping of the form 'service_port_name' => 'task_port_name' if you expect the port to be dynamically created."
+                        end
+                        return expected_name
+                    end
+
+                    # Now verify that the rest can be instanciated
+                    if !component_model.send("has_dynamic_#{direction}_port?", expected_name, port.type)
+                        raise ArgumentError, "there are no dynamic #{direction} ports declared in #{component_model.short_name} that match #{expected_name}:#{port.type_name}"
+                    end
+                    return expected_name
+                end
+            end
+
+            # Declares that this component model instantiates a dynamic service
+            # of the given service model
+            def provides_dynamic(service_model, arguments = Hash.new)
+                # Do not use #filter_options here, it will transform the
+                # port names into symbols
+                arg_name = arguments.delete('as') || arguments.delete(:as)
+                port_mappings = DynamicService.update_component_model_interface(self, service_model, arguments)
+                provides(service_model, port_mappings.merge(:as => arg_name))
             end
 
             # Called by the dynamic_service accessors to promote dynamic

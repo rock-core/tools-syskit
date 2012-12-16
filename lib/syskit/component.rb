@@ -174,12 +174,11 @@ module Syskit
             # should never look into the task's neighborhood
             def can_merge?(task)
                 if !super
-                    debug { "cannot merge #{target_task} into #{self}: super returned false" }
+                    debug { "cannot merge #{task} into #{self}: super returned false" }
                     return
                 end
 
-                # Cannot merge into target_task if it is marked as not
-                # being usable
+                # Cannot merge if we are not reusable
                 if !reusable?
                     debug { "rejecting #{self}.merge(#{task}) as receiver is not reusable" }
                     return
@@ -190,22 +189,26 @@ module Syskit
                     debug { "rejecting #{self}.merge(#{task}): cannot merge a non-abstract task into an abstract one" }
                     return
                 end
-                # Merges involving a deployed task can only involve a
-                # non-deployed task as well
-                if task.execution_agent && execution_agent
-                    debug { "rejecting #{self}.merge(#{task}) as deployment attribute mismatches" }
-                    return
-                end
 
-                required_models = task.model.each_fullfilled_model
-                if !fullfills?(required_models)
-                    debug { "rejecting #{self}.merge(#{task}): #{self} does not fullfill the required model #{required_models.map(&:short_name).join(", ")}" }
-                    return false
+                if model.private_specialization?
+                    # Verify that we don't have collisions in the instantiated
+                    # dynamic services
+                    model.data_services.each_value do |self_srv|
+                        if task_srv = task.model.find_data_service(self_srv.name)
+                            if task_srv.model != self_srv.model
+                                debug { "rejecting #{self}.merge(#{task}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{task}" }
+                                return false
+                            end
+                        end
+                    end
                 end
-
                 return true
             end
 
+            # Updates self so that it is a valid replacement for merged_task
+            #
+            # This method assumes that #can_merge?(task) has already been called
+            # and returned true
             def merge(merged_task)
                 # Copy arguments of +merged_task+ that are not yet assigned in
                 # +self+
@@ -228,6 +231,20 @@ module Syskit
 
                 # Merge the InstanceRequirements objects
                 requirements.merge(merged_task.requirements)
+
+                # If merged_task has instantiated dynamic services, instantiate
+                # them on self
+                if merged_task.model.private_specialization?
+                    if !model.private_specialization?
+                        specialize
+                    end
+
+                    merged_task.model.data_services.each_value do |srv|
+                        if !model.find_data_service(srv.name)
+                            model.provides_dynamic srv.model, Hash[:as => srv.name].merge(srv.port_mappings_for_task)
+                        end
+                    end
+                end
 
                 # Call included plugins if there are some
                 super if defined? super

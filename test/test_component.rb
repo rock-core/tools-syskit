@@ -80,6 +80,79 @@ describe Syskit::Component do
             assert_equal bound_service, task.require_dynamic_service('dyn', :as => 'service_name')
         end
     end
+
+    describe "#can_merge?" do
+        attr_reader :srv_m, :task_m, :testing_task, :tested_task
+        before do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel do
+                dynamic_service srv_m, :as => 'dyn' do
+                    provides srv_m.new_submodel, :as => name
+                end
+            end
+            @testing_task, @tested_task = task_m.new, task_m.new
+        end
+
+        it "returns true if the tested task has dynamic services" do
+            tested_task.require_dynamic_service 'dyn', :as => 'srv'
+            assert testing_task.can_merge?(tested_task)
+        end
+        it "returns true if the testing task has dynamic services" do
+            testing_task.require_dynamic_service 'dyn', :as => 'srv'
+            assert testing_task.can_merge?(tested_task)
+        end
+        it "returns true if testing and tested tasks have different dynamic services" do
+            tested_task.require_dynamic_service 'dyn', :as => 'srv_1'
+            testing_task.require_dynamic_service 'dyn', :as => 'srv_2'
+            assert testing_task.can_merge?(tested_task)
+        end
+        it "returns false if testing and tested tasks have dynamic services with the same name but different models" do
+            tested_task.require_dynamic_service 'dyn', :as => 'srv'
+            testing_task.require_dynamic_service 'dyn', :as => 'srv'
+            assert !testing_task.can_merge?(tested_task)
+        end
+    end
+
+    describe "#merge" do
+        attr_reader :srv_m, :task_m, :task, :merged_task
+        before do
+            srv_m = @srv_m = Syskit::DataService.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel do
+                dynamic_service srv_m, :as => 'dyn' do
+                    provides (options[:model] || srv_m.new_submodel), :as => name
+                end
+            end
+            @task, @merged_task = task_m.new, task_m.new
+            plan.add(task)
+            plan.add(merged_task)
+        end
+
+        it "does not specialize the receiver if the merged task has no dynamic services" do
+            flexmock(task).should_receive(:specialize).never
+            task.merge(merged_task)
+        end
+        it "does not instantiate dynamic services that already exist on the receiver" do
+            merged_task.specialize
+            merged_task.require_dynamic_service 'dyn', :as => 'srv'
+            task.specialize
+            flexmock(task.model).should_receive(:find_data_service).with('srv').and_return(true)
+            flexmock(task.model).should_receive(:provides_dynamic).never
+            task.merge(merged_task)
+        end
+        it "specializes the receiver if the merged task has dynamic services" do
+            merged_task.specialize
+            merged_task.require_dynamic_service 'dyn', :as => 'srv'
+            flexmock(task).should_receive(:specialize).once.pass_thru
+            task.merge(merged_task)
+        end
+        it "adds dynamic services from the merged task" do
+            merged_task.specialize
+            merged_task.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel)
+            task.specialize
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv').once
+            task.merge(merged_task)
+        end
+    end
 end
 
 class TC_Component < Test::Unit::TestCase
