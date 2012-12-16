@@ -162,6 +162,7 @@ module Syskit
                     fullfilled_models = ValueSet.new
                     new_models.each do |m|
                         m.each_fullfilled_model do |fullfilled_m|
+                            next if !(fullfilled_m <= Syskit::Component) && !(fullfilled_m.kind_of?(Models::DataServiceModel))
                             if !deployed_models.include?(fullfilled_m)
                                 fullfilled_models << fullfilled_m
                             end
@@ -188,13 +189,21 @@ module Syskit
                     end
                 end
 
+                deployed_models.delete(Syskit::TaskContext)
+                deployed_models.delete(Syskit::DataService)
+                deployed_models.delete(Syskit::Composition)
+                deployed_models.delete(Syskit::Component)
+
                 deployed_models
             end
 
             # Must be called everytime the system model changes. It updates the
             # values that are cached to speed up the instanciation process
-            def prepare
+            def prepare(options = Hash.new)
                 add_timepoint 'prepare', 'start'
+
+                options = validate_resolve_options(options)
+                self.options = options
 
                 Engine.model_postprocessing.each do |block|
                     block.call(model)
@@ -458,6 +467,65 @@ module Syskit
                 super if defined? super
             end
 
+            # Computes a mapping from task models to the set of registered
+            # deployments that apply on these task models
+            #
+            # @return [{Model<TaskContext>=>[(String,Model<Deployment>,String)]}]
+            #   mapping from task context models to a set of
+            #   (machine_name,deployment_model,task_name) tuples representing
+            #   the known ways this task context model could be deployed
+            def compute_task_context_deployment_candidates
+                deployed_models = Hash.new
+                deployments.each do |machine_name, deployment_models|
+                    deployment_models.each do |model|
+                        model.each_orogen_deployed_task_context_model do |deployed_task|
+                            task_model = TaskContext.model_for(deployed_task.task_model)
+                            deployed_models[task_model] ||= ValueSet.new
+                            deployed_models[task_model] << [machine_name, model, deployed_task.name]
+                        end
+                    end
+                end
+                deployed_models
+            end
+
+            # Try to resolve a set of deployment candidates for a given task
+            #
+            # @param [Array<(String,Model<Deployment>,String)>] candidates set
+            #   of deployment candidates as
+            #   (machine_name,deployment_model,task_name) tuples
+            # @param [Syskit::TaskContext] task the task context for which
+            #   candidates are possible deployments
+            # @return [(String,Model<Deployment>,String),nil] the resolved
+            #   deployment, if finding a single best candidate was possible, or
+            #   nil otherwise.
+            def resolve_deployment_ambiguity(candidates, task)
+                if task.orocos_name
+                    resolved = candidates.find { |_, _, task_name| task_name == task.orocos_name }
+                    if !resolved
+                        debug "cannot find requested orocos name #{task.orocos_name}"
+                    end
+                    return resolved
+                else
+                    # Look to disambiguate using deployment hints
+                    resolved = candidates.find_all do |_, deployment_model, task_name|
+                        task.requirements.deployment_hints.any? do |rx|
+                            rx === task_name
+                        end
+                    end
+                    if resolved.size != 1
+                        debug do
+                            debug "ambiguous deployment for #{task} (#{task.model.name})"
+                            candidates.each do |machine, deployment_model, task_name|
+                                debug "  #{task_name} of #{deployment_model.short_name} on #{machine}"
+                            end
+                            break
+                        end
+                        return
+                    end
+                    return resolved.first
+                end
+            end
+
             # Called after compute_system_network to map the required component
             # network to deployments
             #
@@ -466,19 +534,13 @@ module Syskit
             def deploy_system_network
                 debug "deploying the system network"
 
-                deployed_models = Hash.new
-                deployments.each do |machine_name, deployment_models|
-                    deployment_models.each do |model|
-                        model.each_orogen_deployed_task_context_model do |task_orogen_model|
-                            task_model = TaskContext.model_for(task_orogen_model.task_model)
-                            deployed_models[task_model] ||= ValueSet.new
-                            deployed_models[task_model] << [machine_name, model, task_orogen_model.name]
-                        end
-                    end
-                end
+                deployed_models = compute_task_context_deployment_candidates
+                used_deployments = Set.new
 
+                missing_deployments = []
                 deployment_tasks = Hash.new
-                deployed_tasks = Set.new
+                work_plan.find_local_tasks(Deployment).
+                    each { |t| deployment_tasks[[t.on, t.class]] = t }
                 all_tasks = work_plan.find_local_tasks(TaskContext).to_a
                 all_tasks.each do |task|
                     next if task.execution_agent # This is already deployed
@@ -487,33 +549,31 @@ module Syskit
                     # singleton class (if there are dynamic services)
                     candidates = deployed_models[task.class]
                     if candidates.empty?
-                        debug { "no deployments found for #{task} (#{task.model.name})" }
+                        debug { "no deployments found for #{task} (#{task.model.short_name})" }
+                        missing_deployments << task
                         next
                     elsif candidates.size > 1
-                        # Look to disambiguate using deployment hints
-                        resolved = candidates.find_all do |_, deployment_model, task_name|
-                            task.requirements.deployment_hints.any? do |rx|
-                                rx === task_name
-                            end
-                        end
-                        if resolved.size != 1
-                            debug do
-                               debug "ambiguous deployment for #{task} (#{task.model.name})"
-                               candidates.each do |machine, deployment_model, task_name|
-                                   debug "  #{task_name} of #{deployment_model.short_name} on #{machine}"
-                               end
-                               break
-                            end
+                        if !(selected = resolve_deployment_ambiguity(candidates, task))
+                            debug { "deployment of #{task} (#{task.model.short_name}) is ambiguous" }
+                            missing_deployments << task
                             next
                         end
+                    else
+                        selected = candidates.first
+                    end
 
-                        candidates = resolved
+                    machine, deployment_model, task_name = *selected
+                    if used_deployments.include?(selected)
+                        # Already used somewhere else, don't reallocate
+                        debug { "#{task} resolves to #{deployment_model.short_name}.#{task_name} for its deployment, but it is already used" }
+                        missing_deployments << task
+                        next
                     end
                     
-                    # Not available for other tasks
-                    deployed_models[task.class].delete(candidates.first)
-                    machine, deployment_model, task_name = candidates.first
-                    deployment_task = (deployment_tasks[deployment_model] ||= deployment_model.new(:on => machine))
+                    used_deployments << selected
+                    deployment_task =
+                        (deployment_tasks[[machine, deployment_model]] ||= deployment_model.new(:on => machine))
+                    work_plan.add(deployment_task)
                     deployed_task = deployment_task.task(task_name)
                     debug { "deploying #{task} with #{task_name} of #{deployment_model.short_name} (#{deployed_task})" }
                     merge_solver.merge(task, deployed_task)
@@ -523,6 +583,8 @@ module Syskit
                     validate_deployed_network
                     add_timepoint 'validate_deployed_network'
                 end
+
+                missing_deployments
             end
 
             # Sanity checks to verify that the result of #deploy_system_network
@@ -734,14 +796,16 @@ module Syskit
 
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one
-            def finalize_deployed_tasks(used_tasks)
-                used_deployments = work_plan.find_local_tasks(Deployment).to_a
-                used_tasks       = work_plan.find_local_tasks(TaskContext).to_a
+            def finalize_deployed_tasks
+                debug "finalizing deployed tasks"
+
+                used_deployments = work_plan.find_local_tasks(Deployment).to_value_set
+                used_tasks       = work_plan.find_local_tasks(TaskContext).to_value_set
 
                 all_tasks = work_plan.find_tasks(Component).to_value_set
                 all_tasks.delete_if do |t|
-                    if t.finishing? || t.finished?
-                        debug { "clearing the relations of the finished task #{t}" }
+                    if !t.reusable?
+                        debug { "  clearing the relations of the finished task #{t}" }
                         t.remove_relations(Syskit::Flows::DataFlow)
                         t.remove_relations(Roby::TaskStructure::Dependency)
                         true
@@ -754,18 +818,20 @@ module Syskit
                 end
 
                 (all_tasks - used_tasks).each do |t|
-                    debug { "#{t} is not used in the new network, clearing its dataflow relations" }
+                    debug { "  #{t} is not used in the new network, clearing its dataflow relations" }
                     t.remove_relations(Syskit::Flows::DataFlow)
                 end
 
-                existing_deployments = work_plan.find_tasks(Syskit::Deployment).to_value_set - used_deployments
+                existing_deployments = work_plan.find_tasks(Syskit::Deployment).
+                    not_finishing.not_finished.to_value_set
+                existing_deployments = existing_deployments - used_deployments
 
                 debug do
-                    debug "mapping deployments in the network to the existing ones"
-                    debug "network deployments:"
-                    used_deployments.each { |dep| debug "  #{dep}" }
-                    debug "existing deployments:"
-                    existing_deployments.each { |dep| debug "  #{dep}" }
+                    debug "  Mapping deployments in the network to the existing ones"
+                    debug "    Network deployments:"
+                    used_deployments.each { |dep| debug "      #{dep}" }
+                    debug "    Existing deployments:"
+                    existing_deployments.each { |dep| debug "      #{dep}" }
                     break
                 end
 
@@ -774,12 +840,13 @@ module Syskit
                     # We need to search for #class and not #model here as
                     # otherwise we would never find anything for tasks with
                     # dynamic services
-                    existing_candidates = work_plan.find_local_tasks(deployment_task.class).not_finished.to_value_set
+                    existing_candidates = work_plan.find_local_tasks(deployment_task.class).
+                        not_finishing.not_finished.to_value_set
                     debug do
-                        debug "looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})"
-                        debug "#{existing_candidates.size} candidates:"
+                        debug "  looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})"
+                        debug "  #{existing_candidates.size} candidates:"
                         existing_candidates.each do |candidate_task|
-                            debug "  #{candidate_task}"
+                            debug "    #{candidate_task}"
                         end
                         break
                     end
@@ -798,10 +865,13 @@ module Syskit
                         raise InternalError, "more than one task for #{existing_deployment_task} present in the plan"
                     else
                         adapt_existing_deployment(deployment_task, existing_deployment_tasks.first)
-                        work_plan.remove_object(deployment_task)
                         result << existing_deployment_tasks.first
                     end
                 end
+
+                # This is required to merge the already existing compositions
+                # with the ones in the plan
+                merge_solver.merge_identical_tasks
                 result
             end
 
@@ -811,6 +881,7 @@ module Syskit
             def adapt_existing_deployment(deployment_task, existing_deployment_task)
                 existing_tasks = Hash.new
                 existing_deployment_task.each_executed_task do |t|
+                    next if t.finished? || t.finishing?
                     if t.running?
                         existing_tasks[t.orocos_name] = t
                     elsif t.pending?
@@ -818,34 +889,34 @@ module Syskit
                     end
                 end
 
-                deployed_tasks = deployment_task.each_executed_task.to_value_set
+                deployed_tasks = deployment_task.each_executed_task.to_a
                 deployed_tasks.each do |task|
                     existing_task = existing_tasks[task.orocos_name]
-                    if !existing_task
-                        debug { "  task #{task.orocos_name} has not yet been deployed" }
-                    elsif !existing_task.reusable?
-                        debug { "  task #{task.orocos_name} has been deployed, but the deployment is not reusable" }
-                    elsif !existing_task.can_merge?(task)
-                        debug { "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment" }
-                    end
+                    if !existing_task || !existing_task.can_merge?(task)
+                        debug do
+                            if !existing_task
+                                "  task #{task.orocos_name} has not yet been deployed"
+                            elsif !existing_task.can_merge?(task)
+                                "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment"
+                            end
+                        end
 
-                    if !existing_task || existing_task.finishing? || !existing_task.reusable? || !existing_task.can_merge?(task)
                         new_task = existing_deployment_task.task(task.orocos_name, task.model)
                         debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
                         if existing_task
                             debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
                             new_task.should_configure_after(existing_task.stop_event)
                         end
+                        if new_task.conf != task.conf
+                            existing_task.needs_reconfiguration!
+                        end
                         existing_task = new_task
                     end
-                    existing_task.merge(task)
-                    merge_solver.register_replacement(task, existing_task)
+
+                    merge_solver.merge(task, existing_task)
                     debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
-                    work_plan.remove_object(task)
-                    if existing_task.conf != task.conf
-                        existing_task.needs_reconfiguration!
-                    end
                 end
+                work_plan.remove_object(deployment_task)
             end
 
             # Generate the deployment according to the current requirements, and
@@ -881,10 +952,10 @@ module Syskit
                     @port_dynamics =
                     @deployment_tasks = nil
 
-                options = validate_resolve_options(options)
-                self.options = options
-
-                prepare
+                prepare(options)
+                # We use simply "options" below, which resolves to the local
+                # variable. Update it.
+                options = self.options
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
@@ -911,15 +982,7 @@ module Syskit
                     # Finally, we map the deployed network to the currently
                     # running tasks
                     add_timepoint 'compute_deployment', 'start'
-                    used_tasks = work_plan.find_local_tasks(Component).
-                        to_value_set
-                    used_deployments = work_plan.find_local_tasks(Deployment).
-                        to_value_set
-
-                    add_timepoint 'compute_deployment', 'finalized_deployed_tasks'
-                    @deployment_tasks = finalize_deployed_tasks(used_tasks, used_deployments)
-                    add_timepoint 'compute_deployment', 'merge'
-                    merge_solver.merge_identical_tasks
+                    @deployment_tasks = finalize_deployed_tasks
                     add_timepoint 'compute_deployment', 'done'
 
                     Engine.deployment_postprocessing.each do |block|
