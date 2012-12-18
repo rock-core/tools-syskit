@@ -6,15 +6,6 @@ module Syskit
         class BoundDataService
             include Syskit::PortAccess
 
-            # @deprecated
-            #
-            # [Models::BoundDataService] the data service we are an instance of
-            attr_reader :provided_service_model
-
-            # [Models::BoundDataService] the data service we are an instance of
-            def bound_data_service_model
-                provided_service_model
-            end
             # [Component] The component instance we are bound to
             attr_reader :component
             # [Models::BoundDataService] the data service we are an instance of
@@ -31,14 +22,13 @@ module Syskit
                     other.model == model
             end
 
-            def initialize(component, provided_service_model)
-                @component, @provided_service_model = component, provided_service_model
-                @model = provided_service_model
+            def initialize(component, model)
+                @component, @model = component, model
                 if !component.kind_of?(Component)
                     raise "expected a component instance, got #{component}"
                 end
-                if !provided_service_model.kind_of?(Models::BoundDataService)
-                    raise "expected a provided service, got #{provided_service_model}"
+                if !model.kind_of?(Models::BoundDataService)
+                    raise "expected a model of a bound data service, got #{model}"
                 end
             end
 
@@ -56,7 +46,7 @@ module Syskit
             end
 
             def short_name
-                "#{component}:#{provided_service_model.name}"
+                "#{component}:#{model.short_name}"
             end
 
             def each_slave_data_service(&block)
@@ -82,10 +72,6 @@ module Syskit
             end
 
             def as_plan
-                component
-            end
-
-            def to_component
                 component
             end
 

@@ -84,71 +84,10 @@ module Syskit
                 @port_mappings = mappings
             end
 
-            def to_component
-                if selected_task
-                    return selected_task
-                end
-                raise ArgumentError, "#{self} has no selected component, cannot convert it"
-            end
-
             # If this selection does not yet have an associated task,
             # instanciate one
             def instanciate(engine, context, options = Hash.new)
                 selected.instanciate(engine, context, options)
-            end
-
-            def self.from_object(object, required = InstanceRequirements.new, user_call = true)
-                result = InstanceSelection.new(required.dup)
-                required_model = required.models
-
-                object_required = InstanceRequirements.new
-                case object
-                when InstanceRequirements
-                    result.required.merge(object)
-                    if object.service
-                        required_model.each do |required|
-                            result.service_selection[required] = object.service
-                        end
-                    end
-                when InstanceSelection
-                    result.selected_task = object.selected_task
-                    result.service_selection = object.service_selection
-                    result.port_mappings = object.port_mappings
-                    result.required.merge(object.required)
-                when BoundDataService
-                    if !object.provided_service_model
-                        raise InternalError, "#{object} has no provided service model"
-                    end
-                    required_model.each do |required|
-                        result.service_selection[required] = object.provided_service_model
-                    end
-                    result.selected_task = object.task
-                    object_required.require_model(object.task.model)
-                    object_required.select_service(object.provided_service_model)
-                when Models::BoundDataService
-                    required_model.each do |required|
-                        result.service_selection[required] = object
-                    end
-                    object_required.require_model(object.component_model)
-                    object_required.select_service(object)
-                when Models::DataServiceModel
-                    object_required.require_model(object)
-                when Component
-                    result.selected_task = object
-                    result.service_selection = compute_service_selection(object.model, required_model, user_call)
-                    object_required.require_model(object.model)
-                else
-                    if object < Component
-                        object_required.require_model(object)
-                        result.service_selection = compute_service_selection(object, required_model, user_call)
-                    else
-                        throw :invalid_selection if !user_call
-                        raise ArgumentError, "invalid selection #{object}: expected a device name, a task instance or a model"
-                    end
-                end
-
-                result.required.merge(object_required)
-                result
             end
 
             def each_fullfilled_model(&block)

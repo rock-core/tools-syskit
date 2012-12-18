@@ -85,27 +85,6 @@ module Syskit
                 model.each_fullfilled_model(&block)
             end
 
-            # Return the device instance name that is tied to the given provided
-            # data service
-            #
-            # +data_service+ is a Models::BoundDataService, i.e. a value
-            # returned by e.g. Component.find_data_service, or the name of a
-            # service declared on this component. This service should be a
-            # device model. The value returned by this function is then the
-            # name of the robot's device which is tied to this service
-            def selected_device(data_service)
-                if data_service.respond_to?(:to_str)
-                    data_service = model.find_data_service(data_service)
-                end
-
-                if data_service.master
-                    parent_service_name = selected_device(data_service.master)
-                    "#{parent_service_name}.#{data_service.name}"
-                else
-                    arguments["#{data_service.name}_name"]
-                end
-            end
-
             # Finds a data service by its name
             #
             # @param [String] the data service name
@@ -358,8 +337,6 @@ module Syskit
                     end
                 end
             end
-
-            def to_component; self end
 
             def method_missing(m, *args)
                 return super if !args.empty? || block_given?
