@@ -38,7 +38,7 @@ module Syskit
             #
             #   ElementModel.snakename
             def snakename
-                name.gsub(/.*::/, '').snakecase
+                short_name.gsub(/.*::/, '').snakecase
             end
 
             # Returns a string suitable to reference +self+ as a constant
