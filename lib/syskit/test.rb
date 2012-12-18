@@ -236,6 +236,19 @@ module Syskit
             flexmock_teardown
         end
 
+        module ClassExtension
+            def it(*args, &block)
+                super(*args) do
+                    begin
+                        instance_eval(&block)
+                    rescue Roby::LocalizedError => e
+                        pp e
+                        raise
+                    end
+                end
+            end
+        end
+
         def data_service_type(name, &block)
             DataService.new_submodel(:name => name, &block)
         end
