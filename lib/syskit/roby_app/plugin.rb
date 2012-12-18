@@ -415,16 +415,6 @@ module Syskit
 
                 handler_ids = plug_engine_in_roby(Roby.engine)
 
-                if app.orocos_start_all_deployments?
-                    all_deployment_names = app.orocos_engine.deployments.values.map(&:to_a).flatten
-                    Roby.execute do
-                        all_deployment_names.each do |name|
-                            task = Deployment.model_for(name).instanciate(Roby.app.orocos_engine)
-                            app.plan.add_permanent(task)
-                        end
-                    end
-                end
-
                 yield
 
             ensure
