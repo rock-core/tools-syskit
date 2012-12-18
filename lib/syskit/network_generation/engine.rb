@@ -508,7 +508,7 @@ module Syskit
                 else
                     # Look to disambiguate using deployment hints
                     resolved = candidates.find_all do |_, deployment_model, task_name|
-                        task.requirements.deployment_hints.any? do |rx|
+                        task.deployment_hints.any? do |rx|
                             rx === task_name
                         end
                     end
