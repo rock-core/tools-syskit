@@ -453,6 +453,17 @@ module Syskit
                 end
                 Syskit.process_servers.clear
             end
+
+            def self.enable
+                ::Robot.include Syskit::RobyApp::RobotExtension
+                ::Roby.conf.syskit = Syskit.conf
+                ::Roby.extend Syskit::RobyApp::Toplevel
+
+                Orocos.load_orogen_plugins('syskit')
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROGEN_LIB_DIR))
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(File.expand_path(File.join('..', ".."), File.dirname(__FILE__))))
+            end
+
         end
     end
 end
