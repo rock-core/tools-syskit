@@ -36,7 +36,7 @@ module Syskit
 	    include Roby::Test::Assertions
 
             # The execution engine
-            attr_reader :orocos_engine
+            attr_reader :syskit_engine
 
             # @overload robot the robot definition
             #   @returns [Robot::RobotDefinition]
@@ -44,9 +44,9 @@ module Syskit
             #   @returns [Robot::RobotDefinition]
             def robot
                 if block_given?
-                    orocos_engine.robot.instance_eval(&proc)
+                    syskit_engine.robot.instance_eval(&proc)
                 else
-                    orocos_engine.robot
+                    syskit_engine.robot
                 end
             end
 
@@ -82,7 +82,7 @@ module Syskit
                 orogen_model = Orocos::Spec::Deployment.new(Orocos.master_project, name)
                 orogen_model.task name, task_model.orogen_model
                 model = Deployment.new_submodel(:orogen_model => orogen_model)
-                orocos_engine.deployments['localhost'] << model
+                syskit_engine.deployments['localhost'] << model
                 model
             end
 
@@ -110,7 +110,7 @@ module Syskit
                 engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
                 # TODO: remove all references to global singletons
-                @orocos_engine = Syskit::NetworkGeneration::Engine.new(plan)
+                @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
                 @handler_ids = Syskit::RobyApp::Plugin.plug_engine_in_roby(engine)
 		if !Syskit.conf.disables_local_process_server?
                     Syskit::RobyApp::Plugin.connect_to_local_process_server
@@ -143,8 +143,8 @@ module Syskit
             end
 
             def method_missing(m, *args, &block)
-                if orocos_engine.respond_to?(m)
-                    orocos_engine.send(m, *args, &block)
+                if syskit_engine.respond_to?(m)
+                    syskit_engine.send(m, *args, &block)
                 else super
                 end
             end
@@ -154,11 +154,11 @@ module Syskit
             def deploy(&block)
                 if engine.running?
                     execute do
-                        orocos_engine.redeploy
+                        syskit_engine.redeploy
                     end
                     engine.wait_one_cycle
                 else
-                    orocos_engine.resolve
+                    syskit_engine.resolve
                 end
                 if block_given?
                     execute(&block)
@@ -182,17 +182,17 @@ module Syskit
                 end
 
                 # Do a copy of the currently loaded instances in the engine.
-                current_instances = orocos_engine.instances.dup
+                current_instances = syskit_engine.instances.dup
                 requirements.each do |req_name|
-                    orocos_engine.clear
-                    orocos_engine.instances.concat(current_instances)
-                    orocos_engine.add(req_name)
+                    syskit_engine.clear
+                    syskit_engine.instances.concat(current_instances)
+                    syskit_engine.add(req_name)
                     
                     this = Time.now
                     gc = GC.count
                     GC::Profiler.clear
                     GC::Profiler.enable
-                    orocos_engine.resolve
+                    syskit_engine.resolve
                     puts "resolved #{req_name} in #{Time.now - this} seconds (ran GC #{GC.count - gc} times)"
                     puts GC::Profiler.result
                     GC::Profiler.disable
@@ -200,13 +200,13 @@ module Syskit
 
             ensure
                 if current_instances
-                    orocos_engine.clear
-                    orocos_engine.instances.concat(instances)
+                    syskit_engine.clear
+                    syskit_engine.instances.concat(instances)
                 end
             end
 
             def instanciate_component(model)
-                model.instanciate(orocos_engine, DependencyInjectionContext.new)
+                model.instanciate(syskit_engine, DependencyInjectionContext.new)
             end
         end
 
@@ -231,7 +231,7 @@ module Syskit
         end
 
         def teardown
-            orocos_engine.finalize
+            syskit_engine.finalize
             super
             flexmock_teardown
         end

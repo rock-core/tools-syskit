@@ -39,9 +39,9 @@ module Orocos
             def self.add_service(service_name)
                 if service_name =~ /^\w+(:\w+(,\w+)*)?$/
                     service_name = Scripts.resolve_service_name(service_name)
-                    Roby.app.orocos_engine.add service_name
+                    Roby.app.syskit_engine.add service_name
                 else
-                    Kernel.eval_dsl(service_name, Roby.orocos_engine,
+                    Kernel.eval_dsl(service_name, Roby.syskit_engine,
                             Syskit.constant_search_path,
                             !Roby.app.filter_backtraces?)
                 end
@@ -56,7 +56,7 @@ module Orocos
                         service_conf.first.split(',')
                     end
 
-                engine = Roby.app.orocos_engine
+                engine = Roby.app.syskit_engine
                 instance = engine.resolve_name(service_name)
                 if service_conf
                     instance.use_conf(*service_conf)
@@ -223,9 +223,9 @@ module Orocos
                     end
                     display = Ui::InstanciatedNetworkDisplay.new
                     display.plan_display.push_plan('Task Dependency Hierarchy', 'hierarchy',
-                                      Roby.plan, Roby.orocos_engine, display_options)
+                                      Roby.plan, Roby.syskit_engine, display_options)
                     display.plan_display.push_plan('Dataflow', 'dataflow',
-                                      Roby.plan, Roby.orocos_engine, display_options)
+                                      Roby.plan, Roby.syskit_engine, display_options)
                     if @last_error
                         display.add_error(@last_error)
                     end

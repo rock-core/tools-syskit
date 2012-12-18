@@ -1,7 +1,7 @@
 module Syskit
     module NetworkGeneration
         module PlanExtension
-            attr_accessor :orocos_engine
+            attr_accessor :syskit_engine
         end
 
         # The main deployment algorithm
@@ -117,7 +117,7 @@ module Syskit
                 @work_plan = plan
                 @robot     = robot
                 real_plan.extend PlanExtension
-                real_plan.orocos_engine = self
+                real_plan.syskit_engine = self
 
                 @merge_solver = NetworkGeneration::MergeSolver.new(real_plan)
                 @use_automatic_selection = true

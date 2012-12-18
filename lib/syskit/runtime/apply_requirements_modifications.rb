@@ -4,7 +4,7 @@ module Syskit
             tasks = plan.find_tasks(Syskit::InstanceRequirementsTask).running.to_a
             if !tasks.empty?
                 begin
-                    plan.orocos_engine.resolve
+                    plan.syskit_engine.resolve
                     tasks.each do |t|
                         t.emit :success
                     end

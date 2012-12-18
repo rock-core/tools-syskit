@@ -50,7 +50,7 @@ module Syskit
             # @return [Robot::RobotDefinition]
             def robot
                 return if !plan
-                plan.real_plan.orocos_engine.robot
+                plan.real_plan.syskit_engine.robot
             end
 
             def initialize(options = Hash.new)

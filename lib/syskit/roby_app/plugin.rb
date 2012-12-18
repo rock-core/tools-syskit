@@ -13,6 +13,12 @@ module Syskit
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
         module Plugin
+            def syskit_engine
+                if plan && plan.respond_to?(:syskit_engine)
+                    plan.syskit_engine
+                end
+            end
+
             # The set of loaded orogen projects, as a mapping from the project
             # name to the corresponding TaskLibrary instance
             #
@@ -21,7 +27,7 @@ module Syskit
 
             # If true, we will load the component-specific code in
             # tasks/orocos/. It is true by default
-            attr_predicate :orocos_load_component_extensions, true
+            attr_predicate :syskit_load_component_extensions, true
 
             # If true, the output of the local process server is redirected
             # towards <log_dir>/local_process_server.txt.
@@ -30,7 +36,7 @@ module Syskit
             attr_predicate :redirect_local_process_server?, :true
 
             def self.load(app, options)
-                app.orocos_load_component_extensions = true
+                app.syskit_load_component_extensions = true
             end
 
             # Returns true if the given orogen project has already been loaded
@@ -69,7 +75,7 @@ module Syskit
 
 		Orocos.registry.merge(orogen.registry)
                 if tk = orogen.typekit
-                    if orocos_only_load_models?
+                    if syskit_only_load_models?
                         Orocos.load_typekit_registry(orogen.name)
                     else
                         Orocos.load_typekit(orogen.name)
@@ -78,7 +84,7 @@ module Syskit
                 orogen.used_typekits.each do |tk|
                     next if tk.virtual?
 
-                    if orocos_only_load_models?
+                    if syskit_only_load_models?
                         Orocos.load_typekit_registry(tk.name)
                     else
                         Orocos.load_typekit(tk.name)
@@ -103,7 +109,7 @@ module Syskit
 
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
-                if orocos_load_component_extensions?
+                if syskit_load_component_extensions?
                     file = find_file('models', 'orogen', "#{name}.rb", :order => :specific_first) ||
                         find_file('tasks', 'orogen', "#{name}.rb", :order => :specific_first) ||
                         find_file('tasks', 'components', "#{name}.rb", :order => :specific_first)
@@ -117,7 +123,7 @@ module Syskit
             end
 
             # Loads all available oroGen projects
-            def orocos_load_all
+            def syskit_load_all
                 Orocos.available_projects.each_key do |name|
                     Orocos.master_project.load_orogen_project(name)
                 end
@@ -132,7 +138,7 @@ module Syskit
 
                 Orocos.configuration_log_name ||= File.join(app.log_dir, 'properties')
                 Orocos.disable_sigchld_handler = true
-                # Engine registers itself as plan.orocos_engine
+                # Engine registers itself as plan.syskit_engine
                 NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
 
                 # Change to the log dir so that the IOR file created by the
@@ -212,7 +218,7 @@ module Syskit
                 end
             end
 
-            def orocos_clear_models
+            def syskit_clear_models
                 projects = Set.new
 
                 all_models = Component.submodels | DataService.submodels | Deployment.submodels
@@ -425,8 +431,8 @@ module Syskit
             end
 
             def self.cleanup(app)
-                app.plan.orocos_engine.robot.clear
-		app.orocos_clear_models
+                app.syskit_engine.robot.clear
+		app.syskit_clear_models
                 stop_process_servers
                 stop_local_process_server
             end

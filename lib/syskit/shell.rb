@@ -51,7 +51,7 @@ module Syskit
             class ShellDeploymentRestart < Roby::Task
                 event :start, :controlable => true
                 event :stop do |context|
-                    plan.orocos_engine.resolve
+                    plan.syskit_engine.resolve
                     emit :stop
                 end
             end
@@ -128,7 +128,7 @@ module Syskit
             # apply changed configuration files
             def redeploy
                 engine.execute do
-                    plan.orocos_engine.resolve
+                    plan.syskit_engine.resolve
                 end
                 nil
             end

@@ -255,7 +255,7 @@ module Test_DataServiceModel
 
     def test_instanciate
         model = data_service_type("A")
-        task = model.instanciate(orocos_engine)
+        task = model.instanciate(syskit_engine)
         assert_kind_of model.proxy_task_model, task
     end
 end

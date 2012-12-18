@@ -428,7 +428,7 @@ module Syskit
 
                 super
 
-                if !Roby.app.orocos_engine.dry_run? && (cleaned_up || state == :PRE_OPERATIONAL)
+                if !Roby.app.syskit_engine.dry_run? && (cleaned_up || state == :PRE_OPERATIONAL)
                     orocos_task.configure(false)
                 end
                 TaskContext.needs_reconfiguration.delete(orocos_name)

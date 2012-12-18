@@ -132,14 +132,14 @@ class Instanciate
 
             Scripts.resume_profiling
             Scripts.tic
-            Roby.app.orocos_engine.
+            Roby.app.syskit_engine.
                 resolve(:compute_policies => compute_policies,
                     :compute_deployments => compute_deployments,
                     :validate_network => validate_network,
                     :on_error => :commit)
             Scripts.toc_tic "computed deployment in %.3f seconds"
             if display_timepoints
-                pp Roby.app.orocos_engine.format_timepoints
+                pp Roby.app.syskit_engine.format_timepoints
             end
             Scripts.pause_profiling
         end
@@ -148,8 +148,8 @@ class Instanciate
 
     def run(compute_policies = true, compute_deployments = true, validate_network = true, remove_loggers = true, remove_compositions = false, annotations = [], display_timepoints = false)
         excluded_models      = ValueSet.new
-        Scripts.setup_output("instanciate", Roby.app.orocos_engine) do
-            Roby.app.orocos_engine.
+        Scripts.setup_output("instanciate", Roby.app.syskit_engine) do
+            Roby.app.syskit_engine.
                 to_dot_dataflow(remove_compositions, excluded_models, annotations)
         end
 
@@ -283,13 +283,13 @@ if Scripts.output_type == 'qt'
             passes = Instanciate.parse_passes(instance_txt.text.split(" "))
 
             Roby.plan.clear
-            Roby.orocos_engine.clear
+            Roby.syskit_engine.clear
             begin Instanciate.compute(passes, true, true, true)
             rescue Exception => e
                 error = e
             end
 
-            network_display.display_plan(Roby.plan, Roby.orocos_engine)
+            network_display.display_plan(Roby.plan, Roby.syskit_engine)
             if error
                 network_display.add_error(error)
             end

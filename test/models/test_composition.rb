@@ -204,7 +204,7 @@ describe Syskit::Models::Composition do
                 once
 
             context = Syskit::DependencyInjectionContext.new('srv' => component)
-            composition.instanciate(orocos_engine, context)
+            composition.instanciate(syskit_engine, context)
         end
 
         it "adds its children as dependencies" do
@@ -215,15 +215,15 @@ describe Syskit::Models::Composition do
                 should_receive(:depends_on).by_default.pass_thru
             flexmock(composition_m).new_instances.
                 should_receive(:depends_on).with(srv_child, any).once.pass_thru
-            composition_m.instanciate(orocos_engine, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
+            composition_m.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
         end
 
         it "adds its instanciated children with the child name as role" do
-            task = simple_composition_model.instanciate(orocos_engine)
+            task = simple_composition_model.instanciate(syskit_engine)
             child_task = simple_component_model.new
             flexmock(simple_component_model).should_receive(:new).once.and_return(child_task)
             task = simple_composition_model.
-                instanciate(orocos_engine, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
+                instanciate(syskit_engine, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
             assert task.has_role?('srv'), "no child of task #{task} with role srv, existing roles: #{task.each_role.to_a.sort.join(", ")}"
         end
 
@@ -242,7 +242,7 @@ describe Syskit::Models::Composition do
                 end
             end
             def instanciate
-                @composition = @composition_m.instanciate(orocos_engine, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
+                @composition = @composition_m.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new('srv' => simple_component_model))
             end
             def assert_dependency_contains(flags)
                 options = @composition[@srv_child, Roby::TaskStructure::Dependency]

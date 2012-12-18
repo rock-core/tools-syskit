@@ -25,7 +25,7 @@ module Ui
 
             @parent_window = main
             @system_model = system_model
-            @parent_engine = parent_engine || Roby.app.orocos_engine
+            @parent_engine = parent_engine || Roby.app.syskit_engine
             @robot = robot
             @plan   = Roby::Plan.new
             @engine = Syskit::NetworkGeneration::Engine.new(plan, robot)

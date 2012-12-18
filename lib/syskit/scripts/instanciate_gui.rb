@@ -22,7 +22,7 @@ Roby.app.orocos_disables_local_process_server = true
 error = Scripts.run do
     app  = Qt::Application.new(ARGV)
     main = Qt::Widget.new
-    ui = Ui::OrocosSystemBuilderWidget.new(Roby.app.orocos_engine.model, Roby.app.orocos_engine.robot)
+    ui = Ui::OrocosSystemBuilderWidget.new(Roby.app.syskit_engine.model, Roby.app.syskit_engine.robot)
     ui.setupUi(main)
     remaining.each do |file|
         STDERR.puts "script: #{file}"

@@ -197,7 +197,7 @@ class ModelDisplayView < Ui::StackedDisplay
                 :toned_down => incompatible_specializations.values
             }
             plan_display = push_plan('Specializations', 'relation_to_dot',
-                      Roby.plan, Roby.orocos_engine,
+                      Roby.plan, Roby.syskit_engine,
                       display_options)
             Qt::Object.connect(plan_display, SIGNAL('selectedObject(QVariant&,QPoint&)'),
                                self, SLOT('clickedSpecialization(QVariant&)'))
@@ -209,18 +209,18 @@ class ModelDisplayView < Ui::StackedDisplay
 
         Roby.plan.clear
         requirements = Syskit::Engine.
-            create_instanciated_component(Roby.app.orocos_engine, "", model)
+            create_instanciated_component(Roby.app.syskit_engine, "", model)
         task = requirements.instanciate(
-            Roby.app.orocos_engine,
+            Roby.app.syskit_engine,
             Syskit::DependencyInjectionContext.new)
         Roby.plan.add(task)
 
         if model <= Syskit::Component
-            push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.orocos_engine, Hash.new)
-            default_widget = push_plan('Dataflow', 'dataflow', Roby.plan, Roby.orocos_engine, Hash.new)
+            push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.syskit_engine, Hash.new)
+            default_widget = push_plan('Dataflow', 'dataflow', Roby.plan, Roby.syskit_engine, Hash.new)
 
         else
-            default_widget = push_plan('Interface', 'dataflow', Roby.plan, Roby.orocos_engine, Hash.new)
+            default_widget = push_plan('Interface', 'dataflow', Roby.plan, Roby.syskit_engine, Hash.new)
         end
 
         services = []
@@ -307,11 +307,11 @@ Scripts.run do
             Roby.app.use_deployments_from(project_name)
         end
         files.each do |file|
-            Roby.app.orocos_engine.load_composite_file file
+            Roby.app.syskit_engine.load_composite_file file
         end
     end
 
-    Roby.app.orocos_engine.prepare
+    Roby.app.syskit_engine.prepare
 
     main = SystemModelBrowser.new
     main.resize(800, 500)

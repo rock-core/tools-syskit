@@ -51,7 +51,7 @@ error = Scripts.run do
         Roby.execute do
             Roby.engine.scheduler = nil
             if deploy_all || deploy_only
-                deployments = Roby.app.orocos_engine.deployments.
+                deployments = Roby.app.syskit_engine.deployments.
                     values.map(&:to_a).flatten.sort.uniq
                 if deploy_only
                     deployments.delete_if { |name| !deploy_only.include?(name) }
@@ -65,13 +65,13 @@ error = Scripts.run do
 
                 deployments.each do |deployment_model|
                     Roby.plan.add(deployment_task = deployment_model.new)
-                    deployment_task.robot = Roby.app.orocos_engine.robot
+                    deployment_task.robot = Roby.app.syskit_engine.robot
                     deployment_task.instanciate_all_tasks.each do |t|
                         Roby.plan.add_permanent(t)
                     end
                 end
-                Roby.app.orocos_engine.prepare
-                Roby.app.orocos_engine.compute_system_network
+                Roby.app.syskit_engine.prepare
+                Roby.app.syskit_engine.compute_system_network
                 Roby.engine.garbage_collect
 
             else
@@ -80,9 +80,9 @@ error = Scripts.run do
                 end
                 additional_services.each do |service_name|
                     service_name = Scripts.resolve_service_name(service_name)
-                    Roby.app.orocos_engine.add_mission service_name
+                    Roby.app.syskit_engine.add_mission service_name
                 end
-                Roby.app.orocos_engine.resolve
+                Roby.app.syskit_engine.resolve
             end
 
 

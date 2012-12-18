@@ -266,17 +266,17 @@ describe Syskit::Models::TaskContext do
         attr_reader :task_model
         before { @task_model = Syskit::TaskContext.new_submodel }
         it "returns a task using the receiver as model" do
-            task = task_model.instanciate(orocos_engine)
+            task = task_model.instanciate(syskit_engine)
             assert_kind_of task_model, task
         end
 
         it "passes the :task_arguments option as arguments to the newly created task" do
-            task = task_model.instanciate(orocos_engine, Syskit::DependencyInjectionContext.new, :task_arguments => {:conf => ['default']})
+            task = task_model.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new, :task_arguments => {:conf => ['default']})
             assert_equal Hash[:conf => ['default']], task.arguments
         end
         it "sets the fullfilled model properly" do
             arguments = Hash[:conf => ['default']]
-            task = task_model.instanciate(orocos_engine, Syskit::DependencyInjectionContext.new, :task_arguments => arguments)
+            task = task_model.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new, :task_arguments => arguments)
             assert_equal([[task_model], arguments], task.fullfilled_model)
         end
     end
