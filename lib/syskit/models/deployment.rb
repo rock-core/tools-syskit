@@ -2,6 +2,13 @@ module Syskit
     module Models
         module Deployment
             include Models::Base
+            
+            # The options that should be passed when starting the underlying
+            # Orocos process.
+            #
+            # @key_name option_name
+            # @return [Hash<String,String>]
+            define_inherited_enumerable('default_run_option', 'default_run_options', :map => true) { Hash.new }
 
             # [Models::Deployment] Returns the parent model for this class, or
             # nil if it is the root model

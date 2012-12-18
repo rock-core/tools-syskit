@@ -153,26 +153,6 @@ describe Syskit::Component do
             task.merge(merged_task)
         end
     end
-
-    describe "#deployment_hints" do
-        it "should return requirements.deployment_hints if it is not empty" do
-            task = Syskit::Component.new
-            task.requirements.deployment_hints << Regexp.new("test")
-            assert_equal task.requirements.deployment_hints, task.deployment_hints
-        end
-        it "should return the merged hints from its parents if requirements.deployment_hints is empty" do
-            plan.add(task = Syskit::Component.new)
-            parents = (1..2).map do
-                t = Syskit::Component.new
-                t.depends_on task
-                t
-            end
-            flexmock(parents[0]).should_receive(:deployment_hints).once.and_return([1, 2])
-            flexmock(parents[1]).should_receive(:deployment_hints).once.and_return([2, 3])
-            assert_equal [1, 2, 3].to_set, task.deployment_hints
-        end
-    end
-
     describe "#method_missing" do
         it "returns a matching service if called with the #srv_name_srv handler" do
             task = Syskit::Component.new

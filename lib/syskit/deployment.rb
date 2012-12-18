@@ -25,17 +25,22 @@ module Syskit
             extend Models::Deployment
 
             def initialize(arguments = Hash.new)
-	    	opts, task_arguments = Kernel.filter_options  arguments, :log => true
+	    	opts, task_arguments = Kernel.filter_options arguments, :log => true, :on => 'localhost'
 		task_arguments[:log] = opts[:log]
-                @logged_ports = Set.new
+		task_arguments[:on] = opts[:on]
                 super(task_arguments)
 	    end
 
             @@all_deployments = Hash.new
+            class << self
+                def all_deployments; @@all_deployments end
+            end
 
             # The PID of this process
             def pid
-                @pid ||= orocos_process.pid
+                if running?
+                    @pid ||= orocos_process.pid
+                end
             end
 
             # A name => Orocos::TaskContext instance mapping of all the task
@@ -45,19 +50,9 @@ module Syskit
             # The underlying Orocos::Process instance
             attr_reader :orocos_process
 
-            # The set of ports for which logging has already been set up, as a
-            # set of [task_name, port_name] pairs
-            attr_reader :logged_ports
-
-            ##
-            # :method: ready_event
-            #
             # Event emitted when the deployment is up and running
             event :ready
 
-            ##
-            # :method: signaled_event
-            #
             # Event emitted whenever the deployment finishes because of a UNIX
             # signal. The event context is the Process::Status instance that
             # describes the termination
@@ -69,7 +64,7 @@ module Syskit
             # Returns true if +self+ and +task+ are running on the same process
             # server
             def on_same_server?(task)
-                task == self || machine == task.machine
+                task == self || host == task.host
             end
 
             def instanciate_all_tasks
@@ -97,6 +92,10 @@ module Syskit
             # Returns an task instance that represents the given task in this
             # deployment.
             def task(name, model = nil)
+                if finishing? || finished?
+                    raise ArgumentError, "#{self} is either finishing or already finished, you cannot call #task"
+                end
+
                 activity = each_orogen_deployed_task_context_model.
                     find { |act| name == act.name }
                 if !activity
@@ -115,15 +114,14 @@ module Syskit
                 task.executed_by self
                 task.orogen_model = activity
                 if ready?
-                    initialize_running_task(name, task)
+                    initialize_running_task(task, task_handles[name])
                 end
                 task
             end
 
             # Internal helper to set the #orocos_task
-            def initialize_running_task(name, task)
-                task.orocos_task = task_handles[name]
-                task.orocos_task.process = orocos_process
+            def initialize_running_task(task, orocos_task)
+                task.orocos_task = orocos_task
                 if Syskit.conf.conf_log_enabled?
                     task.orocos_task.log_all_configuration(Orocos.configuration_log)
                 end
@@ -136,81 +134,16 @@ module Syskit
             # :ready event will be emitted when the deployment is up and
             # running.
             event :start do |context|
-                host = self.arguments['on'] ||= 'localhost'
-                Syskit.info { "starting deployment #{model.deployment_name} on #{host}" }
-
                 process_server, log_dir = Syskit.process_servers[host]
                 if !process_server
                     raise ArgumentError, "cannot find the process server for #{host}"
                 end
+
                 options = Hash.new
-
-                # Checking for options which apply in a multi-robot context,
-                # e.g. such as prefixing and service_discovery (distributed
-                # nameservice
-                #
-                # multirobot:
-                #     use_prefixing: true
-                #     exclude_from_prefixing:
-                #         - SIMULATION
-                #         - .*TEST.*
-                #     service_discovery:
-                #         - domain: _rimres._tcp
-                #         - publish:
-                #             - .*CORE.*
-                if multirobot = Roby.app.options["multirobot"]
-                    # Use prefixing of components in order to allow
-                    # multiple robots to use the same set of deployments,
-                    # since tasks will be renamed using th given prefix
-                    # (robot_name)
-                    # e.g. with prefix enabled:
-                    #     ./scripts/run robot_0 robottype
-                    # the prefix 'robot_0_' will be used
-                    if multirobot.key?("use_prefixing")
-
-                        exclude = false
-                        # Exclude deployments from prefixing that match one of the given
-                        # regular expressions (matching on complete deployment_name)
-                        if prefix_black_list = multirobot["exclude_from_prefixing"]
-                            prefix_black_list.each do |pattern|
-                                begin
-                                    exclude = exclude || deployment_name =~ Regexp.new('^' + pattern + '$')
-                                rescue RegexpError => e
-                                    Robot.error "Regular expression in configuration of multirobot with errors: #{e}"
-                                end
-                            end
-                        end
-                        if !exclude
-                            Robot.info "Deployment #{deployment_name} is started with prefix #{Roby.app.robot_name}"
-                            args = { :prefix => "#{Roby.app.robot_name}_" }
-                            options.merge!(args)
-                        else
-                            Robot.info "Deployment #{deployment_name} is started without prefix #{Roby.app.robot_name}"
-                        end
-
-                    end
-                    # Check whether the deployment should be started with
-                    # service discovery options, in order to be published within
-                    # the distributed nameservice
-                    if multirobot.key?("service_discovery")
-                        service_discovery = multirobot['service_discovery']
-                        sd_domains = service_discovery["domain"]
-                        publish = false
-			if publish_white_list = service_discovery['publish']
-                            publish_white_list.each do |pattern|
-                                begin
-                                    publish = publish || deployment_name =~ Regexp.new('^' + pattern + '$')
-                                rescue RegexpError => e
-                                    Robot.error "Regular expression in configuration of multirobot with errors: #{e}"
-                                end
-                            end
-			end
-			if publish
-                            args = { 'sd-domain' => sd_domains }
-                            options.merge!(args)
-                        end
-                    end
+                model.each_default_run_option do |name, value|
+                    options[name] = value
                 end
+                Syskit.info { "starting deployment #{model.deployment_name} on #{host} with #{options}" }
                 @orocos_process = process_server.start(model.deployment_name, 
                                                           :working_directory => log_dir, 
                                                           :output => "%m-%p.txt", 
@@ -222,15 +155,79 @@ module Syskit
             end
 
             def log_dir
-                host = self.arguments['on'] ||= 'localhost'
                 process_server, log_dir = Syskit.process_servers[host]
                 log_dir
             end
 
-            # The name of the machine this deployment is running on, i.e. the
+            # The name of the host this deployment is running on, i.e. the
             # name given to the :on argument.
-            def machine
-                arguments[:on] || 'localhost'
+            def host
+                arguments[:on]
+            end
+
+            # Returns true if the syskit plugin configuration requires
+            # +port+ to be logged
+            def log_port?(port)
+                result = !Roby::State.orocos.port_excluded_from_log?(self,
+                        TaskContext.model_for(port.task), port)
+
+                if !result
+                    Robot.info "not logging #{port.task.name}:#{port.name}"
+                end
+                result
+            end
+
+            poll do
+                next if ready?
+
+                if orocos_process.wait_running(0)
+                    emit :ready
+
+                    @task_handles = Hash.new
+                    model.each_orogen_deployed_task_context_model do |activity|
+                        name = orocos_process.get_mapped_name(activity.name)
+                        orocos_task = ::Orocos::TaskContext.get(name)
+                        orocos_task.process = orocos_process
+                        task_handles[activity.name] =  orocos_task
+                    end
+
+                    each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
+                        initialize_running_task(task, task_handles[task.orocos_name])
+                    end
+                end
+            end
+
+	    attr_predicate :ready_to_die?
+
+	    def ready_to_die!
+	    	@ready_to_die = true
+	    end
+
+            ##
+            # method: stop!
+            #
+            # Stops all tasks that are running on top of this deployment, and
+            # kill the deployment
+            event :stop do |context|
+                begin
+                    if task_handles
+                        task_handles.each_value do |t|
+                            if t.rtt_state == :STOPPED
+                                t.cleanup
+                            end
+                        end
+                    end
+                rescue Orocos::ComError
+                    # Assume that the process is killed as it is not reachable
+                end
+                ready_to_die!
+                begin
+                    orocos_process.kill(false)
+                rescue Orocos::ComError
+                    # The underlying process server cannot be reached. Just emit
+                    # failed ourselves
+                    dead!(nil)
+                end
             end
 
             # Called when the process is finished.
@@ -253,12 +250,18 @@ module Syskit
                 end
 
                 Deployment.all_deployments.delete(orocos_process)
-                model.each_deployed_task_context do |act|
+                model.each_orogen_deployed_task_context_model do |act|
                     TaskContext.configured.delete(act.name)
                 end
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orocos_task = nil
                 end
+
+                # do NOT call cleanup_dead_connections here.
+                # Runtime.update_deployment_states will first announce all the
+                # dead processes and only then call #cleanup_dead_connections,
+                # thus avoiding to disconnect connections between already-dead
+                # processes
             end
 
             # Removes any connection that points to tasks that were in this
@@ -280,94 +283,21 @@ module Syskit
 
                         mappings = parent_task[task, ActualDataFlow]
                         mappings.each do |(source_port, sink_port), policy|
-                            if policy[:pull] # we have to disconnect explicitely
-                                begin
-                                    parent_task.port(source_port).disconnect_from(task.port(sink_port, false))
-                                rescue Exception => e
-                                    Syskit.warn "error while disconnecting #{parent_task}:#{source_port} from #{task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
-                                end
-                            end
-                        end
-                    end
-                    task.each_child_vertex(ActualDataFlow) do |child_task|
-                        if child_task.process
-                            next if !child_task.process.running?
-                            roby_task = Deployment.all_deployments[child_task.process]
-                            next if roby_task.finishing? || roby_task.finished?
-                        end
-
-                        mappings = task[child_task, ActualDataFlow]
-                        mappings.each do |(source_port, sink_port), policy|
                             begin
-                                child_task.port(sink_port).disconnect_all
+                                parent_task.port(source_port).disconnect_from(task.port(sink_port, false))
                             rescue Exception => e
-                                Syskit.warn "error while disconnecting #{task}:#{source_port} from #{child_task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
+                                Syskit.warn "error while disconnecting #{parent_task}:#{source_port} from #{task}:#{sink_port} after #{task} died (#{e.message}). Assuming that both tasks are already dead."
                             end
                         end
                     end
 
+                    # NOTE: we cannot do the same for child tasks as RTT does
+                    # not support selective disconnection over CORBA
                     ActualDataFlow.remove(task)
                     RequiredDataFlow.remove(task)
                 end
             end
 
-            # Returns true if the syskit plugin configuration requires
-            # +port+ to be logged
-            def log_port?(port)
-                result = !Roby::State.orocos.port_excluded_from_log?(self,
-                        TaskContext.model_for(port.task), port)
-
-                if !result
-                    Robot.info "not logging #{port.task.name}:#{port.name}"
-                end
-                result
-            end
-
-            poll do
-                next if ready?
-
-                if orocos_process.wait_running(0)
-                    emit :ready
-
-                    @task_handles = Hash.new
-                    model.each_deployed_task_context do |activity|
-                        name = orocos_process.get_mapped_name(activity.name)
-                        task_handles[activity.name] =  
-                          ::Orocos::TaskContext.get(name)
-                    end
-
-                    each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                        initialize_running_task(task.orocos_name, task)
-                    end
-                end
-            end
-
-	    def ready_to_die!
-	    	@ready_to_die = true
-	    end
-
-	    attr_predicate :ready_to_die?
-
-            ##
-            # method: stop!
-            #
-            # Stops all tasks that are running on top of this deployment, and
-            # kill the deployment
-            event :stop do |context|
-                begin
-                    if task_handles
-                        task_handles.each_value do |t|
-                            if t.rtt_state == :STOPPED
-                                t.cleanup
-                            end
-                        end
-                    end
-                    ready_to_die!
-                    orocos_process.kill(false)
-                rescue CORBA::ComError
-                    # Assume that the process is killed as it is not reachable
-                end
-            end
         end
 end
 

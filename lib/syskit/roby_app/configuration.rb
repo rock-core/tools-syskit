@@ -19,6 +19,8 @@ module Syskit
                 @disables_local_process_server = false
                 @start_all_deployments = false
                 @local_only = false
+                @prefix_blacklist = []
+                @sd_publish_list = []
 
                 @log_groups = { nil => LogGroup.new(false) }
 
@@ -208,6 +210,42 @@ module Syskit
             # This greatly reduces latency during operations
             attr_predicate :start_all_deployments?, true
 
+            # If set to a non-nil value, the deployment processes will be
+            # started with the given prefix
+            #
+            # It is set from the syskit.prefix configuration variable in app.yml
+            #
+            # @return [String,nil]
+            attr_accessor :prefix
+
+            # True if deployments are going to be started with a prefix
+            def prefixing?; !!prefix end
+
+            # A set of regular expressions that should match the names of the
+            # deployments that should not be prefixed even if {#prefix} is set
+            #
+            # It is set from the syskit.prefix_blacklist configuration variable in app.yml
+            #
+            # @return [Array<String,Regexp>]
+            attr_reader :prefix_blacklist
+
+            # If set, it is the service discovery domain in which the orocos
+            # processes should be published
+            #
+            # It is set from the syskit.sd_domain configuration variable in app.yml
+            #
+            # @return [String]
+            attr_accessor :sd_domain
+
+            # A set of regular expressions that should match the names of the
+            # deployments that should be published on DNS-SD if {#sd_domain} is
+            # set
+            #
+            # It is set from the syskit.sd_publish_list configuration variable in app.yml
+            #
+            # @return [Array<String,Regexp>]
+            attr_reader :sd_publish_list
+
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.
@@ -222,6 +260,7 @@ module Syskit
                 rescue ArgumentError
                     model = Roby.app.orocos_load_deployment_model(name)
                 end
+                model.default_run_options.merge!(default_run_options(model))
                 deployments[options[:on]] << model
                 model
             end
@@ -249,6 +288,55 @@ module Syskit
                     end
                 end
                 result
+            end
+
+            # Returns the set of options that should be given to Process.spawn
+            # to start the given deployment model
+            #
+            # @return {String=>String} the set of default options that should be
+            #   used when starting the given deployment
+            def default_run_options(deployment_model)
+                result = Hash.new
+                if prefix = default_prefix(deployment_model)
+                    result["prefix"] = prefix
+                end
+                if sd_domain = default_sd_domain(deployment_model)
+                    result["sd-domain"] = sd_domain
+                end
+                result
+            end
+
+            # Returns the deployment prefix that should be used to start the
+            # given syskit deployment process
+            #
+            # @return [String,nil] the prefix that should be used when starting
+            #   this deployment, or nil if there should be none
+            def default_prefix(deployment_model)
+                return if !prefix
+                deployment_name = deployment_model.deployment_name
+
+                exclude = prefix_blacklist.any? do |pattern|
+                    pattern === deployment_name
+                end
+                if !exclude
+                    "#{prefix}_"
+                end
+            end
+
+            # Sets up mDNS support for the syskit deployment processes
+            #
+            # @return [String,nil] the SD domain on which this deployment should
+            #   be published, or nil if none
+            def default_sd_domain(deployment_model)
+                return if !sd_domain
+                deployment_name = deployment_model.name
+
+                publish = publish_white_list.any? do |pattern|
+                    pattern === deployment_name
+                end
+                if publish
+                    sd_domain
+                end
             end
 
             # Returns the process server object named +name+

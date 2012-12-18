@@ -37,6 +37,14 @@ module Syskit
 
             def self.load(app, options)
                 app.syskit_load_component_extensions = true
+
+                conf = Syskit.conf
+                if options = options['syskit']
+                    conf.prefix = options['prefix']
+                    conf.exclude_from_prefixing.concat(options['exclude_from_prefixing'] || [])
+                    conf.sd_domain = options['sd_domain']
+                    conf.publish_on_sd.concat(options['publish_on_sd'] || [])
+                end
             end
 
             # Returns true if the given orogen project has already been loaded
@@ -387,6 +395,7 @@ module Syskit
 
             def self.plug_engine_in_roby(roby_engine)
                 handler_ids = []
+                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_deployment_states))
                 handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_task_states))
                 handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime::ConnectionManagement.method(:update))
                 handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime.method(:apply_requirement_modifications))

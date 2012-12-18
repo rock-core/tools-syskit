@@ -3,25 +3,6 @@ module Syskit
         # This method is called at the beginning of each execution cycle, and
         # updates the running TaskContext tasks.
         def self.update_task_states(plan) # :nodoc:
-            all_dead_deployments = ValueSet.new
-            for name, server in Syskit.process_servers
-                server = server.first
-                if dead_deployments = server.wait_termination(0)
-                    dead_deployments.each do |p, exit_status|
-                        d = Deployment.all_deployments[p]
-                        if !d.finishing?
-                            Syskit.warn "#{p.deployment_name} unexpectedly died on #{name}"
-                        end
-                        all_dead_deployments << d
-                        d.dead!(exit_status)
-                    end
-                end
-            end
-
-            for deployment in all_dead_deployments
-                deployment.cleanup_dead_connections
-            end
-
             if !(query = plan.instance_variable_get :@orocos_update_query)
                 query = plan.find_tasks(Syskit::TaskContext).
                     not_finished
