@@ -85,6 +85,7 @@ module Syskit
             def self.add_logging_to_network(engine, plan)
                 logger_model = TaskContext.find_model_from_orogen_name 'logger::Logger'
                 return if !logger_model
+                logger_model.include LoggerConfigurationSupport
 
                 engine.deployment_tasks.each do |deployment|
                     next if !deployment.plan
