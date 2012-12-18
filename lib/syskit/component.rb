@@ -341,16 +341,7 @@ module Syskit
             def method_missing(m, *args)
                 return super if !args.empty? || block_given?
 
-                if m.to_s =~ /^(\w+)_port$/
-                    port_name = $1
-                    if port = find_input_port(port_name)
-                        return port
-                    elsif port = find_output_port(port_name)
-                        return port
-                    else
-                        raise NoMethodError, "#{self} has no port called #{port_name}"
-                    end
-                elsif m.to_s =~ /^(\w+)_srv$/
+                if m.to_s =~ /^(\w+)_srv$/
                     service_name = $1
                     if service_model = find_data_service(service_name)
                         return service_model

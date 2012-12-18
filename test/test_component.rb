@@ -153,6 +153,29 @@ describe Syskit::Component do
             task.merge(merged_task)
         end
     end
+    describe "#method_missing" do
+        it "returns a matching service if called with the #srv_name_srv handler" do
+            task = Syskit::Component.new
+            flexmock(task).should_receive(:find_data_service).with('a_service_name').and_return(srv = Object.new)
+            assert_same srv, task.a_service_name_srv
+        end
+        it "raises NoMethodError if called with the #srv_name_srv handler for a service that does not exist" do
+            task = Syskit::Component.new
+            flexmock(task).should_receive(:find_data_service).with('a_service_name')
+            assert_raises(NoMethodError) { task.a_service_name_srv }
+        end
+        it "returns a matching port if called with the #port_name_port handler" do
+            task = Syskit::Component.new
+            flexmock(task).should_receive(:find_port).with('a_port_name').and_return(obj = Object.new)
+            assert_same obj, task.a_port_name_port
+        end
+        it "raises NoMethodError if called with the #port_name_port handler for a port that does not exist" do
+            task = Syskit::Component.new
+            flexmock(task).should_receive(:find_port).with('a_port_name')
+            assert_raises(NoMethodError) { task.a_port_name_port }
+        end
+    end
+
 end
 
 class TC_Component < Test::Unit::TestCase
