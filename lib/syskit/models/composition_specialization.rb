@@ -172,12 +172,15 @@ module Syskit
             #
             # @see #strong_match?
             def weak_match?(selection)
-                selection.all? do |child_name, child_models|
-                    if this_selection = specialized_children[child_name]
+                has_match = false
+                result = specialized_children.all? do |child_name, child_models|
+                    if this_selection = selection[child_name]
+                        has_match = true
                         child_models.any? { |m| m.fullfills?(this_selection) }
                     else true
                     end
                 end
+                has_match && result
             end
 
             # Tests if this specialization could be used for the given
@@ -196,9 +199,9 @@ module Syskit
             #
             # @see #weak_match?
             def strong_match?(selection)
-                selection.all? do |child_name, child_models|
-                    if this_selection = specialized_children[child_name]
-                        child_models.any? { |m| submodel.fullfills?(this_selection) }
+                specialized_children.all? do |child_name, child_models|
+                    if this_selection = selection[child_name]
+                        child_models.any? { |m| m.fullfills?(this_selection) }
                     end
                 end
             end

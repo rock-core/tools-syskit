@@ -41,18 +41,6 @@ module Syskit
                 end
             end
 
-            ##
-            # If true, any ambiguity in the selection of composition
-            # specializations will lead to an error. If false, the common parent
-            # of all the possible specializations will be instanciated. One can
-            # note that it is less dangerous that it sounds, as this parent is
-            # most likely abstract and will therefore be rejected later in the
-            # system deployment process.
-            #
-            # However, don't set this to false unless you know what you are
-            # doing
-            attr_predicate :strict_specialization_selection, true
-
             # Specifies a modification that should be applied on
             # {#composition_model} when select children fullfill some specific
             # models. 
@@ -468,7 +456,7 @@ module Syskit
             # to get the corresponding composition model
             def find_matching_specializations(selection)
                 if specializations.empty? || selection.empty?
-                    return []
+                    return composition_model, []
                 end
 
                 Models.debug do
@@ -492,7 +480,7 @@ module Syskit
                 end
 
                 if matching_specializations.empty?
-                    return []
+                    return composition_model, []
                 end
 
                 return partition_specializations(matching_specializations)
@@ -504,22 +492,28 @@ module Syskit
             # @param [{String=>SelectionModel}] selection the selections, as a
             #   mapping from a child name to a suitable selection in
             #   DependencyInjection
+            # @option options [Boolean] strict (true)
+            #   If true, an ambiguous match will make the method raise.
+            #   Otherwise, the method will return the common subset of the
+            #   matching specializations.
             # @return [Model<Composition>] the specialized model, or
             #   {#composition_model} if no specializations match
             # @raise [AmbiguousSpecialization] if multiple models match
-            def matching_specialized_model(selection)
+            def matching_specialized_model(selection, options = Hash.new)
+                options = Kernel.validate_options options, :strict => true
+
                 candidates = find_matching_specializations(selection)
                 if candidates.empty?
                     return composition_model
                 elsif candidates.size > 1
-                    if strict_specialization_selection?
+                    if options[:strict]
                         raise AmbiguousSpecialization.new(composition_model, selection, candidates)
                     else
                         candidates = [find_common_specialization_subset(candidates)]
                     end
                 end
 
-                specialized_model = specialized_model(candidates.first)
+                specialized_model = specialized_model(*candidates.first)
                 Models.debug do
                     if specialized_model != composition_model
                         Models.debug "using specialization #{specialized_model.short_name} of #{composition_model.short_name}"
@@ -527,18 +521,6 @@ module Syskit
                     break
                 end
                 return specialized_model
-            end
-
-            # Returns a single composition that can be used as a base model for
-            # +selection+. Returns +self+ if the possible specializations are
-            # ambiguous, or if no specializations apply. 
-            def find_suitable_specialization(selection)
-                all = find_matching_specializations(selection)
-                if all.size != 1
-                    return composition_model
-                else
-                    return specialized_model(*all.first)
-                end
             end
 
             # Given a set of specialization sets, returns subset common to all
@@ -549,7 +531,7 @@ module Syskit
                     result &= subset.to_set
                 end
 
-                merged = result.inject(Specialization.new) do |merged, spec|
+                merged = result.inject(CompositionSpecialization.new) do |merged, spec|
                     merged.merge(spec)
                 end
                 [merged, result]

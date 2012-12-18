@@ -63,6 +63,11 @@ describe Syskit::Models::SpecializationManager do
             assert_equal Hash['srv' => [simple_component_model].to_set],
                 mng.normalize_specialization_mappings(srv2 => simple_component_model)
         end
+        it "should raise if a model is used as selector, but there are no corresponding children available" do
+            assert_raises(ArgumentError) do
+                mng.normalize_specialization_mappings(Syskit::DataService.new_submodel => simple_component_model)
+            end
+        end
         it "should raise if an ambiguous component model is used as selector" do
             assert_raises(ArgumentError) do
                 mng.normalize_specialization_mappings(simple_service_model => simple_component_model)
@@ -262,12 +267,15 @@ describe Syskit::Models::SpecializationManager do
             @spec2 = mng.specialize 'srv2' => simple_component_model
         end
 
-        it "should return an empty set if having no specializations" do
+        it "should return the non-specialized model if it has no specializations" do
             mng.specializations.clear
-            assert_equal [], mng.find_matching_specializations('srv' => simple_component_model)
+            assert_equal [simple_composition_model, []], mng.find_matching_specializations('srv' => simple_component_model)
         end
-        it "should return an empty set if given an empty selection" do
-            assert_equal [], mng.find_matching_specializations(Hash.new)
+        it "should return the non-specialized model if it is given an empty selection" do
+            assert_equal [simple_composition_model, []], mng.find_matching_specializations(Hash.new)
+        end
+        it "should return the non-specialized model if it is given a selection that does not match a specialization" do
+            assert_equal [simple_composition_model, []], mng.find_matching_specializations('srv' => [Syskit::TaskContext.new_submodel])
         end
 
         it "should return the partitioned specializations that match the selection weakly" do
@@ -277,6 +285,53 @@ describe Syskit::Models::SpecializationManager do
             flexmock(spec2).should_receive(:weak_match?).with(selection).and_return(false)
             flexmock(mng).should_receive(:partition_specializations).with([spec0, spec1]).and_return(obj = Object.new)
             assert_equal obj, mng.find_matching_specializations(selection)
+        end
+    end
+
+    describe "#matching_specialized_model" do
+        it "returns the composition model if no specialization matches" do
+            selection = Hash.new
+            flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return([])
+            assert_equal simple_composition_model, mng.matching_specialized_model(selection)
+        end
+        it "returns the composition model for a single match" do
+            selection = Hash.new
+            match = [flexmock, [flexmock]]
+            flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return([match])
+            flexmock(mng).should_receive(:specialized_model).once.
+                with(match[0], match[1]).and_return(model = flexmock)
+            assert_equal model, mng.matching_specialized_model(selection)
+        end
+        it "raises if more than one specialization matches and strict is set" do
+            selection = Hash.new
+            flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return([1, 2])
+            assert_raises(Syskit::AmbiguousSpecialization) do
+                mng.matching_specialized_model(selection, :strict => true)
+            end
+        end
+        it "uses the common subset if more than one specialization matches and strict is not set" do
+            selection = Hash.new
+            matches = [[flexmock, [flexmock]], [flexmock, [flexmock]]]
+            flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return(matches)
+            flexmock(mng).should_receive(:find_common_specialization_subset).once.
+                with(matches).and_return(matches[0])
+            flexmock(mng).should_receive(:specialized_model).once.
+                with(matches[0][0], matches[0][1]).and_return(model = flexmock)
+            assert_equal model, mng.matching_specialized_model(selection, :strict => false)
+        end
+    end
+
+    describe "#find_common_specialization_subset" do
+        it "should create the specialization specification for the common specializations" do
+            candidates = [
+                [flexmock, [a = flexmock, b = flexmock, c = flexmock]],
+                [flexmock, [a, b, d = flexmock]]
+            ]
+            spec = flexmock(Syskit::Models::CompositionSpecialization.new)
+            flexmock(Syskit::Models::CompositionSpecialization).should_receive(:new).and_return(spec)
+            spec.should_receive(:merge).with(a).and_return(spec)
+            spec.should_receive(:merge).with(b).and_return(spec)
+            assert_equal [spec, [a, b].to_set], mng.find_common_specialization_subset(candidates)
         end
     end
 end

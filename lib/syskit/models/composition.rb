@@ -613,7 +613,7 @@ module Syskit
 
                 spec = Hash.new
                 user_selection.each { |name, selection| spec[name] = selection.requirements.models }
-                find_suitable_specialization(spec)
+                specializations.matching_specialized_model(spec, :strict => false)
             end
 
             # This returns an InstanciatedComponent object that can be used in
