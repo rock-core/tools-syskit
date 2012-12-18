@@ -113,9 +113,6 @@ module Syskit
             # has been emitted. This is used to sequence configurations with
             # other system events, but should not be required in most cases
             def should_configure_after(object)
-                if !object.respond_to?(:add_causal_link)
-                    object = object.start_event
-                end
                 object.add_syskit_configuration_precedence(start_event)
             end
 
