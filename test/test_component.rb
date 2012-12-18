@@ -79,6 +79,16 @@ describe Syskit::Component do
             bound_service = task.require_dynamic_service 'dyn', :as => 'service_name'
             assert_equal bound_service, task.require_dynamic_service('dyn', :as => 'service_name')
         end
+        it "raises if requested to instantiate a service without giving it a name" do
+            assert_raises(ArgumentError) { task.require_dynamic_service 'dyn' }
+        end
+        it "raises if requested to instantiate a dynamic service that is not declared" do
+            assert_raises(ArgumentError) { task.require_dynamic_service 'nonexistent', :as => 'name' }
+        end
+        it "raises if requested to instantiate a service that already exists but is not compatible with the dynamic service model" do
+            task_m.provides Syskit::DataService.new_submodel, :as => 'srv'
+            assert_raises(ArgumentError) { task.require_dynamic_service 'dyn', :as => 'srv' }
+        end
     end
 
     describe "#can_merge?" do
@@ -93,6 +103,9 @@ describe Syskit::Component do
             @testing_task, @tested_task = task_m.new, task_m.new
         end
 
+        it "returns true if tasks are of identical models" do
+            assert testing_task.can_merge?(tested_task)
+        end
         it "returns true if the tested task has dynamic services" do
             tested_task.require_dynamic_service 'dyn', :as => 'srv'
             assert testing_task.can_merge?(tested_task)
@@ -109,6 +122,10 @@ describe Syskit::Component do
         it "returns false if testing and tested tasks have dynamic services with the same name but different models" do
             tested_task.require_dynamic_service 'dyn', :as => 'srv'
             testing_task.require_dynamic_service 'dyn', :as => 'srv'
+            assert !testing_task.can_merge?(tested_task)
+        end
+        it "returns false if the testing task is abstract and the tested task is not" do
+            testing_task.abstract = true
             assert !testing_task.can_merge?(tested_task)
         end
     end
@@ -153,6 +170,26 @@ describe Syskit::Component do
             task.merge(merged_task)
         end
     end
+
+    describe "#deployment_hints" do
+        it "should return requirements.deployment_hints if it is not empty" do
+            task = Syskit::Component.new
+            task.requirements.deployment_hints << Regexp.new("test")
+            assert_equal task.requirements.deployment_hints, task.deployment_hints
+        end
+        it "should return the merged hints from its parents if requirements.deployment_hints is empty" do
+            plan.add(task = Syskit::Component.new)
+            parents = (1..2).map do
+                t = Syskit::Component.new
+                t.depends_on task
+                t
+            end
+            flexmock(parents[0]).should_receive(:deployment_hints).once.and_return([1, 2])
+            flexmock(parents[1]).should_receive(:deployment_hints).once.and_return([2, 3])
+            assert_equal [1, 2, 3].to_set, task.deployment_hints
+        end
+    end
+
     describe "#method_missing" do
         it "returns a matching service if called with the #srv_name_srv handler" do
             task = Syskit::Component.new
@@ -182,6 +219,28 @@ describe Syskit::Component do
             event = Roby::EventGenerator.new
             flexmock(event).should_receive(:add_syskit_configuration_precedence).once.with(component.start_event)
             component.should_configure_after(event)
+        end
+    end
+
+    describe "#ready_for_setup?" do
+        it "returns true on a blank task" do
+            Syskit::Component.new.ready_for_setup?
+        end
+        it "returns false if there are unfullfilled syskit configuration precedence links" do
+            plan.add(component = Syskit::Component.new)
+            component.should_configure_after(event = Roby::EventGenerator.new)
+            assert !component.ready_for_setup?
+            component.should_configure_after(Roby::EventGenerator.new)
+            event.emit
+            assert !component.ready_for_setup?
+        end
+        it "returns true if all its syskit configuration precedence links are fullfilled" do
+            plan.add(component = Syskit::Component.new)
+            component.should_configure_after(event = Roby::EventGenerator.new)
+            event.emit
+            component.should_configure_after(event = Roby::EventGenerator.new)
+            event.emit
+            assert component.ready_for_setup?
         end
     end
 end

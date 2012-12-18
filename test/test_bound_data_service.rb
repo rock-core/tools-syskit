@@ -1,6 +1,18 @@
 require 'syskit'
 require 'syskit/test'
 
+describe Syskit::BoundDataService do
+    include Syskit::SelfTest
+
+    describe "#to_s" do
+        it "should return a string" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'srv' }
+            assert_kind_of String, task_m.new.srv_srv.to_s
+        end
+    end
+end
+
 class TC_BoundDataService < Test::Unit::TestCase
     include Syskit::SelfTest
 
