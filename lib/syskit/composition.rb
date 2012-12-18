@@ -146,21 +146,6 @@ module Syskit
                 result
             end
 
-            # Reimplemented from Roby::Task to take into account the multiple
-            # inheritance mechanisms that is the composition specializations
-            def fullfills?(models, args = Hash.new) # :nodoc:
-                models = [models] if !models.respond_to?(:each)
-                compo, normal = models.partition { |m| m <= Composition }
-                if !super(normal, args)
-                    return false
-                elsif compo.empty?
-                    return true
-                else
-                    (self.model <= compo.first) ||
-                        compo.first.parent_model_of?(self.model)
-                end
-            end
-
             # Overriden from Roby::Task
             #
             # will return false if any of the children is not executable.
