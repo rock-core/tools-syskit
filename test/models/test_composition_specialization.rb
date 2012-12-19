@@ -1,4 +1,3 @@
-require 'syskit'
 require 'syskit/test'
 require './test/fixtures/simple_composition_model'
 require 'minitest/spec'

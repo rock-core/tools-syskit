@@ -1,5 +1,4 @@
 require 'pry'
-require 'syskit'
 require 'syskit/test'
 
 describe Syskit::RobyApp::Plugin do

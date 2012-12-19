@@ -1,4 +1,3 @@
-require 'syskit'
 require 'syskit/test'
 
 describe Syskit::Component do

@@ -1,4 +1,3 @@
-require 'syskit'
 require 'syskit/test'
 
 module Test_DataServiceModel

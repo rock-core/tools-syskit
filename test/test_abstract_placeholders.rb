@@ -1,4 +1,3 @@
-require 'syskit'
 require 'syskit/test'
 
 class TC_AbstractPlaceholders < Test::Unit::TestCase

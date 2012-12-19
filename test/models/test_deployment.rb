@@ -1,4 +1,3 @@
-require 'syskit'
 require 'syskit/test'
 
 class TC_Models_Deployment < Test::Unit::TestCase

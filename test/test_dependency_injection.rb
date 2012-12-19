@@ -1,5 +1,4 @@
 require 'simplecov'
-require 'syskit'
 require 'syskit/test'
 
 class TC_DependencyInjection < Test::Unit::TestCase
