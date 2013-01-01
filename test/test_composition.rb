@@ -5,42 +5,57 @@ describe Syskit::Composition do
     include Syskit::SelfTest
     include Syskit::Fixtures::SimpleCompositionModel
 
-    describe "state modelling" do
-        attr_reader :cmp_model
-
+    describe "port access" do
+        attr_reader :task, :cmp, :srv
         before do
-            create_simple_composition_model
-            @cmp_model = simple_composition_model
-            cmp_model.add simple_task_model, :as => 'child'
+            srv_m = Syskit::DataService.new_submodel(:name => "Srv") do
+                output_port "srv_out", "/double"
+                input_port "srv_in", "/double"
+            end
+            task_m = Syskit::TaskContext.new_submodel(:name => "Task") do
+                output_port "out", "/double"
+                input_port "in", "/double"
+                provides srv_m, :as => 'srv'
+            end
+            cmp_m = Syskit::Composition.new_submodel(:name => "Cmp") do
+                add task_m, :as => 'task'
+                add srv_m, :as => 'srv'
+                export task.out_port, :as => 'out'
+                export task.in_port, :as => 'in'
+                export srv.srv_out_port, :as => 'srv_out'
+                export srv.srv_in_port, :as => 'srv_in'
+                provides srv_m, :as => 'test', 'srv_out' => 'out', 'srv_in' => 'in'
+            end
+            @cmp = cmp_m.use('srv' => task_m).instanciate(syskit_engine)
+            @task = stub_roby_task_context('task', task_m)
+            @srv  = stub_roby_task_context('srv', task_m)
+            plan.replace_task(cmp.child_from_role('task'), task)
+            plan.replace_task(cmp.child_from_role('srv'), srv)
         end
 
-        #it "allows to use a port from a child as data source" do
-        #    cmp_model.state.pose = cmp_model.child_child.out_port
-
-        #    source = cmp_model.state.pose.data_source
-        #    assert_equal source, cmp_model.child.out_port
-        #    assert_equal source.type, cmp_model.state.pose.type
-
-        #    cmp = instanciate_component(cmp_model)
-        #    flexmock(cmp).should_receive(:execute).and_yield
-        #    flexmock(cmp).should_receive(:data_reader).with('child', 'out').once.and_return(reader = flexmock)
-        #    cmp.resolve_state_sources
-        #    assert_equal reader, cmp.state.data_sources.pose.reader
-        #end
-
-        #it "allows to use a port from a child's data service as data source" do
-        #    cmp_model.state.pose = cmp_model.child_child.srv_srv.srv_out_port
-
-        #    source = cmp_model.state.pose.data_source
-        #    assert_equal source, cmp_model.child.out_port
-        #    assert_equal source.type, cmp_model.state.pose.type
-
-        #    cmp = instanciate_component(cmp_model)
-        #    flexmock(cmp).should_receive(:execute).and_yield
-        #    flexmock(cmp).should_receive(:data_reader).with('child', 'out').once.and_return(reader = flexmock)
-        #    cmp.resolve_state_sources
-        #    assert_equal reader, cmp.state.data_sources.pose.reader
-        #end
+        it "an exported input can be resolved from a task" do
+            assert_equal task.orocos_task.port("in"),
+                cmp.find_input_port("in").to_orocos_port
+        end
+        it "an exported input port can be resolved from a data service" do
+            assert_equal task.orocos_task.port("in"),
+                cmp.test_srv.find_input_port("srv_in").to_orocos_port
+        end
+        it "an input port exported from a data service can be resolved to the selected task" do
+            assert_equal srv.orocos_task.port("in"),
+                cmp.find_input_port("srv_in").to_orocos_port
+        end
+        it "an exported output can be resolved from a task" do
+            assert_equal task.orocos_task.port("out"),
+                cmp.find_output_port("out").to_orocos_port
+        end
+        it "an exported output port can be resolved from a data service" do
+            assert_equal task.orocos_task.port("out"),
+                cmp.test_srv.find_output_port("srv_out").to_orocos_port
+        end
+        it "an output port exported from a data service can be resolved to the selected task" do
+            assert_equal srv.orocos_task.port("out"),
+                cmp.find_output_port("srv_out").to_orocos_port
+        end
     end
-
 end

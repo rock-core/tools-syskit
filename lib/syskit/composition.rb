@@ -87,6 +87,8 @@ module Syskit
         # See the Models::Composition for class-level methods
         class Composition < Component
             extend Models::Composition
+            include Syskit::PortAccess
+
             Component.submodels << Composition
 
             abstract
@@ -146,6 +148,21 @@ module Syskit
                 result
             end
 
+            # Maps a port exported on this composition to the actual orocos port
+            # that it represents
+            #
+            # @param [Syskit::Port] exported_port the port to be mapped
+            # @return [Orocos::Port] the actual port
+            def self_port_to_orocos_port(exported_port)
+                export = model.find_exported_input(exported_port.name) ||
+                    model.find_exported_output(exported_port.name)
+
+                child_name = export.component_model.child_name
+                child = child_from_role(child_name)
+                actual_port_name = child_selection[child_name].port_mappings[export.name]
+                child.find_port(actual_port_name).to_orocos_port
+            end
+
             # Overriden from Roby::Task
             #
             # will return false if any of the children is not executable.
@@ -168,95 +185,6 @@ module Syskit
                     end
                 end
                 return true
-            end
-
-            # Returns the actual port that is currently used to provide data to
-            # an exported output, or returns nil if there is currently none.
-            #
-            # This is used to discover which actual component is currently
-            # providing a port on the composition. In other words, when one does
-            #
-            #   composition 'Test' do
-            #       src = add Source
-            #       export src.output
-            #   end
-            #
-            # then, once the composition is instanciated,
-            # test_task.find_output_port('output') will return src_task.output where
-            # src_task is the actual component used for the Source child. If, at
-            # the time of the call, no such component is present, then
-            # output_port will return nil.
-            #
-            # See also #input_port
-            def find_output_port(name)
-                real_task, real_port = resolve_output_port(name)
-                real_task.find_output_port(real_port)
-            rescue ArgumentError
-            end
-
-            # Helper method for #output_port and #resolve_port
-            def resolve_output_port(name) # :nodoc:
-                if !(port = model.find_output_port(name))
-                    raise ArgumentError, "no output port named '#{name}' on '#{self}'"
-                end
-                resolve_port(port)
-            end
-
-            # Returns the actual port that is currently used to get data from
-            # an exported input, or returns nil if there is currently none.
-            #
-            # See #output_port for details.
-            def find_input_port(name)
-                real_task, real_port = resolve_input_port(name)
-                real_task.find_input_port(real_port)
-            rescue ArgumentError
-            end
-
-            # Helper method for #output_port and #resolve_port
-            #
-            # It returns a component instance and a port name.
-            def resolve_input_port(name) # :nodoc:
-                if !(port = model.find_input_port(name.to_str))
-                    raise ArgumentError, "no input port named '#{name}' on '#{self}'"
-                end
-                resolve_port(port)
-            end
-
-            # Internal implementation of #output_port and #input_port
-            #
-            # It returns the [component instance, port name] pair which
-            # describes the port which is connected to +exported_port+, where
-            # +exported_port+ is a port of this composition.
-            #
-            # In other words, it returns the port that is used to produce data
-            # for the exported port +exported_port+.
-            def resolve_port(exported_port) # :nodoc:
-                role = exported_port.child.child_name
-                task = child_from_role(role, false)
-                if !task
-                    return
-                end
-
-                port_name = map_child_port(role, exported_port.actual_name)
-                if task.kind_of?(Composition)
-                    if exported_port.kind_of?(OutputPort)
-                        return task.resolve_output_port(port_name)
-                    else
-                        return task.resolve_input_port(port_name)
-                    end
-                else
-                    return task, port_name
-                end
-            end
-
-            def map_child_port(child_name, port_name)
-                if mapped = model.find_child(child_name).port_mappings[port_name]
-                    return mapped
-                elsif mapped = child_selection[child_name].port_mappings[port_name]
-                    return mapped
-                else
-                    port_name
-                end
             end
 
             # Helper for #added_child_object and #removing_child_object
@@ -358,16 +286,6 @@ module Syskit
                         [source, sink]
                     end
                     @child_task.disconnect_ports(target_task, mappings)
-                end
-
-                def find_input_port(port_name)
-                    mapped_port_name = @composition_task.map_child_port(@child_name, port_name)
-                    @child_task.find_input_port(mapped_port_name)
-                end
-
-                def find_output_port(port_name)
-                    mapped_port_name = @composition_task.map_child_port(@child_name, port_name)
-                    @child_task.find_output_port(mapped_port_name)
                 end
 
                 def method_missing(m, *args, &block)

@@ -178,6 +178,23 @@ module Syskit
 	    	Hash.new { |h,k| k }
 	    end
 
+	    # Defined to be compatible, in port mapping code, with the data services
+            def port_mappings_for(model)
+                if model.kind_of?(Class) 
+                    if self <= model
+                        mappings = Hash.new
+                        model.each_port do |port|
+                            mappings[port.name] = port.name
+                        end
+                        mappings
+                    else
+                        raise ArgumentError, "#{model.short_name} is not fullfilled by #{self}"
+                    end
+                else
+                    find_data_service_from_type(model).port_mappings_for_task
+                end
+            end
+
             # Finds a single service that provides +type+
             #
             # @see #find_all_data_services_from_type

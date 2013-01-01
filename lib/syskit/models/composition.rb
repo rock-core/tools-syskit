@@ -5,8 +5,9 @@ module Syskit
         # See the documentation of Model for an explanation of the *Model
         # modules.
         module Composition
-            include Base
-            include Component
+            include Models::Base
+            include Models::PortAccess
+            include Models::Component
 
             # The set of configurations declared with #conf
             attr_reader :conf
@@ -114,38 +115,6 @@ module Syskit
                 (child_model < self) ||
                     specializations.values.include?(child_model)
             end
-
-            # Enumerates the input ports that are defined on this composition,
-            # i.e.  the ports created by #export
-            def each_input_port
-                if block_given?
-                    each_exported_input do |_, p|
-                        yield(p)
-                    end
-                else
-                    enum_for(:each_input_port)
-                end
-            end
-
-            # Returns the input port of this composition named +name+, or nil if
-            # there are none
-            def find_input_port(name); find_exported_input(name) end
-
-            # Enumerates the output ports that are defined on this composition,
-            # i.e.  the ports created by #export
-            def each_output_port
-                if block_given?
-                    each_exported_output do |_, p|
-                        yield(p)
-                    end
-                else
-                    enum_for(:each_output_port)
-                end
-            end
-
-            # Returns the output port of this composition named +name+, or nil
-            # if there are none
-            def find_output_port(name); find_exported_output(name) end
 
             # Internal helper to add a child to the composition
             def add_child(name, child_models, dependency_options)
@@ -446,12 +415,20 @@ module Syskit
                 false
             end
 
-            # Returns the port named 'name' in this composition
-            #
-            # See #export to create ports on a composition
-            def find_port(name)
-                name = name.to_str
-                (find_output_port(name) || find_input_port(name))
+            # Enumerates this component's output ports
+            def each_output_port
+                return enum_for(:each_output_port) if !block_given?
+                each_exported_output do |name, p|
+                    yield(find_output_port(name))
+                end
+            end
+
+            # Enumerates this component's input ports
+            def each_input_port
+                return enum_for(:each_input_port) if !block_given?
+                each_exported_input do |name, p|
+                    yield(find_input_port(name))
+                end
             end
 
             # Returns the composition's output port named 'name'
