@@ -254,8 +254,6 @@ module Syskit
             #
             # See also Composition#instanciate
             def use(*mappings)
-                debug "adding use mappings #{mappings} to #{self}"
-
                 composition_model = base_models.find { |m| m <= Composition }
                 if !composition_model
                     raise ArgumentError, "#use is available only for compositions, got #{base_models.map(&:short_name).join(", ")}"
@@ -269,6 +267,19 @@ module Syskit
                 end
 
                 explicit, defaults = DependencyInjection.partition_use_arguments(*mappings)
+                debug do
+                    debug "adding use mappings to #{self}"
+                    if !explicit.empty?
+                        explicit.each do |key, obj|
+                            debug "  #{key.short_name} => #{obj.short_name}"
+                        end
+                    end
+                    if !defaults.empty?
+                        debug "  #{defaults.map(&:short_name).join(", ")}"
+                    end
+                    break
+                end
+
                 selections.add_explicit(explicit)
                 selections.add_defaults(defaults)
                 composition_model = narrow_model || composition_model
@@ -377,7 +388,7 @@ module Syskit
             end
 
             # Create a concrete task for this requirement
-            def instanciate(engine, context, arguments = Hash.new)
+            def instanciate(engine, context = Syskit::DependencyInjectionContext.new, arguments = Hash.new)
                 task_model =
                     if models.size == 1 && (models.first <= Component)
                         models.first

@@ -45,7 +45,9 @@ module Syskit
                 selection = Hash.new
 
                 required.each do |required_m|
-                    if selected_m = mappings[required_m]
+                    if required_m.kind_of?(Class) && (required_m <= Syskit::Component)
+                        selected_m = required_m
+                    elsif selected_m = mappings[required_m]
                         # Verify that it is of the right type
                         if !selected_m.fullfills?(component_m)
                             raise ArgumentError, "#{selected_m} was explicitly selected for #{required_m}, but is not a service of the selected component model #{component_m}"
@@ -54,6 +56,10 @@ module Syskit
                         end
                     else
                         selected_m = component_m.find_data_service_from_type(required_m)
+                    end
+
+                    if !selected_m
+                        raise ArgumentError, "selected model #{component_m.short_name} does not provide required service #{required_m.short_name}"
                     end
                     selection[required_m] = selected_m
                 end
@@ -119,7 +125,7 @@ module Syskit
                         pp.nest(2) do
                             pp.breakable
                             pp.seplist(service_selection) do |sel|
-                                pp.text "#{sel[0]} => #{sel[1]}"
+                                pp.text "#{sel[0].short_name} => #{sel[1].short_name}"
                             end
                         end
                     end
