@@ -456,7 +456,7 @@ module Syskit
             # to get the corresponding composition model
             def find_matching_specializations(selection)
                 if specializations.empty? || selection.empty?
-                    return composition_model, []
+                    return [[composition_model, []]]
                 end
 
                 Models.debug do
@@ -480,7 +480,7 @@ module Syskit
                 end
 
                 if matching_specializations.empty?
-                    return composition_model, []
+                    return [[composition_model, []]]
                 end
 
                 return partition_specializations(matching_specializations)
