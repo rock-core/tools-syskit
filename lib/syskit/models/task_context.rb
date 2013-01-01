@@ -59,6 +59,30 @@ module Syskit
                 end
             end
 
+            # Generates a hash of oroGen-level state names to Roby-level event
+            # names
+            #
+            # @return [{Symbol=>Symbol}]
+            def make_state_events
+                orogen_model.states.each do |name, type|
+                    event_name = name.snakecase.downcase.to_sym
+                    if type == :toplevel
+                        event event_name, :terminal => (name == 'EXCEPTION' || name == 'FATAL_ERROR')
+                    else
+                        event event_name, :terminal => (type == :exception || type == :fatal_error)
+                        if type == :fatal
+                            forward event_name => :fatal_error
+                        elsif type == :exception
+                            forward event_name => :exception
+                        elsif type == :error
+                            forward event_name => :runtime_error
+                        end
+                    end
+
+                    self.state_events[name.to_sym] = event_name
+                end
+            end
+
             # Creates a subclass of TaskContext that represents the given task
             # specification. The class is registered as
             # Roby::Orogen::ProjectName::ClassName.
@@ -73,31 +97,7 @@ module Syskit
                     supermodel = define_from_orogen(superclass)
                 end
                 klass = supermodel.new_submodel(:orogen_model => orogen_model)
-                
-                # Define specific events for the extended states (if there is any)
-                state_events = Hash.new
-                orogen_model.states.each do |name, type|
-                    event_name = name.snakecase.downcase.to_sym
-                    if type == :toplevel
-                        klass.event event_name, :terminal => (name == 'EXCEPTION' || name == 'FATAL_ERROR')
-                    else
-                        klass.event event_name, :terminal => (type == :exception || type == :fatal_error)
-                        if type == :fatal
-                            klass.forward event_name => :fatal_error
-                        elsif type == :exception
-                            klass.forward event_name => :exception
-                        elsif type == :error
-                            klass.forward event_name => :runtime_error
-                        end
-                    end
 
-                    state_events[name.to_sym] = event_name
-                end
-                if supermodel && supermodel.state_events
-                    state_events = state_events.merge(supermodel.state_events)
-                end
-
-                klass.state_events = state_events
                 if options[:register] && orogen_model.name
                     # Verify that there is not already something registered with
                     # that name
@@ -126,7 +126,7 @@ module Syskit
             # A state_name => event_name mapping that maps the component's
             # state names to the event names that should be emitted when it
             # enters a new state.
-            attribute(:state_events) { Hash.new }
+            define_inherited_enumerable(:state_event, :state_events, :map => true) { Hash.new }
 
             # Create a new TaskContext model
             #
@@ -150,6 +150,9 @@ module Syskit
                 else
                     model.setup_submodel
                 end
+                
+                model.make_state_events
+
                 Syskit::TaskContext.orogen_model_to_syskit_model[model.orogen_model] = model
                 if block
                     evaluation = DataServiceModel::BlockInstanciator.new(model)
@@ -167,7 +170,6 @@ module Syskit
 
                 self.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, self.name)
                 self.orogen_model.subclasses supermodel.orogen_model
-                self.state_events = supermodel.state_events.dup
             end
 
             def worstcase_processing_time(value)
