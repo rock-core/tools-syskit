@@ -377,17 +377,6 @@ module Syskit
                 model.self_port_to_component_port(port.model).bind(self)
             end
 
-            # Resolves the given Syskit::Port object into the actual Port object
-            # on the underlying task.
-            #
-            # It should not be used directly. One should usually use
-            # Port#to_orocos_port instead
-            #
-            # @return [Orocos::Port]
-            def self_port_to_orocos_port(port)
-                orocos_task.find_port(port.type, port.name)
-            end
-
             # Automatically computes connections from the output ports of self
             # to the given port or to the input ports of the given component
             #
