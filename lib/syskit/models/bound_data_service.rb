@@ -116,7 +116,7 @@ module Syskit
                     models = [models]
                 end
                 components, services = models.partition { |m| m <= Syskit::Component }
-                (components.empty? || self.component_model.fullfills?(components)) &&
+                components.empty? &&
                     (services.empty? || self.model.fullfills?(services))
             end
 

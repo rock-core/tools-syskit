@@ -88,8 +88,6 @@ class TC_Models_BoundDataService < Test::Unit::TestCase
         assert_equal('service', service.name)
         assert(service.fullfills?(service_model))
         assert(!service.fullfills?(other_service_model))
-        assert(service.fullfills?(component_model))
-        assert(service.fullfills?([component_model, service_model]))
     end
 
     def test_fullfills_p
@@ -99,7 +97,8 @@ class TC_Models_BoundDataService < Test::Unit::TestCase
         other_service = DataService.new_submodel
         component_model.provides other_service, :as => 'unrelated_service'
 
-        assert service.fullfills?(component_model)
+        assert !service.fullfills?(component_model)
+        assert !service.fullfills?([component_model, base])
         assert service.fullfills?(base)
         assert service.fullfills?(parent)
         assert service.fullfills?(model)
