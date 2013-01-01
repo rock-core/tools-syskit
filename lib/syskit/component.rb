@@ -119,6 +119,8 @@ module Syskit
             # Returns true if the underlying Orocos task is in a state that
             # allows it to be configured
             def ready_for_setup? # :nodoc:
+                return false if !fully_instanciated?
+
                 start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).all? do |event|
                     event.happened?
                 end

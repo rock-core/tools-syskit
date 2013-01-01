@@ -74,7 +74,9 @@ module Syskit
                 orocos_task.tid
             end
 
-            # [Symbol] Returns the task's event name that maps to the given component state name
+            # Returns the task's event name that maps to the given component state name
+            #
+            # @return [Symbol]
             def state_event(name)
                 model.state_events[name]
             end
@@ -148,16 +150,17 @@ module Syskit
             D_SAME_PROCESS = 0
             # Value returned by TaskContext#distance_to when the tasks are in
             # different processes, but on the same machine
-            D_SAME_MACHINE = 1
+            D_SAME_HOST = 1
             # Value returned by TaskContext#distance_to when the tasks are in
             # different processes localized on different machines
-            D_DIFFERENT_MACHINES = 2
+            D_DIFFERENT_HOSTS = 2
             # Maximum distance value
             D_MAX          = 2
 
             # Returns true if +self+ and +task+ are on the same process server
             def on_same_server?(task)
-                distance_to(task) != D_DIFFERENT_MACHINES
+                d = distance_to(task)
+                d && d != D_DIFFERENT_HOSTS
             end
 
             # Returns a value that represents how the two task contexts are far
@@ -177,10 +180,10 @@ module Syskit
 
                 if execution_agent == other.execution_agent # same process
                     D_SAME_PROCESS
-                elsif execution_agent.machine == other.execution_agent.machine # same machine
-                    D_SAME_MACHINE
+                elsif execution_agent.host == other.execution_agent.host # same machine
+                    D_SAME_HOST
                 else
-                    D_DIFFERENT_MACHINES
+                    D_DIFFERENT_HOSTS
                 end
             end
 
@@ -281,8 +284,15 @@ module Syskit
                 end
             end
 
-            # Create a Orocos::StateReader object to read the state from this
-            # task context
+            # The state reader object used to get state updates from the task
+            #
+            # @return [Orocos::TaskContext::StateReader]
+            attr_reader :state_reader
+
+            # Create a state reader object to read the state from this task
+            # context
+            #
+            # @return [Orocos::TaskContext::StateReader]
             def create_state_reader
                 @state_reader = orocos_task.state_reader(:type => :buffer, :size => STATE_READER_BUFFER_SIZE, :init => true, :transport => Orocos::TRANSPORT_CORBA)
             end
@@ -290,16 +300,16 @@ module Syskit
             # Called at each cycle to update the orogen_state attribute for this
             # task using the values read from the state reader
             def update_orogen_state
-                if orogen_model.context.extended_state_support? && !@state_reader
+                if orogen_model.task_model.extended_state_support? && !state_reader
                     create_state_reader
                 end
 
-                if @state_reader
-                    if !@state_reader.connected?
+                if state_reader
+                    if !state_reader.connected?
                         raise InternalError, "state_reader got disconnected"
                     end
 
-                    if v = @state_reader.read_new
+                    if v = state_reader.read_new
                         @last_orogen_state = orogen_state
                         @orogen_state = v
                     end
@@ -315,21 +325,24 @@ module Syskit
                 @orogen_state = nil
             end
 
+            # The set of state names from which #configure can be called
+            RTT_CONFIGURABLE_STATES = [:EXCEPTION, :STOPPED, :PRE_OPERATIONAL]
+
             # Returns true if this component needs to be setup by calling the
             # #setup method, or if it can be used as-is
-            def ready_for_setup?
-                if !super
+            def ready_for_setup?(state = nil)
+                if !super()
                     return false
                 elsif !orogen_model || !orocos_task
                     return false
                 end
 
-                state = begin orocos_task.rtt_state
-                        rescue CORBA::ComError
-                            return false
-                        end
+                state ||= begin orocos_task.rtt_state
+                          rescue Orocos::ComError
+                              return false
+                          end
 
-                return (state == :EXCEPTION || state == :STOPPED || state == :PRE_OPERATIONAL)
+                return RTT_CONFIGURABLE_STATES.include?(state)
             end
 
             # Returns true if the underlying Orocos task has been configured and
@@ -378,61 +391,55 @@ module Syskit
                 super && (!setup? || !needs_reconfiguration?)
             end
 
-            # Called to configure the component
-            def setup
-                if !orocos_task
-                    raise InternalError, "#setup called but there is no orocos_task"
-                end
-
-                state = orocos_task.rtt_state
-
-                if ![:EXCEPTION, :PRE_OPERATIONAL, :STOPPED].include?(state)
-                    raise InternalError, "wrong state in #setup for #{orocos_task}: got #{state}, but only EXCEPTION, PRE_OPERATIONAL and STOPPED are available"
-                end
-
-                needs_reconf = false
+            # Checks whether the task should be reconfigured, and if it should,
+            # make sure that it is in PRE_OPERATIONAL state.
+            #
+            # @param [Symbol] state the current state, as returned by
+            #   Orocos::TaskContext#rtt_state. It is passed to avoid calling
+            #   #rtt_state unnecessarily, as it is an asynchronous remote call.
+            # @return [Boolean] true if the task should be configured (in which
+            #   case it has been put in PRE_OPERATIONAL state) and false
+            #   otherwise.
+            def prepare_for_setup(state = orocos_task.rtt_state)
                 if state == :EXCEPTION
                     ::Robot.info "reconfiguring #{self}: the task was in exception state"
                     orocos_task.reset_exception(false)
-                    state = orocos_task.rtt_state
-                    needs_reconf = true
+                    # Re-read the state. We might be in STOPPED in which case we
+                    # might need to cleanup
+                    return prepare_for_setup
                 elsif state == :PRE_OPERATIONAL
-                    needs_reconf = true
-                elsif needs_reconfiguration?
-                    ::Robot.info "reconfiguring #{self}: the task is marked as needing reconfiguration"
-                    needs_reconf = true
-                else
+                    return true
+                elsif !needs_reconfiguration?
                     _, current_conf = TaskContext.configured[orocos_name]
-                    if !current_conf
-                        needs_reconf = true
-                    elsif current_conf != self.conf
-                        ::Robot.info "reconfiguring #{self}: configuration changed"
-                        needs_reconf = true
+                    if current_conf && current_conf == self.conf
+                        ::Robot.info "not reconfiguring #{self}: the task is already configured as required"
+                        return false
                     end
                 end
 
-                if !needs_reconf
-                    Robot.info "#{self} was already configured"
-                    is_setup!
-                    return
+                ::Robot.info "cleaning up #{self}"
+                orocos_task.cleanup
+                return true
+            end
+
+            # Called to configure the component
+            def setup
+                state = orocos_task.rtt_state
+                if !ready_for_setup?(state)
+                    raise InternalError, "#setup called but we are not ready for setup"
                 end
-                if state == :STOPPED && orocos_task.model.needs_configuration?
-                    ::Robot.info "cleaning up #{self}"
-                    cleaned_up = true
-                    orocos_task.cleanup
-                end
 
-                ::Robot.info "setting up #{self}"
-
-                self.conf ||= ['default']
-
-                super
-
-                if !Roby.app.syskit_engine.dry_run? && (cleaned_up || state == :PRE_OPERATIONAL)
+                if prepare_for_setup(state)
+                    ::Robot.info "setting up #{self}"
+                    super
                     orocos_task.configure(false)
+                else
+                    ::Robot.info "#{self} was already configured"
                 end
+
                 TaskContext.needs_reconfiguration.delete(orocos_name)
                 TaskContext.configured[orocos_name] = [orocos_task.model, self.conf.dup]
+                is_setup!
             end
 
             ##
@@ -449,7 +456,7 @@ module Syskit
             event :start do |context|
                 # Create the state reader right now. Otherwise, we might not get
                 # the state updates related to the task's startup
-                if orogen_model.context.extended_state_support?
+                if orogen_model.task_model.extended_state_support?
                     create_state_reader
                 end
 
@@ -457,19 +464,18 @@ module Syskit
                 # ports that are required ... check that
                 each_concrete_output_connection do |source_port, _|
                     if !orocos_task.has_port?(source_port)
-                        raise "#{orocos_name}(#{orogen_model.name}) does not have a port named #{source_port}"
+                        raise Orocos::NotFound, "#{orocos_name}(#{orogen_model.name}) does not have a port named #{source_port}"
                     end
                 end
                 each_concrete_input_connection do |_, _, sink_port, _|
                     if !orocos_task.has_port?(sink_port)
-                        raise "#{orocos_name}(#{orogen_model.name}) does not have a port named #{sink_port}"
+                        raise Orocos::NotFound, "#{orocos_name}(#{orogen_model.name}) does not have a port named #{sink_port}"
                     end
                 end
 
                 ::Robot.info "starting #{to_s} (#{orocos_name})"
                 @last_orogen_state = nil
                 orocos_task.start(false)
-                emit :start
             end
 
             # Handle a state transition by emitting the relevant events
@@ -479,25 +485,16 @@ module Syskit
                 if !@got_running_state
                     if orocos_task.runtime_state?(orogen_state)
                         @got_running_state = true
-                        emit :running
+                        emit :start
                     else
                         return
                     end
                 end
 
-                if orocos_task.exception_state?(orogen_state)
-                    if event = state_event(orogen_state)
-                        emit event
-                    else emit :exception
+                if orogen_state == :RUNNING 
+                    if last_orogen_state && orocos_task.error_state?(last_orogen_state)
+                        emit :running
                     end
-                elsif orocos_task.fatal_error_state?(orogen_state)
-                    if event = state_event(orogen_state)
-                        emit event
-                    else emit :fatal_error
-                    end
-
-                elsif orogen_state == :RUNNING && last_orogen_state && orocos_task.error_state?(last_orogen_state)
-                    emit :running
 
                 elsif orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
                     if interrupt?
@@ -552,6 +549,7 @@ module Syskit
             # because it has just been started or because it left a runtime
             # error state.
             event :running
+            forward :start => :running
 
             ##
             # :method: runtime_error_event
@@ -596,10 +594,8 @@ module Syskit
             on :stop do |event|
                 ::Robot.info "stopped #{self}"
 
-                # Reset the is_setup flag, as the user might transition to
-                # PRE_OPERATIONAL
-                if @state_reader
-                    @state_reader.disconnect
+                if state_reader
+                    state_reader.disconnect
                 end
             end
 
@@ -615,14 +611,14 @@ module Syskit
 
                 # First, set configuration from the configuration files
                 # Note: it can only set properties
-                conf = self.conf || ['default']
+                conf = self.conf
                 if Orocos.conf.apply(orocos_task, conf, true)
                     Robot.info "applied configuration #{conf} to #{orocos_task.name}"
                 end
 
                 # Then set configuration stored in Syskit.conf
-                if Syskit.conf.send("#{orogen_name}?")
-                    config = Syskit.conf.send(orogen_name)
+                if Syskit.conf.send("#{orocos_name}?")
+                    config = Syskit.conf.send(orocos_name)
                     apply_configuration(config)
                 end
 

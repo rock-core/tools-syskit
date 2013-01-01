@@ -34,7 +34,6 @@ module Syskit
                     if t.ready_for_setup? && Syskit.conf.auto_configure?
                         begin
                             t.setup 
-                            t.is_setup!
                         rescue Exception => e
                             t.event(:start).emit_failed(e)
                         end

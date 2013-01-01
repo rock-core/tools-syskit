@@ -165,6 +165,19 @@ module Syskit
                 end
             end
 
+            def assert_event_command_failed(expected_code_error = nil)
+                begin
+                    yield
+                    flunk("expected Roby::CommandFailed, but no exception was raised")
+                rescue Roby::CommandFailed => e
+                    if !e.error.kind_of?(expected_code_error)
+                        flunk("expected a Roby::CommandFailed wrapping #{expected_code_error}, but \"#{e.error}\" (#{e.error.class}) was raised")
+                    end
+                rescue Exception => e
+                    flunk("expected Roby::CommandFailed, but #{e} was raised")
+                end
+            end
+
             def assert_deployable_orocos_subplan(root_task)
                 requirements = []
                 if root_task.respond_to?(:to_str)
@@ -241,8 +254,10 @@ module Syskit
                 super(*args) do
                     begin
                         instance_eval(&block)
-                    rescue Roby::LocalizedError => e
-                        pp e
+                    rescue Exception => e
+                        if e.class.name =~ /Syskit|Roby/
+                            pp e
+                        end
                         raise
                     end
                 end
