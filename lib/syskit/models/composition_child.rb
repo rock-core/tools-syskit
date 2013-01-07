@@ -159,22 +159,6 @@ module Syskit
                 end
             end
 
-            def method_missing(name, *args)
-                return super if !args.empty? || block_given?
-
-                name = name.to_s
-                if name =~ /^(\w+)_port$/
-                    name = $1
-                    if port = find_port(name)
-                        return port
-                    else
-                        raise InvalidCompositionChildPort.new(composition_model, child_name, name),
-                            "in composition #{composition_model.short_name}: child #{child_name} of type #{models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
-                    end
-                end
-                super
-            end
-
             def ==(other) # :nodoc:
                 other.class == self.class &&
                     other.composition_model == composition_model &&
@@ -207,32 +191,20 @@ module Syskit
                 result
             end
 
-            def find_child(child_name)
-                composition_models = models.find_all { |m| m.respond_to?(:find_child) }
-                if composition_models.empty?
-                    raise ArgumentError, "#{self} is not a composition"
-                end
-                composition_models.each do |m|
-                    if child = m.find_child(child_name)
-                        return child.attach(self)
+            def method_missing(name, *args)
+                return super if !args.empty? || block_given?
+
+                name = name.to_s
+                if name =~ /^(\w+)_port$/
+                    name = $1
+                    if port = find_port(name)
+                        return port
+                    else
+                        raise InvalidCompositionChildPort.new(composition_model, child_name, name),
+                            "in composition #{composition_model.short_name}: child #{child_name} of type #{models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
                     end
                 end
-            end
-
-            def resolve(root_composition)
-                root = self
-                path = Array.new
-                while root.respond_to?(:child_name)
-                    path.unshift root.child_name
-                    root = root.composition_model
-                end
-
-                task =
-                    if path.size > 1
-                        root_composition.child_from_role(*path[0..-2])
-                    else root
-                    end
-                task.selected_instance_for(path[-1])
+                super
             end
         end
 

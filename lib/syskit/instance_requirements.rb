@@ -162,12 +162,14 @@ module Syskit
             # @raise [ArgumentError] if this InstanceRequirements object does
             #   not refer to a composition
             def find_child(name)
-                composition = models.find { |m| m <= Composition }
-                if !composition
-                    raise ArgumentError, "this requirement object does not refer to a composition explicitely, cannot select a child"
+                composition_models = models.find_all { |m| m.respond_to?(:find_child) }
+                if composition_models.empty?
+                    raise ArgumentError, "#{self} is not a composition"
                 end
-                if child = composition.find_child(name)
-                    child.attach(self)
+                composition_models.each do |m|
+                    if child = m.find_child(name)
+                        return child.attach(self)
+                    end
                 end
             end
 
