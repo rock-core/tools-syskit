@@ -667,32 +667,23 @@ module Syskit
                 end
             end
 
-            # Returns a Composition task with instanciated children. If
-            # specializations have been specified on this composition, the
-            # return task will be of the most specialized model that matches the
-            # selection. See #specialize for more information.
+            # Creates the required task and children for this composition model.
             #
-            # The :selection argument, if set, specifies explicit selections for
-            # the composition's children. In its generality, the argument is a
-            # hash which maps a child selector to a selected model.
+            # It selects the relevant specialization and instantiates it instead
+            # of +self+ when relevant.
             #
-            # The selected model can be:
-            # * a task model, a data service model or a device model
-            # * a device name as declared on Robot.devices
-            # * a task name as given to Engine#add
-            #
-            # In any case, the selected model must be compatible with the
-            # child's definition and the additional constraints that have been
-            # specified on it (see #constrain).
-            #
-            # The child selector can be (by order of precedence)
-            # * a child name
-            # * a child_name.child_of_child_name construct. In that case, the
-            #   engine will search for a composition that can be used in place
-            #   of +child_name+, and has a +child_name_of_child+ child that
-            #   matches the selection.
-            # * a child model or model name, in which case it will match the
-            #   children of +self+ whose definition matches the given model.
+            # @param [Syskit::NetworkGeneration::Engine] the engine that is
+            #   instantiating this composition
+            # @param [DependencyInjectionContext] context the dependency
+            #   injection used to select the actual models for the children (and
+            #   therefore the specializations as well). The last element in this
+            #   DIContext stack is interpreted as DI setup only for the
+            #   composition (not for the instantiation of its children).
+            # @option arguments [Boolean] specialize (true) if true, a suitable
+            #   specialization will be selected. Otherwise, the specialization
+            #   resolution is bypassed.
+            # @option arguments [Hash] task_arguments the set of arguments that
+            #   should be passed to the composition task instance
             #
             def instanciate(engine, context = DependencyInjectionContext.new, arguments = Hash.new)
                 Models.debug do
@@ -702,7 +693,7 @@ module Syskit
                     break
                 end
 
-                arguments = Kernel.validate_options arguments, :as => nil, :task_arguments => Hash.new, :specialize => true
+                arguments = Kernel.validate_options arguments, :task_arguments => Hash.new, :specialize => true
                 if arguments[:specialize] && root_model != self
                     return root_model.instanciate(engine, context, arguments)
                 end
