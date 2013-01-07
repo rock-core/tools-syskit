@@ -1,6 +1,10 @@
 module Syskit
         # A representation of a selection matching a given requirement
         class InstanceSelection
+            # The selected task, if one is specified explicitly
+            #
+            # @return [Syskit::Component]
+            attr_reader :component
             # [InstanceRequirements] the required instance
             attr_reader :required
             # [InstanceRequirements] the selected instance. It can only refer to
@@ -11,11 +15,19 @@ module Syskit
             # the services in {#required} to the services of {#component_model}.
             attr_reader :service_selection
 
-            def initialize(selected = InstanceRequirements.new([Component]), required = InstanceRequirements.new, mappings = Hash.new)
+            def initialize(component = nil, selected = InstanceRequirements.new([Component]), required = InstanceRequirements.new, mappings = Hash.new)
+                @component = component
                 @selected = selected
                 @required = required
                 @service_selection =
                     InstanceSelection.compute_service_selection(Syskit.proxy_task_model_for(selected.base_models), required.base_models, mappings)
+            end
+
+            def initialize_copy(old)
+                @component = old.component
+                @selected = old.selected.dup
+                @required = old.required
+                @service_selection = service_selection.dup
             end
 
             # Returns the selected component model
@@ -93,7 +105,11 @@ module Syskit
             # If this selection does not yet have an associated task,
             # instanciate one
             def instanciate(engine, context, options = Hash.new)
-                selected.instanciate(engine, context, options)
+                if component
+                    component
+                else
+                    selected.instanciate(engine, context, options)
+                end
             end
 
             def each_fullfilled_model(&block)
@@ -112,7 +128,19 @@ module Syskit
                 pp.text "Instance selection for "
                 pp.nest(2) do
                     pp.breakable
-                    required.pretty_print(pp)
+                    pp.text "Component"
+                    if component
+                        pp.nest(2) do
+                            pp.breakable
+                            component.pretty_print(pp)
+                        end
+                    end
+                    pp.breakable
+                    pp.text "Required"
+                    pp.nest(2) do
+                        pp.breakable
+                        required.pretty_print(pp)
+                    end
                     pp.breakable
                     pp.text "Selected"
                     pp.nest(2) do
@@ -120,7 +148,7 @@ module Syskit
                         selected.pretty_print(pp)
                     end
                     pp.breakable
-                    pp.text "Service selection"
+                    pp.text "Services"
                     if !service_selection.empty?
                         pp.nest(2) do
                             pp.breakable

@@ -179,6 +179,16 @@ module Syskit
                 bind(component_model.resolve(task))
             end
 
+            # Generates the InstanceRequirements object that represents +self+
+            # best
+            #
+            # @return [Syskit::InstanceRequirements]
+            def to_instance_requirements
+                req = component_model.to_instance_requirements
+                req.select_service(self)
+                req
+            end
+
             def method_missing(m, *args, &block)
                 if !args.empty? || block
                     return super

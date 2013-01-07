@@ -124,9 +124,8 @@ module Syskit
             # Returns all the candidates that match +criteria+ in the current
             # state of this context
             #
-            # See DependencyInjection#candidates_for for the format of
-            # +criteria+
-            def candidates_for(*criteria)
+            # (see DependencyInjection#selection_for)
+            def selection_for(*criteria)
                 current_state.candidates_for(*criteria)
             end
 

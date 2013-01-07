@@ -45,13 +45,16 @@ module Syskit
                 @service = service
             end
 
-            def self.from_object(object)
+            def self.from_object(object, original_requirements = Syskit::InstanceRequirements.new) 
                 if object.kind_of?(InstanceRequirements)
-                    object.dup
+                    return object.dup
                 elsif (object.kind_of?(Class) && object <= Component) || object.kind_of?(Models::DataServiceModel)
-                    InstanceRequirements.new([object])
+                    req = original_requirements.dup
+                    req.add_models([object])
+                    req
                 elsif object.kind_of?(Models::BoundDataService)
-                    req = InstanceRequirements.new([object.component_model])
+                    req = original_requirements.dup
+                    req.add_models([object.component_model])
                     req.select_service(object)
                     req
                 else
@@ -66,6 +69,18 @@ module Syskit
                 base_models.delete_if { |bm| new_models.any? { |m| m.fullfills?(bm) } }
                 @base_models |= new_models.to_value_set
                 narrow_model
+            end
+
+            # Map all selections registered in the use flags
+            #
+            # @yieldparam selection the selected model/task in the use flag
+            # @yieldreturn the value that should replaces selection
+            # @return [self]
+            def map_use_selections!
+                selections.map! do |value|
+                    yield(value)
+                end
+                self
             end
 
             # Explicitely selects a given service on the task models required by
@@ -87,6 +102,11 @@ module Syskit
                     raise ArgumentError, "#{service} is not a service of #{self}"
                 end
                 @service = service.attach(component_model)
+            end
+
+            # Removes any service selection
+            def unselect_service
+                @service = nil
             end
 
             # Finds a data service by name
@@ -564,6 +584,14 @@ module Syskit
                     raise NoMethodError, "no port called #{port_name} in any of #{models.map(&:short_name).short.join(", ")}"
                 end
                 super(method.to_sym, *args)
+            end
+
+            # Generates the InstanceRequirements object that represents +self+
+            # best
+            #
+            # @return [Syskit::InstanceRequirements]
+            def to_instance_requirements
+                self
             end
         end
 

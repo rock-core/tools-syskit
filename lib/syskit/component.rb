@@ -438,6 +438,21 @@ module Syskit
                     true
                 end
             end
+
+            # Generates the InstanceRequirements object that represents +self+
+            # best
+            #
+            # @return [Syskit::InstanceRequirements]
+            def to_instance_requirements
+                # Do not use #model here as we don't want a requirement that
+                # uses a specialized model
+                req = self.class.to_instance_requirements
+                req.with_arguments(arguments)
+                if required_host
+                    req.on_server(required_host) 
+                end
+                req
+            end
         end
 end
 

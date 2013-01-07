@@ -1,5 +1,22 @@
 require 'syskit/test'
 
+describe Syskit::DependencyInjection do
+    describe "#selection_for" do
+        it "returns an existing instance if one is selected" do
+            task = Syskit::Component.new_submodel.new
+            di = Syskit::DependencyInjection.new('child' => task)
+            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new], di.selection_for('child', Syskit::InstanceRequirements.new)
+        end
+        it "returns an existing instance service if one is selected" do
+            srv = Syskit::DataService.new_submodel
+            task = Syskit::Component.new_submodel { provides srv, :as => 'srv' }.new
+            di = Syskit::DependencyInjection.new('child' => task.srv_srv)
+            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), {srv => task.model.srv_srv}],
+                di.selection_for('child', Syskit::InstanceRequirements.new)
+        end
+    end
+end
+
 class TC_DependencyInjection < Test::Unit::TestCase
     include Syskit::SelfTest
 
@@ -362,62 +379,70 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal %w{unresolved_name bla}.to_set, obj.resolve_names
     end
 
-    def test_component_model_for_calls_resolve_if_needed
+    def test_selection_for_calls_resolve_if_needed
         c0 = Component.new_submodel
         di = DependencyInjection.new('value' => c0)
         flexmock(di).should_receive(:resolve).never
-        di.component_model_for('value', InstanceRequirements.new)
+        di.selection_for('value', InstanceRequirements.new)
 
         c1 = Component.new_submodel
         req = InstanceRequirements.new
         resolved_di = flexmock
         di = DependencyInjection.new(c1, 'value' => c0)
         flexmock(di).should_receive(:resolve).once.and_return(resolved_di)
-        flexmock(resolved_di).should_receive(:component_model_for).once.with('name', req).and_return(obj = Object.new)
-        assert_equal obj, di.component_model_for('name', req)
+        flexmock(resolved_di).should_receive(:selection_for).once.with('name', req).and_return(obj = Object.new)
+        assert_equal obj, di.selection_for('name', req)
     end
 
-    def test_component_model_for_component_to_component
+    def test_selection_for_component_to_component
         c0 = Component.new_submodel
         c1 = c0.new_submodel
         di = DependencyInjection.new(c0 => c1)
-        assert_equal [c1, Hash.new], di.component_model_for(nil, InstanceRequirements.new([c0]))
+        assert_equal [nil, InstanceRequirements.new([c1]), Hash.new],
+            di.selection_for(nil, InstanceRequirements.new([c0]))
     end
 
-    def test_component_model_for_data_services_to_component_maps_services
+    def test_selection_for_data_services_to_component_maps_services
         srv = DataService.new_submodel
         c0 = Component.new_submodel { provides srv, :as => 'srv' }
         di = DependencyInjection.new(srv => c0)
-        assert_equal [c0, {srv => c0.srv_srv}], di.component_model_for(nil, InstanceRequirements.new([srv]))
+        assert_equal [nil, InstanceRequirements.new([c0]), {srv => c0.srv_srv}],
+            di.selection_for(nil, InstanceRequirements.new([srv]))
     end
 
-    def test_component_model_for_data_services_to_composite_model_without_proxy
+    def test_selection_for_data_services_to_composite_model_without_proxy
         srv = DataService.new_submodel :name => 'Srv'
         c0 = Component.new_submodel(:name => 'C0') { provides srv, :as => 'srv' }
         c1 = c0.new_submodel(:name => 'C1')
         di = DependencyInjection.new(c0 => c1, srv => c0)
-        assert_equal [c1, {srv => c1.srv_srv}], di.component_model_for(nil, InstanceRequirements.new([srv]))
+        assert_equal [nil, InstanceRequirements.new([c1]), {srv => c1.srv_srv}],
+            di.selection_for(nil, InstanceRequirements.new([srv]))
     end
 
-    def test_component_model_for_data_services_to_composite_model_with_proxy
+    def test_selection_for_data_services_to_composite_model_with_proxy
         srv = DataService.new_submodel :name => 'Srv'
         c0 = TaskContext.new_submodel(:name => 'C0')
         c1 = c0.new_submodel(:name => 'C1')
         di = DependencyInjection.new(c0 => c1)
 
-        model, mappings = di.component_model_for(nil, InstanceRequirements.new([c0, srv]))
-        assert_equal c1, model.superclass
-        assert_equal [srv].to_set, model.proxied_data_services
-        assert_equal [c1, srv], model.fullfilled_model.to_a
+        assert_equal [nil, InstanceRequirements.new([srv]), Hash.new],
+            di.selection_for(nil, InstanceRequirements.new([c0, srv]))
     end
 
-    def test_component_model_for_data_services_to_composite_model_with_proxy
+    def test_selection_for_data_services_to_composite_model_with_proxy
         srv = DataService.new_submodel :name => 'Srv'
         c0 = TaskContext.new_submodel(:name => 'C0')
         c1 = TaskContext.new_submodel(:name => 'C1') { provides srv, :as => 'srv' }
         di = DependencyInjection.new(srv => c1)
 
-        assert_raises(IncompatibleComponentModels) { di.component_model_for(nil, InstanceRequirements.new([c0, srv])) }
+        assert_raises(IncompatibleComponentModels) { di.selection_for(nil, InstanceRequirements.new([c0, srv])) }
+    end
+
+    def test_map_bang
+        req = DependencyInjection.new('value2', 'test' => 'value')
+        req.map! { |v| v.upcase }
+        assert_equal Hash['test' => 'VALUE'], req.explicit
+        assert_equal Set['VALUE2'], req.defaults
     end
 end
 

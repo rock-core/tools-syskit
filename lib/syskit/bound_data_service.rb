@@ -75,6 +75,10 @@ module Syskit
                 component
             end
 
+            def to_task
+                component
+            end
+
             def as(service)
                 result = self.dup
                 result.instance_variable_set(:@model, model.as(service)) 
@@ -83,6 +87,16 @@ module Syskit
 
             def to_s
                 "#<BoundDataService: #{component.name}.#{model.name}>"
+            end
+
+            # Generates the InstanceRequirements object that represents +self+
+            # best
+            #
+            # @return [Syskit::InstanceRequirements]
+            def to_instance_requirements
+                req = component.to_instance_requirements
+                req.select_service(model)
+                req
             end
         end
 end

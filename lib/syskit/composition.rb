@@ -259,6 +259,19 @@ module Syskit
                 return super(models, arguments)
             end
 
+            # Generates the InstanceRequirements object that represents +self+
+            # best
+            #
+            # @return [Syskit::InstanceRequirements]
+            def to_instance_requirements
+                req = super
+                use_flags = Hash.new
+                model.each_child do |child_name, _|
+                    use_flags[child_name] = child_from_role(child_name).to_instance_requirements
+                end
+                req.use(use_flags)
+                req
+            end
 
             # Proxy returned by the child_name_child handler
             #

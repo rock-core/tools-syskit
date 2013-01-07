@@ -191,10 +191,18 @@ module Syskit
                 @defaults |= list
             end
 
-            # Returns the 
+            # Returns the non-ambiguous selection for the given name and
+            # requirements
+            #
+            # @param [String,nil] name the name that should be used for
+            #   resolution, or nil if there is no name
+            # @param [InstanceRequirements,nil] the required models, or nil if
+            #   none are specified
+            # @return [InstanceSelection]
+            # @raise (see #selection_for)
             def instance_selection_for(name, requirements)
-                component_model, selected_services = component_model_for(name, requirements)
-                InstanceSelection.new(InstanceRequirements.from_object(component_model), requirements, selected_services)
+                instance, component_model, selected_services = selection_for(name, requirements)
+                InstanceSelection.new(instance, InstanceRequirements.from_object(component_model, requirements), requirements, selected_services)
             end
 
             # Returns the selected instance based on the given name and
@@ -209,30 +217,47 @@ module Syskit
             #   lead to component models that are incompatible (i.e. to two
             #   component models that are different and not subclassing one
             #   another)
-            def component_model_for(name, requirements)
+            def selection_for(name, requirements)
                 if defaults.empty?
                     selection = self.explicit
                 else
                     @resolved ||= resolve
-                    return @resolved.component_model_for(name, requirements)
+                    return @resolved.selection_for(name, requirements)
                 end
 
-                selected_services = Hash.new
-                if !name || !(component_model = selection[name])
-                    set = Set.new
+                selections = Set.new
+                if name && (sel = selection[name])
+                    selections << sel
+                else
                     requirements.models.each do |required_m|
-                        selected = selection[required_m] || required_m
+                        selections << [(selection[required_m] || required_m), required_m]
+                    end
+                end
 
-                        if selected.respond_to?(:component_model)
-                            set = Models.merge_model_lists(set, [selected.component_model])
-                            selected_services[required_m] = selected
-                        else
-                            set = Models.merge_model_lists(set, [selected])
+                instance, component_model = nil, InstanceRequirements.new
+                selected_services = Hash.new
+                selections.each do |sel_m, required_m|
+                    if sel_m.respond_to?(:to_task)
+                        sel_task = sel_m.to_task
+                        instance ||= sel_task
+                        if instance != sel_task
+                            raise ArgumentError, "task instances #{instance} and #{sel_m} are both selected for #{required_m || requirements}, but they are not compatible"
                         end
                     end
-                    component_model = Syskit.proxy_task_model_for(set)
+
+                    sel_m = sel_m.to_instance_requirements
+                    if sel_m.service
+                        selected_services[required_m || sel_m.service.model] = sel_m.service
+                    end
+                    component_model.merge(sel_m)
                 end
-                return component_model, selected_services
+                component_model.unselect_service
+
+                if instance && !instance.fullfills?(component_model.base_models, component_model.arguments)
+                    raise ArgumentError, "explicitly selected #{instance}, but it does not fullfill the required #{component_model}"
+                end
+
+                return instance, component_model, selected_services
             end
 
             def initialize_copy(from)

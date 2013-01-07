@@ -15,7 +15,7 @@ module Syskit
             # [InstanceSelection] information needed to update the composition's
             # parent models about the child (mainly port mappings)
             def overload_info
-                @overload_info ||= InstanceSelection.new(self, @parent_model || InstanceRequirements.new)
+                @overload_info ||= InstanceSelection.new(nil, self, @parent_model || InstanceRequirements.new)
             end
 
             # If set to true, the child is going to be removed automatically if
@@ -34,6 +34,27 @@ module Syskit
                 super
                 @dependency_options = old.dependency_options.dup
                 @overload_info = nil
+            end
+
+            # Tries to resolve the task that corresponds to self, using +task+ as
+            # the root composition
+            #
+            # @return [nil,Roby::Task]
+            def try_resolve(task)
+                if task = composition_model.try_resolve(task)
+                    task.find_child_from_role(child_name)
+                end
+            end
+
+            # Resolves the task that corresponds to self, using +task+ as
+            # the root composition
+            #
+            # @return [Roby::Task]
+            # @raise [ArgumentError] if task does not fullfill the required
+            #   composition model, or if it does not have the required children
+            def resolve(task)
+                task = composition_model.resolve(task)
+                task.child_from_role(child_name)
             end
 
             # The port mappings from this child's parent model to this model

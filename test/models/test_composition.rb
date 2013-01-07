@@ -226,6 +226,42 @@ describe Syskit::Models::Composition do
             assert task.has_role?('srv'), "no child of task #{task} with role srv, existing roles: #{task.each_role.to_a.sort.join(", ")}"
         end
 
+        it "applies use selections from the child definition" do
+            srv = Syskit::DataService.new_submodel(:name => "Srv")
+            task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }
+            cmp = Syskit::Composition.new_submodel(:name => "SubCmp") { add srv, :as => 'srv' }
+            root = Syskit::Composition.new_submodel(:name => "Cmp") do
+                add cmp, :as => 'cmp'
+            end
+            root = root.use().instanciate(syskit_engine, Syskit::DependencyInjectionContext.new(srv => task))
+            assert_same task, root.cmp_child.srv_child.class
+        end
+
+        it "allows to specify selections for granchildren" do
+            srv = Syskit::DataService.new_submodel(:name => "Srv")
+            task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }
+            cmp = Syskit::Composition.new_submodel(:name => "SubCmp") { add srv, :as => 'srv' }
+            root = Syskit::Composition.new_submodel(:name => "Cmp") do
+                add cmp, :as => 'cmp'
+            end
+            root = root.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new('cmp.srv' => task))
+            assert_same task, root.cmp_child.srv_child.class
+        end
+
+        it "allows to use grandchildren as use flags for other children" do
+            srv = Syskit::DataService.new_submodel(:name => "Srv")
+            task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }
+            first = Syskit::Composition.new_submodel(:name => "FirstCmp") { add srv, :as => 'first_test' }
+            second = Syskit::Composition.new_submodel(:name => "SecondCmp") { add srv, :as => 'second_test' }
+            cmp = Syskit::Composition.new_submodel(:name => "RootCmp") do
+                add first, :as => 'first'
+                add(second, :as => 'second').
+                    use(srv => first_child.first_test_child)
+            end
+            root = cmp.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new('first.first_test' => task))
+            assert_same root.first_child.first_test_child, root.second_child.second_test_child
+        end
+
         describe "dependency relation definition based on information in the child definition" do
             attr_reader :composition_m, :srv_child
             before do

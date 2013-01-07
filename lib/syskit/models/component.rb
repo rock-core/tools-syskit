@@ -703,11 +703,23 @@ module Syskit
                 Syskit::InstanceRequirementsTask.subplan(self)
             end
 
-            def resolve(component)
-                if !component.kind_of?(self)
-                    raise TypeError, "cannot resolve #{self} into #{component}"
+            # Try resolving the given task using this model
+            #
+            # @return [nil,Roby::Task] task if it matches +self+, nil otherwise
+            def try_resolve(task)
+                task if task.kind_of?(self)
+            end
+
+            # Resolves the given task using this model
+            #
+            # @return [Roby::Task] task if it matches self
+            # @raise [ArgumentError] if task does not fullfill self
+            def resolve(task)
+                if task = try_resolve(task)
+                    task
+                else
+                    raise ArgumentError, "cannot resolve #{self} into #{component}"
                 end
-                component
             end
 
             # [Hash{Array<DataService> => Models::Task}] a cache of models
@@ -748,6 +760,14 @@ module Syskit
                 task.abstract = true
                 task
             end
+
+            # Generates the InstanceRequirements object that represents +self+
+            # best
+            #
+            # @return [Syskit::InstanceRequirements]
+            def to_instance_requirements
+                Syskit::InstanceRequirements.new([self])
+            end
         end
     end
 
@@ -757,6 +777,10 @@ module Syskit
     module PlaceholderTask
         module ClassExtension
             attr_accessor :proxied_data_services
+
+            def to_instance_requirements
+                Syskit::InstanceRequirements.new(proxied_data_services)
+            end
         end
 
         def proxied_data_services

@@ -249,6 +249,15 @@ describe Syskit::InstanceRequirements do
                 Syskit::InstanceRequirements.from_object(Object.new)
             end
         end
+        it "copies requirements if a component model is selected" do
+            srv = Syskit::DataService.new_submodel
+            m = Syskit::Composition.new_submodel { provides srv, :as => 'srv' }
+            req = Syskit::InstanceRequirements.new([Syskit::Composition])
+            req.use(srv => m)
+            sel = Syskit::InstanceRequirements.from_object(m, req)
+            assert_equal Hash[srv => m.srv_srv], sel.selections.explicit
+            assert_equal [m], sel.base_models.to_a
+        end
     end
 
     describe "#select_service" do

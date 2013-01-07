@@ -755,26 +755,36 @@ module Syskit
                 while !remaining_children_models.empty?
                     current_size = remaining_children_models.size
                     remaining_children_models.delete_if do |child_name, selected_child|
-                        # Get out of the selections the parts that are
-                        # relevant for our child. We only pass on the
-                        # <child_name>.blablabla form, everything else is
-                        # removed
-                        child_user_selection = Hash.new
-                        composition_use_flags.added_info.explicit.each do |name, sel|
-                            if name =~ /^#{child_name}\.(.*)$/
-                                child_user_selection[$1] = sel
+                        if selected_child.selected.models.any? { |m| m <= Syskit::Composition }
+                            # Check if selected_child points to another child of
+                            # self, and if it is the case, make sure it is available
+                            selected_child = selected_child.dup
+                            all_done = selected_child.selected.map_use_selections! do |sel|
+                                if sel.kind_of?(CompositionChild)
+                                    if task = sel.try_resolve(self_task)
+                                        task
+                                    else break
+                                    end
+                                else sel
+                                end
                             end
+                            next if !all_done
+
+                            # Get out of the selections the parts that are
+                            # relevant for our child. We only pass on the
+                            # <child_name>.blablabla form, everything else is
+                            # removed
+                            child_user_selection = Hash.new
+                            composition_use_flags.added_info.explicit.each do |name, sel|
+                                if name =~ /^#{child_name}\.(.*)$/
+                                    child_user_selection[$1] = sel
+                                end
+                            end
+                            selected_child.selected.use(child_user_selection)
                         end
-                        child_selection_context.push(child_user_selection.merge(child_use_flags))
+
                         child_task = instanciate_child(engine, child_selection_context,
                                                        self_task, child_name, selected_child)
-                        child_selection_context.pop
-                        if !child_task
-                            # Cannot instanciate yet, probably because the
-                            # instantiation of this child depends on other
-                            # children that are not yet instanciated
-                            next(false)
-                        end
 
                         if child_task.abstract? && find_child(child_name).optional?
                             Models.debug "not adding optional child #{child_name}"
@@ -788,7 +798,6 @@ module Syskit
 
                         role = [child_name].to_set
                         children_tasks[child_name] = child_task
-                        child_use_flags["parent.#{child_name}"] = child_task
 
                         dependent_models    = find_child(child_name).models.to_a
                         dependent_arguments = dependent_models.inject(Hash.new) do |result, m|
@@ -827,7 +836,7 @@ module Syskit
                         true # it has been processed, delete from remaining_children_models
                     end
                     if remaining_children_models.size == current_size
-                        raise InternalError, "cannot resolve #{child_name}"
+                        raise InternalError, "cannot resolve children #{remaining_children_models.map(&:first).sort.join(", ")}"
                     end
                 end
 
