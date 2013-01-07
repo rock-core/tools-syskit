@@ -792,7 +792,7 @@ module Syskit
     # models listed in +models+ in a plan. The returned task model is
     # obviously abstract
     def self.proxy_task_model_for(models)
-        task_models, service_models = models.partition { |t| t < Component }
+        task_models, service_models = models.partition { |t| t <= Component }
         if task_models.size > 1
             raise ArgumentError, "cannot create a proxy for multiple component models at the same time"
         end
