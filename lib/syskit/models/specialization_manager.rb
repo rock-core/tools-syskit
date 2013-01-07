@@ -18,10 +18,23 @@ module Syskit
 
             # Registers the given specialization on this manager
             #
-            # @param [CompositionSpecialization] the new specialization
+            # @param [CompositionSpecialization] specialization the new specialization
             # @return [void]
             def register(specialization)
+                instanciated_specializations.delete(specialization.specialized_children)
                 specializations[specialization.specialized_children] = specialization
+            end
+
+            # Deregisters the given specialization on this manager
+            #
+            # @param [CompositionSpecialization] specialization the
+            #   specialization to be removed
+            # @return [void]
+            def deregister(specialization)
+                if specializations[specialization.specialized_children] == specialization
+                    instanciated_specializations.delete(specialization.specialized_children)
+                    specializations.delete(specialization.specialized_children)
+                end
             end
 
             # Returns true if no specializations are registered on this manager
@@ -87,14 +100,18 @@ module Syskit
 
                 mappings = normalize_specialization_mappings(mappings)
 
-                # validate it
+                # validate the mappings
                 validate_specialization_mappings(mappings)
 
                 # register it
-                if !(specialization = specializations[mappings])
-                    register(specialization = CompositionSpecialization.new)
+                if specialization = specializations[mappings]
+                    new_specialization = specialization.dup
+                else
+                    new_specialization = CompositionSpecialization.new
                 end
-                specialization.add(mappings, block)
+                # validate the block
+                new_specialization.add(mappings, block)
+                create_specialized_model(new_specialization, [new_specialization])
 
                 # ... and update compatibilities
                 #
@@ -104,16 +121,24 @@ module Syskit
                 # of these (since the models that would trigger this
                 # instantiation cannot be represented)
                 each_specialization do |spec|
-                    next if spec == specialization
-                    if compatible_specializations?(spec, specialization)
-                        spec.compatibilities << specialization
-                        specialization.compatibilities << spec
+                    next if spec == new_specialization || spec == new_specialization
+                    if compatible_specializations?(spec, new_specialization)
+                        spec.compatibilities << new_specialization
+                        new_specialization.compatibilities << spec
                     else
-                        spec.compatibilities.delete(specialization)
-                        specialization.compatibilities.delete(spec)
+                        spec.compatibilities.delete(new_specialization)
+                        new_specialization.compatibilities.delete(spec)
                     end
                 end
-                specialization
+
+                # and register the result
+                if specialization
+                    deregister(specialization)
+                end
+                register(new_specialization)
+
+                # Finally, we create 
+                new_specialization
 
             ensure
                 Models.debug do
@@ -337,7 +362,19 @@ module Syskit
                 elsif current_model = instanciated_specializations[composite_spec.specialized_children]
                     return current_model.composition_model
                 end
+                child_composition = create_specialized_model(composite_spec, applied_specializations)
+                composite_spec.composition_model = child_composition
+                instanciated_specializations[composite_spec.specialized_children] = composite_spec
+                child_composition
 
+            ensure
+                Models.debug do
+                    Models.log_nest -2
+                    break
+                end
+            end
+
+            def create_specialized_model(composite_spec, applied_specializations)
                 # There's no composition with that spec. Create a new one
                 child_composition = composition_model.new_submodel
                 child_composition.parent_models << composition_model
@@ -355,15 +392,7 @@ module Syskit
                 composite_spec.specialization_blocks.each do |block|
                     child_composition.apply_specialization_block(block)
                 end
-                composite_spec.composition_model = child_composition
-                instanciated_specializations[composite_spec.specialized_children] = composite_spec
-
                 child_composition
-            ensure
-                Models.debug do
-                    Models.log_nest -2
-                    break
-                end
             end
 
             # Partitions a set of specializations into the smallest number of

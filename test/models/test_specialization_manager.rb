@@ -117,7 +117,7 @@ describe Syskit::Models::SpecializationManager do
             normalized_mappings = Hash.new
             flexmock(mng).should_receive(:normalize_specialization_mappings).with(mappings).once.and_return(normalized_mappings)
             flexmock(mng).should_receive(:validate_specialization_mappings).with(normalized_mappings).once.and_return(nil)
-            block = proc { do_something }
+            block = proc { add Syskit::TaskContext, :as => 'child' }
             flexmock(Syskit::Models::CompositionSpecialization).new_instances.should_receive(:add).with(normalized_mappings, eq(block)).once
             mng.specialize(mappings, &block)
         end
@@ -148,11 +148,26 @@ describe Syskit::Models::SpecializationManager do
         end
 
         it "should validate the given specialization block" do
-            assert_raises(NoMethodError) do
+            assert_raises(NameError) do
                 mng.specialize 'srv' => simple_composition_model do
                     this_method_does_not_exist
                 end
             end
+        end
+
+        it "should add the new block to an existing specialization definition if one already exists" do
+            spec = mng.specialize 'srv' => simple_component_model
+            my_proc = proc { }
+            flexmock(spec).should_receive(:add).with(Hash['srv' => [simple_component_model].to_set], my_proc).once
+            assert_same spec, mng.specialize('srv' => simple_component_model, &my_proc)
+        end
+
+        it "should invalidate the specialized composition models if a block is added to an existing specialization" do
+            spec = mng.specialize 'srv' => simple_component_model
+            cmp_m = mng.specialized_model(spec)
+            assert_same cmp_m, mng.specialized_model(spec)
+            mng.specialize('srv' => simple_component_model)
+            refute_same cmp_m, mng.specialized_model(spec)
         end
     end
 
