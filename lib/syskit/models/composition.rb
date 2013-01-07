@@ -557,7 +557,7 @@ module Syskit
             # The first returned mapping is the set of explicit selections (i.e.
             # selections that are specified by +selection+) and the second one
             # is the complete result for all the composition children.
-            def find_children_models_and_tasks(context, user_call = true) # :nodoc:
+            def find_children_models_and_tasks(context)
                 explicit = Hash.new
                 result   = Hash.new
                 each_child do |child_name, child_requirements|
