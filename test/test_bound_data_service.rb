@@ -188,7 +188,7 @@ class TC_BoundDataService < Test::Unit::TestCase
         other_service = DataService.new_submodel
         component_model.provides other_service, :as => 'unrelated_service'
 
-        assert service.fullfills?(component_model)
+        assert !service.fullfills?(component_model)
         assert service.fullfills?(base)
         assert service.fullfills?(parent)
         assert service.fullfills?(model)

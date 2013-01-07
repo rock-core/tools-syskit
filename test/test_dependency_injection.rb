@@ -140,10 +140,8 @@ class TC_DependencyInjection < Test::Unit::TestCase
         subcomponent.provides srv, :as => 'srv'
 
         assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent))
-        assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent.srv_srv))
 	subcomponent = subcomponent.new
         assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent))
-        assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent.srv_srv))
     end
 
     def test_normalize_selection_accepts_component_to_instance_requirements_that_fullfill_the_key
