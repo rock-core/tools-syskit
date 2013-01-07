@@ -315,18 +315,6 @@ module Syskit
                     @child_task.send(m, *args, &block)
                 end
             end
-
-            def method_missing(m, *args, &block)
-                if args.empty? && !block
-                    if m.to_s =~ /^(\w+)_child$/
-                        child_name = $1
-                        # Verify that the child exists
-                        child_task = child_from_role(child_name)
-                        return CompositionChildInstance.new(self, child_name, child_task)
-                    end
-                end
-                super
-            end
         end
 end
 
