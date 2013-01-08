@@ -760,14 +760,6 @@ module Syskit
                 task.abstract = true
                 task
             end
-
-            # Generates the InstanceRequirements object that represents +self+
-            # best
-            #
-            # @return [Syskit::InstanceRequirements]
-            def to_instance_requirements
-                Syskit::InstanceRequirements.new([self])
-            end
         end
     end
 

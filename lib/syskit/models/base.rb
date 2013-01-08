@@ -80,6 +80,14 @@ module Syskit
                 else to_s
                 end
             end
+
+            # Generates the InstanceRequirements object that represents +self+
+            # best
+            #
+            # @return [Syskit::InstanceRequirements]
+            def to_instance_requirements
+                Syskit::InstanceRequirements.new([self])
+            end
         end
 
 
