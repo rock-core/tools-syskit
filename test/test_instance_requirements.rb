@@ -225,41 +225,6 @@ describe Syskit::InstanceRequirements do
         end
     end
 
-    describe "#from_object" do
-        it "returns a duplicate when given an instance requirements" do
-            req = Syskit::InstanceRequirements.new
-            flexmock(req).should_receive(:dup).and_return(obj = Object.new)
-            assert_same obj, Syskit::InstanceRequirements.from_object(req)
-        end
-        it "returns an instance requirements with the given service or component model" do
-            req = Syskit::InstanceRequirements.from_object(m = Syskit::TaskContext.new_submodel)
-            assert_equal [m], req.models.to_a
-            req = Syskit::InstanceRequirements.from_object(m = Syskit::DataService.new_submodel)
-            assert_equal [m], req.models.to_a
-        end
-        it "returns an instance requirements with the provided service selected" do
-            srv_m  = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'srv' }
-            req = Syskit::InstanceRequirements.from_object(task_m.srv_srv)
-            assert_equal [task_m], req.models.to_a
-            assert_equal task_m.srv_srv, req.service
-        end
-        it "raises ArgumentError if given a non-supported object" do
-            assert_raises(ArgumentError) do
-                Syskit::InstanceRequirements.from_object(Object.new)
-            end
-        end
-        it "copies requirements if a component model is selected" do
-            srv = Syskit::DataService.new_submodel
-            m = Syskit::Composition.new_submodel { provides srv, :as => 'srv' }
-            req = Syskit::InstanceRequirements.new([Syskit::Composition])
-            req.use(srv => m)
-            sel = Syskit::InstanceRequirements.from_object(m, req)
-            assert_equal Hash[srv => m.srv_srv], sel.selections.explicit
-            assert_equal [m], sel.base_models.to_a
-        end
-    end
-
     describe "#select_service" do
         it "raises ArgumentError if the given service is not provided by the current requirements" do
             req = Syskit::InstanceRequirements.new([Syskit::TaskContext.new_submodel])

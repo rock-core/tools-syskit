@@ -22,6 +22,10 @@ module Syskit
             # deployment names). New hints can be added with #use_deployments
             attr_reader :deployment_hints
 
+            def plain?
+                arguments.empty? && selections.empty?
+            end
+
             def initialize(models = [])
                 @models    = @base_models = models.to_value_set
                 @arguments = Hash.new
@@ -39,19 +43,12 @@ module Syskit
             end
 
             def self.from_object(object, original_requirements = Syskit::InstanceRequirements.new) 
-                if object.kind_of?(InstanceRequirements)
-                    return object.dup
-                elsif (object.kind_of?(Class) && object <= Component) || object.kind_of?(Models::DataServiceModel)
-                    req = original_requirements.dup
-                    req.add_models([object])
-                    req
-                elsif object.kind_of?(Models::BoundDataService)
-                    req = original_requirements.dup
-                    req.add_models([object.component_model])
-                    req.select_service(object)
-                    req
+                if object.plain?
+                    object = object.dup
+                    object.merge(original_requirements)
+                    object
                 else
-                    raise ArgumentError, "expected an instance requirement object, a component model, a data service model or a bound data service, got #{object}"
+                    object
                 end
             end
 
