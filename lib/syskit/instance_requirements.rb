@@ -18,13 +18,6 @@ module Syskit
             # specific task. Use #select_service to select.
             attr_reader :service
 
-            # The model selection that can be used to instanciate this task,
-            # as resolved using names and application of default selections
-            #
-            # This information is only valid in the instanciation context, i.e.
-            # while the underlying engine is instanciating the requirements
-            attr_reader :resolved_using_spec
-
             # A set of hints for deployment disambiguation (as matchers on the
             # deployment names). New hints can be added with #use_deployments
             attr_reader :deployment_hints
