@@ -237,6 +237,30 @@ describe Syskit::Models::Composition do
             assert_same task, root.cmp_child.srv_child.class
         end
 
+        it "augments plain selections with provided informations in the child" do
+            srv = Syskit::DataService.new_submodel(:name => "Srv")
+            task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }
+            cmp = Syskit::Composition.new_submodel(:name => "SubCmp") do
+                add(srv, :as => 'srv').
+                    with_arguments(:test => 10)
+            end
+            cmp = cmp.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new(srv => task))
+            assert_same task, cmp.srv_child.class
+            assert_equal Hash[:test => 10], cmp.srv_child.arguments
+        end
+
+        it "does not pass additional informations from the child if overriden in the selection" do
+            srv = Syskit::DataService.new_submodel(:name => "Srv")
+            task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }
+            cmp = Syskit::Composition.new_submodel(:name => "SubCmp") do
+                add(srv, :as => 'srv').
+                    with_arguments(:test => 10)
+            end
+            cmp = cmp.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new(srv => task.with_arguments(:bla => 20)))
+            assert_same task, cmp.srv_child.class
+            assert_equal Hash[:bla => 20], cmp.srv_child.arguments
+        end
+
         it "allows to specify selections for granchildren" do
             srv = Syskit::DataService.new_submodel(:name => "Srv")
             task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }

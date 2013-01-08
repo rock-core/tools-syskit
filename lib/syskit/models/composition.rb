@@ -613,7 +613,7 @@ module Syskit
                     break
                 end
 
-                child_arguments = selected_child.required.arguments
+                child_arguments = selected_child.selected.arguments
                 child_arguments.each_key do |key|
 	            value = child_arguments[key]
                     if value.respond_to?(:resolve)
