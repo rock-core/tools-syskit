@@ -240,14 +240,8 @@ module Syskit
                     raise ArgumentError, "wrong model type #{wrong_type.class} for #{wrong_type}"
                 end
 
-                if models.size == 1
-                    if default_name = models.find { true }.name
-                        default_name = default_name.snakecase
-                    end
-                end
                 options, dependency_options = Kernel.filter_options options,
-                    :as => default_name
-
+                    :as => nil
                 if !options[:as]
                     raise ArgumentError, "you must provide an explicit name with the :as option"
                 end
