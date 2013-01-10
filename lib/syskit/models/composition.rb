@@ -484,6 +484,11 @@ module Syskit
                 end
             end
 
+            # (see SpecializationManager#add_specialization_constraint)
+            def add_specialization_constraint(explicit = nil, &block)
+                specializations.add_specialization_constraint(explicit, &block)
+            end
+
             # Returns the set of constraints that exist for the given child.
             # I.e. the set of types that, at instanciation time, the chosen
             # child must provide.
