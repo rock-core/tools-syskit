@@ -5,12 +5,23 @@ module Syskit
         # The main configuration instance is accessible as Syskit.conf or (if
         # running in a Roby application) as Conf.syskit
         class Configuration < Roby::OpenStruct
+            # If true, we will load the component-specific code in
+            # tasks/orocos/. It is true by default
+            attr_predicate :load_component_extensions, true
+            # If true, files that raise an error during task library or type
+            # import will be ignored. This is usually used on "root" bundles
+            # (e.g. the Rock bundle) to have the benefit of GUIs like
+            # system_model even though some typekits/task libraries are not
+            # present
+            attr_predicate :ignore_load_errors, true
+
             def initialize
                 super
 
+
+                @load_component_extension = true
                 @log_enabled = true
                 @conf_log_enabled = true
-                @redirect_local_process_server = true
                 @redirect_local_process_server = true
                 @default_logging_buffer_size = 25
                 @reject_ambiguous_deployments = false
@@ -21,6 +32,7 @@ module Syskit
                 @local_only = false
                 @prefix_blacklist = []
                 @sd_publish_list = []
+                @ignore_load_errors = false
 
                 @log_groups = { nil => LogGroup.new(false) }
 
@@ -258,7 +270,7 @@ module Syskit
                 begin
                     model = Deployment.model_for(name)
                 rescue ArgumentError
-                    model = Roby.app.orocos_load_deployment_model(name)
+                    model = Roby.app.load_deployment_model(name)
                 end
                 model.default_run_options.merge!(default_run_options(model))
                 deployments[options[:on]] << model

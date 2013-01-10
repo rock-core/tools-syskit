@@ -15,13 +15,10 @@ Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
 # We don't need the process server, win some startup time
-Roby.app.using_plugins 'orocos'
-Roby.app.orocos_only_load_models = true
-Roby.app.orocos_disables_local_process_server = true
-
-Scripts.setup_output("system_model", Roby.app.orocos_system_model) do
-    Roby.app.orocos_system_model.to_dot
-end
+Roby.app.using_plugins 'syskit'
+Syskit.conf.only_load_models = true
+Syskit.conf.disables_local_process_server = true
+Syskit.conf.ignore_load_errors = true
 
 app = Qt::Application.new(ARGV)
 
@@ -54,7 +51,7 @@ class ModelListWidget < Qt::TreeWidget
     ROOT_ROLE_TASK = 2
 
     def populate
-        services = Roby.app.orocos_system_model.each_data_service.to_a
+        services = Syskit::DataService.each_submodel.to_a
         services.sort_by { |srv| srv.name }.each do |srv|
             services << srv
             name = srv.name.gsub(/.*DataServices::/, '')
@@ -64,7 +61,7 @@ class ModelListWidget < Qt::TreeWidget
             item.set_data(0, ITEM_ROLE_MODEL, Qt::Variant.from_ruby(srv))
         end
 
-        compositions = Roby.app.orocos_system_model.each_composition.to_a
+        compositions = Syskit::Composition.each_submodel.to_a
         compositions.sort_by { |srv| srv.name }.each do |cmp|
             name = cmp.name.gsub(/.*Compositions::/, '')
 
@@ -90,7 +87,7 @@ class ModelListWidget < Qt::TreeWidget
             end
         end
 
-        task_contexts = Roby.app.orocos_system_model.each_task_model.to_a
+        task_contexts = Syskit::TaskContext.each_submodel.to_a
         task_contexts.sort_by(&:name).each do |task|
             item = Qt::TreeWidgetItem.new(root_tasks)
             item.set_text(0, task.short_name)
@@ -307,7 +304,7 @@ Scripts.run do
             Roby.app.use_deployments_from(project_name)
         end
         files.each do |file|
-            Roby.app.syskit_engine.load_composite_file file
+            require file
         end
     end
 

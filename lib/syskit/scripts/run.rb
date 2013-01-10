@@ -57,7 +57,6 @@ error = Scripts.run do
             additional_services.each do |service_name|
                 Scripts.add_service(service_name)
             end
-            Roby.app.syskit_engine.dry_run = dry_run
             Roby.app.syskit_engine.resolve
             if !Roby.engine.scheduler
                 require 'roby/schedulers/temporal'

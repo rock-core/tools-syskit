@@ -240,14 +240,8 @@ module Syskit
                     raise ArgumentError, "wrong model type #{wrong_type.class} for #{wrong_type}"
                 end
 
-                if models.size == 1
-                    if default_name = models.find { true }.name
-                        default_name = default_name.snakecase
-                    end
-                end
                 options, dependency_options = Kernel.filter_options options,
-                    :as => default_name
-
+                    :as => nil
                 if !options[:as]
                     raise ArgumentError, "you must provide an explicit name with the :as option"
                 end
@@ -488,6 +482,11 @@ module Syskit
                 mappings.each do |out_p, in_p|
                     out_p.connect_to in_p
                 end
+            end
+
+            # (see SpecializationManager#add_specialization_constraint)
+            def add_specialization_constraint(explicit = nil, &block)
+                specializations.add_specialization_constraint(explicit, &block)
             end
 
             # Returns the set of constraints that exist for the given child.

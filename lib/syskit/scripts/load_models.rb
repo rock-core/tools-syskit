@@ -2,7 +2,7 @@ require 'roby/standalone'
 require 'optparse'
 require 'orocos'
 require 'syskit'
-require 'syskit/app'
+require 'syskit/roby_app'
 
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD
@@ -25,7 +25,7 @@ Syskit.logger.level = Logger::INFO
 error = Roby.display_exception do
     begin
         Roby.app.setup
-        Roby.app.orocos_system_model.each_composition do |composition_model|
+        Syskit::Composition.each_submodel do |composition_model|
             puts composition_model
             composition_model.compute_autoconnection
         end

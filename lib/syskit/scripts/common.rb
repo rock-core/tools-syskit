@@ -1,9 +1,8 @@
 require 'optparse'
 require 'orocos'
 require 'syskit'
-require 'syskit/app'
+require 'syskit/roby_app'
 
-module Orocos
     module Syskit
         module Scripts
             class << self
@@ -27,8 +26,8 @@ module Orocos
             end
             def self.toc(string = nil)
                 if string
-                    Robot.info string % [Time.now - @tic]
-                else Robot.info yield(Time.now - @tic)
+                    ::Robot.info string % [Time.now - @tic]
+                else ::Robot.info yield(Time.now - @tic)
                 end
             end
             def self.toc_tic(string = nil, &block)
@@ -240,7 +239,7 @@ module Orocos
 
             def self.setup
                 tic = Time.now
-                Roby.app.using_plugins 'orocos'
+                Roby.app.using_plugins 'syskit'
                 if debug
                     Roby.app.filter_backtraces = false
                 end
@@ -254,7 +253,7 @@ module Orocos
                     Roby.app.setup
                 end
                 toc = Time.now
-                Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
+                ::Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
             end
 
             def self.run
@@ -266,6 +265,5 @@ module Orocos
             ensure Roby.app.cleanup
             end
         end
-    end
 end
 

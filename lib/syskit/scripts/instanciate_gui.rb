@@ -14,10 +14,10 @@ Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
 # We don't need the process server, win some startup time
-Roby.app.using_plugins 'orocos'
+Roby.app.using_plugins 'syskit'
 Roby.app.single
-Roby.app.orocos_only_load_models = true
-Roby.app.orocos_disables_local_process_server = true
+Syskit.conf.only_load_models = true
+Syskit.conf.disables_local_process_server = true
 
 error = Scripts.run do
     app  = Qt::Application.new(ARGV)

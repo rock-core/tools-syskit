@@ -1,7 +1,7 @@
 require 'syskit/scripts/common'
 Scripts = Syskit::Scripts
 
-Roby.app.using_plugins 'orocos'
+Roby.app.using_plugins 'syskit'
 available_annotations = Syskit::Graphviz.available_annotations
 
 compute_policies    = true
@@ -113,8 +113,8 @@ class Instanciate
     end
 
     def self.setup
-        Roby.app.orocos_only_load_models = true
-        Roby.app.orocos_disables_local_process_server = true
+        Syskit.conf.only_load_models = true
+        Syskit.conf.disables_local_process_server = true
         Roby.app.single
     end
 

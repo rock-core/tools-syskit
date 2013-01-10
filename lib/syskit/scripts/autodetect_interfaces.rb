@@ -1,7 +1,7 @@
 require 'roby/standalone'
 require 'orocos'
 require 'syskit'
-require 'syskit/app'
+require 'syskit/roby_app'
 
 Roby.app.using 'syskit'
 
