@@ -13,7 +13,7 @@ mode = ARGV.shift
 
 begin
     require "syskit/scripts/#{mode}"
-rescue LoadError
+rescue LoadError => e
     begin
         require "roby/app/scripts/#{mode}"
     rescue LoadError

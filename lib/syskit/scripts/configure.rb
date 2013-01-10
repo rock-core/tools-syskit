@@ -100,12 +100,12 @@ error = Scripts.run do
 
             # Wait for the deployments to be started
             ready_ev.if_unreachable(true) do
-                Robot.info "failed to start the deployments"
-                Roby.log_pp(ready_ev.unreachability_reason, Robot, :info)
+                ::Robot.info "failed to start the deployments"
+                Roby.log_pp(ready_ev.unreachability_reason, ::Robot, :info)
                 Roby.engine.quit
             end
             ready_ev.on do |event|
-                Robot.info "all deployments are up and running"
+                ::Robot.info "all deployments are up and running"
                 tasks = Roby.plan.find_tasks(Syskit::TaskContext).to_a
 
                 failed = tasks.find_all do |t|
@@ -116,28 +116,28 @@ error = Scripts.run do
                             end
 
                         if t.execution_agent
-                            Robot.info "calling #{t.class.name}##{method_name} on #{t}, deployed in #{t.execution_agent.model.deployment_name}"
+                            ::Robot.info "calling #{t.class.name}##{method_name} on #{t}, deployed in #{t.execution_agent.model.deployment_name}"
                         else
-                            Robot.info "calling #{t.class.name}##{method_name} on #{t}"
+                            ::Robot.info "calling #{t.class.name}##{method_name} on #{t}"
                         end
                         t.send(method_name)
 			false
                     rescue Exception => e
-                        Robot.warn "#{t.class.name}##{method_name} fails with"
+                        ::Robot.warn "#{t.class.name}##{method_name} fails with"
                         Roby.display_exception(STDERR, e)
                         true
                     end
                 end
 
                 if failed.empty?
-                    Robot.info "the #configure method worked on all tasks"
+                    ::Robot.info "the #configure method worked on all tasks"
                 else
-                    Robot.error "the tasks #{failed.map(&:orocos_name).join(", ")} failed to configure (see above for backtrace)"
+                    ::Robot.error "the tasks #{failed.map(&:orocos_name).join(", ")} failed to configure (see above for backtrace)"
                 end
 
                 if save_dir
                     FileUtils.mkdir_p(save_dir)
-                    Robot.orocos.dump_all_config(save_dir, save_name)
+                    ::Robot.orocos.dump_all_config(save_dir, save_name)
                 end
                 Roby.engine.quit
             end

@@ -25,19 +25,7 @@ module Syskit
             # See #load_orogen_project.
             attribute(:loaded_orogen_projects) { Hash.new }
 
-            # If true, we will load the component-specific code in
-            # tasks/orocos/. It is true by default
-            attr_predicate :syskit_load_component_extensions, true
-
-            # If true, the output of the local process server is redirected
-            # towards <log_dir>/local_process_server.txt.
-            #
-            # It is true by default
-            attr_predicate :redirect_local_process_server?, :true
-
             def self.load(app, options)
-                app.syskit_load_component_extensions = true
-
                 conf = Syskit.conf
                 if options = options['syskit']
                     conf.prefix = options['prefix']
@@ -71,14 +59,14 @@ module Syskit
                 if Orocos.available_task_libraries[name].respond_to?(:to_str)
                     orogen_path = Orocos.available_task_libraries[name]
                     if File.file?(orogen_path)
-                        Orocos.main_project.register_orogen_file(Orocos.available_task_libraries[name], name)
+                        Orocos.master_project.register_orogen_file(Orocos.available_task_libraries[name], name)
                     end
                 end
-                orogen ||= Orocos.main_project.load_orogen_project(name)
+                orogen ||= Orocos.master_project.load_orogen_project(name)
 
                 # If it is a task library, register it on our main project
                 if !orogen.self_tasks.empty?
-                    Orocos.main_project.using_task_library(name)
+                    Orocos.master_project.using_task_library(name)
                 end
 
 		Orocos.registry.merge(orogen.registry)
@@ -215,15 +203,18 @@ module Syskit
             # Load the specified oroGen project and register the task contexts
             # and deployments they contain.
             def using_task_library(name)
-                names.each do |n|
-                    orogen = Orocos.master_project.using_task_library(n)
-                    if !loaded_orogen_project?(n)
-                        # The project was already loaded on
-                        # Orocos.master_project before Roby kicked in. Just load
-                        # the Roby part
-                        import_orogen_project(n, orogen)
-                    end
+                orogen = Orocos.master_project.using_task_library(name)
+                if !loaded_orogen_project?(name)
+                    # The project was already loaded on
+                    # Orocos.master_project before Roby kicked in. Just load
+                    # the Roby part
+                    project_define_from_orogen(name, orogen)
                 end
+            end
+
+            # Loads the required typekit
+            def import_types_from(typekit_name)
+                Orocos.master_project.import_types_from(typekit_name)
             end
 
             def syskit_clear_models
@@ -349,7 +340,7 @@ module Syskit
                     # The project was already loaded on
                     # Orocos.master_project before Roby kicked in. Just load
                     # the Roby part
-                    import_orogen_project(deployer.project.name, deployer.project)
+                    project_define_from_orogen(deployer.project.name, deployer.project)
                 end
 
                 deployer.used_typekits.each do |tk|
@@ -444,6 +435,21 @@ module Syskit
                 Syskit.process_servers.clear
             end
 
+            module LoadToplevelMethods
+                # Imports the types from the given typekit(s)
+                def import_types_from(name)
+                    Roby.app.import_types_from(name)
+                end
+
+                # Loads the given task library
+                def using_task_library(name)
+                    Roby.app.using_task_library(name)
+                end
+            end
+
+            class << self
+                attr_accessor :toplevel_object
+            end
             def self.enable
                 ::Robot.include Syskit::RobyApp::RobotExtension
                 ::Roby.conf.syskit = Syskit.conf
@@ -452,9 +458,10 @@ module Syskit
                 Orocos.load_orogen_plugins('syskit')
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROGEN_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(File.expand_path(File.join('..', ".."), File.dirname(__FILE__))))
+                toplevel_object.extend LoadToplevelMethods
             end
 
         end
     end
 end
-
+Syskit::RobyApp::Plugin.toplevel_object = self
