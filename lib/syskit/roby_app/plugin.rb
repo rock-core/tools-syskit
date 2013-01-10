@@ -196,7 +196,14 @@ module Syskit
                     app.find_files_in_dirs("tasks", "compositions", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
                     app.find_files_in_dirs("models", "compositions", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/)
                 all_files.each do |path|
-                    app.require(path)
+                    begin
+                        app.require(path)
+                    rescue Orocos::Generation::Project::TypeImportError => e
+                        if Syskit.conf.ignore_load_errors?
+                            ::Robot.warn "ignored file #{path}: cannot load required typekit #{e.imported_name}"
+                        else raise
+                        end
+                    end
                 end
             end
 

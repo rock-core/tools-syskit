@@ -18,6 +18,7 @@ remaining = parser.parse(ARGV)
 Roby.app.using_plugins 'syskit'
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
+Syskit.conf.ignore_load_errors = true
 
 app = Qt::Application.new(ARGV)
 
