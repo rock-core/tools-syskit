@@ -548,6 +548,7 @@ module Syskit
         # Raised when trying to autoconnect two objects, but no connections
         # could be found
         class InvalidAutoConnection < RuntimeError
+            attr_reader :source, :sink
             def initialize(source, sink)
                 @source, @sink = source, sink
             end

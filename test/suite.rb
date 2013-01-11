@@ -21,6 +21,8 @@ require './test/test_connection_graphs'
 require './test/test_dependency_injection'
 require './test/test_instance_requirements_task'
 
+require './test/test_exceptions'
+
 Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
 Syskit.logger.level = Logger::DEBUG
 
