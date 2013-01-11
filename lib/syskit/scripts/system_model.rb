@@ -54,7 +54,7 @@ class ModelListWidget < Qt::TreeWidget
         services = Syskit::DataService.each_submodel.to_a
         services.sort_by { |srv| srv.name }.each do |srv|
             services << srv
-            name = srv.name.gsub(/.*DataServices::/, '')
+            name = srv.name
 
             item = Qt::TreeWidgetItem.new(root_services)
             item.set_text(0, name)
@@ -63,21 +63,10 @@ class ModelListWidget < Qt::TreeWidget
 
         compositions = Syskit::Composition.each_submodel.to_a
         compositions.sort_by { |srv| srv.name }.each do |cmp|
-            name = cmp.name.gsub(/.*Compositions::/, '')
+            next if cmp.is_specialization?
+            name = cmp.name
 
             has_errors = false
-            # Instanciate each specialization separately, to make sure that
-            # everything's OK
-            #
-            # If there is a problem, mark the composition in red
-            cmp.specializations.each_specialization do |spec|
-                begin
-                    cmp.instanciate_specialization(spec, [spec])
-                rescue Exception => e
-                    has_errors = true
-                    break
-                end
-            end
 
             item = Qt::TreeWidgetItem.new(root_compositions)
             item.set_text(0, name)
@@ -88,10 +77,6 @@ class ModelListWidget < Qt::TreeWidget
         end
 
         task_contexts = Syskit::TaskContext.each_submodel.to_a
-        task_contexts.each do |tc|
-            puts "-- #{tc.name}"
-            puts "#{tc.ancestors}"
-        end
         task_contexts.sort_by(&:name).each do |task|
             item = Qt::TreeWidgetItem.new(root_tasks)
             item.set_text(0, task.short_name)
@@ -120,38 +105,40 @@ class ModelDisplayView < Ui::StackedDisplay
 
     def clickedSpecialization(obj_as_variant)
         object = obj_as_variant.to_ruby
-        if specializations.values.include?(object)
-            clicked  = object.model.applied_specializations.dup.to_set
-            selected = current_model.applied_specializations.dup.to_set
+        if !specializations.values.include?(object)
+            return
+        end
 
-            if clicked.all? { |s| selected.include?(s) }
-                # This specialization is already selected, remove it
-                clicked.each { |s| selected.delete(s) }
-                new_selection = selected
+        clicked  = object.model.applied_specializations.dup.to_set
+        selected = current_model.applied_specializations.dup.to_set
 
-                new_merged_selection = new_selection.inject(Syskit::CompositionModel::Specialization.new) do |merged, s|
-                    merged.merge(s)
-                end
-            else
-                # This is not already selected, add it to the set. We have to
-                # take care that some of the currently selected specializations
-                # might not be compatible
-                new_selection = clicked
-                new_merged_selection = new_selection.inject(Syskit::CompositionModel::Specialization.new) do |merged, s|
-                    merged.merge(s)
-                end
+        if clicked.all? { |s| selected.include?(s) }
+            # This specialization is already selected, remove it
+            clicked.each { |s| selected.delete(s) }
+            new_selection = selected
 
-                selected.each do |s|
-                    if new_merged_selection.compatible_with?(s)
-                        new_selection << s
-                        new_merged_selection.merge(s)
-                    end
-                end
+            new_merged_selection = new_selection.inject(Syskit::Models::CompositionSpecialization.new) do |merged, s|
+                merged.merge(s)
+            end
+        else
+            # This is not already selected, add it to the set. We have to
+            # take care that some of the currently selected specializations
+            # might not be compatible
+            new_selection = clicked
+            new_merged_selection = new_selection.inject(Syskit::Models::CompositionSpecialization.new) do |merged, s|
+                merged.merge(s)
             end
 
-            new_model = current_model.root_model.instanciate_specialization(new_merged_selection, new_selection)
-            render_model(new_model)
+            selected.each do |s|
+                if new_merged_selection.compatible_with?(s)
+                    new_selection << s
+                    new_merged_selection.merge(s)
+                end
+            end
         end
+
+        new_model = current_model.root_model.specializations.create_specialized_model(new_merged_selection, new_selection)
+        render_model(new_model)
     end
     slots 'clickedSpecialization(QVariant&)'
 
@@ -161,14 +148,15 @@ class ModelDisplayView < Ui::StackedDisplay
     end
 
     def render_specialization_graph(root_model)
+        plan = Roby::Plan.new
         specializations = Hash.new
         root_model.specializations.each_specialization.map do |spec|
             task_model = root_model.specializations.create_specialized_model(spec, [spec])
-            Roby.plan.add(task = task_model.new)
+            plan.add(task = task_model.new)
             specializations[spec] = task
         end
 
-        specializations
+        return plan, specializations
     end
 
     def render_model(model)
@@ -176,8 +164,7 @@ class ModelDisplayView < Ui::StackedDisplay
         @current_model = model
 
         if model <= Syskit::Composition
-            Roby.plan.clear
-            @specializations = render_specialization_graph(model.root_model)
+            plan, @specializations = render_specialization_graph(model.root_model)
 
             current_specializations, incompatible_specializations = [], Hash.new
             if model.root_model != model
@@ -198,7 +185,7 @@ class ModelDisplayView < Ui::StackedDisplay
                 :toned_down => incompatible_specializations.values
             }
             plan_display = push_plan('Specializations', 'relation_to_dot',
-                      Roby.plan, Roby.syskit_engine,
+                      plan, Roby.syskit_engine,
                       display_options)
             Qt::Object.connect(plan_display, SIGNAL('selectedObject(QVariant&,QPoint&)'),
                                self, SLOT('clickedSpecialization(QVariant&)'))
@@ -208,19 +195,19 @@ class ModelDisplayView < Ui::StackedDisplay
             end
         end
 
-        Roby.plan.clear
+        main_plan = Roby::Plan.new
         requirements = Syskit::InstanceRequirements.new([model])
         task = requirements.instanciate(
-            Roby.app.plan,
+            main_plan,
             Syskit::DependencyInjectionContext.new)
-        Roby.plan.add(task)
+        main_plan.add(task)
 
         if model <= Syskit::Component
-            push_plan('Task Dependency Hierarchy', 'hierarchy', Roby.plan, Roby.syskit_engine, Hash.new)
-            default_widget = push_plan('Dataflow', 'dataflow', Roby.plan, Roby.syskit_engine, Hash.new)
+            push_plan('Task Dependency Hierarchy', 'hierarchy', main_plan, Roby.syskit_engine, Hash.new)
+            default_widget = push_plan('Dataflow', 'dataflow', main_plan, Roby.syskit_engine, Hash.new)
 
         else
-            default_widget = push_plan('Interface', 'dataflow', Roby.plan, Roby.syskit_engine, Hash.new)
+            default_widget = push_plan('Interface', 'dataflow', main_plan, Roby.syskit_engine, Hash.new)
         end
 
         services = []
