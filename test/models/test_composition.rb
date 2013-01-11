@@ -50,6 +50,31 @@ describe Syskit::Models::Composition do
             assert !ds.submodels.include?(subsubmodel)
             assert submodel.submodels.include?(subsubmodel)
         end
+
+        it "applies specializations from the parent model to the child model" do
+            root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
+            block0 = proc { }
+            spec0 = root.specialize('srv' => Syskit::DataService.new_submodel, &block0)
+            block1 = proc { }
+            spec1 = root.specialize('srv' => Syskit::DataService.new_submodel, &block1)
+            submodel = Class.new(root)
+            flexmock(Class).should_receive(:new).with(root).and_return(submodel)
+            flexmock(submodel).should_receive(:specialize).with(spec0.specialized_children, eq(block0)).once
+            flexmock(submodel).should_receive(:specialize).with(spec1.specialized_children, eq(block1)).once
+            assert_same submodel, root.new_submodel
+        end
+    end
+
+    describe "#new_specialized_submodel" do
+        it "creates a submodel but does not apply specializations" do
+            root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
+            spec0 = root.specialize('srv' => Syskit::DataService.new_submodel)
+            spec1 = root.specialize('srv' => Syskit::DataService.new_submodel)
+            submodel = Class.new(root)
+            flexmock(Class).should_receive(:new).with(root).and_return(submodel)
+            flexmock(submodel).should_receive(:specialize).never
+            assert_same submodel, root.new_specialized_submodel
+        end
     end
 
     describe "#clear_submodels" do

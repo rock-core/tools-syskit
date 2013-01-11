@@ -348,5 +348,17 @@ describe Syskit::Models::SpecializationManager do
             assert_equal [spec, [a, b].to_set], mng.find_common_specialization_subset(candidates)
         end
     end
+
+    describe "#create_specialized_model" do
+        it "should only inherit compatible specializations from the root" do
+            root = Syskit::Composition.new_submodel(:name => 'Cmp') { add Syskit::DataService.new_submodel, :as => 'srv' }
+            spec0 = root.specialize('srv' => (srv0 = Syskit::DataService.new_submodel))
+            spec1 = root.specialize('srv' => (srv1 = Syskit::DataService.new_submodel))
+            spec2 = root.specialize('srv' => (srv2 = Syskit::DataService.new_submodel))
+            flexmock(spec2).should_receive(:compatibilities).and_return([spec1])
+            m = root.specializations.create_specialized_model(spec2, [spec2])
+            assert_equal [spec1], m.specializations.each_specialization.to_a
+        end
+    end
 end
 

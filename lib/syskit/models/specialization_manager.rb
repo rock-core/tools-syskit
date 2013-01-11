@@ -376,9 +376,7 @@ module Syskit
 
             def create_specialized_model(composite_spec, applied_specializations)
                 # There's no composition with that spec. Create a new one
-                child_composition = composition_model.new_submodel
-                child_composition.parent_models << composition_model
-                child_composition.extend Models::CompositionSpecialization::Extension
+                child_composition = composition_model.new_specialized_submodel
                 child_composition.specialized_children.merge!(composite_spec.specialized_children)
                 child_composition.applied_specializations = applied_specializations
                 composite_spec.compatibilities.each do |single_spec|

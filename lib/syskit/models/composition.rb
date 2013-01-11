@@ -910,14 +910,24 @@ module Syskit
                 io << "}"
             end
 
+            # Create a new submodel of this composition model that will be used
+            # to represent a specialization
+            def new_specialized_submodel(options = Hash.new, &block)
+                submodel = new_submodel(options.merge(:register_specializations => false), &block)
+                submodel.extend Models::CompositionSpecialization::Extension
+                submodel
+            end
+
             # Create a new submodel of this composition model
             def new_submodel(options = Hash.new, &block)
-                submodel = super
+                options, submodel_options = Kernel.filter_options options, :register_specializations => true
+                submodel = super(submodel_options)
 
-                return if submodel.is_specialization?
-                specializations.each_specialization do |spec|
-                    spec.specialization_blocks.each do |block|
-                        specialize(spec.specialized_children, &block)
+                if options[:register_specializations]
+                    specializations.each_specialization do |spec|
+                        spec.specialization_blocks.each do |block|
+                            submodel.specialize(spec.specialized_children, &block)
+                        end
                     end
                 end
                 submodel
