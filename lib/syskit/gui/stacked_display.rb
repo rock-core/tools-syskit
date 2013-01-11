@@ -3,17 +3,18 @@ module Ui
     # A Qt::ToolBox-based widget that has some convenience functions to display
     # Roby::Plan objects using the PlanDisplay widget
     class StackedDisplay < Qt::ToolBox
-        attr_reader :task_mappings
 
         def initialize(parent = nil)
             super
-
-            @task_mappings = Hash.new
         end
 
         # Removes all existing displays
         def clear
             while count > 0
+                w = widget(0)
+                if w.display
+                    w.display.plan.clear
+                end
                 removeItem(0)
             end
         end
@@ -25,8 +26,7 @@ module Ui
             display.connect(SIGNAL('updated(QVariant&)')) do |error|
                 emit updated(title, error)
             end
-            display.plan = Roby::Plan.new
-            task_mappings[display] = plan.deep_copy_to(display.plan)
+            display.plan = plan
             display.mode = mode
             display.options = options
             display.display
