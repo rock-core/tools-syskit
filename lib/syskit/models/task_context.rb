@@ -6,11 +6,7 @@ module Syskit
         module TaskContext
             include Models::Base
             include Models::PortAccess
-
-            # [Hash{Orocos::Spec::TaskContext => TaskContext}] a cache of
-            # mappings from oroGen task context models to the corresponding
-            # Syskit task context model
-            attribute(:orogen_model_to_syskit_model) { Hash.new }
+            include Models::OrogenBase
 
             # Clears all registered submodels
             #
@@ -20,9 +16,6 @@ module Syskit
                     return
                 end
 
-                set.each do |m|
-                    Syskit::TaskContext.orogen_model_to_syskit_model.delete(m.orogen_model)
-                end
                 if @proxy_task_models
                     set.each do |m|
                         if m.respond_to?(:proxied_data_services)
@@ -31,32 +24,6 @@ module Syskit
                     end
                 end
                 true
-            end
-
-            # Checks whether a syskit model exists for the given orogen model
-            def has_model_for?(orogen_model)
-                !!orogen_model_to_syskit_model[orogen_model]
-            end
-
-            # Finds the Syskit model that represents an oroGen model with that
-            # name
-            def find_model_from_orogen_name(name)
-                orogen_model_to_syskit_model.each do |orogen_model, syskit_model|
-                    if orogen_model.name == name
-                        return syskit_model
-                    end
-                end
-                nil
-            end
-
-            # Returns the syskit model for the given oroGen model
-            #
-            # @raise ArgumentError if no syskit model exists 
-            def model_for(orogen_model)
-                if m = orogen_model_to_syskit_model[orogen_model]
-                    return m
-                else raise ArgumentError, "there is no syskit model for #{orogen_model.name}"
-                end
             end
 
             # Generates a hash of oroGen-level state names to Roby-level event
@@ -93,8 +60,9 @@ module Syskit
                 superclass = orogen_model.superclass
                 if !superclass # we are defining a root model
                     supermodel = Syskit::TaskContext
-                elsif !(supermodel = orogen_model_to_syskit_model[superclass])
-                    supermodel = define_from_orogen(superclass)
+                else
+                    supermodel = find_model_by_orogen(superclass) ||
+                        define_from_orogen(superclass)
                 end
                 klass = supermodel.new_submodel(:orogen_model => orogen_model)
 
@@ -140,7 +108,6 @@ module Syskit
                 options = Kernel.validate_options options,
                     :name => nil, :orogen_model => nil
                 model = Class.new(self)
-                register_submodel(model)
                 if options[:name]
                     model.name = options[:name]
                 end
@@ -150,10 +117,10 @@ module Syskit
                 else
                     model.setup_submodel
                 end
+                register_submodel(model)
                 
                 model.make_state_events
 
-                Syskit::TaskContext.orogen_model_to_syskit_model[model.orogen_model] = model
                 if block
                     evaluation = DataServiceModel::BlockInstanciator.new(model)
                     evaluation.instance_eval(&block)

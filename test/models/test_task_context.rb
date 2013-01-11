@@ -108,6 +108,13 @@ describe Syskit::Models::TaskContext do
             submodel.clear_submodels
             assert !Syskit::TaskContext.has_model_for?(subsubmodel.orogen_model)
         end
+
+        it "deregisters the corresponding constants" do
+            submodel = Syskit::TaskContext.new_submodel
+            DefinitionModule.const_set(:Task, submodel)
+            Syskit::TaskContext.clear_submodels
+            assert !DefinitionModule.const_defined_here?(:Task)
+        end
     end
 
     describe "#has_model_for?" do
@@ -242,6 +249,12 @@ describe Syskit::Models::TaskContext do
             orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, "my_project::Task")
             syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
             assert_same syskit_model, ::MyProject::Task
+        end
+
+        it "has a name derived from the oroGen model name" do
+            orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, "my_project::Task")
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            assert_equal 'MyProject::Task', syskit_model.name
         end
 
         it "issues a warning if requested to register a model as a constant that already exists" do

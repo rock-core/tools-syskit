@@ -71,3 +71,21 @@ class TC_Models_Deployment < Test::Unit::TestCase
         assert !Deployment.submodels.include?(m11)
     end
 end
+
+describe Syskit::Models::Deployment do
+    describe "#new_submodel" do
+        it "registers the corresponding orogen to syskit model mapping" do
+            submodel = Syskit::Deployment.new_submodel
+            subsubmodel = submodel.new_submodel
+            assert_equal subsubmodel, Syskit::Deployment.model_for(subsubmodel.orogen_model)
+        end
+    end
+    describe "#clear_submodels" do
+        it "removes the corresponding orogen to syskit model mapping" do
+            submodel = Syskit::Deployment.new_submodel
+            subsubmodel = submodel.new_submodel
+            submodel.clear_submodels
+            assert !Syskit::Deployment.has_model_for?(subsubmodel.orogen_model)
+        end
+    end
+end

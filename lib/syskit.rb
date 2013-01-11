@@ -12,6 +12,7 @@ require 'syskit/base'
 
 # Models
 require 'syskit/models/base'
+require 'syskit/models/orogen_base'
 require 'syskit/models/port'
 require 'syskit/models/port_access'
 require 'syskit/models/data_service'

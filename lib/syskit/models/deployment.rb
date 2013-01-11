@@ -2,6 +2,7 @@ module Syskit
     module Models
         module Deployment
             include Models::Base
+            include Models::OrogenBase
             
             # The options that should be passed when starting the underlying
             # Orocos process.
