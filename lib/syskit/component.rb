@@ -27,9 +27,6 @@ module Syskit
 
             abstract
 
-            # See Models::Base#permanent_model?
-            @permanent_model = true
-
             # The name of the process server that should run this component
             #
             # On regular task contexts, it is the host on which the task is

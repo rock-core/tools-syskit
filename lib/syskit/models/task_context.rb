@@ -124,6 +124,7 @@ module Syskit
                 options = Kernel.validate_options options,
                     :name => nil, :orogen_model => nil
                 model = Class.new(self)
+                model.permanent_model = false
                 if options[:name]
                     model.name = options[:name]
                 end

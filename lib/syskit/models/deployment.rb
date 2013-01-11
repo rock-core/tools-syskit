@@ -42,6 +42,7 @@ module Syskit
             #   Deployment
             def new_submodel(options = Hash.new)
                 klass = Class.new(self)
+                klass.permanent_model = false
                 options = Kernel.validate_options options, :name, :orogen_model
                 if name = options[:name]
                     klass.name = name

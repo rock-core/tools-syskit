@@ -25,9 +25,6 @@ module Syskit
 
             abstract
 
-            # See Models::Base#permanent_model?
-            @permanent_model = true
-
             # The task's configuration, as a list of registered configurations
             # for the underlying task context
             #

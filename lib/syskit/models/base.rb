@@ -54,6 +54,7 @@ module Syskit
                 options = Kernel.validate_options options, :name => nil
 
                 model = self.class.new(self)
+                model.permanent_model = false
                 if name = options[:name]
                     Models.validate_model_name(name)
                     model.name = name

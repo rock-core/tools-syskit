@@ -93,9 +93,6 @@ module Syskit
 
             abstract
 
-            # See Models::Base#permanent_model?
-            @permanent_model = true
-
             # See Models::Composition#strict_specialization_selection?
             @strict_specialization_selection = true
 
