@@ -44,9 +44,9 @@ module Syskit
             #
             # @returns [Orocos::Generation::Project] the project object
             def load_orogen_project(name, options = Hash.new)
-                options = Kernel.validate_options :on => 'localhost'
-                server = Roby::Conf.process_server_for(options[:on])
-                server.load_orogen_project(project_name)
+                options = Kernel.validate_options options, :on => 'localhost'
+                server = Syskit.conf.process_server_for(options[:on])
+                server.load_orogen_project(name)
             end
 
             # Registers all objects contained in a given oroGen project
@@ -71,7 +71,7 @@ module Syskit
 
 		Orocos.registry.merge(orogen.registry)
                 if tk = orogen.typekit
-                    if syskit_only_load_models?
+                    if Syskit.conf.only_load_models?
                         Orocos.load_typekit_registry(orogen.name)
                     else
                         Orocos.load_typekit(orogen.name)
@@ -80,7 +80,7 @@ module Syskit
                 orogen.used_typekits.each do |tk|
                     next if tk.virtual?
 
-                    if syskit_only_load_models?
+                    if Syskit.conf.only_load_models?
                         Orocos.load_typekit_registry(tk.name)
                     else
                         Orocos.load_typekit(tk.name)
@@ -105,7 +105,7 @@ module Syskit
 
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
-                if syskit_load_component_extensions?
+                if Syskit.conf.load_component_extensions?
                     file = find_file('models', 'orogen', "#{name}.rb", :order => :specific_first) ||
                         find_file('tasks', 'orogen', "#{name}.rb", :order => :specific_first) ||
                         find_file('tasks', 'components', "#{name}.rb", :order => :specific_first)

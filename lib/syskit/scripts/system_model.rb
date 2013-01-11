@@ -70,7 +70,7 @@ class ModelListWidget < Qt::TreeWidget
             # everything's OK
             #
             # If there is a problem, mark the composition in red
-            cmp.specializations.each_value do |spec|
+            cmp.specializations.each_specialization do |spec|
                 begin
                     cmp.instanciate_specialization(spec, [spec])
                 rescue Exception => e
@@ -88,6 +88,10 @@ class ModelListWidget < Qt::TreeWidget
         end
 
         task_contexts = Syskit::TaskContext.each_submodel.to_a
+        task_contexts.each do |tc|
+            puts "-- #{tc.name}"
+            puts "#{tc.ancestors}"
+        end
         task_contexts.sort_by(&:name).each do |task|
             item = Qt::TreeWidgetItem.new(root_tasks)
             item.set_text(0, task.short_name)
@@ -158,8 +162,8 @@ class ModelDisplayView < Ui::StackedDisplay
 
     def render_specialization_graph(root_model)
         specializations = Hash.new
-        root_model.specializations.each_value.map do |spec|
-            task_model = root_model.instanciate_specialization(spec, [spec])
+        root_model.specializations.each_specialization.map do |spec|
+            task_model = root_model.specializations.create_specialized_model(spec, [spec])
             Roby.plan.add(task = task_model.new)
             specializations[spec] = task
         end
@@ -205,10 +209,9 @@ class ModelDisplayView < Ui::StackedDisplay
         end
 
         Roby.plan.clear
-        requirements = Syskit::Engine.
-            create_instanciated_component(Roby.app.syskit_engine, "", model)
+        requirements = Syskit::InstanceRequirements.new([model])
         task = requirements.instanciate(
-            Roby.app.syskit_engine,
+            Roby.app.plan,
             Syskit::DependencyInjectionContext.new)
         Roby.plan.add(task)
 
@@ -224,7 +227,7 @@ class ModelDisplayView < Ui::StackedDisplay
         task.model.each_data_service.sort_by(&:first).each do |service_name, service|
             model_hierarchy = service.model.ancestors.
                 find_all do |m|
-                    m.kind_of?(Syskit::DataServiceModel) &&
+                    m.kind_of?(Syskit::Models::DataServiceModel) &&
                         m != Syskit::DataService &&
                         m != Syskit::Device &&
                         m != task.model

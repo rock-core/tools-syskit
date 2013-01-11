@@ -249,17 +249,22 @@ require 'syskit/roby_app'
                     Syskit.logger.level = ::Logger::DEBUG
                 end
 
-                Roby.display_exception do
+                error = Roby.display_exception do
                     Roby.app.setup
                 end
                 toc = Time.now
                 ::Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
+                error
             end
 
             def self.run
                 error = Roby.display_exception do
-                    setup
-                    yield
+                    setup_error = setup
+                    if !setup_error
+                        yield
+                        nil
+                    else setup_error
+                    end
                 end
                 @last_error = error
             ensure Roby.app.cleanup
