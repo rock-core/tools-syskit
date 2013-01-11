@@ -693,9 +693,6 @@ module Syskit
                 end
 
                 arguments = Kernel.validate_options arguments, :task_arguments => Hash.new, :specialize => true
-                if arguments[:specialize] && root_model != self
-                    return root_model.instanciate(plan, context, arguments)
-                end
 
                 # Find what we should use for our children. +explicit_selection+
                 # is the set of children for which a selection existed and
@@ -718,7 +715,7 @@ module Syskit
                     # Srv::BaseService for child would be rejected.
                     specialized_model = specializations.matching_specialized_model(explicit_selections.map_value { |sel| [sel] })
                     if specialized_model != self
-                        return specialized_model.instanciate(plan, context, arguments.merge(:specialize => false))
+                        return specialized_model.instanciate(plan, context, arguments)
                     end
                 end
 
