@@ -283,13 +283,22 @@ describe Syskit::Models::SpecializationManager do
 
         it "should return the non-specialized model if it has no specializations" do
             mng.specializations.clear
-            assert_equal [[simple_composition_model, []]], mng.find_matching_specializations('srv' => simple_component_model)
+            result = mng.find_matching_specializations('srv' => simple_component_model)
+            assert_equal 1, result.size
+            assert result[0][0].specialized_children.empty?
+            assert_equal [], result[0][1]
         end
         it "should return the non-specialized model if it is given an empty selection" do
-            assert_equal [[simple_composition_model, []]], mng.find_matching_specializations(Hash.new)
+            result = mng.find_matching_specializations(Hash.new)
+            assert_equal 1, result.size
+            assert result[0][0].specialized_children.empty?
+            assert_equal [], result[0][1]
         end
         it "should return the non-specialized model if it is given a selection that does not match a specialization" do
-            assert_equal [[simple_composition_model, []]], mng.find_matching_specializations('srv' => [Syskit::TaskContext.new_submodel])
+            result = mng.find_matching_specializations('srv' => [Syskit::TaskContext.new_submodel])
+            assert_equal 1, result.size
+            assert result[0][0].specialized_children.empty?
+            assert_equal [], result[0][1]
         end
 
         it "should return the partitioned specializations that match the selection weakly" do
