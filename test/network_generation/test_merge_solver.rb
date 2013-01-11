@@ -77,10 +77,12 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert solver.resolve_single_merge(c0, c1)
         end
         it "returns false for compositions that have different children" do
-            plan.add(t = simple_component_model.new)
+            plan.add(t0 = simple_component_model.new)
             plan.add(c0 = simple_composition_model.new)
-            c0.depends_on(t)
+            plan.add(t1 = simple_component_model.new)
             plan.add(c1 = simple_composition_model.new)
+            c0.depends_on(t0, :role => 'child')
+            c1.depends_on(t1, :role => 'child')
             assert_same false, solver.resolve_single_merge(c0, c1)
         end
         it "returns false for compositions that have the same child task but in different roles" do

@@ -208,11 +208,20 @@ module Syskit
                 # If both tasks are compositions, merge only if +task+
                 # has the same child set than +target+
                 if task.kind_of?(Composition) && target_task.kind_of?(Composition)
-                    task_children   ||= task.merged_relations(:each_child, true, false).to_value_set
+                    task_children   = task.merged_relations(:each_child, true, false).to_value_set
                     target_children = target_task.merged_relations(:each_child, true, false).to_value_set
                     if task_children != target_children || task_children.any? { |t| t.respond_to?(:proxied_data_services) }
                         debug { "rejecting #{target_task}.merge(#{task}) as composition have different children" }
                         return false
+                    end
+
+                    task_children.each do |child_task|
+                        task_roles = task[child_task, Roby::TaskStructure::Dependency][:roles]
+                        target_roles = target_task[child_task, Roby::TaskStructure::Dependency][:roles]
+                        if task_roles != target_roles
+                            debug { "rejecting #{target_task}.merge(#{task}) as composition have same children but in different roles" }
+                            return false
+                        end
                     end
                 end
 
