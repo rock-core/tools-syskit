@@ -123,11 +123,6 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
     end
 
-    def test_normalize_selection_rejects_string_to_arbitrary
-        key = Component.new_submodel
-        assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => Object.new) }
-    end
-
     def test_normalize_selection_refuses_component_to_data_service
         key = Component.new_submodel
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => DataService.new_submodel) }
@@ -173,11 +168,6 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal(Hash[key => nil], DependencyInjection.normalize_selection(key => nil))
         assert_equal(Hash[key => 'value'], DependencyInjection.normalize_selection(key => 'value'))
         assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
-    end
-
-    def test_normalize_selection_rejects_string_to_arbitrary
-        key = DataService.new_submodel
-        assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => Object.new) }
     end
 
     def test_normalize_selection_accepts_data_service_to_data_service_that_fullfill_the_key
