@@ -67,25 +67,41 @@ module Syskit
                 klass = supermodel.new_submodel(:orogen_model => orogen_model)
 
                 if options[:register] && orogen_model.name
-                    # Verify that there is not already something registered with
-                    # that name
-                    begin
-                        constant(orogen_model.name.camelcase(:upper))
-                        warn "there is already a constant with the name #{orogen_model.name.camelcase(:upper)}, I am not registering the model for #{orogen_model.name} there"
-                    rescue NameError
-                        namespace, basename = orogen_model.name.split '::'
-                        namespace = namespace.camelcase(:upper)
-                        namespace =
-                            begin
-                                constant("::#{namespace}")
-                            rescue NameError
-                                Object.const_set(namespace, Module.new)
-                            end
-                        namespace.const_set(basename.camelcase(:upper), klass)
-                    end
+                    register_syskit_model_from_orogen_name(klass)
                 end
 
                 klass
+            end
+
+            # Registers the given syskit model on the class hierarchy, using the
+            # (camelized) orogen name as a basis
+            #
+            # If there is a constant clash, the model will not be registered but
+            # its #name method will return the "right" value enclosed in <>
+            #
+            # @return [Boolean] true if the model could be registered and false
+            # otherwise
+            def register_syskit_model_from_orogen_name(model)
+                orogen_model = model.orogen_model
+
+                namespace, basename = orogen_model.name.split '::'
+                namespace = namespace.camelcase(:upper)
+                namespace =
+                    if Object.const_defined_here?(namespace)
+                        Object.const_get(namespace)
+                    else 
+                        Object.const_set(namespace, Module.new)
+                    end
+
+                basename = basename.camelcase(:upper)
+                if namespace.const_defined_here?(basename)
+                    warn "there is already a constant with the name #{namespace.name}::#{basename}, I am not registering the model for #{orogen_model.name} there"
+                    model.name = "<#{namespace}::#{basename}>"
+                    false
+                else
+                    namespace.const_set(basename, model)
+                    true
+                end
             end
 
             # [Orocos::Spec::TaskContext] The oroGen model that represents this task context model
