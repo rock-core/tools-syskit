@@ -27,8 +27,9 @@ module Syskit
                 orogen_model.name
             end
 
-            def instanciate(engine, arguments = Hash.new)
-                new(arguments)
+            def instanciate(plan, arguments = Hash.new)
+                plan.add(task = new(arguments))
+                task
             end
 
             # Creates a new deployment model

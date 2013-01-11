@@ -272,7 +272,7 @@ module Syskit
                 # Push the devices as a name-to-task mapping
                 devices = Hash.new
                 robot.each_master_device do |name, device_instance|
-                    work_plan.add(task = device_instance.instanciate(self, main_selection))
+                    task = device_instance.instanciate(work_plan, main_selection)
                     devices[name] = task
                     task.model.each_data_service do |_, srv|
                         devices["#{name}.#{srv.full_name}"] = task
@@ -313,7 +313,7 @@ module Syskit
                         next if !req_task.planned_task || req_task.planned_task.finished?
 
                         req = req_task.requirements
-                        task = req.instanciate(self, main_selection)
+                        task = req.instanciate(work_plan, main_selection)
                         # We add all these tasks as permanent tasks, to use
                         # #static_garbage_collect to cleanup #work_plan. The
                         # actual mission / permanent marking is fixed at the end

@@ -104,11 +104,11 @@ module Syskit
 
             # If this selection does not yet have an associated task,
             # instanciate one
-            def instanciate(engine, context, options = Hash.new)
+            def instanciate(plan, context, options = Hash.new)
                 if component
                     component
                 else
-                    selected.instanciate(engine, context, options)
+                    selected.instanciate(plan, context, options)
                 end
             end
 

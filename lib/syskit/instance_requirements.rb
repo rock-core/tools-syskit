@@ -408,7 +408,7 @@ module Syskit
             end
 
             # Create a concrete task for this requirement
-            def instanciate(engine, context = Syskit::DependencyInjectionContext.new, arguments = Hash.new)
+            def instanciate(plan, context = Syskit::DependencyInjectionContext.new, arguments = Hash.new)
                 task_model =
                     if models.size == 1 && (models.first <= Component)
                         models.first
@@ -439,7 +439,7 @@ module Syskit
                     instanciate_arguments[:task_arguments].merge!(arguments[:task_arguments])
                 end
 
-                task = task_model.instanciate(engine, context, instanciate_arguments)
+                task = task_model.instanciate(plan, context, instanciate_arguments)
                 task.requirements.merge(self)
                 if !task_model.fullfills?(base_models)
                     raise InternalError, "instanciated task #{task} does not provide the required models #{base_models.map(&:short_name).join(", ")}"

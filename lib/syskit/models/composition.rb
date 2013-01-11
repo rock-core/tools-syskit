@@ -605,7 +605,7 @@ module Syskit
             end
 
             # Instanciates a task for the required child
-            def instanciate_child(engine, context, self_task, child_name, selected_child) # :nodoc:
+            def instanciate_child(plan, context, self_task, child_name, selected_child) # :nodoc:
                 Models.debug do
                     Models.debug "instanciating child #{child_name}"
                     Models.log_nest 2
@@ -620,7 +620,7 @@ module Syskit
                     end
                 end
 
-                selected_child.instanciate(engine, context, :task_arguments => child_arguments)
+                selected_child.instanciate(plan, context, :task_arguments => child_arguments)
             ensure
                 Models.debug do
                     Models.log_nest -2
@@ -671,8 +671,8 @@ module Syskit
             # It selects the relevant specialization and instantiates it instead
             # of +self+ when relevant.
             #
-            # @param [Syskit::NetworkGeneration::Engine] the engine that is
-            #   instantiating this composition
+            # @param [Roby::Plan] the plan in which the composition should be
+            #   instantiated
             # @param [DependencyInjectionContext] context the dependency
             #   injection used to select the actual models for the children (and
             #   therefore the specializations as well). The last element in this
@@ -684,7 +684,7 @@ module Syskit
             # @option arguments [Hash] task_arguments the set of arguments that
             #   should be passed to the composition task instance
             #
-            def instanciate(engine, context = DependencyInjectionContext.new, arguments = Hash.new)
+            def instanciate(plan, context = DependencyInjectionContext.new, arguments = Hash.new)
                 Models.debug do
                     Models.debug "instanciating #{short_name} with"
                     Models.log_nest(2)
@@ -694,7 +694,7 @@ module Syskit
 
                 arguments = Kernel.validate_options arguments, :task_arguments => Hash.new, :specialize => true
                 if arguments[:specialize] && root_model != self
-                    return root_model.instanciate(engine, context, arguments)
+                    return root_model.instanciate(plan, context, arguments)
                 end
 
                 # Find what we should use for our children. +explicit_selection+
@@ -718,12 +718,12 @@ module Syskit
                     # Srv::BaseService for child would be rejected.
                     specialized_model = specializations.matching_specialized_model(explicit_selections.map_value { |sel| [sel] })
                     if specialized_model != self
-                        return specialized_model.instanciate(engine, context, arguments.merge(:specialize => false))
+                        return specialized_model.instanciate(plan, context, arguments.merge(:specialize => false))
                     end
                 end
 
                 # First of all, add the task for +self+
-                engine.work_plan.add(self_task = new(arguments[:task_arguments]))
+                plan.add(self_task = new(arguments[:task_arguments]))
                 conf = if self_task.has_argument?(:conf)
                            self_task.conf(self_task.arguments[:conf])
                        else Hash.new
@@ -773,7 +773,7 @@ module Syskit
                             selected_child.selected.use(child_user_selection)
                         end
 
-                        child_task = instanciate_child(engine, child_selection_context,
+                        child_task = instanciate_child(plan, child_selection_context,
                                                        self_task, child_name, selected_child)
 
                         if child_task.abstract? && find_child(child_name).optional?

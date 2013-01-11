@@ -119,11 +119,11 @@ module Syskit
             # Generic instanciation of a component. 
             #
             # It creates a new task from the component model using
-            # Component.new, adds it to the engine's plan and returns it.
-            def instanciate(engine, context = DependencyInjectionContext.new, arguments = Hash.new)
+            # Component.new, adds it to the plan and returns it.
+            def instanciate(plan, context = DependencyInjectionContext.new, arguments = Hash.new)
                 task_arguments, instanciate_arguments = Kernel.
                     filter_options arguments, :task_arguments => Hash.new
-                engine.work_plan.add(task = new(task_arguments[:task_arguments]))
+                plan.add(task = new(task_arguments[:task_arguments]))
                 task
             end
 

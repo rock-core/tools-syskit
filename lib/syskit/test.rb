@@ -219,7 +219,7 @@ module Syskit
             end
 
             def instanciate_component(model)
-                model.instanciate(syskit_engine, DependencyInjectionContext.new)
+                model.instanciate(plan, DependencyInjectionContext.new)
             end
         end
 
