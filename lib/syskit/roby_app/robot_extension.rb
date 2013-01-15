@@ -8,8 +8,7 @@ module Syskit
 
             def devices(&block)
                 if block
-                    Kernel.dsl_exec(Roby.app.syskit_engine.robot, Syskit.constant_search_path, !Roby.app.filter_backtraces?, &block)
-                    Roby.app.syskit_engine.export_devices_to_planner(::MainPlanner)
+                    Roby.app.syskit_engine.robot.instance_eval(&block)
                 else
                     each_device
                 end
