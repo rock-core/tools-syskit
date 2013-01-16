@@ -311,6 +311,22 @@ describe Syskit::Models::Composition do
             assert_same root.first_child.first_test_child, root.second_child.second_test_child
         end
 
+        it "looks for a specialization using the explicitly given selections" do
+            task_m = simple_task_model
+            # The value returned by #find_children_models_and_tasks is a
+            # name-to-InstanceSelection mapping
+            explicit = Hash['srv' => flexmock(:selected => flexmock(:models => [task_m]))]
+            cmp_m = simple_composition_model
+            subcmp_m = cmp_m.new_submodel
+            flexmock(cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, Hash.new])
+            flexmock(cmp_m.specializations).should_receive(:matching_specialized_model).with('srv' => [task_m]).once.and_return(subcmp_m)
+
+            di = Syskit::DependencyInjectionContext.new
+            args = Hash.new
+            flexmock(subcmp_m).should_receive(:instanciate).with(plan, di, Hash[:task_arguments => Hash[:id => 10], :specialize => true]).once.and_return(result = subcmp_m.new)
+            assert_same result, cmp_m.instanciate(plan, di, :task_arguments => Hash[:id => 10])
+        end
+
         describe "dependency relation definition based on information in the child definition" do
             attr_reader :composition_m, :srv_child
             before do

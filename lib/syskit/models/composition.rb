@@ -542,20 +542,12 @@ module Syskit
                 each_child.map(&:first)
             end
 
-            # Computes the required models and task instances for each of the
-            # composition's children. It returns two mappings for the form
+            # Given a dependency injection context, it computes the models and
+            # task instances for each of the composition's children
             #
-            #   child_name => [child_model, child_task, port_mappings]
-            #
-            # where +child_name+ is the name of the child, +child_model+ is the
-            # actual selected model and +child_task+ the actual selected task.
-            #
-            # +child_task+ will be non-nil only if the user specifically
-            # selected a task.
-            #
-            # The first returned mapping is the set of explicit selections (i.e.
-            # selections that are specified by +selection+) and the second one
-            # is the complete result for all the composition children.
+            # @return [(Hash<String,InstanceSelection>,Hash<String,InstanceSelection>)] the resolved selections.
+            #   The first hash is the set of explicitly selected children (i.e.
+            #   selected by name) and the second is all the selections
             def find_children_models_and_tasks(context)
                 explicit = Hash.new
                 result   = Hash.new
@@ -588,7 +580,7 @@ module Syskit
                 user_selection, _ = find_children_models_and_tasks(context)
 
                 spec = Hash.new
-                user_selection.each { |name, selection| spec[name] = selection.requirements.models }
+                user_selection.each { |name, selection| spec[name] = selection.selected.models }
                 specializations.matching_specialized_model(spec, :strict => false)
             end
 
@@ -713,7 +705,11 @@ module Syskit
                     #
                     # In the second case, any specialization that does not match
                     # Srv::BaseService for child would be rejected.
-                    specialized_model = specializations.matching_specialized_model(explicit_selections.map_value { |sel| [sel] })
+                    
+                    specialization_selector = explicit_selections.map_value do |_, sel|
+                        sel.selected.models
+                    end
+                    specialized_model = specializations.matching_specialized_model(specialization_selector)
                     if specialized_model != self
                         return specialized_model.instanciate(plan, context, arguments)
                     end
