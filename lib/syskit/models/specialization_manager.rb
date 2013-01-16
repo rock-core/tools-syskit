@@ -494,7 +494,7 @@ module Syskit
                 end
 
                 Models.debug do
-                    Models.debug "looking for specialization of #{short_name} on"
+                    Models.debug "looking for specialization of #{composition_model.short_name} on"
                     selection.each do |k, v|
                         Models.debug "  #{k} => #{v}"
                     end
