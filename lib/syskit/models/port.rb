@@ -56,7 +56,7 @@ module Syskit
             end
 
             # Connects this port to the other given port, using the given policy
-            def connect_to(in_port, policy)
+            def connect_to(in_port, policy = Hash.new)
                 out_port = self.to_component_port
                 if out_port == self
                     in_port = in_port.to_component_port
