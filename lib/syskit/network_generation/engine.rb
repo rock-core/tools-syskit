@@ -206,7 +206,7 @@ module Syskit
                 self.options = options
 
                 Engine.model_postprocessing.each do |block|
-                    block.call(model)
+                    block.call
                 end
 
                 @deployed_models = compute_deployed_models
