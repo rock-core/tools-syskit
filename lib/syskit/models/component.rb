@@ -713,6 +713,18 @@ module Syskit
                 klass
             end
 
+            # Makes sure this is a private specialized model
+            #
+            # @return [Model<Component>] calls #specialize, and returns the new
+            #   model, only if self is not already a private specialization.
+            #   Otherwise, returns self.
+            def ensure_model_is_specialized
+                if private_specialization?
+                    return self
+                else return specialize
+                end
+            end
+
             # Returns a placeholder task that can be used to require that a
             # task from this component model is deployed and started at a
             # certain point in the plan.
