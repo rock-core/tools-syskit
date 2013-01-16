@@ -81,14 +81,15 @@ module Syskit
             #
             # Add default and explicit selections in one call
             def add(*mappings)
-                if mappings.size == 1 && mappings.first.kind_of?(DependencyInjection)
-                    deps = mappings.first
-                    explicit, defaults = deps.explicit, deps.defaults
-                else
-                    explicit, defaults = DependencyInjection.partition_use_arguments(*mappings)
-                end
+                explicit, defaults = DependencyInjection.partition_use_arguments(*mappings)
 
                 add_explicit(explicit)
+                defaults.delete_if do |obj|
+                    if obj.kind_of?(DependencyInjection)
+                        merge(obj)
+                        true
+                    end
+                end
                 add_defaults(defaults)
                 self
             end

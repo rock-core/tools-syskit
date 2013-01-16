@@ -1,6 +1,7 @@
 require 'syskit/test'
 
 describe Syskit::DependencyInjection do
+    include Syskit::SelfTest
     describe "#selection_for" do
         it "returns an existing instance if one is selected" do
             task = Syskit::Component.new_submodel.new
@@ -13,6 +14,16 @@ describe Syskit::DependencyInjection do
             di = Syskit::DependencyInjection.new('child' => task.srv_srv)
             assert_equal [task, Syskit::InstanceRequirements.new([task.model]), {srv => task.model.srv_srv}],
                 di.selection_for('child', Syskit::InstanceRequirements.new)
+        end
+    end
+
+    describe "#add" do
+        it "can handle other dependency injection objects" do
+            di = Syskit::DependencyInjection.new
+            target = Syskit::DependencyInjection.new
+            flexmock(target).should_receive(:merge).with(di).once
+            flexmock(target).should_receive(:add_default).with([di]).never
+            target.add(di)
         end
     end
 end
@@ -43,14 +54,6 @@ class TC_DependencyInjection < Test::Unit::TestCase
         dep.add 'name' => 'value'
         dep.clear
         assert dep.empty?
-    end
-
-    def test_add_dependency_injection
-        di = DependencyInjection.new('val', 'name' => 'value')
-        new_di = flexmock(DependencyInjection.new)
-        new_di.should_receive(:add_explicit).with(di.explicit).once
-        new_di.should_receive(:add_defaults).with(di.defaults).once
-        new_di.add(di)
     end
 
     def test_adding_explicit_selection_makes_the_object_not_empty
