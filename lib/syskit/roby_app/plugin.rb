@@ -216,7 +216,6 @@ module Syskit
             # and deployments they contain.
             def using_task_library(name)
                 orogen = Orocos.master_project.using_task_library(name)
-                pp loaded_orogen_projects.keys.sort.join(", ")
                 if !loaded_orogen_project?(name)
                     # The project was already loaded on
                     # Orocos.master_project before Roby kicked in. Just load
