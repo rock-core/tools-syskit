@@ -828,6 +828,7 @@ module Syskit
             ensure
                 Models.debug do
                     Models.log_nest -2
+                    break
                 end
             end
 
