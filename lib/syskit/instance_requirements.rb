@@ -407,13 +407,19 @@ module Syskit
                 task
             end
 
+            # Returns the taks model that should be used to represent the result
+            # of the deployment of this requirement in a plan
+            # @return [Model<Roby::Task>]
+            def proxy_task_model
+                if models.size == 1 && (models.first <= Component)
+                    models.first
+                else Syskit.proxy_task_model_for(models)
+                end
+            end
+
             # Create a concrete task for this requirement
             def instanciate(plan, context = Syskit::DependencyInjectionContext.new, arguments = Hash.new)
-                task_model =
-                    if models.size == 1 && (models.first <= Component)
-                        models.first
-                    else Syskit.proxy_task_model_for(models)
-                    end
+                task_model = self.proxy_task_model
 
                 # Add a barrier for the names that our models expect. This is
                 # required to avoid recursively reusing names (which was once
