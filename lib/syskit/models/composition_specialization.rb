@@ -176,7 +176,7 @@ module Syskit
                 result = specialized_children.all? do |child_name, child_models|
                     if this_selection = selection[child_name]
                         has_match = true
-                        child_models.any? { |m| m.fullfills?(this_selection) }
+                        this_selection.any? { |m| m.fullfills?(child_models) }
                     else true
                     end
                 end
@@ -201,7 +201,7 @@ module Syskit
             def strong_match?(selection)
                 specialized_children.all? do |child_name, child_models|
                     if this_selection = selection[child_name]
-                        child_models.any? { |m| m.fullfills?(this_selection) }
+                        this_selection.any? { |m| m.fullfills?(child_models) }
                     end
                 end
             end
