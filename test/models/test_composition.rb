@@ -269,7 +269,7 @@ describe Syskit::Models::Composition do
                 add(srv, :as => 'srv').
                     with_arguments(:test => 10)
             end
-            cmp = cmp.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new(srv => task))
+            cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task))
             assert_same task, cmp.srv_child.class
             assert_equal Hash[:test => 10], cmp.srv_child.arguments
         end
@@ -281,7 +281,7 @@ describe Syskit::Models::Composition do
                 add(srv, :as => 'srv').
                     with_arguments(:test => 10)
             end
-            cmp = cmp.instanciate(syskit_engine, Syskit::DependencyInjectionContext.new(srv => task.with_arguments(:bla => 20)))
+            cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task.with_arguments(:bla => 20)))
             assert_same task, cmp.srv_child.class
             assert_equal Hash[:bla => 20], cmp.srv_child.arguments
         end

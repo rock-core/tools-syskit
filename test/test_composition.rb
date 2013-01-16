@@ -26,7 +26,7 @@ describe Syskit::Composition do
                 export srv.srv_in_port, :as => 'srv_in'
                 provides srv_m, :as => 'test', 'srv_out' => 'out', 'srv_in' => 'in'
             end
-            @cmp = cmp_m.use('srv' => task_m).instanciate(syskit_engine)
+            @cmp = cmp_m.use('srv' => task_m).instanciate(plan)
             @task = stub_roby_task_context('task', task_m)
             @srv  = stub_roby_task_context('srv', task_m)
             plan.replace_task(cmp.child_from_role('task'), task)

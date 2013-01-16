@@ -254,7 +254,7 @@ module Test_DataServiceModel
 
     def test_instanciate
         model = data_service_type("A")
-        task = model.instanciate(syskit_engine)
+        task = model.instanciate(plan)
         assert_kind_of model.proxy_task_model, task
     end
 end
@@ -352,7 +352,7 @@ class TC_Models_ComBus < Test::Unit::TestCase
     end
 
     def test_module_dsl_service_type_definition
-        DataServiceDefinitionTest.send(dsl_service_type_name, "Image", :message_type => '/double')
+        DataServiceDefinitionTest.com_bus_type "Image", :message_type => '/double'
         srv = DataServiceDefinitionTest::Image
         assert_equal "Test_DataServiceModel::DataServiceDefinitionTest::Image", srv.name
     end
