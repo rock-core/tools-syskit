@@ -7,7 +7,7 @@ Scripts = Syskit::Scripts
 
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD
-Usage: scripts/orocos/system_model [options]
+Usage: system_model [options]
 Loads the models listed by robot_name, and outputs their model structure
     EOD
 end
