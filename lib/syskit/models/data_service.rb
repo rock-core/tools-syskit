@@ -460,18 +460,19 @@ module Syskit
 
             def message_type=(message_type)
                 @message_type = message_type
-                @bus_base_srv = DataService.new_submodel
-                @bus_in_srv  = DataService.new_submodel { input_port 'to_bus', message_type }
-                @bus_out_srv = DataService.new_submodel { output_port 'from_bus', message_type }
-                @bus_srv     = DataService.new_submodel
+                @bus_base_srv = data_service_type 'BusBaseSrv'
+                @bus_in_srv  = data_service_type('BusInSrv') { input_port 'to_bus', message_type }
+                @bus_out_srv = data_service_type('BusOutSrv') { output_port 'from_bus', message_type }
+                @bus_srv     = data_service_type 'BusSrv'
+
                 bus_in_srv.provides bus_base_srv
                 bus_out_srv.provides bus_base_srv
                 bus_srv.provides bus_in_srv
                 bus_srv.provides bus_out_srv
 
-                @client_in_srv  = DataService.new_submodel { input_port 'from_bus', message_type }
-                @client_out_srv = DataService.new_submodel { output_port 'to_bus', message_type }
-                @client_srv     = DataService.new_submodel
+                @client_in_srv  = data_service_type('ClientInSrv') { input_port 'from_bus', message_type }
+                @client_out_srv = data_service_type('ClientOutSrv') { output_port 'to_bus', message_type }
+                @client_srv     = data_service_type 'ClientSrv'
                 client_srv.provides client_in_srv
                 client_srv.provides client_out_srv
             end
