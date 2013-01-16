@@ -503,6 +503,29 @@ module Syskit
                 dynamic_services[arguments[:as]] = DynamicService.new(self, arguments[:as], model, block)
             end
 
+            # Instanciate a dynamic service on this model
+            def require_dynamic_service(dynamic_service_name, options = Hash.new)
+                options, dyn_options = Kernel.filter_options options,
+                    :as => nil
+                if !options[:as]
+                    raise ArgumentError, "no name given, please provide the :as option"
+                end
+                service_name = options[:as]
+
+                dyn = find_dynamic_service(dynamic_service_name)
+                if !dyn
+                    raise ArgumentError, "#{short_name} has no dynamic service called #{dynamic_service_name}, available dynamic services are: #{each_dynamic_service.map { |name, _| name }.sort.join(", ")}"
+                end
+
+                if srv = find_data_service(service_name)
+                    if srv.fullfills?(dyn.service_model)
+                        return srv
+                    else raise ArgumentError, "there is already a service #{service_name}, but it is of type #{srv.model.short_name} while the dynamic service #{dynamic_service_name} expects #{dyn.service_model.short_name}"
+                    end
+                end
+                dyn.instanciate(service_name, dyn_options)
+            end
+
             PROVIDES_ARGUMENTS = { :as => nil, :slave_of => nil }
 
             # Declares that this component provides the given data service.

@@ -398,27 +398,8 @@ module Syskit
             #
             # @return [BoundDataService] the newly created service
             def require_dynamic_service(dynamic_service_name, options = Hash.new)
-                options, dyn_options = Kernel.filter_options options,
-                    :as => nil
-                if !options[:as]
-                    raise ArgumentError, "no name given, please provide the :as option"
-                end
-                service_name = options[:as]
-
                 specialize
-                dyn = model.find_dynamic_service(dynamic_service_name)
-                if !dyn
-                    raise ArgumentError, "#{model.name} has no dynamic service called #{dynamic_service_name}, available dynamic services are: #{model.each_dynamic_service.map { |name, _| name }.sort.join(", ")}"
-                end
-
-                if srv = find_data_service(service_name)
-                    if srv.fullfills?(dyn.service_model)
-                        return srv
-                    else raise ArgumentError, "there is already a service #{service_name}, but it is of type #{srv.model.short_name} while the dynamic service #{dynamic_service_name} expects #{dyn.service_model.short_name}"
-                    end
-                end
-                bound_service = dyn.instanciate(service_name, dyn_options)
-
+                bound_service = self.model.require_dynamic_service(dynamic_service_name, options)
                 needs_reconfiguration!
                 bound_service.bind(self)
             end
