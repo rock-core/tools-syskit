@@ -18,8 +18,7 @@ module Syskit
             def initialize
                 super
 
-
-                @load_component_extension = true
+                @load_component_extensions = true
                 @log_enabled = true
                 @conf_log_enabled = true
                 @redirect_local_process_server = true

@@ -112,7 +112,7 @@ module Syskit
 
                     if file
                         Roby::Application.info "loading task extension #{file}"
-                        Application.load_task_extension(file, self)
+                        Plugin.load_task_extension(file, self)
                     end
                 end
                 orogen
@@ -200,7 +200,12 @@ module Syskit
                         app.require(path)
                     rescue Orocos::Generation::Project::TypeImportError => e
                         if Syskit.conf.ignore_load_errors?
-                            ::Robot.warn "ignored file #{path}: cannot load required typekit #{e.imported_name}"
+                            ::Robot.warn "ignored file #{path}: cannot load required typekit #{e.name}"
+                        else raise
+                        end
+                    rescue Orocos::Generation::Project::MissingTaskLibrary => e
+                        if Syskit.conf.ignore_load_errors?
+                            ::Robot.warn "ignored file #{path}: cannot load required task library #{e.name}"
                         else raise
                         end
                     end
@@ -211,6 +216,7 @@ module Syskit
             # and deployments they contain.
             def using_task_library(name)
                 orogen = Orocos.master_project.using_task_library(name)
+                pp loaded_orogen_projects.keys.sort.join(", ")
                 if !loaded_orogen_project?(name)
                     # The project was already loaded on
                     # Orocos.master_project before Roby kicked in. Just load
