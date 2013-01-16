@@ -5,7 +5,9 @@ require 'syskit/test'
 
 require './test/suite_models'
 require './test/suite_robot'
+require './test/suite_roby_app'
 require './test/suite_network_generation'
+require './test/suite_actions'
 
 require './test/test_abstract_placeholders'
 require './test/test_bound_data_service'

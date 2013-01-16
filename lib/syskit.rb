@@ -40,6 +40,9 @@ require 'syskit/dependency_injection_context'
 require 'syskit/instance_requirements'
 require 'syskit/instance_selection'
 
+# Actions
+require 'syskit/actions'
+
 # The composition child goes there as it is a subclass of InstanceRequirements
 require 'syskit/models/composition_child'
 
