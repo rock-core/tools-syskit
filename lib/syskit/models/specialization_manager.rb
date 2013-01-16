@@ -342,7 +342,13 @@ module Syskit
             # the value the composite specialization, in which
             # {CompositionSpecialization#composition_model} returns the
             # composition model
-            attribute(:instanciated_specializations) { Hash.new }
+            def instanciated_specializations
+                root = composition_model.root_model
+                if root == composition_model
+                    return (@instanciated_specializations ||= Hash.new)
+                else return root.specializations.instanciated_specializations
+                end
+            end
 
             # Returns the composition model that is a specialization of
             # {#composition_model}, applying the set of specializations in
@@ -377,13 +383,14 @@ module Syskit
             def create_specialized_model(composite_spec, applied_specializations)
                 # There's no composition with that spec. Create a new one
                 child_composition = composition_model.new_specialized_submodel
+                child_composition.private_model
+                child_composition.root_model = composition_model.root_model
+
                 child_composition.specialized_children.merge!(composite_spec.specialized_children)
                 child_composition.applied_specializations = applied_specializations
                 composite_spec.compatibilities.each do |single_spec|
                     child_composition.specializations.register(single_spec)
                 end
-                child_composition.private_model
-                child_composition.root_model = composition_model.root_model
                 composite_spec.specialized_children.each do |child_name, child_models|
                     child_composition.overload child_name, child_models
                 end
