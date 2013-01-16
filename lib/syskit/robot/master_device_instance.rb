@@ -190,6 +190,28 @@ module Syskit
             def each_slave(&block)
                 slaves.each(&block)
             end
+
+            # Gets the required slave device
+            def slave(slave_service, options = Hash.new)
+                options = Kernel.validate_options options, :as => nil
+
+                # If slave_service is a string, it should refer to an actual
+                # service on +task_model+
+                srv = task_model.find_data_service(slave_service)
+                if !srv
+                    new_task_model = task_model.ensure_model_is_specialized
+                    srv = new_task_model.require_dynamic_service(slave_service, :as => options[:as])
+                    if !srv
+                        raise ArgumentError, "there is no service and no dynamic service in #{task_model.short_name} named #{slave_service}"
+                    end
+                    @task_model = new_task_model
+                end
+
+                device_instance = SlaveDeviceInstance.new(self, srv)
+                slaves[srv.name] = device_instance
+                srv.model.apply_device_configuration_extensions(device_instance)
+                robot.devices["#{name}.#{srv.name}"] = device_instance
+            end
         end
     end
 end
