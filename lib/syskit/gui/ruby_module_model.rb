@@ -48,36 +48,38 @@ module Syskit
             def discover_module(mod, stack = Array.new)
                 stack.push mod
 
-                children_modules = mod.constants.map do |child_name|
-                    next if !mod.const_defined_here?(child_name)
-                    child_mod = mod.const_get(child_name)
-                    next if !child_mod.kind_of?(Module)
-                    next if filtered_out_modules.include?(child_mod)
-                    next if stack.include?(child_mod)
-                    [child_name, child_mod]
-                end.compact.sort_by(&:first)
-
                 children = []
                 mod_info = ModuleInfo.new(nil, nil, mod, nil, children, nil, Set.new)
 
-                children_modules.each do |child_name, child_mod|
-                    if info = discover_module(child_mod, stack)
-                        info.id = id_to_module.size
-                        info.name = child_name.to_s
-                        info.parent = mod_info
-                        info.row = children.size
-                        children << info
-                        id_to_module << info
-                    else
-                        filtered_out_modules << child_mod
-                    end
-                end
-
                 is_needed = predicate.call(mod)
-                if is_needed
-                    mod.ancestors.each do |ancestor|
-                        if type_info.has_key?(ancestor)
-                            mod_info.types << ancestor
+
+                if mod.respond_to?(:constants)
+                    children_modules = mod.constants.map do |child_name|
+                        next if !mod.const_defined_here?(child_name)
+                        child_mod = mod.const_get(child_name)
+                        next if filtered_out_modules.include?(child_mod)
+                        next if stack.include?(child_mod)
+                        [child_name.to_s, child_mod]
+                    end.compact.sort_by(&:first)
+
+                    children_modules.each do |child_name, child_mod|
+                        if info = discover_module(child_mod, stack)
+                            info.id = id_to_module.size
+                            info.name = child_name.to_s
+                            info.parent = mod_info
+                            info.row = children.size
+                            children << info
+                            id_to_module << info
+                        else
+                            filtered_out_modules << child_mod
+                        end
+                    end
+
+                    if is_needed
+                        mod.ancestors.each do |ancestor|
+                            if type_info.has_key?(ancestor)
+                                mod_info.types << ancestor
+                            end
                         end
                     end
                 end

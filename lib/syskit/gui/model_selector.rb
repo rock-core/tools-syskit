@@ -39,7 +39,8 @@ module Syskit
             end
 
             def syskit_model?(mod)
-                mod.kind_of?(Syskit::Models::DataServiceModel) ||
+                mod.kind_of?(Syskit::Actions::Profile) ||
+                    mod.kind_of?(Syskit::Models::DataServiceModel) ||
                     (mod.kind_of?(Class) && mod <= Syskit::Component)
             end
 
@@ -81,7 +82,8 @@ module Syskit
                 model_type_info = Hash[
                     Syskit::Composition => RubyModuleModel::TypeInfo.new('Composition', 1),
                     Syskit::TaskContext => RubyModuleModel::TypeInfo.new('TaskContext', 1),
-                    Syskit::DataService => RubyModuleModel::TypeInfo.new('DataService', 0)
+                    Syskit::DataService => RubyModuleModel::TypeInfo.new('DataService', 0),
+                    Syskit::Actions::Profile => RubyModuleModel::TypeInfo.new('Profile', 1)
                 ]
                 @browser_model = RubyModuleModel.new(model_type_info) do |mod|
                     syskit_model?(mod)

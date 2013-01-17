@@ -14,6 +14,7 @@ module Syskit
             def syskit_profile(name, &block)
                 profile = Profile.new(name)
                 profile.instance_eval(&block)
+                const_set(name, profile)
                 syskit_profiles[name] = profile
             end
 
