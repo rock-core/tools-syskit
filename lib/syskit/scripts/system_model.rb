@@ -176,6 +176,11 @@ class ModelDisplayView < Ui::StackedDisplay
         clear
         @current_model = model
 
+        plan_display_options = Hash[
+            :remove_compositions => false,
+            :annotations => ['task_info', 'port_details'].to_set
+        ]
+
         if model <= Syskit::Composition
             plan, @specializations = render_specialization_graph(model.root_model)
 
@@ -216,11 +221,11 @@ class ModelDisplayView < Ui::StackedDisplay
         main_plan.add(task)
 
         if model <= Syskit::Component
-            push_plan('Task Dependency Hierarchy', 'hierarchy', main_plan, Roby.syskit_engine, Hash.new)
-            default_widget = push_plan('Dataflow', 'dataflow', main_plan, Roby.syskit_engine, Hash.new)
+            push_plan('Task Dependency Hierarchy', 'hierarchy', main_plan, Roby.syskit_engine, plan_display_options)
+            default_widget = push_plan('Dataflow', 'dataflow', main_plan, Roby.syskit_engine, plan_display_options)
 
         else
-            default_widget = push_plan('Interface', 'dataflow', main_plan, Roby.syskit_engine, Hash.new)
+            default_widget = push_plan('Interface', 'dataflow', main_plan, Roby.syskit_engine, plan_display_options)
         end
 
         services = []
