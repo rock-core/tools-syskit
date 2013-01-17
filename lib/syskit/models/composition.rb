@@ -9,9 +9,6 @@ module Syskit
             include Models::PortAccess
             include Models::Component
 
-            # The set of configurations declared with #conf
-            attr_reader :conf
-
             # [SpecializationManager] the object that manages all
             # specializations defined on this composition model
             attribute(:specializations) { SpecializationManager.new(self) }
