@@ -62,7 +62,7 @@ module Syskit
                     supermodel = Syskit::TaskContext
                 else
                     supermodel = find_model_by_orogen(superclass) ||
-                        define_from_orogen(superclass)
+                        define_from_orogen(superclass, :register => options[:register])
                 end
                 klass = supermodel.new_submodel(:orogen_model => orogen_model)
 
