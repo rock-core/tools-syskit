@@ -50,8 +50,19 @@ class ModelListWidget < Qt::TreeWidget
     ROOT_ROLE_COMPOSITION = 1
     ROOT_ROLE_TASK = 2
 
+    def filter_nil_names(set)
+        set.delete_if do |obj|
+            if !obj.name
+                puts "#{obj.short_name} does not have a name"
+                puts "defined at #{Roby.filter_backtrace(obj.definition_location).join("\n  ")}"
+                true
+            end
+        end
+    end
+
     def populate
         services = Syskit::DataService.each_submodel.to_a
+        filter_nil_names(services)
         services.sort_by { |srv| srv.name }.each do |srv|
             services << srv
             name = srv.name
@@ -62,6 +73,7 @@ class ModelListWidget < Qt::TreeWidget
         end
 
         compositions = Syskit::Composition.each_submodel.to_a
+        filter_nil_names(compositions)
         compositions.sort_by { |srv| srv.name }.each do |cmp|
             next if cmp.is_specialization?
             name = cmp.name
@@ -77,6 +89,7 @@ class ModelListWidget < Qt::TreeWidget
         end
 
         task_contexts = Syskit::TaskContext.each_submodel.to_a
+        filter_nil_names(task_contexts)
         task_contexts.sort_by(&:name).each do |task|
             item = Qt::TreeWidgetItem.new(root_tasks)
             item.set_text(0, task.short_name)
