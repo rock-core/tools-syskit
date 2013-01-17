@@ -2,7 +2,7 @@ module Syskit
     module Actions
         # Extension to the models of Roby::Actions::Interface
         module InterfaceModelExtension
-            define_inherited_enumerable(:syskit_profiles, :syskit_profile, :map => true) { Hash.new }
+            define_inherited_enumerable(:syskit_profile, :syskit_profiles, :map => true) { Hash.new }
             # Declare a syskit profile on this action interface
             #
             # A syskit profile is a group of dependency injections (use flags)
