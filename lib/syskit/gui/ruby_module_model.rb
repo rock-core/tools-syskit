@@ -13,13 +13,18 @@ module Syskit
             attr_reader :type_info
 
             def initialize(type_info = Hash.new, &predicate)
+                super()
                 @predicate = predicate || proc { true }
                 @type_info = type_info
 
+                reload
+            end
+
+            def reload
                 @id_to_module = []
                 @module_info = Hash.new
                 @filtered_out_modules = Set.new
-
+                
                 info = discover_module(Object)
                 info.id = id_to_module.size
                 info.name = "Syskit Models"
@@ -27,7 +32,7 @@ module Syskit
                 info.row = 0
                 id_to_module << info
 
-                super()
+                emit dataChanged(Qt::ModelIndex.new, Qt::ModelIndex.new)
             end
 
             def update_module_type_info(info)

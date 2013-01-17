@@ -24,6 +24,17 @@ module Syskit
 
             define_inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
 
+            def clear_model
+                super
+                child_constraints.clear
+                children.clear
+                configurations.clear
+                exported_inputs.clear
+                exported_outputs.clear
+                @specializations = SpecializationManager.new(self)
+                @main_task = nil
+            end
+
             # Method that maps connections from this composition's parent models
             # to this composition's own interface
             #

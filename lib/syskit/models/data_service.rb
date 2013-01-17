@@ -19,8 +19,14 @@ module Syskit
             end
 
             def initialize
-                @orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project)
+                clear_model
                 super
+            end
+
+            def clear_model
+                @orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project)
+                parent_models.clear
+                port_mappings.clear
             end
 
             # @!attribute rw parent_models
@@ -93,12 +99,6 @@ module Syskit
                     model.apply_block(&block)
                 end
 
-                # Now initialize the port_mappings hash. We register our own
-                # ports as identity (from => from)
-                self_mappings = (model.port_mappings[model] ||= Hash.new)
-                model.each_input_port  { |port| self_mappings[port.name] = port.name }
-                model.each_output_port { |port| self_mappings[port.name] = port.name }
-
                 model
             end
 
@@ -141,6 +141,12 @@ module Syskit
             # name in the block, instead of the actual service name
             def apply_block(name = nil, &block)
                 BlockInstanciator.new(self, name).instance_eval(&block)
+
+                # Now initialize the port_mappings hash. We register our own
+                # ports as identity (from => from)
+                self_mappings = (port_mappings[self] ||= Hash.new)
+                each_input_port  { |port| self_mappings[port.name] = port.name }
+                each_output_port { |port| self_mappings[port.name] = port.name }
             end
 
             # Returns the set of port mappings needed between +service_type+ and
@@ -527,6 +533,22 @@ module Syskit
         # This module is used to define the methods that allow to define
         # module-based models (data services and friends) on Module
         module ServiceModelsDefinitionDSL
+            def self.create_and_register_submodel(mod, name, base_model, *args, &block)
+                Models.validate_model_name(name)
+
+                if mod.const_defined_here?(name)
+                    model = mod.const_get(name)
+                else 
+                    mod.const_set(name, model = base_model.new_submodel(*args))
+                    model.permanent_model = true
+                end
+
+                if block_given?
+                    model.apply_block(&block)
+                end
+                model
+            end
+
             # Creates a new data service model and register it on this module
             #
             # If a block is given, it is used to declare the service's
@@ -535,11 +557,7 @@ module Syskit
             #
             # @return [DataServiceModel] the created model
             def data_service_type(name, &block)
-                Models.validate_model_name(name)
-
-                model = Syskit::DataService.new_submodel(&block)
-                const_set(name, model)
-                model
+                ServiceModelsDefinitionDSL.create_and_register_submodel(self, name, Syskit::DataService, &block)
             end
 
             # Creates a new device model and register it on this module
@@ -548,11 +566,7 @@ module Syskit
             # Device has been included.
             #
             def device_type(name, &block)
-                Models.validate_model_name(name)
-
-                model = Syskit::Device.new_submodel(&block)
-                const_set(name, model)
-                model
+                ServiceModelsDefinitionDSL.create_and_register_submodel(self, name, Syskit::Device, &block)
             end
 
             # Creates a new communication bus model
@@ -566,11 +580,7 @@ module Syskit
             # The returned value is an instance of DataServiceModel, in which
             # ComBus is included.
             def com_bus_type(name, options = Hash.new, &block)
-                Models.validate_model_name(name)
-
-                model = Syskit::ComBus.new_submodel(options, &block)
-                const_set(name, model)
-                model
+                ServiceModelsDefinitionDSL.create_and_register_submodel(self, name, Syskit::ComBus, options, &block)
             end
         end
     end

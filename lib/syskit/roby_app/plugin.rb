@@ -118,10 +118,16 @@ module Syskit
                 orogen
             end
 
+            # If true, syskit is loading all available oroGen projects on this
+            # system. It is set automatically by #syskit_load_all to ensure that
+            # everything is reloaded when the app reloads its models
+            attr_predicate :syskit_load_all?, true
+
             # Loads all available oroGen projects
             def syskit_load_all
-                Orocos.available_projects.each_key do |name|
-                    Orocos.master_project.load_orogen_project(name)
+                self.syskit_load_all = true
+                Orocos.available_task_libraries.each_key do |name|
+                    using_task_library(name)
                 end
             end
 
@@ -210,6 +216,9 @@ module Syskit
                         end
                     end
                 end
+                if app.syskit_load_all?
+                    app.syskit_load_all
+                end
             end
 
             # Load the specified oroGen project and register the task contexts
@@ -227,36 +236,6 @@ module Syskit
             # Loads the required typekit
             def import_types_from(typekit_name)
                 Orocos.master_project.import_types_from(typekit_name)
-            end
-
-            def syskit_clear_models
-                projects = Set.new
-
-                all_models = Component.submodels | DataService.submodels | Deployment.submodels
-                all_models.each do |model|
-                    next if model.permanent_model?
-                    valid_name =
-                        begin
-                            constant(model.name) == model
-                        rescue NameError
-                        end
-
-                    if valid_name
-                        parent_module =
-                            if model.name =~ /::/
-                                model.name.gsub(/::[^:]*$/, '')
-                            else Object
-                            end
-                        constant(parent_module).send(:remove_const, model.name.gsub(/.*::/, ''))
-                    end
-                end
-
-                Component.clear_submodels
-                DataService.clear_submodels
-                Deployment.clear_submodels
-                Orocos.clear
-
-                loaded_orogen_projects.clear
             end
 
             def self.load_task_extension(file, app)
@@ -432,9 +411,38 @@ module Syskit
                 end
             end
 
+            def self.clear_models(app)
+                all_models = Component.submodels | DataService.submodels | Deployment.submodels
+                all_models.each do |model|
+                    model.clear_model
+                    next if model.permanent_model?
+
+                    valid_name =
+                        begin
+                            constant(model.name) == model
+                        rescue NameError
+                        end
+
+                    if valid_name
+                        parent_module =
+                            if model.name =~ /::/
+                                model.name.gsub(/::[^:]*$/, '')
+                            else Object
+                            end
+                        constant(parent_module).send(:remove_const, model.name.gsub(/.*::/, ''))
+                    end
+                end
+
+                Component.clear_submodels
+                DataService.clear_submodels
+                Deployment.clear_submodels
+                Orocos.clear
+
+                app.loaded_orogen_projects.clear
+            end
+
             def self.cleanup(app)
                 app.syskit_engine.robot.clear
-		app.syskit_clear_models
                 stop_process_servers
                 stop_local_process_server
             end

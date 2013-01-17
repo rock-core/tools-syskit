@@ -6,6 +6,7 @@ module Syskit
             attr_reader :btn_display_data_services
             attr_reader :btn_display_task_contexts
             attr_reader :model_filter
+            attr_reader :browser_model
 
             def initialize(parent = nil)
                 super
@@ -44,17 +45,8 @@ module Syskit
 
             def setup_tree_view(layout)
                 model_list = Qt::TreeView.new(self)
-                model_type_info = Hash[
-                    Syskit::Composition => RubyModuleModel::TypeInfo.new('Composition', 1),
-                    Syskit::TaskContext => RubyModuleModel::TypeInfo.new('TaskContext', 1),
-                    Syskit::DataService => RubyModuleModel::TypeInfo.new('DataService', 0)
-                ]
-                browser_model = RubyModuleModel.new(model_type_info) do |mod|
-                    syskit_model?(mod)
-                end
-
                 @model_filter = Qt::SortFilterProxyModel.new
-                model_filter.source_model = browser_model
+                model_filter.dynamic_sort_filter = true
                 model_list.model = model_filter
                 layout.add_widget(model_list)
 
@@ -65,6 +57,8 @@ module Syskit
                         emit model_selected(Qt::Variant.from_ruby(mod.this, mod.this))
                     end
                 end
+
+                reload
             end
             signals 'model_selected(QVariant)'
 
@@ -83,6 +77,17 @@ module Syskit
                 model_filter.filter_reg_exp = Qt::RegExp.new(rx.join("|"))
             end
 
+            def reload
+                model_type_info = Hash[
+                    Syskit::Composition => RubyModuleModel::TypeInfo.new('Composition', 1),
+                    Syskit::TaskContext => RubyModuleModel::TypeInfo.new('TaskContext', 1),
+                    Syskit::DataService => RubyModuleModel::TypeInfo.new('DataService', 0)
+                ]
+                @browser_model = RubyModuleModel.new(model_type_info) do |mod|
+                    syskit_model?(mod)
+                end
+                model_filter.source_model = browser_model
+            end
         end
     end
 end

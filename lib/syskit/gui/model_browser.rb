@@ -26,6 +26,13 @@ module Syskit
                 model_list = ModelSelector.new(splitter)
                 splitter.add_widget(model_list)
 
+                btn_reload_models = Qt::PushButton.new("Reload", self)
+                menu_layout.add_widget(btn_reload_models)
+                btn_reload_models.connect(SIGNAL(:clicked)) do
+                    Roby.app.reload_models
+                    model_list.reload
+                end
+
                 model_list.connect(SIGNAL('model_selected(QVariant)')) do |mod|
                     model_display.render_model(mod.to_ruby)
                 end

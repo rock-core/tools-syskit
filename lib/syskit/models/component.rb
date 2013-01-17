@@ -21,6 +21,11 @@ module Syskit
             # @return [Hash<String,BoundDataService>]
             define_inherited_enumerable(:data_service, :data_services, :map => true) { Hash.new }
 
+            def clear_model
+                super
+                data_services.clear
+            end
+
             # Enumerate all the devices that are defined on this
             # component model
             #

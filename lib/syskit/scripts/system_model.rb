@@ -26,9 +26,7 @@ app = Qt::Application.new(ARGV)
 Scripts.run do
     if remaining.empty?
         # Load all task libraries
-        Orocos.available_task_libraries.each_key do |name|
-            Roby.app.using_task_library(name)
-        end
+        Roby.app.syskit_load_all
     else
         files, projects = remaining.partition { |path| File.file?(path) }
         projects.each do |project_name|
