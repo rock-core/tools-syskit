@@ -205,12 +205,12 @@ module Syskit
                     begin
                         app.require(path)
                     rescue Orocos::Generation::Project::TypeImportError => e
-                        if Syskit.conf.ignore_load_errors?
+                        if Syskit.conf.ignore_missing_orogen_projects_during_load?
                             ::Robot.warn "ignored file #{path}: cannot load required typekit #{e.name}"
                         else raise
                         end
                     rescue Orocos::Generation::Project::MissingTaskLibrary => e
-                        if Syskit.conf.ignore_load_errors?
+                        if Syskit.conf.ignore_missing_orogen_projects_during_load?
                             ::Robot.warn "ignored file #{path}: cannot load required task library #{e.name}"
                         else raise
                         end

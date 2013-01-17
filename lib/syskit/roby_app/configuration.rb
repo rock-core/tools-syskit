@@ -13,6 +13,11 @@ module Syskit
             # (e.g. the Rock bundle) to have the benefit of GUIs like
             # system_model even though some typekits/task libraries are not
             # present
+            attr_predicate :ignore_missing_orogen_projects_during_load, true
+            # If true, files that raise an error will be ignored. This is
+            # usually used on "root" bundles (e.g. the Rock bundle) to have the
+            # benefit of GUIs like system_model even though some files have
+            # errors
             attr_predicate :ignore_load_errors, true
 
             def initialize
@@ -31,6 +36,7 @@ module Syskit
                 @local_only = false
                 @prefix_blacklist = []
                 @sd_publish_list = []
+                @ignore_missing_orogen_projects_during_load = false
                 @ignore_load_errors = false
 
                 @log_groups = { nil => LogGroup.new(false) }
