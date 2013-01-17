@@ -39,6 +39,7 @@ module Syskit
                 end
             end
         end
+        Roby::Actions::InterfaceModel.include InterfaceModelExtension
         Roby::Actions::Interface.extend InterfaceModelExtension
     end
 end
