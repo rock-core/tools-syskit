@@ -12,9 +12,14 @@ module Syskit
             #
             # @return [SyskitProfile]
             def syskit_profile(name, &block)
-                profile = Profile.new(name)
+                if const_defined_here?(name)
+                    profile = const_get(name)
+                else 
+                    profile = Profile.new(name)
+                    const_set(name, profile)
+                end
+
                 profile.instance_eval(&block)
-                const_set(name, profile)
                 syskit_profiles[name] = profile
             end
 
@@ -38,6 +43,11 @@ module Syskit
                         req.as_plan
                     end
                 end
+            end
+
+            def clear_model
+                super if defined? super
+                syskit_profiles.clear
             end
         end
         Roby::Actions::InterfaceModel.include InterfaceModelExtension
