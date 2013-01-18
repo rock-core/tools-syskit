@@ -25,6 +25,7 @@ module Syskit
             # Give a name to a known instance requirement object
             def define(name, requirements)
                 requirements = requirements.to_instance_requirements
+                requirements.dependency_injection_context.push(self)
                 definitions[name] = requirements
             end
 

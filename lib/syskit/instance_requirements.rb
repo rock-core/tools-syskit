@@ -14,6 +14,8 @@ module Syskit
             # The model selection that can be used to instanciate this task, as
             # a DependencyInjection object
             attr_reader :selections
+            # A DI context that should be used to instanciate this task
+            attr_reader :dependency_injection_context
             # If set, this requirements points to a specific service, not a
             # specific task. Use #select_service to select.
             attr_reader :service
@@ -30,6 +32,7 @@ module Syskit
                 @models    = @base_models = models.to_value_set
                 @arguments = Hash.new
                 @selections = DependencyInjection.new
+                @dependency_injection_context = DependencyInjectionContext.new
                 @deployment_hints = Set.new
             end
 
@@ -39,6 +42,7 @@ module Syskit
                 @arguments = old.arguments.dup
                 @selections = old.selections.dup
                 @deployment_hints = old.deployment_hints.dup
+                @dependency_injection_context = old.dependency_injection_context.dup
                 @service = service
             end
 
@@ -437,6 +441,7 @@ module Syskit
                     selections = selections.dup
                     selections.add_explicit(barrier)
                 end
+                context.concat(dependency_injection_context)
                 context.push(selections)
 
                 arguments = Kernel.validate_options arguments, :task_arguments => nil

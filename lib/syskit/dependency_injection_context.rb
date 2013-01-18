@@ -65,6 +65,14 @@ module Syskit
                 @savepoints  = obj.savepoints.dup
             end
 
+            # Push all DI information in the given context at the top of the
+            # stack of this context
+            def concat(context)
+                context.stack.each do |di|
+                    push(di.added_info.dup)
+                end
+            end
+
             # Pushes the current state of the context. #restore will go back to
             # this exact state, regardless of the number of #push calls.
             #
