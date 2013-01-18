@@ -1,5 +1,7 @@
 require 'syskit/gui/model_selector'
-require 'syskit/gui/model_display_view'
+require 'syskit/gui/task_context_view'
+require 'syskit/gui/composition_view'
+require 'syskit/gui/data_service_view'
 module Syskit
     module GUI
         # Widget that allows to browse the currently available models and
@@ -33,13 +35,29 @@ module Syskit
                     model_list.reload
                 end
 
-                model_list.connect(SIGNAL('model_selected(QVariant)')) do |mod|
-                    model_display.render_model(mod.to_ruby)
+                views = Hash[
+                    Syskit::Models::TaskContext => [TaskContextView],
+                    Syskit::Models::Composition => [CompositionView],
+                    Syskit::Models::DataServiceModel => [DataServiceView]]
+
+                # Create a central stacked layout
+                display_selector = Qt::StackedWidget.new(self)
+                splitter.add_widget(display_selector)
+                splitter.set_stretch_factor(1, 2)
+                # Pre-create all the necessary display views
+                views.each do |model, view|
+                    view << display_selector.add_widget(view[0].new(splitter))
                 end
 
-                @model_display = ModelDisplayView.new(splitter)
-                splitter.add_widget(model_display)
-                splitter.set_stretch_factor(1, 2)
+                model_list.connect(SIGNAL('model_selected(QVariant)')) do |mod|
+                    mod = mod.to_ruby
+                    views.each do |model, view|
+                        if mod.kind_of?(model)
+                            display_selector.current_index = view[1]
+                        end
+                    end
+                    display_selector.current_widget.render(mod)
+                end
             end
         end
     end
