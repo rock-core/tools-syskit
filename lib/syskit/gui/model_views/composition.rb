@@ -1,8 +1,13 @@
-require 'syskit/gui/component_model_view'
-module Syskit
-    module GUI
+require 'syskit/gui/component_network_base_view'
+module Syskit::GUI
+    module ModelViews
         Roby::TaskStructure.relation 'SpecializationCompatibilityGraph', :child_name => :compatible_specialization, :dag => false
-        class CompositionView < ComponentModelView
+
+        # Visualization of a composition model
+        #
+        # In addition to the plain component network, it visualizes the
+        # specializations and allows to select them dynamically
+        class Composition < ComponentNetworkBaseView
             attr_reader :specializations
 
             def initialize(parent = nil)

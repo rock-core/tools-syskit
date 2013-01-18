@@ -8,7 +8,6 @@ module Syskit
 
             attr_reader :predicate
             attr_reader :id_to_module
-            attr_reader :module_info
             attr_reader :filtered_out_modules
             attr_reader :type_info
 
@@ -22,7 +21,6 @@ module Syskit
 
             def reload
                 @id_to_module = []
-                @module_info = Hash.new
                 @filtered_out_modules = Set.new
                 
                 info = discover_module(Object)
@@ -131,9 +129,6 @@ module Syskit
 
             def rowCount(parent)
                 if info = info_from_index(parent)
-                    if !info.children
-                        pp info
-                    end
                     info.children.size
                 else 0
                 end
@@ -149,6 +144,23 @@ module Syskit
                 else
                     id_to_module[index.internal_id >> 1]
                 end
+            end
+
+            def find_index_by_model(model)
+                if info = id_to_module.find { |info| info.this == model }
+                    return create_index(info.row, 0, info.id)
+                end
+            end
+
+            def find_index_by_path(*path)
+                current = id_to_module.last
+                path.each do |name|
+                    current = id_to_module.find do |info|
+                        info.name == name && info.parent == current
+                    end
+                    return if !current
+                end
+                create_index(current.row, 0, current.id)
             end
         end
     end

@@ -1,0 +1,5 @@
+require 'syskit/gui/model_views/component'
+require 'syskit/gui/model_views/composition'
+require 'syskit/gui/model_views/profile'
+require 'syskit/gui/model_views/task_context'
+require 'syskit/gui/model_views/data_service'

@@ -2,7 +2,8 @@ require 'syskit/gui/stacked_display'
 
 module Syskit
     module GUI
-        class ComponentModelView < StackedDisplay
+        # Base functionality to display plans that contain component networks
+        class ComponentNetworkBaseView < StackedDisplay
             attr_reader :current_model
 
             def instanciate_model(model)
@@ -13,6 +14,9 @@ module Syskit
                     Syskit::DependencyInjectionContext.new)
                 main_plan.add(task)
                 task
+            rescue Exception => e
+                puts "E: #{e}"
+                raise
             end
 
             def render_data_services(task)

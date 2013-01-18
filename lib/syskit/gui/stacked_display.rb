@@ -22,7 +22,7 @@ module Syskit
 
             # Adds a PlanDisplay widget with the given title and parameters
             def push_plan(title, mode, plan, engine, options)
-                display = Ui::PlanDisplay.new(self)
+                display = Syskit::GUI::PlanDisplay.new(self)
 
                 display.connect(SIGNAL('updated(QVariant&)')) do |error|
                     emit updated(title, error)

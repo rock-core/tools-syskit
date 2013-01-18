@@ -1,5 +1,6 @@
 require 'utilrb/qt/variant/from_ruby'
-module Ui
+module Syskit
+module GUI
     # Widget used to display a network of Orocos tasks represented in a Roby
     # plan
     #
@@ -97,6 +98,8 @@ module Ui
         # hidden models, as a map from a model object to the corresponding
         # Qt::Action object
         attr_reader :excluded_models_act
+        # The menu that displays all the excluded models actions
+        attr_reader :excluded_models_menu
         # The push button that controls which annotations are displayed (only
         # enabled if mode == 'dataflow')
         attr_reader :annotation_btn
@@ -143,7 +146,7 @@ module Ui
             annotation_btn.menu = annotation_menu
 
             # Generate the menu for hidden models
-            excluded_models_menu = Qt::Menu.new(excluded_models_btn)
+            @excluded_models_menu = Qt::Menu.new(excluded_models_btn)
             @excluded_models_act = Hash.new
             Syskit::Component.each_submodel.sort_by(&:name).each do |model|
                 next if model <= Syskit::Deployment
@@ -167,6 +170,7 @@ module Ui
             button_bar_layout.add_widget(excluded_models_btn)
             button_bar_layout.add_widget(annotation_btn)
             button_bar_layout.add_widget(svg_export_btn)
+            button_bar_layout.add_stretch(0)
             root_layout.add_widget(view)
 
             self.options = Hash.new
@@ -211,20 +215,26 @@ module Ui
         # Sets the display mode ('hierarchy' or 'dataflow'). Enables or disables
         # the annotation_btn if mode is dataflow or not
         def mode=(mode)
-            annotation_btn.enabled = (mode == 'dataflow')
-            remove_compositions_btn.enabled = (mode != 'relation_to_dot')
-            excluded_models_btn.enabled = (mode != 'relation_to_dot')
+            annotation_btn.enabled = (mode == 'dataflow') || (mode == 'hierarchy')
+            remove_compositions_btn.visible = (mode != 'relation_to_dot')
+            excluded_models_btn.visible = (mode != 'relation_to_dot')
             @mode = mode
         end
         # The display options, as a hash
         attr_reader :options
         # Sets some display options, updating the GUI in the process
         def options=(options)
-            default_excluded_models = Array.new
-            excluded_models_act.each do |model, action|
-                default_excluded_models << model if action.checked?
+            if excluded_models_menu.visible?
+                default_excluded_models = Array.new
+                excluded_models_act.each do |model, action|
+                    default_excluded_models << model if action.checked?
+                end
             end
-            default_remove_compositions = remove_compositions_btn.checked?
+            default_remove_compositions =
+                if remove_compositions_btn.visible?
+                    remove_compositions_btn.checked?
+                end
+
             default_annotations = Array.new
             annotation_act.each do |act_name, act|
                 default_annotations << act_name if act.checked?
@@ -236,10 +246,24 @@ module Ui
                 :annotations => default_annotations
             @options = other_options.merge(gui_options)
 
-            excluded_models_act.each do |model, action|
-                action.checked = gui_options[:excluded_models].include?(model)
+            if gui_options[:excluded_models]
+                excluded_models_btn.show
+                excluded_models_act.each do |model, action|
+                    action.checked = gui_options[:excluded_models].include?(model)
+                end
+            else
+                excluded_models_btn.hide
+                excluded_models_act.each do |model, action|
+                    action.checked = true
+                end
             end
-            remove_compositions_btn.checked = gui_options[:remove_compositions]
+            if gui_options[:remove_compositions].nil?
+                remove_compositions_btn.hide
+                remove_compositions_btn.checked = false
+            else
+                remove_compositions_btn.show
+                remove_compositions_btn.checked = gui_options[:remove_compositions]
+            end
             annotation_act.each do |act_name, act|
                 act.checked = gui_options[:annotations].include?(act_name)
             end
@@ -428,4 +452,5 @@ module Ui
             end
         end
     end
+end
 end
