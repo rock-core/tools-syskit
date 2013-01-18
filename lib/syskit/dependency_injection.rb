@@ -86,7 +86,10 @@ module Syskit
                 add_explicit(explicit)
                 defaults.delete_if do |obj|
                     if obj.kind_of?(DependencyInjection)
-                        merge(obj)
+                        # Do not use merge here. One wants to override the
+                        # existing selections with the new ones
+                        @explicit.merge!(obj.explicit)
+                        @defaults |= obj.defaults
                         true
                     end
                 end
