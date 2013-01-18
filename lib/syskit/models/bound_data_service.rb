@@ -87,7 +87,7 @@ module Syskit
             end
 
             def to_s
-                "#<Models::BoundDataService: #{component_model.short_name} #{full_name}>"
+                "#{component_model.short_name}.#{full_name}"
             end
 
             def short_name

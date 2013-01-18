@@ -501,21 +501,23 @@ module Syskit
             end
 
             def to_s
-                if base_models.empty?
-                    result = "#<#{self.class}: <no models>"
-                else
-                    result = "#<#{self.class}: models=#{models.map(&:short_name).join(",")} base=#{base_models.map(&:short_name).join(",")}"
+                result =
+                    if base_models.size == 1
+                        base_models.to_a[0].short_name
+                    else
+                        "<" + base_models.map(&:short_name).join(",") + ">"
+                    end
+                if service
+                    result << ".#{service.name}_srv"
                 end
+
                 if !selections.empty?
-                    result << " using(#{selections})"
+                    result << ".use(#{selections})"
                 end
                 if !arguments.empty?
-                    result << " args(#{arguments})"
+                    result << ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }})"
                 end
-                if service
-                    result << " srv=#{service}"
-                end
-                result << ">"
+                result
             end
 
             def pretty_print(pp)
