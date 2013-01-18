@@ -13,7 +13,7 @@ module Syskit
             def initialize(name)
                 @name = name
                 @definitions = Hash.new
-                super
+                super()
             end
 
             # Add some dependency injections for the definitions in this profile
