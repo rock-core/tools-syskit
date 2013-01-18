@@ -24,22 +24,23 @@ app = Qt::Application.new(ARGV)
 
 
 Scripts.run do
-    if remaining.empty?
-        # Load all task libraries
-        Roby.app.syskit_load_all
-    else
-        files, projects = remaining.partition { |path| File.file?(path) }
-        projects.each do |project_name|
-            Roby.app.use_deployments_from(project_name)
-        end
-        files.each do |file|
-            require file
-        end
-    end
-
+    # Load all task libraries
+    Roby.app.syskit_load_all
     Roby.app.syskit_engine.prepare
 
     main = Syskit::GUI::ModelBrowser.new
+    # Select the model given on the command line (if any)
+    if !remaining.empty?
+        model = begin
+                    constant(remaining.first)
+                rescue NameError
+                    Syskit.warn "cannot find a model named #{remaining.first}"
+                end
+        if model
+            main.select_by_module(model)
+        end
+    end
+
     main.resize(800, 500)
     main.show
 
