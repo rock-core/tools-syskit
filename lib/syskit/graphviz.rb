@@ -201,6 +201,8 @@ module Syskit
                     raise ArgumentError, "no :accessor option given"
                 end
 
+                add_task_info_annotations
+
                 result = []
                 result << "#{options[:dot_graph_type]} {"
                 result << "  mindist=0"
@@ -270,7 +272,7 @@ module Syskit
             end
 
             def add_task_info_annotations
-                plan.find_local_tasks(TaskContext).each do |task|
+                plan.find_local_tasks(Component).each do |task|
                     add_task_annotation(task, "Arguments", task.arguments.map { |k, v| "#{k}: #{v}" })
                     add_task_annotation(task, "Roles", task.roles.to_a.sort.join(", "))
                 end
