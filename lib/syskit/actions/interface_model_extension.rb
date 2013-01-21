@@ -15,7 +15,7 @@ module Syskit
                 if const_defined_here?(name)
                     profile = const_get(name)
                 else 
-                    profile = Profile.new(name)
+                    profile = Profile.new("#{self.name}::#{name}")
                     const_set(name, profile)
                 end
 
