@@ -529,7 +529,7 @@ module Syskit
                     pp.text "Base Models:"
                     pp.nest(2) do
                         pp.breakable
-                        pp.seplist(base_models, ",") do |mod|
+                        pp.seplist(base_models) do |mod|
                             pp.text mod.short_name
                         end
                     end
