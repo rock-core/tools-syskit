@@ -72,15 +72,20 @@ module Syskit
                             filtered_out_modules << child_mod
                         end
                     end
+                end
 
-                    if is_needed
-                        mod.ancestors.each do |ancestor|
-                            if type_info.has_key?(ancestor)
-                                mod_info.types << ancestor
+                if is_needed
+                    klass = if mod.respond_to?(:ancestors) then mod
+                            else mod.class
                             end
+
+                    klass.ancestors.each do |ancestor|
+                        if type_info.has_key?(ancestor)
+                            mod_info.types << ancestor
                         end
                     end
                 end
+
                 update_module_type_info(mod_info)
 
                 if !children.empty? || is_needed
