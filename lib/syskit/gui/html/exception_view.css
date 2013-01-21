@@ -1,0 +1,8 @@
+body {font-family: arial, sans-serif; font-size: 12px; }
+table { width: 100%; font-size: 12px; }
+.message td { font-size: 12px; font-weight: normal; background-color: rgb(176,206,234); text-align: left; }
+.backtrace_links { font-size: 80%; margin-left: 2em;}
+.backtrace td { font-size: 12px; background-color: rgb(219,230,241); padding-left: 1em; }
+.backtrace_summary td { background-color: rgb(219,230,241); padding-left: 1em; }
+.app_file { font-weight: bold; }
+

@@ -1,5 +1,6 @@
 require 'syskit/gui/model_selector'
 require 'syskit/gui/model_views'
+require 'syskit/gui/exception_view'
 module Syskit
     module GUI
         # Widget that allows to browse the currently available models and
@@ -16,22 +17,31 @@ module Syskit
 
                 menu_layout = Qt::HBoxLayout.new
                 main_layout.add_layout(menu_layout)
-                menu_layout.add_stretch(1)
-
-                layout = Qt::HBoxLayout.new
-                main_layout.add_layout(layout)
+                central_layout = Qt::HBoxLayout.new
+                main_layout.add_layout(central_layout, 3)
                 splitter = Qt::Splitter.new(self)
-                layout.add_widget(splitter)
+                central_layout.add_widget(splitter)
+                exception_view = ExceptionView.new
+                main_layout.add_widget(exception_view, 1)
 
-                @model_selector = ModelSelector.new(splitter)
-                splitter.add_widget(model_selector)
 
                 btn_reload_models = Qt::PushButton.new("Reload", self)
                 menu_layout.add_widget(btn_reload_models)
                 btn_reload_models.connect(SIGNAL(:clicked)) do
+                    Roby.app.clear_exceptions
                     Roby.app.reload_models
+                    exception_view.exceptions = Roby.app.registered_exceptions
                     model_selector.reload
                 end
+                menu_layout.add_stretch(1)
+                exception_view.exceptions = Roby.app.registered_exceptions
+
+                add_central_widgets(splitter)
+            end
+
+            def add_central_widgets(splitter)
+                @model_selector = ModelSelector.new(splitter)
+                splitter.add_widget(model_selector)
 
                 views = Hash[
                     Syskit::Models::TaskContext => [ModelViews::TaskContext],
