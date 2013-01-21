@@ -174,6 +174,7 @@ module Syskit
                 spec = spec.resolve
                 # Finally, add it to the new state
                 new_state.add(spec)
+                new_state = new_state.resolve
                 # ... and to the stack
                 stack << StackLevel.new(new_state, spec)
             end
