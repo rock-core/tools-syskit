@@ -64,6 +64,14 @@ module Syskit
                     super
                 end
             end
+
+            # Returns the InstanceRequirements object that can be used to
+            # represent this device
+            def to_instance_requirements
+                req = super
+                req.select_service(service)
+                req
+            end
         end
     end
 end

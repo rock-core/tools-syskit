@@ -212,6 +212,13 @@ module Syskit
                 srv.model.apply_device_configuration_extensions(device_instance)
                 robot.devices["#{name}.#{srv.name}"] = device_instance
             end
+
+            # Returns the InstanceRequirements object that can be used to
+            # represent this device
+            def to_instance_requirements
+                driver_model.to_instance_requirements.
+                    with_arguments(task_arguments.merge("#{driver_model}_name" => driver_model.name))
+            end
         end
     end
 end

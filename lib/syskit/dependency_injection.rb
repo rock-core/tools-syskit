@@ -154,8 +154,11 @@ module Syskit
                         !value.kind_of?(Models::DataServiceModel) &&
                         !value.kind_of?(InstanceRequirements) &&
                         (!value.kind_of?(Class) || !(value <= Component))
-
-                        raise ArgumentError, "found #{value} as a selection for #{key}, but only nil,name,component models,components,data service models and bound data services are allowed"
+                        if value.respond_to?(:to_instance_requirements)
+                            value = value.to_instance_requirements
+                        else
+                            raise ArgumentError, "found #{value} as a selection for #{key}, but only nil,name,component models,components,data service models and bound data services are allowed"
+                        end
                     end
 
                     if key.respond_to?(:to_str)

@@ -221,6 +221,16 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(DataService.new_submodel => DataService.new_submodel) }
     end
 
+    def test_normalize_selection_converts_arbitrary_values_to_instance_requirements
+        req = InstanceRequirements.new
+        value = flexmock
+        value.should_receive(:to_instance_requirements).once.
+           and_return(req)
+        di = DependencyInjection.new
+        di.add('name' => value)
+        assert_same req, di.explicit['name']
+    end
+
     def test_resolve_default_selections_selects_all_models_fullfilled_by_a_component_model
         srv0 = DataService.new_submodel
         srv1 = DataService.new_submodel

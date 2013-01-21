@@ -14,6 +14,16 @@ module Syskit
                 devices.clear
             end
 
+            # Add the devices defined in the given robot to the ones defined in
+            # self.
+            #
+            # If robot and self have devices with the same names, the ones in
+            # self take precedence
+            def use_robot(robot)
+                @devices = robot.devices.merge(devices)
+                nil
+            end
+
             # Declares a new communication bus
             def com_bus(type, options = Hash.new)
                 device(type, options.merge(:expected_model => Syskit::ComBus, :class => ComBus))
@@ -165,6 +175,13 @@ module Syskit
             def each_slave_device
                 devices.find_all { |name, instance| instance.kind_of?(SlaveDeviceInstance) }.
                     each { |_, instance| yield(instance) }
+            end
+
+            # Returns a dependency injection object that maps names to devices
+            def to_dependency_injection
+                result = DependencyInjection.new
+                result.add(devices)
+                result
             end
 
             def method_missing(m, *args, &block)

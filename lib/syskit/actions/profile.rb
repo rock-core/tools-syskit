@@ -23,6 +23,7 @@ module Syskit
                 @definitions = Hash.new
                 @used_profiles = Array.new
                 @dependency_injection = DependencyInjection.new
+                @robot = Robot::RobotDefinition.new
                 super()
             end
 
@@ -30,6 +31,10 @@ module Syskit
             def use(*args)
                 dependency_injection.add(*args)
                 self
+            end
+
+            def to_s
+                "Profile(#{name}, uses: #{used_profiles.map(&:name)}, di: #{dependency_injection}, defs: #{definitions.keys.sort.join(",")})"
             end
 
             # Adds the given profile DI information and registered definitions
@@ -107,6 +112,21 @@ module Syskit
                     definitions[name] = req.dup
                 end
             end
+
+            # @overload robot
+            # @overload robot { ... }
+            #
+            # Gets and/or modifies the robot definition of this profile
+            #
+            # @return [Syskit::Robot::RobotDefinition] the robot definition
+            #   object
+            def robot(&block)
+                if block_given?
+                    @robot.instance_eval(&block)
+                end
+                @robot
+            end
+
             # Clears this profile of all data, leaving it blank
             #
             # This is mostly used in Roby's model-reloading procedures
