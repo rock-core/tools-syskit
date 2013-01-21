@@ -35,6 +35,15 @@ module Syskit
                     definitions[name] = req.dup
                 end
             end
+            # Clears this profile of all data, leaving it blank
+            #
+            # This is mostly used in Roby's model-reloading procedures
+            def clear_model
+                @robot = Robot::RobotDefinition.new
+                definitions.clear
+                @dependency_injection = DependencyInjection.new
+                used_profiles.clear
+            end
         end
     end
 end

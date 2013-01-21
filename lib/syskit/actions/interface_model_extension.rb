@@ -47,7 +47,11 @@ module Syskit
 
             def clear_model
                 super if defined? super
-                syskit_profiles.clear
+                each_syskit_profile do |_, profile|
+                    puts "clearing #{profile}"
+                    profile.clear_model
+                end
+                clear_syskit_profiles
             end
         end
         Roby::Actions::Library.include InterfaceModelExtension
