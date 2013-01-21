@@ -116,6 +116,19 @@ module Syskit
                 @dependency_injection = DependencyInjection.new
                 used_profiles.clear
             end
+
+            def method_missing(m, *args)
+                if m.to_s =~ /^(\w+)_def$/
+                    defname = $1
+                    if !definitions[defname]
+                        raise NoMethodError, "#{name} has no definition called #{defname}"
+                    elsif !args.empty?
+                        raise ArgumentError, "expected zero arguments, got #{args.size}"
+                    end
+                    return definition(defname)
+                end
+                super
+            end
         end
     end
 end
