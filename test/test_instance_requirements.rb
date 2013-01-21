@@ -190,6 +190,10 @@ describe Syskit::InstanceRequirements do
     end
 
     describe "#use" do
+        it "should not try to verify a name to value mapping for a known child if the value is a string" do
+            simple_composition_model.overload('srv', simple_component_model)
+            simple_composition_model.use('srv' => 'device')
+        end
         it "should raise if a name to value mapping is invalid for a known child" do
             simple_composition_model.overload('srv', simple_component_model)
             assert_raises(ArgumentError) do

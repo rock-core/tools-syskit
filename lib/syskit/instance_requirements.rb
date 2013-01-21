@@ -297,9 +297,11 @@ module Syskit
                 end
 
                 explicit.each do |child_name, req|
-                    if child = composition_model.find_child(child_name)
-                        if !req.fullfills?(child.to_instance_requirements.base_models)
-                            raise ArgumentError, "cannot use #{req} as a selection for #{child_name}: incompatible with #{child}"
+                    if req.respond_to?(:fullfills?) # Might be a string
+                        if child = composition_model.find_child(child_name)
+                            if !req.fullfills?(child.to_instance_requirements.base_models)
+                                raise ArgumentError, "cannot use #{req} as a selection for #{child_name}: incompatible with #{child}"
+                            end
                         end
                     end
                 end
