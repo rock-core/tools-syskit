@@ -42,20 +42,19 @@ module Syskit::GUI
                 list.clear
                 item_id_to_spec.clear
                 list.add_item(item = make_header_item('Explicit Selection'))
-                model.explicit.each do |key, value|
+                model.dependency_injection.explicit.each do |key, value|
                     list.add_item(item = Qt::ListWidgetItem.new("#{key} => #{value}"))
                     register_item(item, value)
                 end
                 list.add_item(item = make_header_item('Default Selection'))
-                model.defaults.each do |value|
+                model.dependency_injection.defaults.each do |value|
                     list.add_item(item = Qt::ListWidgetItem.new("#{value}"))
                     register_item(item, value)
                 end
                 list.add_item(item = make_header_item('Definitions'))
                 model.definitions.each do |name, value|
                     list.add_item(item = Qt::ListWidgetItem.new("#{name}: #{value}"))
-                    value = value.dup
-                    value.use(model)
+                    value = model.resolved_definition(name)
                     register_item(item, value)
                 end
             end
