@@ -50,7 +50,7 @@ module Syskit
                 syskit_profiles.clear
             end
         end
-        Roby::Actions::InterfaceModel.include InterfaceModelExtension
+        Roby::Actions::Library.include InterfaceModelExtension
         Roby::Actions::Interface.extend InterfaceModelExtension
     end
 end
