@@ -117,10 +117,11 @@ module Syskit
 
             def index(row, column, parent)
                 if info = info_from_index(parent)
-                    create_index(row, column, info.children[row].id)
-                else
-                    Qt::ModelIndex.new
+                    if child_info = info.children[row]
+                        return create_index(row, column, child_info.id)
+                    end
                 end
+                Qt::ModelIndex.new
             end
 
             def parent(child)
