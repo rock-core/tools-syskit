@@ -18,7 +18,6 @@ module Syskit
         #   static inputs are connected.
         class TaskContext < Component
             extend Models::TaskContext
-            Component.submodels << TaskContext
 
             extend Logger::Hierarchy
             include Logger::Hierarchy

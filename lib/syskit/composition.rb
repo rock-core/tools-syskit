@@ -89,8 +89,6 @@ module Syskit
             extend Models::Composition
             include Syskit::PortAccess
 
-            Component.submodels << Composition
-
             abstract
 
             # See Models::Composition#strict_specialization_selection?
