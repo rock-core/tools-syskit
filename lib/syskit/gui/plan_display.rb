@@ -288,6 +288,7 @@ module GUI
                 render_plan(mode, plan, options)
                 emit updated(Qt::Variant.new)
             rescue Exception => e
+                Roby.log_exception_with_backtrace(e, Syskit, :warn)
                 emit updated(Qt::Variant.from_ruby(e))
             end
         end
