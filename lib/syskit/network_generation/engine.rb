@@ -443,7 +443,7 @@ module Syskit
                 # Check that all devices are properly assigned
                 missing_devices = all_tasks.find_all do |t|
                     t.model < Device &&
-                        t.model.each_master_device.any? { |srv| !t.arguments["#{srv.name}_name"] }
+                        t.model.each_master_device.any? { |srv| !t.arguments["#{srv.name}_dev"] }
                 end
                 if !missing_devices.empty?
                     raise DeviceAllocationFailed.new(self, missing_devices),
@@ -454,7 +454,7 @@ module Syskit
                 all_tasks.each do |task|
                     next if !(task.model < Device)
                     task.model.each_master_device do |srv|
-                        device_name = task.arguments["#{srv.name}_name"]
+                        device_name = task.arguments["#{srv.name}_dev"].full_name
                         if old_task = devices[device_name]
                             raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}"
                         else

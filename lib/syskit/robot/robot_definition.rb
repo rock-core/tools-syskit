@@ -98,7 +98,7 @@ module Syskit
                     :using => nil,
                     :expected_model => Syskit::Device,
                     :class => MasterDeviceInstance
-                device_options, task_arguments = Kernel.filter_options device_options,
+                device_options, root_task_arguments = Kernel.filter_options device_options,
                     MasterDeviceInstance::KNOWN_PARAMETERS
 
                 # Check for duplicates
@@ -142,8 +142,6 @@ module Syskit
                     driver_model = driver_model.find_data_service_from_type(device_model)
                 end
 
-                root_task_arguments = { "#{driver_model.name}_name" => name }.
-                    merge(task_arguments)
 
                 device_instance = options[:class].new(
                     self, name, device_model, device_options,

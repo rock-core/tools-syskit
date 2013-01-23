@@ -21,7 +21,7 @@ describe Syskit::Robot::RobotDefinition do
         it "sets the task argument that binds the driver service to the device" do
             driver_model = flexmock(:name => 'dev_srv', :each_slave_data_service => nil)
             device = robot.device(device_m, :using => driver_model, :as => 'dev')
-            assert_equal Hash['dev_srv_name' => 'dev'], device.task_arguments
+            assert_equal Hash['dev_srv_dev' => device], device.task_arguments
         end
         it "validates the given service model against Device by default" do
             driver_model = flexmock(:name => 'dev_srv', :each_slave_data_service => nil)

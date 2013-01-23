@@ -42,6 +42,7 @@ module Syskit
                 @slaves      = Hash.new
                 @conf = Array.new
 
+                task_arguments["#{driver_model.name}_dev"] = self
                 sample_size 1
                 burst   0
             end
@@ -217,7 +218,7 @@ module Syskit
             # represent this device
             def to_instance_requirements
                 driver_model.to_instance_requirements.
-                    with_arguments(task_arguments.merge("#{driver_model}_name" => driver_model.name))
+                    with_arguments(task_arguments)
             end
         end
     end

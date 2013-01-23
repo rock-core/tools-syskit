@@ -12,35 +12,27 @@ describe Syskit::Device do
         flexmock(task_m).new_instances.should_receive(:robot).and_return(robot)
     end
     
-    def register_device(name)
-        @devices[name] = flexmock(name, :name => name)
-    end
-
     describe "#find_device_attached_to" do
         attr_reader :dev0
         before do
             task_m.driver_for device_m, :as => 'dev0'
-            @dev0 = register_device 'DEV0'
+            @dev0 = robot.device device_m, :as => 'DEV0'
         end
         it "should resolve the device attached using a service name" do
-            task = task_m.new "dev0_name" => 'DEV0'
+            task = task_m.new "dev0_dev" => dev0
             assert_equal dev0, task.find_device_attached_to('dev0')
         end
         it "should resolve the device attached using a data service bound to the task instance" do
-            task = task_m.new "dev0_name" => 'DEV0'
+            task = task_m.new "dev0_dev" => dev0
             assert_equal dev0, task.find_device_attached_to(task.dev0_srv)
         end
         it "should resolve the device attached using a data service bound to the task model" do
-            task = task_m.new "dev0_name" => 'DEV0'
+            task = task_m.new "dev0_dev" => dev0
             assert_equal dev0, task.find_device_attached_to(task_m.dev0_srv)
         end
         it "should return nil for services that are not yet attached to a device" do
             task = task_m.new
             assert !task.find_device_attached_to('dev0')
-        end
-        it "should raise if a device name is invalid" do
-            task = task_m.new "dev0_name" => 'BLA'
-            assert_raises(Syskit::SpecError) { task.each_master_device.to_a }
         end
     end
 
@@ -49,17 +41,17 @@ describe Syskit::Device do
         before do
             task_m.driver_for device_m, :as => 'dev0'
             task_m.driver_for device_m, :as => 'dev1'
-            @dev0 = register_device 'DEV0'
-            @dev1 = register_device 'DEV1'
+            @dev0 = robot.device device_m, :as => 'DEV0', :using => task_m.dev0_srv
+            @dev1 = robot.device device_m, :as => 'DEV1', :using => task_m.dev1_srv
         end
         it "should map the driver services to the actual devices using #find_device_attached_to" do
-            task = task_m.new "dev0_name" => 'DEV0', 'dev1_name' => 'DEV1'
+            task = task_m.new "dev0_dev" => dev0, 'dev1_dev' => dev1
             flexmock(task).should_receive(:find_device_attached_to).with(task_m.dev0_srv).once.and_return(dev0)
             flexmock(task).should_receive(:find_device_attached_to).with(task_m.dev1_srv).once.and_return(dev1)
             assert_equal [dev0, dev1].to_set, task.each_master_device.to_set
         end
         it "should yield a given device only once" do
-            task = task_m.new "dev0_name" => 'DEV0', 'dev1_name' => 'DEV0'
+            task = task_m.new "dev0_dev" => dev0, 'dev1_dev' => dev0
             flexmock(task).should_receive(:find_device_attached_to).with(task_m.dev0_srv).once.and_return(dev0)
             flexmock(task).should_receive(:find_device_attached_to).with(task_m.dev1_srv).once.and_return(dev0)
             assert_equal [dev0], task.each_master_device.to_a
@@ -70,7 +62,7 @@ end
 describe Syskit::ComBus do
     include Syskit::SelfTest
 
-    attr_reader :device_driver_m, :combus_driver_m, :combus_m, :combus, :device
+    attr_reader :device_driver_m, :combus_driver_m, :combus_m, :combus, :device, :device_m
     before do
         combus_m = @combus_m = Syskit::ComBus.new_submodel(:message_type => '/double')
         device_m = @device_m = Syskit::Device.new_submodel
@@ -91,23 +83,23 @@ describe Syskit::ComBus do
     end
     describe "#each_com_bus_device" do
         it "lists the combus devices the task is driving" do
-            plan.add(combus_task = combus_driver_m.new('com_name' => 'COM'))
+            plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
             combus_task.each_com_bus_device.to_a
             assert_equal [robot.devices['COM']], combus_task.each_com_bus_device.to_a
         end
     end
     describe "#each_attached_device" do
         it "can list the devices attached to the combus" do
-            plan.add(combus_task = combus_driver_m.new('com_name' => 'COM'))
-            plan.add(device_task = device_driver_m.new('dev_name' => 'DEV'))
+            plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
+            plan.add(device_task = device_driver_m.new('dev_dev' => device))
             assert_equal [robot.devices['DEV']], combus_task.each_attached_device.to_a
         end
     end
     describe "#attach" do
         attr_reader :combus_task, :device_task
         before do
-            plan.add(@combus_task = combus_driver_m.new('com_name' => 'COM'))
-            plan.add(@device_task = device_driver_m.new('dev_name' => 'DEV'))
+            plan.add(@combus_task = combus_driver_m.new('com_dev' => combus))
+            plan.add(@device_task = device_driver_m.new('dev_dev' => device))
             flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv')
         end
         it "creates a service on the combus task" do

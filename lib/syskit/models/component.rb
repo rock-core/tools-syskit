@@ -678,7 +678,7 @@ module Syskit
                 end
 
                 dserv = provides(model, arguments)
-                argument "#{dserv.name}_name"
+                argument "#{dserv.name}_dev"
                 dserv
             end
 

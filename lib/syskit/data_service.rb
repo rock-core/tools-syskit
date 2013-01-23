@@ -77,13 +77,7 @@ module Syskit
                     service = driver_services.first
                 end
 
-                device_name = arguments["#{service.name}_name"]
-                if device_name
-                    if !(device = robot.devices[device_name])
-                        raise SpecError, "#{self} attaches device #{device_name} to #{service.full_name}, but #{device_name} is not a known device"
-                    end
-                    device
-                end
+                arguments["#{service.name}_dev"]
             end
 
             # Alias for #find_device_attached_to for user code
