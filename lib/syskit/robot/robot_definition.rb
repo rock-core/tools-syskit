@@ -139,9 +139,12 @@ module Syskit
                 end
 
                 if driver_model.respond_to?(:find_data_service_from_type)
-                    driver_model = driver_model.find_data_service_from_type(device_model)
+                    driver_model =
+                        begin driver_model.find_data_service_from_type(device_model)
+                        rescue Syskit::AmbiguousServiceSelection => e
+                            raise e, "#{e.message}, select one explicitly with the :using option", e.backtrace
+                        end
                 end
-
 
                 device_instance = options[:class].new(
                     self, name, device_model, device_options,
