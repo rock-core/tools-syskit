@@ -311,20 +311,28 @@ describe Syskit::Models::Composition do
             assert_same root.first_child.first_test_child, root.second_child.second_test_child
         end
 
-        it "looks for a specialization using the explicitly given selections" do
+        it "looks for a specialization using the explicit given selections first and then the default ones" do
             task_m = simple_task_model
             # The value returned by #find_children_models_and_tasks is a
             # name-to-InstanceSelection mapping
-            explicit = Hash['srv' => flexmock(:selected => flexmock(:models => [task_m]))]
+            explicit   = Hash['srv' => flexmock(:selected => flexmock(:models => [task_m]))]
+            selections = Hash['srv2' => flexmock(:selected => flexmock(:models => [task_m]))]
             cmp_m = simple_composition_model
-            subcmp_m = cmp_m.new_submodel
-            flexmock(cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, Hash.new])
-            flexmock(cmp_m.specializations).should_receive(:matching_specialized_model).with('srv' => [task_m]).once.and_return(subcmp_m)
+            subcmp_m = cmp_m.new_submodel(:name => 'Sub')
+            final_cmp_m = subcmp_m.new_submodel(:name => 'Final')
+            flexmock(cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
+            flexmock(cmp_m.specializations, "mng").should_receive(:matching_specialized_model).with('srv' => [task_m]).once.ordered.and_return(subcmp_m)
+            flexmock(subcmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with('srv' => [task_m]).once.ordered.and_return(subcmp_m)
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with('srv2' => [task_m]).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with('srv' => [task_m]).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with('srv2' => [task_m]).once.ordered.and_return(final_cmp_m)
 
-            di = Syskit::DependencyInjectionContext.new
-            args = Hash.new
-            flexmock(subcmp_m).should_receive(:instanciate).with(plan, di, Hash[:task_arguments => Hash[:id => 10], :specialize => true]).once.and_return(result = subcmp_m.new)
-            assert_same result, cmp_m.instanciate(plan, di, :task_arguments => Hash[:id => 10])
+            flexmock(final_cmp_m).should_receive(:new).and_throw(:pass)
+            catch(:pass) do
+                cmp_m.instanciate(plan, Syskit::DependencyInjectionContext.new, :task_arguments => Hash[:id => 10])
+            end
         end
 
         describe "dependency relation definition based on information in the child definition" do
