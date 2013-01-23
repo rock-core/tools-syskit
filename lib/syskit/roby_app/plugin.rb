@@ -412,32 +412,7 @@ module Syskit
             end
 
             def self.clear_models(app)
-                all_models = Component.submodels | DataService.submodels | Deployment.submodels
-                all_models.each do |model|
-                    model.clear_model
-                    next if model.permanent_model?
-
-                    valid_name =
-                        begin
-                            constant(model.name) == model
-                        rescue NameError
-                        end
-
-                    if valid_name
-                        parent_module =
-                            if model.name =~ /::/
-                                model.name.gsub(/::[^:]*$/, '')
-                            else Object
-                            end
-                        constant(parent_module).send(:remove_const, model.name.gsub(/.*::/, ''))
-                    end
-                end
-
-                Component.clear_submodels
-                DataService.clear_submodels
-                Deployment.clear_submodels
                 Orocos.clear
-
                 app.loaded_orogen_projects.clear
             end
 
