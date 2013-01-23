@@ -18,7 +18,7 @@ module Syskit
             # @return [DependencyInjection]
             attr_reader :dependency_injection
             
-            def initialize(name)
+            def initialize(name = nil)
                 @name = name
                 @definitions = Hash.new
                 @used_profiles = Array.new
