@@ -7,6 +7,7 @@ describe Syskit::Actions::InterfaceModelExtension do
         it "should export the profile definitions as actions" do
             req = flexmock
             req.should_receive(:to_instance_requirements).and_return(req)
+            req.should_receive(:dup).and_return(req)
             actions = Class.new(Roby::Actions::Interface)
             profile = Syskit::Actions::Profile.new(nil)
             profile.define('def', req)
@@ -14,7 +15,7 @@ describe Syskit::Actions::InterfaceModelExtension do
 
             act = actions.find_action('def')
             assert act
-            assert_same req, act.requirements
+            assert_equal req, act.requirements
         end
         it "should be so that the exported definitions can be used using the normal action interface" do
             actions = Class.new(Roby::Actions::Interface)
