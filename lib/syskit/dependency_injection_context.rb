@@ -55,14 +55,14 @@ module Syskit
                 end
             end
 
-            def pretty_print(pp)
-                current_state.pretty_print(pp)
-            end
-
             def initialize_copy(obj)
                 @stack = obj.stack.dup
                 @state = obj.state.dup
                 @savepoints  = obj.savepoints.dup
+            end
+
+            def pretty_print(pp)
+                current_state.pretty_print(pp)
             end
 
             # Push all DI information in the given context at the top of the

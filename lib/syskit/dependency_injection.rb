@@ -27,6 +27,28 @@ module Syskit
                 end
             end
 
+            def initialize_copy(from)
+                @resolved = nil
+                @explicit = from.explicit.map_value do |key, obj|
+                    case obj
+                    when InstanceRequirements
+                        obj.dup
+                    else obj
+                    end
+                end
+                @defaults = Set.new
+                from.defaults.each do |obj|
+                    obj =
+                        case obj
+                        when InstanceRequirements
+                            obj.dup
+                        else obj
+                        end
+
+                    @defaults << obj
+                end
+            end
+
             # True if this object contains no selection at all
             def empty?
                 @explicit.empty? && @defaults.empty?
@@ -265,28 +287,6 @@ module Syskit
                 end
 
                 return instance, component_model, selected_services
-            end
-
-            def initialize_copy(from)
-                @resolved = nil
-                @explicit = from.explicit.map_value do |key, obj|
-                    case obj
-                    when InstanceRequirements
-                        obj.dup
-                    else obj
-                    end
-                end
-                @defaults = Set.new
-                from.defaults.each do |obj|
-                    obj =
-                        case obj
-                        when InstanceRequirements
-                            obj.dup
-                        else obj
-                        end
-
-                    @defaults << obj
-                end
             end
 
             # Resolves the selections by generating a direct mapping (as a hash)
