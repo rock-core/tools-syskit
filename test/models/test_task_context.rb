@@ -204,9 +204,9 @@ describe Syskit::Models::TaskContext do
                 should_receive(:define_from_orogen).with(orogen).
                 pass_thru
             flexmock(Syskit::TaskContext).
-                should_receive(:define_from_orogen).with(orogen_parent).
+                should_receive(:define_from_orogen).with(orogen_parent, :register => false).
                 and_return(parent_model)
-            model = Syskit::TaskContext.define_from_orogen(orogen)
+            model = Syskit::TaskContext.define_from_orogen(orogen, :register => false)
             assert_same parent_model, model.superclass
         end
     
