@@ -3,8 +3,14 @@ require 'syskit/test'
 describe Syskit::Models do
     include Syskit::SelfTest
 
+    class ModelStub
+        extend Syskit::Models::Base
+        def permanent_model?; false end
+    end
+
     def model_stub(parent_model = nil)
-        result = Class.new { extend Syskit::Models::Base }
+        result = Class.new(ModelStub)
+        result.permanent_model = false
         flexmock(result).should_receive(:supermodel).and_return(parent_model).by_default
         if parent_model
             parent_model.register_submodel(result)
@@ -41,13 +47,13 @@ describe Syskit::Models do
         end
 
         it "registers the model on the receiver" do
-            sub_model = flexmock
+            sub_model = Class.new(ModelStub)
             base_model.register_submodel(sub_model)
             assert(base_model.each_submodel.find { |m| m == sub_model })
         end
         it "registers the model on the receiver's parent model" do
-            parent_model = flexmock
-            sub_model = flexmock
+            parent_model = Class.new(ModelStub)
+            sub_model = Class.new(ModelStub)
             flexmock(base_model).should_receive(:supermodel).and_return(parent_model)
             flexmock(parent_model).should_receive(:register_submodel).with(sub_model).once
             base_model.register_submodel(sub_model)
