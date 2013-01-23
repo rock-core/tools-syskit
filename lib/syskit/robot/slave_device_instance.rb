@@ -72,6 +72,10 @@ module Syskit
                 req.select_service(service)
                 req
             end
+
+            def to_s
+                "device(#{device_model.short_name}, :as => #{full_name}).#{name}_srv"
+            end
         end
     end
 end

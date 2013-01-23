@@ -47,6 +47,10 @@ module Syskit
                 burst   0
             end
 
+            def to_s
+                "device(#{device_model.short_name}, :as => #{full_name})"
+            end
+
             def full_name
                 name
             end
