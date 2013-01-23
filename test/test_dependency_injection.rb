@@ -16,16 +16,6 @@ describe Syskit::DependencyInjection do
                 di.selection_for('child', Syskit::InstanceRequirements.new)
         end
     end
-
-    describe "#add" do
-        it "can handle other dependency injection objects" do
-            di = Syskit::DependencyInjection.new
-            target = Syskit::DependencyInjection.new
-            flexmock(target).should_receive(:merge).with(di).once
-            flexmock(target).should_receive(:add_default).with([di]).never
-            target.add(di)
-        end
-    end
 end
 
 class TC_DependencyInjection < Test::Unit::TestCase
