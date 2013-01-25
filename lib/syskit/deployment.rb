@@ -139,11 +139,14 @@ module Syskit
                 model.each_default_run_option do |name, value|
                     options[name] = value
                 end
+                prefix = options.delete(:prefix)
+
                 Syskit.info { "starting deployment #{model.deployment_name} on #{host} with #{options}" }
-                @orocos_process = process_server.start(model.deployment_name, 
+                @orocos_process = process_server.start(deployment_name, Hash.new,
                                                           :working_directory => log_dir, 
                                                           :output => "%m-%p.txt", 
                                                           :wait => false,
+                                                          :prefix => prefix,
                                                           :cmdline_args => options)
 
                 Deployment.all_deployments[@orocos_process] = self
