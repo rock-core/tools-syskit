@@ -6,6 +6,10 @@ module Syskit
         #
         # Syskit::ActualDataFlow is the actual global graph instance
         # in which the overall system connections are maintained in practice
+        #
+        # Syskit::RequiredDataFlow is the graph instance that manages concrete
+        # connections between Syskit::TaskContext (i.e. where all the forwarding
+        # through compositions has been removed)
         class ConnectionGraph < BGL::Graph
             # Needed for Roby's marshalling (so that we can dump the connection
             # graph as a constant)
@@ -43,6 +47,53 @@ module Syskit
                     return false
                 end
                 source_task[sink_task, self].has_key?([source_port, sink_port])
+            end
+
+            # Create new connections between +source_task+ and +sink_task+.
+            #
+            # +mappings+ is a map from port name pairs to the connection policy
+            # that should be used:
+            #
+            #    [output_port_name, input_port_name] => policy
+            #
+            # Raises Roby::ModelViolation if the connection already exists with
+            # an incompatible policy
+            def add_connections(source_task, sink_task, mappings) # :nodoc:
+                if mappings.empty?
+                    raise ArgumentError, "the connection set is empty"
+                end
+                if linked?(source_task, sink_task)
+                    current_mappings = source_task[sink_task, self]
+                    new_mappings = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
+                        if old_options.empty? then new_options
+                        elsif new_options.empty? then old_options
+                        elsif old_options != new_options
+                            raise Roby::ModelViolation, "cannot override connection setup with #connect_to (#{old_options} != #{new_options})"
+                        end
+                        old_options
+                    end
+                    source_task[sink_task, self] = new_mappings
+                else
+                    link(source_task, sink_task, mappings)
+                end
+            end
+
+            # Removes the given set of connections between +source_task+ and
+            # +sink_task+.
+            #
+            # +mappings+ is an array of port name pairs [output_port_name,
+            # input_port_name]
+            def remove_connections(source_task, sink_task, mappings) # :nodoc:
+                current_mappings = source_task[sink_task, self]
+                mappings.each do |source_port, sink_port|
+                    current_mappings.delete([source_port, sink_port])
+                end
+                if current_mappings.empty?
+                    unlink(source_task, sink_task)
+                else
+                    # To make the relation system call #update_info
+                    source_task[sink_task, self] = current_mappings
+                end
             end
         end
 
