@@ -92,7 +92,7 @@ module Syskit
                 activity = each_orogen_deployed_task_context_model.
                     find { |act| name == act.name }
                 if !activity
-                    raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}"
+                    raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}, available tasks are #{each_orogen_deployed_task_context_model.map(&:name).sort.join(", ")}"
                 end
 
                 activity_model = TaskContext.model_for(activity.context)
