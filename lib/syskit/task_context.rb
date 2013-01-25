@@ -667,6 +667,28 @@ module Syskit
             def self_port_to_orocos_port(port)
                 orocos_task.find_port(port.type, port.name)
             end
+
+            # Adds a new port to this model based on a known dynamic port
+            # 
+            # @param [String] name the new port's name
+            # @param [Orocos::Spec::DynamicInputPort] port the port model, as
+            #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_input_ports
+            # @return [Port] the new port
+            def instanciate_dynamic_input_port(name, type, port)
+                specialize
+                model.instanciate_dynamic_input_port(name, type, port).bind(self)
+            end
+
+            # Adds a new port to this model based on a known dynamic port
+            # 
+            # @param [String] name the new port's name
+            # @param [Orocos::Spec::DynamicOutputPort] port the port model, as
+            #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_output_ports
+            # @return [Port] the new port's model
+            def instanciate_dynamic_output_port(name, type, port)
+                specialize
+                model.instanciate_dynamic_output_port(name, type, port).bind(self)
+            end
         end
 end
 
