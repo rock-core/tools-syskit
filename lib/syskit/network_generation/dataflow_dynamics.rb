@@ -474,8 +474,8 @@ module Syskit
                     return policy
                 end
 
-                source_port = source_task.find_output_port_model(source_port_name)
-                sink_port   = sink_task.find_input_port_model(sink_port_name)
+                source_port = source_task.model.find_output_port(source_port_name)
+                sink_port   = sink_task.model.find_input_port(sink_port_name)
                 if !source_port
                     raise InternalError, "#{source_port_name} is not a port of #{source_task.model}"
                 elsif !sink_port
@@ -485,11 +485,11 @@ module Syskit
 
                 if !sink_port.needs_reliable_connection?
                     if sink_port.required_connection_type == :data
-                        policy = Port.prepare_policy(:type => :data)
+                        policy = Orocos::Port.prepare_policy(:type => :data)
                         DataFlowDynamics.debug { "     result: #{policy}" }
                         return policy
                     elsif sink_port.required_connection_type == :buffer
-                        policy = Port.prepare_policy(:type => :buffer, :size => 1)
+                        policy = Orocos::Port.prepare_policy(:type => :buffer, :size => 1)
                         DataFlowDynamics.debug { "     result: #{policy}" }
                         return policy
                     end

@@ -263,6 +263,9 @@ module Syskit
             # @return [Array<String,Regexp>]
             attr_reader :sd_publish_list
 
+            # The set of known deployments
+            attribute(:deployments) { Hash.new { |h, k| h[k] = Set.new } }
+
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.
@@ -273,7 +276,7 @@ module Syskit
                 options = Kernel.validate_options options, :on => 'localhost'
 
                 begin
-                    model = Deployment.model_for(name)
+                    model = Deployment.find_model_from_orogen_name(name)
                 rescue ArgumentError
                     model = Roby.app.load_deployment_model(name)
                 end
@@ -362,7 +365,7 @@ module Syskit
             # @raise [ArgumentError] if no such process server exists
             def process_server_for(name)
                 server = Syskit.process_servers[name]
-                if server then return server
+                if server then return server.first
                 else
                     if name == 'localhost' || Roby.app.single?
                         return Orocos.master_project

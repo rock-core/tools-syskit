@@ -65,16 +65,30 @@ module Syskit
                         Robot.info "not automatically logging any port in deployment #{name}"
                     else
                         # Only setup the logger
-                        deployment.orogen_model.setup_logger(
+                        deployment.orocos_process.setup_logger(
                             :log_dir => deployment.log_dir,
-                            :remote => (deployment.machine != 'localhost'))
+                            :remote => (deployment.host != 'localhost'))
                     end
                 end
 
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|
-                    source_port = source_task.find_output_port_model(source_port_name)
+                    source_port = source_task.model.find_output_port(source_port_name)
                     createLoggingPort(sink_port_name, source_task, source_port)
                 end
+            end
+
+            def self.logger_dynamic_port
+                if @logger_dynamic_port
+                    return @logger_dynamic_port
+                end
+
+                ports = Logger::Logger.orogen_model.dynamic_ports.find_all { |p| !p.type && p.kind_of?(Orocos::Spec::InputPort) }
+                if ports.size > 1
+                    raise InternalError, "oroGen's logger::Logger task should have only one catch-all dynamic input port"
+                elsif ports.empty?
+                    raise InternalError, "oroGen's logger::Logger task should have one catch-all dynamic input port, and has none"
+                end
+                @logger_dynamic_port = ports.first
             end
 
             # Configures each running deployment's logger, based on the
@@ -113,9 +127,6 @@ module Syskit
 
                         t.model.each_output_port do |p|
                             all_ports << [p.name, p]
-                        end
-                        t.instanciated_dynamic_outputs.each do |port_name, port_model|
-                            all_ports << [port_name, port_model]
                         end
 
                         all_ports.each do |port_name, p|
@@ -165,12 +176,12 @@ module Syskit
                     end
                     required_connections.each do |task, connections|
                         connections = connections.map_value do |(port_name, log_port_name), policy|
-                            out_port = task.find_output_port_model(port_name)
+                            out_port = task.model.find_output_port(port_name)
 
-                            if !logger_task.find_input_port_model(log_port_name)
-                                logger_task.instanciate_dynamic_input(log_port_name, out_port.type)
+                            if !logger_task.model.find_input_port(log_port_name)
+                                logger_task.instanciate_dynamic_input_port(log_port_name, out_port.type, logger_dynamic_port)
                             end
-                            dataflow_dynamics.policy_for(task, port_name, log_port_name, logger_task, policy)
+                            engine.dataflow_dynamics.policy_for(task, port_name, log_port_name, logger_task, policy)
                         end
 
                         task.connect_ports(logger_task, connections)

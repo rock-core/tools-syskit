@@ -33,8 +33,6 @@ module Syskit
             attr_reader :robot
             # A name => Task mapping of tasks we built so far
             attr_reader :tasks
-            # The set of deployment names we should use
-            attr_reader :deployments
             # A mapping from requirement tasks in the real plan to the tasks
             # that have been instantiated in the working plan
             #
@@ -123,7 +121,6 @@ module Syskit
                 @use_automatic_selection = true
 
                 @tasks     = Hash.new
-                @deployments = Hash.new { |h, k| h[k] = Set.new }
                 @main_automatic_selection = DependencyInjection.new
 
                 @service_allocation_candidates = Hash.new
@@ -141,13 +138,19 @@ module Syskit
             # This is used for error message generation / debugging purposes
             attr_reader :service_allocation_candidates
 
+            # Returns the set of deployments that are available for this network
+            # generation
+            def available_deployments
+                Syskit.conf.deployments
+            end
+
             # Computes the set of task context models that are available in
             # deployments
             def compute_deployed_models
                 deployed_models = ValueSet.new
 
                 new_models = ValueSet.new
-                deployments.each do |machine_name, deployment_models|
+                available_deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
                         model.orogen_model.task_activities.each do |deployed_task|
                             new_models << TaskContext.model_for(deployed_task.task_model)
@@ -308,8 +311,8 @@ module Syskit
                 main_selection = compute_main_dependency_injection
 
                 real_plan.find_tasks(InstanceRequirementsTask).
+                    running.
                     each do |req_task|
-                        next if req_task.failed? || req_task.pending?
                         next if !req_task.planned_task || req_task.planned_task.finished?
 
                         req = req_task.requirements
@@ -476,7 +479,7 @@ module Syskit
             #   the known ways this task context model could be deployed
             def compute_task_context_deployment_candidates
                 deployed_models = Hash.new
-                deployments.each do |machine_name, deployment_models|
+                available_deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
                         model.each_orogen_deployed_task_context_model do |deployed_task|
                             task_model = TaskContext.model_for(deployed_task.task_model)
@@ -548,7 +551,7 @@ module Syskit
                     # task.model would be wrong here as task.model could be the
                     # singleton class (if there are dynamic services)
                     candidates = deployed_models[task.class]
-                    if candidates.empty?
+                    if !candidates || candidates.empty?
                         debug { "no deployments found for #{task} (#{task.model.short_name})" }
                         missing_deployments << task
                         next

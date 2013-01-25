@@ -311,7 +311,7 @@ module Syskit
                 end
 
                 # Do *not* manage the log directory for that one ...
-                register_process_server('localhost', client, Roby.app.log_dir)
+                Syskit.register_process_server('localhost', client, Roby.app.log_dir)
             end
 
 
