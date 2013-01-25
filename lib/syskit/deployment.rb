@@ -24,12 +24,14 @@ module Syskit
         class Deployment < ::Roby::Task
             extend Models::Deployment
 
-            def initialize(arguments = Hash.new)
-	    	opts, task_arguments = Kernel.filter_options arguments, :log => true, :on => 'localhost'
-		task_arguments[:log] = opts[:log]
-		task_arguments[:on] = opts[:on]
-                super(task_arguments)
-	    end
+            argument :log, :default => true
+            argument :on, :default => 'localhost'
+            argument :deployment_name, :default => from(:model).deployment_name
+
+            def initialize(options = Hash.new)
+                super
+                freeze_delayed_arguments
+            end
 
             @@all_deployments = Hash.new
             class << self
@@ -78,15 +80,6 @@ module Syskit
             # It takes into account deployment prefix
             def each_orogen_deployed_task_context_model(&block)
                 model.each_orogen_deployed_task_context_model(&block)
-            end
-
-            # The unique name for this particular deployment instance
-            #
-            # It takes into account deployment prefix
-            #
-            # @return [String]
-            def deployment_name
-                model.deployment_name
             end
 
             # Returns an task instance that represents the given task in this

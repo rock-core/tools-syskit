@@ -1,6 +1,6 @@
 require 'syskit/test'
 
-describe Syskit::TaskContext do
+describe Syskit::Deployment do
     include Syskit::SelfTest
 
     attr_reader :deployment_task, :task_m, :orogen_deployed_task, :deployment_m
@@ -10,6 +10,25 @@ describe Syskit::TaskContext do
         @orogen_deployed_task = orogen_model.task 'task', task_m.orogen_model
         @deployment_m = Syskit::Deployment.new_submodel(:orogen_model => orogen_model)
         plan.add(@deployment_task = deployment_m.new)
+    end
+
+    describe "#initialize" do
+        it "should use the model name as default deployment name" do
+            model = Orocos::Spec::Deployment.new(nil, "test")
+            deployment_m = Syskit::Deployment.new_submodel(:orogen_model => model)
+            deployment = deployment_m.new
+            assert_equal "test", deployment.deployment_name
+        end
+
+        it "sets the target host to localhost by default" do
+            task = Syskit::Deployment.new_submodel.new
+            assert_equal 'localhost', task.host
+        end
+
+        it "allows to access the value of the :on argument through the #host method" do
+            task = Syskit::Deployment.new_submodel.new(:on => 'bla')
+            assert_equal 'bla', task.host
+        end
     end
 
     describe "#pid" do
@@ -77,20 +96,6 @@ describe Syskit::TaskContext do
         end
     end
 
-    describe "#initialize" do
-        it "sets the target host to localhost by default" do
-            task = Syskit::Deployment.new
-            assert_equal 'localhost', task.host
-        end
-    end
-
-    describe "#host" do
-        it "returns the name of the process server this deployment should be started on" do
-            task = Syskit::Deployment.new(:on => 'bla')
-            assert_equal 'bla', task.host
-        end
-    end
-
     describe "runtime behaviour" do
         attr_reader :process_server, :process, :log_dir
         before do
@@ -101,7 +106,7 @@ describe Syskit::TaskContext do
             process.should_receive(:wait_running).by_default
             @log_dir = flexmock('log_dir')
             Syskit.register_process_server('bla', process_server, log_dir)
-            deployment_task.arguments[:on] = 'bla'
+            plan.add(@deployment_task = deployment_m.new(:on => 'bla'))
         end
         after do
             if deployment_task.running?
@@ -111,22 +116,22 @@ describe Syskit::TaskContext do
 
         describe "start_event" do
             it "finds the process server from Syskit.process_servers and its 'on' option" do
-                process_server.should_receive(:start).once.with('deployment', any).and_return(process)
+                process_server.should_receive(:start).once.with('deployment', any, any).and_return(process)
                 deployment_task.start!
             end
             it "passes the process server's log dir as working directory" do
-                process_server.should_receive(:start).once.with(any, hsh(:working_directory => log_dir)).and_return(process)
+                process_server.should_receive(:start).once.with(any, any, hsh(:working_directory => log_dir)).and_return(process)
                 deployment_task.start!
             end
             it "passes the model-level run command line options to the process server start command" do
                 cmdline_options = {:valgrind => true}
                 deployment_m.default_run_options.merge!(cmdline_options)
-                process_server.should_receive(:start).with(any, hsh(:cmdline_args => cmdline_options)).and_return(process)
+                process_server.should_receive(:start).with(any, any, hsh(:cmdline_args => cmdline_options)).and_return(process)
                 deployment_task.start!
             end
             it "raises if the on option refers to a non-existing process server" do
-                deployment_task.arguments[:on] = 'bla'
-                assert_raises(Roby::CommandFailed) { deployment_task.start! }
+                plan.add(task = deployment_m.new(:on => 'bla'))
+                assert_raises(Roby::CommandFailed) { task.start! }
             end
             it "does not emit ready" do
                 process_server.should_receive(:start).and_return(process)
