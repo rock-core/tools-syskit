@@ -311,8 +311,8 @@ module Syskit
                 main_selection = compute_main_dependency_injection
 
                 real_plan.find_tasks(InstanceRequirementsTask).
-                    running.
                     each do |req_task|
+                        next if req_task.failed? || req_task.pending?
                         next if !req_task.planned_task || req_task.planned_task.finished?
 
                         req = req_task.requirements
@@ -332,7 +332,9 @@ module Syskit
                 # Get all the tasks that need at least one communication bus
                 candidates = work_plan.find_local_tasks(Syskit::Device).
                     inject(Hash.new) do |h, t|
-                        required_busses = t.each_com_bus_device.to_a
+                        required_busses = t.each_master_device.inject(Array.new) do |list, dev|
+                            list + dev.com_busses
+                        end.to_set
                         if !required_busses.empty?
                             h[t] = required_busses
                         end
@@ -446,7 +448,7 @@ module Syskit
                 # Check that all devices are properly assigned
                 missing_devices = all_tasks.find_all do |t|
                     t.model < Device &&
-                        t.model.each_master_device.any? { |srv| !t.arguments["#{srv.name}_dev"] }
+                        t.model.each_master_driver_service.any? { |srv| !t.find_device_attached_to(srv) }
                 end
                 if !missing_devices.empty?
                     raise DeviceAllocationFailed.new(self, missing_devices),
@@ -456,8 +458,8 @@ module Syskit
                 devices = Hash.new
                 all_tasks.each do |task|
                     next if !(task.model < Device)
-                    task.model.each_master_device do |srv|
-                        device_name = task.arguments["#{srv.name}_dev"].full_name
+                    task.each_master_device do |dev|
+                        device_name = dev.full_name
                         if old_task = devices[device_name]
                             raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}"
                         else

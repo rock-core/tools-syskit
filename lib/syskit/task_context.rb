@@ -620,7 +620,7 @@ module Syskit
 
                 # Then set per-device configuration options
                 if respond_to?(:each_master_device)
-                    each_master_device do |_, device|
+                    each_master_device do |device|
                         if device.configuration
                             apply_configuration(device.configuration)
                         elsif device.configuration_block

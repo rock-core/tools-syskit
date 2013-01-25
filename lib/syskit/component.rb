@@ -38,6 +38,11 @@ module Syskit
             # instanciated.
             attr_reader :requirements
 
+            # The PortDynamics object that holds the dynamics information
+            # computed for this task (not its ports)
+            # @return [NetworkGeneration::PortDynamics]
+            attr_accessor :dynamics
+
             # Returns the Robot::RobotDefinition that describes the robot we are
             # running on
             #

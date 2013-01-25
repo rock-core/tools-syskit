@@ -248,16 +248,16 @@ module Syskit
 
                         begin
                             if !source.disconnect_from(sink)
-                                Engine.warn "while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port} returned false"
-                                Engine.warn "I assume that the ports are disconnected, but this should not have happened"
+                                warn "while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port} returned false"
+                                warn "I assume that the ports are disconnected, but this should not have happened"
                             end
 
                         rescue Orocos::NotFound => e
-                            Engine.warn "error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
-                            Engine.warn "I am assuming that the disconnection is actually effective, since one port does not exist anymore"
-                        rescue CORBA::ComError => e
-                            Engine.warn "CORBA error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
-                            Engine.warn "I am assuming that the source component is dead and that therefore the connection is actually effective"
+                            warn "error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
+                            warn "I am assuming that the disconnection is actually effective, since one port does not exist anymore"
+                        rescue Orocos::ComError => e
+                            warn "Communication error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
+                            warn "I am assuming that the source component is dead and that therefore the connection is actually effective"
                         end
 
                         ActualDataFlow.remove_connections(source_task, sink_task,
@@ -303,7 +303,7 @@ module Syskit
                             from_task.orocos_task.port(from_port).connect_to(to_task.orocos_task.port(to_port), policy)
                             ActualDataFlow.add_connections(from_task.orocos_task, to_task.orocos_task,
                                                        [from_port, to_port] => policy)
-                        rescue CORBA::ComError
+                        rescue Orocos::ComError
                             # The task will be aborted. Simply ignore
                         rescue Orocos::InterfaceObjectNotFound => e
                             if e.task == from_task.orocos_task && e.name == from_port

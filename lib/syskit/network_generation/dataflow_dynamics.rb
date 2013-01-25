@@ -204,7 +204,9 @@ module Syskit
 
             # Adds triggering information from the attached devices to +task+'s ports
             def initial_device_information(task)
-                triggering_devices = task.each_master_device.to_a
+                triggering_devices = task.model.each_master_driver_service.map do |srv|
+                    [srv, task.find_device_attached_to(srv)]
+                end
                 DataFlowDynamics.debug do
                     DataFlowDynamics.debug "initial port dynamics on #{task} (device)"
                     DataFlowDynamics.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(", ")}"
@@ -246,8 +248,9 @@ module Syskit
 
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
                     add_task_info(task, device_dynamics)
-                    service.each_task_output_port(true) do |out_port|
-                        out_port.triggered_on_update = false
+                    service.each_output_port do |out_port|
+                        out_port = out_port.to_component_port
+                        out_port.model.orogen_model.triggered_on_update = false
                         add_port_info(task, out_port.name, device_dynamics)
                         done_port_info(task, out_port.name)
                     end
@@ -260,8 +263,9 @@ module Syskit
                 DataFlowDynamics.debug { "  is triggered with a period of #{period} seconds" }
 
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
-                    service.each_task_output_port(true) do |out_port|
-                        out_port.triggered_on_update = false
+                    service.each_output_port do |out_port|
+                        out_port = out_port.to_component_port
+                        out_port.model.orogen_model.triggered_on_update = false
                         add_port_trigger(task, out_port.name,
                             device.name, period, device_dynamics.queue_size(period))
                         done_port_info(task, out_port.name)
@@ -294,6 +298,11 @@ module Syskit
                 set_port_info(task, nil, PortDynamics.new("#{task.orocos_name}.main"))
                 task.model.each_output_port do |port|
                     create_port_info(task, port.name)
+                end
+
+                add_task_info(task, task.requirements.dynamics.task)
+                task.requirements.dynamics.ports.each do |port_name, dynamics|
+                    add_port_info(port_name, dynamics)
                 end
 
                 if task.kind_of?(Device)
@@ -538,7 +547,7 @@ module Syskit
                     end
                 else
                     policy[:type] = :buffer
-                    size = (1.0 + Syskit.buffer_size_margin) * input_dynamics.queue_size(reading_latency)
+                    size = (1.0 + Syskit.conf.buffer_size_margin) * input_dynamics.queue_size(reading_latency)
                     policy[:size] = Integer(size) + 1
                     DataFlowDynamics.debug do
                         DataFlowDynamics.debug "     input_period:#{input_dynamics.minimal_period} => reading_latency:#{reading_latency}"

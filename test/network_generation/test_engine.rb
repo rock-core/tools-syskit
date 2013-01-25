@@ -410,6 +410,24 @@ describe Syskit::NetworkGeneration::Engine do
             return task.task, original_task, task.planning_task
         end
 
+        it "deploys a mission as mission" do
+            task_model = Syskit::TaskContext.new_submodel
+            deployment = stub_roby_deployment_model(task_model, 'task')
+            plan.add_mission(original_task = task_model.as_plan)
+            deployed, original_task, planning_task = deploy_task(original_task)
+            refute_same deployed, original_task
+            assert plan.mission?(deployed)
+        end
+
+        it "deploys a permanent task as permanent" do
+            task_model = Syskit::TaskContext.new_submodel
+            deployment = stub_roby_deployment_model(task_model, 'task')
+            plan.add_permanent(original_task = task_model.as_plan)
+            deployed, original_task, planning_task = deploy_task(original_task)
+            refute_same deployed, original_task
+            assert plan.permanent?(deployed)
+        end
+
         it "reconfigures a child task if needed" do
             task_model = Syskit::TaskContext.new_submodel
             composition_model = Syskit::Composition.new_submodel do

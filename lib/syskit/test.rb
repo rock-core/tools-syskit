@@ -231,6 +231,8 @@ module Syskit
         include FlexMock::ArgumentTypes
         include FlexMock::MockContainer
 
+        attr_reader :robot
+
         def setup
             Roby.app.using 'syskit'
             Syskit.conf.disables_local_process_server = true
@@ -243,6 +245,8 @@ module Syskit
                 Syskit::RobyApp::Plugin.unplug_engine_from_roby(@handler_ids, engine)
                 @handler_ids = nil
             end
+
+            @robot = Syskit::Robot::RobotDefinition.new
         end
 
         def teardown

@@ -38,6 +38,7 @@ module Syskit
                 @sd_publish_list = []
                 @ignore_missing_orogen_projects_during_load = false
                 @ignore_load_errors = false
+                @buffer_size_margin = 0.1
 
                 @log_groups = { nil => LogGroup.new(false) }
 
@@ -265,6 +266,14 @@ module Syskit
 
             # The set of known deployments
             attribute(:deployments) { Hash.new { |h, k| h[k] = Set.new } }
+
+            # Margin added to computed buffer sizes
+            #
+            # The final buffer size is computed_size * margin rounded upwards.
+            # The default is 10% (0.1)
+            #
+            # @return [Float]
+            attr_reader :buffer_size_margin
 
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
