@@ -39,18 +39,6 @@ module Syskit
             # The execution engine
             attr_reader :syskit_engine
 
-            # @overload robot the robot definition
-            #   @returns [Robot::RobotDefinition]
-            # @overload robot { } modifies the robot definition
-            #   @returns [Robot::RobotDefinition]
-            def robot
-                if block_given?
-                    syskit_engine.robot.instance_eval(&proc)
-                else
-                    syskit_engine.robot
-                end
-            end
-
             def prepare_plan(options)
                 result = super
 
