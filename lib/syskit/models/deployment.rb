@@ -50,6 +50,9 @@ module Syskit
 
                 klass.orogen_model = options[:orogen_model] ||
                     Orocos::Spec::Deployment.new(Orocos.master_project, options[:name])
+                if block_given?
+                    klass.orogen_model.instance_eval(&proc)
+                end
                 register_submodel(klass)
                 klass
             end
