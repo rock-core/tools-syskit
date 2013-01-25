@@ -24,6 +24,18 @@ module Syskit
             # deployment names). New hints can be added with #use_deployments
             attr_reader :deployment_hints
 
+            # Custom specification of task dynamics. This is not used as
+            # requirements, but more exactly as hints to the dataflow dynamics
+            # computations
+            # @return [Dynamics]
+            attr_reader :dynamics
+
+            Dynamics = Struct.new :task, :ports do
+                dsl_attribute 'period' do |value|
+                    task.add_trigger('period', Float(value), 1)
+                end
+            end
+
             def plain?
                 arguments.empty? && selections.empty?
             end
@@ -34,6 +46,7 @@ module Syskit
                 @selections = DependencyInjection.new
                 @dependency_injection_context = DependencyInjectionContext.new
                 @deployment_hints = Set.new
+                @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), [])
             end
 
             def initialize_copy(old)
