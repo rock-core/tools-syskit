@@ -347,6 +347,7 @@ module Syskit
             # Use the specified hints to select deployments
             def use_deployments(*patterns)
                 @deployment_hints |= patterns.to_set
+                self
             end
 
             # Computes the value of +model+ based on the current selection
