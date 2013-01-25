@@ -189,7 +189,6 @@ module Syskit
 
                     Roby::TaskStructure::Dependency.each_bfs(root_task, BGL::Graph::ALL) do |from, to, info, kind|
                         planner = to.planning_task
-                        puts "task=#{to} planner=#{planner}"
                         if planner.kind_of?(InstanceRequirementsTask)
                             requirements << planner.arguments[:name]
                         end

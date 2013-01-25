@@ -14,9 +14,6 @@ module Syskit
                     Syskit::DependencyInjectionContext.new)
                 main_plan.add(task)
                 task
-            rescue Exception => e
-                puts "E: #{e}"
-                raise
             end
 
             def render_data_services(task)

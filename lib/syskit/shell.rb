@@ -118,7 +118,6 @@ module Syskit
             def reload_config
                 Roby.app.find_dirs('config', 'orogen','ROBOT', :all => true, :order => :specific_last).each do |dir|
                         changed = Orocos.conf.load_dir(dir)
-                        puts "changed: #{changed}"
                         mark_changed_configuration_as_not_reusable(changed)
                 end
                 nil
