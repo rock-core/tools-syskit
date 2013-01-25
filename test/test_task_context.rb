@@ -584,5 +584,30 @@ describe Syskit::TaskContext do
             task.configure
         end
     end
+
+    describe "interrupt_event" do
+        attr_reader :task, :orocos_task, :deployment
+        before do
+            task_m = Syskit::TaskContext.new_submodel
+            @deployment = stub_syskit_deployment('deployment') do
+                task "task", task_m.orogen_model
+            end
+            @task = deployment.task "task"
+            task.conf = ['default']
+
+            @handler_ids = Syskit::RobyApp::Plugin.plug_engine_in_roby(engine)
+        end
+        it "calls stop on the task if it has an execution agent in nominal state" do
+            plan.add_mission(task)
+            deployment.start!
+            task.setup
+            task.is_setup!
+            task.start!
+            assert_event_emission task.start_event
+            flexmock(task.orocos_task).should_receive(:stop).once.pass_thru
+            task.interrupt!
+            assert_event_emission task.stop_event
+        end
+    end
 end
 

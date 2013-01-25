@@ -16,6 +16,7 @@ require 'syskit'
 require 'roby'
 require 'roby/test/common'
 require 'roby/schedulers/temporal'
+require 'orocos/ruby_process_server'
 
 require 'test/unit'
 require 'flexmock/test_unit'
@@ -82,18 +83,28 @@ module Syskit
                 orogen_model = Orocos::Spec::Deployment.new(Orocos.master_project, name)
                 orogen_model.task name, task_model.orogen_model
                 model = Deployment.new_submodel(:orogen_model => orogen_model)
-                syskit_engine.deployments['localhost'] << model
+                Syskit.conf.deployments['localhost'] << model
                 model
+            end
+
+            def stub_syskit_deployment(name = "deployment", deployment_model = nil, &block)
+                deployment_model ||= Deployment.new_submodel(:name => name, &block)
+                Syskit.process_servers['stubs'].first.
+                    register_deployment_model(deployment_model.orogen_model)
+                plan.add(task = deployment_model.new(:on => 'stubs'))
+                task
             end
 
             def stub_deployed_task(name, task)
                 task.orocos_task = Orocos::RubyTaskContext.from_orogen_model(name, task.model.orogen_model)
+                task.executed_by stub_roby_deployment
             end
 
             def setup
                 @old_loglevel = Orocos.logger.level
                 Roby.app.using 'syskit'
                 Roby.app.filter_backtraces = false
+                Syskit.process_servers['stubs'] = [Orocos::RubyProcessServer.new, ""]
 
                 super
 
@@ -151,13 +162,16 @@ module Syskit
 
             attr_predicate :keep_logs?, true
 
-            def deploy(&block)
+            def deploy(base_task = nil, &block)
                 if engine.running?
                     execute do
                         syskit_engine.redeploy
                     end
                     engine.wait_one_cycle
                 else
+                    if base_task && !base_task.planning_task.running?
+                        base_task.planning_task.start!
+                    end
                     syskit_engine.resolve
                 end
                 if block_given?
