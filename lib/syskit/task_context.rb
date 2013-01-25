@@ -510,7 +510,7 @@ module Syskit
             #
             # Interrupts the execution of this task context
             event :interrupt do |context|
-	        Robot.info "interrupting #{name}"
+	        ::Robot.info "interrupting #{name}"
                 begin
 		    if !orocos_task # already killed
 		        emit :interrupt
@@ -575,7 +575,7 @@ module Syskit
             forward :fatal_error => :failed
 
             on :aborted do |event|
-	        Robot.info "#{event.task} has been aborted"
+	        ::Robot.info "#{event.task} has been aborted"
                 @orocos_task = nil
             end
 
@@ -609,7 +609,7 @@ module Syskit
                 # Note: it can only set properties
                 conf = self.conf
                 if Orocos.conf.apply(orocos_task, conf, true)
-                    Robot.info "applied configuration #{conf} to #{orocos_task.name}"
+                    ::Robot.info "applied configuration #{conf} to #{orocos_task.name}"
                 end
 
                 # Then set configuration stored in Syskit.conf
@@ -641,7 +641,7 @@ module Syskit
                     if orocos_task.has_property?(name)
                         orocos_task.send("#{name}=", value)
                     else
-                        Robot.warn "ignoring field #{name} in configuration of #{orocos_name} (#{model.name})"
+                        ::Robot.warn "ignoring field #{name} in configuration of #{orocos_name} (#{model.name})"
                     end
                 end
             end
