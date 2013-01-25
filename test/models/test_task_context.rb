@@ -147,6 +147,13 @@ describe Syskit::Models::TaskContext do
         end
     end
 
+    describe "#find_model_by_orogen" do
+        it "returns nil on unknown orogen models" do
+            model = Orocos::Spec::TaskContext.new
+            assert !Syskit::TaskContext.find_model_by_orogen(model)
+        end
+    end
+
     describe "#model_for" do
         it "raises ArgumentError on unknown orogen models" do
             model = Orocos::Spec::TaskContext.new

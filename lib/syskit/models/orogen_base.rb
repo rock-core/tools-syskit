@@ -2,19 +2,8 @@ module Syskit
     module Models
         # Base functionality for model classes that deal with oroGen models
         module OrogenBase
-            # [Hash{Orocos::Spec::TaskContext => TaskContext}] a cache of
-            # mappings from oroGen task context models to the corresponding
-            # Syskit task context model
-            attribute(:orogen_model_to_syskit_model) { Hash.new }
-
-            def register_submodel(klass)
-                super
-                orogen_model_to_syskit_model[klass.orogen_model] = klass
-            end
-
             def deregister_submodels(set)
                 set.each do |m|
-                    orogen_model_to_syskit_model.delete(m.orogen_model)
                     needs_removal =
                         begin
                             m == constant("::#{m.name}")
@@ -31,14 +20,14 @@ module Syskit
 
             # Checks whether a syskit model exists for the given orogen model
             def has_model_for?(orogen_model)
-                !!orogen_model_to_syskit_model[orogen_model]
+                !!each_submodel.find { |m| m.orogen_model == orogen_model }
             end
 
             # Finds the Syskit model that represents an oroGen model with that
             # name
             def find_model_from_orogen_name(name)
-                orogen_model_to_syskit_model.each do |orogen_model, syskit_model|
-                    if orogen_model.name == name
+                each_submodel do |syskit_model|
+                    if syskit_model.orogen_model.name == name
                         return syskit_model
                     end
                 end
@@ -51,7 +40,12 @@ module Syskit
             # @return [Syskit::TaskContext,Syskit::Deployment,nil] the
             #   corresponding syskit model, or nil if there are none registered
             def find_model_by_orogen(orogen_model)
-                orogen_model_to_syskit_model[orogen_model]
+                each_submodel do |syskit_model|
+                    if syskit_model.orogen_model == orogen_model
+                        return syskit_model
+                    end
+                end
+                nil
             end
 
             # Returns the syskit model for the given oroGen model
