@@ -151,6 +151,10 @@ module Syskit
                 InstanceRequirements.new([self]).with_arguments(*spec, &block)
             end
 
+            def use_deployments(*selection)
+                to_instance_requirements.use_deployments(*selection)
+            end
+
             # @deprecated
             def use_conf(*spec, &block)
                 with_conf(*spec, &block)
