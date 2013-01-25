@@ -1,4 +1,5 @@
 require 'orocos'
+require 'orocos/process_server'
 require 'roby'
 require 'orogen'
 
