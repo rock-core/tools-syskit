@@ -417,7 +417,7 @@ module Syskit
             end
 
             def self.cleanup(app)
-                app.syskit_engine.robot.clear
+                Syskit.conf.deployments.clear
                 stop_process_servers
                 stop_local_process_server
             end
