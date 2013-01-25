@@ -11,6 +11,8 @@ module Syskit
             # The device slaves, as a mapping from the slave's name to the
             # SlaveDeviceInstance object
             attr_reader :slaves
+            # The communication busses this device is attached to
+            attr_reader :com_busses
 
             def model; device_model end
 
@@ -41,6 +43,7 @@ module Syskit
                     robot, name, device_model, driver_model, task_arguments
                 @slaves      = Hash.new
                 @conf = Array.new
+                @com_busses = Array.new
 
                 task_arguments["#{driver_model.name}_dev"] = self
                 sample_size 1
@@ -68,22 +71,9 @@ module Syskit
                 self
             end
 
-            # Returns the names of the com busses this device instance is
-            # connected to
-            def com_bus_names
-                result = []
-                @task_arguments.each do |arg_name, bus_name|
-                    if arg_name.to_s =~ /_com_bus$/ && bus_name
-                        result << bus_name
-                    end
-                end
-                result
-            end
-
             # True if this device is attached to the given combus
             def attached_to?(com_bus)
-                com_bus = com_bus.name if com_bus.respond_to?(:name)
-                task_arguments["#{driver_model.name}_com_bus"] == com_bus
+                com_busses.include?(com_bus)
             end
 
             # The data service of {#task_model} that is used to receive data from
@@ -111,26 +101,18 @@ module Syskit
 	    #   driver task context that should be used to send data to the
 	    #   communication bus. It is needed only if there is an ambiguity
             def attach_to(com_bus, options = Hash.new)
-                if !com_bus.respond_to?(:name)
-                    com_bus_name = com_bus.to_str
-                    com_bus = robot.devices[com_bus_name]
-                    if !com_bus
-                        raise ArgumentError, "#{com_bus_name} is not a known communication bus"
-                    end
-                end
-
                 client_in_srv = com_bus.model.client_in_srv
                 client_out_srv = com_bus.model.client_out_srv
 
 		options = Kernel.validate_options options,
 		    :in => nil, :out => nil
-                task_arguments["#{driver_model.name}_com_bus"] = com_bus.name
 
                 @combus_in_srv  = find_combus_client_srv(com_bus.model.client_in_srv, options[:in])
                 @combus_out_srv = find_combus_client_srv(com_bus.model.client_out_srv, options[:out])
 		if !combus_out_srv && !combus_in_srv
 		    raise ArgumentError, "#{driver_model.component_model.short_name} provides neither an input nor an output service for combus #{com_bus.name}"
 		end
+                com_busses << com_bus
                 com_bus.model.apply_attached_device_configuration_extensions(self)
                 self
             end
