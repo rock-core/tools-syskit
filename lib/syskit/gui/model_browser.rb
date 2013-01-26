@@ -10,6 +10,8 @@ module Syskit
             # hierarchy
             attr_reader :model_selector
 
+            attr_reader :exception_view
+
             def initialize(main = nil)
                 super
 
@@ -21,7 +23,7 @@ module Syskit
                 main_layout.add_layout(central_layout, 3)
                 splitter = Qt::Splitter.new(self)
                 central_layout.add_widget(splitter)
-                exception_view = ExceptionView.new
+                @exception_view = ExceptionView.new
                 main_layout.add_widget(exception_view, 1)
 
 
@@ -30,11 +32,11 @@ module Syskit
                 btn_reload_models.connect(SIGNAL(:clicked)) do
                     Roby.app.clear_exceptions
                     Roby.app.reload_models
-                    exception_view.exceptions = Roby.app.registered_exceptions
+                    update_exceptions
                     model_selector.reload
                 end
                 menu_layout.add_stretch(1)
-                exception_view.exceptions = Roby.app.registered_exceptions
+                update_exceptions
 
                 add_central_widgets(splitter)
             end
@@ -55,7 +57,10 @@ module Syskit
                 splitter.set_stretch_factor(1, 2)
                 # Pre-create all the necessary display views
                 views.each do |model, view|
-                    view << display_selector.add_widget(view[0].new(splitter))
+                    view << display_selector.add_widget(widget = view[0].new(splitter))
+                    widget.connect(SIGNAL(:updated)) do
+                        update_exceptions
+                    end
                 end
 
                 model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
@@ -66,11 +71,20 @@ module Syskit
                         end
                     end
                     if has_view
-                        display_selector.current_widget.render(mod)
+                        begin
+                            display_selector.current_widget.render(mod)
+                        rescue ::Exception => e
+                            Roby.app.register_exception(e, "while rendering #{mod}")
+                            update_exceptions
+                        end
                     else
                         Kernel.raise ArgumentError, "no view available for #{mod.class} (#{mod})"
                     end
                 end
+            end
+
+            def update_exceptions
+                exception_view.exceptions = Roby.app.registered_exceptions
             end
 
             # (see ModelSelector#select_by_module)
