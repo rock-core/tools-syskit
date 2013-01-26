@@ -666,6 +666,43 @@ module Syskit
                 end
             end
 
+            def resolve_selection_and_specialization(context)
+                explicit_selections, selected_models =
+                    find_children_models_and_tasks(context)
+
+                specialization_selector = explicit_selections.map_value do |_, sel|
+                    sel.selected.models
+                end
+                specialized_model = specializations.matching_specialized_model(specialization_selector)
+                if specialized_model != self
+                    return specialized_model.resolve_selection_and_specialization(context)
+                end
+
+                specialization_selector = selected_models.map_value do |_, sel|
+                    sel.selected.models
+                end
+                specialized_model = specializations.matching_specialized_model(specialization_selector)
+                if specialized_model != self
+                    return specialized_model.resolve_selection_and_specialization(context)
+                end
+                return explicit_selections, selected_models, self
+            end
+
+            def find_applicable_specialization_from_selection(explicit_selections, selections)
+                specialization_selector = explicit_selections.map_value do |_, sel|
+                    sel.selected.models
+                end
+                specialized_model = specializations.matching_specialized_model(specialization_selector)
+                if specialized_model != self
+                    return specialized_model
+                end
+
+                specialization_selector = selections.map_value do |_, sel|
+                    sel.selected.models
+                end
+                return specializations.matching_specialized_model(specialization_selector)
+            end
+
             # Creates the required task and children for this composition model.
             #
             # It selects the relevant specialization and instantiates it instead
@@ -701,23 +738,7 @@ module Syskit
                     find_children_models_and_tasks(context)
 
                 if arguments[:specialize]
-                    # Find the specializations that apply. We use
-                    # +explicit_selections+ so that we don't under-specialize.
-                    # For instance, if a composition has
-                    #   add(Srv::BaseService, :as => 'child')
-                    #
-                    # And no selection exists in 'context' for that child, then
-                    #   explicit_selection['child'] == nil
-                    # while
-                    #   selected_models['child'] == Srv::BaseService
-                    #
-                    # In the second case, any specialization that does not match
-                    # Srv::BaseService for child would be rejected.
-                    
-                    specialization_selector = explicit_selections.map_value do |_, sel|
-                        sel.selected.models
-                    end
-                    specialized_model = specializations.matching_specialized_model(specialization_selector)
+                    specialized_model = find_applicable_specialization_from_selection(explicit_selections, selected_models)
                     if specialized_model != self
                         return specialized_model.instanciate(plan, context, arguments)
                     end
