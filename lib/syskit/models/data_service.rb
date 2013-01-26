@@ -3,7 +3,7 @@ module Syskit
         # Base type for data service models (DataService, Devices,
         # ComBus). Methods defined in this class are available on said
         # models (for instance Device.new_submodel)
-        class DataServiceModel < Roby::TaskModelTag
+        class DataServiceModel < Roby::TaskService
             include Models::Base
             include Syskit::Models::PortAccess
 
@@ -70,7 +70,7 @@ module Syskit
                         return m
                     end
                 end
-                nil
+                Roby::TaskService
             end
 
             # Creates a new DataServiceModel that is a submodel of +self+

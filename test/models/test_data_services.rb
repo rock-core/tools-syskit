@@ -28,6 +28,11 @@ module Test_DataServiceModel
         assert submodel.submodels.include?(subsubmodel)
     end
 
+    def test_data_services_are_registered_as_submodels_of_task_service
+        srv = Syskit::DataService.new_submodel
+        assert Roby::TaskService.each_submodel.to_a.include?(srv)
+    end
+
     def test_new_submodel_can_give_name_to_anonymous_models
         assert_equal 'Srv', new_submodel(:name => 'Srv').name
     end
