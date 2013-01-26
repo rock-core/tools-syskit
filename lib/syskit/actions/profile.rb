@@ -149,6 +149,14 @@ module Syskit
                         raise ArgumentError, "expected zero arguments, got #{args.size}"
                     end
                     return definition(defname)
+                elsif m.to_s =~ /^(\w+)_dev$/
+                    devname = $1
+                    if !robot.devices[devname]
+                        raise NoMethodError, "#{name} has no device called #{devname}"
+                    elsif !args.empty?
+                        raise ArgumentError, "expected zero arguments, got #{args.size}"
+                    end
+                    return robot.devices[devname]
                 end
                 super
             end
