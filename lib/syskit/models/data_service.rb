@@ -291,6 +291,10 @@ module Syskit
 
                 end
             end
+
+            def as_plan
+                to_instance_requirements.as_plan
+            end
         end
 
         # Metamodel for all devices
