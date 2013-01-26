@@ -23,6 +23,8 @@ module Syskit::GUI
 
                 @item_id_to_spec = Array.new
                 layout = Qt::VBoxLayout.new(self)
+                @btn_compute_system_network = Qt::CheckBox.new("Compute System Network")
+                layout.add_widget(@btn_compute_system_network)
                 @list = Qt::ListWidget.new(self)
                 layout.add_widget(@list)
                 list.connect(SIGNAL('currentItemChanged(QListWidgetItem*,QListWidgetItem*)')) do |current, previous|
@@ -59,11 +61,24 @@ module Syskit::GUI
                 end
             end
 
+            def instanciation_method
+                if @btn_compute_system_network.checked?
+                    :compute_system_network
+                else :instanciate_model
+                end
+            end
+
             def render_network(spec)
                 return if spec.respond_to?(:to_str)
                 spec = spec.to_instance_requirements
-                view.render(spec)
+                view.render(spec, :method => instanciation_method)
+                emit updated
+            rescue ::Exception => e
+                Roby.app.register_exception(e)
+                emit updated
             end
+
+            signals :updated
         end
     end
 end

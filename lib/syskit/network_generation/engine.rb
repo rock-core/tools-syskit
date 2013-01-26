@@ -305,26 +305,28 @@ module Syskit
             # of redundancies after this call
             #
             # @return [void]
-            def instanciate
+            def instanciate(req_tasks = nil)
                 self.tasks.clear
 
                 main_selection = compute_main_dependency_injection
 
-                real_plan.find_tasks(InstanceRequirementsTask).
-                    each do |req_task|
+                req_tasks ||= real_plan.find_tasks(InstanceRequirementsTask).
+                    find_all do |req_task|
                         next if req_task.failed? || req_task.pending?
                         next if !req_task.planned_task || req_task.planned_task.finished?
-
-                        req = req_task.requirements
-                        task = req.instanciate(work_plan, main_selection)
-                        # We add all these tasks as permanent tasks, to use
-                        # #static_garbage_collect to cleanup #work_plan. The
-                        # actual mission / permanent marking is fixed at the end
-                        # of resolution by calling #fix_toplevel_tasks
-                        work_plan.add_permanent(task)
-                        task.fullfilled_model = req.fullfilled_model
-                        required_instances[req_task] = task
                     end
+
+                req_tasks.each do |req_task|
+                    req = req_task.requirements
+                    task = req.instanciate(work_plan, main_selection)
+                    # We add all these tasks as permanent tasks, to use
+                    # #static_garbage_collect to cleanup #work_plan. The
+                    # actual mission / permanent marking is fixed at the end
+                    # of resolution by calling #fix_toplevel_tasks
+                    work_plan.add_permanent(task)
+                    task.fullfilled_model = req.fullfilled_model
+                    required_instances[req_task] = task
+                end
             end
 
             # Creates communication busses and links the tasks to them
@@ -357,9 +359,9 @@ module Syskit
             # Compute in #plan the network needed to fullfill the requirements
             #
             # This network is neither validated nor tied to actual deployments
-            def compute_system_network
+            def compute_system_network(req_tasks = nil)
                 add_timepoint 'compute_system_network', 'start'
-                instanciate
+                instanciate(req_tasks)
                 Engine.instanciation_postprocessing.each do |block|
                     block.call(self, work_plan)
                 end

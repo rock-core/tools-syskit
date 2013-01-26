@@ -5,10 +5,11 @@ module Syskit
         #
         # It displays the task hierarchy as well as the dataflow network
         class ComponentNetworkView < ComponentNetworkBaseView
-            def render(model)
+            def render(model, options = Hash.new)
                 super
 
-                task = instanciate_model(model)
+                options = Kernel.validate_options options, :method => :instanciate_model
+                task = send(options[:method], model)
                 task = task.to_task
 
                 plan_display_options = Hash[
