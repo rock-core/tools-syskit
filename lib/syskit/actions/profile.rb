@@ -104,6 +104,7 @@ module Syskit
                     prof.inject_di_context(req)
                 end
                 req.dependency_injection_context.push(dependency_injection)
+                super if defined? super
                 nil
             end
 
@@ -136,6 +137,7 @@ module Syskit
                 definitions.clear
                 @dependency_injection = DependencyInjection.new
                 used_profiles.clear
+                super if defined? super
             end
 
             def method_missing(m, *args)
