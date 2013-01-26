@@ -18,9 +18,9 @@ module Syskit
                     profile = Profile.new("#{self.name}::#{name}")
                     const_set(name, profile)
                 end
+                syskit_profiles[name] = profile
 
                 profile.instance_eval(&block)
-                syskit_profiles[name] = profile
             end
 
             # Export the definitions contained in the given profile as actions
