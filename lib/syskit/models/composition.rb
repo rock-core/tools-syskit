@@ -560,15 +560,21 @@ module Syskit
                 explicit = Hash.new
                 result   = Hash.new
                 each_child do |child_name, child_requirements|
-                    selected_child = context.instance_selection_for(child_name, child_requirements)
                     Models.debug do
-                        Models.debug "selected #{child_name}:"
+                        Models.debug "selecting #{child_name}:"
                         Models.log_nest(2) do
-                            Models.log_pp(:debug, selected_child)
                             Models.debug "on the basis of"
                             Models.log_nest(2) do
                                 Models.log_pp(:debug, context.current_state)
                             end
+                        end
+                        break
+                    end
+                    selected_child = context.instance_selection_for(child_name, child_requirements)
+                    Models.debug do
+                        Models.debug "selected"
+                        Models.log_nest(2) do
+                            Models.log_pp(:debug, selected_child)
                         end
                         break
                     end
