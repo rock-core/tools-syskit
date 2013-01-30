@@ -504,5 +504,29 @@ describe Syskit::NetworkGeneration::Engine do
             end
         end
     end
+
+    describe "#allocate_devices" do
+        attr_reader :dev_m, :task_m, :device, :task
+        before do
+            dev_m = @dev_m = Syskit::Device.new_submodel :name => 'Driver'
+            @task_m = Syskit::TaskContext.new_submodel(:name => 'Task') { driver_for dev_m, :as => 'driver' }
+            @device = robot.device dev_m, :as => 'd'
+            @task = task_m.new
+        end
+        it "sets missing devices from the selections in the given context" do
+            engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)
+            context = Syskit::DependencyInjectionContext.new(dev_m => device)
+            engine.allocate_devices(task, context)
+            assert_equal device, task.find_device_attached_to(task.driver_srv)
+        end
+        it "does not override already set devices" do
+            dev2 = robot.device dev_m, :as => 'd2'
+            task.arguments['driver_dev'] = dev2
+            engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)
+            context = Syskit::DependencyInjectionContext.new(dev_m => device)
+            engine.allocate_devices(task, context)
+            assert_equal dev2, task.find_device_attached_to(task.driver_srv)
+        end
+    end
 end
 

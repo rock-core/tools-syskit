@@ -298,6 +298,29 @@ module Syskit
                 main_selection
             end
 
+            # Given a task and a DI context, autoselect devices when possible
+            def allocate_devices(task, context)
+                Engine.debug do
+                    Engine.debug "allocating devices on #{task} using"
+                    Engine.log_nest(2) do
+                        Engine.log_pp :debug, context
+                    end
+                    break
+                end
+                    
+                task.model.each_master_driver_service do |srv|
+                    next if task.find_device_attached_to(srv)
+                    _, model, _ = context.selection_for(nil, srv.model.to_instance_requirements)
+                    puts "found #{model} for #{srv.model} in #{task}"
+                    if dev = model.arguments["#{srv.name}_dev"]
+                        Engine.debug do
+                            Engine.debug "  selected #{dev} for #{srv.name}"
+                        end
+                        task.arguments["#{srv.name}_dev"] = dev
+                    end
+                end
+            end
+
             # Create on {#work_plan} the task instances that are currently
             # required in {#real_plan}
             #
@@ -326,6 +349,12 @@ module Syskit
                     work_plan.add_permanent(task)
                     task.fullfilled_model = req.fullfilled_model
                     required_instances[req_task] = task
+
+                    task.generated_subgraph(Roby::TaskStructure::Dependency).each do |task|
+                        if task.respond_to?(:each_master_driver_service)
+                            allocate_devices(task, req.dependency_injection_context)
+                        end
+                    end
                 end
             end
 
