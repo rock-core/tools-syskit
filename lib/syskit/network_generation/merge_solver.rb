@@ -667,7 +667,7 @@ module Syskit
                         debug { "    cannot merge cycle #{cycle[0]}.merge(#{cycle[1]})" }
                     end
                 end
-                return possible_cycles
+                return possible_cycles.to_set
             end
 
             # Merges tasks that are equivalent in the current plan
