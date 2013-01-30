@@ -69,7 +69,7 @@ module Syskit
 
             def render_exception(e, reason, idx)
                 result = []
-                result << "<tr class=\"message\"><td id=\"#{idx}\">#{"#{reason}: " if reason}#{e.message} <span class=\"backtrace_links\">(show: <a class=\"backtrace_toggle_filtered\" id=\"#{idx}\">filtered backtrace</a>, <a class=\"backtrace_toggle_full\" id=\"#{idx}\">full backtrace</a>)</td></tr>"
+                result << "<tr class=\"message\"><td id=\"#{idx}\">#{"#{escape_html(reason)}: " if reason}#{escape_html(e.message)}(#{e.class}) <span class=\"backtrace_links\">(show: <a class=\"backtrace_toggle_filtered\" id=\"#{idx}\">filtered backtrace</a>, <a class=\"backtrace_toggle_full\" id=\"#{idx}\">full backtrace</a>)</td></tr>"
                 filtered_backtrace = BacktraceParser.new(Roby.filter_backtrace(e.backtrace, :force => true)).parse
                 full_backtrace = BacktraceParser.new(e.backtrace).parse
 
