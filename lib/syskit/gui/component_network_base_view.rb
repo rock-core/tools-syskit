@@ -8,14 +8,17 @@ module Syskit
 
             def compute_system_network(model)
                 main_plan = Roby::Plan.new
-                main_plan.add(base_task = model.as_plan)
-                base_task = base_task.as_service
+                main_plan.add(original_task = model.as_plan)
+                base_task = original_task.as_service
                 engine = Syskit::NetworkGeneration::Engine.new(main_plan)
                 engine.prepare
                 engine.compute_system_network([base_task.task.planning_task])
                 base_task.task
             ensure
-                engine.work_plan.commit_transaction
+                if engine && engine.work_plan.respond_to?(:commit_transaction)
+                    engine.work_plan.commit_transaction
+                    main_plan.remove_object(original_task)
+                end
             end
 
             def instanciate_model(model)
