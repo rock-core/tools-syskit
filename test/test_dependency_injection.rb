@@ -258,6 +258,15 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal(Hash[srv0 => c1, c0 => c1, c1 => c1], DependencyInjection.resolve_default_selections(Hash[c0 => c1], [c0]))
     end
 
+    def test_resolve_default_selections_ignores_services_provided_multiple_times
+        srv_m = DataService.new_submodel :name => 'Srv'
+        c_m = Component.new_submodel :name => 'Component'
+        c_m.provides srv_m, :as => 's0'
+        c_m.provides srv_m, :as => 's1'
+
+        assert_equal(Hash[c_m => c_m], DependencyInjection.resolve_default_selections(Hash.new, [c_m]))
+    end
+
     def test_find_name_resolution_plain_name
         c0 = Component.new_submodel
         assert_equal c0, DependencyInjection.find_name_resolution('name', 'name' => c0)

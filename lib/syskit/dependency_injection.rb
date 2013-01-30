@@ -464,6 +464,14 @@ module Syskit
                     selection = resolve_selection_recursively(selection, using_spec)
                     selection.each_fullfilled_model do |m|
                         next if IGNORED_MODELS.include?(m)
+                        if selection.respond_to?(:find_all_data_services_from_type) &&
+                            m.kind_of?(Models::DataServiceModel)
+                            # Ignore if it is provided multiple times by the
+                            # selection
+
+                            next if selection.find_all_data_services_from_type(m).size != 1
+                        end
+
                         break if ROOT_MODELS.include?(m)
                         if using_spec[m]
                             debug do
