@@ -26,14 +26,16 @@ module Syskit::GUI
                 @btn_compute_system_network = Qt::CheckBox.new("Compute System Network")
                 layout.add_widget(@btn_compute_system_network)
                 @list = Qt::ListWidget.new(self)
-                layout.add_widget(@list)
+                list.size_policy = Qt::SizePolicy.new(Qt::SizePolicy::Preferred, Qt::SizePolicy::Maximum)
+                layout.add_widget(@list, 1)
                 list.connect(SIGNAL('currentItemChanged(QListWidgetItem*,QListWidgetItem*)')) do |current, previous|
                     if current && (spec = item_id_to_spec[list.row(current)])
                         render_network(spec)
                     end
                 end
                 @view = ComponentNetworkView.new(self)
-                layout.add_widget(@view, 1)
+                view.size_policy = Qt::SizePolicy.new(Qt::SizePolicy::Preferred, Qt::SizePolicy::Ignored)
+                layout.add_widget(@view, 3)
             end
 
             def register_item(item, value)
