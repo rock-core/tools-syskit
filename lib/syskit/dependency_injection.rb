@@ -442,14 +442,14 @@ module Syskit
                     return using_spec
                 end
 
-                DependencyInjection.debug do
-                    DependencyInjection.debug "Resolving default selections"
+                debug do
+                    debug "Resolving default selections"
                     default_selections.map(&:to_s).sort.each do |sel|
-                        DependencyInjection.debug "    #{sel}"
+                        debug "    #{sel}"
                     end
-                    DependencyInjection.debug "  into"
+                    debug "  into"
                     using_spec.map { |k, v| [k.to_s, v.to_s] }.sort.each do |k, v|
-                        DependencyInjection.debug "    #{k} => #{v}"
+                        debug "    #{k} => #{v}"
                     end
                     break
                 end
@@ -465,20 +465,20 @@ module Syskit
                         next if IGNORED_MODELS.include?(m)
                         break if ROOT_MODELS.include?(m)
                         if using_spec[m]
-                            DependencyInjection.debug do
-                                DependencyInjection.debug "  rejected #{selection.short_name}"
-                                DependencyInjection.debug "    for #{m.short_name}"
-                                DependencyInjection.debug "    reason: already explicitely selected"
+                            debug do
+                                debug "  rejected #{selection.short_name}"
+                                debug "    for #{m.short_name}"
+                                debug "    reason: already explicitely selected"
                                 break
                             end
                         elsif ambiguous_default_selections.has_key?(m)
                             ambiguity = ambiguous_default_selections[m]
-                            DependencyInjection.debug do
-                                DependencyInjection.debug "  rejected #{selection.short_name}"
-                                DependencyInjection.debug "    for #{m.short_name}"
-                                DependencyInjection.debug "    reason: ambiguity with"
+                            debug do
+                                debug "  rejected #{selection.short_name}"
+                                debug "    for #{m.short_name}"
+                                debug "    reason: ambiguity with"
                                 ambiguity.each do |model|
-                                    DependencyInjection.debug "      #{model.short_name}"
+                                    debug "      #{model.short_name}"
                                 end
                                 break
                             end
@@ -486,27 +486,27 @@ module Syskit
                         elsif resolved_default_selections[m] && resolved_default_selections[m] != selection
                             removed = resolved_default_selections.delete(m)
                             ambiguous_default_selections[m] = [selection, removed].to_set
-                            DependencyInjection.debug do
-                                DependencyInjection.debug "  removing #{removed.short_name}"
-                                DependencyInjection.debug "    for #{m.short_name}"
-                                DependencyInjection.debug "    reason: ambiguity with"
-                                DependencyInjection.debug "      #{selection.short_name}"
+                            debug do
+                                debug "  removing #{removed.short_name}"
+                                debug "    for #{m.short_name}"
+                                debug "    reason: ambiguity with"
+                                debug "      #{selection.short_name}"
                                 break
                             end
                         else
-                            DependencyInjection.debug do
-                                DependencyInjection.debug "  adding #{selection.short_name}"
-                                DependencyInjection.debug "    for #{m.short_name}"
+                            debug do
+                                debug "  adding #{selection.short_name}"
+                                debug "    for #{m.short_name}"
                                 break
                             end
                             resolved_default_selections[m] = selection
                         end
                     end
                 end
-                DependencyInjection.debug do
-                    DependencyInjection.debug "  selected defaults:"
+                debug do
+                    debug "  selected defaults:"
                     resolved_default_selections.each do |key, sel|
-                        DependencyInjection.debug "    #{key.respond_to?(:short_name) ? key.short_name : key}: #{sel}"
+                        debug "    #{key.respond_to?(:short_name) ? key.short_name : key}: #{sel}"
                     end
                     break
                 end
