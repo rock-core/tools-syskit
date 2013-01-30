@@ -62,6 +62,23 @@ module Syskit
     end
 
     class InputPort < Port
+        # Enumerates all ports connected to this one
+        def each_connection
+            port = to_component_port
+            port.component.each_input_connection(port.name) do |out_task, out_port_name, in_port_name, policy|
+                yield(out_task.find_output_port(out_port_name), policy)
+            end
+            self
+        end
+
+        # Enumerates all ports connected to this one
+        def each_concrete_connection
+            port = to_component_port
+            port.component.each_concrete_input_connection(port.name) do |out_task, out_port_name, in_port_name, policy|
+                yield(out_task.find_output_port(out_port_name), policy)
+            end
+            self
+        end
     end
 
     class OutputPort < Port
@@ -84,6 +101,24 @@ module Syskit
             def read
                 reader.read if reader
             end
+        end
+
+        # Enumerates all ports connected to this one
+        def each_connection
+            port = to_component_port
+            port.component.each_output_connection(port.name) do |_, in_port_name, in_task, policy|
+                yield(in_task.find_input_port(in_port_name), policy)
+            end
+            self
+        end
+
+        # Enumerates all ports connected to this one
+        def each_concrete_connection
+            port = to_component_port
+            port.component.each_concrete_output_connection(port.name) do |_, in_port_name, in_task, policy|
+                yield(in_task.find_input_port(in_port_name), policy)
+            end
+            self
         end
     end
 end
