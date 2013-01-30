@@ -57,6 +57,21 @@ describe Syskit::Device do
             assert_equal [dev0], task.each_master_device.to_a
         end
     end
+    
+    describe "#find_all_driver_services_for" do
+        it "returns the services bound to the given device" do
+            task_m.driver_for device_m, :as => 'dev0'
+            task_m.driver_for device_m, :as => 'dev1'
+            task_m.driver_for device_m, :as => 'dev2'
+            dev0 = robot.device device_m, :as => 'DEV0', :using => task_m.dev0_srv
+            dev1 = robot.device device_m, :as => 'DEV1', :using => task_m.dev1_srv
+            dev2 = robot.device device_m, :as => 'DEV2', :using => task_m.dev2_srv
+            task = task_m.new('dev0_dev' => dev0, 'dev1_dev' => dev0, 'dev2_dev' => dev1)
+            assert_equal [task.dev0_srv, task.dev1_srv], task.find_all_driver_services_for(dev0)
+            assert_equal [task.dev2_srv], task.find_all_driver_services_for(dev1)
+            assert_equal [], task.find_all_driver_services_for(dev2)
+        end
+    end
 end
 
 describe Syskit::ComBus do

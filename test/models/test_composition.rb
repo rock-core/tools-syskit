@@ -483,5 +483,22 @@ describe Syskit::Models::Composition do
             end
         end
     end
+
+    describe "specialized composition models" do
+        describe "#each_fullfilled_model" do
+            it "should list any additional data services and the root component model but not the specialized model" do
+                srv_m = Syskit::DataService.new_submodel
+                task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 's' }
+                cmp_m = Syskit::Composition.new_submodel(:name => 'Cmp') { add srv_m, :as => 'c' }
+                cmp_m.specialize 'c' => task_m do
+                    provides srv_m, :as => 's'
+                end
+                specialized_m = cmp_m.narrow(Syskit::DependencyInjection.new('c' => task_m))
+                
+                assert_equal [specialized_m,cmp_m,srv_m,Syskit::DataService,Syskit::Composition,Syskit::Component,Roby::Task].to_set,
+                    specialized_m.each_fullfilled_model.to_set
+            end
+        end
+    end
 end
 
