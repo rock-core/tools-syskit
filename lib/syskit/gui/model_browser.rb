@@ -9,7 +9,7 @@ module Syskit
             # Visualization and selection of models in the Ruby constant
             # hierarchy
             attr_reader :model_selector
-
+            attr_reader :lbl_model_name
             attr_reader :exception_view
 
             def initialize(main = nil)
@@ -42,7 +42,7 @@ module Syskit
             end
 
             def add_central_widgets(splitter)
-                @model_selector = ModelSelector.new(splitter)
+                @model_selector = ModelSelector.new
                 splitter.add_widget(model_selector)
 
                 views = Hash[
@@ -52,12 +52,18 @@ module Syskit
                     Syskit::Actions::Profile => [ModelViews::Profile]]
 
                 # Create a central stacked layout
-                display_selector = Qt::StackedWidget.new(self)
-                splitter.add_widget(display_selector)
+                root = Qt::Widget.new
+                splitter.add_widget(root)
                 splitter.set_stretch_factor(1, 2)
+                layout = Qt::VBoxLayout.new(root)
+                @lbl_model_name = Qt::Label.new
+                layout.add_widget(lbl_model_name)
+
+                display_selector = Qt::StackedWidget.new(root)
+                layout.add_widget(display_selector)
                 # Pre-create all the necessary display views
                 views.each do |model, view|
-                    view << display_selector.add_widget(widget = view[0].new(splitter))
+                    view << display_selector.add_widget(widget = view[0].new)
                     widget.connect(SIGNAL(:updated)) do
                         update_exceptions
                     end
@@ -67,6 +73,7 @@ module Syskit
                     mod = mod.to_ruby
                     has_view = views.any? do |model, view|
                         if mod.kind_of?(model)
+                            lbl_model_name.text = "#{mod.name} (#{model.name})"
                             display_selector.current_index = view[1]
                         end
                     end
