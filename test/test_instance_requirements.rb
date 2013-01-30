@@ -163,6 +163,17 @@ describe Syskit::InstanceRequirements do
 
             assert_equal obj, req.find_data_service_from_type(s)
         end
+        it "should not raise if the contained component model has multiple services of the requested type, but one is selected in the InstanceRequirements object itself" do
+            s = Syskit::DataService.new_submodel
+            c = Syskit::Component.new_submodel do
+                provides s, :as => 's0'
+                provides s, :as => 's1'
+            end
+            req = Syskit::InstanceRequirements.new([c])
+            req.select_service(c.s0_srv)
+            assert_same req, req.find_data_service_from_type(s)
+        end
+
         it "should raise if the data service is ambiguous w.r.t. the contained component model" do
             s = Syskit::DataService.new_submodel
             c = Syskit::Component.new_submodel do

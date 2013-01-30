@@ -146,6 +146,10 @@ module Syskit
             # @raise [AmbiguousServiceSelection] if more than one service
             #   matches
             def find_data_service_from_type(service_type)
+                if service && service.fullfills?(service_type)
+                    return self
+                end
+
                 candidates = models.find_all do |m|
                     m.fullfills?(service_type)
                 end
