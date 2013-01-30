@@ -186,12 +186,15 @@ module Syskit
             end
 
             def method_missing(m, *args, &block)
-                if args.empty? && !block_given?
-                    if dev = devices[m.to_s]
-                        return dev
+                if m.to_s =~ /(.*)_dev$/
+                    device_name = $1
+                    if !args.empty?
+                        raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}"
+                    elsif !(dev = devices[device_name])
+                        raise NoMethodError, "#{self} has no device named #{device_name}"
                     end
+                    return dev
                 end
-
                 super
             end
         end

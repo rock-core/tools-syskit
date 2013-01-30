@@ -41,11 +41,17 @@ module Syskit
         module Device
             include DataService
 
+            def each_master_driver_service
+                model.each_master_driver_service do |srv|
+                    yield(srv.bind(self))
+                end
+            end
+
             # Returns the bound data service that is attached to the given
             # device
             def find_all_driver_services_for(device)
                 services = model.each_master_driver_service.find_all do |driver_srv|
-                    arguments["#{driver_srv.name}_device"] == device.name
+                    find_device_attached_to(driver_srv) == device
                 end
                 services.map { |drv| drv.bind(self) }
             end
@@ -137,10 +143,8 @@ module Syskit
             def each_attached_device
                 return enum_for(:each_attached_device) if !block_given?
                 each_com_bus_device do |combus|
-                    robot.each_master_device do |dev|
-                        if dev.attached_to?(combus)
-                            yield(dev)
-                        end
+                    combus.each_attached_device do |dev|
+                        yield(dev)
                     end
                 end
             end

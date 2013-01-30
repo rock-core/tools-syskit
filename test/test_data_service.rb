@@ -79,7 +79,7 @@ describe Syskit::ComBus do
         end
         @combus = robot.com_bus combus_m, :as => 'COM'
         @device = robot.device(device_m, :as => 'DEV').
-            attach_to('COM')
+            attach_to(robot.COM_dev)
     end
     describe "#each_com_bus_device" do
         it "lists the combus devices the task is driving" do
@@ -88,11 +88,24 @@ describe Syskit::ComBus do
             assert_equal [robot.devices['COM']], combus_task.each_com_bus_device.to_a
         end
     end
+    describe "#attached_to?" do
+        it "returns true if the device is attached to the bus" do
+            assert device.attached_to?(combus)
+        end
+        it "returns false if the device is not attached to any bus" do
+            device = robot.device device_m, :as => 'other_device'
+            assert !device.attached_to?(combus)
+        end
+        it "returns false if the device is attached to a different bus" do
+            other_bus = robot.com_bus combus_m, :as => 'other_bus'
+            assert !device.attached_to?(other_bus)
+        end
+    end
     describe "#each_attached_device" do
         it "can list the devices attached to the combus" do
             plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
             plan.add(device_task = device_driver_m.new('dev_dev' => device))
-            assert_equal [robot.devices['DEV']], combus_task.each_attached_device.to_a
+            assert_equal [device], combus_task.each_attached_device.to_a
         end
     end
     describe "#attach" do

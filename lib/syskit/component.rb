@@ -43,18 +43,6 @@ module Syskit
             # @return [NetworkGeneration::PortDynamics]
             attr_accessor :dynamics
 
-            # Returns the Robot::RobotDefinition that describes the robot we are
-            # running on
-            #
-            # It returns a valid value only on tasks that are currently included
-            # in a plan
-            #
-            # @return [Robot::RobotDefinition]
-            def robot
-                return if !plan
-                plan.real_plan.syskit_engine.robot
-            end
-
             def initialize(options = Hash.new)
                 super
                 @requirements = InstanceRequirements.new

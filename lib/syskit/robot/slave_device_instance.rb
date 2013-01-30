@@ -9,6 +9,8 @@ module Syskit
             # The actual service on master_device's task model
             attr_reader :service
 
+            def each_fullfilled_model; [service.model].each(&proc) end
+
             def robot
                 master_device.robot
             end
@@ -68,7 +70,7 @@ module Syskit
             # Returns the InstanceRequirements object that can be used to
             # represent this device
             def to_instance_requirements
-                req = super
+                req = master_device.to_instance_requirements
                 req.select_service(service)
                 req
             end

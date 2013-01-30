@@ -113,6 +113,7 @@ module Syskit
 		    raise ArgumentError, "#{driver_model.component_model.short_name} provides neither an input nor an output service for combus #{com_bus.name}"
 		end
                 com_busses << com_bus
+                com_bus.attached_devices << self
                 com_bus.model.apply_attached_device_configuration_extensions(self)
                 self
             end
@@ -206,6 +207,8 @@ module Syskit
                 driver_model.to_instance_requirements.
                     with_arguments(task_arguments)
             end
+
+            def each_fullfilled_model; [device_model].each(&proc) end
         end
     end
 end
