@@ -335,8 +335,8 @@ module Syskit
 
                 req_tasks ||= real_plan.find_tasks(InstanceRequirementsTask).
                     find_all do |req_task|
-                        next if req_task.failed? || req_task.pending?
-                        next if !req_task.planned_task || req_task.planned_task.finished?
+                        !req_task.failed? && !req_task.pending? &&
+                            req_task.planned_task && !req_task.planned_task.finished?
                     end
 
                 req_tasks.each do |req_task|
