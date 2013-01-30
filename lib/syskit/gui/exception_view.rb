@@ -59,7 +59,7 @@ module Syskit
                 end
 
                 def parse
-                    call_stack
+                    call_stack(0)
                 end
 
                 def pp_call_stack(level)
