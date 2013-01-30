@@ -150,17 +150,19 @@ module Syskit
 
             attr_predicate :keep_logs?, true
 
-            def deploy(base_task = nil, &block)
+            def deploy(base_task = nil, resolve_options = Hash.new, &block)
                 if engine.running?
                     execute do
                         syskit_engine.redeploy
                     end
                     engine.wait_one_cycle
                 else
+                    syskit_engine.disable_updates
                     if base_task && !base_task.planning_task.running?
                         base_task.planning_task.start!
                     end
-                    syskit_engine.resolve
+                    syskit_engine.enable_updates
+                    syskit_engine.resolve(resolve_options)
                 end
                 if block_given?
                     execute(&block)

@@ -75,7 +75,7 @@ module Syskit
 	    # Resets the disabled flag
 	    #
 	    # See #disabled?
-	    def enable_updates; @enabled = true end
+	    def enable_updates; @disabled = false end
 
             # The set of tasks that represent the running deployments
             attr_reader :deployment_tasks
