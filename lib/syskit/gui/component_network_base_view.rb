@@ -6,8 +6,8 @@ module Syskit
         class ComponentNetworkBaseView < StackedDisplay
             attr_reader :current_model
 
-            def compute_system_network(model)
-                main_plan = Roby::Plan.new
+            def compute_system_network(model, main_plan = nil)
+                main_plan ||= Roby::Plan.new
                 main_plan.add(original_task = model.as_plan)
                 base_task = original_task.as_service
                 engine = Syskit::NetworkGeneration::Engine.new(main_plan)
@@ -21,8 +21,8 @@ module Syskit
                 end
             end
 
-            def instanciate_model(model)
-                main_plan = Roby::Plan.new
+            def instanciate_model(model, main_plan = nil)
+                main_plan ||= Roby::Plan.new
                 requirements = model.to_instance_requirements
                 task = requirements.instanciate(
                     main_plan,
