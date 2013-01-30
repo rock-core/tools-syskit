@@ -240,8 +240,9 @@ module Syskit
             # @param [String,nil] name the selection name if there is one, or nil
             # @param [InstanceRequirements] requirements the requirements for the selected
             #   instance
-            # @return [InstanceSelection] the selected instance. If no matching
-            #   selection is found, a matching model task proxy is created.
+            # @return [(Task,Model<Component>,Hash)] the selected instance. If
+            #   no matching selection is found, a matching model task proxy is
+            #   created.
             # @raise [IncompatibleComponentModels] if the various selections
             #   lead to component models that are incompatible (i.e. to two
             #   component models that are different and not subclassing one
