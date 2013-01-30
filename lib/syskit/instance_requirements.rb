@@ -626,6 +626,16 @@ module Syskit
             def to_instance_requirements
                 self
             end
+
+            # Tests if these requirements explicitly point to a component model
+            def component_model?
+                models.any? { |m| m <= Syskit::Component }
+            end
+
+            # Tests if these requirements explicitly point to a composition model
+            def composition_model?
+                models.any? { |m| m <= Syskit::Composition }
+            end
         end
 
 end

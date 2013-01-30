@@ -104,10 +104,16 @@ module Syskit
 
             # If this selection does not yet have an associated task,
             # instanciate one
-            def instanciate(plan, context, options = Hash.new)
+            def instanciate(plan, context = Syskit::DependencyInjectionContext.new, options = Hash.new)
                 if component
                     component
                 else
+                    if selected.component_model?
+                        selected_services = service_selection.values.find_all { |srv| srv.kind_of?(Models::BoundDataService) }
+                        if selected_services.size == 1
+                            selected.select_service(selected_services.first)
+                        end
+                    end
                     selected.instanciate(plan, context, options)
                 end
             end
