@@ -444,6 +444,16 @@ class TC_DependencyInjection < Test::Unit::TestCase
         assert_equal Hash['test' => 'VALUE'], req.explicit
         assert_equal Set['VALUE2'], req.defaults
     end
+
+    def test_select_bound_service_using_instance_requirements
+        srv_m = Syskit::DataService.new_submodel
+        task_m = Syskit::TaskContext.new_submodel do
+            provides srv_m, :as => 's0'
+            provides srv_m, :as => 's1'
+        end
+        di = DependencyInjection.new(srv_m => task_m.s0_srv.to_instance_requirements)
+        di.instance_selection_for(nil, srv_m.to_instance_requirements)
+    end
 end
 
 
