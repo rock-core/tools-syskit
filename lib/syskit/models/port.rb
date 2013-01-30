@@ -78,8 +78,11 @@ module Syskit
                 super || orogen_model.respond_to?(m, *args)
             end
 
-            def method_missing(*args, &block)
-                orogen_model.send(*args, &block)
+            def method_missing(m, *args, &block)
+                if orogen_model.respond_to?(m)
+                    orogen_model.send(m, *args, &block)
+                else super
+                end
             end
 
             def short_name
