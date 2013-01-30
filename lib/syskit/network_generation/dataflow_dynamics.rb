@@ -250,7 +250,7 @@ module Syskit
                     add_task_info(task, device_dynamics)
                     service.each_output_port do |out_port|
                         out_port = out_port.to_component_port
-                        out_port.model.orogen_model.triggered_on_update = false
+                        out_port.orogen_model.triggered_on_update = false
                         add_port_info(task, out_port.name, device_dynamics)
                         done_port_info(task, out_port.name)
                     end
@@ -265,7 +265,7 @@ module Syskit
                 initial_device_information_common(task, triggering_devices) do |service, device, device_dynamics|
                     service.each_output_port do |out_port|
                         out_port = out_port.to_component_port
-                        out_port.model.orogen_model.triggered_on_update = false
+                        out_port.orogen_model.triggered_on_update = false
                         add_port_trigger(task, out_port.name,
                             device.name, period, device_dynamics.queue_size(period))
                         done_port_info(task, out_port.name)
