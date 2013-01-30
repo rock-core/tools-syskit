@@ -267,8 +267,8 @@ module Syskit
             # The returned task instance is obviously an abstract one
             #
             # @return [TaskContext]
-            def instanciate(*args, &block)
-                proxy_task_model.instanciate(*args, &block)
+            def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new, &block)
+                proxy_task_model.instanciate(plan, context, options, &block)
             end
 
             def pretty_print(pp)

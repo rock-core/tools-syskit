@@ -173,6 +173,12 @@ module Syskit
                 Syskit::BoundDataService.new(task, self)
             end
 
+            # Creates, in the given plan, a new task matching this service in
+            # the given context, and returns the instanciated data service
+            def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new)
+                to_instance_requirements.instanciate(plan, context, options)
+            end
+
             # Returns the BoundDataService object that binds this provided
             # service to an actual task
             def resolve(task)
