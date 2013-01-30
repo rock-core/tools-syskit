@@ -591,11 +591,9 @@ module Syskit
             # Returns the set of specializations that match the given dependency
             # injection context
             def narrow(context)
-                user_selection, _ = find_children_models_and_tasks(context)
-
-                spec = Hash.new
-                user_selection.each { |name, selection| spec[name] = selection.selected.models }
-                specializations.matching_specialized_model(spec, :strict => false)
+                explicit_selections, selected_models =
+                    find_children_models_and_tasks(context)
+                find_applicable_specialization_from_selection(explicit_selections, selected_models)
             end
 
             # This returns an InstanciatedComponent object that can be used in
