@@ -341,7 +341,8 @@ module Syskit
 
                 req_tasks.each do |req_task|
                     req = req_task.requirements
-                    task = req.instanciate(work_plan, main_selection)
+                    task = req.instanciate(work_plan, main_selection).
+                        to_task
                     # We add all these tasks as permanent tasks, to use
                     # #static_garbage_collect to cleanup #work_plan. The
                     # actual mission / permanent marking is fixed at the end
