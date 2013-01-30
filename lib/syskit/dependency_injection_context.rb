@@ -133,8 +133,8 @@ module Syskit
             # state of this context
             #
             # (see DependencyInjection#selection_for)
-            def selection_for(*criteria)
-                current_state.candidates_for(*criteria)
+            def selection_for(name, requirements)
+                current_state.selection_for(name, requirements)
             end
 
             # (see DependencyInjection#has_selection_for?)
