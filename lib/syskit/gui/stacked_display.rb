@@ -4,11 +4,6 @@ module Syskit
         # A Qt::ToolBox-based widget that has some convenience functions to display
         # Roby::Plan objects using the PlanDisplay widget
         class StackedDisplay < Qt::ToolBox
-
-            def initialize(parent = nil)
-                super
-            end
-
             # Removes all existing displays
             def clear
                 while count > 0
