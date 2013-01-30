@@ -798,6 +798,7 @@ module Syskit
                         child_task = instanciate_child(plan, child_selection_context,
                                                        self_task, child_name, selected_child)
 
+                        child_task = child_task.to_task
                         if child_task.abstract? && find_child(child_name).optional?
                             Models.debug "not adding optional child #{child_name}"
                             removed_optional_children << child_name

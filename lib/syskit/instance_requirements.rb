@@ -230,7 +230,7 @@ module Syskit
                 @selections.merge(other_spec.selections)
                 if service && other_spec.service && service != other_spec.service
                     @service = nil
-                else
+                elsif !service
                     @service = other_spec.service
                 end
 

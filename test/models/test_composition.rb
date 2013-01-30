@@ -297,6 +297,17 @@ describe Syskit::Models::Composition do
             assert_same task, root.cmp_child.srv_child.class
         end
 
+        it "sets the selected requirements on the task instance" do
+            srv = Syskit::DataService.new_submodel(:name => "Srv")
+            task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }
+            cmp = Syskit::Composition.new_submodel(:name => "RootCmp") do
+                add srv, :as => 'child'
+            end
+
+            cmp_task = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new('child' => task))
+            assert_equal task.srv_srv, cmp_task.child_child.requirements.service
+        end
+
         it "allows to use grandchildren as use flags for other children" do
             srv = Syskit::DataService.new_submodel(:name => "Srv")
             task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }
@@ -308,6 +319,23 @@ describe Syskit::Models::Composition do
                     use(srv => first_child.first_test_child)
             end
             root = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new('first.first_test' => task))
+            assert_same root.first_child.first_test_child, root.second_child.second_test_child
+        end
+
+        it "uses the most narrowed information when passing children as use flags for other children" do
+            srv = Syskit::DataService.new_submodel(:name => "Srv")
+            task = Syskit::TaskContext.new_submodel(:name => "Task") do
+                provides srv, :as => 's0'
+                provides srv, :as => 's1'
+            end
+            first = Syskit::Composition.new_submodel(:name => "FirstCmp") { add srv, :as => 'first_test' }
+            second = Syskit::Composition.new_submodel(:name => "SecondCmp") { add srv, :as => 'second_test' }
+            cmp = Syskit::Composition.new_submodel(:name => "RootCmp") do
+                add first, :as => 'first'
+                add(second, :as => 'second').
+                    use(srv => first_child.first_test_child)
+            end
+            root = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new('first.first_test' => task.s0_srv))
             assert_same root.first_child.first_test_child, root.second_child.second_test_child
         end
 

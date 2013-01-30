@@ -42,7 +42,11 @@ module Syskit
             # @return [nil,Roby::Task]
             def try_resolve(task)
                 if task = composition_model.try_resolve(task)
-                    task.find_child_from_role(child_name)
+                    child = task.find_child_from_role(child_name)
+                    if child.requirements.service
+                        child.requirements.service.bind(child)
+                    else child
+                    end
                 end
             end
 
