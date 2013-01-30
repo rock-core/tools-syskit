@@ -333,7 +333,7 @@ module Syskit
 
                 main_selection = compute_main_dependency_injection
 
-                req_tasks ||= real_plan.find_tasks(InstanceRequirementsTask).
+                req_tasks ||= real_plan.find_local_tasks(InstanceRequirementsTask).
                     find_all do |req_task|
                         !req_task.failed? && !req_task.pending? &&
                             req_task.planned_task && !req_task.planned_task.finished?
