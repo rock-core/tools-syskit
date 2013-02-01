@@ -3,6 +3,12 @@ module Syskit
         # A representation of a set of dependency injections and definition of
         # pre-instanciated models
         class Profile
+            class << self
+                # Set of known profiles
+                attr_reader :profiles
+            end
+            @profiles = Array.new
+
             # The profile name
             # @return [String]
             attr_reader :name
@@ -140,6 +146,14 @@ module Syskit
                 super if defined? super
             end
 
+            # Clear all registered profiles
+            def self.clear_model
+                profiles.each do |prof|
+                    prof.clear_model
+                end
+                profiles.clear
+            end
+
             def method_missing(m, *args)
                 if m.to_s =~ /^(\w+)_def$/
                     defname = $1
@@ -161,6 +175,29 @@ module Syskit
                 super
             end
         end
+
+        module ProfileDefinitionDSL
+            # Declares a new syskit profile, and registers it as a constant on
+            # this module
+            #
+            # A syskit profile is a group of dependency injections (use flags)
+            # and instance definitions. All the definitions it contains can
+            # then be exported on an action interface using
+            # {use_profile}
+            #
+            # @return [Syskit::Actions::Profile]
+            def profile(name, &block)
+                if const_defined_here?(name)
+                    profile = const_get(name)
+                else 
+                    profile = Profile.new("#{self.name}::#{name}")
+                    const_set(name, profile)
+                end
+                Profile.profiles << profile
+                profile.instance_eval(&block)
+            end
+        end
+        Module.include ProfileDefinitionDSL
     end
 end
 

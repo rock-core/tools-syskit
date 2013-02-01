@@ -415,6 +415,7 @@ module Syskit
                 Orocos.clear
                 app.loaded_orogen_projects.clear
                 Syskit.conf.deployments.clear
+                Syskit::Actions::Profile.clear_model
             end
 
             def self.cleanup(app)

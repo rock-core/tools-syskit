@@ -7,8 +7,8 @@ module Syskit
             # @return [InstanceRequirements]
             attr_reader :requirements
 
-            def initialize(action_interface_model, requirements)
-                super(action_interface_model)
+            def initialize(action_interface_model, requirements, doc = nil)
+                super(action_interface_model, doc)
                 @requirements = requirements
             end
 
