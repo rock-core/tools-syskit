@@ -164,6 +164,11 @@ module Syskit
                 orogen_model.each_event_port(&block)
             end
 
+            # Returns the configuration hash for the given configuration names,
+            # given this task context
+            def resolve_configuration(*names)
+                Orocos.conf.conf[orogen_model.name].conf(*names, true)
+            end
         end
     end
 end
