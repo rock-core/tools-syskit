@@ -151,7 +151,7 @@ module Syskit
                     end
 
                     if !app.shell? && !Syskit.conf.disables_local_process_server?
-                        start_local_process_server(:redirect => app.redirect_local_process_server?)
+                        start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
                     end
                 end
 
