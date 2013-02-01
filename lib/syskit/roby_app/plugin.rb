@@ -193,8 +193,14 @@ module Syskit
                 end
 
                 # Load the data services and task models
+                search_path =
+                    if app.syskit_load_all? then app.search_path
+                    else [app.app_dir]
+                    end
+
                 all_files =
-                    app.find_files_in_dirs("models", "blueprints", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                    app.find_files_in_dirs("models", "blueprints", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                    app.find_files_in_dirs("models", "profiles", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/)
                 all_files.each do |path|
                     begin
                         app.require(path)
