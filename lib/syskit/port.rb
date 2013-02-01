@@ -53,8 +53,13 @@ module Syskit
         def connect_to(in_port, policy = Hash.new)
             out_port = self.to_component_port
             if out_port == self
-                in_port = in_port.to_component_port
-                component.connect_ports(in_port.component, [out_port.name, in_port.name] => policy)
+                if in_port.respond_to?(:to_component_port)
+                    in_port = in_port.to_component_port
+                    component.connect_ports(in_port.component, [out_port.name, in_port.name] => policy)
+                else
+                    Syskit.connect self, in_port, policy
+                end
+
             else
                 out_port.connect_to(in_port, policy)
             end

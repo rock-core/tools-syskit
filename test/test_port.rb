@@ -21,5 +21,32 @@ describe Syskit::Models::Port do
             assert_raises(ArgumentError) { port.to_component_port }
         end
     end
+
+    describe "#connect_to" do
+        it "creates the connection directly if the argument is a port" do
+            out_task = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end.new
+            in_task = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+            end.new
+            policy = Hash.new
+            flexmock(out_task).should_receive(:connect_ports).once.
+                with(in_task, ['out', 'in'] => policy)
+            out_task.out_port.connect_to in_task.in_port, policy
+        end
+        it "passes through Syskit.connect if the argument is not a port" do
+            out_task = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end.new
+            in_task = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+            end.new
+            policy = Hash.new
+            flexmock(Syskit).should_receive(:connect).once.
+                with(out_task.out_port, in_task, policy)
+            out_task.out_port.connect_to in_task, policy
+        end
+    end
 end
 
