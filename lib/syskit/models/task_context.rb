@@ -167,7 +167,10 @@ module Syskit
             # Returns the configuration hash for the given configuration names,
             # given this task context
             def resolve_configuration(*names)
-                Orocos.conf.conf[orogen_model.name].conf(*names, true)
+                if conf = Orocos.conf.conf[orogen_model.name].conf(names, true)
+                    conf
+                else raise ArgumentError, "there is no configuration #{names} for #{self}"
+                end
             end
         end
     end
