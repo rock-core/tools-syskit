@@ -944,9 +944,6 @@ module Syskit
                             debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
                             new_task.should_configure_after(existing_task.stop_event)
                         end
-                        if new_task.conf != task.conf
-                            existing_task.needs_reconfiguration!
-                        end
                         existing_task = new_task
                     end
 
