@@ -12,11 +12,6 @@ module Syskit
             # @param [String,SyskitProfile] the profile that should be used
             # @return [void]
             def use_profile(profile)
-                if profile.respond_to?(:to_str)
-                    profile_name = profile.to_str
-                    profile = find_profile(profile_name)
-                    if !profile
-                        raise ArgumentError, "no such syskit profile #{profile_name}, known profiles are: #{each_profile.map(&:name)}"
                     end
                 end
 
