@@ -458,6 +458,8 @@ module Syskit
                                 set & m_candidates
                             end
                             abstract_tasks[task] = candidates || ValueSet.new
+                        else
+                            abstract_tasks[task] = plan.find_local_tasks(task.class).to_value_set
                         end
                     end
 
