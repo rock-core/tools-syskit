@@ -207,6 +207,18 @@ module Syskit
                 end
                 super
             end
+
+            DRoby = Struct.new :name, :component_model, :master, :model do
+                def proxy(peer)
+                    component_model = peer.local_object(self.component_model)
+                    if srv = component_model.find_data_service(name)
+                        return srv
+                    else
+                        BoundDataService.new(name, component_model, peer.local_object(master), peer.local_object(model), Hash.new)
+                    end
+                end
+            end
+            def droby_dump(peer); DRoby.new(name, component_model.droby_dump(peer), master.droby_dump(peer), model.droby_dump(peer)) end
         end
     end
 end

@@ -222,6 +222,15 @@ module Syskit
             end
 
             def each_fullfilled_model; [device_model].each(&proc) end
+
+            DRoby = Struct.new :name, :device_model, :driver_model do
+                def proxy(peer)
+                    MasterDeviceInstance.new(nil, name, peer.local_object(device_model), Hash.new, peer.local_object(driver_model), Hash.new)
+                end
+            end
+            def droby_dump(peer)
+                DRoby.new(name, device_model.droby_dump(peer), driver_model.droby_dump(peer))
+            end
         end
     end
 end

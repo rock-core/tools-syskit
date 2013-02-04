@@ -10,13 +10,7 @@ module Syskit
             def initialize(action_interface_model, requirements, doc = nil)
                 super(action_interface_model, doc)
                 @requirements = requirements
-            end
-
-            # The type of the action task
-            # Unlike with normal actions, this is directly derived from
-            # #requirements
-            def returned_type
-                requirements.proxy_task_model
+                returns(requirements.proxy_task_model)
             end
 
             def plan_pattern
@@ -32,6 +26,16 @@ module Syskit
             def run(action_interface, arguments = Hash.new)
                 action_interface.plan.add(task = requirements.as_plan)
                 task
+            end
+
+            # Called by Roby::Actions::ActionModel to modify self so that it is
+            # droby-marshallable
+            #
+            # It only resets the requirements attribute, as InstanceRequirements
+            # are not (yet) marshallable in droby
+            def droby_dump!(dest)
+                super
+                @requirements = Syskit::InstanceRequirements.new
             end
         end
     end

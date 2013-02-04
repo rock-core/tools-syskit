@@ -98,6 +98,13 @@ module Syskit
                 req.select_service(model)
                 req
             end
+
+            DRoby = Struct.new :component, :model do
+                def proxy(peer)
+                    BoundDataService.new(peer.local_object(component), peer.local_object(model))
+                end
+            end
+            def droby_dump(peer); DRoby.new(component.droby_dump(peer), model.droby_dump(peer)) end
         end
 end
 

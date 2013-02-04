@@ -16,6 +16,29 @@ describe Syskit::Models::BoundDataService do
             assert_equal obj, srv_m.self_port_to_component_port(port)
         end
     end
+
+    describe "DRoby marshalling" do
+        attr_reader :srv_m, :task_m
+        before do
+            create_simple_composition_model
+            @task_m = simple_component_model
+            @srv_m  = task_m.srv_srv
+        end
+
+        it "should be identity when done locally" do
+            dump = srv_m.droby_dump(nil)
+            loaded = Marshal.load(Marshal.dump(dump))
+            assert_same srv_m, loaded.proxy(Roby::Distributed::DumbManager)
+        end
+        it "should create a new service object when done on an anonymous model" do
+            dump = srv_m.droby_dump(nil)
+            flexmock(task_m).should_receive(:find_data_service).and_return(nil)
+            loaded = Marshal.load(Marshal.dump(dump))
+            loaded = loaded.proxy(Roby::Distributed::DumbManager)
+            assert_same task_m, loaded.component_model
+            assert_equal 'srv', loaded.name
+        end
+    end
 end
 
 class TC_Models_BoundDataService < Test::Unit::TestCase

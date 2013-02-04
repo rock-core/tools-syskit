@@ -262,6 +262,13 @@ module Test_DataServiceModel
         task = model.instanciate(plan)
         assert_kind_of model.proxy_task_model, task
     end
+
+    def test_it_can_be_droby_marshalled_and_unmarshalled
+        model = data_service_type("A")
+        loaded = Marshal.load(Marshal.dump(model.droby_dump(nil)))
+        loaded = loaded.proxy(Roby::Distributed::DumbManager)
+        assert_equal model.name, loaded.name
+    end
 end
 
 class TC_Models_DataService < Test::Unit::TestCase
