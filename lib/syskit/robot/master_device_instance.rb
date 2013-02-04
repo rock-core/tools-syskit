@@ -146,8 +146,7 @@ module Syskit
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
 
             def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new)
-                options[:task_arguments] = task_arguments.merge(options[:task_arguments] || Hash.new)
-                driver_model.instanciate(plan, context, options)
+                to_instance_requirements.instanciate(plan, context, options)
             end
 
             ## 
@@ -230,6 +229,8 @@ module Syskit
                     with_arguments(task_arguments).
                     merge(requirements)
             end
+
+            def as_plan; to_instance_requirements.as_plan end
 
             def each_fullfilled_model; [device_model].each(&proc) end
 
