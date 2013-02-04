@@ -166,7 +166,15 @@ module Syskit
 
             def self.require_models(app)
                 if !Orocos.loaded?
+                    # Load configuration directories
+                    app.find_dirs('models', 'orogen', :order => :specific_last, :all => true).each do |dir|
+                        Orocos.register_orogen_files(dir)
+                    end
                     Orocos.load
+                    # Load configuration directories
+                    app.find_dirs('config', 'orogen', :order => :specific_last, :all => true).each do |dir|
+                        Orocos.conf.load_dir(dir)
+                    end
                 end
                 Orocos.master_project.extend(MasterProjectHook)
 
