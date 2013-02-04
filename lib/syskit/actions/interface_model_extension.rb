@@ -6,6 +6,10 @@ module Syskit
             # action interface
             attribute(:main_profile) { Syskit::Actions::Profile.new }
 
+            # Returns the robot definition object used by this action interface
+            # @return [Syskit::Robot::RobotDefinition]
+            def robot; main_profile.robot end
+
             # Export the definitions contained in the given profile as actions
             # on this action interface
             #
