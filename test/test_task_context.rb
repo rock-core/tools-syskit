@@ -173,6 +173,18 @@ describe Syskit::TaskContext do
             assert !task.running?
         end
     end
+
+    describe "#state_event" do
+        it "should be able to resolve events from parent models" do
+            parent_m = Syskit::TaskContext.new_submodel do
+                runtime_states :CUSTOM
+            end
+            child_m = parent_m.new_submodel
+            child = child_m.new
+            assert_equal :custom, child.state_event(:CUSTOM)
+        end
+    end
+
     describe "stop_event" do
         attr_reader :task, :orocos_task
         before do

@@ -74,7 +74,7 @@ module Syskit
             #
             # @return [Symbol]
             def state_event(name)
-                model.state_events[name]
+                model.find_state_event(name)
             end
 
             # The PortDynamics object that describes the dynamics of the task
@@ -500,8 +500,12 @@ module Syskit
                     else
                         emit :success
                     end
-                elsif event = state_event(orogen_state)
-                    emit event
+                else
+                    if event = state_event(orogen_state)
+                        emit event
+                    else
+                        raise ArgumentError, "#{self} reports state #{orogen_state}, but I don't have an event for this state transition"
+                    end
                 end
             end
 
