@@ -3,7 +3,7 @@ require 'syskit/test'
 describe Syskit::Actions::InterfaceModelExtension do
     include Syskit::SelfTest
 
-    describe "#syskit_use_profile" do
+    describe "#use_profile" do
         it "should export the profile definitions as actions" do
             req = flexmock
             req.should_receive(:to_instance_requirements).and_return(req)
@@ -11,7 +11,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             actions = Class.new(Roby::Actions::Interface)
             profile = Syskit::Actions::Profile.new(nil)
             profile.define('def', req)
-            actions.syskit_use_profile(profile)
+            actions.use_profile(profile)
 
             act = actions.find_action('def')
             assert act
@@ -21,7 +21,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             actions = Class.new(Roby::Actions::Interface)
             profile = Syskit::Actions::Profile.new(nil)
             req = profile.define('def', Syskit::Component)
-            actions.syskit_use_profile(profile)
+            actions.use_profile(profile)
 
             flexmock(req).should_receive(:as_plan).and_return(task = Roby::Task.new)
             act = actions.def.instanciate(plan)

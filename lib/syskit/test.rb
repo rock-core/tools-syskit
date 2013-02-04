@@ -245,7 +245,9 @@ module Syskit
         end
 
         def teardown
-            syskit_engine.finalize
+            if syskit_engine
+                syskit_engine.finalize
+            end
             super
         end
 
