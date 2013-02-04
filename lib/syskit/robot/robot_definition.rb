@@ -163,7 +163,7 @@ module Syskit
             end
 
             def each_device(&block)
-                devices.each(&block)
+                devices.each_value(&block)
             end
 
             # Enumerates all master devices that are available on this robot
