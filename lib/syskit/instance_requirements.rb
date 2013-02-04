@@ -244,6 +244,7 @@ module Syskit
                 super if defined? super
 
                 narrow_model
+                self
             end
 
             def hash; base_models.hash end

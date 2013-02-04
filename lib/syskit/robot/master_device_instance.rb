@@ -13,6 +13,9 @@ module Syskit
             attr_reader :slaves
             # The communication busses this device is attached to
             attr_reader :com_busses
+            # Additional specifications for deployment of the driver
+            # @return [Syskit::InstanceRequirements]
+            attr_reader :requirements
 
             def model; device_model end
 
@@ -44,6 +47,7 @@ module Syskit
                 @slaves      = Hash.new
                 @conf = Array.new
                 @com_busses = Array.new
+                @requirements = Syskit::InstanceRequirements.new
 
                 task_arguments["#{driver_model.name}_dev"] = self
                 sample_size 1
@@ -214,11 +218,17 @@ module Syskit
                 super
             end
 
+            def use_deployments(hints)
+                requirements.use_deployments(hints)
+                self
+            end
+
             # Returns the InstanceRequirements object that can be used to
             # represent this device
             def to_instance_requirements
                 driver_model.to_instance_requirements.
-                    with_arguments(task_arguments)
+                    with_arguments(task_arguments).
+                    merge(requirements)
             end
 
             def each_fullfilled_model; [device_model].each(&proc) end
