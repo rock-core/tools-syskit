@@ -61,6 +61,11 @@ module Syskit::GUI
                     value = model.resolved_definition(name)
                     register_item(item, value)
                 end
+                list.add_item(item = make_header_item('Devices'))
+                model.robot.each_device do |value|
+                    list.add_item(item = Qt::ListWidgetItem.new("#{value.name}: #{value}"))
+                    register_item(item, value)
+                end
             end
 
             def instanciation_method
