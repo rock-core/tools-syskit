@@ -12,14 +12,24 @@ module Syskit
             # @param [String,SyskitProfile] the profile that should be used
             # @return [void]
             def use_profile(profile)
+                main_profile.use_profile(profile)
+                profile.robot.devices.each do |name, dev|
+                    action_name = "#{name}_dev"
+                    if !actions[action_name]
+                        actions[action_name] = ActionModel.new(self, dev.to_instance_requirements, "device from profile #{profile.name}")
+                        actions[action_name].name = action_name
+                        define_method(action_name) do
+                            main_profile.robot.devices[name].as_plan
+                        end
                     end
                 end
 
-                main_profile.use_profile(profile)
                 profile.definitions.each do |name, req|
-                    if !actions[name]
-                        actions[name] = ActionModel.new(self, req, "definition from profile #{profile.name}")
-                        define_method(name) do
+                    action_name = "#{name}_def"
+                    if !actions[action_name]
+                        actions[action_name] = ActionModel.new(self, req, "definition from profile #{profile.name}")
+                        actions[action_name].name = action_name
+                        define_method(action_name) do
                             main_profile.resolved_definition(name).as_plan
                         end
                     end
