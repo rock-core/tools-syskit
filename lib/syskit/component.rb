@@ -103,6 +103,8 @@ module Syskit
             # has been emitted. This is used to sequence configurations with
             # other system events, but should not be required in most cases
             def should_configure_after(object)
+                # To make the scheduler happy
+                should_start_after object
                 object.add_syskit_configuration_precedence(start_event)
             end
 
