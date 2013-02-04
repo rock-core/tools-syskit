@@ -136,12 +136,11 @@ module Syskit
                 end
                 register_submodel(model)
                 
-                model.make_state_events
-
                 if block
                     evaluation = DataServiceModel::BlockInstanciator.new(model)
                     evaluation.instance_eval(&block)
                 end
+                model.make_state_events
                 model
             end
 
