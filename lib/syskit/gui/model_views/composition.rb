@@ -104,11 +104,11 @@ module Syskit::GUI
             end
 
             def render(model, options = Hash.new)
-                render_specializations(model)
                 super
                 if task
                     render_data_services(task)
                 end
+                render_specializations(model)
             end
         end
     end

@@ -111,7 +111,17 @@ module Syskit
                 page.push("Provided Services", html, :id => 'provided_services')
             end
 
+            def find_definition_place(model)
+                model.definition_location.find do |file, _, method|
+                    return if method == :require || method == :using_task_library
+                    Roby.app.app_file?(file)
+                end
+            end
+
             def render(model, options = Hash.new)
+                if file = find_definition_place(model)
+                    page.push(nil, "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>")
+                end
                 @current_model = model
             end
 
