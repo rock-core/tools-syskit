@@ -1,10 +1,51 @@
-require 'syskit/gui/stacked_display'
-
 module Syskit
     module GUI
         # Base functionality to display plans that contain component networks
-        class ComponentNetworkBaseView < StackedDisplay
+        class ComponentNetworkBaseView < Qt::Object
             attr_reader :current_model
+            attr_reader :page
+
+            def initialize(page)
+                super()
+                @page = page
+            end
+
+            DATA_SERVICE_WITHOUT_NAMES_TEMPLATE = <<-EOD
+            <table>
+            <% services.each do |service_name, provided_services| %>
+            <tr><td>
+              <%= provided_services.map do |srv_model_name, srv_port_mappings|
+                    if srv_port_mappings.empty? 
+                        srv_model_name
+                    else
+                        "\#{srv_model_name}: \#{srv_port_mappings}"
+                    end
+                  end.join("</td></tr><tr><td>")
+              %>
+            </td></tr>
+            <% end %>
+            </table>
+            EOD
+
+            DATA_SERVICE_WITH_NAMES_TEMPLATE = <<-EOD
+            <table>
+            <% services.each do |service_name, provided_services| %>
+            <tr><th><%= service_name %></th><td>
+              <%= provided_services.map do |srv_model_name, srv_port_mappings|
+                    if srv_port_mappings.empty? 
+                        srv_model_name
+                    else
+                        "\#{srv_model_name}: \#{srv_port_mappings}"
+                    end
+                  end.join("</td></tr><tr><td>&nbsp;</td><td>")
+              %>
+            </td></tr>
+            <% end %>
+            </table>
+            EOD
+
+            def clear
+            end
 
             def compute_system_network(model, main_plan = nil)
                 main_plan ||= Roby::Plan.new
@@ -31,7 +72,7 @@ module Syskit
                 task
             end
 
-            def render_data_services(task)
+            def list_services(task)
                 services = []
                 task.model.each_data_service.sort_by(&:first).each do |service_name, service|
                     model_hierarchy = service.model.ancestors.
@@ -42,27 +83,35 @@ module Syskit
                             m != task.model
                     end
 
-                    services << service_name
+                    provided_services = []
                     model_hierarchy.each do |m|
                         port_mappings = service.port_mappings_for(m).dup
                         port_mappings.delete_if do |from, to|
                             from == to
                         end
-                        model_name = m.short_name.gsub("DataServices::", "")
-                        if !port_mappings.empty?
-                            services << "    #{model_name} with port mappings #{port_mappings}"
-                        else
-                            services << "    #{model_name}"
-                        end
+                        provided_services << [m.name, port_mappings]
+                    end
+                    services << [service_name, provided_services]
+                end
+                services
+            end
+
+            def render_data_services(task, with_names = true)
+                services = list_services(task)
+                if services.empty?
+                    html = ""
+                else
+                    if with_names
+                        html = ERB.new(DATA_SERVICE_WITH_NAMES_TEMPLATE).result(binding)
+                    else
+                        html = ERB.new(DATA_SERVICE_WITHOUT_NAMES_TEMPLATE).result(binding)
                     end
                 end
-                label = Qt::Label.new(services.join("\n"), self)
-                label.background_role = Qt::Palette::NoRole
-                push("Provided Services", label)
+
+                page.push("Provided Services", html, :id => 'provided_services')
             end
 
             def render(model, options = Hash.new)
-                clear
                 @current_model = model
             end
         end

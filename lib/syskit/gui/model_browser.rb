@@ -1,6 +1,7 @@
 require 'syskit/gui/model_selector'
 require 'syskit/gui/model_views'
 require 'syskit/gui/exception_view'
+require 'syskit/gui/html/page'
 module Syskit
     module GUI
         # Widget that allows to browse the currently available models and
@@ -45,41 +46,30 @@ module Syskit
                 @model_selector = ModelSelector.new
                 splitter.add_widget(model_selector)
 
-                views = Hash[
-                    Syskit::Models::TaskContext => [ModelViews::TaskContext],
-                    Syskit::Models::Composition => [ModelViews::Composition],
-                    Syskit::Models::DataServiceModel => [ModelViews::DataService],
-                    Syskit::Actions::Profile => [ModelViews::Profile]]
-
                 # Create a central stacked layout
-                root = Qt::Widget.new
-                splitter.add_widget(root)
+                display = Qt::WebView.new
+                splitter.add_widget(display)
                 splitter.set_stretch_factor(1, 2)
-                layout = Qt::VBoxLayout.new(root)
-                @lbl_model_name = Qt::Label.new
-                layout.add_widget(lbl_model_name)
+                page = HTML::Page.new(display)
 
-                display_selector = Qt::StackedWidget.new(root)
-                layout.add_widget(display_selector)
-                # Pre-create all the necessary display views
-                views.each do |model, view|
-                    view << display_selector.add_widget(widget = view[0].new)
-                    widget.connect(SIGNAL(:updated)) do
-                        update_exceptions
-                    end
-                end
+                renderers = Hash[
+                    Syskit::Models::TaskContext => ModelViews::TaskContext.new(page),
+                    Syskit::Models::Composition => ModelViews::Composition.new(page),
+                    Syskit::Models::DataServiceModel => ModelViews::DataService.new(page),
+                    Syskit::Actions::Profile => ModelViews::Profile.new(page)]
 
                 model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
                     mod = mod.to_ruby
-                    has_view = views.any? do |model, view|
-                        if mod.kind_of?(model)
-                            lbl_model_name.text = "#{mod.name} (#{model.name})"
-                            display_selector.current_index = view[1]
-                        end
+                    model, render = renderers.find do |model, render|
+                        mod.kind_of?(model)
                     end
-                    if has_view
+                    if model
+                        title = "#{mod.name} (#{model.name})"
                         begin
-                            display_selector.current_widget.render(mod)
+                            page.clear
+                            page.title = title
+                            render.clear
+                            render.render(mod)
                         rescue ::Exception => e
                             Roby.app.register_exception(e, "while rendering #{mod}")
                             update_exceptions

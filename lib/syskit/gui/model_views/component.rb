@@ -9,12 +9,10 @@ module Syskit::GUI
 
                 task = instanciate_model(model)
 
-                default_widget = push_plan(
+                page.push_plan(
                     'Interface', 'dataflow',
-                    task.plan, Roby.syskit_engine, plan_display_options)
+                    task.plan, plan_display_options)
                 render_data_services(task)
-
-                self.current_widget = default_widget
             end
         end
     end

@@ -1,0 +1,14 @@
+body {font-family: arial, sans-serif; font-size: 10px; }
+h1 {margin: 0px 0px 10px 0px; padding: 0px 0px 2px 0px; color: rgb(88,144,168); font-weight: bold; font-size: 200%; text-align: center;}
+h2 {width: 500px; margin: 40px 0px 10px 0px; padding: 0px 0px 2px 0px; border-bottom: solid 3px rgb(88,144,168); color: rgb(88,144,168); font-weight: bold; font-size: 160%;}
+table {clear: left; margin: 0.5em 0px 0.2em 30px; border: solid 1px rgb(150,150,150); empty-cells: show; border-collapse: collapse; background-color: rgb(233,232,244);}
+table tr {margin: 0px; padding: 0px;}
+table td {padding: 2px 7px 2px 7px; border: solid 1px rgb(150,150,150); text-align: left; }
+table th {margin: 0px; padding: 2px 7px 2px 7px; border: solid 1px rgb(150,150,150); empty-cells: show; text-align: left; }
+table-caption {margin: 0.5em 0px 1.0em 30px; padding: 0px; clear: both; text-align: left; }
+
+.button_bar {margin: 0px; padding: 0px; font-family: verdana, arial, sans serif; font-size: 1.0em;}
+.button_bar span {margin-left: .1em; padding: 2px 5px 2px 5px; background-color: rgb(255,255,255); font-weight: normal; font-size: 10px; }
+.button_bar span em {font-weight: bold; font-style: normal;}
+.button_bar a {color: rgb(115,162,182); text-decoration: none; font-size: 10px; font-weight: normal;}
+.button_bar a:hover {color: rgb(50,50,50); text-decoration: none;}

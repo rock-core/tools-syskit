@@ -621,5 +621,6 @@ describe Syskit::TaskContext do
             assert_event_emission task.stop_event
         end
     end
+
 end
 

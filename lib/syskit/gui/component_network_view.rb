@@ -6,36 +6,66 @@ module Syskit
         # It displays the task hierarchy as well as the dataflow network
         class ComponentNetworkView < ComponentNetworkBaseView
             attr_predicate :view_partial_plans?, true
+            attr_reader :dataflow_options
+            attr_reader :hierarchy_options
+            attr_reader :plan
+            attr_reader :task
 
-            def initialize(parent = nil)
+            def initialize(page)
                 super
                 @view_partial_plans = true
+                @plan = Roby::Plan.new
+
+                @hierarchy_options = Hash[
+                    :id => 'hierarchy',
+                    :remove_compositions => false,
+                    :annotations => ['task_info', 'port_details'].to_set
+                ]
+                @dataflow_options = Hash[
+                    :id => 'dataflow',
+                    :remove_compositions => false,
+                    :annotations => ['task_info'].to_set
+                ]
+
+                buttons = []
+                Syskit::Graphviz.available_annotations.sort.each do |ann_name|
+                    buttons << HTML::Button.new("annotations/#{ann_name}",
+                                                :on_text => "Show #{ann_name}",
+                                                :off_text => "Hide #{ann_name}",
+                                                :state => dataflow_options[:annotations].include?(ann_name))
+                end
+                connect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
+                dataflow_options[:buttons] = buttons
             end
 
             def render(model, options = Hash.new)
                 super
 
-                plan = Roby::Plan.new
+                plan.clear
                 error = nil
                 options = Kernel.validate_options options, :method => :instanciate_model
-                begin send(options[:method], model, plan)
-                rescue Exception => e
-                    if view_partial_plans? then error = e
-                    else raise
+                @task = begin send(options[:method], model, plan)
+                        rescue Exception => e
+                            if view_partial_plans? then error = e
+                            else raise
+                            end
+                        end
+
+                page.push_plan('Task Dependency Hierarchy', 'hierarchy', plan, hierarchy_options)
+                page.push_plan('Dataflow', 'dataflow', plan, dataflow_options)
+            end
+
+            def buttonClicked(button_id, new_state)
+                puts "got button #{button_id}"
+                if button_id =~ /\/annotations\/(\w+)/
+                    ann_name = $1
+                    if new_state then dataflow_options[:annotations] << ann_name
+                    else dataflow_options[:annotations].delete(ann_name)
                     end
                 end
-
-                plan_display_options = Hash[
-                    :remove_compositions => false,
-                    :annotations => ['task_info', 'port_details'].to_set
-                ]
-                push_plan('Task Dependency Hierarchy', 'hierarchy', plan, Roby.syskit_engine, plan_display_options)
-                default_widget = push_plan('Dataflow', 'dataflow', plan, Roby.syskit_engine, plan_display_options)
-
-                self.current_widget = default_widget
-                if error then raise error
-                end
+                page.push_plan('Dataflow', 'dataflow', plan, dataflow_options)
             end
+            slots 'buttonClicked(const QString&,bool)'
         end
     end
 end

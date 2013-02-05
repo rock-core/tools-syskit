@@ -1,4 +1,4 @@
-require 'syskit/gui/component_network_base_view'
+require 'syskit/gui/component_network_view'
 module Syskit::GUI
     module ModelViews
         Roby::TaskStructure.relation 'SpecializationCompatibilityGraph', :child_name => :compatible_specialization, :dag => false
@@ -7,12 +7,13 @@ module Syskit::GUI
         #
         # In addition to the plain component network, it visualizes the
         # specializations and allows to select them dynamically
-        class Composition < ComponentNetworkBaseView
+        class Composition < ComponentNetworkView
             attr_reader :specializations
 
-            def initialize(parent = nil)
-                super(parent)
+            def initialize(page)
+                super(page)
                 @specializations = Hash.new
+
             end
 
             def clickedSpecialization(obj_as_variant)
@@ -92,34 +93,20 @@ module Syskit::GUI
                     :highlights => current_specializations,
                     :toned_down => incompatible_specializations.values
                 }
-                plan_display = push_plan('Specializations', 'relation_to_dot',
-                                         plan, Roby.syskit_engine,
-                                         display_options)
-                Qt::Object.connect(plan_display, SIGNAL('selectedObject(QVariant&,QPoint&)'),
-                                   self, SLOT('clickedSpecialization(QVariant&)'))
+                page.push_plan('Specializations', 'relation_to_dot',
+                                         plan, display_options)
+                # Qt::Object.connect(plan_display, SIGNAL('selectedObject(QVariant&,QPoint&)'),
+                #                    self, SLOT('clickedSpecialization(QVariant&)'))
 
-                if specializations.empty?
-                    self.set_item_enabled(count - 1, false)
-                end
+                # if specializations.empty?
+                #     self.set_item_enabled(count - 1, false)
+                # end
             end
 
-
-
-            def render(model)
-                super
-
+            def render(model, options = Hash.new)
                 render_specializations(model)
-                task = instanciate_model(model)
-
-                plan_display_options = Hash[
-                    :remove_compositions => false,
-                    :annotations => ['task_info', 'port_details'].to_set
-                ]
-
-                push_plan('Task Dependency Hierarchy', 'hierarchy', task.plan, Roby.syskit_engine, plan_display_options)
-                default_widget = push_plan('Dataflow', 'dataflow', task.plan, Roby.syskit_engine, plan_display_options)
+                super
                 render_data_services(task)
-                self.current_widget = default_widget
             end
         end
     end
