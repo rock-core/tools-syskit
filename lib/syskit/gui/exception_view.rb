@@ -46,10 +46,6 @@ module Syskit
             EOD
 
             def update_html
-                html = ERB.new(TEMPLATE).result(binding)
-                File.open('exception_view.html', 'w') do |io|
-                    io.write(html)
-                end
                 self.html = ERB.new(TEMPLATE).result(binding)
             end
 
