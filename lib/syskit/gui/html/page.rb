@@ -132,12 +132,9 @@ module Syskit::GUI
             end
 
             def pageLinkClicked(url)
-                puts "url: #{url.to_string}"
                 return if url.host != 'syskit'
 
-                puts "url: #{url.to_string}"
                 if btn = find_button_by_url(url)
-                    puts "button #{btn} clicked"
                     new_state = if url.fragment == 'on' then true
                                 else false
                                 end
@@ -145,7 +142,6 @@ module Syskit::GUI
                     btn.state = new_state
                     new_text = btn.text
                     element = find_first_element("a##{btn.html_id}")
-                    puts "element: #{element.to_outer_xml}"
                     element.replace(btn.render)
 
                     emit buttonClicked(btn.id, new_state)

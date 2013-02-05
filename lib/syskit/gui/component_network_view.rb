@@ -56,7 +56,6 @@ module Syskit
             end
 
             def buttonClicked(button_id, new_state)
-                puts "got button #{button_id}"
                 if button_id =~ /\/annotations\/(\w+)/
                     ann_name = $1
                     if new_state then dataflow_options[:annotations] << ann_name
