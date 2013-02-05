@@ -57,6 +57,10 @@ module Syskit
                     Syskit::Models::Composition => ModelViews::Composition.new(page),
                     Syskit::Models::DataServiceModel => ModelViews::DataService.new(page),
                     Syskit::Actions::Profile => ModelViews::Profile.new(page)]
+                
+                renderers.each_value do |v|
+                    connect(v, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
+                end
 
                 model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
                     mod = mod.to_ruby
@@ -83,6 +87,7 @@ module Syskit
             def update_exceptions
                 exception_view.exceptions = Roby.app.registered_exceptions
             end
+            slots 'update_exceptions()'
 
             # (see ModelSelector#select_by_module)
             def select_by_path(*path)

@@ -42,17 +42,20 @@ module Syskit
                 super
 
                 plan.clear
-                error = nil
                 options = Kernel.validate_options options, :method => :instanciate_model
                 @task = begin send(options[:method], model, plan)
                         rescue Exception => e
-                            if view_partial_plans? then error = e
+                            if view_partial_plans? then
+                                Roby.app.register_exception(e)
+                                nil
                             else raise
                             end
                         end
 
                 page.push_plan('Task Dependency Hierarchy', 'hierarchy', plan, hierarchy_options)
                 page.push_plan('Dataflow', 'dataflow', plan, dataflow_options)
+
+                emit updated
             end
 
             def buttonClicked(button_id, new_state)

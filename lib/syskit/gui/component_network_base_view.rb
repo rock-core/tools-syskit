@@ -114,6 +114,8 @@ module Syskit
             def render(model, options = Hash.new)
                 @current_model = model
             end
+
+            signals 'updated()'
         end
     end
 end
