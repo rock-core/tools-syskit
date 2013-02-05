@@ -377,8 +377,11 @@ module Syskit
             def export(port, options = Hash.new)
                 options = Kernel.validate_options options, :as => port.name
                 name = options[:as].to_str
-                if self.find_port(name)
-                    raise ArgumentError, "there is already a port named #{name} on #{short_name}"
+                if existing = (self.find_exported_input(name) || self.find_exported_output(name))
+                    if port != existing
+                        raise ArgumentError, "#{port} is already exported as #{name} on #{short_name}, cannot override with #{port}."
+                    end
+                    return
                 end
 
                 case port

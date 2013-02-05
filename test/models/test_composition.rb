@@ -175,6 +175,32 @@ describe Syskit::Models::Composition do
                     exported_port
                 assert_equal composition.find_port('srv_out'), exported_port
             end
+            # This does not sound quite right, but it is important for
+            # specializations. Multiple specializations that can be selected
+            # simultaneously sometimes have to export the same port (because
+            # they could also be applied separately), which is not an error
+            it "allows to export the same port using the same name multiple times" do
+                srv_m = Syskit::DataService.new_submodel { input_port 'in', '/int' }
+                cmp_m = Syskit::Composition.new_submodel { add srv_m, :as => 'srv' }
+                assert cmp_m.srv_child.in_port == cmp_m.srv_child.in_port
+                export = cmp_m.export cmp_m.srv_child.in_port,
+                    :as => 'srv_in'
+                cmp_m.export cmp_m.srv_child.in_port,
+                    :as => 'srv_in'
+            end
+            it "raises if trying to override an existing port export" do
+                srv_m = Syskit::DataService.new_submodel { input_port 'in', '/int' }
+                cmp_m = Syskit::Composition.new_submodel do
+                    add srv_m, :as => 's0'
+                    add srv_m, :as => 's1'
+                end
+                cmp_m.export cmp_m.s0_child.in_port,
+                    :as => 'srv_in'
+                assert_raises(ArgumentError) do
+                    cmp_m.export cmp_m.s1_child.in_port,
+                        :as => 'srv_in'
+                end
+            end
         end
 
         describe "#find_exported_output" do
