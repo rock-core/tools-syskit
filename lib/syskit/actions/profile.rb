@@ -9,6 +9,8 @@ module Syskit
             end
             @profiles = Array.new
 
+            # The call trace at the time of the profile definition
+            attr_reader :definition_location
             # The profile name
             # @return [String]
             attr_reader :name
@@ -30,6 +32,7 @@ module Syskit
                 @used_profiles = Array.new
                 @dependency_injection = DependencyInjection.new
                 @robot = Robot::RobotDefinition.new
+                @definition_location = call_stack
                 super()
             end
 

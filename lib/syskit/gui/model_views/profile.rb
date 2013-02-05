@@ -57,6 +57,9 @@ module Syskit::GUI
 
             def render(model)
                 html = []
+                if file = ComponentNetworkBaseView.find_definition_place(model)
+                    html <<  "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>"
+                end
                 html << render_name_to_model_mapping("Explicit selections", model.dependency_injection.explicit, true)
 
                 links = model.dependency_injection.defaults.each do |model|
