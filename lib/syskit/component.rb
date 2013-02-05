@@ -399,6 +399,10 @@ module Syskit
                 bound_service.bind(self)
             end
 
+            def specialized_model?
+                model.private_specialization?
+            end
+
             # Sets up this task to use its singleton class as model instead of
             # the plain class. It is useful in particular for dynamic services
             def specialize
@@ -428,6 +432,18 @@ module Syskit
                     req.on_server(required_host) 
                 end
                 req
+            end
+
+            module Proxying
+                proxy_for Component
+
+                # Applies model specializations to the target task as well
+                def commit_transaction
+                    super if defined? super
+                    if specialized_model?
+                        __getobj__.specialize
+                    end
+                end
             end
         end
 end

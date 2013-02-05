@@ -242,6 +242,24 @@ describe Syskit::Component do
             assert component.ready_for_setup?
         end
     end
+
+    describe "#commit_transaction" do
+        it "specializes the proxied task and applies model modifications if there are some" do
+            task_m = Syskit::TaskContext.new_submodel do
+                dynamic_output_port /\w+/, nil
+            end
+            dynport = task_m.orogen_model.dynamic_ports.find { true }
+
+            plan.add(task = task_m.new)
+            plan.in_transaction do |trsc|
+                proxy = trsc[task]
+                proxy.instanciate_dynamic_output_port('name', '/double', dynport)
+                trsc.commit_transaction
+            end
+            assert task.specialized_model?
+            assert task.model.find_output_port('name')
+        end
+    end
 end
 
 class TC_Component < Test::Unit::TestCase

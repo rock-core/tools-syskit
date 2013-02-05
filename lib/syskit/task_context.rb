@@ -693,6 +693,18 @@ module Syskit
                 specialize
                 model.instanciate_dynamic_output_port(name, type, port).bind(self)
             end
+
+            module Proxying
+                proxy_for TaskContext
+
+                # Create dynamically instantiated ports on the real task
+                def commit_transaction
+                    super if defined? super
+                    if specialized_model?
+                        Syskit::Models.merge_orogen_task_context_models(__getobj__.model.orogen_model, [model.orogen_model])
+                    end
+                end
+            end
         end
 end
 
