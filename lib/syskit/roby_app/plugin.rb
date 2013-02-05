@@ -177,6 +177,7 @@ module Syskit
                     end
                 end
                 Orocos.master_project.extend(MasterProjectHook)
+                app.using_task_library 'logger'
 
                 Syskit.process_servers.each do |name, (client, log_dir)|
 		    client.available_projects.each do |name, orogen_model|
