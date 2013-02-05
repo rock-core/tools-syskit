@@ -242,7 +242,7 @@ module Syskit
             #
             # It should be called as soon as #prepare has been called
             def finalize
-                if work_plan != real_plan
+                if work_plan && (work_plan != real_plan)
                     if !work_plan.finalized?
                         work_plan.discard_transaction
                     end
@@ -251,7 +251,7 @@ module Syskit
                 if !Engine.keep_internal_data_structures?
                     merge_solver.task_replacement_graph.clear
                     @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
-                    @required_instances.clear
+                    @required_instances.clear if @required_instances
                 end
             end
 
