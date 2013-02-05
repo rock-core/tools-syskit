@@ -167,7 +167,7 @@ module Syskit
             # given this task context
             def resolve_configuration(*names)
                 if conf = Orocos.conf.conf[orogen_model.name].conf(names, true)
-                    conf
+                    conf.map_value { |k, v| Typelib.to_ruby(v) }
                 else raise ArgumentError, "there is no configuration #{names} for #{self}"
                 end
             end
