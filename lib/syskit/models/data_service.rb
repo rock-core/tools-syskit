@@ -87,7 +87,7 @@ module Syskit
                     :name => nil, :type => self.class
 
                 model = options[:type].new
-                model.definition_location = caller
+                model.definition_location = call_stack
                 register_submodel(model)
                 if options[:name]
                     Syskit::Models.validate_model_name(options[:name])
