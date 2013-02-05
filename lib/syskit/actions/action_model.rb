@@ -13,7 +13,7 @@ module Syskit
                 returns(requirements.proxy_task_model)
             end
 
-            def plan_pattern
+            def plan_pattern(arguments = Hash.new)
                 requirements.as_plan
             end
 
