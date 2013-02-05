@@ -38,6 +38,7 @@ module Syskit
         # * additional edges (#add_edge)
         #
         class Graphviz
+            attr_predicate :make_links?, true
             # The plan object containing the structure we want to display
             attr_reader :plan
             # Annotations for connections
@@ -53,6 +54,7 @@ module Syskit
 
             def initialize(plan)
                 @plan = plan
+                @make_links = true
 
                 @task_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
                 @port_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
@@ -195,13 +197,16 @@ module Syskit
                     :dot_graph_type => 'digraph',
                     :highlights => [],
                     :toned_down => [],
-                    :displayed_options => []
+                    :displayed_options => [],
+                    :annotations => ['task_info']
 
                 if !options[:accessor]
                     raise ArgumentError, "no :accessor option given"
                 end
 
-                add_task_info_annotations
+                options[:annotations].each do |ann_name|
+                    send("add_#{ann_name}_annotations")
+                end
 
                 result = []
                 result << "#{options[:dot_graph_type]} {"
@@ -228,6 +233,9 @@ module Syskit
                     task_label = format_task_label(task)
                     label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
                     attributes << "label=<#{label}>"
+                    if make_links?
+                        attributes << "href=\"plan://syskit/#{task.dot_id}\""
+                    end
                     color_set =
                         if options[:toned_down].include?(task)
                             COLORS[:toned_down]
@@ -488,8 +496,13 @@ module Syskit
             end
 
             def render_task(task, input_ports, output_ports, style = nil)
+                task_link = if make_links?
+                                "href=\"plan://syskit/#{task.dot_id}\""
+                            end
+
                 result = []
                 result << "    subgraph cluster_#{task.dot_id} {"
+                result << "        #{task_link};"
                 result << "        label=\"\";"
                 if task.abstract?
                     result << "      color=\"red\";"
@@ -502,7 +515,7 @@ module Syskit
 
                 task_label, attributes = format_task_label(task)
                 task_label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">#{task_label}</TABLE>"
-                result << "    label#{task.dot_id} [shape=none,label=< #{task_label} >];";
+                result << "    label#{task.dot_id} [#{task_link},shape=none,label=< #{task_label} >];";
 
                 if !input_ports.empty?
                     input_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"

@@ -13,16 +13,22 @@ module Syskit::GUI
             def initialize(page)
                 super(page)
                 @specializations = Hash.new
-
+                connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
             end
 
-            def clickedSpecialization(obj_as_variant)
-                object = obj_as_variant.to_ruby
-                if !specializations.values.include?(object)
-                    return
+            def linkClicked(url)
+                if url.scheme == 'plan'
+                    id = Integer(url.path.gsub(/\//, ''))
+                    if task = specializations.values.find { |task| task.dot_id == id }
+                        puts "clicked #{task}"
+                        clickedSpecialization(task)
+                    end
                 end
+            end
+            slots 'linkClicked(const QUrl&)'
 
-                clicked  = object.model.applied_specializations.dup.to_set
+            def clickedSpecialization(task)
+                clicked  = task.model.applied_specializations.dup.to_set
                 selected = current_model.applied_specializations.dup.to_set
 
                 if clicked.all? { |s| selected.include?(s) }
@@ -51,9 +57,8 @@ module Syskit::GUI
                 end
 
                 new_model = current_model.root_model.specializations.create_specialized_model(new_merged_selection, new_selection)
-                render_model(new_model)
+                render(new_model)
             end
-            slots 'clickedSpecialization(QVariant&)'
 
             def clear
                 super
@@ -91,22 +96,20 @@ module Syskit::GUI
                     :dot_graph_type => 'graph',
                     :graphviz_tool => 'fdp',
                     :highlights => current_specializations,
-                    :toned_down => incompatible_specializations.values
+                    :toned_down => incompatible_specializations.values,
+                    :annotations => [],
+                    :id => 'specializations'
                 }
                 page.push_plan('Specializations', 'relation_to_dot',
                                          plan, display_options)
-                # Qt::Object.connect(plan_display, SIGNAL('selectedObject(QVariant&,QPoint&)'),
-                #                    self, SLOT('clickedSpecialization(QVariant&)'))
-
-                # if specializations.empty?
-                #     self.set_item_enabled(count - 1, false)
-                # end
             end
 
             def render(model, options = Hash.new)
                 render_specializations(model)
                 super
-                render_data_services(task)
+                if task
+                    render_data_services(task)
+                end
             end
         end
     end
