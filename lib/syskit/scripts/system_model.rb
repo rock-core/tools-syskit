@@ -19,13 +19,13 @@ Roby.app.using_plugins 'syskit'
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true
+Roby.app.syskit_load_all = true
 
 app = Qt::Application.new(ARGV)
 
 
 Scripts.run do
     # Load all task libraries
-    Roby.app.syskit_load_all
     Roby.app.syskit_engine.prepare
 
     main = Syskit::GUI::ModelBrowser.new
