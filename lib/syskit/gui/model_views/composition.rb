@@ -20,7 +20,6 @@ module Syskit::GUI
                 if url.scheme == 'plan'
                     id = Integer(url.path.gsub(/\//, ''))
                     if task = specializations.values.find { |task| task.dot_id == id }
-                        puts "clicked #{task}"
                         clickedSpecialization(task)
                     end
                 end
