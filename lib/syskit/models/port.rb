@@ -115,6 +115,10 @@ module Syskit
             def to_orocos_port(component)
                 component_model.resolve(component).find_port(name)
             end
+
+            def static?
+                orogen_model.static?
+            end
         end
 
         class OutputPort < Port
