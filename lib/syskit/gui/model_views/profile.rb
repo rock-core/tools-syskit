@@ -69,7 +69,11 @@ module Syskit::GUI
                 end
                 html << render_links("Default selections", links)
 
-                html << render_name_to_model_mapping("Definitions", model.definitions, false)
+                definitions = Hash.new
+                model.definitions.each_key do |name|
+                    definitions[name] = model.resolved_definition(name)
+                end
+                html << render_name_to_model_mapping("Definitions", definitions, false)
                 devices = Hash.new
                 model.robot.each_device { |dev| devices[dev.name] = dev }
                 html << render_name_to_model_mapping("Devices", devices, false)
