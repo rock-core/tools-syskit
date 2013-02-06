@@ -13,7 +13,7 @@ module Syskit::GUI
                 super()
                 @page = page
                 @models = Hash.new
-                @instanciation_method = :instanciate_model
+                @instanciation_method = :compute_system_network
                 @network_renderer = ComponentNetworkView.new(page)
                 connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
             end
