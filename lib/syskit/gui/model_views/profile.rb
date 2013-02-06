@@ -37,7 +37,7 @@ module Syskit::GUI
             end
 
             def render_name_to_model_mapping(title, mapping, with_value)
-                links = mapping.keys.sort.map do |key|
+                links = mapping.keys.sort_by { |v| if v.respond_to?(:to_str) then v else html_model(v) end }.map do |key|
                     model = mapping[key]
                     if !key.respond_to?(:to_str)
                         key = html_model(key)
