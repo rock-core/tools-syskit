@@ -8,14 +8,16 @@ module Syskit
             attribute(:ports) { Hash.new }
 
             def method_missing(m, *args)
-                if args.empty? && !block_given?
-                    if m.to_s =~ /^(\w+)_port$/
-                        port_name = $1
-                        if port = self.find_port(port_name)
-                            return port
-                        else
-                            raise NoMethodError, "#{self} has no port called #{port_name}"
+                case m.to_s
+                when /^(\w+)_port$/
+                    port_name = $1
+                    if port = self.find_port(port_name)
+                        if !args.empty?
+                            raise ArgumentError, "#{m} expects no arguments, got #{args.size}"
                         end
+                        return port
+                    else
+                        raise NoMethodError, "#{self} has no port called #{port_name}"
                     end
                 end
                 super
