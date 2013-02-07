@@ -401,9 +401,13 @@ module Syskit
             # probably change afterwards
             attr_reader :tasks
 
-            def initialize(tasks, merge_graph)
+            # Initializes this exception by providing a mapping from tasks that
+            # have no deployments to the deployment candidates
+            #
+            # @param [Hash{TaskContext=>[Array<Model<Deployment>>]}] non_deployed_tasks
+            def initialize(tasks_with_candidates)
                 @tasks = Hash.new
-                tasks.each do |task|
+                tasks_with_candidates.each do |task, candidates|
                     parents = task.
                         enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
                         map do |parent_task|
@@ -411,11 +415,6 @@ module Syskit
                                 Roby::TaskStructure::Dependency]
                             [options[:roles].to_a.first, parent_task]
                         end
-
-                    candidates = task.
-                        enum_parent_objects(merge_graph).
-                        find_all { |t| t.execution_agent }.
-                        map { |t| t.orogen_model.name }
 
                     @tasks[task] = [parents, candidates]
                 end
@@ -440,7 +439,14 @@ module Syskit
                     if possible_deployments.empty?
                         pp.text "#{task}: no deployments available"
                     else
-                        pp.text "#{task}: multiple possible deployments, #{possible_deployments.join(", ")}"
+                        deployments = possible_deployments.map { |host, deployment, task_name| "task #{task_name} from deployment #{deployment.orogen_model.name} on #{host}" }
+                        pp.text "#{task}: multiple possible deployments, choose one with #use_deployments"
+                        pp.nest(2) do
+                            pp.breakable
+                            pp.seplist(deployments) do |d|
+                                pp.text d
+                            end
+                        end
                     end
                 end
             end

@@ -44,6 +44,10 @@ module Syskit
             #
             # It is only valid during resolution
             attr_reader :deployed_models
+            # A mapping from task context models to deployment models that
+            # contain such a task.
+            # @return [Hash{Model<TaskContext>=>Model<Deployment>}]
+            attr_reader :task_context_deployment_candidates
             # The merge solver instance used during resolution
             #
             # @return [MergeSolver]
@@ -214,6 +218,7 @@ module Syskit
 
                 @deployed_models = compute_deployed_models
                 deployed_component_models = deployed_models.find_all { |m| m <= Component }
+                @task_context_deployment_candidates = compute_task_context_deployment_candidates
 
                 # Fill in the service_allocation_candidates mapping
                 service_allocation_candidates.clear
@@ -573,7 +578,7 @@ module Syskit
             def deploy_system_network
                 debug "deploying the system network"
 
-                deployed_models = compute_task_context_deployment_candidates
+                deployed_models = task_context_deployment_candidates
                 used_deployments = Set.new
 
                 missing_deployments = []
@@ -636,8 +641,11 @@ module Syskit
                     find_all { |t| !t.execution_agent }
 
                 if !not_deployed.empty?
-                    remaining_merges = merge_solver.complete_merge_graph
-                    raise MissingDeployments.new(not_deployed, remaining_merges),
+                    tasks_with_candidates = Hash.new
+                    not_deployed.each do |task|
+                        tasks_with_candidates[task] = task_context_deployment_candidates[task.class] || []
+                    end
+                    raise MissingDeployments.new(tasks_with_candidates),
                         "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
                 end
             end
