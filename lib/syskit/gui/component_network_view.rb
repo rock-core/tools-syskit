@@ -66,6 +66,7 @@ module Syskit
                     end
                 end
                 page.push_plan('Dataflow', 'dataflow', plan, dataflow_options)
+                emit updated
             end
             slots 'buttonClicked(const QString&,bool)'
         end
