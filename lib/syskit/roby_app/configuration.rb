@@ -284,11 +284,8 @@ module Syskit
             def use_deployment(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
 
-                begin
-                    model = Deployment.find_model_from_orogen_name(name)
-                rescue ArgumentError
-                    model = Roby.app.load_deployment_model(name)
-                end
+                model = Deployment.find_model_from_orogen_name(name) ||
+                    Roby.app.load_deployment_model(name)
                 model.default_run_options.merge!(default_run_options(model))
                 deployments[options[:on]] << model
                 model
