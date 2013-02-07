@@ -75,7 +75,11 @@ module Syskit::GUI
                 end
                 html << render_name_to_model_mapping("Definitions", definitions, false)
                 devices = Hash.new
-                model.robot.each_device { |dev| devices[dev.name] = dev }
+                model.robot.each_device do |dev|
+                    req = dev.to_instance_requirements
+                    model.inject_di_context(req)
+                    devices[dev.name] = req
+                end
                 html << render_name_to_model_mapping("Devices", devices, false)
                 page.push(nil, html.join("\n"))
             end
