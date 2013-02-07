@@ -10,6 +10,51 @@ describe Syskit::BoundDataService do
             assert_kind_of String, task_m.new.srv_srv.to_s
         end
     end
+
+    describe "#find_data_service" do
+        it "returns a slave service if it exists" do
+            srv_m = Syskit::DataService.new_submodel
+            slave_m = Syskit::DataService.new_submodel
+            task = Syskit::TaskContext.new_submodel do
+                provides srv_m, :as => 'master'
+                provides slave_m, :as => 'slave'
+            end.new
+            assert_same task.find_data_service('master.slave'), task.master_srv.find_data_service('slave')
+        end
+        it "won't return a master service of the same name than the requested slave" do
+            srv_m = Syskit::DataService.new_submodel
+            slave_m = Syskit::DataService.new_submodel
+            task = Syskit::TaskContext.new_submodel do
+                provides srv_m, :as => 'master'
+                provides slave_m, :as => 'slave'
+            end.new
+            assert_same task.find_data_service('master.slave'), task.master_srv.find_data_service('master')
+        end
+    end
+
+    describe "#method_missing" do
+        it "gives direct access to slave services" do
+            srv_m = Syskit::DataService.new_submodel
+            task = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'master' }.new
+            master = task.master_srv
+            flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(obj = Object.new)
+            assert_same obj, master.slave_srv
+        end
+        it "raises ArgumentError if arguments are given" do
+            srv_m = Syskit::DataService.new_submodel
+            task = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'master' }.new
+            master = task.master_srv
+            flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(Object.new)
+            assert_raises(ArgumentError) { master.slave_srv('an_argument') }
+        end
+        it "raises NoMethodError if the requested service does not exist" do
+            srv_m = Syskit::DataService.new_submodel
+            task = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'master' }.new
+            master = task.master_srv
+            flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(nil)
+            assert_raises(NoMethodError) { master.slave_srv }
+        end
+    end
 end
 
 class TC_BoundDataService < Test::Unit::TestCase

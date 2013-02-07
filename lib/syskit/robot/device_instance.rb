@@ -46,6 +46,11 @@ module Syskit
             # sent bursts of data. This is used by the automatic connection code
             # to compute buffer sizes
             dsl_attribute(:burst)   { |v| Integer(v) }
+
+            def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new)
+                to_instance_requirements.instanciate(plan, context, options)
+            end
+
         end
     end
 end

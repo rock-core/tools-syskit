@@ -145,10 +145,6 @@ module Syskit
 
             KNOWN_PARAMETERS = { :period => nil, :sample_size => nil, :device_id => nil }
 
-            def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new)
-                to_instance_requirements.instanciate(plan, context, options)
-            end
-
             ## 
             # :method:device_id
             #
@@ -179,22 +175,29 @@ module Syskit
             # Enumerates the slaves that are known for this device, as
             # [slave_name, SlaveDeviceInstance object] pairs
             def each_slave(&block)
-                slaves.each(&block)
+                slaves.each_value(&block)
             end
 
             # Gets the required slave device
             def slave(slave_service, options = Hash.new)
                 options = Kernel.validate_options options, :as => nil
+                if existing_slave = slaves[slave_service]
+                    return existing_slave
+                end
 
                 # If slave_service is a string, it should refer to an actual
                 # service on +task_model+
                 task_model = driver_model.component_model
-                srv = task_model.find_data_service(slave_service)
+
+                slave_name = "#{driver_model.full_name}.#{slave_service}"
+                srv = task_model.find_data_service(slave_name)
                 if !srv
-                    new_task_model = task_model.ensure_model_is_specialized
-                    srv = new_task_model.require_dynamic_service(slave_service, :as => options[:as])
+                    if options[:as]
+                        new_task_model = task_model.ensure_model_is_specialized
+                        srv = new_task_model.require_dynamic_service(slave_service, :as => options[:as])
+                    end
                     if !srv
-                        raise ArgumentError, "there is no service and no dynamic service in #{task_model.short_name} named #{slave_service}"
+                        raise ArgumentError, "there is no service #{slave_name} and no dynamic service in #{task_model.short_name}"
                     end
                     @driver_model = driver_model.model.bind(new_task_model)
                 end
@@ -208,7 +211,7 @@ module Syskit
             end
 
             def method_missing(m, *args, &block)
-                if m.to_s =~ /(.*)_srv$/
+                if m.to_s =~ /(.*)_dev$/
                     if !args.empty?
                         raise ArgumentError, "expected no arguments, got #{args.size}"
                     end

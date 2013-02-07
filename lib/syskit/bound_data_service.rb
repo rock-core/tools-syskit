@@ -55,6 +55,15 @@ module Syskit
                 end
             end
 
+            def find_data_service(name)
+                component.model.each_slave_data_service(self.model) do |slave_m|
+                    if slave_m.name == name
+                        return slave_m.bind(component)
+                    end
+                end
+                nil
+            end
+
 	    def each_fullfilled_model(&block)
 		model.each_fullfilled_model(&block)
 	    end
@@ -97,6 +106,22 @@ module Syskit
                 req = component.to_instance_requirements
                 req.select_service(model)
                 req
+            end
+
+            def method_missing(m, *args)
+                case m.to_s
+                when /^(\w+)_srv$/
+                    srv_name = $1
+                    if srv = self.find_data_service(srv_name)
+                        if !args.empty?
+                            raise ArgumentError, "#{m} expects no arguments, got #{args.size}"
+                        end
+                        return srv
+                    else
+                        raise NoMethodError, "#{self} has no service called #{srv_name}"
+                    end
+                end
+                super
             end
 
             DRoby = Struct.new :component, :model do

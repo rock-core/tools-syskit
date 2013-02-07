@@ -11,6 +11,8 @@ require 'utilrb/timepoints'
 
 require 'syskit/base'
 
+require 'syskit/instance_requirements'
+
 # Models
 require 'syskit/models/base'
 require 'syskit/models/orogen_base'
@@ -38,7 +40,6 @@ require 'syskit/bound_data_service'
 # Dependency injection
 require 'syskit/dependency_injection'
 require 'syskit/dependency_injection_context'
-require 'syskit/instance_requirements'
 require 'syskit/instance_selection'
 
 # Actions

@@ -71,6 +71,16 @@ describe Syskit::Device do
             assert_equal [task.dev2_srv], task.find_all_driver_services_for(dev1)
             assert_equal [], task.find_all_driver_services_for(dev2)
         end
+
+        it "can enumerate the slave services that are bound to a slave device" do
+            slave_m = Syskit::DataService.new_submodel
+            task_m.driver_for device_m, :as => 'dev'
+            task_m.provides slave_m, :as => 'slave', :slave_of => task_m.dev_srv
+
+            dev = robot.device device_m, :as => 'DEV0', :using => task_m
+            task = task_m.new('dev_dev' => dev)
+            assert_equal [task.dev_srv.slave_srv], task.find_all_driver_services_for(dev.slave_dev).to_a
+        end
     end
 end
 

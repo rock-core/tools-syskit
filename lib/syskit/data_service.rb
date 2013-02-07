@@ -50,10 +50,16 @@ module Syskit
             # Returns the bound data service that is attached to the given
             # device
             def find_all_driver_services_for(device)
-                services = model.each_master_driver_service.find_all do |driver_srv|
-                    find_device_attached_to(driver_srv) == device
+                if device.respond_to?(:master_device)
+                    find_all_driver_services_for(device.master_device).map do |driver_srv|
+                        driver_srv.find_data_service(device.name)
+                    end
+                else
+                    services = model.each_master_driver_service.find_all do |driver_srv|
+                        find_device_attached_to(driver_srv) == device
+                    end
+                    services.map { |drv| drv.bind(self) }
                 end
-                services.map { |drv| drv.bind(self) }
             end
 
             # Returns the device object that is attached to the given service.

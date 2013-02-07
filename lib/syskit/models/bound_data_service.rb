@@ -195,15 +195,27 @@ module Syskit
                 req
             end
 
-            def method_missing(m, *args, &block)
-                if !args.empty? || block
-                    return super
+            def find_data_service(name)
+                component_model.each_slave_data_service(self) do |slave_m|
+                    if slave_m.name == name
+                        return slave_m
+                    end
                 end
-                name = m.to_s
-                if (name =~ /^(\w+)_srv$/) && (subservice = component_model.find_data_service("#{full_name}.#{$1}"))
-                    return subservice
-                elsif (name =~ /^(\w+)_port$/) && (p = find_port($1))
-                    return p
+                nil
+            end
+
+            def method_missing(m, *args, &block)
+                case m.to_s
+                when /^(\w+)_srv$/
+                    srv_name = $1
+                    if srv = self.find_data_service(srv_name)
+                        if !args.empty?
+                            raise ArgumentError, "#{m} expects no arguments, got #{args.size}"
+                        end
+                        return srv
+                    else
+                        raise NoMethodError, "#{self} has no slave service called #{srv_name}"
+                    end
                 end
                 super
             end

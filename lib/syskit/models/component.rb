@@ -584,10 +584,13 @@ module Syskit
                 end
                 full_name = name
 
-                if master_source = source_arguments[:slave_of]
-                    master = find_data_service(master_source)
-                    if !master
-                        raise ArgumentError, "master data service #{master_source} is not registered on #{self}"
+                if master = source_arguments[:slave_of]
+                    if master.respond_to?(:to_str)
+                        master_srv = find_data_service(master)
+                        if !master_srv
+                            raise ArgumentError, "master data service #{master_source} is not registered on #{self}"
+                        end
+                        master = master_srv
                     end
                     full_name = "#{master.full_name}.#{name}"
                 end
