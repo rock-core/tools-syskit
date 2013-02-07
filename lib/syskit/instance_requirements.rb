@@ -637,7 +637,26 @@ module Syskit
             def composition_model?
                 models.any? { |m| m <= Syskit::Composition }
             end
-        end
 
+            def period(value)
+                dynamics.period(value)
+                self
+            end
+
+            # This module can be used to extend other objects so that instance
+            # requirements methods are directly available on that object
+            #
+            # The object must define #to_instance_requirements
+            module Auto
+                METHODS = [:with_arguments, :use_conf, :use_deployments, :period]
+                METHODS.each do |m|
+                    class_eval <<-EOD
+                    def #{m}(*args, &block)
+                        to_instance_requirements.send(m, *args, &block)
+                    end
+                    EOD
+                end
+            end
+        end
 end
 

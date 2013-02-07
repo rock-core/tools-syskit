@@ -195,6 +195,8 @@ module Syskit
                 req
             end
 
+            extend InstanceRequirements::Auto
+
             def find_data_service(name)
                 component_model.each_slave_data_service(self) do |slave_m|
                     if slave_m.name == name
