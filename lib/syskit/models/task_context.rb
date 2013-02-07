@@ -56,6 +56,9 @@ module Syskit
             def define_from_orogen(orogen_model, options = Hash.new)
                 options = Kernel.validate_options options,
                     :register => false
+                if model = find_model_by_orogen(orogen_model) # already defined, probably because of dependencies
+                    return model
+                end
 
                 superclass = orogen_model.superclass
                 if !superclass # we are defining a root model
