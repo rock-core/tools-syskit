@@ -89,8 +89,11 @@ module Syskit
             end
 
             def stub_deployed_task(name, task)
-                task.orocos_task = Orocos::RubyTaskContext.from_orogen_model(name, task.model.orogen_model)
-                task.executed_by stub_roby_deployment
+                task.orocos_name = name
+                deployment = stub_syskit_deployment('deployment') do
+                    task name, task.model.orogen_model
+                end
+                task.executed_by deployment
             end
 
             def setup
@@ -240,7 +243,8 @@ module Syskit
 
             if @handler_ids
                 Syskit::RobyApp::Plugin.unplug_engine_from_roby(@handler_ids, engine)
-                @handler_ids = nil
+                @handler_ids.clear
+                @handler_ids << engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_deployment_states))
             end
         end
 
