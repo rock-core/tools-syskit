@@ -1,14 +1,5 @@
 module Syskit
     module RobyApp
-        # Overloaded methods in Orocos.master_project, to load oroGen projects
-        # when 
-        module MasterProjectHook
-            def register_loaded_project(name, project)
-                super
-                Roby.app.project_define_from_orogen(name, project)
-            end
-        end
-
         # This gets mixed in Roby::Application when the orocos plugin is loaded.
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
@@ -53,8 +44,8 @@ module Syskit
             #
             # @returns [Orocos::Generation::Project] the project object
             def project_define_from_orogen(name, orogen)
-                Syskit.info "loading oroGen project #{name}"
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
+                Syskit.info "loading oroGen project #{name}"
 
                 if Orocos.available_task_libraries[name].respond_to?(:to_str)
                     orogen_path = Orocos.available_task_libraries[name]
@@ -88,8 +79,8 @@ module Syskit
                 end
                 loaded_orogen_projects[name] = orogen
 
-                orogen.used_task_libraries.each do |lib|
-                    load_orogen_project(lib.name)
+                orogen.used_task_libraries.dup.each do |lib|
+                    using_task_library(lib.name)
                 end
 
                 orogen.self_tasks.each do |task_def|
@@ -176,8 +167,6 @@ module Syskit
                         Orocos.conf.load_dir(dir)
                     end
                 end
-                Orocos.master_project.extend(MasterProjectHook)
-                app.using_task_library 'logger'
 
                 Syskit.process_servers.each do |name, (client, log_dir)|
 		    client.available_projects.each do |name, orogen_model|
@@ -333,7 +322,7 @@ module Syskit
             #   server
             def load_deployment_model(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
-                server   = Roby::Conf.process_server_for(options[:on])
+                server   = Syskit.conf.process_server_for(options[:on])
                 deployer = server.load_orogen_deployment(name)
 
                 if !loaded_orogen_project?(deployer.project.name)
@@ -358,8 +347,8 @@ module Syskit
                     using_task_library(lib.name)
                 end
 
-                model = Deployment.model_for(name)
-                deployments[options[:on]] << model
+                model = Deployment.find_model_from_orogen_name(name)
+                Syskit.conf.deployments[options[:on]] << model
                 model
             end
 
