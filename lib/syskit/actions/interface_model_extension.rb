@@ -20,10 +20,12 @@ module Syskit
                 profile.robot.devices.each do |name, dev|
                     action_name = "#{name}_dev"
                     if !actions[action_name]
-                        actions[action_name] = ActionModel.new(self, dev.to_instance_requirements, "device from profile #{profile.name}")
+                        req = dev.to_instance_requirements
+                        profile.inject_di_context(req)
+                        actions[action_name] = ActionModel.new(self, req, "device from profile #{profile.name}")
                         actions[action_name].name = action_name
                         define_method(action_name) do
-                            main_profile.robot.devices[name].as_plan
+                            req.as_plan
                         end
                     end
                 end
@@ -31,10 +33,11 @@ module Syskit
                 profile.definitions.each do |name, req|
                     action_name = "#{name}_def"
                     if !actions[action_name]
+                        req = profile.resolved_definition(name)
                         actions[action_name] = ActionModel.new(self, req, "definition from profile #{profile.name}")
                         actions[action_name].name = action_name
                         define_method(action_name) do
-                            main_profile.resolved_definition(name).as_plan
+                            req.as_plan
                         end
                     end
                 end
