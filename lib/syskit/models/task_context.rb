@@ -99,7 +99,6 @@ module Syskit
                 basename = basename.camelcase(:upper)
                 if namespace.const_defined_here?(basename)
                     warn "there is already a constant with the name #{namespace.name}::#{basename}, I am not registering the model for #{orogen_model.name} there"
-                    model.name = "<#{namespace}::#{basename}>"
                     false
                 else
                     namespace.const_set(basename, model)
