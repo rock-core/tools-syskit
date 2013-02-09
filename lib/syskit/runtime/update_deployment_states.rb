@@ -15,7 +15,7 @@ module Syskit
                 dead_deployments.each do |p, exit_status|
                     d = Deployment.all_deployments[p]
                     if !d.finishing?
-                        Syskit.warn "#{p.deployment_name} unexpectedly died on #{name}"
+                        Syskit.warn "#{p.name} unexpectedly died on #{name}"
                     end
                     all_dead_deployments << d
                     d.dead!(exit_status)
