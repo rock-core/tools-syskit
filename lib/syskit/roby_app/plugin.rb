@@ -446,6 +446,7 @@ module Syskit
                 attr_accessor :toplevel_object
             end
             def self.enable
+                Orocos.load
                 ::Robot.include Syskit::RobyApp::RobotExtension
                 ::Roby.conf.syskit = Syskit.conf
                 ::Roby.extend Syskit::RobyApp::Toplevel
