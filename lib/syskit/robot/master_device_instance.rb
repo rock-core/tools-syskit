@@ -220,6 +220,10 @@ module Syskit
                 super
             end
 
+            def use_frames(frame_mappings)
+                requirements.use_frames(frame_mappings)
+            end
+
             def use_deployments(hints)
                 requirements.use_deployments(hints)
                 self
