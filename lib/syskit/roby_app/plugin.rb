@@ -129,7 +129,7 @@ module Syskit
                     return
                 end
 
-                Orocos.configuration_log_name ||= File.join(app.log_dir, 'properties')
+                Orocos.configuration_log_name = File.join(app.log_dir, 'properties')
                 Orocos.disable_sigchld_handler = true
                 # Engine registers itself as plan.syskit_engine
                 NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
