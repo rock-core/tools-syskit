@@ -35,6 +35,8 @@ module Syskit
                     end
                 end
 
+                next if !t.running? && !t.starting?
+
                 handled_this_cycle = Array.new
                 begin
                     state = nil
