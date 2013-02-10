@@ -10,6 +10,10 @@ Roby.app.public_logs = false
 
 mode = ARGV.shift
 
+if mode == 'browse'
+    require "syskit/scripts/browse"
+end
+
 begin
     require "syskit/scripts/#{mode}"
 rescue LoadError => e

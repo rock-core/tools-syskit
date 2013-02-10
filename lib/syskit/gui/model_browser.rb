@@ -62,6 +62,7 @@ module Syskit
                     connect(v, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
                 end
 
+                current_render = nil
                 model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
                     mod = mod.to_ruby
                     model, render = renderers.find do |model, render|
@@ -70,10 +71,13 @@ module Syskit
                     if model
                         title = "#{mod.name} (#{model.name})"
                         begin
+                            current_render.disable if current_render
                             page.clear
                             page.title = title
                             render.clear
+                            render.enable
                             render.render(mod)
+                            current_render = render
                         rescue ::Exception => e
                             Roby.app.register_exception(e, "while rendering #{mod}")
                             update_exceptions
