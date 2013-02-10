@@ -15,7 +15,13 @@ module Syskit::GUI
                 @models = Hash.new
                 @instanciation_method = :compute_system_network
                 @network_renderer = ComponentNetworkView.new(page)
+            end
+
+            def enable
                 connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+            end
+            def disable
+                disconnect(self, SLOT('linkClicked(const QUrl&)'))
             end
 
             def clear

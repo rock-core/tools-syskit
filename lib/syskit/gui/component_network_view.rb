@@ -38,6 +38,14 @@ module Syskit
                 dataflow_options[:buttons] = buttons
             end
 
+            def enable
+                connect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
+            end
+
+            def disable
+                disconnect(SLOT('buttonClicked(const QString&,bool)'))
+            end
+
             def render(model, options = Hash.new)
                 super
 
