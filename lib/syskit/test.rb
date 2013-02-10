@@ -97,6 +97,8 @@ module Syskit
             end
 
             def setup
+                Roby.app.app_dir = nil
+                Roby.app.search_path.clear
                 @task_stubs = Array.new
 
                 @old_loglevel = Orocos.logger.level
