@@ -24,7 +24,9 @@ module Syskit
             # @param [Hash] arguments the arguments (unused)
             # @return [Roby::Task] the action task
             def run(action_interface, arguments = Hash.new)
-                action_interface.plan.add(task = requirements.as_plan)
+                req = requirements.dup
+                req.with_arguments(arguments)
+                action_interface.plan.add(task = req.as_plan)
                 task
             end
 
