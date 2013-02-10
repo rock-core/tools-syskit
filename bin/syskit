@@ -8,7 +8,6 @@ require 'rock/bundle'
 # Reset to the Roby default
 Roby.app.public_logs = false
 
-Bundles.load(true)
 mode = ARGV.shift
 
 begin
