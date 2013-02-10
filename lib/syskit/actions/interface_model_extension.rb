@@ -16,6 +16,7 @@ module Syskit
             # @param [String,SyskitProfile] the profile that should be used
             # @return [void]
             def use_profile(profile)
+                @current_description = nil
                 main_profile.use_profile(profile)
                 profile.robot.devices.each do |name, dev|
                     action_name = "#{name}_dev"
