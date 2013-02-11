@@ -19,9 +19,11 @@ module Syskit::GUI
 
             def enable
                 connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                network_renderer.enable
             end
             def disable
-                disconnect(self, SLOT('linkClicked(const QUrl&)'))
+                disconnect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                network_renderer.disable
             end
 
             def clear
