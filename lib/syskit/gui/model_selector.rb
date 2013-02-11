@@ -46,10 +46,13 @@ module Syskit
                 layout.add_widget(btn_display_profiles)
             end
 
-            def syskit_model?(mod)
-                mod.kind_of?(Syskit::Actions::Profile) ||
-                    mod.kind_of?(Syskit::Models::DataServiceModel) ||
-                    (mod.kind_of?(Class) && mod <= Syskit::Component)
+            def model?(mod)
+                if mod.kind_of?(Class)
+                    return mod <= Syskit::Component || mod <= Typelib::Type
+                else
+                    mod.kind_of?(Syskit::Actions::Profile) ||
+                        mod.kind_of?(Syskit::Models::DataServiceModel)
+                end
             end
 
             def setup_tree_view(layout)
@@ -62,7 +65,7 @@ module Syskit
                 model_list.selection_model.connect(SIGNAL('currentChanged(const QModelIndex&, const QModelIndex&)')) do |index, _|
                     index = model_filter.map_to_source(index)
                     mod = browser_model.info_from_index(index)
-                    if syskit_model?(mod.this)
+                    if model?(mod.this)
                         emit model_selected(Qt::Variant.from_ruby(mod.this, mod.this))
                     end
                 end
@@ -85,6 +88,7 @@ module Syskit
                 if btn_display_profiles.checked?
                     rx << 'Profile'
                 end
+                rx << "Type"
                 model_filter.filter_role = Qt::UserRole # filter on class/module ancestry
                 model_filter.filter_reg_exp = Qt::RegExp.new(rx.join("|"))
             end
@@ -103,10 +107,12 @@ module Syskit
                     Syskit::Composition => RubyModuleModel::TypeInfo.new('Composition', 1),
                     Syskit::TaskContext => RubyModuleModel::TypeInfo.new('TaskContext', 1),
                     Syskit::DataService => RubyModuleModel::TypeInfo.new('DataService', 0),
-                    Syskit::Actions::Profile => RubyModuleModel::TypeInfo.new('Profile', 1)
+                    Syskit::Actions::Profile => RubyModuleModel::TypeInfo.new('Profile', 1),
+                    Typelib::Type => RubyModuleModel::TypeInfo.new('Type', 1)
+
                 ]
                 @browser_model = RubyModuleModel.new(model_type_info) do |mod|
-                    syskit_model?(mod)
+                    model?(mod)
                 end
                 model_filter.source_model = browser_model
 

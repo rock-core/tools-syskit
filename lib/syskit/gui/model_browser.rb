@@ -2,6 +2,8 @@ require 'syskit/gui/model_selector'
 require 'syskit/gui/model_views'
 require 'syskit/gui/exception_view'
 require 'syskit/gui/html/page'
+require 'rock/doc'
+
 module Syskit
     module GUI
         # Widget that allows to browse the currently available models and
@@ -56,7 +58,8 @@ module Syskit
                     Syskit::Models::TaskContext => ModelViews::TaskContext.new(page),
                     Syskit::Models::Composition => ModelViews::Composition.new(page),
                     Syskit::Models::DataServiceModel => ModelViews::DataService.new(page),
-                    Syskit::Actions::Profile => ModelViews::Profile.new(page)]
+                    Syskit::Actions::Profile => ModelViews::Profile.new(page),
+                    Typelib::Type => ModelViews::Type.new(page)]
                 
                 renderers.each_value do |v|
                     connect(v, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
@@ -66,7 +69,7 @@ module Syskit
                 model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
                     mod = mod.to_ruby
                     model, render = renderers.find do |model, render|
-                        mod.kind_of?(model)
+                        mod.kind_of?(model) || (mod.kind_of?(Class) && model.kind_of?(Class) && mod <= model)
                     end
                     if model
                         title = "#{mod.name} (#{model.name})"
