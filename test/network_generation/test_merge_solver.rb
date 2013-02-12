@@ -301,8 +301,8 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
         it "considers non-specialized versions of a specialized model as valid candidates" do
             task_model = Syskit::TaskContext.new_submodel
-            work_plan.add(non_specialized = task_model.new)
-            work_plan.add(specialized = task_model.new)
+            plan.add(non_specialized = task_model.new)
+            plan.add(specialized = task_model.new)
             specialized.specialize
             flexmock(non_specialized).should_receive(:can_merge?).with(specialized).once
             flexmock(specialized).should_receive(:can_merge?).with(non_specialized).once

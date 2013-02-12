@@ -50,10 +50,6 @@ describe Syskit::Robot::MasterDeviceInstance do
                 driver_m.provides combus_m.client_in_srv, :as => 'combus_in'
             end
 
-            it "should return true if the device is attached to a combus with the given name" do
-                dev.attach_to(bus)
-                assert dev.attached_to?('bus0')
-            end
             it "should return true if the device is attached to the given combus" do
                 dev.attach_to(bus)
                 assert dev.attached_to?(bus)

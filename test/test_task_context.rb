@@ -43,12 +43,12 @@ describe Syskit::TaskContext do
 
     describe "#distance_to" do
         attr_reader :task0, :task1
-        attr_reader :deployment0, :deployment1
+        attr_reader :deployment_m, :deployment0, :deployment1
         before do
             task_m = Syskit::TaskContext.new_submodel
             plan.add(@task0 = task_m.new)
             plan.add(@task1 = task_m.new)
-            deployment_m = Syskit::Deployment.new_submodel
+            @deployment_m = Syskit::Deployment.new_submodel
             plan.add(@deployment0 = deployment_m.new)
             plan.add(@deployment1 = deployment_m.new)
         end
@@ -63,7 +63,7 @@ describe Syskit::TaskContext do
             assert_equal Syskit::TaskContext::D_SAME_HOST, task0.distance_to(task1)
         end
         it "returns D_DIFFERENT_HOSTS if both tasks are from processes from different hosts" do
-            deployment1.arguments[:on] = 'other_host'
+            plan.add(@deployment1 = deployment_m.new(:on => 'other_host'))
             task0.executed_by deployment0
             task1.executed_by deployment1
             assert_equal Syskit::TaskContext::D_DIFFERENT_HOSTS, task0.distance_to(task1)
@@ -215,7 +215,7 @@ describe Syskit::TaskContext do
             plan.add(@task = task_m.new(:conf => [], :orocos_name => ""))
             task.executable = true
             flexmock(task).should_receive(:orocos_task).and_return(@orocos_task = flexmock)
-            orocos_task.should_receive(:start)
+            orocos_task.should_receive(:start).by_default
             orocos_task.should_receive(:exception_state?).by_default
             orocos_task.should_receive(:fatal_error_state?).by_default
             orocos_task.should_receive(:runtime_state?).by_default
@@ -241,6 +241,8 @@ describe Syskit::TaskContext do
         it "emits start as soon as a runtime state has been received" do
             flexmock(task).should_receive(:orogen_state).and_return(:blabla)
             orocos_task.should_receive(:runtime_state?).with(:blabla).and_return(true)
+            flexmock(task).should_receive(:state_event).with(:blabla).and_return(:success)
+            flexmock(task).should_receive(:emit).with(:success).once
             task.handle_state_changes
             assert task.running?
         end
