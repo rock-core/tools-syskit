@@ -44,9 +44,13 @@ module Syskit
             def new_submodel(options = Hash.new, &block)
                 model, options = Kernel.filter_options options, :orogen_model
 
-                klass = super(options, &block)
-                klass.orogen_model = model[:orogen_model] ||
-                    Orocos::Spec::Deployment.new(Orocos.master_project, options[:name])
+                klass = super(options) do
+                    self.orogen_model = model[:orogen_model] ||
+                        Orocos::Spec::Deployment.new(Orocos.master_project, options[:name])
+                    if block
+                        self.orogen_model.instance_eval(&block)
+                    end
+                end
                 klass
             end
 
