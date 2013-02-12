@@ -13,7 +13,16 @@ module Syskit::GUI
             def initialize(page)
                 super(page)
                 @specializations = Hash.new
+            end
+
+            def enable
                 connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                super
+            end
+
+            def disable
+                disconnect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                super
             end
 
             def linkClicked(url)

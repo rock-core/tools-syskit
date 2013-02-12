@@ -496,14 +496,14 @@ module Syskit
 
                 if mod.const_defined_here?(name)
                     model = mod.const_get(name)
+                    if block_given?
+                        model.apply_block(&block)
+                    end
                 else 
-                    mod.const_set(name, model = base_model.new_submodel(*args))
+                    mod.const_set(name, model = base_model.new_submodel(*args, &block))
                     model.permanent_model = true
                 end
 
-                if block_given?
-                    model.apply_block(&block)
-                end
                 model
             end
 

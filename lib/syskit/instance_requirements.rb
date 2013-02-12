@@ -628,14 +628,18 @@ module Syskit
                 self
             end
 
+            def find_model_by_type(type)
+                models.find { |m| m <= type }
+            end
+
             # Tests if these requirements explicitly point to a component model
             def component_model?
-                models.any? { |m| m <= Syskit::Component }
+                !!find_model_by_type(Syskit::Component)
             end
 
             # Tests if these requirements explicitly point to a composition model
             def composition_model?
-                models.any? { |m| m <= Syskit::Composition }
+                !!find_model_by_type(Syskit::Composition)
             end
 
             def period(value)

@@ -34,8 +34,15 @@ module Syskit
                                                 :off_text => "Hide #{ann_name}",
                                                 :state => dataflow_options[:annotations].include?(ann_name))
                 end
-                connect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
                 dataflow_options[:buttons] = buttons
+            end
+
+            def enable
+                connect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
+            end
+
+            def disable
+                disconnect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
             end
 
             def render(model, options = Hash.new)

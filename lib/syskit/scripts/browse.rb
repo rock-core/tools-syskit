@@ -28,7 +28,16 @@ Scripts.run do
     # Load all task libraries
     Roby.app.syskit_engine.prepare
 
+    remaining.delete_if do |arg|
+        if File.file?(arg)
+            # Load this as a model
+            require arg
+            true
+        end
+    end
+
     main = Syskit::GUI::ModelBrowser.new
+
     # Select the model given on the command line (if any)
     if !remaining.empty?
         model = begin

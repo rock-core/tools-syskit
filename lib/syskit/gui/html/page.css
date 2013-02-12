@@ -12,3 +12,13 @@ table-caption {margin: 0.5em 0px 1.0em 30px; padding: 0px; clear: both; text-ali
 .button_bar span em {font-weight: bold; font-style: normal;}
 .button_bar a {color: rgb(115,162,182); text-decoration: none; font-size: 10px; font-weight: normal;}
 .button_bar a:hover {color: rgb(50,50,50); text-decoration: none;}
+
+.body-header-list {width: 510px; margin: 0em 2em 1em 0em; padding: 0 0 0 0; background-color: rgb(238,237,249); font-size: 1.0em;}
+.body-header-list ul {width: 510px; margin: 5px 0px 0px 0px; padding: 0px; border-bottom: solid 1px rgb(216,206,159); background-color: rgb(219,230,241);}
+.body-header-list li {list-style: none; margin: 0px; padding: 0px;display: block; min-height: 1.7em; height: auto !important; height: 1.7em; line-height: 1.7em; margin: 0px; padding: 0px 7px 0px 10px; border-top: solid 1px rgb(200,200,200); border-left: solid 7px rgb(219,230,241); color: rgb(75,75,75); font-weight: normal; font-size: 100%; text-decoration: none;}
+.body-header-list li.title {margin: 0px 0px 0px 0px; padding: 3px 5px 2px 15px; background-color: rgb(156,186,214); color: rgb(255,255,255); text-transform: uppercase; font-weight: bold;}
+
+.body-header-list li table {clear: left; margin: 0em 0px 0em 25px; empty-cells: show; border-collapse: collapse; }
+.body-header-list li table tr {margin: 0px; padding: 0px;}
+.body-header-list li table td {margin: 0px; padding: 0px 7px 0px 7px; border: none; text-align: left;}
+.body-header-list li table th {margin: 0px; padding: 0px; border: none; empty-cells: show; text-align: left; 	}

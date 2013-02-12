@@ -157,15 +157,26 @@ module Syskit
 
             def self.require_models(app)
                 if !Orocos.loaded?
-                    # Load configuration directories
-                    app.find_dirs('models', 'orogen', 'ROBOT', :order => :specific_last, :all => true).each do |dir|
-                        Orocos.register_orogen_files(dir)
-                    end
                     Orocos.load
-                    # Load configuration directories
-                    app.find_dirs('config', 'orogen', 'ROBOT', :order => :specific_last, :all => true).each do |dir|
-                        Orocos.conf.load_dir(dir)
+                end
+                # Load user-defined dummy orogen projects
+                all_files =
+                    app.find_files_in_dirs("models", "orogen", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
+                all_files.each do |path|
+                    name = File.basename(path, ".orogen")
+                    if !Orocos.available_projects.has_key?(name)
+                        begin
+                            Orocos.beautify_loading_errors("#{name}.orogen") do
+                                Orocos.load_independent_orogen_project(path)
+                            end
+                        rescue Exception => e
+                            Roby.app.register_exception(e)
+                        end
                     end
+                end
+                # Load configuration directories
+                app.find_dirs('config', 'orogen', 'ROBOT', :order => :specific_last, :all => true).each do |dir|
+                    Orocos.conf.load_dir(dir)
                 end
 
                 Syskit.process_servers.each do |name, (client, log_dir)|
@@ -181,14 +192,6 @@ module Syskit
 		    end
 		end
 
-                all_files =
-                    app.find_files_in_dirs("models", "orogen", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
-                all_files.each do |path|
-                    name = File.basename(path, ".orogen")
-                    if !Orocos.available_projects.has_key?(name)
-                        Orocos.master_project.register_orogen_file(path, name)
-                    end
-                end
 
                 # Load the data services and task models
                 search_path =

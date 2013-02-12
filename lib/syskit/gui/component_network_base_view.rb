@@ -10,6 +10,12 @@ module Syskit
                 @page = page
             end
 
+            def enable
+            end
+
+            def disable
+            end
+
             DATA_SERVICE_WITHOUT_NAMES_TEMPLATE = <<-EOD
             <table>
             <% services.each do |service_name, provided_services| %>
