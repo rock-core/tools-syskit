@@ -43,7 +43,8 @@ module Syskit
             def try_resolve(task)
                 if task = composition_model.try_resolve(task)
                     child = task.find_child_from_role(child_name)
-                    if child.requirements.service
+                    if !child then return
+                    elsif child.requirements.service
                         child.requirements.service.bind(child)
                     else child
                     end
