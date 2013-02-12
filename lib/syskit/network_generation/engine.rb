@@ -204,6 +204,23 @@ module Syskit
                 deployed_models
             end
 
+            def update_deployed_models
+                @deployed_models = compute_deployed_models
+                @deployed_component_models = deployed_models.find_all { |m| m <= Component }
+                @task_context_deployment_candidates = compute_task_context_deployment_candidates
+
+                # Fill in the service_allocation_candidates mapping
+                service_allocation_candidates.clear
+                @deployed_component_models.each do |component_m|
+                    component_m.each_fullfilled_model do |fullfilled_m|
+                        if fullfilled_m <= DataService
+                            service_allocation_candidates[fullfilled_m] ||= ValueSet.new
+                            service_allocation_candidates[fullfilled_m] << component_m
+                        end
+                    end
+                end
+            end
+
             # Must be called everytime the system model changes. It updates the
             # values that are cached to speed up the instanciation process
             def prepare(options = Hash.new)
@@ -216,24 +233,11 @@ module Syskit
                     block.call
                 end
 
-                @deployed_models = compute_deployed_models
-                deployed_component_models = deployed_models.find_all { |m| m <= Component }
-                @task_context_deployment_candidates = compute_task_context_deployment_candidates
-
-                # Fill in the service_allocation_candidates mapping
-                service_allocation_candidates.clear
-                deployed_component_models.each do |component_m|
-                    component_m.each_fullfilled_model do |fullfilled_m|
-                        if fullfilled_m <= DataService
-                            service_allocation_candidates[fullfilled_m] ||= ValueSet.new
-                            service_allocation_candidates[fullfilled_m] << component_m
-                        end
-                    end
-                end
+                update_deployed_models
 
                 # And compute the default selections
                 @main_automatic_selection = DependencyInjection.new
-                main_automatic_selection.add_defaults(deployed_component_models)
+                main_automatic_selection.add_defaults(@deployed_component_models)
 
                 @work_plan = Roby::Transaction.new(real_plan)
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
@@ -584,7 +588,7 @@ module Syskit
                 missing_deployments = []
                 deployment_tasks = Hash.new
                 work_plan.find_local_tasks(Deployment).
-                    each { |t| deployment_tasks[[t.on, t.class]] = t }
+                    each { |t| deployment_tasks[[t.host, t.class]] = t }
                 all_tasks = work_plan.find_local_tasks(TaskContext).to_a
                 all_tasks.each do |task|
                     next if task.execution_agent # This is already deployed

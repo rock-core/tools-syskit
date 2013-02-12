@@ -99,7 +99,7 @@ describe Syskit::Deployment do
     describe "runtime behaviour" do
         attr_reader :process_server, :process, :log_dir
         before do
-            @process_server = flexmock('process_server')
+            @process_server = flexmock('process_server', :wait_termination => [])
             process_server.should_receive(:disconnect).by_default
             @process = flexmock('process')
             process.should_receive(:kill).by_default
@@ -112,6 +112,7 @@ describe Syskit::Deployment do
             if deployment_task.running?
                 deployment_task.dead!(nil)
             end
+            Syskit.process_servers.delete 'bla'
         end
 
         describe "start_event" do

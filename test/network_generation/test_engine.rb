@@ -8,6 +8,7 @@ describe Syskit::NetworkGeneration::Engine do
     before do
         create_simple_composition_model
         plan.engine.scheduler = nil
+        @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
     end
 
     def work_plan; syskit_engine.work_plan end
@@ -224,6 +225,7 @@ describe Syskit::NetworkGeneration::Engine do
             deployment_task.should_receive(:task).with('task').and_return(deployed_task = flexmock).ordered
             # And finally replace the task with the deployed task
             flexmock(syskit_engine.merge_solver).should_receive(:merge).once.with(task, deployed_task)
+            syskit_engine.update_deployed_models
             syskit_engine.deploy_system_network
         end
         it "instanciates the same deployment only once on the same machine" do
@@ -246,11 +248,15 @@ describe Syskit::NetworkGeneration::Engine do
             deployment_task.should_receive(:task).with('task').once
             deployment_task.should_receive(:task).with('other_task').once
             # And finally replace the task with the deployed task
+            syskit_engine.update_deployed_models
             assert_equal [], syskit_engine.deploy_system_network
         end
         it "instanciates the same deployment twice if on two different machines" do
             deployments = Hash[
-                task_models[0] => [['machine', deployment_models[0], 'task'], ['other_machine', deployment_models[0], 'other_task']]
+                task_models[0] => [
+                    ['machine', deployment_models[0], 'task'],
+                    ['other_machine', deployment_models[0], 'other_task']
+                ]
             ]
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments)
@@ -272,6 +278,7 @@ describe Syskit::NetworkGeneration::Engine do
             deployment_task0.should_receive(:task).with('task').once
             deployment_task1.should_receive(:task).with('other_task').once
             # And finally replace the task with the deployed task
+            syskit_engine.update_deployed_models
             assert_equal [], syskit_engine.deploy_system_network
         end
         it "does not allocate the same task twice" do
@@ -289,6 +296,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(deployment_models[0]).should_receive(:new).once.
                 and_return(deployment_task0 = flexmock)
             deployment_task0.should_receive(:task).with('task').once
+            syskit_engine.update_deployed_models
             assert_equal [task1], syskit_engine.deploy_system_network.to_a
         end
         it "does not resolve ambiguities by considering already allocated tasks" do
@@ -306,6 +314,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(deployment_models[0]).should_receive(:new).once.
                 and_return(deployment_task0 = flexmock)
             deployment_task0.should_receive(:task).with('task').once
+            syskit_engine.update_deployed_models
             assert_equal [task1], syskit_engine.deploy_system_network.to_a
         end
         it "does not consider already deployed tasks" do
@@ -320,6 +329,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine.work_plan).should_receive(:find_local_tasks).
                 with(Syskit::TaskContext).and_return([task0])
             flexmock(deployment_models[0]).should_receive(:new).never
+            syskit_engine.update_deployed_models
             assert_equal [], syskit_engine.deploy_system_network
         end
     end
@@ -381,21 +391,6 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(existing_task).should_receive(:can_merge?).with(task).and_return(false)
             new_task = should_create_new_task
             flexmock(new_task).should_receive(:should_configure_after).with(existing_task.stop_event).once
-            syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
-        end
-        it "does not mark the task as needing reconfiguration if the configuration did not change" do
-            task.orocos_name = existing_task.orocos_name = 'task'
-            task.conf = existing_task.conf = []
-            should_not_create_new_task
-            flexmock(existing_task).should_receive(:needs_reconfiguration!).never
-            syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
-        end
-        it "marks the tasks as needing reconfiguration if the configuration changed" do
-            task.orocos_name = existing_task.orocos_name = 'task'
-            task.conf = []
-            existing_task.conf = ['default']
-            new_task = should_create_new_task
-            flexmock(existing_task).should_receive(:needs_reconfiguration!).once
             syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
         end
     end
