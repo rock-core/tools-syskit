@@ -17,9 +17,9 @@ module Syskit
             #
             # @key_name child_name
             # @return [Hash<String,CompositionChild>]
-            define_inherited_enumerable(:child, :children, :map => true) { Hash.new }
+            inherited_attribute(:child, :children, :map => true) { Hash.new }
 
-            define_inherited_enumerable(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
+            inherited_attribute(:child_constraint, :child_constraints, :map => true) { Hash.new { |h, k| h[k] = Array.new } }
 
             def clear_model
                 super
@@ -69,7 +69,7 @@ module Syskit
             # input port name (on the input child) to the desired connection policy.
             #
             # Empty connection policies means "autodetect policy"
-            define_inherited_enumerable(:explicit_connection, :explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
+            inherited_attribute(:explicit_connection, :explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
 
             # [ValueSet<Model<Composition>>] the composition models that are parent to this one
             attribute(:parent_models) { ValueSet.new }
@@ -242,7 +242,7 @@ module Syskit
                 models = models.to_value_set
 
                 wrong_type = models.find do |m|
-                    !m.kind_of?(Roby::TaskModelTag) && !(m.kind_of?(Class) && m < Syskit::Component)
+                    !m.kind_of?(Roby::Models::TaskServiceModel) && !(m.kind_of?(Class) && m < Syskit::Component)
                 end
                 if wrong_type
                     raise ArgumentError, "wrong model type #{wrong_type.class} for #{wrong_type}"
@@ -1004,7 +1004,7 @@ module Syskit
             #
             # @key_name exported_port_name
             # @return [Hash<String,Port>]
-            define_inherited_enumerable(:exported_output, :exported_outputs, :map => true)  { Hash.new }
+            inherited_attribute(:exported_output, :exported_outputs, :map => true)  { Hash.new }
 
             # Method that maps exports from this composition's parent models to
             # this composition's own interface
@@ -1019,7 +1019,7 @@ module Syskit
             #
             # @key_name exported_port_name
             # @return [Hash<String,Port>]
-            define_inherited_enumerable(:exported_input, :exported_inputs, :map => true)  { Hash.new }
+            inherited_attribute(:exported_input, :exported_inputs, :map => true)  { Hash.new }
 
             # Configurations defined on this composition model
             #
@@ -1028,7 +1028,7 @@ module Syskit
             #   composition configuration name to the corresponding
             #   configurations that should be applied to its children
             # @see {#conf}
-            define_inherited_enumerable(:configuration, :configurations, :map => true)  { Hash.new }
+            inherited_attribute(:configuration, :configurations, :map => true)  { Hash.new }
 
             # Declares a composition configuration
             #

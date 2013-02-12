@@ -4,7 +4,7 @@ module Syskit
         #
         # It is used to extend every subclass of Syskit::TaskContext
         module TaskContext
-            include Models::Base
+            include Models::Component
             include Models::PortAccess
             include Models::OrogenBase
 
@@ -112,7 +112,7 @@ module Syskit
             # A state_name => event_name mapping that maps the component's
             # state names to the event names that should be emitted when it
             # enters a new state.
-            define_inherited_enumerable(:state_event, :state_events, :map => true) { Hash.new }
+            inherited_attribute(:state_event, :state_events, :map => true) { Hash.new }
 
             # Create a new TaskContext model
             #
@@ -123,27 +123,19 @@ module Syskit
             #   oroGen model that should be used. If not given, an empty model
             #   is created, possibly with the name given to the method as well.
             def new_submodel(options = Hash.new, &block)
-                options = Kernel.validate_options options,
-                    :name => nil, :orogen_model => nil
-                model = Class.new(self)
-                model.permanent_model = false
-                if options[:name]
-                    model.name = options[:name]
-                end
+                orogen_model, options = Kernel.filter_options options, :orogen_model
 
-                if orogen_model = options[:orogen_model]
+                model = super(options, &block)
+                if orogen_model = orogen_model[:orogen_model]
                     model.orogen_model = orogen_model
-                else
-                    model.setup_submodel
-                end
-                register_submodel(model)
-                
-                if block
-                    evaluation = DataServiceModel::BlockInstanciator.new(model)
-                    evaluation.instance_eval(&block)
                 end
                 model.make_state_events
                 model
+            end
+
+            def apply_block(&block)
+                evaluation = DataServiceModel::BlockInstanciator.new(self)
+                evaluation.instance_eval(&block)
             end
 
             # Sets up self on the basis of {#supermodel}

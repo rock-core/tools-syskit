@@ -2,10 +2,14 @@ module Syskit
     module Models
         # Management of the specializations of a particular composition model
         class SpecializationManager
+            extend MetaRuby::Attributes
+
             # The composition model
             #
             # @return [Model<Composition>] 
             attr_reader :composition_model
+
+            inherited_attribute(:default_specialization, :default_specializations, :map => true) { Hash.new }
 
             def initialize(composition_model)
                 @composition_model = composition_model
@@ -275,8 +279,6 @@ module Syskit
                     result
                 end
             end
-
-            define_inherited_enumerable(:default_specialization, :default_specializations, :map => true) { Hash.new }
 
             # Declares a preferred specialization in case two specializations
             # match that are not related to each other.

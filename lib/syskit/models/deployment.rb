@@ -2,6 +2,7 @@ module Syskit
     module Models
         module Deployment
             include Models::Base
+            include MetaRuby::ModelAsClass
             include Models::OrogenBase
             
             # The options that should be passed when starting the underlying
@@ -9,7 +10,7 @@ module Syskit
             #
             # @key_name option_name
             # @return [Hash<String,String>]
-            define_inherited_enumerable('default_run_option', 'default_run_options', :map => true) { Hash.new }
+            inherited_attribute('default_run_option', 'default_run_options', :map => true) { Hash.new }
 
             # [Models::Deployment] Returns the parent model for this class, or
             # nil if it is the root model
@@ -40,20 +41,12 @@ module Syskit
             #   It is usually not necessary to provide it.
             # @return [Deployment] the deployment class, as a subclass of
             #   Deployment
-            def new_submodel(options = Hash.new)
-                klass = Class.new(self)
-                klass.permanent_model = false
-                options = Kernel.validate_options options, :name, :orogen_model
-                if name = options[:name]
-                    klass.name = name
-                end
+            def new_submodel(options = Hash.new, &block)
+                model, options = Kernel.filter_options options, :orogen_model
 
-                klass.orogen_model = options[:orogen_model] ||
+                klass = super(options, &block)
+                klass.orogen_model = model[:orogen_model] ||
                     Orocos::Spec::Deployment.new(Orocos.master_project, options[:name])
-                if block_given?
-                    klass.orogen_model.instance_eval(&proc)
-                end
-                register_submodel(klass)
                 klass
             end
 

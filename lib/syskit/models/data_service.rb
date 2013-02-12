@@ -3,7 +3,7 @@ module Syskit
         # Base type for data service models (DataService, Devices,
         # ComBus). Methods defined in this class are available on said
         # models (for instance Device.new_submodel)
-        class DataServiceModel < Roby::TaskService
+        class DataServiceModel < Roby::Models::TaskServiceModel
             include Models::Base
             include Syskit::Models::PortAccess
 
@@ -25,14 +25,8 @@ module Syskit
 
             def clear_model
                 @orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project)
-                parent_models.clear
                 port_mappings.clear
             end
-
-            # @!attribute rw parent_models
-            #   @return [ValueSet<DataServiceModel>] the data service models
-            #     that are parent of this one
-            attribute(:parent_models) { ValueSet.new }
 
             # @!attribute rw port_mappings
             #   Port mappings from this service's parent models to the service
@@ -59,47 +53,6 @@ module Syskit
                         yield(m)
                     end
                 end
-            end
-
-            # The model next in the ancestry chain, or nil if +self+ is root
-            def supermodel
-                ancestors = self.ancestors
-                ancestors.shift
-                ancestors.each do |m|
-                    if m.respond_to?(:register_submodel)
-                        return m
-                    end
-                end
-                Roby::TaskService
-            end
-
-            # Creates a new DataServiceModel that is a submodel of +self+
-            #
-            # @param [Hash] options the option hash
-            # @option options [String] :name the submodel name. Use this option
-            #   only for "anonymous" models, i.e. models that won't be
-            #   registered on a Ruby constant
-            # @option options [Class] :type the type of the submodel. It must be
-            #   DataServiceModel or one of its subclasses
-            #
-            def new_submodel(options = Hash.new, &block)
-                options = Kernel.validate_options options,
-                    :name => nil, :type => self.class
-
-                model = options[:type].new
-                model.definition_location = call_stack
-                register_submodel(model)
-                if options[:name]
-                    Syskit::Models.validate_model_name(options[:name])
-                    model.name = options[:name].dup
-                end
-                model.provides self
-
-                if block_given?
-                    model.apply_block(&block)
-                end
-
-                model
             end
 
             # Internal class used to apply configuration blocks to data
@@ -185,6 +138,8 @@ module Syskit
 
                 if parent_models.include?(service_model)
                     return
+                elsif !service_model.kind_of?(DataServiceModel) # this is probably just a task service
+                    return super(service_model)
                 end
 
                 service_model.each_port do |p|
@@ -234,8 +189,7 @@ module Syskit
                     port_mappings[self][p.name] = p.name
                 end
 
-                include service_model
-                parent_models << service_model
+                super(service_model)
             end
 
             # [Orocos::Spec::TaskContext] the object describing the data

@@ -23,6 +23,7 @@ module Test_DataServiceModel
         submodel = new_submodel
         assert service_type.submodels.include?(submodel)
 
+        assert_equal service_type, submodel.supermodel
         subsubmodel = submodel.new_submodel
         assert service_type.submodels.include?(subsubmodel)
         assert submodel.submodels.include?(subsubmodel)
@@ -78,10 +79,6 @@ module Test_DataServiceModel
         assert_kind_of(DataServiceModel, model)
         assert(model < service_type)
         assert_equal("Image", model.name)
-    end
-
-    def test_new_submodel_requires_constant_name
-        assert_raises(ArgumentError) { new_submodel(:name => "image") }
     end
 
     module DataServiceDefinitionTest

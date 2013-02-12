@@ -4,6 +4,7 @@ module Syskit
         # documentation of Model for an explanation of this.
         module Component
             include Models::Base
+            include MetaRuby::ModelAsClass
             include Syskit::DataService
 
             # Method that maps data services from this component's parent models
@@ -19,7 +20,7 @@ module Syskit
             #
             # @key_name full_name
             # @return [Hash<String,BoundDataService>]
-            define_inherited_enumerable(:data_service, :data_services, :map => true) { Hash.new }
+            inherited_attribute(:data_service, :data_services, :map => true) { Hash.new }
 
             def clear_model
                 super
@@ -471,7 +472,7 @@ module Syskit
             #
             # @map_key dynamic_service_name
             # @return [Hash<String,DynamicService>]
-            define_inherited_enumerable('dynamic_service', 'dynamic_services', :map => true) { Hash.new }
+            inherited_attribute('dynamic_service', 'dynamic_services', :map => true) { Hash.new }
 
             # Declares that this component model can dynamically extend its
             # interface by adding services of the given type

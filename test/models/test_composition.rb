@@ -259,8 +259,9 @@ describe Syskit::Models::Composition do
 
         it "adds its children as dependencies" do
             composition_m = simple_composition_model
+            srv_child = simple_component_model.new
             flexmock(simple_component_model).should_receive(:new).
-                and_return(srv_child = simple_task_model.new).once
+                and_return(srv_child).once
             flexmock(composition_m).new_instances.
                 should_receive(:depends_on).by_default.pass_thru
             flexmock(composition_m).new_instances.

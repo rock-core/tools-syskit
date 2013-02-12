@@ -1,5 +1,7 @@
 module Syskit
         DataService = Models::DataServiceModel.new
+        DataService.root = true
+        DataService.provides Roby::TaskService
         Models::DataServiceModel.base_module = DataService
         module DataService
             # Returns true if at least one port of the given service (designated
@@ -25,6 +27,7 @@ module Syskit
         end
 
         Device   = Models::DeviceModel.new
+        Device.root = true
         Models::DeviceModel.base_module = Device
 
         # Modelling and instance-level functionality for devices
@@ -122,6 +125,7 @@ module Syskit
         end
 
         ComBus = Models::ComBusModel.new
+        ComBus.root = true
         Models::ComBusModel.base_module = ComBus
 
         # Module that represents the communication busses in the task models. It

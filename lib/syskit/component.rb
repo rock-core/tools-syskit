@@ -26,6 +26,7 @@ module Syskit
             include Syskit::PortAccess
 
             abstract
+            terminates
 
             # The name of the process server that should run this component
             #

@@ -12,66 +12,9 @@ module Syskit
         # For instance, the singleton methods of Component are defined on
         # ComponentModel, Composition on CompositionModel and so on.
         module Base
-            include Utilrb::Models::Registration
-
-            # Allows to set a name on private models (i.e. models that are not
-            # registered as Ruby constants)
-            def name=(name)
-                class << self
-                    attr_accessor :name
-                end
-                self.name = name
-            end
-
             # List of names that are valid for this model in the context of
             # DependencyInjection
             def dependency_injection_names; [] end
-
-            # Returns a string suitable to reference an element of type +self+.
-            #
-            # This is for instance used by the composition if no explicit name
-            # is given:
-            #
-            #   add ElementModel
-            #
-            # will have a default name of
-            #
-            #   ElementModel.snakename
-            def snakename
-                short_name.gsub(/.*::/, '').snakecase
-            end
-
-            # Returns a string suitable to reference +self+ as a constant
-            #
-            # This is for instance used by SystemModel to determine what name to
-            # use to export new models as constants:
-            def constant_name
-                name.gsub(/.*::/, '').camelcase(:upper)
-            end
-
-            # Creates a new class that is a submodel of this model
-            def new_submodel(options = Hash.new, &block)
-                options = Kernel.validate_options options, :name => nil
-
-                model = self.class.new(self)
-                model.permanent_model = false
-                if name = options[:name]
-                    Models.validate_model_name(name)
-                    model.name = name
-                end
-                register_submodel(model)
-
-                model.setup_submodel
-
-                if block_given?
-                    model.instance_eval(&block)
-                end
-                model
-            end
-
-            # Sets up internal attributes on the basis of {#supermodel}
-            def setup_submodel
-            end
 
             # The model name that should be used in messages that are displayed
             # to the user. Note that Syskit defines Class#short_name as an
@@ -90,7 +33,6 @@ module Syskit
                 Syskit::InstanceRequirements.new([self])
             end
         end
-
 
         # Validates that the given name is a valid model name. Mainly, it makes
         # sure that +name+ is a valid constant Ruby name without namespaces
