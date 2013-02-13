@@ -51,9 +51,23 @@ module Syskit
             attr_reader :additional_vertices
             # Additional edges that should be added to the generated graph
             attr_reader :additional_edges
+            # A rendering context for the SVG
+            # @return [#link_to(object[, text])]
+            attr_reader :page
 
-            def initialize(plan)
+            class DummyPage
+                def link_to(obj, text = nil)
+                    if text then text
+                    else
+                        obj.name.gsub("<", "&lt;").
+                            gsub(">", "&gt;")
+                    end
+                end
+            end
+
+            def initialize(plan, page = DummyPage.new)
                 @plan = plan
+                @page = page
                 @make_links = true
 
                 @task_annotations = Hash.new { |h, k| h[k] = Hash.new { |a, b| a[b] = Array.new } }
@@ -154,12 +168,15 @@ module Syskit
                     :graphviz_tool => "dot"
 
                 Tempfile.open('roby_orocos_graphviz') do |io|
-                    io.write send(kind, display_options)
+                    dot_graph = send(kind, display_options)
+                    io.write dot_graph
                     io.flush
 
                     graph = `#{file_options[:graphviz_tool]} -T#{format} #{io.path}`
                     if !$?.exited?
                         raise ArgumentError, "dot crashed while trying to generate the graph"
+                    elsif !$?.success?
+                        raise ArgumentError, "dot reported an error generating the graph"
                     end
 
                     if output_io.respond_to?(:to_str)
@@ -578,7 +595,9 @@ module Syskit
                 label = []
                 
                 if task.respond_to?(:proxied_data_services)
-                    name = task.proxied_data_services.map(&:short_name).join(", ").tr("<>", '[]')
+                    name = task.proxied_data_services.map do |model|
+                        model.short_name
+                    end.join(", ")
                     label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
                 else
                     annotations = Array.new
@@ -596,7 +615,6 @@ module Syskit
                     else
                         name = task.model.name
                     end
-                    name = name.gsub("Syskit::", "").tr("<>", '[]')
 
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"

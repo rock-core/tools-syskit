@@ -1,17 +1,15 @@
-require 'qtwebkit'
-require 'metaruby/gui/html'
-
-module Syskit::GUI
-    module HTML
-        RESSOURCES_DIR = File.expand_path(File.dirname(__FILE__))
-
-        # A helper class that gives us easy-to-use page elements on a
-        # Qt::WebView
+module Syskit
+    module GUI
         class Page < MetaRuby::GUI::HTML::Page
-            def scale_attribute(node, name, scale)
-                node.attributes[name] = node.attributes[name].gsub /[\d\.]+/ do |n|
-                    (Float(n) * scale).to_s
+            def link_to(obj, text = nil)
+                if !object_uris[obj]
+                    object_uris.each do |k, v|
+                        if k.name == obj.name
+                            puts "#{k}: #{k.object_id} #{obj.object_id} #{k == obj} Yuk"
+                        end
+                    end
                 end
+                super
             end
 
             # Adds a PlanDisplay widget with the given title and parameters
@@ -19,9 +17,9 @@ module Syskit::GUI
                 view_options, options = Kernel.filter_options options,
                     :buttons => [],
                     :id => nil
-                
+
                 svg_io = Tempfile.open(mode)
-                Syskit::Graphviz.new(plan).
+                Syskit::Graphviz.new(plan, self).
                     to_file(mode, 'svg', svg_io, options)
                 svg_io.flush
                 svg_io.rewind
@@ -32,7 +30,10 @@ module Syskit::GUI
                 end
                 push(title, svg, view_options)
             rescue Exception => e
+                pp e
+                pp e.backtrace
                 Roby.app.register_exception(e)
+                emit :updated
             end
         end
     end

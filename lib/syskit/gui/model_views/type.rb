@@ -1,21 +1,14 @@
-require 'rock/doc'
-require 'autoproj'
+require 'orogen/html'
 module Syskit::GUI
     module ModelViews
-        module TypeRenderingExtension
-            def link_to(arg)
-                name = arg.name
-                "<a href=\"model://syskit/types#{Rock::Doc::HTML.escape_html(name)}\">#{super}</a>"
-            end
-        end
-        Rock::Doc::HTML::TypeRenderingContext.include TypeRenderingExtension
-
         class Type < Qt::Object
             attr_reader :page
+            attr_reader :type_rendering
 
             def initialize(page)
                 super()
                 @page = page
+                @type_rendering = Orocos::HTML::Type.new(page)
             end
 
             def enable
@@ -39,20 +32,19 @@ module Syskit::GUI
             end
 
             def render(type)
-                fragment = Rock::Doc::HTML.render_object(type, 'type_fragment.page')
-                page.push('Definition', fragment)
+                type_rendering.render(type)
 
                 producers, consumers = [], []
                 [Syskit::Component,Syskit::DataService].each do |base_model|
                     base_model.each_submodel do |submodel|
                         submodel.each_output_port do |port|
                             if port.type.name == type.name
-                                producers << [submodel.name, port.name]
+                                producers << [page.link_to(submodel), port.name]
                             end
                         end
                         submodel.each_input_port do |port|
                             if port.type.name == type.name
-                                consumers << [submodel.name, port.name]
+                                consumers << [page.link_to(submodel), port.name]
                             end
                         end
                     end

@@ -29,7 +29,7 @@ module Syskit
 
                 buttons = []
                 Syskit::Graphviz.available_annotations.sort.each do |ann_name|
-                    buttons << HTML::Button.new("annotations/#{ann_name}",
+                    buttons << MetaRuby::GUI::HTML::Button.new("annotations/#{ann_name}",
                                                 :on_text => "Show #{ann_name}",
                                                 :off_text => "Hide #{ann_name}",
                                                 :state => dataflow_options[:annotations].include?(ann_name))
