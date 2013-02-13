@@ -10,5 +10,6 @@
 
     <depend package="orogen" />
     <depend package="tools/roby" />
+    <depend package="tools/metaruby" />
 </package>
 
