@@ -2,13 +2,6 @@ module Syskit
     module GUI
         class Page < MetaRuby::GUI::HTML::Page
             def link_to(obj, text = nil)
-                if !object_uris[obj]
-                    object_uris.each do |k, v|
-                        if k.name == obj.name
-                            puts "#{k}: #{k.object_id} #{obj.object_id} #{k == obj} Yuk"
-                        end
-                    end
-                end
                 super
             end
 
