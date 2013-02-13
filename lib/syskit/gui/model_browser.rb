@@ -11,7 +11,7 @@ module Syskit
                 # data services, as task contexts also have DataService in their
                 # ancestry
                 self.page = Page.new(display)
-                register_type(Syskit::TaskContext, ModelViews::TaskContext,' Task Contexts', 1)
+                register_type(Syskit::TaskContext, ModelViews::TaskContext, 'Task Contexts', 1)
                 register_type(Syskit::Composition, ModelViews::Composition, 'Compositions', 1)
                 register_type(Syskit::DataService, ModelViews::DataService, 'Data Services')
                 register_type(Syskit::Actions::Profile, ModelViews::Profile, 'Profiles')
