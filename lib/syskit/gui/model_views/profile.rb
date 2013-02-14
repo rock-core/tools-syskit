@@ -70,10 +70,10 @@ module Syskit::GUI
                 end
                 html << render_name_to_model_mapping("Explicit selections", model.dependency_injection.explicit, true)
 
-                links = model.dependency_injection.defaults.each do |model|
+                links = model.dependency_injection.defaults.map do |model|
                     text = html_model(model)
                     models[model.object_id] = model
-                    ["%s", "syskit/model/#{model.object_id}", text]
+                    ["%s", "metaruby/profiles/#{model.object_id}", text]
                 end
                 html << render_links("Default selections", links)
 
