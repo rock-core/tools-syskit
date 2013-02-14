@@ -51,7 +51,7 @@ module Syskit::GUI
                         key = html_model(key)
                     end
 
-                    id =  "syskit/model/#{model.object_id}"
+                    id =  "metaruby/profiles/#{model.object_id}"
                     models[model.object_id] = model
                     if with_value
                         text = html_model(model)
@@ -93,7 +93,7 @@ module Syskit::GUI
             end
 
             def linkClicked(url)
-                if url.host == "syskit" && url.path =~ /^\/model\/(\d+)/
+                if url.host == "metaruby" && url.path =~ /^\/profiles\/(\d+)/
                     model = models[Integer($1)]
                     render_network(model)
                 end
