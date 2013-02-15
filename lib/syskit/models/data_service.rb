@@ -24,6 +24,7 @@ module Syskit
             end
 
             def clear_model
+                super
                 @orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project)
                 port_mappings.clear
             end

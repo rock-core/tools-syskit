@@ -2,22 +2,6 @@ module Syskit
     module Models
         # Base functionality for model classes that deal with oroGen models
         module OrogenBase
-            def deregister_submodels(set)
-                set.each do |m|
-                    needs_removal =
-                        begin
-                            m == constant("::#{m.name}")
-                        rescue NameError
-                        end
-
-                    if needs_removal
-                        namespace, basename = m.name.split('::')
-                        Object.const_get(namespace).send(:remove_const, basename)
-                    end
-                end
-                super
-            end
-
             # Checks whether a syskit model exists for the given orogen model
             def has_model_for?(orogen_model)
                 !!each_submodel.find { |m| m.orogen_model == orogen_model }

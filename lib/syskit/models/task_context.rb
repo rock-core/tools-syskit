@@ -12,9 +12,7 @@ module Syskit
             #
             # On TaskContext, it also clears all orogen-to-syskit model mappings
             def deregister_submodels(set)
-                if !super
-                    return
-                end
+                super
 
                 if @proxy_task_models
                     set.each do |m|
@@ -142,11 +140,11 @@ module Syskit
             #
             # @param [String] name an optional name for this submodel
             # @return [void]
-            def setup_submodel
+            def setup_submodel(submodel)
                 super
 
-                self.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, self.name)
-                self.orogen_model.subclasses supermodel.orogen_model
+                submodel.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, self.name)
+                submodel.orogen_model.subclasses orogen_model
             end
 
             def worstcase_processing_time(value)
