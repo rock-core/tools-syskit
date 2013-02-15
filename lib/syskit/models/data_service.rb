@@ -491,22 +491,6 @@ module Syskit
         # This module is used to define the methods that allow to define
         # module-based models (data services and friends) on Module
         module ServiceModelsDefinitionDSL
-            def self.create_and_register_submodel(mod, name, base_model, *args, &block)
-                Models.validate_model_name(name)
-
-                if mod.const_defined_here?(name)
-                    model = mod.const_get(name)
-                    if block_given?
-                        model.apply_block(&block)
-                    end
-                else 
-                    mod.const_set(name, model = base_model.new_submodel(*args, &block))
-                    model.permanent_model = true
-                end
-
-                model
-            end
-
             # Creates a new data service model and register it on this module
             #
             # If a block is given, it is used to declare the service's
@@ -515,7 +499,7 @@ module Syskit
             #
             # @return [DataServiceModel] the created model
             def data_service_type(name, &block)
-                ServiceModelsDefinitionDSL.create_and_register_submodel(self, name, Syskit::DataService, &block)
+                MetaRuby::ModelAsModule.create_and_register_submodel(self, name, Syskit::DataService, &block)
             end
 
             # Creates a new device model and register it on this module
@@ -524,7 +508,7 @@ module Syskit
             # Device has been included.
             #
             def device_type(name, &block)
-                ServiceModelsDefinitionDSL.create_and_register_submodel(self, name, Syskit::Device, &block)
+                MetaRuby::ModelAsModule.create_and_register_submodel(self, name, Syskit::Device, &block)
             end
 
             # Creates a new communication bus model
@@ -538,7 +522,7 @@ module Syskit
             # The returned value is an instance of DataServiceModel, in which
             # ComBus is included.
             def com_bus_type(name, options = Hash.new, &block)
-                ServiceModelsDefinitionDSL.create_and_register_submodel(self, name, Syskit::ComBus, options, &block)
+                MetaRuby::ModelAsModule.create_and_register_submodel(self, name, Syskit::ComBus, options, &block)
             end
         end
     end
