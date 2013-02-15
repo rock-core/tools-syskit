@@ -37,7 +37,7 @@ module Syskit
         # Validates that the given name is a valid model name. Mainly, it makes
         # sure that +name+ is a valid constant Ruby name without namespaces
         #
-        # @raises ArgumentError
+        # @raise [ArgumentError]
         def self.validate_model_name(name)
             if name =~ /::/
                 raise ArgumentError, "model names cannot have sub-namespaces"

@@ -30,7 +30,7 @@ module Syskit
             # Enumerate all the devices that are defined on this
             # component model
             #
-            # @yields [Model<Device>]
+            # @yieldparam [Model<Device>] device_model
             # @return [void]
             def each_master_driver_service(&block)
                 return enum_for(:each_master_driver_service) if !block_given?
@@ -44,7 +44,7 @@ module Syskit
             # Enumerate all the combus that are defined on this
             # component model
             #
-            # @yields [Model<ComBus>]
+            # @yield [Model<ComBus>] com_bus_model
             # @return [void]
             def each_com_bus_driver_service(&block)
                 return enum_for(:each_com_bus_driver_service) if !block_given?
@@ -246,7 +246,7 @@ module Syskit
             # It is not meant to be used directly. Use {Port#to_component_port}
             # instead
             #
-            # @param [Models::Port] a port in which {Port#component_model} == self
+            # @param [Models::Port] port a port in which {Port#component_model} == self
             # @return [Models::Port] a port in which {Port#component_model} is
             #   the "proper" component model that corresponds to self
             def self_port_to_component_port(port)
@@ -470,7 +470,7 @@ module Syskit
 
             # The set of dynamic services instantiated with #dynamic_service
             #
-            # @map_key dynamic_service_name
+            # @key_name dynamic_service_name
             # @return [Hash<String,DynamicService>]
             inherited_attribute('dynamic_service', 'dynamic_services', :map => true) { Hash.new }
 

@@ -105,7 +105,7 @@ module Syskit
             # Injects the DI information registered in this profile in the given
             # instance requirements
             #
-            # @param [InstanceRequirements] the instance requirement object
+            # @param [InstanceRequirements] req the instance requirement object
             # @return [void]
             def inject_di_context(req)
                 req.dependency_injection_context.push(robot.to_dependency_injection)

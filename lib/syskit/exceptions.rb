@@ -404,7 +404,7 @@ module Syskit
             # Initializes this exception by providing a mapping from tasks that
             # have no deployments to the deployment candidates
             #
-            # @param [Hash{TaskContext=>[Array<Model<Deployment>>]}] non_deployed_tasks
+            # @param [Hash{TaskContext=>[Array<Model<Deployment>>]}] tasks_with_candidates
             def initialize(tasks_with_candidates)
                 @tasks = Hash.new
                 tasks_with_candidates.each do |task, candidates|

@@ -33,7 +33,7 @@ module Syskit
             # Load the given orogen project and defines the associated task
             # models. It also loads the projects this one depends on.
             #
-            # @returns [Orocos::Generation::Project] the project object
+            # @return [Orocos::Generation::Project] the project object
             def load_orogen_project(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
                 server = Syskit.conf.process_server_for(options[:on])
@@ -42,7 +42,7 @@ module Syskit
 
             # Registers all objects contained in a given oroGen project
             #
-            # @returns [Orocos::Generation::Project] the project object
+            # @return [Orocos::Generation::Project] the project object
             def project_define_from_orogen(name, orogen)
                 return loaded_orogen_projects[name] if loaded_orogen_project?(name)
                 Syskit.info "loading oroGen project #{name}"

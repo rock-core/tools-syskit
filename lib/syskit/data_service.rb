@@ -107,7 +107,7 @@ module Syskit
             #
             # It yields the data service and the device model
             #
-            # @yields [MasterDeviceInstance]
+            # @yieldparam [MasterDeviceInstance] device
             # @see #each_device
             def each_master_device
                 if !block_given?

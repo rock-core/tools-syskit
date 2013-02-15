@@ -62,7 +62,8 @@ if Utilrb.doc?
             :exclude => [],
             :target_dir => 'doc',
             :title => 'Syskit',
-            :plugins => ['utilrb', 'roby']
+            :plugins => ['utilrb', 'roby'],
+            :files => ['Upgrading.md']
 
         # desc 'generate all documentation'
         # task 'all' => 'doc:api'

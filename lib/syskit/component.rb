@@ -78,7 +78,7 @@ module Syskit
 
             # Finds a data service by its name
             #
-            # @param [String] the data service name
+            # @param [String] service_name the data service name
             # @return [BoundDataService,nil] the found data service, or nil if
             #   there are no services with that name in self
             def find_data_service(service_name)
@@ -89,7 +89,7 @@ module Syskit
 
             # Finds a data service by its data service model
             #
-            # @param [Model<DataService>] the data service model we want to find
+            # @param [Model<DataService>] service_type the data service model we want to find
             #   in self
             # @return [BoundDataService,nil] the found data service, or nil if there
             #   are no services of that type in self
@@ -363,7 +363,7 @@ module Syskit
             # It should not be used directly. One should usually use
             # Port#to_component_port
             #
-            # @param [Syskit::Port]
+            # @param [Syskit::Port] port
             # @return [Syskit::Port] a port in which Port#component is
             #   guaranteed to be a proper component (e.g. not BoundDataService)
             def self_port_to_component_port(port)
