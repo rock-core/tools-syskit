@@ -391,7 +391,7 @@ module Syskit
 
             def provides(service_model, new_port_mappings = Hash.new)
                 if service_model.respond_to?(:message_type)
-                    if message_type && message_type != service_model.message_type
+                    if message_type && service_model.message_type && message_type != service_model.message_type
                         raise ArgumentError, "#{self.name} cannot provide #{service_model.name} as their message type differs (resp. #{message_type} and #{service_model.message_type}"
                     end
                 end

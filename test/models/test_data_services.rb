@@ -433,6 +433,14 @@ describe Syskit::ComBus do
         super
     end
 
+    # This is important for reloading: the reloading code calls
+    # ExistingComBusModule.provides Syskit::ComBus
+    it "can provide Syskit::ComBus" do
+        m = new_submodel
+        m.clear_model
+        m.provides Syskit::ComBus
+    end
+
     it "declares the necesary dynamic service when provided on its driver" do
         combus = Syskit::ComBus.new_submodel :message_type => '/int'
         driver_m = Syskit::TaskContext.new_submodel
