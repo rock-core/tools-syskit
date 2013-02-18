@@ -94,6 +94,21 @@ module Syskit
                     task name, task.model.orogen_model
                 end
                 task.executed_by deployment
+                deployment.start!
+                deployment
+            end
+
+            def deploy_and_start_task_context(name, task)
+                deployment = stub_deployed_task(name, task)
+                start_task_context(task)
+                deployment
+            end
+
+            def start_task_context(task)
+                task.arguments[:conf] ||= []
+                task.setup
+                task.start!
+                assert_event_emission task.start_event
             end
 
             def setup
