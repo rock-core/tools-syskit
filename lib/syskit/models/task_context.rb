@@ -141,10 +141,10 @@ module Syskit
             # @param [String] name an optional name for this submodel
             # @return [void]
             def setup_submodel(submodel)
-                super
-
                 submodel.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, self.name)
                 submodel.orogen_model.subclasses orogen_model
+
+                super
             end
 
             def worstcase_processing_time(value)
