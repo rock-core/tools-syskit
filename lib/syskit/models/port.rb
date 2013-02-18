@@ -76,7 +76,12 @@ module Syskit
             end
 
             def type
-                orogen_model.type
+                t = orogen_model.type
+                if t.contains_opaques?
+                    Orocos.master_project.intermediate_type_for(t)
+                else
+                    t
+                end
             end
 
             def respond_to?(m, *args)
