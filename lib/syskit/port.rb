@@ -88,24 +88,11 @@ module Syskit
 
     class OutputPort < Port
         def to_data_source
-            DataSource.new(self)
+            OutputReader.new(self)
         end
 
-        # A data source for a port attached to a component
-        class DataSource
-            attr_reader :port
-            attr_reader :reader
-
-            def initialize(port)
-                @port = port
-                port.component.execute do
-                    @reader = port.to_orocos_port.data_reader
-                end
-            end
-
-            def read
-                reader.read if reader
-            end
+        def reader(policy = Hash.new)
+            OutputReader.new(self, policy)
         end
 
         # Enumerates all ports connected to this one
@@ -124,6 +111,31 @@ module Syskit
                 yield(in_task.find_input_port(in_port_name), policy)
             end
             self
+        end
+    end
+
+    # A data source for a port attached to a component
+    class OutputReader
+        # The port for which this is a reader
+        # @return [Syskit::OutputPort]
+        attr_reader :port
+        # The connection policy
+        attr_reader :policy
+        # The actual data reader itself
+        # @return [Orocos::OutputReader]
+        attr_reader :reader
+
+        def initialize(port, policy = Hash.new)
+            @port = port.to_component_port
+            @policy = policy
+            @port.component.execute do |component|
+                @port = component.find_port(@port.name)
+                @reader = @port.to_orocos_port.reader(policy)
+            end
+        end
+
+        def read
+            reader.read if reader
         end
     end
 end

@@ -50,3 +50,23 @@ describe Syskit::Models::Port do
     end
 end
 
+describe Syskit::OutputReader do
+    include Syskit::SelfTest
+
+    it "should be able to rebind to actual tasks that replaced the task" do
+        task_m = Syskit::TaskContext.new_submodel do
+            output_port 'out', '/double'
+        end
+        policy = Hash[:type => :buffer, :size => 10]
+        plan.add(abstract_task = task_m.as_plan)
+        port_reader = abstract_task.out_port.reader(policy)
+        plan.add(task = task_m.new)
+        stub_deployed_task 'task', task
+        plan.replace(abstract_task, task)
+
+        start_task_context(task)
+        assert_equal task.out_port, port_reader.port
+        assert_equal task.orocos_task.port('out'), port_reader.reader.port
+    end
+end
+

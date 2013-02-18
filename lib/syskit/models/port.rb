@@ -144,6 +144,34 @@ module Syskit
                 end
                 bind(context).to_data_source
             end
+
+            def instanciate(plan)
+                bind(component_model.instanciate(plan))
+            end
+
+            def reader(policy = Hash.new)
+                OutputReader.new(self, policy)
+            end
+        end
+
+        class OutputReader
+            attr_reader :port
+            attr_reader :policy
+
+            def initialize(port, policy = Hash.new)
+                @port = port
+                @policy = policy
+            end
+
+            def instanciate(plan)
+                port.instanciate(plan).reader(policy)
+            end
+
+            def ==(other)
+                other.kind_of?(OutputReader) &&
+                    other.port == self.port &&
+                    other.policy == self.policy
+            end
         end
 
         class InputPort < Port
