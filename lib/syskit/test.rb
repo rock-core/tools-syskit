@@ -262,6 +262,7 @@ module Syskit
                 Syskit::RobyApp::Plugin.unplug_engine_from_roby(@handler_ids, engine)
                 @handler_ids.clear
                 @handler_ids << engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_deployment_states))
+                @handler_ids << engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_task_states))
             end
         end
 
