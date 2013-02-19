@@ -814,6 +814,7 @@ module Syskit
 
             def validate_resolve_options(options)
                 options = Kernel.validate_options options,
+                    :requirement_tasks   => nil,
                     :compute_policies    => true,
                     :compute_deployments => true,
                     :garbage_collect => true,
@@ -1007,7 +1008,7 @@ module Syskit
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
-                compute_system_network
+                compute_system_network(options[:requirement_tasks])
 
                 # Now, deploy the network by matching the available
                 # deployments to the one in the generated network. Note that

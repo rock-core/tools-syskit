@@ -1,3 +1,6 @@
+require 'Qt'
+require 'qtwebkit'
+require 'metaruby/gui/html/page'
 module Syskit
     module GUI
         class Page < MetaRuby::GUI::HTML::Page

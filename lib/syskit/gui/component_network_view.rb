@@ -1,3 +1,4 @@
+require 'metaruby/gui/html/button'
 require 'syskit/gui/component_network_base_view'
 module Syskit
     module GUI
@@ -58,10 +59,12 @@ module Syskit
                             else raise
                             end
                         end
+                render_plan(plan)
+            end
 
+            def render_plan
                 page.push_plan('Task Dependency Hierarchy', 'hierarchy', plan, hierarchy_options)
                 page.push_plan('Dataflow', 'dataflow', plan, dataflow_options)
-
                 emit updated
             end
 
