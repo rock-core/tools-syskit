@@ -412,7 +412,7 @@ module Syskit
                     model.name = self.class.name
                     model.private_specialization = true
                     model.private_model
-                    model.setup_submodel
+                    self.class.setup_submodel(model)
                     true
                 end
             end
