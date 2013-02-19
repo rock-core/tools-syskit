@@ -59,7 +59,7 @@ module Syskit
                             else raise
                             end
                         end
-                render_plan(plan)
+                render_plan
             end
 
             def render_plan
