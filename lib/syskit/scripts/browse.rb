@@ -19,22 +19,24 @@ Roby.app.using_plugins 'syskit'
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true
-Roby.app.syskit_load_all = true
 
 include Scripts::SingleFileDSL
 
 app = Qt::Application.new(ARGV)
 Scripts.run do
-    # Load all task libraries
-    Roby.app.syskit_engine.prepare
-
+    has_direct_file = false
     remaining.delete_if do |arg|
         if File.file?(arg)
             # Load this as a model
             require arg
+            has_direct_file = true
             true
         end
     end
+
+    # Load all task libraries if we don't get a file to require
+    Roby.app.syskit_load_all = !has_direct_file
+    Roby.app.syskit_engine.prepare
 
     main = Syskit::GUI::ModelBrowser.new
 
