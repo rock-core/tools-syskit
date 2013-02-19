@@ -1,50 +1,23 @@
 require 'roby'
 require 'syskit/scripts/common'
-require 'roby/schedulers/temporal'
-Scripts = Syskit::Scripts
 
-dry_run = false
-run_roby = false
-parser = OptionParser.new do |opt|
-    opt.banner =
-"usage: run [options] -r robot_name [actions_to_run]
-        run -r robot_name[:robot_type] -c"
-    opt.on('-c', 'run the Roby controller for the specified robot') do
-        run_roby = true
-    end
-    opt.on('-h', '--help', 'show this help message') do
-        puts parser
-        exit(0)
+Roby.app.using_plugins 'syskit'
+Roby.app.base_setup
+
+include Syskit::Scripts::SingleFileDSL
+ARGV.delete_if do |arg|
+    arg = File.expand_path(arg)
+    if File.file?(arg)
+        require arg
+        true
     end
 end
 
-Scripts.common_options(parser, false)
-remaining = parser.parse(ARGV)
-
-if run_roby
-    ARGV.clear
-    ARGV << Roby.app.robot_name
-    ARGV << Roby.app.robot_type
-    require 'roby/app/scripts/run'
-    exit 0
-end
-
-Roby.app.public_shell_interface = true
-Roby.app.public_logs = true
-
-Scripts.tic
-error = Scripts.run do
-    Roby.app.run do
-        Scripts.toc_tic "fully initialized in %.3f seconds"
-        Roby.execute do
-            remaining.each do |action_name|
-                Robot.send("#{action_name}!")
-            end
-        end
+Roby.once do
+    permanent_requirements.each do |req|
+        Roby.plan.add_mission(t = req.as_plan)
     end
 end
 
-if error
-    exit(1)
-end
-
+require 'roby/app/scripts/run'
+exit 0

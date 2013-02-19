@@ -10,8 +10,8 @@ Roby.app.public_logs = false
 
 mode = ARGV.shift
 
-SYSKIT_MODES = ['browse', 'instanciate']
-ROBY_MODES = ['run']
+SYSKIT_MODES = ['browse', 'instanciate', 'run']
+ROBY_MODES = []
 if SYSKIT_MODES.include?(mode)
     require "syskit/scripts/#{mode}"
 elsif ROBY_MODES.include?(mode)

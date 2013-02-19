@@ -89,7 +89,19 @@ Syskit.conf.disables_local_process_server = true
 Roby.app.single
 Roby.app.setup
 
-app = Qt::Application.new([])
-w = Syskit::GUI::Instanciate.new(nil, remaining.join(" "))
-w.show
-app.exec
+include Syskit::Scripts::SingleFileDSL
+
+Scripts.run do
+    remaining.delete_if do |opt|
+        if File.file?(opt)
+            require opt
+            true
+        end
+    end
+
+    app = Qt::Application.new([])
+    w = Syskit::GUI::Instanciate.new(nil, remaining.join(" "), permanent_requirements)
+    w.show
+    app.exec
+end
+

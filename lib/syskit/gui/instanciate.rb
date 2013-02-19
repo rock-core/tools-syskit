@@ -14,11 +14,13 @@ module Syskit
 
             attr_reader :exception_view
 
+            attr_reader :permanent
+
             def plan
                 rendering.plan
             end
 
-            def initialize(parent = nil, arguments = "")
+            def initialize(parent = nil, arguments = "", permanent = [])
                 super(parent)
 
                 main_layout = Qt::VBoxLayout.new(self)
@@ -29,14 +31,18 @@ module Syskit
                 main_layout.add_widget(splitter)
 
                 # Add the main view
-                @display = Qt::WebView.new(splitter)
+                @display = Qt::WebView.new
                 @page = Syskit::GUI::Page.new(@display)
                 main_layout.add_widget(@display)
                 @rendering = Syskit::GUI::ComponentNetworkView.new(@page)
                 rendering.enable
 
                 # Add the exception view
-                @exception_view = MetaRuby::GUI::ExceptionView.new(splitter)
+                @exception_view = MetaRuby::GUI::ExceptionView.new
+
+                splitter.orientation = Qt::Vertical
+                splitter.add_widget display
+                splitter.add_widget exception_view
 
                 @apply_btn.connect(SIGNAL('clicked()')) do
                     Roby.app.reload_models
@@ -44,6 +50,7 @@ module Syskit
                     compute
                 end
 
+                @permanent = permanent
                 @instance_txt.text = arguments
                 compute
             end
@@ -62,7 +69,7 @@ module Syskit
                 plan.clear
                 exception_view.clear
 
-                begin Instanciate.compute(plan, passes, true, true, true)
+                begin Instanciate.compute(plan, passes, true, true, true, false, permanent)
                 rescue Exception => e
                     exception_view.push(e)
                 end
@@ -88,19 +95,28 @@ module Syskit
                 passes
             end
 
-            def self.compute(plan, passes, compute_policies, compute_deployments, validate_network, display_timepoints = false)
+            def self.compute(plan, passes, compute_policies, compute_deployments, validate_network, display_timepoints = false, permanent = [])
                 Scripts.start_profiling
                 Scripts.pause_profiling
 
+                if passes.empty? && !permanent.empty?
+                    passes << []
+                end
                 passes.each do |actions|
                     requirement_tasks = actions.each do |action_name|
                         act = ::Robot.action_from_name(action_name)
                         if !act.respond_to?(:requirements)
                             raise ArgumentError, "#{action_name} is not an action created from a Syskit definition or device"
                         end
-                        Roby.plan.add_mission(task = act.requirements.as_plan)
+                        plan.add_mission(task = act.requirements.as_plan)
                         task
                     end
+                    permanent.each do |req|
+                        plan.add_mission(task = req.as_plan)
+                        requirement_tasks << task
+                    end
+                    requirement_tasks = requirement_tasks.map(&:planning_task)
+
                     Scripts.resume_profiling
                     Scripts.tic
                     engine = Syskit::NetworkGeneration::Engine.new(plan)
@@ -109,6 +125,9 @@ module Syskit
                                    :compute_deployments => compute_deployments,
                                    :validate_network => validate_network,
                                    :on_error => :commit)
+                    plan.static_garbage_collect do |task|
+                        plan.remove_object(task)
+                    end
                     Scripts.toc_tic "computed deployment in %.3f seconds"
                     if display_timepoints
                         pp Roby.app.syskit_engine.format_timepoints

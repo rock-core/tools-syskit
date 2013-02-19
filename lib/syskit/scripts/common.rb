@@ -5,6 +5,12 @@ require 'syskit/roby_app'
 
     module Syskit
         module Scripts
+            module SingleFileDSL
+                attribute(:permanent_requirements) { Array.new }
+                def add_mission(req)
+                    permanent_requirements << req
+                end
+            end
             class << self
                 attr_accessor :debug
                 attr_accessor :output_file
@@ -249,12 +255,12 @@ require 'syskit/roby_app'
                     Syskit.logger.level = ::Logger::DEBUG
                 end
 
-                error = Roby.display_exception do
+                Roby.display_exception do
                     Roby.app.setup
+                    yield if block_given?
+                    toc = Time.now
+                    ::Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
                 end
-                toc = Time.now
-                ::Robot.info "loaded Roby application in %.3f seconds" % [toc - tic]
-                error
             end
 
             def self.run
