@@ -42,7 +42,9 @@ module Syskit
 
                 splitter.orientation = Qt::Vertical
                 splitter.add_widget display
+                splitter.set_stretch_factor 0, 3
                 splitter.add_widget exception_view
+                splitter.set_stretch_factor 1, 1
 
                 @apply_btn.connect(SIGNAL('clicked()')) do
                     Roby.app.reload_models
