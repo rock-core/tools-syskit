@@ -23,6 +23,8 @@ module Syskit
         # the slave service depends on the selected 
         class Component < ::Roby::Task
             extend Models::Component
+            extend Logger::Hierarchy
+            include Logger::Hierarchy
             include Syskit::PortAccess
 
             abstract
