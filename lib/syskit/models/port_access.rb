@@ -30,6 +30,13 @@ module Syskit
                 find_output_port(name) || find_input_port(name)
             end
 
+            def port_by_name(name)
+                if p = find_port(name)
+                    p
+                else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(", ")}"
+                end
+            end
+
             # Returns the output port with the given name, or nil if it does not
             # exist.
             def find_output_port(name)

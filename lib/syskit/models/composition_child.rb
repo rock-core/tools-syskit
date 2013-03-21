@@ -117,6 +117,20 @@ module Syskit
                 find_input_port(name) || find_output_port(name)
             end
 
+            def port_by_name(name)
+                if p = find_port(name)
+                    p
+                else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(", ")}"
+                end
+            end
+
+            # Enumerates all of this component's ports
+            def each_port(&block)
+                return enum_for(:each_port) if !block_given?
+                each_output_port(&block)
+                each_input_port(&block)
+            end
+
             def each_input_port
                 return enum_for(:each_input_port) if !block_given?
                 models.each do |child_model|
