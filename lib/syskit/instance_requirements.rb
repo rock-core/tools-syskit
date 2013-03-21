@@ -647,6 +647,12 @@ module Syskit
                 self
             end
 
+            def bind(object)
+                if service then service.bind(object)
+                else object
+                end
+            end
+
             # This module can be used to extend other objects so that instance
             # requirements methods are directly available on that object
             #

@@ -140,7 +140,7 @@ module Syskit
             end
 
             def bind(component)
-                Syskit::OutputPort.new(self, component)
+                Syskit::OutputPort.new(self, component_model.bind(component))
             end
 
             def resolve_data_source(context)
@@ -166,6 +166,14 @@ module Syskit
             def initialize(port, policy = Hash.new)
                 @port = port
                 @policy = policy
+            end
+
+            def bind(port_or_task)
+                if port_or_task.respond_to?(:reader)
+                    port_or_task.reader(policy)
+                else
+                    port.bind(port_or_task).reader(policy)
+                end
             end
 
             def instanciate(plan)

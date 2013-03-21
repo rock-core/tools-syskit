@@ -834,6 +834,12 @@ module Syskit
                 Syskit::Models.merge_orogen_task_context_models(self.orogen_model, [orogen_model])
                 find_output_port(name)
             end
+
+            def bind(object)
+                if object.fullfills?(self) then object
+                else raise ArgumentError, "#{object} does not provide #{self}, cannot bind"
+                end
+            end
         end
     end
 
