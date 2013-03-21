@@ -129,8 +129,11 @@ module Syskit
             @port = port.to_component_port
             @policy = policy
             @port.component.execute do |component|
-                @port = component.find_port(@port.name)
-                @reader = @port.to_orocos_port.reader(policy)
+                @resolved_port = component.find_port(@port.name)
+                if !@resolved_port
+                    raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+                end
+                @reader = @resolved_port.to_orocos_port.reader(policy)
             end
         end
 
