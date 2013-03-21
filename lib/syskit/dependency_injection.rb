@@ -548,7 +548,9 @@ module Syskit
                 # Invalidate the @resolved cached
                 @resolved = nil
                 @explicit.merge!(other.explicit) do |match, model1, model2|
-                    if model1 <= model2
+                    if model1 == model2
+                        model1
+                    elsif model1 <= model2
                         model1
                     elsif model2 <= model1
                         model2
