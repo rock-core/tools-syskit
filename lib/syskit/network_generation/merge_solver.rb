@@ -179,12 +179,6 @@ module Syskit
             #
             # @param [Roby::Task] task
             # @param [Roby::Task] target_task
-            # @param [Array<(Roby::Task, Roby::Task)>] merge_candidates a list
-            #   of task pairs that should be tested with merge cycle detection if
-            #   no direct merges are found. For all these (task, target_task)
-            #   pairs, the only criteria that failed in can_merge? is the
-            #   matching of inputs (i.e. the tasks could be merged if they had
-            #   the same inputs)
             #
             # @return [false,nil,true] if false, the merge is not possible. If
             #   true, it is possible. If nil, the only thing that makes the
@@ -326,6 +320,7 @@ module Syskit
             #   be applied to resolve the cycle or nil if no cycles could be
             #   resolved.
             def resolve_cycle_candidate(cycle_candidates, task, target_task, mappings = Hash.new)
+                debug { "looking to resolve cycle between #{task} and #{target_task}" }
                 mappings = mappings.merge(target_task => task)
 
                 mismatched_inputs = resolve_input_matching(task, target_task, mappings)
@@ -339,11 +334,14 @@ module Syskit
                     # that into account
                     if known_mapping = mappings[target_source_task]
                         if known_mapping != source_task
+                            debug { "#{target_source_task} is already resolved to #{known_mapping}: not matching" }
                             return
                         end
+                        debug { "#{target_source_task} is already resolved to #{known_mapping}: matching" }
                         next
                     end
 
+                    debug { "not a cycle: #{source_task} and #{target_source_task} are not cycle candidates" }
                     if !cycle_candidates.include?([source_task, target_source_task])
                         return
                     end
@@ -640,7 +638,7 @@ module Syskit
                 # Filter.
                 possible_cycles = possible_cycles.map do |task, target_task|
                     task, target_task = replacement_for(task), replacement_for(target_task)
-                    if resolve_single_merge(task, target_task)
+                    if resolve_single_merge(task, target_task).nil?
                         [task, target_task]
                     end
                 end.compact.to_set

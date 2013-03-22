@@ -215,6 +215,45 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
     end
 
+    describe "#process_possible_cycles" do
+        attr_reader :merge_solver, :task, :merged_task
+        before do
+            @merge_solver = flexmock(Syskit::NetworkGeneration::MergeSolver.new(plan))
+            @task        = Object.new
+            @merged_task = Object.new
+            merge_solver.should_receive(:replacement_for).and_return { |arg| arg }.by_default
+        end
+        it "should apply known replacements on the tasks" do
+            merge_solver.should_receive(:replacement_for).with(task).
+                once.and_return(new_task = Object.new)
+            merge_solver.should_receive(:replacement_for).with(merged_task).
+                once.and_return(new_merged_task = Object.new)
+            merge_solver.should_receive(:resolve_single_merge).with(new_task, new_merged_task).
+                once.and_return(nil)
+            merge_solver.should_receive(:resolve_cycle_candidate).
+                with(any, new_task, new_merged_task).
+                once.and_return(false)
+            merge_solver.process_possible_cycles(nil, [[task, merged_task]])
+        end
+        it "should not process cycles for which the base tasks can not merge" do
+            merge_solver.should_receive(:resolve_single_merge).
+                once.and_return(false)
+            merge_solver.should_receive(:resolve_cycle_candidate).
+                never
+            merge_solver.process_possible_cycles(nil, [[task, merged_task]])
+        end
+        it "stops at the first merged cycle and returns the unprocessed ones" do
+            task2, merged_task2 = Object.new, Object.new
+            merge_solver.should_receive(:resolve_single_merge).
+                and_return(nil)
+            merge_solver.should_receive(:resolve_cycle_candidate).
+                once.and_return(true)
+            result = merge_solver.process_possible_cycles(flexmock(:link => nil),
+                            [[task, merged_task], [task2, merged_task2]])
+            assert_equal [[task2, merged_task2]].to_set, result.to_set
+        end
+    end
+
     describe "#resolve_cycle_candidate" do
         attr_reader :task, :target_task, :src_task, :src_target_task
         before do
