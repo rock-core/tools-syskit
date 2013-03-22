@@ -105,8 +105,8 @@ module Syskit
                     passes << []
                 end
                 passes.each do |actions|
-                    requirement_tasks = actions.each do |action_name|
-                        act = ::Robot.action_from_name(action_name)
+                    requirement_tasks = actions.map do |action_name|
+                        _, act = ::Robot.action_from_name(action_name)
                         if !act.respond_to?(:requirements)
                             raise ArgumentError, "#{action_name} is not an action created from a Syskit definition or device"
                         end
