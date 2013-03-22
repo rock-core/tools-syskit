@@ -852,7 +852,7 @@ module Syskit
                 debug "finalizing deployed tasks"
 
                 used_deployments = work_plan.find_local_tasks(Deployment).to_value_set
-                used_tasks       = work_plan.find_local_tasks(TaskContext).to_value_set
+                used_tasks       = work_plan.find_local_tasks(Component).to_value_set
 
                 all_tasks = work_plan.find_tasks(Component).to_value_set
                 all_tasks.delete_if do |t|

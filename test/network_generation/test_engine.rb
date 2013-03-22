@@ -486,17 +486,26 @@ describe Syskit::NetworkGeneration::Engine do
                 deployment = stub_roby_deployment_model(task_model, 'task')
 
                 deploy_task(composition_model.use('child' => task_model))
-                pp plan.known_tasks
                 plan_copy, mappings = plan.deep_copy
 
                 syskit_engine.resolve
-                pp plan.known_tasks
-
-                pp plan.find_plan_difference(plan_copy, mappings)
                 assert plan.same_plan?(plan_copy, mappings)
             ensure
                 plan_copy.clear if plan_copy
             end
+        end
+
+        it "applies connections from compositions to the final plan" do
+            task_model = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end
+            composition_model = Syskit::Composition.new_submodel do
+                add task_model, :as => 'child'
+                export child_child.out_port
+            end
+            deployment = stub_roby_deployment_model(task_model, 'task')
+            cmp, _ = deploy_task(composition_model)
+            assert_equal Hash[['out', 'out'] => Hash.new], cmp.child_child[cmp, Syskit::Flows::DataFlow]
         end
     end
 
