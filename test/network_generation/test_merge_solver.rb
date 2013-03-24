@@ -91,7 +91,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
             c0.depends_on(t, :role => 'child0')
             plan.add(c1 = simple_composition_model.new)
             c1.depends_on(t, :role => 'child1')
-            assert !solver.resolve_single_merge(c0, c1)
+            assert_same false, solver.resolve_single_merge(c0, c1)
         end
         it "returns false for tasks that have execution agents" do
             plan.add(t1 = simple_component_model.new)
