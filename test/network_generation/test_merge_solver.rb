@@ -93,6 +93,13 @@ describe Syskit::NetworkGeneration::MergeSolver do
             c1.depends_on(t, :role => 'child1')
             assert !solver.resolve_single_merge(c0, c1)
         end
+        it "returns false for tasks that have execution agents" do
+            plan.add(t1 = simple_component_model.new)
+            plan.add(t2 = simple_composition_model.new)
+            flexmock(t1).should_receive(:execution_agent).and_return(true)
+            assert_same false, solver.resolve_single_merge(t1, t2)
+            assert_same false, solver.resolve_single_merge(t2, t1)
+        end
     end
     
     describe "#resolve_input_matching" do

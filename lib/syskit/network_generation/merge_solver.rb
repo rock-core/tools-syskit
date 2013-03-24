@@ -196,7 +196,7 @@ module Syskit
                 # non-deployed task as well
                 if task.execution_agent && target_task.execution_agent
                     debug { "rejecting #{target_task}.merge(#{task}) as deployment attribute mismatches" }
-                    return
+                    return false
                 end
 
                 # If both tasks are compositions, merge only if +task+
