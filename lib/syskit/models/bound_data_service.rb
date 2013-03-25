@@ -167,7 +167,9 @@ module Syskit
             # Returns the BoundDataService object that binds this provided
             # service to an actual task
             def bind(task)
-                if !task.fullfills?(component_model)
+                if task.model == self
+                    return task
+                elsif !task.fullfills?(component_model)
                     raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
                 end
                 Syskit::BoundDataService.new(task, self)

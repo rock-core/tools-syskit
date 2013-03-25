@@ -84,6 +84,27 @@ describe Syskit::Models::BoundDataService do
             assert_raises(NoMethodError) { master.slave_srv }
         end
     end
+
+    describe "#bind" do
+        attr_reader :srv_m, :task_m
+        before do
+            srv_m = Syskit::DataService.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'test' }
+            @srv_m = task_m.test_srv
+        end
+        it "can bind to a bound data service of the right model" do
+            srv = task_m.new.test_srv
+            assert_equal srv, srv_m.bind(srv)
+        end
+        it "can bind to an instance of the right model" do
+            task = task_m.new
+            srv = task.test_srv
+            assert_equal srv, srv_m.bind(task)
+        end
+        it" raises ArgumentError if the provided component model is of an invalid type" do
+            assert_raises(ArgumentError) { srv_m.bind(Syskit::TaskContext.new_submodel.new) }
+        end
+    end
 end
 
 class TC_Models_BoundDataService < Test::Unit::TestCase
