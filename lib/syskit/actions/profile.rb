@@ -42,6 +42,15 @@ module Syskit
                 self
             end
 
+            def dependency_injection_context(context = nil)
+                context ||= DependencyInjectionContext.new
+                used_profiles.each do |profile|
+                    context.push(profile.dependency_injection)
+                end
+                context.push(dependency_injection)
+                context
+            end
+
             def to_s
                 "Profile(#{name}, uses: #{used_profiles.map(&:name)}, di: #{dependency_injection}, defs: #{definitions.keys.sort.join(",")})"
             end
@@ -68,7 +77,9 @@ module Syskit
             #
             # @return [InstanceRequirements] the added instance requirement
             def define(name, requirements)
-                definitions[name] = requirements.to_instance_requirements.dup
+                resolved = dependency_injection_context.
+                    current_state.direct_selection_for(requirements) || requirements
+                definitions[name] = resolved.to_instance_requirements
             end
 
             # Returns the instance requirement object that represents the given

@@ -14,6 +14,16 @@ describe Syskit::Actions::Profile do
             dst.use_profile src
             assert_same duped, dst.definitions['test'] 
         end
+
+        it "resolves definitions using the use flags" do
+            srv_m  = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'srv' }
+            profile = Syskit::Actions::Profile.new
+            profile.use srv_m => task_m
+            profile.define 'test', srv_m
+
+            assert_equal task_m.srv_srv, profile.test_def.service
+        end
     end
 end
 

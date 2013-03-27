@@ -249,6 +249,15 @@ module Syskit
                 InstanceSelection.new(instance, InstanceRequirements.from_object(component_model, requirements), requirements, selected_services)
             end
 
+            def direct_selection_for(obj)
+                if defaults.empty?
+                    self.explicit[obj]
+                else
+                    @resolved ||= resolve
+                    return @resolved.direct_selection_for(obj)
+                end
+            end
+
             # Returns the selected instance based on the given name and
             # requirements
             #
