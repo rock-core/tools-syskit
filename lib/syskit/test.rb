@@ -93,6 +93,7 @@ module Syskit
                     task = stub_roby_task_context(name, task)
                 end
                 task.orocos_name ||= name
+                deployment = stub_syskit_deployment("deployment_#{name}") do
                     task name, task.model.orogen_model
                 end
                 task.executed_by deployment
