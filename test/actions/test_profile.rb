@@ -24,6 +24,22 @@ describe Syskit::Actions::Profile do
 
             assert_equal task_m.srv_srv, profile.test_def.service
         end
+
+        it "applies selections on the requirement's use flags" do
+            parent_srv_m = Syskit::DataService.new_submodel(:name => 'ParentSrv')
+            srv_m  = Syskit::DataService.new_submodel(:name => 'Srv') { provides parent_srv_m }
+            task_m = Syskit::TaskContext.new_submodel(:name => 'Task') { provides srv_m, :as => 'srv' }
+            cmp_m  = Syskit::Composition.new_submodel(:name => 'Cmp') do
+                add parent_srv_m, :as => 'c'
+            end
+            profile = Syskit::Actions::Profile.new
+            profile.use srv_m => task_m
+            profile.define 'test', cmp_m.use(srv_m)
+
+            req = profile.resolved_definition('test')
+            task = req.instanciate(plan)
+            assert_equal task_m, task.c_child.model
+        end
     end
 end
 
