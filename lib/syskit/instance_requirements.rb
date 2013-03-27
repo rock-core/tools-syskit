@@ -446,6 +446,8 @@ module Syskit
             def instanciate(plan, context = Syskit::DependencyInjectionContext.new, arguments = Hash.new)
                 task_model = self.proxy_task_model
 
+                context.save
+
                 # Add a barrier for the names that our models expect. This is
                 # required to avoid recursively reusing names (which was once
                 # upon a time, and is a very confusing feature)
@@ -490,6 +492,7 @@ module Syskit
             rescue InstanciationError => e
                 e.instanciation_chain << self
                 raise
+            ensure context.restore
             end
 
             def each_fullfilled_model(&block)

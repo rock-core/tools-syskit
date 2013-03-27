@@ -390,6 +390,24 @@ describe Syskit::Models::Composition do
             end
         end
 
+        it "should not leak DI information from a child to the next" do
+            srv_m = Syskit::DataService.new_submodel(:name => 'Srv')
+            cmp_m = Syskit::Composition.new_submodel(:name => 'Cmp') do
+                add srv_m, :as => 'test1'
+                add srv_m, :as => 'test2'
+                provides srv_m, :as => 's'
+            end
+            task1_m = Syskit::TaskContext.new_submodel(:name => 'Task1') { provides srv_m, :as => 'test' }
+            task2_m = Syskit::TaskContext.new_submodel(:name => 'Task2') { provides srv_m, :as => 'test' }
+
+            child1_m = cmp_m.to_instance_requirements
+            child1_m.dependency_injection_context.push(Syskit::DependencyInjection.new(srv_m => task1_m))
+            task = cmp_m.use('test1' => child1_m, 'test2' => cmp_m).
+                instanciate(plan, Syskit::DependencyInjectionContext.new(srv_m => task2_m))
+            assert_kind_of task1_m, task.test1_child.test1_child
+            assert_kind_of task2_m, task.test2_child.test1_child
+        end
+
         describe "dependency relation definition based on information in the child definition" do
             attr_reader :composition_m, :srv_child
             before do
