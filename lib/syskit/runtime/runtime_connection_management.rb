@@ -154,10 +154,11 @@ module Syskit
 
                 if !set.include?(sink_task)
                     needs_restart =  mappings.any? do |source_port, sink_port|
-                        if !sink_task.model.find_input_port(sink_port)
-                            puts "#{sink_task} #{sink_port}"
+                        begin
+                            sink_task.running? && sink_task.model.find_input_port(sink_port).static?
+                        rescue Orocos::ComError
+                            true
                         end
-                        sink_task.running? && sink_task.model.find_input_port(sink_port).static?
                     end
 
                     if needs_restart
