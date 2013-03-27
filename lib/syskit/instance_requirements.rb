@@ -239,6 +239,7 @@ module Syskit
                 end
 
                 @deployment_hints |= other_spec.deployment_hints
+                @dependency_injection_context.concat(other_spec.dependency_injection_context)
                 # Call modules that could have been included in the class to
                 # extend it
                 super if defined? super
