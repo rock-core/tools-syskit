@@ -468,6 +468,11 @@ describe Syskit::Models::Composition do
                 task = instanciate
                 assert_dependency_contains :consider_in_pending => true
             end
+            it "uses :failure => [:stop] as default dependency option" do
+                composition_model(Hash.new)
+                task = instanciate
+                assert_dependency_contains :failure => :start.never.or(:stop.to_unbound_task_predicate)
+            end
         end
     end
 
