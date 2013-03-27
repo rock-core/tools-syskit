@@ -88,20 +88,22 @@ module Syskit
                 task
             end
 
-            def stub_deployed_task(name, task)
-                task.orocos_name = name
-                deployment = stub_syskit_deployment('deployment') do
+            def stub_deployed_task(name, task = nil)
+                if !task || task.kind_of?(Class)
+                    task = stub_roby_task_context(name, task)
+                end
+                task.orocos_name ||= name
                     task name, task.model.orogen_model
                 end
                 task.executed_by deployment
                 deployment.start!
-                deployment
+                task
             end
 
             def deploy_and_start_task_context(name, task)
-                deployment = stub_deployed_task(name, task)
+                task = stub_deployed_task(name, task)
                 start_task_context(task)
-                deployment
+                task
             end
 
             def start_task_context(task)
