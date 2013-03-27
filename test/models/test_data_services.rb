@@ -19,16 +19,6 @@ module Test_DataServiceModel
         service_type.new_submodel(*args, &block)
     end
 
-    def test_new_submodel_registers_the_submodel
-        submodel = new_submodel
-        assert service_type.submodels.include?(submodel)
-
-        assert_equal service_type, submodel.supermodel
-        subsubmodel = submodel.new_submodel
-        assert service_type.submodels.include?(subsubmodel)
-        assert submodel.submodels.include?(subsubmodel)
-    end
-
     def test_data_services_are_registered_as_submodels_of_task_service
         srv = Syskit::DataService.new_submodel
         assert Roby::TaskService.each_submodel.to_a.include?(srv)
@@ -46,25 +36,6 @@ module Test_DataServiceModel
         m = new_submodel
         flexmock(m).should_receive(:to_s).and_return("my_name").once
         assert_equal 'my_name', m.short_name
-    end
-
-    def test_clear_submodels_removes_registered_submodels
-        m1 = new_submodel
-        m2 = new_submodel
-        m11 = m1.new_submodel
-
-        m1.clear_submodels
-        assert !m1.submodels.include?(m11)
-        assert service_type.submodels.include?(m1)
-        assert service_type.submodels.include?(m2)
-        assert !service_type.submodels.include?(m11)
-
-        m11 = m1.new_submodel
-        service_type.clear_submodels
-        assert !m1.submodels.include?(m11)
-        assert !service_type.submodels.include?(m1)
-        assert !service_type.submodels.include?(m2)
-        assert !service_type.submodels.include?(m11)
     end
 
     def test_new_submodel_without_name
