@@ -105,17 +105,20 @@ module Syskit
             def add(*mappings)
                 explicit, defaults = DependencyInjection.partition_use_arguments(*mappings)
 
-                add_explicit(explicit)
-                defaults.delete_if do |obj|
+                filtered_defaults = Set.new
+                defaults.each do |obj|
                     if obj.kind_of?(DependencyInjection)
                         # Do not use merge here. One wants to override the
                         # existing selections with the new ones
-                        @explicit.merge!(obj.explicit)
-                        @defaults |= obj.defaults
-                        true
+                        explicit = obj.explicit.merge!(explicit)
+                        filtered_defaults |= obj.defaults
+                    else
+                        filtered_defaults << obj
                     end
                 end
-                add_defaults(defaults)
+
+                add_explicit(explicit)
+                add_defaults(filtered_defaults)
                 self
             end
 
@@ -127,7 +130,19 @@ module Syskit
                 if !defaults.empty?
                     @resolved = nil
                 end
-                explicit.merge!(mappings)
+                explicit.merge!(mappings) do |k, v1, v2|
+                    # There is a pathological case here. If v2 == k, then we
+                    # should keep the k => v1 mapping (because of recursive
+                    # resolution). However, this is the one case where it does
+                    # not work, as the merge! overrides the existing selection.
+                    #
+                    # However, when this happens, we can simply ignore the
+                    # identity selection
+                    if v2 == k then v1
+                    else v2
+                    end
+                end
+
                 @explicit = 
                     DependencyInjection.normalize_selection(
                         DependencyInjection.resolve_recursive_selection_mapping(explicit))
@@ -525,11 +540,11 @@ module Syskit
             # Helper method that separates the default selections from the
             # explicit selections in the call to #use
             #
-            # @return <Hash, Array> the explicit selections and a list of
+            # @return [(Hash,Set)] the explicit selections and a list of
             #     default selections
             def self.partition_use_arguments(*mappings)
                 explicit = Hash.new
-                defaults = Array.new
+                defaults = Set.new
                 mappings.each do |element|
                     if element.kind_of?(Hash)
                         explicit.merge!(element)

@@ -16,6 +16,16 @@ describe Syskit::DependencyInjection do
                 di.selection_for('child', Syskit::InstanceRequirements.new)
         end
     end
+
+    describe "#add_explicit" do
+        it "does not modify the selections if given an identity mapping" do
+            a = Syskit::DataService.new_submodel(:name => 'A')
+            b = Syskit::DataService.new_submodel(:name => 'B') { provides a }
+            di = Syskit::DependencyInjection.new(a => b)
+            di.add(a => a)
+            assert_equal Hash[a => b], di.explicit
+        end
+    end
 end
 
 class TC_DependencyInjection < Test::Unit::TestCase
