@@ -441,7 +441,7 @@ describe Syskit::Models::Composition do
             it "resets the :failure flag if explicitly given the :success flag" do
                 composition_model :success => [:failed]
                 task = instanciate
-                assert_dependency_contains :failure => nil
+                assert_dependency_contains :failure => false.to_unbound_task_predicate
             end
             it "overrides the :failure flag" do
                 composition_model :failure => [:success]

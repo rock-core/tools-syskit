@@ -833,8 +833,10 @@ module Syskit
                             validate_options(:model => [dependent_models, dependent_arguments], :roles => role)
                         dependency_options = Roby::TaskStructure::DependencyGraphClass.merge_dependency_options(
                             dependency_options, default_options)
-                        dependency_options = { :success => [], :failure => [:stop] }.
-                            merge(dependency_options)
+                        if !dependency_options[:success]
+                            dependency_options = { :success => [], :failure => [:stop] }.
+                                merge(dependency_options)
+                        end
 
                         Models.info do
                             Models.info "adding dependency #{self_task}"
