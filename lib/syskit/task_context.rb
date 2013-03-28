@@ -607,8 +607,6 @@ module Syskit
             #
             # It then sets the task properties using the values found there
             def configure
-                super if defined? super
-
                 # First, set configuration from the configuration files
                 # Note: it can only set properties
                 conf = self.conf
@@ -632,6 +630,8 @@ module Syskit
                         end
                     end
                 end
+
+                super if defined? super
             end
 
             # Applies the values stored in +config_type+ to the task properties.
