@@ -110,6 +110,10 @@ describe Syskit::Deployment do
         end
         after do
             if deployment_task.running?
+                deployment_task.each_executed_task do |task|
+                    plan.unmark_permanent(task)
+                    plan.unmark_mission(task)
+                end
                 deployment_task.dead!(nil)
             end
             Syskit.process_servers.delete 'bla'
@@ -179,6 +183,7 @@ describe Syskit::Deployment do
                 end.new(:orocos_name => 'task')
 
                 task.executed_by deployment_task
+                plan.add_permanent(task)
                 flexmock(deployment_task).should_receive(:initialize_running_task).once.
                     with(task, orocos_task)
                 process_events
