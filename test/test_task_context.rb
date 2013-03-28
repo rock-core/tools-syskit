@@ -78,7 +78,7 @@ describe Syskit::TaskContext do
     describe "#find_input_port" do
         attr_reader :task
         before do
-            @task = stub_roby_task_context do
+            @task = stub_deployed_task do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -98,7 +98,7 @@ describe Syskit::TaskContext do
     describe "#find_output_port" do
         attr_reader :task
         before do
-            @task = stub_roby_task_context do
+            @task = stub_deployed_task do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -194,10 +194,9 @@ describe Syskit::TaskContext do
             end
             task.conf = []
             task.executable = true
-            plan.add(task)
             @orocos_task = flexmock(task.orocos_task)
         end
-        it "disconnects the state reader once emitted" do
+        it "disconnects the state readers once emitted" do
             flexmock(task).should_receive(:state_reader).and_return(reader = flexmock)
             reader.should_receive(:disconnect).once
             task.emit :start
@@ -366,8 +365,8 @@ describe Syskit::TaskContext do
     describe "#ready_for_setup?" do
         attr_reader :task, :orocos_task
         before do
-            task_m = Syskit::TaskContext.new_submodel
-            @task = flexmock(task_m.new(:orocos_name => 'bla', :conf => []))
+            @task = flexmock(stub_deployed_task)
+            task.conf = []
             @orocos_task = flexmock
             task.should_receive(:orocos_task).and_return(orocos_task)
             orocos_task.should_receive(:rtt_state).by_default
@@ -451,15 +450,14 @@ describe Syskit::TaskContext do
         end
     end
     describe "#prepare_for_setup" do
-        attr_reader :task, :task_m, :orocos_task
+        attr_reader :task, :orocos_task
         before do
-            @task_m = Syskit::TaskContext.new_submodel do
+            @task = stub_deployed_task do
                 input_port "in", "/double"
                 output_port "out", "/double"
             end
-            plan.add(@task = task_m.new(:conf => [], :orocos_name => "bla"))
-            task.executable = true
-            flexmock(task).should_receive(:orocos_task).and_return(@orocos_task = flexmock)
+            task.conf = []
+            @orocos_task = flexmock(task.orocos_task)
         end
 
         it "resets an exception state and calls prepare_for_setup back without arguments" do
@@ -475,33 +473,33 @@ describe Syskit::TaskContext do
             assert task.prepare_for_setup(:PRE_OPERATIONAL)
         end
         it "does nothing if the state is STOPPED and the task does not need to be reconfigured" do
-            Syskit::TaskContext.configured['bla'] = [nil, []]
+            Syskit::TaskContext.configured['task'] = [nil, []]
             task.prepare_for_setup(:STOPPED)
         end
         it "returns false if the state is STOPPED and the task does not need to be reconfigured" do
-            Syskit::TaskContext.configured['bla'] = [nil, []]
+            Syskit::TaskContext.configured['task'] = [nil, []]
             assert !task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task is marked as requiring reconfiguration" do
             flexmock(task).should_receive(:needs_reconfiguration?).and_return(true)
-            orocos_task.should_receive(:cleanup).once
+            orocos_task.should_receive(:cleanup).once.pass_thru
             assert task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task has never been configured" do
-            Syskit::TaskContext.configured['bla'] = nil
-            orocos_task.should_receive(:cleanup).once
+            Syskit::TaskContext.configured['task'] = nil
+            orocos_task.should_receive(:cleanup).once.pass_thru
             assert task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task's configuration changed" do
-            Syskit::TaskContext.configured['bla'] = [nil, ['default']]
-            orocos_task.should_receive(:cleanup).once
+            Syskit::TaskContext.configured['task'] = [nil, ['default']]
+            orocos_task.should_receive(:cleanup).once.pass_thru
             assert task.prepare_for_setup(:STOPPED)
         end
     end
     describe "#setup" do
         attr_reader :task, :orocos_task
         before do
-            @task = stub_roby_task_context do
+            @task = stub_deployed_task do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -586,7 +584,7 @@ describe Syskit::TaskContext do
     describe "#configure" do
         attr_reader :task, :orocos_task
         before do
-            @task = stub_roby_task_context do
+            @task = stub_deployed_task do
                 input_port "in", "int"
                 output_port "out", "int"
             end
