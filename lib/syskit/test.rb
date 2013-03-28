@@ -66,7 +66,7 @@ module Syskit
 
             def stub_roby_task_context(name = "task", task_model = nil, &block)
                 task_model ||= TaskContext.new_submodel(&block)
-                task = task_model.new
+                plan.add(task = task_model.new)
                 task.stub! name
                 @task_stubs << task.orocos_task
                 task
