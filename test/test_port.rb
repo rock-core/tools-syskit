@@ -65,7 +65,7 @@ describe Syskit::OutputReader do
         plan.replace(abstract_task, task)
 
         start_task_context(task)
-        assert_equal task.out_port, port_reader.port
+        assert_equal task.out_port, port_reader.resolved_port
         assert_equal task.orocos_task.port('out'), port_reader.reader.port
     end
 end

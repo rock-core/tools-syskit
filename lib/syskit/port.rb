@@ -119,6 +119,10 @@ module Syskit
         # The port for which this is a reader
         # @return [Syskit::OutputPort]
         attr_reader :port
+        # The port actually resolved. This is different from #port if #port is
+        # on an abstract task that got replaced
+        # @return [Syskit::OutputPort]
+        attr_reader :resolved_port
         # The connection policy
         attr_reader :policy
         # The actual data reader itself
