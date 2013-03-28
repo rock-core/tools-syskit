@@ -137,6 +137,8 @@ module Syskit
             end
 
             def teardown
+                flexmock_teardown
+
                 super
 
                 if plan
@@ -151,7 +153,6 @@ module Syskit
                 @task_stubs.each do |t|
                     t.dispose
                 end
-                flexmock_teardown
 
             ensure
                 if @handler_ids
