@@ -171,10 +171,20 @@ module Syskit
                     dot_graph = send(kind, display_options)
                     io.write dot_graph
                     io.flush
-
+                    system("sync")
+                    sleep 1
                     graph = `#{file_options[:graphviz_tool]} -T#{format} #{io.path}`
                     if !$?.exited?
-                        raise ArgumentError, "dot crashed while trying to generate the graph"
+                        STDOUT.puts "Called #{file_options[:graphviz_tool]} -T#{format} #{io.path}"
+                        system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug.png")
+                        f = File.new("Debug.grapth.dot",File::CREAT|File::TRUNC|File::RDWR) 
+                        f.write dot_graph
+                        f.flush
+                        f.close
+                        raise ArgumentError, "dot crashed while trying to generate the graph \
+the command was \"#{file_options[:graphviz_tool]} -T#{format} #{io.path}\". \
+Instead created an png version with name debug.png in #{Dir.pwd}/debug.png \
+For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     elsif !$?.success?
                         raise ArgumentError, "dot reported an error generating the graph"
                     end
