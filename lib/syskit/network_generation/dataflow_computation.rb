@@ -43,6 +43,22 @@ module Syskit
                     has_information_for_port?(task, port_name)
             end
 
+            # Returns the task information stored for the given task
+            #
+            # The return type is specific to the actual algorithm (i.e. the
+            # subclass of DataFlowComputation)
+            #
+            # @raise ArgumentError if there are no information stored for the given task
+            def task_info(task)
+                port_info(task, nil)
+            end
+
+            # Returns the port information stored for the given port
+            #
+            # The return type is specific to the actual algorithm (i.e. the
+            # subclass of DataFlowComputation)
+            #
+            # @raise ArgumentError if there are no information stored for the given port
             def port_info(task, port_name)
                 if result.has_key?(task)
                     if result[task].has_key?(port_name)
