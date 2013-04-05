@@ -252,7 +252,9 @@ module Syskit
                     end
                     device_dynamics.add_trigger(device.name + "-burst", 0, device.burst)
 
-                    yield(service, device, device_dynamics)
+                    if !device_dynamics.empty?
+                        yield(service, device, device_dynamics)
+                    end
                 end
             end
 
