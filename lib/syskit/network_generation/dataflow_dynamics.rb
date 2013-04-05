@@ -132,8 +132,14 @@ module Syskit
 
             attr_reader :triggers
 
+            # Mapping from a deployed task name to the corresponding Roby task object
+            #
+            # This is necessary to speedup lookup in some places of the algorithm
+            attr_reader :task_from_name
+
             def initialize(plan)
                 @plan = plan
+                @task_from_name = Hash.new
             end
 
             def self.compute_connection_policies(plan)
@@ -143,6 +149,9 @@ module Syskit
             end
 
             def propagate(tasks)
+                tasks.each do |t|
+                    task_from_name[t.orocos_name] = t
+                end
                 @triggers = Hash.new { |h, k| h[k] = Set.new }
                 super
             end
@@ -168,6 +177,12 @@ module Syskit
             end
 
             def done_task_info(task)
+                task.orogen_model.slaves.each do |slave_task|
+                    if slave_task = task_from_name[slave_task.name]
+                        add_task_info(slave_task, task_info(task))
+                        done_task_info(slave_task)
+                    end
+                end
                 done_port_info(task, nil)
             end
 
@@ -317,6 +332,7 @@ module Syskit
                     DataFlowDynamics.debug { "  adding periodic trigger #{task.orogen_model.period} 1" }
                     add_task_trigger(task, "#{task.orocos_name}.main-period", task.orogen_model.period, 1)
                     done_task_info(task)
+                elsif activity_type == "SlaveActivity"
                 else
                     if !task.orogen_model.task_model.each_event_port.find { true }
                         done_task_info(task)
