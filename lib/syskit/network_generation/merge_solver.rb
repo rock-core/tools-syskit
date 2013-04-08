@@ -620,6 +620,7 @@ module Syskit
             # Propagation step in the BFS of merge_identical_tasks
             def merge_tasks_next_step(task_set) # :nodoc:
                 result = ValueSet.new
+                return result if task_set.nil?
                 for t in task_set
                     children = t.each_sink(false).to_value_set
                     result.merge(children) if children.size > 1
@@ -747,7 +748,7 @@ module Syskit
                         applied_merges = apply_merge_mappings(merge_graph)
                         next_step_seeds = applied_merges.vertices.
                             find_all { |task| task.leaf?(applied_merges) }.
-                            to_value_set
+                            to_value_set                         
                         candidates = merge_tasks_next_step(next_step_seeds)
                         merged_tasks.merge(candidates)
                         debug do
