@@ -124,7 +124,7 @@ module Syskit
                 children.each do |child|
                     if !resolve_single_merge(target_task, child)
                         debug { "      #{target_task}.merge(#{child}) is not a valid merge anymore, updating merge graph" }
-                        graph.unlink(target_task, child)
+                        merge_graph.unlink(target_task, child)
                     end
                 end
 
@@ -132,7 +132,7 @@ module Syskit
                 parents.each do |parent|
                     if !resolve_single_merge(parent, target_task)
                         debug { "      #{parent}.merge(#{target_task}) is not a valid merge anymore, updating merge graph" }
-                        graph.unlink(parent, target_task)
+                        merge_graph.unlink(parent, target_task)
                     end
                 end
             end

@@ -513,4 +513,26 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert_equal [task], ambiguous.to_a
         end
     end
+
+    describe "#update_merge_graph_neighborhood" do
+        attr_reader :merge_graph, :parent, :child, :merge_solver
+        before do
+            @merge_solver = flexmock(Syskit::NetworkGeneration::MergeSolver.new(plan))
+            vertex_t = Class.new { include BGL::Vertex }
+            @merge_graph = BGL::Graph.new
+            @parent = vertex_t.new
+            @child  = vertex_t.new
+            merge_graph.link(parent, child, nil)
+        end
+        it "removes links from the merge graph for target's children that are not valid anymore" do
+            merge_solver.should_receive(:resolve_single_merge).with(parent, child).and_return(false)
+            merge_solver.update_merge_graph_neighborhood(merge_graph, parent)
+            assert !merge_graph.linked?(parent, child)
+        end
+        it "removes links from the merge graph for parent's children that are not valid anymore" do
+            merge_solver.should_receive(:resolve_single_merge).with(parent, child).and_return(false)
+            merge_solver.update_merge_graph_neighborhood(merge_graph, child)
+            assert !merge_graph.linked?(parent, child)
+        end
+    end
 end
