@@ -604,7 +604,7 @@ module Syskit
                             # only one parent anymore, as we have applied merges
                             # since one_parent was computed
                             target_tasks = task.enum_for(:each_parent_vertex, merge_graph).to_a
-                            return if target_tasks.size != 1
+                            return applied_merges if target_tasks.size != 1
                             target_task = target_tasks.first
                             merge(task, target_task)
                             merge_graph.replace_vertex(task, target_task)
