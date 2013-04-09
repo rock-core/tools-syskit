@@ -10,6 +10,7 @@
 
     <depend package="orogen" />
     <depend package="tools/roby" />
+    <depend package="tools/orocos.rb" />
     <depend package="tools/metaruby" />
 </package>
 
