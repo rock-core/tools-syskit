@@ -21,29 +21,28 @@ Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true
 
 include Scripts::SingleFileDSL
+self.profile_name = "SyskitBrowse"
+
+direct_files, model_names = remaining.partition do |arg|
+    File.file?(arg)
+end
+
+# Load all task libraries if we don't get a file to require
+Roby.app.syskit_load_all = direct_files.empty?
 
 app = Qt::Application.new(ARGV)
 Scripts.run do
-    has_direct_file = false
-    remaining.delete_if do |arg|
-        if File.file?(arg)
-            # Load this as a model
-            require arg
-            has_direct_file = true
-            true
-        end
+    direct_files.each do |path|
+        require path
     end
-
-    # Load all task libraries if we don't get a file to require
-    Roby.app.syskit_load_all = !has_direct_file
     Roby.app.syskit_engine.prepare
 
     main = Syskit::GUI::ModelBrowser.new
 
     # Select the model given on the command line (if any)
-    if !remaining.empty?
+    if !model_names.empty?
         model = begin
-                    constant(remaining.first)
+                    constant(model_names.first)
                 rescue NameError
                     Syskit.warn "cannot find a model named #{remaining.first}"
                 end

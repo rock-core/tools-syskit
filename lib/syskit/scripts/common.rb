@@ -6,9 +6,23 @@ require 'syskit/roby_app'
     module Syskit
         module Scripts
             module SingleFileDSL
+                attribute(:profile_name) { "Script" }
+                attribute(:global_profile) { Syskit::Actions::Profile.new(profile_name) }
                 attribute(:permanent_requirements) { Array.new }
                 def add_mission(req)
                     permanent_requirements << req
+                end
+                def profile
+                    if block_given?
+                        global_profile.instance_eval(&proc)
+                    end
+                    global_profile
+                end
+                def method_missing(m, *args, &block)
+                    if m.to_s =~ /(_def|_dev)$/
+                        return global_profile.send(m, *args, &block)
+                    end
+                    super
                 end
             end
             class << self
