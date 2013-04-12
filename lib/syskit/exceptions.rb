@@ -279,7 +279,7 @@ module Syskit
                 abstract_tasks.each do |task, (parents, candidates)|
                     pp.breakable
                     if task.respond_to?(:proxied_data_services)
-                        pp.text "placeholder for #{task.proxied_data_services.map(&:name).sort.join(",")}"
+                        pp.text "#{task.model.superclass} placeholder for #{task.proxied_data_services.map(&:name).sort.join(",")}"
                     else
                         pp.text "#{task.to_s.gsub(/Syskit::/, '')}"
                     end

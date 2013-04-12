@@ -605,10 +605,10 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 label = []
                 
                 if task.respond_to?(:proxied_data_services)
-                    name = task.proxied_data_services.map do |model|
+                    name = [task.model.superclass.short_name] + task.proxied_data_services.map do |model|
                         model.short_name
-                    end.join(", ")
-                    label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
+                    end
+                    label << "<TR><TD COLSPAN=\"2\">#{name.join(",")}</TD></TR>"
                 else
                     annotations = Array.new
                     if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
