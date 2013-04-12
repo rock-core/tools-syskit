@@ -58,7 +58,7 @@ module Syskit
             #
             def through(com_bus, &block)
                 if com_bus.respond_to?(:to_str)
-                    bus = device[com_bus.to_str]
+                    bus = find_device(com_bus.to_str)
                     if !bus
                         raise ArgumentError, "communication bus #{com_bus} does not exist"
                     end
