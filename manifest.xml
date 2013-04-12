@@ -12,5 +12,6 @@
     <depend package="tools/roby" />
     <depend package="tools/orocos.rb" />
     <depend package="tools/metaruby" />
+    <depend package="tools/pocolog" />
 </package>
 
