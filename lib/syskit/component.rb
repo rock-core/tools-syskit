@@ -212,9 +212,10 @@ module Syskit
                         specialize
                     end
 
-                    merged_task.model.data_services.each_value do |srv|
                         if !model.find_data_service(srv.name)
                             model.provides_dynamic srv.model, Hash[:as => srv.name].merge(srv.port_mappings_for_task)
+                    required_services = merged_task.model.data_services.values
+                    required_services.each do |srv|
                         end
                     end
                 end
