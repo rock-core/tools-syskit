@@ -31,8 +31,6 @@ module Syskit
             attr_reader :work_plan
             # The robot on which the software is running
             attr_reader :robot
-            # A name => Task mapping of tasks we built so far
-            attr_reader :tasks
             # A mapping from requirement tasks in the real plan to the tasks
             # that have been instantiated in the working plan
             #
@@ -124,7 +122,6 @@ module Syskit
                 @merge_solver = NetworkGeneration::MergeSolver.new(real_plan)
                 @use_automatic_selection = true
 
-                @tasks     = Hash.new
                 @main_automatic_selection = DependencyInjection.new
 
                 @service_allocation_candidates = Hash.new
@@ -338,8 +335,6 @@ module Syskit
             #
             # @return [void]
             def instanciate(req_tasks = nil)
-                self.tasks.clear
-
                 main_selection = compute_main_dependency_injection
 
                 req_tasks ||= real_plan.find_local_tasks(InstanceRequirementsTask).
@@ -382,14 +377,17 @@ module Syskit
                         h
                     end
 
+                bus_tasks = Hash.new
                 candidates.each do |task, needed_busses|
                     needed_busses.each do |bus_device|
-                        if !(com_bus_task = tasks[bus_device.name])
-                            raise SpecError, "there is no task that handles the communication bus #{bus_device}"
-                        end
+                        com_bus_task = bus_tasks[bus_device] ||
+                            bus_device.instanciate(work_plan)
+                        bus_tasks[bus_device] ||= com_bus_task
+
+                        com_bus_task = com_bus_task.component
                         com_bus_task.attach(task)
                         task.depends_on com_bus_task
-                        task.should_configure_after com_bus_task.start_event
+                        task.should_start_after com_bus_task.start_event
                     end
                 end
                 nil
