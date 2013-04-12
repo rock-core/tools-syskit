@@ -356,10 +356,7 @@ module Syskit
                     model.message_type = bus_options[:message_type]
                 end
 
-                if attached_device_configuration_module
-                    model.attached_device_configuration_module = Module.new
-                    model.attached_device_configuration_module.include(attached_device_configuration_module)
-                end
+                model.attached_device_configuration_module.include(attached_device_configuration_module)
                 model
             end
 
@@ -480,9 +477,7 @@ module Syskit
             # Applies the configuration extensions declaredwith
             # #extend_device_configuration to the provided class
             def apply_attached_device_configuration_extensions(device_instance)
-                if attached_device_configuration_module
-                    device_instance.extend(attached_device_configuration_module)
-                end
+                device_instance.extend(attached_device_configuration_module)
             end
 
             # The name of the port that will send data from the bus to the

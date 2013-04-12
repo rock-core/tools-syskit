@@ -465,4 +465,15 @@ describe Syskit::ComBus do
             end
         end
     end
+
+    describe "#extend_attached_device_configuration" do
+        it "can be called from within the definition block" do
+            com_bus = Syskit::ComBus.new_submodel :message_type => '/double' do
+                extend_attached_device_configuration do
+                    def m; end
+                end
+            end
+            assert com_bus.attached_device_configuration_module.instance_methods.include?(:m)
+        end
+    end
 end
