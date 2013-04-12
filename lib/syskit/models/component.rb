@@ -599,7 +599,7 @@ module Syskit
 
                 # Get the source name and the source model
                 if data_services[full_name]
-                    raise ArgumentError, "there is already a data service named '#{name}' defined on '#{short_name}'"
+                    raise ArgumentError, "there is already a data service named '#{full_name}' defined on '#{short_name}'"
                 end
 
                 # If a source with the same name exists, verify that the user is
