@@ -105,6 +105,13 @@ module Syskit
 	    #   driver task context that should be used to send data to the
 	    #   communication bus. It is needed only if there is an ambiguity
             def attach_to(com_bus, options = Hash.new)
+                if com_bus.respond_to?(:to_str)
+                    com_bus, com_bus_name = robot.find_device(com_bus), com_bus
+                    if !com_bus
+                        raise ArgumentError, "no device declared with the name '#{com_bus_name}'"
+                    end
+                end
+
                 client_in_srv = com_bus.model.client_in_srv
                 client_out_srv = com_bus.model.client_out_srv
 
