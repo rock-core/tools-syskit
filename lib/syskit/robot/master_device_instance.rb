@@ -114,7 +114,7 @@ module Syskit
                 @combus_in_srv  = find_combus_client_srv(com_bus.model.client_in_srv, options[:in])
                 @combus_out_srv = find_combus_client_srv(com_bus.model.client_out_srv, options[:out])
 		if !combus_out_srv && !combus_in_srv
-		    raise ArgumentError, "#{driver_model.component_model.short_name} provides neither an input nor an output service for combus #{com_bus.name}"
+		    raise ArgumentError, "#{driver_model.component_model.short_name} provides neither an input nor an output service for combus #{com_bus.name}. It should provide #{com_bus.model.client_in_srv.short_name} for input-only, #{com_bus.model.client_out_srv.short_name} for output-only or #{com_bus.model.client_srv.short_name} for bidirectional connections"
 		end
                 com_busses << com_bus
                 com_bus.attached_devices << self
