@@ -88,6 +88,18 @@ describe Syskit::Component do
             task_m.provides Syskit::DataService.new_submodel, :as => 'srv'
             assert_raises(ArgumentError) { task.require_dynamic_service 'dyn', :as => 'srv' }
         end
+        it "supports declaring services as slave devices" do
+            master_m = Syskit::Device.new_submodel
+            slave_m = Syskit::Device.new_submodel
+
+            task_m.driver_for master_m, :as => 'driver'
+            dyn = task_m.dynamic_service slave_m, :as => 'device_dyn' do
+                provides slave_m, :as => name, :slave_of => 'driver'
+            end
+            task = task_m.new
+            task.require_dynamic_service 'device_dyn', :as => 'slave'
+            assert_equal [task.model.driver_srv], task.model.each_master_driver_service.to_a
+        end
     end
 
     describe "#can_merge?" do

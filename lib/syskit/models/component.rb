@@ -457,8 +457,9 @@ module Syskit
                 # Do not use #filter_options here, it will transform the
                 # port names into symbols
                 arg_name = arguments.delete('as') || arguments.delete(:as)
+                slave_of = arguments.delete('slave_of') || arguments.delete(:slave_of)
                 port_mappings = DynamicService.update_component_model_interface(self, service_model, arguments)
-                provides(service_model, port_mappings.merge(:as => arg_name))
+                provides(service_model, port_mappings.merge(:as => arg_name, :slave_of => slave_of))
             end
 
             # Called by the dynamic_service accessors to promote dynamic
