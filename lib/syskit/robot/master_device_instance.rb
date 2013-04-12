@@ -178,7 +178,20 @@ module Syskit
                 slaves.each_value(&block)
             end
 
-            # Gets the required slave device
+            # Gets the required slave device, or creates a dynamic one
+            #
+            # @overload slave(slave_name)
+            #   @arg [String] slave_name the name of a slave service on the
+            #     device's driver 
+            #   @return [Syskit::Robot::SlaveDeviceInstance]
+            #
+            # @overload slave(dynamic_service_name, :as => slave_name)
+            #   @arg [String] dynamic_service_name the name of a dynamic service
+            #     declared on the device's driver with #dynamic_service
+            #   @arg [String] slave_name the name of the slave as it should be
+            #     created
+            #   @return [Syskit::Robot::SlaveDeviceInstance]
+            #   
             def slave(slave_service, options = Hash.new)
                 options = Kernel.validate_options options, :as => nil
                 if existing_slave = slaves[slave_service]
@@ -199,7 +212,7 @@ module Syskit
                     if !srv
                         raise ArgumentError, "there is no service #{slave_name} and no dynamic service in #{task_model.short_name}"
                     end
-                    @driver_model = driver_model.model.bind(new_task_model)
+                    @driver_model = driver_model.attach(new_task_model)
                 end
 
                 device_instance = SlaveDeviceInstance.new(self, srv)
