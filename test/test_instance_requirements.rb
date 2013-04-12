@@ -246,6 +246,17 @@ describe Syskit::InstanceRequirements do
             task_m = Syskit::TaskContext.new_submodel { provides Syskit::DataService.new_submodel, :as => 'srv' }
             assert_raises(ArgumentError) { req.select_service(task_m.srv_srv) }
         end
+        it "accepts selecting services from placeholder tasks if the set of models in the task matches the set of models in the instance requirements" do
+            srv_m  = Syskit::DataService.new_submodel
+            task_m = Syskit.proxy_task_model_for([srv_m])
+
+            req = Syskit::InstanceRequirements.new([srv_m])
+            srv = task_m.find_data_service_from_type(srv_m)
+            req.select_service(srv)
+            assert_equal srv, req.service
+            instanciated = req.instanciate(plan)
+            assert_equal srv, instanciated.model
+        end
     end
 end
 

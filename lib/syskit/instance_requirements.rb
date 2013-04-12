@@ -103,12 +103,21 @@ module Syskit
             #   the resulting BoundDataService is attached to the actual model
             #   in {#model} and this return value is different from 'service'
             def select_service(service)
-                # Make sure that the service is bound to one of our models
-                component_model = models.find { |m| m.fullfills?(service.component_model) }
-                if !component_model
-                    raise ArgumentError, "#{service} is not a service of #{self}"
+                srv_component = service.component_model
+
+                if srv_component.respond_to?(:proxied_data_services)
+                    if !(srv_component.proxied_data_services - models).empty?
+                        raise ArgumentError, "#{service} is not a service of #{self}"
+                    end
+                    @service = service
+                else
+                    # Make sure that the service is bound to one of our models
+                    component_model = models.find { |m| m.fullfills?(service.component_model) }
+                    if !component_model
+                        raise ArgumentError, "#{service} is not a service of #{self}"
+                    end
+                    @service = service.attach(component_model)
                 end
-                @service = service.attach(component_model)
             end
 
             # Removes any service selection
