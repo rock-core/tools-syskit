@@ -15,7 +15,7 @@ describe Syskit::InstanceRequirementsTask do
         plan.add(task = Roby::Task.new)
         task.planned_by(req_task = Syskit::InstanceRequirementsTask.new)
         req_task.requirements = Syskit::InstanceRequirements.new([])
-        flexmock(plan.syskit_engine).should_receive(:resolve).once
+        flexmock(syskit_engine).should_receive(:resolve).once
         req_task.start!
     end
 
@@ -33,7 +33,7 @@ describe Syskit::InstanceRequirementsTask do
         plan.add(task = Roby::Task.new)
         task.planned_by(req_task = Syskit::InstanceRequirementsTask.new)
         req_task.requirements = Syskit::InstanceRequirements.new([])
-        flexmock(plan.syskit_engine).should_receive(:resolve)
+        flexmock(syskit_engine).should_receive(:resolve)
         req_task.start!
         assert req_task.success?
     end

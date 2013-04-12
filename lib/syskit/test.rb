@@ -262,6 +262,8 @@ module Syskit
             Syskit::NetworkGeneration::Engine.keep_internal_data_structures = true
             Orocos.load
 
+            @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
+
             if @handler_ids
                 Syskit::RobyApp::Plugin.unplug_engine_from_roby(@handler_ids, engine)
                 @handler_ids.clear
