@@ -35,7 +35,14 @@ module Syskit
                 devices.has_key?(name.to_str)
             end
 
-            # Declares that all devices declared in the provided block are using
+            # Returns a device by its name
+            #
+            # @return [DeviceInstance,nil]
+            def find_device(name)
+                devices[name]
+            end
+
+            # Makes all devices declared in the provided block are using
             # the given bus
             #
             # For instance:
