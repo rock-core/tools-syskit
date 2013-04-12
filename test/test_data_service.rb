@@ -165,6 +165,20 @@ describe Syskit::ComBus do
             flexmock(combus_task).should_receive(:require_dynamic_service).never
             combus_task.attach(device_task)
         end
+        it "reuses a common input port on the combus task if there is one" do
+            combus_m = self.combus_m
+            combus_driver_m = Syskit::TaskContext.new_submodel do
+                input_port "in", '/double'
+                dynamic_output_port /^\w+$/, '/double'
+                driver_for combus_m, :as => 'com'
+                provides combus_m::BusInSrv, :as => 'to_bus'
+            end
+            plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
+            plan.add(device_task = device_driver_m.new('dev_dev' => device))
+            flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv')
+            combus_task.attach(device_task)
+            assert_equal 'in', combus_task.DEV_srv.model.port_mappings_for_task['to_bus']
+        end
         it "connects the combus output service to the client input service" do
         end
         it "connects the combus input service to the client output service" do

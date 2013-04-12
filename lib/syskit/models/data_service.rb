@@ -376,12 +376,22 @@ module Syskit
                 if mod <= Syskit::Component
                     # declare the relevant dynamic service
                     combus_m = self
+                    dyn_name = dynamic_service_name
+                    bus_srv  = bus_base_srv
                     mod.dynamic_service bus_base_srv, :as => dynamic_service_name do
                         options = Kernel.validate_options self.options, :direction => nil
+                        in_name =
+                            if in_srv = mod.find_data_service_from_type(combus_m.bus_in_srv)
+                                in_srv.port_mappings_for_task['to_bus']
+                            else
+                                combus_m.input_name_for(name)
+                            end
+
                         if options[:direction] == 'inout'
-                            provides combus_m.bus_srv, 'from_bus' => combus_m.output_name_for(name), 'to_bus' => combus_m.input_name_for(name)
+                            provides combus_m.bus_srv, 'from_bus' => combus_m.output_name_for(name),
+                                'to_bus' => in_name
                         elsif options[:direction] == 'in'
-                            provides combus_m.bus_in_srv, 'to_bus' => combus_m.input_name_for(name)
+                            provides combus_m.bus_in_srv, 'to_bus' => in_name
                         elsif options[:direction] == 'out'
                             provides combus_m.bus_out_srv, 'from_bus' => combus_m.output_name_for(name)
                         else raise ArgumentError, "invalid :direction option given, expected 'in', 'out' or 'inout' and got #{options[:direction]}"
