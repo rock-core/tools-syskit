@@ -75,6 +75,10 @@ module Syskit
             end
             self
         end
+        
+        def writer(policy = Hash.new)
+            InputWriter.new(self, policy)
+        end
 
         # Enumerates all ports connected to this one
         def each_concrete_connection
@@ -143,6 +147,42 @@ module Syskit
 
         def read
             reader.read if reader
+        end
+    end
+    
+    # A data writer for a port attached to a component
+    class InputWriter 
+        # The port for which this is a writer 
+        # @return [Syskit::OutputPort]
+        attr_reader :port
+        # The port actually resolved. This is different from #port if #port is
+        # on an abstract task that got replaced
+        # @return [Syskit::OutputPort]
+        attr_reader :resolved_port
+        # The connection policy
+        attr_reader :policy
+        # The actual data writer itself
+        # @return [Orocos::InputWriter]
+        attr_reader :writer
+
+        def initialize(port, policy = Hash.new)
+            @port = port.to_component_port
+            @policy = policy
+            @port.component.execute do |component|
+                @resolved_port = component.find_port(@port.name)
+                if !@resolved_port
+                    raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
+                end
+                @writer= @resolved_port.to_orocos_port.writer(policy)
+            end
+        end
+
+        def write(sample) 
+            writer.write(sample) if writer
+        end
+
+        def new_sample
+            @port.type.new
         end
     end
 end
