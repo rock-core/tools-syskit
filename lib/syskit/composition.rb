@@ -149,13 +149,30 @@ module Syskit
             # @param [Syskit::Port] exported_port the port to be mapped
             # @return [Orocos::Port] the actual port
             def self_port_to_orocos_port(exported_port)
-                export = model.find_exported_input(exported_port.name) ||
-                    model.find_exported_output(exported_port.name)
+                port_name = nil
+                if exported_port.is_a?(String)
+                    port_name = exported_port
+                else 
+                    port_name = exported_port.name
+                end
+
+                export = model.find_exported_input(port_name) ||
+                    model.find_exported_output(port_name)
 
                 child_name = export.component_model.child_name
                 child = child_from_role(child_name)
                 actual_port_name = child_selection[child_name].port_mappings[export.name]
                 child.find_port(actual_port_name).to_orocos_port
+            end
+            
+
+            #Returns the actuar orocos port with the given name
+            #Raises an Argument error if it does not exist
+            def port_by_name(name)
+                if p = self_port_to_orocos_port(name)
+                    p
+                else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(", ")}"
+                end
             end
 
             # Overriden from Roby::Task
