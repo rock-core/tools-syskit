@@ -653,11 +653,15 @@ module Syskit
                 # Filter.
                 possible_cycles = possible_cycles.map do |task, target_task|
                     task, target_task = replacement_for(task), replacement_for(target_task)
-                    if resolve_single_merge(task, target_task).nil?
+                    result = resolve_single_merge(task, target_task)
+                    if result.nil?
                         [task, target_task]
+                    elsif task != target_task && result
+                        merge_graph.link(task, target_task, nil)
+                        nil
                     end
-                end.compact.to_set
-                possible_cycles = possible_cycles.to_a
+                end
+                possible_cycles = possible_cycles.compact.to_set.to_a
 
                 # Find one cycle to solve. Once we found one, we
                 # give the hand to the normal merge processing
@@ -733,7 +737,7 @@ module Syskit
                     merged_tasks.clear
                     possible_cycles.clear
 
-                    while !candidates.empty?
+                    while !candidates.empty? || !possible_cycles.empty?
                         candidates.delete_if do |task|
                             # We never replace a transaction proxy. We only use them to
                             # replace new tasks in the transaction
@@ -781,7 +785,7 @@ module Syskit
                         # This is just to make the job of the Ruby GC easier
                         merge_graph.clear
                         applied_merges.clear
-                        possible_cycles.clear
+                        cycle_candidates.clear
                     end
 
                     debug "  -- Parents"
