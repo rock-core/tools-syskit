@@ -189,6 +189,7 @@ module Syskit
                 # Component#can_merge?  should not look at the relation graphs,
                 # only at criteria internal to the tasks.
                 if !target_task.can_merge?(task)
+                    debug { "rejecting #{target_task}.merge(#{task}) as can_merge? returned false" }
                     return false
                 end
 
@@ -222,10 +223,14 @@ module Syskit
                 # Finally, check if the inputs match
                 mismatching_inputs = resolve_input_matching(task, target_task, Hash.new)
                 if !mismatching_inputs
+                    debug { "rejecting #{target_task}.merge(#{task}) as their inputs are incompatible" }
                     return false
                 elsif mismatching_inputs.empty?
+                    debug { "#{target_task}.merge(#{task}) can be done" }
                     return true
-                else return nil
+                else
+                    debug { "#{target_task}.merge(#{task}) might be a cycle" }
+                    return nil
                 end
             end
 
@@ -267,7 +272,7 @@ module Syskit
                     # the policies match
                     if policy = inputs[sink_port][[target_source_task, target_source_port]]
                         if !policy.empty? && !target_policy.empty? && (Syskit.update_connection_policy(policy, target_policy) != target_policy)
-                            NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
+                            debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
                             return
                         end
                         next
@@ -286,7 +291,7 @@ module Syskit
                         return
                     end
                     if !policy.empty? && !target_policy.empty? && (Syskit.update_connection_policy(policy, target_policy) != target_policy)
-                        NetworkGeneration.debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
+                        debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
                         return
                     end
 
@@ -341,16 +346,24 @@ module Syskit
                         next
                     end
 
-                    debug { "not a cycle: #{source_task} and #{target_source_task} are not cycle candidates" }
                     if !cycle_candidates.include?([source_task, target_source_task])
+                        debug { "not a cycle: #{source_task} and #{target_source_task} are not cycle candidates" }
                         return
                     end
 
-                    new_mappings = resolve_cycle_candidate(
-                        cycle_candidates, source_task, target_source_task, mappings)
+
+                    new_mappings = 
+                        log_nest(2) do
+                            resolve_cycle_candidate(
+                                cycle_candidates, source_task, target_source_task, mappings)
+                        end
+
                     if new_mappings
+                        debug { "resolved cycle: #{source_task} and #{target_source_task} with #{new_mappings}" }
                         mappings.merge!(new_mappings)
-                    else return
+                    else
+                        debug { "not a cycle: cannot find mapping to merge #{source_task} and #{target_source_task}" }
+                        return
                     end
                 end
                 mappings
@@ -406,6 +419,7 @@ module Syskit
                             debug { "#{target_task}.merge(#{task})" }
                             merge_graph.link(target_task, task, nil)
                         elsif result.nil?
+                            debug { "adding #{task} #{target_task} to cycle candidates" }
                             cycle_candidates << [task, target_task]
                         end
                     end
@@ -655,15 +669,19 @@ module Syskit
                     cycle = possible_cycles.shift
                     debug { "    checking cycle #{cycle[0]}.merge(#{cycle[1]})" }
 
-                    if resolve_cycle_candidate(possible_cycles, *cycle)
-                        debug { "    found cycle merge for #{cycle[1]}.merge(#{cycle[1]})" }
+                    can_merge = log_nest(4) do
+                        resolve_cycle_candidate(possible_cycles, *cycle)
+                    end
+
+                    if can_merge
+                        debug { "found cycle merge for #{cycle[1]}.merge(#{cycle[1]})" }
                         merge_graph.link(cycle[0], cycle[1], nil)
                         if possible_cycles.include?([cycle[1], cycle[0]])
                             merge_graph.link(cycle[1], cycle[0], nil)
                         end
                         break
                     else
-                        debug { "    cannot merge cycle #{cycle[0]}.merge(#{cycle[1]})" }
+                        debug { "cannot merge cycle #{cycle[0]}.merge(#{cycle[1]})" }
                     end
                 end
                 return possible_cycles.to_set
@@ -739,6 +757,7 @@ module Syskit
                         possible_cycles |= cycle_candidates.to_set
                         debug "    #{merge_graph.size} vertices in merge graph"
                         debug "    #{cycle_candidates.size} new possible cycles"
+                        debug "    #{possible_cycles.size} known possible cycles"
 
                         if merge_graph.empty?
                             # No merge found so far, try resolving some cycles
