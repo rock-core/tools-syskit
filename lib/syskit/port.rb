@@ -66,7 +66,7 @@ module Syskit
         end
         
         def new_sample
-            model.type.new
+            model.new_sample
         end
     end
 
