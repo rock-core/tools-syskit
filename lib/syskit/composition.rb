@@ -149,12 +149,7 @@ module Syskit
             # @param [Syskit::Port] exported_port the port to be mapped
             # @return [Orocos::Port] the actual port
             def self_port_to_orocos_port(exported_port)
-                port_name = nil
-                if exported_port.is_a?(String)
-                    port_name = exported_port
-                else 
-                    port_name = exported_port.name
-                end
+                port_name = exported_port.name
 
                 export = model.find_exported_input(port_name) ||
                     model.find_exported_output(port_name)
@@ -166,10 +161,12 @@ module Syskit
             end
             
 
-            #Returns the actuar orocos port with the given name
-            #Raises an Argument error if it does not exist
+            # Finds the corresponding syskit port
+            # @param [String] the name of the port that should be found
+            # @return [Syskit::Port] the actuar orocos port with the given name
+            # @raises [ArgumentError] if the port does not exist
             def port_by_name(name)
-                if p = self_port_to_orocos_port(name)
+                if p = find_input_port(name) || find_output_port(name) 
                     p
                 else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(", ")}"
                 end
