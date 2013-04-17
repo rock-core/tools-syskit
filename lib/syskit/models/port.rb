@@ -140,13 +140,6 @@ module Syskit
                 bind(context).to_data_source
             end
             
-            # Return true if the underlying port multiplexes, i.e. if it is
-            # an input port that is expected to have multiple inbound
-            # connections
-            def multiplexes?
-                orogen_model.multiplexes?
-            end
-            
         end
 
         class OutputPort < Port
@@ -172,6 +165,13 @@ module Syskit
         end
 
         class InputPort < Port
+            # Return true if the underlying port multiplexes, i.e. if it is
+            # an input port that is expected to have multiple inbound
+            # connections
+            def multiplexes?
+                orogen_model.multiplexes?
+            end
+            
             def bind(component)
                 Syskit::InputPort.new(self, component_model.bind(component))
             end
