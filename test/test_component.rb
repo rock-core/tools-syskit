@@ -147,7 +147,7 @@ describe Syskit::Component do
             srv_m = @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel do
                 dynamic_service srv_m, :as => 'dyn' do
-                    provides (options[:model] || srv_m.new_submodel), :as => name
+                    provides (options[:model] || srv_m.new_submodel), :as => name, :slave_of => options[:master]
                 end
             end
             @task, @merged_task = task_m.new, task_m.new
@@ -177,7 +177,15 @@ describe Syskit::Component do
             merged_task.specialize
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel)
             task.specialize
-            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv').once
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => nil).once
+            task.merge(merged_task)
+        end
+        it "adds slave dynamic services as slaves" do
+            task_m.provides srv_m, :as => 'master'
+            merged_task.specialize
+            merged_task.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
+            task.specialize
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => 'master').once
             task.merge(merged_task)
         end
     end

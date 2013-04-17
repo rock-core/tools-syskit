@@ -215,7 +215,11 @@ module Syskit
                     required_services = merged_task.model.data_services.values
                     required_services.each do |srv|
                         if !model.find_data_service(srv.full_name)
-                            model.provides_dynamic srv.model, Hash[:as => srv.name, :slave_of => srv.master.full_name].
+                            # Note: we cannot use srv.master here as srv.master
+                            # is attached on #merged_task and we need the
+                            # service on self
+                            master = if srv.master then srv.master.full_name end
+                            model.provides_dynamic srv.model, Hash[:as => srv.name, :slave_of => master].
                                 merge(srv.port_mappings_for_task)
                         end
                     end
