@@ -64,6 +64,10 @@ module Syskit
                 out_port.connect_to(in_port, policy)
             end
         end
+        
+        def new_sample
+            model.type.new
+        end
     end
 
     class InputPort < Port
@@ -182,7 +186,7 @@ module Syskit
         end
 
         def new_sample
-            @port.type.new
+            @port.new_sample
         end
     end
 end

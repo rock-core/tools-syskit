@@ -124,6 +124,29 @@ module Syskit
             def static?
                 orogen_model.static?
             end
+            
+            def new_sample
+                orogen_model.type.new
+            end
+            
+            def instanciate(plan)
+                bind(component_model.instanciate(plan))
+            end
+            
+            def resolve_data_source(context)
+                if context.kind_of?(Roby::Plan)
+                    context.add(context = component_model.as_plan)
+                end
+                bind(context).to_data_source
+            end
+            
+            # Return true if the underlying port multiplexes, i.e. if it is
+            # an input port that is expected to have multiple inbound
+            # connections
+            def multiplexes?
+                orogen_model.multiplexes?
+            end
+            
         end
 
         class OutputPort < Port
@@ -143,22 +166,21 @@ module Syskit
                 Syskit::OutputPort.new(self, component_model.bind(component))
             end
 
-            def resolve_data_source(context)
-                if context.kind_of?(Roby::Plan)
-                    context.add(context = component_model.as_plan)
-                end
-                bind(context).to_data_source
-            end
-
-            def instanciate(plan)
-                bind(component_model.instanciate(plan))
-            end
-
             def reader(policy = Hash.new)
                 OutputReader.new(self, policy)
             end
         end
 
+        class InputPort < Port
+            def bind(component)
+                Syskit::InputPort.new(self, component_model.bind(component))
+            end
+
+            def writer(policy = Hash.new)
+                InputWriter.new(self, policy)
+            end
+        end
+        
         class OutputReader
             attr_reader :port
             attr_reader :policy
@@ -187,34 +209,6 @@ module Syskit
             end
         end
 
-        class InputPort < Port
-            def bind(component)
-                Syskit::InputPort.new(self, component_model.bind(component))
-            end
-
-            # Return true if the underlying port multiplexes, i.e. if it is
-            # an input port that is expected to have multiple inbound
-            # connections
-            def multiplexes?
-                orogen_model.multiplexes?
-            end
-            
-            def instanciate(plan)
-                bind(component_model.instanciate(plan))
-            end
-            
-            def resolve_data_source(context)
-                if context.kind_of?(Roby::Plan)
-                    context.add(context = component_model.as_plan)
-                end
-                bind(context).to_data_source
-            end
-
-            def writer(policy = Hash.new)
-                InputWriter.new(self, policy)
-            end
-        end
-        
         class InputWriter
             attr_reader :port
             attr_reader :policy
@@ -237,17 +231,8 @@ module Syskit
             end
             
             def new_sample
-                port.orogen_model.type.new
+                port.new_sample
             end
-
-            def write(sample)
-                if(port.respond_to?(:write))
-                    @port.write(sample) 
-                else
-                    STDOUT.puts "No writer availible on port #{@port.name}, it might be still a model only? (#{@port.class.name})"
-                end
-            end
-
 
             def ==(other)
                 other.kind_of?(InputWriter) &&
