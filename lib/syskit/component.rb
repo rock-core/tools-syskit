@@ -1,6 +1,5 @@
 module Syskit
         Roby::EventStructure.relation 'SyskitConfigurationPrecedence'
-        Roby::EventStructure::CausalLink.superset_of Roby::EventStructure::SyskitConfigurationPrecedence
 
         # Base class for models that represent components (TaskContext,
         # Composition)
