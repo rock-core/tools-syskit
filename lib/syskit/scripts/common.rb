@@ -267,6 +267,9 @@ require 'syskit/roby_app'
                     Syskit.logger = ::Logger.new(STDOUT)
                     Syskit.logger.formatter = Roby.logger.formatter
                     Syskit.logger.level = ::Logger::DEBUG
+                    Orocos.logger = ::Logger.new(STDOUT)
+                    Orocos.logger.formatter = Roby.logger.formatter
+                    Orocos.logger.level = ::Logger::DEBUG
                 end
 
                 Roby.display_exception do
