@@ -25,10 +25,23 @@ module Syskit
                 @dataflow_options = Hash[
                     :id => 'dataflow',
                     :remove_compositions => false,
-                    :annotations => ['task_info'].to_set
+                    :annotations => ['task_info'].to_set,
+                    :zoom => 1
                 ]
 
                 buttons = []
+                buttons << MetaRuby::GUI::HTML::Button.new("dataflow/show_compositions",
+                                                           :on_text => 'Show compositions',
+                                                           :off_text => 'Hide compositions',
+                                                           :state => !dataflow_options[:remove_compositions])
+                buttons << MetaRuby::GUI::HTML::Button.new("dataflow/zoom",
+                                                           :on_text => "Zoom +",
+                                                           :off_text => "Zoom +",
+                                                           :state => true)
+                buttons << MetaRuby::GUI::HTML::Button.new("dataflow/unzoom",
+                                                           :on_text => "Zoom -",
+                                                           :off_text => "Zoom -",
+                                                           :state => true)
                 Syskit::Graphviz.available_annotations.sort.each do |ann_name|
                     buttons << MetaRuby::GUI::HTML::Button.new("annotations/#{ann_name}",
                                                 :on_text => "Show #{ann_name}",
@@ -69,7 +82,17 @@ module Syskit
             end
 
             def buttonClicked(button_id, new_state)
-                if button_id =~ /\/annotations\/(\w+)/
+                case button_id
+                when /\/dataflow\/show_compositions/
+                    dataflow_options[:remove_compositions] = !new_state
+                when /\/dataflow\/zoom/
+                    dataflow_options[:zoom] += 0.1
+                when /\/dataflow\/unzoom/
+                    if dataflow_options[:zoom] > 0.1
+                        dataflow_options[:zoom] -= 0.1
+                    end
+                    dataflow_options[:remove_compositions] = !new_state
+                when  /\/annotations\/(\w+)/
                     ann_name = $1
                     if new_state then dataflow_options[:annotations] << ann_name
                     else dataflow_options[:annotations].delete(ann_name)
