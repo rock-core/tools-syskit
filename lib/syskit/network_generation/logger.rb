@@ -106,7 +106,7 @@ module Syskit
                     next if !deployment.plan
 
                     logger_task = nil
-                    logger_task_name = "#{deployment.deployment_name}_Logger"
+                    logger_task_name = "#{deployment.process_name}_Logger"
 
                     required_logging_ports = Array.new
                     required_connections   = Array.new
@@ -152,7 +152,7 @@ module Syskit
                         begin
                             deployment.task(logger_task_name)
                         rescue ArgumentError
-                            warn "deployment #{deployment.deployment_name} has no logger (#{logger_task_name})"
+                            warn "deployment #{deployment.process_name} has no logger (#{logger_task_name})"
                             next
                         end
                     engine.work_plan.add_permanent(logger_task)

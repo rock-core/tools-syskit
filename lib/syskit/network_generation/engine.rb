@@ -153,7 +153,7 @@ module Syskit
                 new_models = ValueSet.new
                 available_deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
-                        model.orogen_model.task_activities.each do |deployed_task|
+                        model.each_orogen_deployed_task_context_model do |deployed_task|
                             new_models << TaskContext.model_for(deployed_task.task_model)
                         end
                     end
@@ -585,8 +585,6 @@ module Syskit
 
                 missing_deployments = []
                 deployment_tasks = Hash.new
-                work_plan.find_local_tasks(Deployment).
-                    each { |t| deployment_tasks[[t.host, t.class]] = t }
                 all_tasks = work_plan.find_local_tasks(TaskContext).to_a
                 all_tasks.each do |task|
                     next if task.execution_agent # This is already deployed
@@ -608,20 +606,19 @@ module Syskit
                         selected = candidates.first
                     end
 
-                    machine, deployment_model, task_name = *selected
+                    machine, configured_deployment, task_name = *selected
                     if used_deployments.include?(selected)
                         # Already used somewhere else, don't reallocate
-                        debug { "#{task} resolves to #{deployment_model.short_name}.#{task_name} for its deployment, but it is already used" }
+                        debug { "#{task} resolves to #{configured_deployment.short_name}.#{task_name} for its deployment, but it is already used" }
                         missing_deployments << task
                         next
                     end
                     
                     used_deployments << selected
-                    deployment_task =
-                        (deployment_tasks[[machine, deployment_model]] ||= deployment_model.new(:on => machine))
+                    deployment_task = configured_deployment.new(:on => machine)
                     work_plan.add(deployment_task)
                     deployed_task = deployment_task.task(task_name)
-                    debug { "deploying #{task} with #{task_name} of #{deployment_model.short_name} (#{deployed_task})" }
+                    debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
                     merge_solver.merge(task, deployed_task)
                 end
 
@@ -893,7 +890,7 @@ module Syskit
                     existing_candidates = work_plan.find_local_tasks(deployment_task.class).
                         not_finishing.not_finished.to_value_set
                     debug do
-                        debug "  looking to reuse a deployment for #{deployment_task.deployment_name} (#{deployment_task})"
+                        debug "  looking to reuse a deployment for #{deployment_task.process_name} (#{deployment_task})"
                         debug "  #{existing_candidates.size} candidates:"
                         existing_candidates.each do |candidate_task|
                             debug "    #{candidate_task}"
@@ -904,11 +901,11 @@ module Syskit
                     # Check for the corresponding task in the plan
                     existing_deployment_tasks = (existing_candidates & existing_deployments).
                         find_all do |t|
-                            t.deployment_name == deployment_task.deployment_name
+                            t.process_name == deployment_task.process_name
                         end
 
                     if existing_deployment_tasks.empty?
-                        debug { "  deployment #{deployment_task.deployment_name} is not yet represented in the plan" }
+                        debug { "  deployment #{deployment_task.process_name} is not yet represented in the plan" }
                         # Nothing to do, we leave the plan as it is
                         result << deployment_task
                     elsif existing_deployment_tasks.size != 1

@@ -23,14 +23,18 @@ module Syskit
         # accessed with #task(name)
         class Deployment < ::Roby::Task
             extend Models::Deployment
+            extend Logger::Hierarchy
 
+            argument :process_name, :default => from(:model).deployment_name
             argument :log, :default => true
             argument :on, :default => 'localhost'
-            argument :deployment_name, :default => from(:model).deployment_name
+            argument :name_mappings, :default => nil
+
+            attr_accessor :spawn_options
 
             def initialize(options = Hash.new)
                 super
-                freeze_delayed_arguments
+                @spawn_options = Hash.new
             end
 
             @@all_deployments = Hash.new
@@ -90,7 +94,7 @@ module Syskit
                 end
 
                 activity = each_orogen_deployed_task_context_model.
-                    find { |act| name == act.name }
+                    find { |act| name == name_mappings[act.name] }
                 if !activity
                     raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}, available tasks are #{each_orogen_deployed_task_context_model.map(&:name).sort.join(", ")}"
                 end
@@ -103,7 +107,7 @@ module Syskit
                 else
                     model = activity_model
                 end
-                plan.add(task = model.new(:orocos_name => activity.name))
+                plan.add(task = model.new(:orocos_name => name_mappings[activity.name]))
                 task.executed_by self
                 task.orogen_model = activity
                 if ready?
@@ -135,19 +139,27 @@ module Syskit
                     raise ArgumentError, "cannot find the process server for #{host}"
                 end
 
-                options = Hash.new
+                spawn_options = self.spawn_options
+                options = (spawn_options[:cmdline_args] || Hash.new).dup
                 model.each_default_run_option do |name, value|
                     options[name] = value
                 end
-                prefix = options.delete(:prefix)
 
-                Syskit.info { "starting deployment #{model.deployment_name} on #{host} with #{options}" }
-                @orocos_process = process_server.start(deployment_name, Hash.new,
-                                                          :working_directory => log_dir, 
-                                                          :output => "%m-%p.txt", 
-                                                          :wait => false,
-                                                          :prefix => prefix,
-                                                          :cmdline_args => options)
+                @name_mappings = (self.name_mappings || Hash.new).dup
+                each_orogen_deployed_task_context_model do |deployed_task|
+                    @name_mappings[deployed_task.name] ||= deployed_task.name
+                end
+
+                spawn_options = spawn_options.merge(
+                    :working_directory => log_dir, 
+                    :output => "%m-%p.txt", 
+                    :wait => false,
+                    :cmdline_args => options)
+
+                Deployment.info { "starting deployment #{process_name} using #{model.deployment_name} on #{host} with #{spawn_options} and mappings #{@name_mappings}" }
+
+                @orocos_process = process_server.start(
+                    process_name, model.deployment_name, @name_mappings, spawn_options)
 
                 Deployment.all_deployments[@orocos_process] = self
                 emit :start
@@ -187,7 +199,7 @@ module Syskit
                         name = orocos_process.get_mapped_name(activity.name)
                         orocos_task = ::Orocos::TaskContext.get(name)
                         orocos_task.process = orocos_process
-                        task_handles[activity.name] =  orocos_task
+                        task_handles[name] =  orocos_task
                     end
 
                     each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|

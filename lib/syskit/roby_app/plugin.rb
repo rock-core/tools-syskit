@@ -350,9 +350,7 @@ module Syskit
                     using_task_library(lib.name)
                 end
 
-                model = Deployment.find_model_from_orogen_name(name)
-                Syskit.conf.deployments[options[:on]] << model
-                model
+                Deployment.find_model_from_orogen_name(name)
             end
 
             # Stop the process server started by start_local_process_server if

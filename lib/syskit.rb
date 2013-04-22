@@ -28,6 +28,7 @@ require 'syskit/models/composition_specialization'
 require 'syskit/models/composition'
 require 'syskit/models/task_context'
 require 'syskit/models/deployment'
+require 'syskit/models/configured_deployment'
 
 # Instances
 require 'syskit/port'

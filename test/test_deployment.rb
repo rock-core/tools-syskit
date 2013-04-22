@@ -17,11 +17,13 @@ describe Syskit::Deployment do
             model = Orocos::Spec::Deployment.new(nil, "test")
             deployment_m = Syskit::Deployment.new_submodel(:orogen_model => model)
             deployment = deployment_m.new
-            assert_equal "test", deployment.deployment_name
+            deployment.freeze_delayed_arguments
+            assert_equal "test", deployment.process_name
         end
 
         it "sets the target host to localhost by default" do
             task = Syskit::Deployment.new_submodel.new
+            task.freeze_delayed_arguments
             assert_equal 'localhost', task.host
         end
 
@@ -61,6 +63,10 @@ describe Syskit::Deployment do
         end
         it "sets orocos_name on the new task" do
             assert_equal 'task', deployment_task.task("task").orocos_name
+        end
+        it "returns a task with a mapped name using the original name as argument" do
+            deployment_task.name_mappings = Hash['task' => 'other_name']
+            assert_equal 'other_name', deployment_task.task("task").orocos_name
         end
         it "sets orogen_model on the new task" do
             assert_equal orogen_deployed_task, deployment_task.task("task").orogen_model
@@ -121,17 +127,17 @@ describe Syskit::Deployment do
 
         describe "start_event" do
             it "finds the process server from Syskit.process_servers and its 'on' option" do
-                process_server.should_receive(:start).once.with('deployment', any, any).and_return(process)
+                process_server.should_receive(:start).once.with('deployment', 'deployment', any, any).and_return(process)
                 deployment_task.start!
             end
             it "passes the process server's log dir as working directory" do
-                process_server.should_receive(:start).once.with(any, any, hsh(:working_directory => log_dir)).and_return(process)
+                process_server.should_receive(:start).once.with(any, any, any, hsh(:working_directory => log_dir)).and_return(process)
                 deployment_task.start!
             end
             it "passes the model-level run command line options to the process server start command" do
                 cmdline_options = {:valgrind => true}
                 deployment_m.default_run_options.merge!(cmdline_options)
-                process_server.should_receive(:start).with(any, any, hsh(:cmdline_args => cmdline_options)).and_return(process)
+                process_server.should_receive(:start).with(any, any, any, hsh(:cmdline_args => cmdline_options)).and_return(process)
                 deployment_task.start!
             end
             it "raises if the on option refers to a non-existing process server" do

@@ -281,13 +281,21 @@ module Syskit
             #
             # @option options [String] :on (localhost) the name of the process
             #   server on which this deployment should be started
-            def use_deployment(name, options = Hash.new)
-                options = Kernel.validate_options options, :on => 'localhost'
+            def use_deployment(*names)
+                if !names.last.kind_of?(Hash)
+                    names << Hash.new
+                end
+                options, run_options = Kernel.filter_options names.last,
+                    :on => 'localhost'
+                names[-1] = run_options
 
-                model = Deployment.find_model_from_orogen_name(name) ||
-                    Roby.app.load_deployment_model(name)
-                model.default_run_options.merge!(default_run_options(model))
-                deployments[options[:on]] << model
+                new_deployments, _ = Orocos::Process.parse_run_options(*names)
+                new_deployments.each do |deployment_name, mappings, name, spawn_options|
+                    model = Deployment.find_model_from_orogen_name(deployment_name) ||
+                        Roby.app.load_deployment_model(deployment_name)
+                    model.default_run_options.merge!(default_run_options(model))
+                    deployments[options[:on]] << Models::ConfiguredDeployment.new(model, mappings, name, spawn_options)
+                end
                 model
             end
 
