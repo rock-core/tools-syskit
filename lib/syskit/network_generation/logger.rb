@@ -45,8 +45,9 @@ module Syskit
                     # created it and we're fine- Otherwise, raise an error
                     begin
                         port = find_input_port(sink_port_name)
-                        if port.model.orocos_type_name != logged_port_type
-                            raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}: a port of same name but of type #{port.orocos_type_name} exists"
+                        logger_port_type_m = Orocos.master_project.intermediate_type_for(logged_port_type)
+                        if port.model.orocos_type_name != logged_port_type && port.model.orocos_type_name != logger_port_type_m.name
+                            raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}: a port of same name but of type #{port.model.orocos_type_name} exists"
                         end
                     rescue Orocos::NotFound
                         raise ArgumentError, "cannot create a logger port of name #{sink_port_name} and type #{logged_port_type}"
