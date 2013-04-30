@@ -20,11 +20,12 @@ Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 Roby.app.ignore_all_load_errors = true
 
-include Scripts::SingleFileDSL
-self.profile_name = "SyskitBrowse"
-
 direct_files, model_names = remaining.partition do |arg|
     File.file?(arg)
+end
+if !direct_files.empty?
+    include Scripts::SingleFileDSL
+    self.profile_name = "SyskitBrowse"
 end
 
 # Load all task libraries if we don't get a file to require
