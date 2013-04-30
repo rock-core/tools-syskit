@@ -65,8 +65,8 @@ describe Syskit::Deployment do
             assert_equal 'task', deployment_task.task("task").orocos_name
         end
         it "returns a task with a mapped name using the original name as argument" do
-            deployment_task.name_mappings = Hash['task' => 'other_name']
-            assert_equal 'other_name', deployment_task.task("task").orocos_name
+            deployment_task.name_mappings['task'] = 'other_name'
+            assert_equal 'other_name', deployment_task.task("other_name").orocos_name
         end
         it "sets orogen_model on the new task" do
             assert_equal orogen_deployed_task, deployment_task.task("task").orogen_model
@@ -179,14 +179,14 @@ describe Syskit::Deployment do
             it "resolves all deployment tasks into task_handles using mapped names" do
                 process.should_receive(:wait_running).once.and_return(true)
                 process_events
-                assert_equal orocos_task, deployment_task.task_handles['task']
+                assert_equal orocos_task, deployment_task.task_handles['mapped_task_name']
             end
             it "initializes supported task contexts" do
                 process.should_receive(:wait_running).once.and_return(true)
                 task = Class.new(Roby::Task) do
                     argument :orocos_name
                     terminates
-                end.new(:orocos_name => 'task')
+                end.new(:orocos_name => 'mapped_task_name')
 
                 task.executed_by deployment_task
                 plan.add_permanent(task)

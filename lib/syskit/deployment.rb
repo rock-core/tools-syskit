@@ -35,6 +35,12 @@ module Syskit
             def initialize(options = Hash.new)
                 super
                 @spawn_options = Hash.new
+                if !self.name_mappings
+                    self.name_mappings = Hash.new
+                end
+                each_orogen_deployed_task_context_model do |deployed_task|
+                    name_mappings[deployed_task.name] ||= deployed_task.name
+                end
             end
 
             @@all_deployments = Hash.new
@@ -96,7 +102,9 @@ module Syskit
                 activity = each_orogen_deployed_task_context_model.
                     find { |act| name == name_mappings[act.name] }
                 if !activity
-                    raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}, available tasks are #{each_orogen_deployed_task_context_model.map(&:name).sort.join(", ")}"
+                    available = each_orogen_deployed_task_context_model.map { |act| name_mappings[act.name] }.sort.join(", ")
+                    mappings  = name_mappings.map { |k,v| "#{k} => #{v}" }.join(", ")
+                    raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}, available tasks are #{available} using name mappings #{name_mappings}"
                 end
 
                 activity_model = TaskContext.model_for(activity.context)
@@ -145,21 +153,16 @@ module Syskit
                     options[name] = value
                 end
 
-                @name_mappings = (self.name_mappings || Hash.new).dup
-                each_orogen_deployed_task_context_model do |deployed_task|
-                    @name_mappings[deployed_task.name] ||= deployed_task.name
-                end
-
                 spawn_options = spawn_options.merge(
                     :working_directory => log_dir, 
                     :output => "%m-%p.txt", 
                     :wait => false,
                     :cmdline_args => options)
 
-                Deployment.info { "starting deployment #{process_name} using #{model.deployment_name} on #{host} with #{spawn_options} and mappings #{@name_mappings}" }
+                Deployment.info { "starting deployment #{process_name} using #{model.deployment_name} on #{host} with #{spawn_options} and mappings #{name_mappings}" }
 
                 @orocos_process = process_server.start(
-                    process_name, model.deployment_name, @name_mappings, spawn_options)
+                    process_name, model.deployment_name, name_mappings, spawn_options)
 
                 Deployment.all_deployments[@orocos_process] = self
                 emit :start
