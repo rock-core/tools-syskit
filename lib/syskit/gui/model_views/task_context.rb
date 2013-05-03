@@ -2,14 +2,17 @@ module Syskit::GUI
     module ModelViews
         class TaskContext < Component
             attr_reader :orogen_rendering
+            attr_reader :task_model_view
 
             def initialize(page)
                 super(page)
+                @task_model_view = Roby::GUI::ModelViews::Task.new(page)
                 @orogen_rendering = Orocos::HTML::TaskContext.new(page)
             end
 
             def render(model)
-                page.push(nil, "<p><b>oroGen name:</b> #{model.orogen_model.name}</p>")
+                task_model_view.render(model)
+                page.push("oroGen Model", "<p><b>oroGen name:</b> #{model.orogen_model.name}</p>")
                 orogen_rendering.render(model.orogen_model)
 
                 super

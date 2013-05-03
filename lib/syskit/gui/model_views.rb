@@ -1,3 +1,4 @@
+require 'roby/gui/model_views/task'
 require 'syskit/gui/model_views/component'
 require 'syskit/gui/model_views/composition'
 require 'syskit/gui/model_views/profile'
