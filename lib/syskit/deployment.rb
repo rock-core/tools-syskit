@@ -38,8 +38,8 @@ module Syskit
                 if !self.name_mappings
                     self.name_mappings = Hash.new
                 end
-                each_orogen_deployed_task_context_model do |deployed_task|
-                    name_mappings[deployed_task.name] ||= deployed_task.name
+                model.each_default_name_mapping do |k, v|
+                    self.name_mappings[k] ||= v
                 end
             end
 

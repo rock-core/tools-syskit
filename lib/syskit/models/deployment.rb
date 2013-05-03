@@ -12,6 +12,13 @@ module Syskit
             # @return [Hash<String,String>]
             inherited_attribute('default_run_option', 'default_run_options', :map => true) { Hash.new }
 
+            # The set of default name mappings for the instances of this
+            # deployment model
+            #
+            # @key_name original_task_name
+            # @return [Hash<String,String>]
+            inherited_attribute('default_name_mapping', 'default_name_mappings', :map => true) { Hash.new }
+
             # [Models::Deployment] Returns the parent model for this class, or
             # nil if it is the root model
             def supermodel
@@ -50,6 +57,9 @@ module Syskit
                     if block
                         self.orogen_model.instance_eval(&block)
                     end
+                end
+                klass.each_orogen_deployed_task_context_model do |deployed_task|
+                    klass.default_name_mappings[deployed_task.name] = deployed_task.name
                 end
                 klass
             end
