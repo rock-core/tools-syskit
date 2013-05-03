@@ -171,8 +171,6 @@ module Syskit
                     dot_graph = send(kind, display_options)
                     io.write dot_graph
                     io.flush
-                    system("sync")
-                    sleep 1
                     graph = `#{file_options[:graphviz_tool]} -T#{format} #{io.path}`
                     if !$?.exited?
                         STDOUT.puts "Called #{file_options[:graphviz_tool]} -T#{format} #{io.path}"
