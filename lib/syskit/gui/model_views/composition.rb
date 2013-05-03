@@ -13,6 +13,7 @@ module Syskit::GUI
             def initialize(page)
                 super(page)
                 @specializations = Hash.new
+                @task_model_view = Roby::GUI::ModelViews::Task.new(page)
             end
 
             def enable
@@ -114,6 +115,7 @@ module Syskit::GUI
 
             def render(model, options = Hash.new)
                 super
+                task_model_view.render(model)
                 if task
                     render_data_services(task)
                 end

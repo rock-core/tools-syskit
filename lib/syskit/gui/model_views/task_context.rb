@@ -12,10 +12,10 @@ module Syskit::GUI
 
             def render(model)
                 task_model_view.render(model)
+                super
+
                 page.push("oroGen Model", "<p><b>oroGen name:</b> #{model.orogen_model.name}</p>")
                 orogen_rendering.render(model.orogen_model)
-
-                super
             end
 
             def plan_display_options
