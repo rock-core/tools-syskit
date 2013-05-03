@@ -1,13 +1,3 @@
-class Object
-    def dot_id
-        id = object_id
-        if id < 0
-            0xFFFFFFFFFFFFFFFF + id
-        else
-            id
-        end
-    end
-end
 module Syskit
         # Used by the to_dot* methods for color allocation
         attr_reader :current_color
