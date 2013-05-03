@@ -172,6 +172,19 @@ module Syskit
                     io.write dot_graph
                     io.flush
                     graph = `#{file_options[:graphviz_tool]} -T#{format} #{io.path}`
+                    if !$?.success?
+                        Syskit.debug do
+                            i = 0
+                            pattern = "syskit_graphviz_%i.dot"
+                            while File.file?(pattern % [i])
+                                i += 1
+                            end
+                            path = pattern % [i]
+                            File.open(path, 'w') { |io| io.write dot_graph }
+                            "saved graphviz input in #{path}"
+                        end
+                    end
+
                     if !$?.exited?
                         STDOUT.puts "Called #{file_options[:graphviz_tool]} -T#{format} #{io.path}"
                         system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug.png")
