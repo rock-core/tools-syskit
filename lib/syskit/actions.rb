@@ -4,6 +4,7 @@ module Syskit
     end
 end
 
+require 'syskit/actions/action'
 require 'syskit/actions/action_model'
 require 'syskit/actions/profile'
 require 'syskit/actions/interface_model_extension'

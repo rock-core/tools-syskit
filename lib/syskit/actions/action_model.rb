@@ -13,6 +13,11 @@ module Syskit
                 returns(requirements.proxy_task_model)
             end
 
+            # @return [Action] an action instance based on this model
+            def new(arguments = Hash.new)
+                Syskit::Actions::Action.new(self, arguments)
+            end
+
             def plan_pattern(arguments = Hash.new)
                 requirements.as_plan
             end
@@ -38,6 +43,13 @@ module Syskit
             def droby_dump!(dest)
                 super
                 @requirements = Syskit::InstanceRequirements.new
+            end
+            
+            # Allows to refine an action "on the fly"
+            def use(*args)
+                req = requirements.dup
+                req.use(*args)
+                ActionModel.new(action_interface_model, req, doc)
             end
         end
     end
