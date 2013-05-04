@@ -289,6 +289,14 @@ module Syskit
                     :on => 'localhost'
                 names[-1] = run_options
 
+                # We allow the user to specify a task model as a Roby task. Map that
+                names = names.map do |n|
+                    if n.respond_to?(:to_hash)
+                        n.map_key { |k| k.orogen_model.name if k.respond_to?(:orogen_model) }
+                    else n
+                    end
+                end
+
                 new_deployments, _ = Orocos::Process.parse_run_options(*names)
                 new_deployments.each do |deployment_name, mappings, name, spawn_options|
                     model = Deployment.find_model_from_orogen_name(deployment_name) ||
