@@ -47,8 +47,8 @@ module Syskit
                 splitter.set_stretch_factor 1, 1
 
                 @apply_btn.connect(SIGNAL('clicked()')) do
+                    Roby.app.clear_exceptions
                     Roby.app.reload_models
-                    Roby.app.reload_config
                     compute
                 end
 
