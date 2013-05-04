@@ -12,6 +12,20 @@ module Syskit
                 @model, @name_mappings, @process_name, @spawn_options = model, name_mappings, process_name, spawn_options
             end
 
+            def orogen_model
+                if @model
+                    return @model
+                end
+
+                @model = model.orogen_model.dup
+                model.task_activities.map! do |activity|
+                    activity = activity.dup
+                    activity.name = name_mappings[activity.name] || activity.name
+                    activity
+                end
+                @model
+            end
+
             def each_orogen_deployed_task_context_model
                 model.each_orogen_deployed_task_context_model do |deployed_task|
                     task = deployed_task.dup
