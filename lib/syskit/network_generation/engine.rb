@@ -337,11 +337,17 @@ module Syskit
             def instanciate(req_tasks = nil)
                 main_selection = compute_main_dependency_injection
 
-                req_tasks ||= real_plan.find_local_tasks(InstanceRequirementsTask).
-                    find_all do |req_task|
-                        !req_task.failed? && !req_task.pending? &&
-                            req_task.planned_task && !req_task.planned_task.finished?
+                if !req_tasks
+                    req_tasks = real_plan.find_local_tasks(InstanceRequirementsTask).
+                        find_all do |req_task|
+                            !req_task.failed? && !req_task.pending? &&
+                                req_task.planned_task && !req_task.planned_task.finished?
+                        end
+                    not_needed = real_plan.unneeded_tasks
+                    req_tasks.delete_if do |t|
+                        not_needed.include?(t)
                     end
+                end
 
                 req_tasks.each do |req_task|
                     req = req_task.requirements
