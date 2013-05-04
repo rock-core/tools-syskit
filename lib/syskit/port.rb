@@ -149,6 +149,10 @@ module Syskit
             end
         end
 
+        def read_new
+            reader.read_new if reader
+        end
+
         def read
             reader.read if reader
         end
