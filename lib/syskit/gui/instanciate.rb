@@ -85,7 +85,7 @@ module Syskit
                 current = []
                 while name = remaining.shift
                     if name == "/"
-                        result << current
+                        passes << current
                         current = []
                     else
                         current << name
