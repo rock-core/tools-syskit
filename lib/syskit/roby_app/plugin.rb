@@ -16,6 +16,13 @@ module Syskit
             # See #load_orogen_project.
             attribute(:loaded_orogen_projects) { Hash.new }
 
+            # Set of requirements that should be added to the running system.
+            # This is meant to be used only by "syskit scripts" through
+            # SingleFileDSL
+            #
+            # @return [Array<InstanceRequirements>]
+            attribute(:permanent_requirements) { Array.new }
+
             def self.load(app, options)
                 conf = Syskit.conf
                 if options = options['syskit']
@@ -147,6 +154,15 @@ module Syskit
                 end
 
                 Syskit::TaskContext.define_from_orogen(Orocos::Spec::TaskContext.orogen_rtt_task_context, :register => true)
+
+                if !app.additional_model_files.empty?
+                    Kernel.include SingleFileDSL
+                    Roby.once do
+                        app.permanent_requirements.each do |req|
+                            Roby.plan.add_mission(t = req.as_plan)
+                        end
+                    end
+                end
             end
 
             # Called by the main Roby application to clear all before redoing a

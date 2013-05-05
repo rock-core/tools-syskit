@@ -23,19 +23,12 @@ Roby.app.ignore_all_load_errors = true
 direct_files, model_names = remaining.partition do |arg|
     File.file?(arg)
 end
-if !direct_files.empty?
-    include Scripts::SingleFileDSL
-    self.profile_name = "SyskitBrowse"
-end
-
 # Load all task libraries if we don't get a file to require
 Roby.app.syskit_load_all = direct_files.empty?
+Roby.app.additional_model_files.concat(direct_files)
 
 app = Qt::Application.new(ARGV)
 Scripts.run do
-    direct_files.each do |path|
-        require path
-    end
     Roby.app.syskit_engine.prepare
 
     main = Syskit::GUI::ModelBrowser.new

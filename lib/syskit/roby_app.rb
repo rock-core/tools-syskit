@@ -13,6 +13,7 @@ require 'syskit/roby_app/robot_extension'
 require 'syskit/roby_app/toplevel'
 require 'syskit/roby_app/configuration'
 require 'syskit/roby_app/plugin'
+require 'syskit/roby_app/single_file_dsl'
 
 
 module Syskit

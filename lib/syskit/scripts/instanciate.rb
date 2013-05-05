@@ -90,15 +90,10 @@ Syskit.conf.disables_local_process_server = true
 direct_files, required_actions = remaining.partition do |arg|
     File.file?(arg)
 end
-if !direct_files.empty?
-    include Syskit::Scripts::SingleFileDSL
-    self.profile_name = "SyskitInstanciate"
-end
-
 Roby.app.additional_model_files.concat(direct_files)
 Scripts.run do
     app = Qt::Application.new([])
-    w = Syskit::GUI::Instanciate.new(nil, required_actions.join(" "), permanent_requirements)
+    w = Syskit::GUI::Instanciate.new(nil, required_actions.join(" "), Roby.app.permanent_requirements)
     w.show
     app.exec
 end
