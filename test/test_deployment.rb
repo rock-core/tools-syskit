@@ -238,6 +238,26 @@ describe Syskit::Deployment do
                 assert deployment_task.failed?
             end
         end
+
+        
+    end
+
+    describe "#dead!" do
+        attr_reader :process
+        before do
+            @process = flexmock('process')
+            process.should_receive(:wait_running).by_default
+            process.should_receive(:get_mapped_name).
+                with('task').and_return('mapped_task_name')
+            flexmock(deployment_task).should_receive(:orocos_process).and_return(process)
+        end
+        it "deregisters all supported task contexts from the TaskContext.configured set" do
+            Syskit::TaskContext.configured['mapped_task_name'] = Object.new
+            plan.add_permanent(deployment_task)
+            deployment_task.emit :start
+            deployment_task.dead!(nil)
+            assert !Syskit::TaskContext.configured.include?('mapped_task_name')
+        end
     end
 end
 

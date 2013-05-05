@@ -265,7 +265,8 @@ module Syskit
 
                 Deployment.all_deployments.delete(orocos_process)
                 model.each_orogen_deployed_task_context_model do |act|
-                    TaskContext.configured.delete(act.name)
+                    name = orocos_process.get_mapped_name(act.name)
+                    TaskContext.configured.delete(name)
                 end
                 each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
                     task.orocos_task = nil
