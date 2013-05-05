@@ -110,9 +110,10 @@ describe Syskit::Deployment do
             @process = flexmock('process')
             process.should_receive(:kill).by_default
             process.should_receive(:wait_running).by_default
+            process.should_receive(:get_mapped_name).with('task').and_return('mapped_task_name').by_default
             @log_dir = flexmock('log_dir')
             Syskit.register_process_server('bla', process_server, log_dir)
-            plan.add(@deployment_task = deployment_m.new(:on => 'bla'))
+            plan.add(@deployment_task = deployment_m.new(:on => 'bla', :name_mappings => Hash['task' => 'mapped_task_name']))
         end
         after do
             if deployment_task.running?
@@ -253,10 +254,17 @@ describe Syskit::Deployment do
         end
         it "deregisters all supported task contexts from the TaskContext.configured set" do
             Syskit::TaskContext.configured['mapped_task_name'] = Object.new
-            plan.add_permanent(deployment_task)
             deployment_task.emit :start
             deployment_task.dead!(nil)
             assert !Syskit::TaskContext.configured.include?('mapped_task_name')
+        end
+    end
+
+    describe "#instanciate_all_tasks" do
+        it "creates a task for each supported task context" do
+            deployment_task.name_mappings['task'] = 'mapped_task_name'
+            flexmock(deployment_task).should_receive(:task).with('mapped_task_name').once
+            deployment_task.instanciate_all_tasks
         end
     end
 end

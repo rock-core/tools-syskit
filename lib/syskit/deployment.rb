@@ -81,7 +81,7 @@ module Syskit
 
             def instanciate_all_tasks
                 model.each_orogen_deployed_task_context_model.map do |act|
-                    task(act.name)
+                    task(name_mappings[act.name])
                 end
             end
 
