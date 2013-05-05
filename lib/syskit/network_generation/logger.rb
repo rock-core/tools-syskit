@@ -206,7 +206,7 @@ module Syskit
                     end
             end
         end
-        Engine.register_final_network_postprocessing(
+        Engine.register_deployment_postprocessing(
             &LoggerConfigurationSupport.method(:add_logging_to_network))
     end
 end
