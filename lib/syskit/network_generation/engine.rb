@@ -621,7 +621,8 @@ module Syskit
                     end
                     
                     used_deployments << selected
-                    deployment_task = configured_deployment.new(:on => machine)
+                    deployment_task =
+                        (deployment_tasks[[machine, configured_deployment]] ||= configured_deployment.new(:on => machine))
                     work_plan.add(deployment_task)
                     deployed_task = deployment_task.task(task_name)
                     debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
