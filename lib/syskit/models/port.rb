@@ -15,6 +15,8 @@ module Syskit
             # different from orogen_model.name, as the port could be imported from
             # another component
             attr_accessor :name
+            # [Model<Typelib::Type>] the typelib type of this port
+            attr_reader :type
 
             # @param [#instanciate] component_model the component model
             # @param [Orocos::Spec::Port] orogen_model the oroGen port model
@@ -23,6 +25,12 @@ module Syskit
             def initialize(component_model, orogen_model, name = orogen_model.name)
                 @component_model, @name, @orogen_model =
                     component_model, name, orogen_model
+
+                if orogen_model.type.contains_opaques?
+                    @type = Orocos.master_project.intermediate_type_for(orogen_model.type)
+                else
+                    @type = orogen_model.type
+                end
             end
 
             def same_port?(other)
@@ -73,15 +81,6 @@ module Syskit
 
             def actual_name
                 orogen_model.name
-            end
-
-            def type
-                t = orogen_model.type
-                if t.contains_opaques?
-                    Orocos.master_project.intermediate_type_for(t)
-                else
-                    t
-                end
             end
 
             def respond_to?(m, *args)
