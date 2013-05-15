@@ -156,7 +156,7 @@ module Syskit
                 Syskit::TaskContext.define_from_orogen(Orocos::Spec::TaskContext.orogen_rtt_task_context, :register => true)
 
                 if !app.additional_model_files.empty?
-                    Kernel.include SingleFileDSL
+                    toplevel_object.extend SingleFileDSL
                     Roby.once do
                         app.permanent_requirements.each do |req|
                             Roby.plan.add_mission(t = req.as_plan)
