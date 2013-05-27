@@ -397,7 +397,7 @@ describe Syskit::NetworkGeneration::Engine do
 
     describe "synthetic tests" do
         def deploy_task(requirements)
-            plan.add(original_task = requirements.as_plan)
+            plan.add_permanent(original_task = requirements.as_plan)
             task = original_task.as_service
             task.planning_task.start!
             syskit_engine.resolve
