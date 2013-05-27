@@ -328,7 +328,6 @@ module Syskit
                 task.model.each_master_driver_service do |srv|
                     next if task.find_device_attached_to(srv)
                     _, model, _ = context.selection_for(nil, srv.model.to_instance_requirements)
-                    puts "found #{model} for #{srv.model} in #{task}"
                     if dev = model.arguments["#{srv.name}_dev"]
                         Engine.debug do
                             Engine.debug "  selected #{dev} for #{srv.name}"
