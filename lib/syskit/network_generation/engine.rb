@@ -36,6 +36,14 @@ module Syskit
             #
             # This is only valid during resolution
             attr_reader :required_instances
+            # The set of tasks that have to be considered as toplevel when
+            # finalizing the plan. These tasks can have a permanent/mission
+            # status assigned to them.
+            #
+            # @see {#add_toplevel_task}
+            # @return [Hash<Task,(Boolean,Boolean)>] mapping from the toplevel
+            #   task to its desired final status, as (mission,permanent)
+            attr_reader :toplevel_tasks
             # A list of data service or component models for which a deployment
             # exists. It includes compositions that have all their children
             # deployed as well
@@ -125,6 +133,7 @@ module Syskit
                 @main_automatic_selection = DependencyInjection.new
 
                 @service_allocation_candidates = Hash.new
+                @toplevel_tasks = Hash.new
             end
 
             # The set of selections computed based on what is actually available
@@ -239,6 +248,7 @@ module Syskit
                 @work_plan = Roby::Transaction.new(real_plan)
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @required_instances = Hash.new
+                @toplevel_tasks.clear
 
                 add_timepoint 'prepare', 'done'
             end
@@ -258,6 +268,7 @@ module Syskit
                     merge_solver.task_replacement_graph.clear
                     @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                     @required_instances.clear if @required_instances
+                    @toplevel_tasks.clear
                 end
             end
 
@@ -353,13 +364,14 @@ module Syskit
                     req = req_task.requirements
                     task = req.instanciate(work_plan, main_selection).
                         to_task
+                    real_plan_task = req_task.planned_task
                     # We add all these tasks as permanent tasks, to use
                     # #static_garbage_collect to cleanup #work_plan. The
                     # actual mission / permanent marking is fixed at the end
                     # of resolution by calling #fix_toplevel_tasks
-                    work_plan.add_permanent(task)
                     task.fullfilled_model = req.fullfilled_model
                     required_instances[req_task] = task
+                    add_toplevel_task(task, real_plan.mission?(real_plan_task), real_plan.permanent?(real_plan_task))
 
                     task.generated_subgraph(Roby::TaskStructure::Dependency).each do |task|
                         if task.respond_to?(:each_master_driver_service)
@@ -779,6 +791,19 @@ module Syskit
                 end
             end
 
+            # Registers a toplevel task, as well as its final mission/permanent
+            # status.
+            #
+            # This information must be stored separately as the syskit
+            # resolution marks all toplevel tasks as permanent to be able to use
+            # #static_garbage_collect to cleanup the transaction
+            def add_toplevel_task(task, mission, permanent)
+                toplevel_tasks[task] = [mission, permanent]
+                work_plan.add(task)
+                work_plan.unmark_mission(task)
+                work_plan.add_permanent(task)
+            end
+
             # Replaces the toplevel tasks (i.e. tasks planned by the
             # InstanceRequirementsTask tasks) by their computed implementation.
             #
@@ -788,20 +813,24 @@ module Syskit
                     work_plan.unmark_permanent(t)
                     work_plan.unmark_mission(t)
                 end
-                required_instances.each do |req_task, actual_task|
-                    is_permanent = real_plan.permanent?(req_task.planned_task)
-                    is_mission   = real_plan.mission?(req_task.planned_task)
+                toplevel_tasks.each do |task, (mission, permanent)|
+                    task = merge_solver.replacement_for(task)
+                    # At this stage, replacement_for returns the task object
+                    # that is going to be in #real_plan. re-wrap to the transaction
+                    # if needed.
+                    task = work_plan.may_wrap(task)
+                    if mission
+                        work_plan.add_mission(task)
+                    end
+                    if permanent
+                        work_plan.add_permanent(task)
+                    end
+                end
 
+                required_instances.each do |req_task, actual_task|
                     placeholder_task = work_plan[req_task.planned_task]
                     req_task         = work_plan[req_task]
                     actual_task      = work_plan.may_wrap(actual_task)
-
-                    if is_permanent
-                        work_plan.add_permanent(actual_task)
-                    end
-                    if is_mission
-                        work_plan.add_mission(actual_task)
-                    end
 
                     if placeholder_task != actual_task
                         work_plan.replace(placeholder_task, actual_task)
@@ -1073,7 +1102,7 @@ module Syskit
                             fatal "the generated plan has been saved into #{output_path}"
                             fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
                         rescue Exception => e
-                            fatal "failed to save the generated plan: #{e}"
+                            Roby.log_exception_with_backtrace(e, self, :fatal)
                         end
                     end
 

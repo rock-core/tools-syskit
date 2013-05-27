@@ -202,7 +202,7 @@ module Syskit
                 engine.work_plan.find_tasks(logger_model).
                     not_finished.
                     each do |t|
-                        plan.add_permanent(t)
+                        engine.add_toplevel_task(t, false, true)
                     end
             end
         end

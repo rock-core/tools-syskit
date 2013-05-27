@@ -70,6 +70,21 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(requirements).should_receive(:instanciate).never
             syskit_engine.instanciate
         end
+        it "stores the mission status of the required task in the toplevel_tasks set" do
+            planning_task.start!
+            flexmock(requirements).should_receive(:instanciate).
+                and_return(instanciated_task = simple_component_model.new)
+            syskit_engine.instanciate
+            assert_equal [true, false], syskit_engine.toplevel_tasks[instanciated_task]
+        end
+        it "stores the permanent status of the required task in the toplevel_tasks set" do
+            plan.add_permanent(original_task)
+            planning_task.start!
+            flexmock(requirements).should_receive(:instanciate).
+                and_return(instanciated_task = simple_component_model.new)
+            syskit_engine.instanciate
+            assert_equal [true, true], syskit_engine.toplevel_tasks[instanciated_task]
+        end
     end
 
     describe "#fix_toplevel_tasks" do
@@ -82,6 +97,7 @@ describe Syskit::NetworkGeneration::Engine do
             syskit_engine.prepare
             syskit_engine.work_plan.add_permanent(@final_task = simple_component_model.new)
             syskit_engine.required_instances[original_task.planning_task] = final_task
+            syskit_engine.add_toplevel_task(final_task, false, false)
             stub_roby_deployment_model(simple_component_model)
         end
 
@@ -91,13 +107,13 @@ describe Syskit::NetworkGeneration::Engine do
             assert !work_plan.mission?(final_task)
         end
         it "marks permanent as permanent" do
-            plan.add_permanent(original_task)
+            syskit_engine.add_toplevel_task(final_task, false, true)
             syskit_engine.fix_toplevel_tasks
             assert work_plan.permanent?(final_task)
             assert !work_plan.mission?(final_task)
         end
         it "marks missions as mission" do
-            plan.add_mission(original_task)
+            syskit_engine.add_toplevel_task(final_task, true, false)
             syskit_engine.fix_toplevel_tasks
             assert !work_plan.permanent?(final_task)
             assert work_plan.mission?(final_task)
