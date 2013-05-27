@@ -618,7 +618,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     annotations = Array.new
                     if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
                         annotations = [["Specialized On", [""]]]
-                        name = task.model.root_model.name
+                        name = task.model.root_model.name || ""
                         task.model.specialized_children.each do |child_name, child_models|
                             child_models = child_models.map(&:short_name)
                             annotations << [child_name, child_models.shift]
@@ -628,7 +628,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         end
 
                     else
-                        name = task.model.name
+                        name = task.model.name || ""
                     end
 
                     if task.execution_agent && task.respond_to?(:orocos_name)
