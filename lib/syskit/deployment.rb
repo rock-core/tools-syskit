@@ -198,11 +198,17 @@ module Syskit
                     emit :ready
 
                     @task_handles = Hash.new
+                    each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
+                        task_handles[task.orocos_name] = task.orocos_task
+                    end
+
                     model.each_orogen_deployed_task_context_model do |activity|
                         name = orocos_process.get_mapped_name(activity.name)
-                        orocos_task = ::Orocos::TaskContext.get(name)
-                        orocos_task.process = orocos_process
-                        task_handles[name] =  orocos_task
+                        if !task_handles[name]
+                            orocos_task = ::Orocos::TaskContext.get(name)
+                            orocos_task.process = orocos_process
+                            task_handles[name] =  orocos_task
+                        end
                     end
 
                     each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
