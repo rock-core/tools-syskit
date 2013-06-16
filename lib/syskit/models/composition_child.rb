@@ -202,9 +202,7 @@ module Syskit
                 end
             end
 
-            def to_s # :nodoc:
-                "#<CompositionChild: #{child_name} #{composition_model}>"
-            end
+            def to_s; "#{composition_model}.#{child_name}_child[#{super}]" end
 
             def short_name
                 "#{composition_model.short_name}.#{child_name}_child[#{models.map(&:short_name).join(", ")}]"
