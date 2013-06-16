@@ -61,8 +61,11 @@ module Syskit
             # @raise [ArgumentError] if task does not fullfill the required
             #   composition model, or if it does not have the required children
             def resolve(task)
-                task = composition_model.resolve(task)
-                task.child_from_role(child_name)
+                if resolved_task = try_resolve(task)
+                    return resolved_task
+                else
+                    raise ArgumentError, "cannot find #{self} from #{task}"
+                end
             end
 
             # The port mappings from this child's parent model to this model
