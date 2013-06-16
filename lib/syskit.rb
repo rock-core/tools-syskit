@@ -47,6 +47,9 @@ require 'syskit/instance_selection'
 # Actions
 require 'syskit/actions'
 
+# Coordination models
+require 'syskit/coordination'
+
 # The composition child goes there as it is a subclass of InstanceRequirements
 require 'syskit/models/composition_child'
 
@@ -57,7 +60,6 @@ require 'syskit/robot'
 require 'syskit/network_generation'
 require 'syskit/runtime'
 
-require 'syskit/task_scripting'
 require 'syskit/instance_requirements_task'
 
 # App support
