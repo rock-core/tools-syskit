@@ -119,6 +119,10 @@ module Syskit
                 end
             end
 
+            def bind(task)
+                selected.bind(task)
+            end
+
             def each_fullfilled_model(&block)
                 required.each_fullfilled_model(&block)
             end

@@ -47,8 +47,8 @@ module Syskit
                 if task = composition_model.try_resolve(task)
                     child = task.find_child_from_role(child_name)
                     if !child then return
-                    elsif child.requirements.service
-                        child.requirements.service.bind(child)
+                    elsif selection = task.child_selection[child_name]
+                        selection.bind(child)
                     else child
                     end
                 end
