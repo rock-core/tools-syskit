@@ -164,7 +164,7 @@ describe Syskit::Deployment do
                     by_default
                 orocos_task.should_receive(:process=).
                     with(process)
-                flexmock(Orocos::TaskContext).should_receive(:get).with('mapped_task_name').and_return(orocos_task)
+                flexmock(Orocos::TaskContext).should_receive(:get).with('mapped_task_name').and_return(orocos_task).by_default
                 deployment_task.start!
             end
             it "does not emit ready if the process is not ready yet" do
@@ -186,8 +186,25 @@ describe Syskit::Deployment do
                 process.should_receive(:wait_running).once.and_return(true)
                 task = Class.new(Roby::Task) do
                     argument :orocos_name
+                    attr_reader :orocos_task
                     terminates
                 end.new(:orocos_name => 'mapped_task_name')
+
+                task.executed_by deployment_task
+                plan.add_permanent(task)
+                flexmock(deployment_task).should_receive(:initialize_running_task).once.
+                    with(task, orocos_task)
+                process_events
+            end
+            it "initializes existing task contexts if the supported tasks already have one" do
+                process.should_receive(:wait_running).once.and_return(true)
+                task = Class.new(Roby::Task) do
+                    argument :orocos_name
+                    attr_accessor :orocos_task
+                    terminates
+                end.new(:orocos_name => 'mapped_task_name')
+                task.orocos_task = orocos_task
+                flexmock(Orocos.name_service).should_receive(:get).never
 
                 task.executed_by deployment_task
                 plan.add_permanent(task)
