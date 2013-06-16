@@ -1,6 +1,6 @@
 require 'syskit/test'
 
-describe Syskit::Actions::ActionModel do
+describe Syskit::Actions::Models::Action do
     include Syskit::SelfTest
 
     describe "droby marshalling" do
@@ -8,7 +8,7 @@ describe Syskit::Actions::ActionModel do
         before do
             @interface_m = Class.new(Roby::Actions::Interface)
             @requirements = Syskit::InstanceRequirements.new([@task_m = Syskit::TaskContext.new_submodel])
-            @action_m = Syskit::Actions::ActionModel.new(interface_m, requirements)
+            @action_m = Syskit::Actions::Models::Action.new(interface_m, requirements)
             @reloaded = Marshal.load(Marshal.dump(action_m.droby_dump(nil))).proxy(Roby::Distributed::DumbManager)
         end
 

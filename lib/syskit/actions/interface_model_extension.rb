@@ -23,7 +23,7 @@ module Syskit
                     if !actions[action_name]
                         req = dev.to_instance_requirements
                         profile.inject_di_context(req)
-                        actions[action_name] = ActionModel.new(self, req, "device from profile #{profile.name}")
+                        actions[action_name] = Models::Action.new(self, req, "device from profile #{profile.name}")
                         actions[action_name].name = action_name
                         define_method(action_name) do
                             req.as_plan
@@ -35,7 +35,7 @@ module Syskit
                     action_name = "#{name}_def"
                     if !actions[action_name]
                         req = profile.resolved_definition(name)
-                        action_model = ActionModel.new(self, req, "definition from profile #{profile.name}")
+                        action_model = Models::Action.new(self, req, "definition from profile #{profile.name}")
                         action_model.name = action_name
                         if task_model = req.find_model_by_type(Roby::Task)
                             task_model.arguments.each do |arg_name|

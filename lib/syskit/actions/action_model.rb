@@ -1,8 +1,9 @@
 module Syskit
     module Actions
+        module Models
         # Representation of the deployment of a syskit instance requirement on
         # the action interface
-        class ActionModel < Roby::Actions::ActionModel
+        class Action < Roby::Actions::Models::Action
             # The instance requirement object for this action
             # @return [InstanceRequirements]
             attr_reader :requirements
@@ -15,7 +16,7 @@ module Syskit
 
             # @return [Action] an action instance based on this model
             def new(arguments = Hash.new)
-                Syskit::Actions::Action.new(self, arguments)
+                Actions::Action.new(self, arguments)
             end
 
             def plan_pattern(arguments = Hash.new)
@@ -35,7 +36,7 @@ module Syskit
                 task
             end
 
-            # Called by Roby::Actions::ActionModel to modify self so that it is
+            # Called by Roby::Actions::Models::Action to modify self so that it is
             # droby-marshallable
             #
             # It only resets the requirements attribute, as InstanceRequirements
@@ -49,8 +50,9 @@ module Syskit
             def use(*args)
                 req = requirements.dup
                 req.use(*args)
-                ActionModel.new(action_interface_model, req, doc)
+                Actions::Models::Action.new(action_interface_model, req, doc)
             end
+        end
         end
     end
 end
