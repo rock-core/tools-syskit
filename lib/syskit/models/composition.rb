@@ -556,7 +556,7 @@ module Syskit
             #
             # For compositions, this is the list of children names
             def dependency_injection_names
-                each_child.map(&:first)
+                each_child.map { |name, _| name }
             end
 
             # Given a dependency injection context, it computes the models and
