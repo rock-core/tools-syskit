@@ -191,10 +191,7 @@ module Syskit
                         raise ArgumentError, "invalid child selector #{child}"
                     end
 
-                    if !child_model.respond_to?(:each)
-                        child_model = [child_model]
-                    end
-
+                    child_model = Array(child_model)
                     child_model.each do |m|
                         if !Syskit::Models.is_model?(m)
                             raise ArgumentError, "invalid specialization selector #{child} => #{child_model}: #{m} is not a component model or a data service model"

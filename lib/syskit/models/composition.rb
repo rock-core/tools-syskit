@@ -101,6 +101,15 @@ module Syskit
 
             # (see SpecializationManager#specialize)
             def specialize(options = Hash.new, &block)
+                options = options.map_key do |key, value|
+                    if key.respond_to?(:to_str) || key.respond_to?(:to_sym)
+                        Roby.warn_deprecated "calling #specialize with child names is deprecated, use _child accessors instead (i.e. #{key}_child here)", 5
+                        key
+                    elsif key.respond_to?(:child_name)
+                        key.child_name
+                    end
+                end
+
                 specializations.specialize(options, &block)
             end
 
