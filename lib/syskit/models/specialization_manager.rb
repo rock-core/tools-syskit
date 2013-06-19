@@ -115,7 +115,8 @@ module Syskit
                 end
                 # validate the block
                 new_specialization.add(mappings, block)
-                create_specialized_model(new_specialization, [new_specialization])
+                specialized_composition_model =
+                    create_specialized_model(new_specialization, [new_specialization])
 
                 # ... and update compatibilities
                 #
@@ -140,6 +141,7 @@ module Syskit
                     deregister(specialization)
                 end
                 register(new_specialization)
+                new_specialization.composition_model = specialized_composition_model
 
                 # Finally, we create 
                 new_specialization
