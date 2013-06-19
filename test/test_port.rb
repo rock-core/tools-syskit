@@ -58,7 +58,7 @@ describe Syskit::OutputReader do
             output_port 'out', '/double'
         end
         policy = Hash[:type => :buffer, :size => 10]
-        plan.add(abstract_task = task_m.as_plan)
+        plan.add_permanent(abstract_task = task_m.as_plan)
         port_reader = abstract_task.out_port.reader(policy)
         plan.add(task = task_m.new)
         stub_deployed_task 'task', task
