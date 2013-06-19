@@ -54,9 +54,9 @@ describe Syskit::Models::Composition do
         it "applies specializations from the parent model to the child model" do
             root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
             block0 = proc { }
-            spec0 = root.specialize('srv' => Syskit::DataService.new_submodel, &block0)
+            spec0 = root.specialize(root.srv_child => Syskit::DataService.new_submodel, &block0)
             block1 = proc { }
-            spec1 = root.specialize('srv' => Syskit::DataService.new_submodel, &block1)
+            spec1 = root.specialize(root.srv_child => Syskit::DataService.new_submodel, &block1)
             submodel = Class.new(root)
             flexmock(Class).should_receive(:new).with(root).and_return(submodel)
             flexmock(submodel).should_receive(:specialize).with(spec0.specialized_children, eq(block0)).once
@@ -68,8 +68,8 @@ describe Syskit::Models::Composition do
     describe "#new_specialized_submodel" do
         it "creates a submodel but does not apply specializations" do
             root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
-            spec0 = root.specialize('srv' => Syskit::DataService.new_submodel)
-            spec1 = root.specialize('srv' => Syskit::DataService.new_submodel)
+            spec0 = root.specialize(root.srv_child => Syskit::DataService.new_submodel)
+            spec1 = root.specialize(root.srv_child => Syskit::DataService.new_submodel)
             submodel = Class.new(root)
             flexmock(Class).should_receive(:new).with(root).and_return(submodel)
             flexmock(submodel).should_receive(:specialize).never
@@ -540,7 +540,7 @@ describe Syskit::Models::Composition do
                 srv_m = Syskit::DataService.new_submodel
                 task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 's' }
                 cmp_m = Syskit::Composition.new_submodel(:name => 'Cmp') { add srv_m, :as => 'c' }
-                cmp_m.specialize 'c' => task_m do
+                cmp_m.specialize cmp_m.c_child => task_m do
                     provides srv_m, :as => 's'
                 end
                 specialized_m = cmp_m.narrow(Syskit::DependencyInjection.new('c' => task_m))
