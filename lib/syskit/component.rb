@@ -161,19 +161,6 @@ module Syskit
                     debug { "rejecting #{self}.merge(#{task}): cannot merge a non-abstract task into an abstract one" }
                     return
                 end
-
-                if model.private_specialization?
-                    # Verify that we don't have collisions in the instantiated
-                    # dynamic services
-                    model.data_services.each_value do |self_srv|
-                        if task_srv = task.model.find_data_service(self_srv.name)
-                            if task_srv.model != self_srv.model
-                                debug { "rejecting #{self}.merge(#{task}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{task}" }
-                                return false
-                            end
-                        end
-                    end
-                end
                 return true
             end
 

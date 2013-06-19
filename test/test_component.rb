@@ -107,6 +107,7 @@ describe Syskit::Component do
         before do
             srv_m = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel do
+                argument :arg
                 dynamic_service srv_m, :as => 'dyn' do
                     provides srv_m.new_submodel, :as => name
                 end
@@ -138,6 +139,10 @@ describe Syskit::Component do
         it "returns false if the testing task is abstract and the tested task is not" do
             testing_task.abstract = true
             assert !testing_task.can_merge?(tested_task)
+        end
+        it "returns true if an argument is set on the tested task but not set on the testing task" do
+            tested_task.arg = 10
+            assert testing_task.can_merge?(tested_task)
         end
     end
 

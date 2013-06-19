@@ -842,6 +842,37 @@ module Syskit
                 else raise ArgumentError, "#{object} does not provide #{self}, cannot bind"
                 end
             end
+
+            def can_merge?(target_model)
+                self_real_model = if private_specialization? then superclass
+                                  else self
+                                  end
+                target_real_model = if target_model.private_specialization? then target_model.superclass
+                                    else target_model
+                                    end
+
+                if self_real_model != self || target_real_model != target_model
+                    if !self_real_model.can_merge?(target_real_model)
+                        return false
+                    end
+                elsif !super
+                    return false
+                end
+
+                if private_specialization?
+                    # Verify that we don't have collisions in the instantiated
+                    # dynamic services
+                    data_services.each_value do |self_srv|
+                        if task_srv = target_model.find_data_service(self_srv.name)
+                            if task_srv.model != self_srv.model
+                                debug { "rejecting #{self}.merge(#{target_model}): dynamic service #{self_srv.name} is of model #{self_srv.model.short_name} on #{self} and of model #{task_srv.model.short_name} on #{target_model}" }
+                                return false
+                            end
+                        end
+                    end
+                end
+                return true
+            end
         end
     end
 
