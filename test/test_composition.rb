@@ -20,10 +20,10 @@ describe Syskit::Composition do
             cmp_m = Syskit::Composition.new_submodel(:name => "Cmp") do
                 add task_m, :as => 'task'
                 add srv_m, :as => 'srv'
-                export task.out_port, :as => 'out'
-                export task.in_port, :as => 'in'
-                export srv.srv_out_port, :as => 'srv_out'
-                export srv.srv_in_port, :as => 'srv_in'
+                export task_child.out_port, :as => 'out'
+                export task_child.in_port, :as => 'in'
+                export srv_child.srv_out_port, :as => 'srv_out'
+                export srv_child.srv_in_port, :as => 'srv_in'
                 provides srv_m, :as => 'test', 'srv_out' => 'out', 'srv_in' => 'in'
             end
             @cmp = cmp_m.use('srv' => task_m).instanciate(plan)

@@ -110,7 +110,7 @@ describe Syskit::Models::Composition do
             composition = Syskit::Composition.new_submodel 
             composition.add simple_component_model, :as => 'source'
             composition.add simple_component_model, :as => 'sink'
-            composition.connect composition.source => composition.sink
+            composition.connect composition.source_child.out_port => composition.sink_child.in_port
             assert_equal({['source', 'sink'] => {['out', 'in'] => {}}}.to_set, composition.each_explicit_connection.to_set)
         end
     end
@@ -133,7 +133,7 @@ describe Syskit::Models::Composition do
             composition.overload('srv', service1)
 
             base.add(service, :as => 'srv_in')
-            base.connect(base.srv => base.srv_in)
+            base.connect(base.srv_child => base.srv_in_child)
 
             assert_equal([[ ['srv', 'srv_in'], {['specialized_out', 'srv_in'] => {}} ]], composition.each_explicit_connection.to_a)
             composition.overload('srv_in', service1)
