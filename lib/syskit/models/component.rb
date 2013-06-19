@@ -696,14 +696,15 @@ module Syskit
                 if m == :orogen_model
                     raise NoMethodError, "tried to use a method to access an oroGen model, but none exists on #{self}"
                 end
-                if args.empty? && !block_given?
-                    if m.to_s =~ /^(\w+)_srv$/
-                        service_name = $1
-                        if service_model = find_data_service(service_name)
-                            return service_model
-                        else
-                            raise NoMethodError, "#{short_name} has no service called #{service_name}"
+                if m.to_s =~ /^(\w+)_srv$/
+                    service_name = $1
+                    if service_model = find_data_service(service_name)
+                        if !args.empty?
+                            raise ArgumentError, "#{m} expects zero arguments, got #{args.size}"
                         end
+                        return service_model
+                    else
+                        raise NoMethodError.new("#{short_name} has no service called #{service_name}", m)
                     end
                 end
                 super
