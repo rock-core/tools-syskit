@@ -582,8 +582,8 @@ describe Syskit::TaskContext do
                 flexmock(task).should_receive(:is_setup!).once
                 task.setup
             end
-            it "does not call the user-provided #configure method" do
-                flexmock(task).should_receive(:configure).never
+            it "still calls the user-provided #configure method" do
+                flexmock(task).should_receive(:configure).once
                 task.setup
             end
         end
