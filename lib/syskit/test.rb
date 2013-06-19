@@ -1,8 +1,14 @@
 # simplecov must be loaded FIRST. Only the files required after it gets loaded
 # will be profiled !!!
-if ENV['SYSKIT_ENABLE_COVERAGE'] == '1'
+if ENV['SYSKIT_ENABLE_COVERAGE'] == '1' || ENV['SYSKIT_ENABLE_COVERAGE'] == '2'
     begin
         require 'simplecov'
+        if ENV['SYSKIT_ENABLE_COVERAGE'] == '2'
+            require 'syskit'
+            Syskit.warn "coverage has been automatically enabled, which has a noticeable effect on runtime"
+            Syskit.warn "Set SYSKIT_ENABLE_COVERAGE=0 in your shell to disable"
+        end
+
     rescue LoadError
         require 'syskit'
         Syskit.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"

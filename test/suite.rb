@@ -1,5 +1,6 @@
+ENV['SYSKIT_ENABLE_COVERAGE'] = '0'
 if !ENV['SYSKIT_ENABLE_COVERAGE']
-    ENV['SYSKIT_ENABLE_COVERAGE'] = '1'
+    ENV['SYSKIT_ENABLE_COVERAGE'] = '2'
 end
 require 'syskit/test'
 
