@@ -425,10 +425,19 @@ module Syskit
                     raise InternalError, "#setup called but we are not ready for setup"
                 end
 
+                # prepare_for_setup MUST be called before we call super (i.e.
+                # the user-provided #configure method). It might call
+                # reset_exception/cleanup, which would require the #configure
+                # method to re-apply some configuration (as e.g., call setup operations)
+                #
+                # In any case, #configure assumes that the task is in a state in
+                # which it can be configured !
+                needs_configuration = prepare_for_setup(state)
+
                 # This calls #configure
                 super
 
-                if prepare_for_setup(state)
+                if needs_configuration
                     ::Robot.info "setting up #{self}"
                     orocos_task.configure(false)
                 else

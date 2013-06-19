@@ -534,6 +534,13 @@ describe Syskit::TaskContext do
             task.setup
             assert_equal [], Syskit::TaskContext.configured['task'][1]
         end
+        it "calls the user-provided #configure method after prepare_for_setup" do
+            flexmock(task).should_receive(:prepare_for_setup).once.
+                with(:BLA).and_return(true).ordered
+            flexmock(task).should_receive(:configure).once.ordered
+            task.setup
+        end
+
         describe "prepare_for_setup returns true" do
             before do
                 flexmock(task).should_receive(:prepare_for_setup).once.
