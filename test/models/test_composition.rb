@@ -550,5 +550,18 @@ describe Syskit::Models::Composition do
             end
         end
     end
+
+    describe "#find_child" do
+        it "promotes child models to the current composition model" do
+            srv_m = Syskit::DataService.new_submodel
+            parent_m = Syskit::Composition.new_submodel do
+                add srv_m, :as => 'child'
+            end
+            child_m = parent_m.new_submodel
+            assert_same child_m, child_m.find_child('child').composition_model
+            # Make sure we do not modify parent_m
+            assert_same parent_m, parent_m.find_child('child').composition_model
+        end
+    end
 end
 

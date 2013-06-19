@@ -17,6 +17,9 @@ module Syskit
             def overload_info
                 @overload_info ||= InstanceSelection.new(nil, self, @parent_model || InstanceRequirements.new)
             end
+            # @return [CompositionChild,nil] the composition child model from which
+            #   this model has been overloaded
+            attr_accessor :parent_model
 
             # If set to true, the child is going to be removed automatically if
             # no selection exists for it

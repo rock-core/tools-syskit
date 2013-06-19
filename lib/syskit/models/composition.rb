@@ -13,6 +13,12 @@ module Syskit
             # specializations defined on this composition model
             attribute(:specializations) { SpecializationManager.new(self) }
 
+            def promote_child(child_name, child)
+                promoted = child.attach(self)
+                promoted.parent_model = child
+                children[child_name] = promoted
+            end
+
             # The composition children
             #
             # @key_name child_name
@@ -140,7 +146,7 @@ module Syskit
                 # Anyway, the remainder checks that the new definition is a
                 # valid overloading of the previous one.
                 
-                parent_model = find_child(name) || CompositionChild.new(self, name)
+                parent_model = superclass.find_child(name) || CompositionChild.new(self, name)
                 child_models = Models.merge_model_lists(child_models, parent_model.base_models)
                 dependency_options = Roby::TaskStructure::DependencyGraphClass.
                     merge_dependency_options(parent_model.dependency_options, dependency_options)
