@@ -29,5 +29,24 @@ describe Syskit::Models::CompositionChild do
             assert_equal nil, child.try_resolve(cmp)
         end
     end
+
+    describe "#connect_ports" do
+        it "refuses to connect ports from different models" do
+            srv_m = Syskit::DataService.new_submodel
+            c0_m = Syskit::Composition.new_submodel { add srv_m, :as => 'test' }
+            c1_m = Syskit::Composition.new_submodel { add srv_m, :as => 'test' }
+            assert_raises(ArgumentError) do
+                c0_m.test_child.connect_ports c1_m.test_child, Hash.new
+            end
+        end
+        it "gives a proper error if the connected-to object is not a composition child" do
+            srv_m = Syskit::DataService.new_submodel
+            c0_m = Syskit::Composition.new_submodel { add srv_m, :as => 'test' }
+            other = flexmock
+            assert_raises(ArgumentError) do
+                c0_m.test_child.connect_ports other, Hash.new
+            end
+        end
+    end
 end
 

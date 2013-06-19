@@ -171,9 +171,9 @@ module Syskit
             # (see Component#connect_ports)
             def connect_ports(other_component, connections)
                 if !other_component.respond_to?(:composition_model)
-                    raise ArgumentError, "cannot connect ports of #{self} to ports of #{sink}: #{sink} is not a composition child"
+                    raise ArgumentError, "cannot connect ports of #{self} to ports of #{other_component}: #{other_component} is not a composition child"
                 elsif other_component.composition_model != composition_model
-                    raise ArgumentError, "cannot connect ports of #{self} to ports of #{sink}: #{composition_child} and #{self} are children of different composition models"
+                    raise ArgumentError, "cannot connect ports of #{self} to ports of #{other_component}: they are children of different composition models"
                 end
                 cmp_connections = composition_model.explicit_connections[[child_name, other_component.child_name]]
                 connections.each do |port_pair, policy|
