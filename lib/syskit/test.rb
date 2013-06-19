@@ -260,7 +260,6 @@ module Syskit
 
             super
             Syskit::NetworkGeneration::Engine.keep_internal_data_structures = true
-            Orocos.load
 
             @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
 
