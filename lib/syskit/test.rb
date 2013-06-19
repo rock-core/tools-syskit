@@ -256,6 +256,7 @@ module Syskit
 
         def setup
             Roby.app.using 'syskit'
+            Orocos.export_types = false
             Syskit.conf.disables_local_process_server = true
 
             super
