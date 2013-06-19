@@ -973,10 +973,14 @@ module Syskit
             end
 
             def method_missing(m, *args, &block)
-                if args.empty? && !block_given?
-                    name = m.to_s
-                    if has_child?(name = name.gsub(/_child$/, ''))
-                        return find_child(name)
+                if m.to_s =~ /(.*)_child$/
+                    child_name = $1
+                    if !args.empty?
+                        raise ArgumentError, "#{m} expected zero arguments, got #{args.size}"
+                    end
+                    if has_child?(child_name)
+                        return find_child(child_name)
+                    else raise NoMethodError.new("#{self} has no child called #{child_name}", m)
                     end
                 end
                 super
