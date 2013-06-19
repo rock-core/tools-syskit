@@ -17,7 +17,7 @@ module Syskit
                         end
                         return port
                     else
-                        raise NoMethodError, "#{self} has no port called #{port_name}"
+                        raise NoMethodError.new("#{self} has no port called #{port_name}", m)
                     end
                 end
                 super
