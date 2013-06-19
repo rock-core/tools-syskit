@@ -563,5 +563,33 @@ describe Syskit::Models::Composition do
             assert_same parent_m, parent_m.find_child('child').composition_model
         end
     end
+
+    it "should not leak connections from specializations into the root model" do
+        shared_task_m = Syskit::TaskContext.new_submodel(:name => "SharedTask") do
+            input_port 'input', 'int'
+            output_port 'output', 'double'
+        end
+        generic_srv_m = Syskit::DataService.new_submodel(:name => 'GenericTaskSrv') do
+            output_port 'output', 'int'
+        end
+        special_srv_m = Syskit::DataService.new_submodel(:name => 'SpecialTaskSrv') do
+            input_port 'input', 'double'
+            provides generic_srv_m
+        end
+
+        vision_m = Syskit::Composition.new_submodel do
+            add shared_task_m, :as => :shared
+            add generic_srv_m, :as => :task
+            task_child.connect_to shared_child
+        end
+        specialized_m = vision_m.specialize vision_m.task_child => special_srv_m do
+            shared_child.connect_to task_child
+        end
+        expected = Hash.new
+        expected[['task', 'shared']] = Hash[['output', 'input'] => Hash.new]
+        assert_equal expected, vision_m.connections
+        expected[['shared', 'task']] = Hash[['output', 'input'] => Hash.new]
+        assert_equal expected, specialized_m.composition_model.connections
+    end
 end
 
