@@ -564,6 +564,26 @@ describe Syskit::Models::Composition do
         end
     end
 
+    describe "#specialize" do
+        it "converts child objects to names before calling the specialization manager" do
+            srv_m = Syskit::DataService.new_submodel
+            composition_m = Syskit::Composition.new_submodel do
+                add srv_m, :as => 'test'
+            end
+            sel = flexmock
+            flexmock(composition_m.specializations).should_receive(:specialize).once.with('test' => sel)
+            composition_m.specialize(composition_m.test_child => sel)
+        end
+
+        it "can pass on specializations that are given by name, issuing a warning" do
+            composition_m = Syskit::Composition.new_submodel
+            sel = flexmock
+            flexmock(composition_m.specializations).should_receive(:specialize).once.with('child_name' => sel)
+            flexmock(Roby).should_receive(:warn_deprecated)
+            composition_m.specialize('child_name' => sel)
+        end
+    end
+
     it "should not leak connections from specializations into the root model" do
         shared_task_m = Syskit::TaskContext.new_submodel(:name => "SharedTask") do
             input_port 'input', 'int'
