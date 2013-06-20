@@ -239,7 +239,7 @@ describe Syskit::Component do
 
     describe "#should_configure_after" do
         it "adds a configuration precedence link between the given event and the start event of the receiver" do
-            component = Syskit::Component.new
+            plan.add(component = Syskit::Component.new)
             event = Roby::EventGenerator.new
             flexmock(event).should_receive(:add_syskit_configuration_precedence).once.with(component.start_event)
             component.should_configure_after(event)

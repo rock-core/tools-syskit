@@ -6,7 +6,7 @@ describe Syskit::Models::CompositionChild do
     describe "#try_resolve" do
         it "returns the composition child if it exists" do
             cmp_m = Syskit::Composition.new_submodel
-            cmp = cmp_m.new
+            plan.add(cmp = cmp_m.new)
             task = Syskit::Component.new
             cmp.depends_on task, :role => 'task'
             child = Syskit::Models::CompositionChild.new(cmp_m, 'task')
