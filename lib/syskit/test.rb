@@ -259,6 +259,7 @@ module Syskit
         include FlexMock::MockContainer
 
         def setup
+            ENV['ROBY_PLUGIN_PATH'] = File.expand_path(File.join(File.dirname(__FILE__), 'roby_app', 'register_plugin.rb'))
             Roby.app.using 'syskit'
             Orocos.export_types = false
             Syskit.conf.disables_local_process_server = true
