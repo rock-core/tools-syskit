@@ -141,7 +141,7 @@ module Syskit
             # @param [String] name an optional name for this submodel
             # @return [void]
             def setup_submodel(submodel)
-                submodel.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, self.name)
+                submodel.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, nil)
                 submodel.orogen_model.subclasses orogen_model
 
                 super
