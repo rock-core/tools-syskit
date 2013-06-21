@@ -1,26 +1,6 @@
 require 'roby/interface'
 require 'roby/robot'
 module Syskit
-        # Extension added to the Roby remote shell interface
-        # (Roby::RemoteInterface) so that the models in Syskit get
-        # aliased to Orocos and the root namespace as well
-        module RemoteInterfaceExtension
-            def new_model(model_name, model)
-                # Compositions, data services and deployments are already taken
-                # care of by aliasing the Compositions, DataServices and
-                # Deployments namespaces. Act only on the task models
-                if model <= Syskit::TaskContext
-                    model_name = model_name.gsub('Syskit::', '')
-                    namespace_name, model_name = model_name.split('::')
-                    [Orocos, Object].each do |ns|
-                        ns = ns.define_or_reuse(namespace_name) { Module.new }
-                        ns.define_or_reuse(model_name, model)
-                    end
-                end
-            end
-        end
-        Roby::RemoteInterface.include RemoteInterfaceExtension
-
         class ShellInterface < Roby::ShellInterface
             def dump_task_config(task_model, path, name = nil)
                 FileUtils.mkdir_p(path)
