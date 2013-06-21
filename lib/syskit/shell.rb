@@ -147,8 +147,8 @@ module Syskit
 end
 
 module Robot
-    def self.orocos
-        @orocos_interface ||= Syskit::ShellInterface.new(Roby.engine)
+    def self.syskit
+        @syskit_interface ||= Syskit::ShellInterface.new(Roby.engine)
     end
 end
 
