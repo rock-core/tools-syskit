@@ -33,6 +33,12 @@ module Syskit
                 end
             end
 
+            def self.finalize_model_loading(app)
+                if toplevel_object.respond_to?(:global_profile)
+                    ::Main.use_profile toplevel_object.global_profile
+                end
+            end
+
             # Returns true if the given orogen project has already been loaded
             # by #load_orogen_project
             def loaded_orogen_project?(name); loaded_orogen_projects.has_key?(name) end

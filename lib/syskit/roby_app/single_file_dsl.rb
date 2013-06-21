@@ -4,7 +4,9 @@ module Syskit
         # thus allowing to create 'syskit scripts'
         module SingleFileDSL
             attribute(:profile_name) { "Script" }
-            attribute(:global_profile) { Syskit::Actions::Profile.new(profile_name) }
+            attribute(:global_profile) do
+                Syskit::Actions::Profile.new(profile_name)
+            end
             def add_mission(req)
                 Roby.app.permanent_requirements << req
             end
@@ -15,7 +17,7 @@ module Syskit
                 global_profile
             end
             def method_missing(m, *args, &block)
-                if m.to_s =~ /(_def|_dev)$/
+                if m.to_s =~ /(_def|_dev)$|^define$/
                     return global_profile.send(m, *args, &block)
                 end
                 super
