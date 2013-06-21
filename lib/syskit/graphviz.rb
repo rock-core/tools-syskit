@@ -296,8 +296,11 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
             end
 
             def self.available_annotations
-                instance_methods.to_a.map(&:to_s).grep(/^add_\w+_annotations/).
-                    map { |s| s.gsub(/add_(\w+)_annotations/, '\1') }
+                instance_methods.map do |m|
+                    if m.to_s =~ /^add_(\w+)_annotations/
+                        $1
+                    end
+                end.compact
             end
 
             def add_port_details_annotations
