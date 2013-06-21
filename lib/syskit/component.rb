@@ -429,6 +429,17 @@ module Syskit
                 req
             end
 
+            # Returns a description of this task based on the dependency
+            # information
+            def dependency_context
+                enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
+                    map do |parent_task|
+                        options = parent_task[self,
+                                              Roby::TaskStructure::Dependency]
+                        [options[:roles].to_a.first, parent_task]
+                    end
+            end
+
             module Proxying
                 proxy_for Component
 

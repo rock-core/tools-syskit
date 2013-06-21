@@ -653,18 +653,7 @@ module Syskit
             #
             # @raise [MissingDeployments] if some tasks could not be deployed
             def validate_deployed_network
-                # Check for the presence of non-deployed tasks
-                not_deployed = work_plan.find_local_tasks(TaskContext).
-                    find_all { |t| !t.execution_agent }
-
-                if !not_deployed.empty?
-                    tasks_with_candidates = Hash.new
-                    not_deployed.each do |task|
-                        tasks_with_candidates[task] = task_context_deployment_candidates[task.class] || []
-                    end
-                    raise MissingDeployments.new(tasks_with_candidates),
-                        "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
-                end
+                verify_all_tasks_deployed
             end
 
             class << self
@@ -1128,21 +1117,32 @@ module Syskit
 
                 if options[:compute_deployments]
                     # Check for the presence of non-deployed tasks
-                    not_deployed = plan.find_local_tasks(TaskContext).
-                        not_finished.
-                        find_all { |t| !t.execution_agent }.
-                        delete_if do |p|
-                            p.abstract?
-                        end
-
-                    if !not_deployed.empty?
-                        remaining_merges = merge_solver.complete_merge_graph
-                        raise MissingDeployments.new(not_deployed, remaining_merges),
-                            "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
-                    end
+                    verify_all_tasks_deployed
                 end
 
                 super if defined? super
+            end
+
+            def verify_all_tasks_deployed
+                not_deployed = work_plan.find_local_tasks(TaskContext).
+                    not_finished.not_abstract.
+                    find_all { |t| !t.execution_agent }
+
+                if !not_deployed.empty?
+                    tasks_with_candidates = Hash.new
+                    not_deployed.each do |task|
+                        candidates = task_context_deployment_candidates[task.class] || []
+                        candidates = candidates.map do |host, deployment, task_name|
+                            existing = work_plan.find_local_tasks(task.model).
+                                find_all { |t| t.orocos_name == task_name }
+                            [host, deployment, task_name, existing]
+                        end
+
+                        tasks_with_candidates[task] = candidates
+                    end
+                    raise MissingDeployments.new(tasks_with_candidates),
+                        "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
+                end
             end
 
             @@dot_index = 0

@@ -412,13 +412,14 @@ module Syskit
             def initialize(tasks_with_candidates)
                 @tasks = Hash.new
                 tasks_with_candidates.each do |task, candidates|
-                    parents = task.
-                        enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
-                        map do |parent_task|
-                            options = parent_task[task,
-                                Roby::TaskStructure::Dependency]
-                            [options[:roles].to_a.first, parent_task]
+                    parents = task.dependency_context
+                    candidates = candidates.map do |host, deployment, task_name, existing|
+                        existing ||= Array.new
+                        existing = existing.map do |task|
+                            [task, task.dependency_context]
                         end
+                        [host, deployment, task_name, existing]
+                    end
 
                     @tasks[task] = [parents, candidates]
                 end
@@ -439,16 +440,29 @@ module Syskit
                 end
 
                 tasks.each do |task, (parents, possible_deployments)|
+                    has_free_deployment = possible_deployments.any? { |_, _, _, existing| existing.empty? }
                     pp.breakable
-                    if possible_deployments.empty?
+                    if has_free_deployment
+                        pp.text "#{task}: multiple possible deployments, choose one with #use_deployments"
+                    elsif possible_deployments.empty?
                         pp.text "#{task}: no deployments available"
                     else
-                        deployments = possible_deployments.map { |host, deployment, task_name| "task #{task_name} from deployment #{deployment.orogen_model.name} on #{host}" }
-                        pp.text "#{task}: multiple possible deployments, choose one with #use_deployments"
-                        pp.nest(2) do
+                        pp.text "#{task}: some deployments exist, but they are already used in this network"
+                    end
+
+                    pp.nest(2) do
+                        possible_deployments.each do |host, deployment, task_name, existing|
                             pp.breakable
-                            pp.seplist(deployments) do |d|
-                                pp.text d
+                            pp.text "task #{task_name} from deployment #{deployment.orogen_model.name} on #{host}"
+                            pp.nest(2) do
+                                existing.each do |task, parents|
+                                    pp.breakable
+                                    msg = parents.map do |parent_task|
+                                        role, parent_task = *parent_task
+                                        "child #{role} of #{parent_task}"
+                                    end
+                                    pp.text "already used by #{task}: #{msg.join(", ")}"
+                                end
                             end
                         end
                     end
