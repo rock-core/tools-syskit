@@ -606,7 +606,13 @@ module Syskit
                 ::Robot.info "stopped #{self}"
 
                 if state_reader
-                    state_reader.disconnect
+                    begin
+                        state_reader.disconnect
+                    rescue Orocos::ComError
+                        # We ignore this. The process probably crashed or
+                        # something like that. In any case, this is handled by
+                        # the rest of the management
+                    end
                 end
             end
 
