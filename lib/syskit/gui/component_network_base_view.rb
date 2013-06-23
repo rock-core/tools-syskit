@@ -128,6 +128,10 @@ module Syskit
                 if model.respond_to?(:definition_location)
                     if file = ComponentNetworkBaseView.find_definition_place(model)
                         page.push(nil, "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>")
+                        if req_base = $LOAD_PATH.find { |p| File.fnmatch?(File.join(p, "*") , file[0]) }
+                            req = Pathname.new(file[0]).relative_path_from(Pathname.new(req_base))
+                            page.push(nil, "<code>require '#{req.sub_ext("")}'<code>")
+                        end
                     end
                 end
                 @current_model = model
