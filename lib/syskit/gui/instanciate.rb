@@ -106,6 +106,7 @@ module Syskit
                 end
                 passes.each do |actions|
                     requirement_tasks = actions.map do |action_name|
+                        action_name = action_name.gsub(/!$/, '')
                         _, act = ::Robot.action_from_name(action_name)
                         if !act.respond_to?(:requirements)
                             raise ArgumentError, "#{action_name} is not an action created from a Syskit definition or device"
