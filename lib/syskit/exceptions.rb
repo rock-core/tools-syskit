@@ -453,7 +453,7 @@ module Syskit
                     pp.nest(2) do
                         possible_deployments.each do |host, deployment, task_name, existing|
                             pp.breakable
-                            pp.text "task #{task_name} from deployment #{deployment.orogen_model.name} on #{host}"
+                            pp.text "task #{task_name} from deployment #{deployment.orogen_model.name} defined in #{deployment.orogen_model.project.name} on #{host}"
                             pp.nest(2) do
                                 existing.each do |task, parents|
                                     pp.breakable
@@ -586,7 +586,7 @@ module Syskit
                         pp.nest(2) do
                             pp.breakable
                             pp.seplist(source.each_output_port) do |out_p|
-                                pp.text out_p.short_name
+                                pp.text "#{out_p.name}[#{out_p.type.name}]"
                             end
                         end
                     end
@@ -598,7 +598,7 @@ module Syskit
                         pp.nest(2) do
                             pp.breakable
                             pp.seplist(sink.each_input_port) do |in_p|
-                                pp.text in_p.short_name
+                                pp.text "#{in_p.name}[#{in_p.type.name}]"
                             end
                         end
                     end
