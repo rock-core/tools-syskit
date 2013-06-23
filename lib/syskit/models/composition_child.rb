@@ -233,13 +233,15 @@ module Syskit
         class InvalidCompositionChildPort < RuntimeError
             attr_reader :composition_model
             attr_reader :child_name
-            attr_reader :child_model
             attr_reader :port_name
+            attr_reader :existing_ports
 
             def initialize(composition_model, child_name, port_name)
                 @composition_model, @child_name, @port_name =
                     composition_model, child_name, port_name
-                @child_model = composition_model.find_child(child_name).models.dup
+                @existing_ports = composition_model.find_child(child_name).models.map do |child_model|
+                    [child_model, child_model.each_input_port.sort_by(&:name), child_model.each_output_port.sort_by(&:name)]
+                end
             end
 
             def pretty_print(pp)
@@ -248,12 +250,10 @@ module Syskit
                 pp.text "Available ports are:"
                 pp.nest(2) do
                     pp.breakable
-                    pp.seplist(child_model) do |model|
-                        pp.text model.short_name
+                    pp.seplist(existing_ports) do |child_model, inputs, outputs|
+                        pp.text child_model.short_name
                         pp.nest(2) do
                             pp.breakable
-                            inputs = model.each_input_port.sort_by(&:name)
-                            outputs = model.each_output_port.sort_by(&:name)
                             pp.seplist(inputs) do |port|
                                 pp.text "(in)#{port.name}[#{port.type_name}]"
                             end
