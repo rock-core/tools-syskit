@@ -1068,6 +1068,14 @@ module Syskit
             # Then the composition children called 'monitoring' and 'sonar' will
             # be both instanciated with ['default', 'narrow_window']
             def conf(name, mappings = Hash.new)
+                mappings = mappings.map_key do |child, conf|
+                    if child.respond_to?(:to_str)
+                        Roby.warn_deprecated "providing the child as string in #conf is deprecated, use the _child accessors instead (here #{child}_child => [#{conf.join(", ")}])"
+                        child
+                    else
+                        child.child_name
+                    end
+                end
                 configurations[name] = mappings
             end
 

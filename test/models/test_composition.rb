@@ -611,5 +611,19 @@ describe Syskit::Models::Composition do
         expected[['shared', 'task']] = Hash[['output', 'input'] => Hash.new]
         assert_equal expected, specialized_m.composition_model.connections
     end
+
+    describe "#conf" do
+        it "registers the child name to conf selection into #configurations" do
+            simple_composition_model.conf 'test', \
+                simple_composition_model.srv_child => ['default', 'test']
+            assert_equal Hash['srv' => ['default', 'test']], simple_composition_model.configurations['test']
+        end
+        it "accepts to register configurations using strings, but warns about deprecations" do
+            flexmock(Roby).should_receive(:warn_deprecated).once
+            simple_composition_model.conf 'test', \
+                'srv' => ['default', 'test']
+            assert_equal Hash['srv' => ['default', 'test']], simple_composition_model.configurations['test']
+        end
+    end
 end
 
