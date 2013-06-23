@@ -13,17 +13,17 @@ module Syskit
             end
 
             def orogen_model
-                if @model
-                    return @model
+                if @orogen_model
+                    return @orogen_model
                 end
 
-                @model = model.orogen_model.dup
-                model.task_activities.map! do |activity|
+                @orogen_model = model.orogen_model.dup
+                orogen_model.task_activities.map! do |activity|
                     activity = activity.dup
                     activity.name = name_mappings[activity.name] || activity.name
                     activity
                 end
-                @model
+                @orogen_model
             end
 
             def each_orogen_deployed_task_context_model
