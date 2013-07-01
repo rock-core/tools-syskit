@@ -189,6 +189,12 @@ module Syskit
                 @policy = policy
             end
 
+            def hash; [port, policy].hash end
+            def eql?(other); self == other end
+            def ==(other)
+                other.port == port && other.policy == policy
+            end
+
             def bind(port_or_task)
                 if port_or_task.respond_to?(:reader)
                     port_or_task.reader(policy)
@@ -215,6 +221,12 @@ module Syskit
             def initialize(port, policy = Hash.new)
                 @port = port
                 @policy = policy
+            end
+
+            def hash; [port, policy].hash end
+            def eql?(other); self == other end
+            def ==(other)
+                other.port == port && other.policy == policy
             end
 
             def bind(port_or_task)

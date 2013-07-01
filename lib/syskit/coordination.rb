@@ -1,3 +1,10 @@
 require 'syskit/coordination/models/port_handling'
+require 'syskit/coordination/models/data_monitor'
+require 'syskit/coordination/models/data_monitor_predicate_from_block'
+require 'syskit/coordination/models/data_monitoring_table'
+
 require 'syskit/coordination/port_handling'
+require 'syskit/coordination/data_monitor'
+require 'syskit/coordination/data_monitoring_error'
+require 'syskit/coordination/data_monitoring_table'
 require 'syskit/coordination/task_script_extension'

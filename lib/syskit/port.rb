@@ -149,6 +149,10 @@ module Syskit
             end
         end
 
+        def model
+            Models::OutputReader.new(port.model, policy)
+        end
+
         def read_new
             reader.read_new if reader
         end
@@ -183,6 +187,10 @@ module Syskit
                 end
                 @writer= @resolved_port.to_orocos_port.writer(policy)
             end
+        end
+
+        def model
+            Models::InputWriter.new(port.model, policy)
         end
 
         def write(sample) 
