@@ -10,6 +10,7 @@ require './test/suite_roby_app'
 require './test/suite_network_generation'
 require './test/suite_actions'
 require './test/suite_runtime'
+require './test/suite_coordination'
 
 require './test/test_abstract_placeholders'
 require './test/test_bound_data_service'
