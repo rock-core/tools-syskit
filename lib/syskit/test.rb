@@ -94,7 +94,7 @@ module Syskit
 
             def stub_deployed_task(name = 'task', task = nil, &block)
                 if !task || task.kind_of?(Class)
-                    task = stub_roby_task_context(name, task, &block)
+                    plan.add_permanent(task = stub_roby_task_context(name, task, &block))
                 end
                 task.orocos_name ||= name
                 deployment = stub_syskit_deployment("deployment_#{name}") do
@@ -102,6 +102,7 @@ module Syskit
                 end
                 task.executed_by deployment
                 deployment.start!
+                task.orocos_task = deployment.orocos_process.tasks[name]
                 task
             end
 
