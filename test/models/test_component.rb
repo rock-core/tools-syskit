@@ -13,6 +13,19 @@ describe Syskit::Models::Component do
         end
     end
 
+    describe "#each_output_port" do
+        attr_reader :component_m
+        before do
+            @component_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end
+        end
+        it "should yield ports that are bound to the component model" do
+            port = component_m.each_output_port.to_a.first
+            assert_same component_m, port.component_model
+        end
+    end
+
     describe "#each_master_driver_service" do
         it "should list all master devices" do
             task_model = Syskit::TaskContext.new_submodel
