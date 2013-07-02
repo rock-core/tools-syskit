@@ -16,7 +16,10 @@ module Syskit
             # and stores the new monitors in {#monitors}
             def resolve_monitors
                 model.each_monitor do |m|
-                    monitors << m.new(self)
+                    if m.emitted_events.empty? && !m.raises?
+                        raise ArgumentError, "#{m} has no effect (it neither emits events nor generates an exception). You must either call #emit or #raise_exception on it"
+                    end
+                    monitors << m.bind(self)
                 end
             end
 

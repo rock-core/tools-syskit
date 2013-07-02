@@ -16,7 +16,7 @@ module Syskit
                 #   DataMonitoringError) when the predicate returns true
                 #
                 # @return [DataMonitor] the new data monitor model
-                def monitor(name, *data_streams, &predicate_block)
+                def monitor(name, *data_streams)
                     name = name.to_str
 
                     # Allow giving a data stream as a port
@@ -27,16 +27,7 @@ module Syskit
                         end
                     end
 
-                    if !data_streams.last.kind_of?(Syskit::Models::OutputReader)
-                        predicate = data_streams.pop
-                    end
-                    if predicate && predicate_block
-                        raise ArgumentError, "you can give either a predicate object or a predicate block, not both"
-                    elsif predicate_block
-                        predicate = DataMonitorPredicateFromBlock.new(data_streams, predicate_block)
-                    end
-
-                    monitor = DataMonitor.new(name, data_streams, predicate)
+                    monitor = DataMonitor.new(name, data_streams)
                     monitors << monitor
                     monitor
                 end

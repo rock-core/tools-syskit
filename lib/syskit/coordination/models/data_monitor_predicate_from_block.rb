@@ -41,7 +41,7 @@ module Syskit
                     @new_sample = false
                 end
 
-                def new(data_streams)
+                def bind(data_streams)
                     self.class.new(data_streams, block)
                 end
 

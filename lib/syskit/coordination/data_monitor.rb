@@ -15,9 +15,27 @@ module Syskit
             #   cycle, i.e. after #call has been called with all new samples. It
             #   must return whether the predicate matches (true) or not (false)
             attr_reader :predicate
+            # @return [Array<Roby::Coordination::Event>] the set of events that
+            #   should be emitted when this monitor triggers
+            attr_reader :emitted_events
+            # @return [Boolean] whether this monitor should generate a
+            #   {DataMonitoringError} when it triggers
+            attr_predicate :raises?, true
 
-            def initialize(model, data_streams, predicate)
-                @model, @data_streams, @predicate = model, data_streams, predicate
+            def initialize(model, data_streams)
+                @model, @data_streams = model, data_streams
+                @emitted_events = Array.new
+                @raises = false
+            end
+
+            def trigger_on(predicate)
+                @predicate = predicate
+                self
+            end
+
+            def emit(event)
+                @emitted_events << event
+                self
             end
 
             # Reads the data streams, and pushes the data to the predicate when
@@ -29,7 +47,7 @@ module Syskit
                     end
                 end
                 if predicate.finalize
-                    issue_monitoring_error(root_task)
+                    trigger(root_task)
                     true
                 else
                     false
@@ -37,11 +55,17 @@ module Syskit
             end
 
             # Issue an error because the predicate returned true (match)
-            def issue_monitoring_error(root_task)
-                samples = data_streams.map do |reader|
-                    reader.read
+            def trigger(root_task)
+                emitted_events.each do |ev|
+                    ev.resolve.emit
                 end
-                root_task.plan.add_error(DataMonitoringError.new(root_task, self, Time.now, samples))
+                if raises?
+                    samples = data_streams.map do |reader|
+                        reader.read
+                    end
+                    error = DataMonitoringError.new(root_task, self, Time.now, samples)
+                    root_task.plan.add_error(error)
+                end
             end
 
             def to_s; "monitor(#{model.name}(#{data_streams.map(&:to_s).join(", ")})" end
