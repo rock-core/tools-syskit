@@ -126,9 +126,12 @@ module Syskit
             #
             # If no port mappings are given, it will mean that the ports defined
             # by +service_model+ should be added to this service's interface.
+            # If port mappings are given, they define the mapping between ports
+            # in +service_model+ and existing ports in +self+
             #
-            # If port mappings are given, they define the mapping between
-            # ports in +service_model+ and existing ports in +self+
+            # Note that if both service_model and self have a port with the same
+            # name, this port needs also to be mapped explicitely by providing
+            # the 'name' => 'name' mapping in new_port_mappings
             def provides(service_model, new_port_mappings = Hash.new)
                 # A device can provide either a device or a data service, but
                 # not a combus. Idem for data service: only other data services
@@ -144,7 +147,8 @@ module Syskit
                 end
 
                 service_model.each_port do |p|
-                    if find_port(p.name)
+                    if find_port(p.name) && !new_port_mappings[p.name]
+                        raise SpecError, "port collision: #{self} and #{service_model} both have a port named #{p.name}. If you mean to tell syskit that this is the same port, you must provide the mapping explicitely by adding '#{p.name}' => '#{p.name}' to the provides statement"
                         new_port_mappings[p.name] ||= p.name
                     end
                 end

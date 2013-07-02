@@ -138,7 +138,18 @@ module Test_DataServiceModel
                       'base_unmapped' => 'base_unmapped'}, model.port_mappings_for(base))
     end
 
-    def test_provides_port_collision
+    def test_provides_detects_port_collisions_even_if_they_have_the_same_type
+        base_m = Syskit::DataService.new_submodel do
+            output_port 'out', '/double'
+        end
+        provided_m = Syskit::DataService.new_submodel do
+            output_port 'out', '/double'
+        end
+
+        assert_raises(SpecError) { base_m.provides provided_m }
+    end
+
+    def test_provides_port_collision_with_different_types
         parent_model = new_submodel do
             output_port "out", "/int"
         end
