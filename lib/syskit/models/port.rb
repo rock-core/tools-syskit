@@ -95,8 +95,9 @@ module Syskit
                 super || orogen_model.respond_to?(m, *args)
             end
 
+            OROGEN_MODEL_EXCLUDED_FORWARDINGS = [:task]
             def method_missing(m, *args, &block)
-                if orogen_model.respond_to?(m)
+                if !OROGEN_MODEL_EXCLUDED_FORWARDINGS.include?(m) && orogen_model.respond_to?(m)
                     orogen_model.send(m, *args, &block)
                 else super
                 end
