@@ -78,24 +78,23 @@ module Syskit
             end
 
             def stub_roby_deployment_model(task_model, name = task_model.name)
-                orogen_model = Orocos::Spec::Deployment.new(Orocos.master_project, name)
-                orogen_model.task name, task_model.orogen_model
-                model = Deployment.new_submodel(:orogen_model => orogen_model)
-                Syskit.conf.deployments['localhost'] << model
-                model
+                stub_syskit_deployment("deployment_#{name}") do
+                    task(name, task_model.orogen_model)
+                end
             end
 
             def stub_syskit_deployment(name = "deployment", deployment_model = nil, &block)
                 deployment_model ||= Deployment.new_submodel(:name => name, &block)
+                Syskit.conf.deployments['stubs'] << deployment_model
                 Syskit.process_servers['stubs'].first.
                     register_deployment_model(deployment_model.orogen_model)
-                plan.add(task = deployment_model.new(:on => 'stubs'))
+                plan.add_mission(task = deployment_model.new(:on => 'stubs'))
                 task
             end
 
             def stub_deployed_task(name = 'task', task = nil, &block)
                 if !task || task.kind_of?(Class)
-                    plan.add_permanent(task = stub_roby_task_context(name, task, &block))
+                    plan.add_mission(task = stub_roby_task_context(name, task, &block))
                 end
                 task.orocos_name ||= name
                 deployment = stub_syskit_deployment("deployment_#{name}") do
@@ -113,11 +112,27 @@ module Syskit
                 task
             end
 
+            def syskit_setup_component(component)
+                if component.kind_of?(Syskit::TaskContext)
+                    if !component.execution_agent.running?
+                        component.execution_agent.start!
+                    end
+                end
+                component.arguments[:conf] ||= []
+                component.setup
+            end
+
+            def syskit_start_component(component)
+                if component.kind_of?(Syskit::Composition)
+                    component.each_child { |child_task| syskit_setup_component(child_task) }
+                end
+                syskit_setup_component(component)
+                component.start!
+                assert_event_emission component.start_event
+            end
+
             def start_task_context(task)
-                task.arguments[:conf] ||= []
-                task.setup
-                task.start!
-                assert_event_emission task.start_event
+                syskit_start_component(task)
             end
 
             def setup
@@ -186,14 +201,22 @@ module Syskit
                     engine.wait_one_cycle
                 else
                     syskit_engine.disable_updates
-                    if base_task && !base_task.planning_task.running?
-                        base_task.planning_task.start!
+                    if base_task
+                        base_task = base_task.as_plan
+                        plan.add_mission(base_task)
+                        if !base_task.planning_task.running?
+                            base_task.planning_task.start!
+                        end
+                        base_task = base_task.as_service
                     end
                     syskit_engine.enable_updates
                     syskit_engine.resolve(resolve_options)
                 end
                 if block_given?
                     execute(&block)
+                end
+                if base_task
+                    base_task.task
                 end
             end
 
