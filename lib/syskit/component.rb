@@ -77,6 +77,15 @@ module Syskit
                 model.each_fullfilled_model(&block)
             end
 
+            # Yields the data services that are defined on this task
+            def each_data_service
+                return enum_for(:each_data_service) if !block_given?
+                model.each_data_service do |name, srv|
+                    yield(srv.bind(self))
+                end
+                self
+            end
+
             # Finds a data service by its name
             #
             # @param [String] service_name the data service name
