@@ -154,7 +154,9 @@ module Syskit
                 return enum_for(:each_attached_device) if !block_given?
                 each_com_bus_device do |combus|
                     combus.each_attached_device do |dev|
-                        yield(dev)
+                        if find_data_service(dev.name)
+                            yield(dev)
+                        end
                     end
                 end
             end
