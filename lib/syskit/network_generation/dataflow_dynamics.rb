@@ -300,9 +300,11 @@ module Syskit
                         handled_ports << port.name
                         port = port.to_component_port
                         dynamics = PortDynamics.new("#{task.orocos_name}.#{port.name}", dev.sample_size)
-                        dynamics.add_trigger(dev.name, dev.period, 1)
-                        dynamics.add_trigger(dev.name, dev.period * dev.burst, dev.burst)
-                        add_port_info(task, port_name, dynamics)
+                        if dev.period
+                            dynamics.add_trigger(dev.name, dev.period, 1)
+                            dynamics.add_trigger(dev.name, dev.period * dev.burst, dev.burst)
+                        end
+                        add_port_info(task, port.name, dynamics)
                     end
                 end
                 handled_ports.each do |port_name|
