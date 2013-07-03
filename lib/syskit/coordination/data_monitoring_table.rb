@@ -15,6 +15,13 @@ module Syskit
             # Instanciates all data monitor registered on this table's models
             # and stores the new monitors in {#monitors}
             def resolve_monitors
+                model.each_task do |coordination_task_model|
+                    if coordination_task_model.respond_to?(:instanciate)
+                        root_task.depends_on(task_instance = coordination_task_model.instanciate(root_task.plan))
+                        instance_for(coordination_task_model).bind(task_instance)
+                    end
+                end
+
                 model.each_monitor do |m|
                     if m.emitted_events.empty? && !m.raises?
                         raise ArgumentError, "#{m} has no effect (it neither emits events nor generates an exception). You must either call #emit or #raise_exception on it"

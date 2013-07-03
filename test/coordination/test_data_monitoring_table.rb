@@ -96,5 +96,58 @@ describe Syskit::Coordination::DataMonitoringTable do
         end
         assert component.success?
     end
+
+    it "can use whole component networks as data sources" do
+        srv_m = Syskit::DataService.new_submodel(:name => 'Srv') { output_port 'out', '/int' }
+        composition_m = Syskit::Composition.new_submodel(:name => 'Cmp') do
+            add srv_m, :as => 'test'
+            export test_child.out_port
+        end
+        component_m = Syskit::TaskContext.new_submodel(:name => 'Task') do
+            output_port 'out1', '/int'
+            output_port 'out2', '/int'
+            provides srv_m, :as => 'test1', 'out' => 'out1'
+            provides srv_m, :as => 'test2', 'out' => 'out2'
+        end
+        table_model = Syskit::Coordination::DataMonitoringTable.
+            new_submodel(composition_m)
+        recorder = flexmock
+        stub_roby_deployment_model(component_m)
+        monitor_task = table_model.task(composition_m.use('test' => component_m.test2_srv))
+        table_model.monitor('sample_value_10', table_model.out_port, monitor_task.out_port).
+            trigger_on do |sample1, sample2|
+                recorder.called(sample1, sample2)
+                sample1 + sample2 > 10
+            end.
+            emit(table_model.success_event).
+            raise_exception
+
+        recorder.should_receive(:called).with(4, 2).once.ordered
+        recorder.should_receive(:called).with(1, 12).once.ordered
+
+        composition = deploy(composition_m.use('test' => component_m.test1_srv))
+        syskit_start_component(composition)
+        table = table_model.new(composition)
+        process_events
+        Syskit::Runtime.apply_requirement_modifications(plan)
+
+        monitor     = (plan.find_tasks(composition_m).to_a - [composition]).first
+        # We want the fault table to emit 'success', don't make it an error
+        composition.depends_on composition.test_child,
+            :success => :success, :remove_when_done => false
+
+        component = composition.test_child
+        component.orocos_task.out1.write(4)
+        component.orocos_task.out2.write(2)
+        table.poll
+        component.orocos_task.out1.write(1)
+        component.orocos_task.out2.write(12)
+        assert_raises(Syskit::Coordination::DataMonitoringError) do
+            inhibit_fatal_messages do
+                table.poll
+            end
+        end
+        assert composition.success?
+    end
 end
 
