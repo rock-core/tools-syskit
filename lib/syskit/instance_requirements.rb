@@ -680,6 +680,10 @@ module Syskit
                     EOD
                 end
             end
+
+            def to_coordination_task(task_model)
+                Roby::Coordination::Models::TaskFromAsPlan.new(self, proxy_task_model)
+            end
         end
 end
 
