@@ -207,8 +207,7 @@ module Syskit
                         specialize
                     end
 
-                    required_services = merged_task.model.data_services.values
-                    required_services.each do |srv|
+                    merged_task.model.each_data_service do |_, srv|
                         if !model.find_data_service(srv.full_name)
                             # Note: we cannot use srv.master here as srv.master
                             # is attached on #merged_task and we need the
