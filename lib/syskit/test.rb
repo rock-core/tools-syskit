@@ -85,7 +85,7 @@ module Syskit
 
             def stub_syskit_deployment(name = "deployment", deployment_model = nil, &block)
                 deployment_model ||= Deployment.new_submodel(:name => name, &block)
-                Syskit.conf.deployments['stubs'] << deployment_model
+                Syskit.conf.deployments['stubs'] << Syskit::Models::ConfiguredDeployment.new(deployment_model, Hash.new)
                 Syskit.process_servers['stubs'].first.
                     register_deployment_model(deployment_model.orogen_model)
                 plan.add_mission(task = deployment_model.new(:on => 'stubs'))
