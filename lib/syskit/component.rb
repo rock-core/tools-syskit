@@ -395,7 +395,7 @@ module Syskit
             end
 
             def specialized_model?
-                model.private_specialization?
+                concrete_model == model
             end
 
             # Sets up this task to use its singleton class as model instead of
@@ -411,6 +411,11 @@ module Syskit
                 end
             end
 
+            # Returns the most-derived model that is not a private specialization
+            def concrete_model
+                self.class.concrete_model
+            end
+
             # Generates the InstanceRequirements object that represents +self+
             # best
             #
@@ -418,7 +423,7 @@ module Syskit
             def to_instance_requirements
                 # Do not use #model here as we don't want a requirement that
                 # uses a specialized model
-                req = self.class.to_instance_requirements
+                req = self.concrete_model.to_instance_requirements
                 req.with_arguments(arguments)
                 if requirements.service
                     req.select_service(requirements.service)

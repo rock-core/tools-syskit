@@ -483,7 +483,7 @@ module Syskit
                             end
                             abstract_tasks[task] = candidates || ValueSet.new
                         else
-                            abstract_tasks[task] = plan.find_local_tasks(task.class).to_value_set
+                            abstract_tasks[task] = plan.find_local_tasks(task.concrete_model).to_value_set
                         end
                     end
 
@@ -608,14 +608,14 @@ module Syskit
 
                     # task.model would be wrong here as task.model could be the
                     # singleton class (if there are dynamic services)
-                    candidates = deployed_models[task.class]
+                    candidates = deployed_models[task.concrete_model]
                     if !candidates || candidates.empty?
-                        debug { "no deployments found for #{task} (#{task.model.short_name})" }
+                        debug { "no deployments found for #{task} (#{task.concrete_model.short_name})" }
                         missing_deployments << task
                         next
                     elsif candidates.size > 1
                         if !(selected = resolve_deployment_ambiguity(candidates, task))
-                            debug { "deployment of #{task} (#{task.model.short_name}) is ambiguous" }
+                            debug { "deployment of #{task} (#{task.concrete_model.short_name}) is ambiguous" }
                             missing_deployments << task
                             next
                         end
@@ -908,10 +908,7 @@ module Syskit
 
                 result = ValueSet.new
                 used_deployments.each do |deployment_task|
-                    # We need to search for #class and not #model here as
-                    # otherwise we would never find anything for tasks with
-                    # dynamic services
-                    existing_candidates = work_plan.find_local_tasks(deployment_task.class).
+                    existing_candidates = work_plan.find_local_tasks(deployment_task.model).
                         not_finishing.not_finished.to_value_set
                     debug do
                         debug "  looking to reuse a deployment for #{deployment_task.process_name} (#{deployment_task})"
@@ -1131,7 +1128,7 @@ module Syskit
                 if !not_deployed.empty?
                     tasks_with_candidates = Hash.new
                     not_deployed.each do |task|
-                        candidates = task_context_deployment_candidates[task.class] || []
+                        candidates = task_context_deployment_candidates[task.concrete_model] || []
                         candidates = candidates.map do |host, deployment, task_name|
                             existing = work_plan.find_local_tasks(task.model).
                                 find_all { |t| t.orocos_name == task_name }
