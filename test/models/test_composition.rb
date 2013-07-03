@@ -504,6 +504,27 @@ describe Syskit::Models::Composition do
         end
 
         describe "#add" do
+            it "adds new models to an existing set if there is one" do
+                srv1 = Syskit::DataService.new_submodel
+                srv2 = Syskit::DataService.new_submodel
+                cmp = Syskit::Composition.new_submodel do
+                    add srv1, :as => 'test'
+                end
+                assert_equal [srv1].to_set, cmp.test_child.models.to_set
+                cmp.overload 'test', srv2
+                assert_equal [srv1, srv2].to_set, cmp.test_child.models.to_set
+            end
+            it "adds new models to the definition of the superclass if there is one" do
+                srv1 = Syskit::DataService.new_submodel
+                srv2 = Syskit::DataService.new_submodel
+                cmp = Syskit::Composition.new_submodel do
+                    add srv1, :as => 'test'
+                end
+                assert_equal [srv1].to_set, cmp.test_child.models.to_set
+                cmp = cmp.new_submodel
+                cmp.overload 'test', srv2
+                assert_equal [srv1, srv2].to_set, cmp.test_child.models.to_set
+            end
             it "computes port mappings when overloading a child" do
                 service, component, composition = models
                 service1 = Syskit::DataService.new_submodel(:name => "Service1") do
