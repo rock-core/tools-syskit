@@ -284,6 +284,40 @@ describe Syskit::Deployment do
             deployment_task.instanciate_all_tasks
         end
     end
+
+    describe "using the ruby process server" do
+        attr_reader :task_m, :deployment_m
+        before do
+            Syskit.process_servers['test'] = [Orocos::RubyProcessServer.new, ""]
+            task_m = @task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+                output_port 'out', '/double'
+            end
+            @deployment_m = Syskit::Deployment.new_submodel(:name => 'deployment') do
+                task 'task', task_m.orogen_model
+            end
+            Syskit.process_servers['test'].first.
+                register_deployment_model(deployment_m.orogen_model)
+        end
+        it "can start tasks defined on a ruby process server" do
+            plan.add_permanent(deployment = deployment_m.new(:on => 'test'))
+            deployment.start!
+            task = deployment.task('task')
+            assert task.orocos_task
+            assert 'task', task.orocos_task.name
+        end
+        it "sets the orocos_task attribute to a RubyTaskContext" do
+            plan.add_permanent(deployment = deployment_m.new(:on => 'test'))
+            deployment.start!
+            assert_kind_of Orocos::RubyTaskContext, deployment.task('task').orocos_task
+        end
+        it "makes sure that the Ruby tasks are disposed when the deployment is stopped" do
+            plan.add_permanent(deployment = deployment_m.new(:on => 'test'))
+            deployment.start!
+            flexmock(deployment.task('task').orocos_task).should_receive(:dispose).once.pass_thru
+            deployment.stop!
+        end
+    end
 end
 
 

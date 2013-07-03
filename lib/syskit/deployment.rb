@@ -205,7 +205,7 @@ module Syskit
                     model.each_orogen_deployed_task_context_model do |activity|
                         name = orocos_process.get_mapped_name(activity.name)
                         if !task_handles[name]
-                            orocos_task = ::Orocos::TaskContext.get(name)
+                            orocos_task = orocos_process.task(name)
                             orocos_task.process = orocos_process
                             task_handles[name] =  orocos_task
                         end
