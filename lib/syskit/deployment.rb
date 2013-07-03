@@ -145,6 +145,8 @@ module Syskit
                 process_server, log_dir = Syskit.process_servers[host]
                 if !process_server
                     raise ArgumentError, "cannot find the process server for #{host}"
+                elsif !process_name
+                    raise ArgumentError, "must set process_name"
                 end
 
                 spawn_options = self.spawn_options
