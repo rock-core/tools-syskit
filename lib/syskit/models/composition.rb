@@ -155,11 +155,12 @@ module Syskit
                 # Anyway, the remainder checks that the new definition is a
                 # valid overloading of the previous one.
                 
-                parent_model = superclass.find_child(name) || CompositionChild.new(self, name)
-                child_models = Models.merge_model_lists(child_models, parent_model.base_models)
+                current_model = find_child(name) || CompositionChild.new(self, name)
+                child_models = Models.merge_model_lists(child_models, current_model.base_models)
                 dependency_options = Roby::TaskStructure::DependencyGraphClass.
-                    merge_dependency_options(parent_model.dependency_options, dependency_options)
+                    merge_dependency_options(current_model.dependency_options, dependency_options)
 
+                parent_model = superclass.find_child(name)
                 result = CompositionChild.new(self, name, child_models, dependency_options, parent_model)
                 Models.debug do
                     Models.debug "added child #{name} to #{short_name}"

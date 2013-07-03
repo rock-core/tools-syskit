@@ -77,6 +77,15 @@ module Syskit
                 model.each_fullfilled_model(&block)
             end
 
+            # Yields the data services that are defined on this task
+            def each_data_service
+                return enum_for(:each_data_service) if !block_given?
+                model.each_data_service do |name, srv|
+                    yield(srv.bind(self))
+                end
+                self
+            end
+
             # Finds a data service by its name
             #
             # @param [String] service_name the data service name
@@ -198,8 +207,7 @@ module Syskit
                         specialize
                     end
 
-                    required_services = merged_task.model.data_services.values
-                    required_services.each do |srv|
+                    merged_task.model.each_data_service do |_, srv|
                         if !model.find_data_service(srv.full_name)
                             # Note: we cannot use srv.master here as srv.master
                             # is attached on #merged_task and we need the
@@ -395,7 +403,7 @@ module Syskit
             end
 
             def specialized_model?
-                model.private_specialization?
+                concrete_model == model
             end
 
             # Sets up this task to use its singleton class as model instead of
@@ -411,6 +419,11 @@ module Syskit
                 end
             end
 
+            # Returns the most-derived model that is not a private specialization
+            def concrete_model
+                self.class.concrete_model
+            end
+
             # Generates the InstanceRequirements object that represents +self+
             # best
             #
@@ -418,7 +431,7 @@ module Syskit
             def to_instance_requirements
                 # Do not use #model here as we don't want a requirement that
                 # uses a specialized model
-                req = self.class.to_instance_requirements
+                req = self.concrete_model.to_instance_requirements
                 req.with_arguments(arguments)
                 if requirements.service
                     req.select_service(requirements.service)

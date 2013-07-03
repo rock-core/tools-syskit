@@ -185,7 +185,7 @@ module Syskit
             # +port+ to be logged
             def log_port?(port)
                 result = !Roby::State.orocos.port_excluded_from_log?(self,
-                        TaskContext.model_for(port.task), port)
+                        port.component_model, port)
 
                 if !result
                     Robot.info "not logging #{port.task.name}:#{port.name}"

@@ -293,18 +293,21 @@ module Syskit
             # Computes the initial port dynamics due to the devices that go
             # through a communication bus.
             def initial_combus_information(task)
-                by_device = Hash.new
-                task.each_device_connection do |port_name, devices|
-                    if task.find_input_port_model(port_name)
-                        next
+                handled_ports = Set.new
+                task.each_attached_device do |dev|
+                    srv = task.find_data_service(dev.name)
+                    srv.each_input_port do |port|
+                        handled_ports << port.name
+                        port = port.to_component_port
+                        dynamics = PortDynamics.new("#{task.orocos_name}.#{port.name}", dev.sample_size)
+                        if dev.period
+                            dynamics.add_trigger(dev.name, dev.period, 1)
+                            dynamics.add_trigger(dev.name, dev.period * dev.burst, dev.burst)
+                        end
+                        add_port_info(task, port.name, dynamics)
                     end
-
-                    dynamics = PortDynamics.new("#{task.orocos_name}.#{port_name}", devices.map(&:sample_size).inject(&:+))
-                    devices.each do |dev|
-                        dynamics.add_trigger(dev.name, dev.period, 1)
-                        dynamics.add_trigger(dev.name, dev.period * dev.burst, dev.burst)
-                    end
-                    add_port_info(task, port_name, dynamics)
+                end
+                handled_ports.each do |port_name|
                     done_port_info(task, port_name)
                 end
             end

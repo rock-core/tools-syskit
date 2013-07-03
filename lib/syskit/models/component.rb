@@ -725,6 +725,7 @@ module Syskit
                 end
                 klass.private_specialization = true
                 klass.private_model
+                klass.concrete_model = concrete_model
                 klass
             end
 
@@ -737,6 +738,18 @@ module Syskit
                 if private_specialization?
                     return self
                 else return specialize
+                end
+            end
+
+            # @see {concrete_model}
+            attr_writer :concrete_model
+
+            # If this model is specialized, returns the most derived model that
+            # is non-specialized. Otherwise, returns self.
+            def concrete_model
+                if @concrete_model
+                    return @concrete_model
+                else return self
                 end
             end
 
