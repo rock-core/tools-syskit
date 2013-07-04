@@ -130,7 +130,12 @@ describe Syskit::ComBus do
         it "can list the devices attached to the combus" do
             plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
             plan.add(device_task = device_driver_m.new('dev_dev' => device))
+            combus_task.attach(device_task)
             assert_equal [device], combus_task.each_attached_device.to_a
+        end
+        it "does not list devices that are declared but not currently using the bus" do
+            plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
+            assert_equal [], combus_task.each_attached_device.to_a
         end
     end
     describe "#attach" do
