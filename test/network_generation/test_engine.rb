@@ -183,8 +183,11 @@ describe Syskit::NetworkGeneration::Engine do
             deployment_2 = stub_roby_deployment_model(simple_component_model, 'other_task')
 
             result = syskit_engine.compute_task_context_deployment_candidates
-            assert_equal [['localhost', deployment_1, 'task']], result[task_model].to_a
-            assert_equal [['localhost', deployment_2, 'other_task']], result[simple_component_model].to_a
+
+            a, b, c = result[task_model].to_a.first
+            assert_equal ['stubs', deployment_1, 'task'], [a, b.model, c]
+            a, b, c = result[simple_component_model].to_a.first
+            assert_equal ['stubs', deployment_2, 'other_task'], [a, b.model, c]
         end
     end
 

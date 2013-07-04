@@ -77,17 +77,27 @@ module Syskit
                 task
             end
 
-            def stub_roby_deployment_model(task_model, name = task_model.name)
-                stub_syskit_deployment("deployment_#{name}") do
-                    task(name, task_model.orogen_model)
+            def stub_roby_deployment_model(task_model = nil, name = nil, &block)
+                if task_model
+                    name ||= task_model.name
                 end
-            end
+                deployment_model = Deployment.new_submodel(:name => name) do
+                    if task_model
+                        task(name, task_model.orogen_model)
+                    end
+                    if block_given?
+                        instance_eval(&block)
+                    end
+                end
 
-            def stub_syskit_deployment(name = "deployment", deployment_model = nil, &block)
-                deployment_model ||= Deployment.new_submodel(:name => name, &block)
                 Syskit.conf.deployments['stubs'] << Syskit::Models::ConfiguredDeployment.new(deployment_model, Hash.new)
                 Syskit.process_servers['stubs'].first.
                     register_deployment_model(deployment_model.orogen_model)
+                deployment_model
+            end
+
+            def stub_syskit_deployment(name = "deployment", deployment_model = nil, &block)
+                deployment_model ||= stub_roby_deployment_model(nil, name, &block)
                 plan.add_mission(task = deployment_model.new(:on => 'stubs'))
                 task
             end
@@ -133,10 +143,10 @@ module Syskit
                 if !component.setup?
                     syskit_setup_component(component)
                 end
-                if !component.starting?
-                    component.start!
-                end
                 if !component.running?
+                    if !component.starting?
+                        component.start!
+                    end
                     assert_event_emission component.start_event
                 end
             end
