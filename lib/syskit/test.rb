@@ -124,11 +124,21 @@ module Syskit
 
             def syskit_start_component(component)
                 if component.kind_of?(Syskit::Composition)
-                    component.each_child { |child_task| syskit_setup_component(child_task) }
+                    component.each_child do |child_task|
+                        if !child_task.setup?
+                            syskit_setup_component(child_task)
+                        end
+                    end
                 end
-                syskit_setup_component(component)
-                component.start!
-                assert_event_emission component.start_event
+                if !component.setup?
+                    syskit_setup_component(component)
+                end
+                if !component.starting?
+                    component.start!
+                end
+                if !component.running?
+                    assert_event_emission component.start_event
+                end
             end
 
             def start_task_context(task)
