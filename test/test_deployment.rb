@@ -164,7 +164,7 @@ describe Syskit::Deployment do
                     by_default
                 orocos_task.should_receive(:process=).
                     with(process)
-                flexmock(Orocos::TaskContext).should_receive(:get).with('mapped_task_name').and_return(orocos_task).by_default
+                process.should_receive(:task).with('mapped_task_name').and_return(orocos_task).by_default
                 deployment_task.start!
             end
             it "does not emit ready if the process is not ready yet" do
@@ -226,7 +226,7 @@ describe Syskit::Deployment do
                     and_return(:PRE_OPERATIONAL).by_default
                 orocos_task.should_receive(:process=).
                     with(process)
-                flexmock(Orocos::TaskContext).should_receive(:get).with('mapped_task_name').and_return(orocos_task)
+                process.should_receive(:task).with('mapped_task_name').and_return(orocos_task)
                 deployment_task.start!
             end
             it "cleans up all stopped tasks" do
