@@ -403,7 +403,7 @@ module Syskit
             end
 
             def specialized_model?
-                concrete_model == model
+                concrete_model != model
             end
 
             # Sets up this task to use its singleton class as model instead of

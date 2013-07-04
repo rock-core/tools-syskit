@@ -268,6 +268,20 @@ describe Syskit::Component do
         end
     end
 
+    describe "#specialized_model?" do
+        it "should return false on a plain model" do
+            assert !Syskit::TaskContext.new_submodel.new.specialized_model?
+        end
+        it "should return true if #specialize has been called on the model" do
+            assert Syskit::TaskContext.new_submodel.specialize.new.specialized_model?
+        end
+        it "should return true if #specialize has been called on the instance" do
+            object = Syskit::TaskContext.new_submodel.new
+            object.specialize
+            assert object.specialized_model?
+        end
+    end
+
     describe "#commit_transaction" do
         it "specializes the proxied task and applies model modifications if there are some" do
             task_m = Syskit::TaskContext.new_submodel do
