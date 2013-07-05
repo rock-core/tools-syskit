@@ -77,7 +77,11 @@ module Syskit
                 task
             end
 
-            def stub_roby_deployment_model(task_model = nil, name = nil, &block)
+            def stub_roby_deployment_model(*args, &block)
+                stub_syskit_deployment_model(*args, &block)
+            end
+
+            def stub_syskit_deployment_model(task_model = nil, name = nil, &block)
                 if task_model
                     name ||= task_model.name
                 end
