@@ -8,6 +8,9 @@ module Syskit
 
             def initialize(root_task)
                 super
+                root_task.poll(:on_replace => :drop) do
+                    poll
+                end
                 @monitors = Array.new
                 resolve_monitors
             end
