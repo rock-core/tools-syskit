@@ -57,7 +57,10 @@ module Syskit
             # Issue an error because the predicate returned true (match)
             def trigger(root_task)
                 emitted_events.each do |ev|
-                    ev.resolve.emit
+                    ev = ev.resolve
+                    if ev.executable?
+                        ev.emit
+                    end
                 end
                 if raises?
                     samples = data_streams.map do |reader|
