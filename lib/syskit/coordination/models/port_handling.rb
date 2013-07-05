@@ -20,17 +20,8 @@ module Syskit
                 end
 
                 def method_missing(m, *args, &block)
-                    if m.to_s =~ /(.*)_port$/
-                        port_name = $1
-                        if !args.empty?
-                            raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}"
-                        elsif port = find_port(port_name)
-                            return port
-                        else
-                            raise NoMethodError.new("#{self} has no port called #{port_name}", m)
-                        end
-                    end
-                    super
+                    MetaRuby::DSLs.find_through_method_missing(self, m, args, "port") ||
+                        super
                 end
             end
         end

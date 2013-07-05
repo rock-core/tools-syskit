@@ -1,5 +1,6 @@
 require 'orocos'
 require 'metaruby'
+require 'metaruby/dsls/find_through_method_missing'
 require 'orocos/process_server'
 require 'roby'
 require 'orogen'
