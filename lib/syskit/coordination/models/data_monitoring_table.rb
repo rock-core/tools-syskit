@@ -28,7 +28,9 @@ module Syskit
                     data_streams = data_streams.map do |obj|
                         if obj.respond_to?(:reader)
                             obj.reader
-                        else obj
+                        elsif obj.respond_to?(:port)
+                            obj
+                        else raise ArgumentError, "#{obj} does not seem to be a valid data source. Expected a port or a data reader"
                         end
                     end
 
