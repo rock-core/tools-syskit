@@ -9,6 +9,13 @@ module Syskit
             module DataMonitoringTable
                 include Roby::Coordination::Models::Base
 
+                # @return [Array<#===>] set of Roby task matchers that describe
+                #   where this data monitor should be attached. They must
+                #   obviously match the table's root task model
+                #
+                # @see {attach_to}
+                inherited_attribute(:attachment_point, :attachment_points) { Array.new }
+
                 # @return [Array<DataMonitor>] the set of data monitoring
                 #   objects that are defined on this table
                 inherited_attribute(:monitor, :monitors) { Array.new }
@@ -57,6 +64,27 @@ module Syskit
                         end
                     end
                 end
+
+                def find_monitor(name)
+                    each_monitor do |m|
+                        return m if m.name == name
+                    end
+                    nil
+                end
+
+                # Declares that this table should be attached to the tasks
+                # matching the given query
+                #
+                # If none is defined, it is going to be attached to every
+                # instance of the root model (i.e. the table's root task model)
+                #
+                # @param [#===] query object used to match tasks in the Roby
+                #   plan. It must obviously match subclasses of the table's root
+                #   task model
+                def attach_to(query)
+                    attachment_points << query
+                end
+
                 def method_missing(m, *args, &block)
                     MetaRuby::DSLs.find_through_method_missing(root, m, args, "port") ||
                         super

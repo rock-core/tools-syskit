@@ -100,6 +100,10 @@ module Syskit
                     @predicate = predicate
                     self
                 end
+
+                def to_execution_exception_matcher
+                    DataMonitoringErrorMatcher.new.from_monitor(self).to_execution_exception_matcher
+                end
             end
         end
     end
