@@ -22,12 +22,9 @@ module Syskit
                     end
                 end
 
-                model.each_monitor do |m|
-                    if m.emitted_events.empty? && !m.raises?
-                        raise ArgumentError, "#{m} has no effect (it neither emits events nor generates an exception). You must either call #emit or #raise_exception on it"
-                    end
-                    monitors << m.bind(self)
-                end
+                monitors_m = model.each_monitor.to_a
+                model.validate_monitors(monitors_m)
+                monitors.concat(monitors_m.map { |m| m.bind(self) })
             end
 
             # Checks all the monitors for new data, and issue the related errors

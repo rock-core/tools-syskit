@@ -8,7 +8,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         table_m = Syskit::Coordination::DataMonitoringTable.new_submodel(component_m)
         table_m.monitor('sample_value_10', table_m.out_port)
         plan.add(root_task = deploy_and_start_task_context('task', component_m))
-        assert_raises(ArgumentError) { table_m.new(root_task) }
+        assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) { table_m.new(root_task) }
     end
 
     it "generates an error if one of its monitor has no effect" do
@@ -17,7 +17,17 @@ describe Syskit::Coordination::DataMonitoringTable do
         table_m.monitor('sample_value_10', table_m.out_port).
             trigger_on { |sample| }
         plan.add(root_task = deploy_and_start_task_context('task', component_m))
-        assert_raises(ArgumentError) { table_m.new(root_task) }
+        assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) { table_m.new(root_task) }
+    end
+
+    it "should raise if some monitors have no effect at the end of the definition block" do
+        component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
+        assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) do
+            Syskit::Coordination::DataMonitoringTable.new_submodel(component_m) do
+                monitor 'test', out_port do
+                end
+            end
+        end
     end
 
     it "can attach to a component and trigger an error when the condition is met" do

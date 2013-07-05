@@ -1,6 +1,11 @@
 module Syskit
     module Coordination
         module Models
+            class InvalidDataMonitor < StandardError
+                # @return [DataMonitor] the invalid monitor
+                attr_reader :monitor
+            end
+
             module DataMonitoringTable
                 include Roby::Coordination::Models::Base
 
@@ -32,6 +37,21 @@ module Syskit
                     monitor
                 end
 
+                def apply_block(&block)
+                    super
+                    validate_monitors(monitors)
+                end
+
+                # Validate that the given monitors are proper definitions (i.e.
+                # that all their required parameters are set)
+                #
+                # @raise InvalidDataMonitor
+                def validate_monitors(monitors)
+                    monitors.each do |m|
+                        if !m.predicate
+                            raise InvalidDataMonitor.new(m), "#{m} has no associated predicate"
+                        elsif m.emitted_events.empty? && !m.raises?
+                            raise InvalidDataMonitor.new(m), "#{m} has no effect (it neither emits events nor generates an exception). You must either call #emit or #raise_exception on it"
                         end
                     end
                 end
