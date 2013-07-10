@@ -545,14 +545,6 @@ module Syskit
                             task_model = TaskContext.model_for(deployed_task.task_model)
                             deployed_models[task_model] ||= ValueSet.new
                             deployed_models[task_model] << [machine_name, model, deployed_task.name]
-
-                            #Adding all superclases to the lookup table
-                            sc = task_model.superclass
-                            while sc != RTT::TaskContext
-                                deployed_models[sc] ||= ValueSet.new
-                                deployed_models[sc] << [machine_name, model, deployed_task.name]
-                                sc = sc.superclass
-                            end
                         end
                     end
                 end
