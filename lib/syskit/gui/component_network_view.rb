@@ -42,6 +42,10 @@ module Syskit
                                                            :on_text => "Zoom -",
                                                            :off_text => "Zoom -",
                                                            :state => true)
+                buttons << MetaRuby::GUI::HTML::Button.new("dataflow/save",
+                                                           :on_text => "Save svg",
+                                                           :off_text => "Save svg",
+                                                           :state => true)
                 Syskit::Graphviz.available_annotations.sort.each do |ann_name|
                     buttons << MetaRuby::GUI::HTML::Button.new("annotations/#{ann_name}",
                                                 :on_text => "Show #{ann_name}",
@@ -49,6 +53,12 @@ module Syskit
                                                 :state => dataflow_options[:annotations].include?(ann_name))
                 end
                 dataflow_options[:buttons] = buttons
+                buttons = []
+                buttons << MetaRuby::GUI::HTML::Button.new("hierarchy/save",
+                                                           :on_text => "Save svg",
+                                                           :off_text => "Save svg",
+                                                           :state => true)
+                hierarchy_options[:buttons] = buttons
             end
 
             def enable
@@ -81,6 +91,20 @@ module Syskit
                 emit updated
             end
 
+            def save_svg title
+                page.fragments.each do |f|
+                    if f.title == title
+                        file_name = Qt::FileDialog::getSaveFileName @parent, 
+                            "Save #{title} as SVG", ".", "SVG (*.svg)"
+                        if file_name
+                            File.open(file_name,"w") do |file|
+                                file.write f.html
+                            end
+                        end
+                    end
+                end
+            end
+
             def buttonClicked(button_id, new_state)
                 case button_id
                 when /\/dataflow\/show_compositions/
@@ -92,6 +116,10 @@ module Syskit
                         dataflow_options[:zoom] -= 0.1
                     end
                     dataflow_options[:remove_compositions] = !new_state
+                when /\/dataflow\/save/
+                    save_svg "Dataflow"
+                when /\/hierarchy\/save/
+                    save_svg "Task Dependency Hierarchy"
                 when  /\/annotations\/(\w+)/
                     ann_name = $1
                     if new_state then dataflow_options[:annotations] << ann_name

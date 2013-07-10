@@ -1,6 +1,7 @@
 require 'Qt'
 require 'qtwebkit'
 require 'metaruby/gui/html/page'
+require 'metaruby/gui/html/button'
 module Syskit
     module GUI
         class Page < MetaRuby::GUI::HTML::Page
@@ -36,4 +37,3 @@ module Syskit
         end
     end
 end
-
