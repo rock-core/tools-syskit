@@ -121,12 +121,12 @@ describe Syskit::Models::Component do
         end
 
         describe "#dynamic_service" do
-            it "should create a DynamicService instance" do
+            it "should create a DynamicDataService instance" do
                 srv_m = self.srv_m
                 result = task_m.dynamic_service srv_m, :as => "dyn" do
                     provides srv_m, "out" => "#{name}_out", "in" => "#{name}_in"
                 end
-                assert_kind_of Syskit::Models::Component::DynamicService, result
+                assert_kind_of Syskit::Models::DynamicDataService, result
                 assert_equal task_m, result.component_model
                 assert_equal "dyn", result.name
             end
@@ -161,7 +161,7 @@ describe Syskit::Models::Component do
             end
         end
 
-        describe Syskit::Models::Component::DynamicService do
+        describe Syskit::Models::DynamicDataService do
             describe "#instanciate" do
                 attr_reader :dyn, :srv_m
                 before do
@@ -171,18 +171,18 @@ describe Syskit::Models::Component do
                     end
                 end
 
-                it "should use DynamicServiceInstantiationContext to evaluate the block" do
-                    flexmock(Syskit::Models::Component::DynamicServiceInstantiationContext).new_instances.should_receive(:instance_eval).with(Proc).once.pass_thru
+                it "should use DynamicDataService::InstantiationContext to evaluate the block" do
+                    flexmock(Syskit::Models::DynamicDataService::InstantiationContext).new_instances.should_receive(:instance_eval).with(Proc).once.pass_thru
                     dyn.instanciate('service_name')
                 end
                 it "should return the instanciated service" do
-                    context = flexmock(Syskit::Models::Component::DynamicServiceInstantiationContext).new_instances
+                    context = flexmock(Syskit::Models::DynamicDataService::InstantiationContext).new_instances
                     context.should_receive(:instance_eval).with(Proc).once
                     context.should_receive(:service).and_return(obj = Object.new)
                     assert_same obj, dyn.instanciate('service_name')
                 end
                 it "should raise if no service has been defined by the block" do
-                    context = flexmock(Syskit::Models::Component::DynamicServiceInstantiationContext).new_instances
+                    context = flexmock(Syskit::Models::DynamicDataService::InstantiationContext).new_instances
                     context.should_receive(:instance_eval).once
                     context.should_receive(:service).once
                     assert_raises(Syskit::InvalidDynamicServiceBlock) { dyn.instanciate('service_name') }
@@ -207,7 +207,7 @@ describe Syskit::Models::Component do
             describe "#update_component_model_interface" do
                 attr_reader :subject
                 before do
-                    @subject = flexmock(Syskit::Models::Component::DynamicService)
+                    @subject = flexmock(Syskit::Models::DynamicDataService)
                 end
 
                 it "should validate each service port and mapping using #directional_port_mapping and merge" do
@@ -239,7 +239,7 @@ describe Syskit::Models::Component do
                 before do
                     @task_m = flexmock
                     @port = flexmock(:name => 'port_name', :type => Object.new, :type_name => '/bla/type')
-                    @context = flexmock(Syskit::Models::Component::DynamicService)
+                    @context = flexmock(Syskit::Models::DynamicDataService)
                 end
 
                 it "should return the expected name if it is an existing component port" do
@@ -267,14 +267,14 @@ describe Syskit::Models::Component do
                 end
             end
         end
-        describe Syskit::Models::Component::DynamicServiceInstantiationContext do
+        describe Syskit::Models::DynamicDataService::InstantiationContext do
             attr_reader :dyn, :context
             before do
                 srv_m = self.srv_m
                 @dyn = task_m.dynamic_service srv_m, :as => "dyn" do
                     provides srv_m, "out" => "#{name}_out", "in" => "#{name}_in"
                 end
-                @context = Syskit::Models::Component::DynamicServiceInstantiationContext.
+                @context = Syskit::Models::DynamicDataService::InstantiationContext.
                     new(task_m, "dyn", dyn)
             end
             describe "#provides" do
@@ -282,8 +282,13 @@ describe Syskit::Models::Component do
                     srv_m = self.srv_m.new_submodel
                     flexmock(task_m).should_receive(:provides_dynamic).once.
                         with(srv_m, 'out' => 'out_port', 'in' => 'in_port', :as => 'dyn').
-                        and_return(result = Object.new)
-                context.provides(srv_m, 'out' => 'out_port', 'in' => 'in_port')
+                        and_return(result = flexmock)
+                    result.should_receive(:dynamic_service=)
+                    context.provides(srv_m, 'out' => 'out_port', 'in' => 'in_port')
+                end
+                it "should set the dynamic service attribute" do
+                    bound_srv = context.provides(srv_m, :as => 'dyn', 'out' => 'bla_out', 'in' => 'bla_in')
+                    assert_equal dyn, bound_srv.dynamic_service
                 end
                 it "should raise if the given service model does not match the dynamic service model" do
                     srv_m = Syskit::DataService.new_submodel

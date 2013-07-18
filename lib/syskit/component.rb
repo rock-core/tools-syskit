@@ -402,6 +402,15 @@ module Syskit
                 bound_service.bind(self)
             end
 
+            def each_dynamic_service
+                return enum_for(:each_dynamic_service) if !block_given?
+                each_data_service do |srv|
+                    if srv.respond_to?(:dynamic_service)
+                        yield(srv)
+                    end
+                end
+            end
+
             def specialized_model?
                 concrete_model != model
             end
