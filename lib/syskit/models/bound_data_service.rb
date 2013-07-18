@@ -86,6 +86,14 @@ module Syskit
                 result
             end
 
+            def connect_to(other, policy = Hash.new)
+                Syskit.connect(self, other, policy)
+            end
+
+            def self_port_to_component_port(port)
+                component_model.find_port(port_mappings_for_task[port.name])
+            end
+
             def to_s
                 "#{component_model.short_name}.#{full_name}"
             end

@@ -141,9 +141,7 @@ module Syskit
                     raise ArgumentError, "cannot select a service on #{models.map(&:short_name).sort.join(", ")} as there are no component models"
                 end
                 if service = task_model.find_data_service(service_name)
-                    result = dup
-                    result.select_service(service)
-                    result
+                    service.attach(self)
                 end
             end
 

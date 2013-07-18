@@ -48,5 +48,54 @@ describe Syskit::Models::CompositionChild do
             end
         end
     end
+
+    describe "#connect_to" do
+        it "can connect to a specific service on the output side" do
+            srv_in_m = Syskit::DataService.new_submodel do
+                input_port 'in', '/double'
+            end
+            task_in_m = Syskit::TaskContext.new_submodel do
+                input_port 'in0', '/double'
+                input_port 'in1', '/double'
+                provides srv_in_m, :as => 'test', 'in' => 'in0'
+            end
+            srv_out_m = Syskit::DataService.new_submodel do
+                output_port 'out', '/double'
+            end
+            cmp_m = Syskit::Composition.new_submodel do
+                add srv_out_m, :as => 'out'
+                add task_in_m, :as => 'in'
+                out_child.connect_to in_child.test_srv
+            end
+
+            expected = Hash[
+                ['out', 'in'] => {['out', 'in0'] => Hash.new}
+            ]
+            assert_equal expected, cmp_m.connections
+        end
+        it "can connect from a specific service on the input side" do
+            srv_in_m = Syskit::DataService.new_submodel do
+                input_port 'in', '/double'
+            end
+            srv_out_m = Syskit::DataService.new_submodel do
+                output_port 'out', '/double'
+            end
+            task_out_m = Syskit::TaskContext.new_submodel do
+                output_port 'out0', '/double'
+                output_port 'out1', '/double'
+                provides srv_out_m, :as => 'test', 'out' => 'out0'
+            end
+            cmp_m = Syskit::Composition.new_submodel do
+                add srv_in_m, :as => 'in'
+                add task_out_m, :as => 'out'
+                out_child.test_srv.connect_to in_child
+            end
+
+            expected = Hash[
+                ['out', 'in'] => {['out0', 'in'] => Hash.new}
+            ]
+            assert_equal expected, cmp_m.connections
+        end
+    end
 end
 
