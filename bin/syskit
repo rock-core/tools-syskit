@@ -12,19 +12,24 @@ mode = ARGV.shift
 
 SYSKIT_MODES = ['browse', 'instanciate', 'run']
 ROBY_MODES = []
-if SYSKIT_MODES.include?(mode)
-    require "syskit/scripts/#{mode}"
-elsif ROBY_MODES.include?(mode)
-    require "roby/app/scripts/#{mode}"
-end
-
-begin
-    require "syskit/scripts/#{mode}"
-rescue LoadError => e
-    begin
+if not mode || mode == "--help" || mode == "-h"
+    puts "usage: syskit [#{SYSKIT_MODES.join("|")}] <mode-arguments>"
+    puts "Run 'syskit <mode> --help' for more information"
+else
+    if SYSKIT_MODES.include?(mode)
+        require "syskit/scripts/#{mode}"
+    elsif ROBY_MODES.include?(mode)
         require "roby/app/scripts/#{mode}"
-    rescue LoadError
-        STDERR.puts "unknown mode '#{mode}'"
-        exit(1)
+    end
+    
+    begin
+        require "syskit/scripts/#{mode}"
+    rescue LoadError => e
+        begin
+            require "roby/app/scripts/#{mode}"
+        rescue LoadError
+            STDERR.puts "unknown mode '#{mode}'"
+            exit(1)
+        end
     end
 end
