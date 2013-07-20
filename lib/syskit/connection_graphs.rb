@@ -477,6 +477,10 @@ module Syskit
                     return enum_for(:each_input_connection)
                 end
 
+                if required_port.respond_to? :name
+                    required_port = required_port.name
+                end
+
                 each_source do |source_task|
                     source_task[self, Flows::DataFlow].each do |(source_port, sink_port), policy|
                         if required_port 
@@ -574,6 +578,10 @@ module Syskit
             def each_output_connection(required_port = nil)
                 if !block_given?
                     return enum_for(:each_output_connection, required_port)
+                end
+
+                if required_port.respond_to? :name
+                    required_port = required_port.name
                 end
 
                 each_sink do |sink_task, connections|
