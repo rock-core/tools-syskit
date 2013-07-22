@@ -452,6 +452,14 @@ module Syskit
                 end
             end
 
+            # Returns the DI context used by this instance requirements task
+            def resolved_dependency_injection
+                context = DependencyInjectionContext.new
+                context.concat(dependency_injection_context)
+                context.push(selections)
+                context
+            end
+
             # Create a concrete task for this requirement
             def instanciate(plan, context = Syskit::DependencyInjectionContext.new, arguments = Hash.new)
                 task_model = self.proxy_task_model
