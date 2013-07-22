@@ -262,17 +262,7 @@ module Syskit
             end
 
             def self.load_task_extension(file, app)
-                relative_path = Roby.app.make_path_relative(file)
-                if file != relative_path
-                    $LOADED_FEATURES << relative_path
-                end
-
-                begin
-                    app.require file
-                rescue Exception
-                    $LOADED_FEATURES.delete(relative_path)
-                    raise
-                end
+                app.require file
             end
 
             # Start a process server on the local machine, and register it in
