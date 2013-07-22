@@ -165,7 +165,7 @@ module Syskit
                 Models.debug do
                     Models.debug "added child #{name} to #{short_name}"
                     Models.debug "  with models #{result.models.map(&:short_name).join(", ")}"
-                    if !parent_model.models.empty?
+                    if parent_model && !parent_model.models.empty?
                         Models.debug "  updated from #{parent_model.models.map(&:short_name).join(", ")}"
                     end
                     if !result.port_mappings.empty?
