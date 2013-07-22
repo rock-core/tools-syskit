@@ -190,11 +190,14 @@ module Syskit
             # The only (important) difference is that it checks that +name+ is
             # indeed an existing child, and allows people that read the
             # composition model to understand the intent
-            def overload(name, model, options = Hash.new)
-                if !find_child(name)
-                    raise ArgumentError, "#{name} is not an existing child of #{short_name}"
+            def overload(child, model, options = Hash.new)
+                if child.respond_to?(:child_name)
+                    child = child.child_name
                 end
-                add(model, options.merge(:as => name))
+                if !find_child(child)
+                    raise ArgumentError, "#{child} is not an existing child of #{short_name}"
+                end
+                add(model, options.merge(:as => child))
             end
 
             # Add an element in this composition.
