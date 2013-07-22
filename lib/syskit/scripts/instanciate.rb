@@ -91,10 +91,21 @@ direct_files, required_actions = remaining.partition do |arg|
     File.file?(arg)
 end
 Roby.app.additional_model_files.concat(direct_files)
-Scripts.run do
+begin
     app = Qt::Application.new([])
-    w = Syskit::GUI::Instanciate.new(nil, required_actions.join(" "), Roby.app.permanent_requirements)
+
+    setup_error = Scripts.setup
+    w = Syskit::GUI::Instanciate.new(
+        nil, 
+        required_actions.join(" "),
+        Roby.app.permanent_requirements)
     w.show
+    if setup_error
+        w.exception_view.push(setup_error)
+    else
+        w.compute
+    end
     app.exec
+ensure Roby.app.cleanup
 end
 
