@@ -9,7 +9,9 @@ module Syskit
             # The actual service on master_device's task model
             attr_reader :service
 
-            def each_fullfilled_model; [service.model].each(&proc) end
+            def each_fullfilled_model(&block)
+                service.model.each_fullfilled_model(&block)
+            end
 
             def robot
                 master_device.robot

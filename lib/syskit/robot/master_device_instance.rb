@@ -259,7 +259,9 @@ module Syskit
 
             def as_plan; to_instance_requirements.as_plan end
 
-            def each_fullfilled_model; [device_model].each(&proc) end
+            def each_fullfilled_model(&block)
+                device_model.each_fullfilled_model(&block)
+            end
 
             DRoby = Struct.new :name, :device_model, :driver_model do
                 def proxy(peer)
