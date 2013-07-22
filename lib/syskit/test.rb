@@ -250,6 +250,17 @@ module Syskit
             def instanciate_component(model)
                 model.instanciate(plan, DependencyInjectionContext.new)
             end
+
+            def assert_raises(exception, &block)
+                super(exception) do
+                    begin
+                        yield
+                    rescue Exception => e
+                        PP.pp(e, "")
+                        raise
+                    end
+                end
+            end
         end
 
     module SelfTest
