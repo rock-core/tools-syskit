@@ -55,6 +55,13 @@ module Syskit
             if out_port == self
                 if in_port.respond_to?(:to_component_port)
                     in_port = in_port.to_component_port
+                    if !out_port.output?
+                        raise WrongPortConnectionDirection.new(self, in_port), "cannot connect #{out_port} to #{in_port}: #{out_port} is not an output port"
+                    elsif !in_port.input?
+                        raise WrongPortConnectionDirection.new(self, in_port), "cannot connect #{out_port} to #{in_port}: #{in_port} is not an input port"
+                    elsif out_port.component == in_port.component
+                        raise SelfConnection.new(out_port, in_port), "cannot connect #{out_port} to #{in_port}: they are both ports of the same component"
+                    end
                     component.connect_ports(in_port.component, [out_port.name, in_port.name] => policy)
                 else
                     Syskit.connect self, in_port, policy
@@ -68,6 +75,13 @@ module Syskit
         def new_sample
             model.new_sample
         end
+
+        # @return [Boolean] true if this is an output port, false otherwise.
+        #   The default implementation returns false
+        def output?; false end
+        # @return [Boolean] true if this is an input port, false otherwise.
+        #   The default implementation returns false
+        def input?; false end
     end
 
     class InputPort < Port
@@ -92,6 +106,8 @@ module Syskit
             end
             self
         end
+
+        def input?; true end
     end
 
     class OutputPort < Port
@@ -120,6 +136,8 @@ module Syskit
             end
             self
         end
+
+        def output?; true end
     end
 
     # A data source for a port attached to a component

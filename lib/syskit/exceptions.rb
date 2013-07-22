@@ -705,6 +705,34 @@ module Syskit
             end
         end
 
+        # Exception raised when a connection is being created with mismatching
+        # ports (i.e. not input -> output)
+        class WrongPortConnectionDirection < RuntimeError
+            attr_reader :source, :sink
+            def initialize(source, sink)
+                @source = source
+                @sink = sink
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot connect #{source} to #{sink}: this is not an output-to-input connection"
+            end
+        end
+
+        # Exception raised when a connection is being created between two ports
+        # of the same component
+        class SelfConnection < RuntimeError
+            attr_reader :source, :sink
+            def initialize(source, sink)
+                @source = source
+                @sink = sink
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot connect #{source} to #{sink}: they are ports of the same component"
+            end
+        end
+
         # Exception raised when port mappings cannot be computed because two
         # source ports have the same name
         class AmbiguousPortMappings < Ambiguous
