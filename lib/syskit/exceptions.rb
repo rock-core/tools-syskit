@@ -156,7 +156,7 @@ module Syskit
                 pp.nest(2) do
                     pp.breakable
                     pp.seplist(candidates) do |service|
-                        pp.text service.full_name
+                        pp.text(service.name || service.to_s)
                     end
                 end
             end
