@@ -443,7 +443,7 @@ module Syskit
                     has_free_deployment = possible_deployments.any? { |_, _, _, existing| existing.empty? }
                     pp.breakable
                     if has_free_deployment
-                        pp.text "#{task}: multiple possible deployments, choose one with #use_deployments"
+                        pp.text "#{task}: multiple possible deployments, choose one with #use_deployments(deployed_task_name)"
                     elsif possible_deployments.empty?
                         pp.text "#{task}: no deployments available"
                     else
