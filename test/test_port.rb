@@ -1,6 +1,6 @@
 require 'syskit/test'
 
-describe Syskit::Models::Port do
+describe Syskit::Port do
     include Syskit::SelfTest
 
     describe "#to_component_port" do
