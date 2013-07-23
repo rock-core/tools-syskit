@@ -145,7 +145,10 @@ module Syskit
             def update_restart_set(set, source_task, sink_task, mappings)
                 if !set.include?(source_task)
                     needs_restart = mappings.any? do |source_port, sink_port|
-                        source_task.running? && source_task.model.find_output_port(source_port).static?
+                        begin
+                            source_task.running? && source_task.model.find_output_port(source_port).static?
+                        rescue Orocos::ComError
+                        end
                     end
                     if needs_restart
                         set << source_task
@@ -157,7 +160,6 @@ module Syskit
                         begin
                             sink_task.running? && sink_task.model.find_input_port(sink_port).static?
                         rescue Orocos::ComError
-                            true
                         end
                     end
 
