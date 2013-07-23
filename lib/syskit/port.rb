@@ -82,6 +82,10 @@ module Syskit
         # @return [Boolean] true if this is an input port, false otherwise.
         #   The default implementation returns false
         def input?; false end
+
+        def to_s
+            "#{component}.#{name}"
+        end
     end
 
     class InputPort < Port
