@@ -123,6 +123,7 @@ module Syskit
                 Roby.app.search_path.clear
                 @task_stubs = Array.new
 
+                @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
                 @old_loglevel = Orocos.logger.level
                 Roby.app.using 'syskit'
                 Roby.app.filter_backtraces = false
