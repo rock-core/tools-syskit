@@ -146,7 +146,7 @@ module Syskit
                 if !set.include?(source_task)
                     needs_restart = mappings.any? do |source_port, sink_port|
                         begin
-                            source_task.running? && source_task.model.find_output_port(source_port).static?
+                            source_task.model.find_output_port(source_port).static? && source_task.running?
                         rescue Orocos::ComError
                         end
                     end
@@ -158,7 +158,7 @@ module Syskit
                 if !set.include?(sink_task)
                     needs_restart =  mappings.any? do |source_port, sink_port|
                         begin
-                            sink_task.running? && sink_task.model.find_input_port(sink_port).static?
+                            sink_task.model.find_input_port(sink_port).static? && sink_task.running?
                         rescue Orocos::ComError
                         end
                     end
