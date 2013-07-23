@@ -541,25 +541,34 @@ describe Syskit::NetworkGeneration::Engine do
     end
 
     describe "#allocate_devices" do
-        attr_reader :dev_m, :task_m, :device, :task
+        attr_reader :dev_m, :task_m, :cmp_m, :device, :cmp, :task
         before do
             dev_m = @dev_m = Syskit::Device.new_submodel :name => 'Driver'
             @task_m = Syskit::TaskContext.new_submodel(:name => 'Task') { driver_for dev_m, :as => 'driver' }
+            @cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, :as => 'test'
             @device = robot.device dev_m, :as => 'd'
-            @task = task_m.new
+            @cmp = cmp_m.instanciate(plan)
+            @task = cmp.test_child
         end
-        it "sets missing devices from the selections in the given context" do
+        it "sets missing devices from its selections" do
             engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)
-            context = Syskit::DependencyInjectionContext.new(dev_m => device)
-            engine.allocate_devices(task, context)
+            task.requirements.selections.add(dev_m => device)
+            engine.allocate_devices(task)
+            assert_equal device, task.find_device_attached_to(task.driver_srv)
+        end
+        it "sets missing devices from the selections in its parent(s)" do
+            engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)
+            cmp.requirements.merge(cmp_m.use(dev_m => device))
+            engine.allocate_devices(task)
             assert_equal device, task.find_device_attached_to(task.driver_srv)
         end
         it "does not override already set devices" do
             dev2 = robot.device dev_m, :as => 'd2'
             task.arguments['driver_dev'] = dev2
+            cmp.requirements.merge(cmp_m.use(dev_m => device))
             engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)
-            context = Syskit::DependencyInjectionContext.new(dev_m => device)
-            engine.allocate_devices(task, context)
+            engine.allocate_devices(task)
             assert_equal dev2, task.find_device_attached_to(task.driver_srv)
         end
     end
