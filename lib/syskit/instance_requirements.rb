@@ -398,7 +398,7 @@ module Syskit
                 end
 
                 context = log_nest(4) do
-                    selection = self.selections.dup
+                    selection = self.resolved_dependency_injection.current_state.dup
                     selection.remove_unresolved
                     DependencyInjectionContext.new(selection)
                 end

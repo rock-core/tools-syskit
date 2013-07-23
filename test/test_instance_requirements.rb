@@ -258,5 +258,28 @@ describe Syskit::InstanceRequirements do
             assert_equal srv, instanciated.model
         end
     end
+
+    describe "#narrow_model" do
+        attr_reader :srv_m, :task_m, :cmp_m
+        before do
+            srv_m = @srv_m = Syskit::DataService.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, :as => 'test'
+                
+
+            @cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, :as => 'test0'
+            cmp_m.specialize cmp_m.test0_child => task_m do
+                add srv_m, :as => 'test1'
+            end
+        end
+
+        it "applies the complete context to compute the narrowed model" do
+            di = Syskit::InstanceRequirements.new([cmp_m])
+            di.dependency_injection_context.push(Syskit::DependencyInjection.new('test0' => task_m))
+            model = di.narrow_model
+            assert model.is_specialization?
+        end
+    end
 end
 
