@@ -165,7 +165,7 @@ module Syskit
                 Models.debug do
                     Models.debug "added child #{name} to #{short_name}"
                     Models.debug "  with models #{result.models.map(&:short_name).join(", ")}"
-                    if !parent_model.models.empty?
+                    if parent_model && !parent_model.models.empty?
                         Models.debug "  updated from #{parent_model.models.map(&:short_name).join(", ")}"
                     end
                     if !result.port_mappings.empty?
@@ -190,11 +190,14 @@ module Syskit
             # The only (important) difference is that it checks that +name+ is
             # indeed an existing child, and allows people that read the
             # composition model to understand the intent
-            def overload(name, model, options = Hash.new)
-                if !find_child(name)
-                    raise ArgumentError, "#{name} is not an existing child of #{short_name}"
+            def overload(child, model, options = Hash.new)
+                if child.respond_to?(:child_name)
+                    child = child.child_name
                 end
-                add(model, options.merge(:as => name))
+                if !find_child(child)
+                    raise ArgumentError, "#{child} is not an existing child of #{short_name}"
+                end
+                add(model, options.merge(:as => child))
             end
 
             # Add an element in this composition.

@@ -164,6 +164,7 @@ module Syskit
                 Roby.app.search_path.clear
                 @task_stubs = Array.new
 
+                @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
                 @old_loglevel = Orocos.logger.level
                 Roby.app.using 'syskit'
                 Roby.app.filter_backtraces = false
@@ -298,6 +299,17 @@ module Syskit
 
             def instanciate_component(model)
                 model.instanciate(plan, DependencyInjectionContext.new)
+            end
+
+            def assert_raises(exception, &block)
+                super(exception) do
+                    begin
+                        yield
+                    rescue Exception => e
+                        PP.pp(e, "")
+                        raise
+                    end
+                end
             end
         end
 

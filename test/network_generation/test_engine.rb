@@ -85,6 +85,21 @@ describe Syskit::NetworkGeneration::Engine do
             syskit_engine.instanciate
             assert_equal [true, true], syskit_engine.toplevel_tasks[instanciated_task]
         end
+        it "allocates devices using the task instance requirement information" do
+            dev_m = Syskit::Device.new_submodel
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add simple_task_model, :as => 'test'
+            simple_task_model.driver_for dev_m, :as => 'device'
+            device = robot.device dev_m, :as => 'test'
+            requirements = cmp_m.use(device)
+
+            original_task = requirements.as_plan
+            plan.add_permanent(original_task)
+            original_task.planning_task.start!
+            syskit_engine.instanciate
+            cmp = syskit_engine.required_instances[original_task.planning_task]
+            assert_equal device, cmp.test_child.device_dev
+        end
     end
 
     describe "#fix_toplevel_tasks" do

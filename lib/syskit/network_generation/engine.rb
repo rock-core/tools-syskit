@@ -315,20 +315,34 @@ module Syskit
                 main_selection
             end
 
-            # Given a task and a DI context, autoselect devices when possible
-            def allocate_devices(task, context)
+            def find_selected_device_in_hierarchy(argument_name, leaf_task, requirements)
+                _, model, _ = leaf_task.requirements.resolved_dependency_injection.selection_for(nil, requirements)
+                if model && dev = model.arguments[argument_name]
+                    return dev
+                else
+                    devices = Set.new
+                    leaf_task.each_parent_task do |parent|
+                        if sel = find_selected_device_in_hierarchy(argument_name, parent, requirements)
+                            devices << sel
+                        end
+                    end
+                    if devices.size == 1
+                        return devices.first
+                    end
+                end
+            end
+
+            # Try to autoallocate the devices in +task+ based on the information
+            # in the instance requirements in the task's hierarchy
+            def allocate_devices(task)
                 Engine.debug do
                     Engine.debug "allocating devices on #{task} using"
-                    Engine.log_nest(2) do
-                        Engine.log_pp :debug, context
-                    end
                     break
                 end
                     
                 task.model.each_master_driver_service do |srv|
                     next if task.find_device_attached_to(srv)
-                    _, model, _ = context.selection_for(nil, srv.model.to_instance_requirements)
-                    if dev = model.arguments["#{srv.name}_dev"]
+                    if dev = find_selected_device_in_hierarchy("#{srv.name}_dev", task, srv.model.to_instance_requirements)
                         Engine.debug do
                             Engine.debug "  selected #{dev} for #{srv.name}"
                         end
@@ -371,11 +385,10 @@ module Syskit
                     task.fullfilled_model = req.fullfilled_model
                     required_instances[req_task] = task
                     add_toplevel_task(task, real_plan.mission?(real_plan_task), real_plan.permanent?(real_plan_task))
-
-                    task.generated_subgraph(Roby::TaskStructure::Dependency).each do |task|
-                        if task.respond_to?(:each_master_driver_service)
-                            allocate_devices(task, req.dependency_injection_context)
-                        end
+                end
+                work_plan.each_task do |task|
+                    if task.respond_to?(:each_master_driver_service)
+                        allocate_devices(task)
                     end
                 end
             end

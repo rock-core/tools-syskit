@@ -69,6 +69,14 @@ module Syskit
                 if out_port == self
                     if in_port.respond_to?(:to_component_port)
                         in_port = in_port.to_component_port
+                        if !out_port.output?
+                            raise WrongPortConnectionDirection.new(self, in_port), "cannot connect #{out_port} to #{in_port}: #{out_port} is not an output port"
+                        elsif !in_port.input?
+                            raise WrongPortConnectionDirection.new(self, in_port), "cannot connect #{out_port} to #{in_port}: #{in_port} is not an input port"
+                        elsif out_port.component_model == in_port.component_model
+                            raise SelfConnection.new(out_port, in_port), "cannot connect #{out_port} to #{in_port}: they are both ports of the same component"
+                        end
+
                         component_model.connect_ports(in_port.component_model, [out_port.name, in_port.name] => policy)
                     else
                         Syskit.connect self, in_port, policy
@@ -140,6 +148,12 @@ module Syskit
                 bind(context).to_data_source
             end
             
+            # @return [Boolean] true if this is an output port, false otherwise.
+            #   The default implementation returns false
+            def output?; false end
+            # @return [Boolean] true if this is an input port, false otherwise.
+            #   The default implementation returns false
+            def input?; false end
         end
 
         class OutputPort < Port
@@ -158,6 +172,8 @@ module Syskit
             def bind(component)
                 Syskit::OutputPort.new(self, component_model.bind(component))
             end
+
+            def output?; true end
 
             def reader(policy = Hash.new)
                 OutputReader.new(self, policy)
@@ -179,6 +195,8 @@ module Syskit
             def writer(policy = Hash.new)
                 InputWriter.new(self, policy)
             end
+
+            def input?; true end
         end
         
         class OutputReader

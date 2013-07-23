@@ -13,6 +13,14 @@ describe Syskit::Robot::MasterDeviceInstance do
         @device = robot.device device_m, :as => 'dev'
     end
 
+    describe "#each_fullfilled_model" do
+        it "should enumerate the device's device type model as well as the submodels it provides" do
+            srv_m = Syskit::DataService.new_submodel
+            device_m.provides srv_m
+            assert_equal [device_m, srv_m, Syskit::Device, Syskit::DataService], device.each_fullfilled_model.to_a
+        end
+    end
+
     describe "combus attachment" do
         attr_reader :combus_m, :device_m, :driver_m
         attr_reader :robot, :bus, :dev
@@ -85,4 +93,30 @@ describe Syskit::Robot::MasterDeviceInstance do
             assert_same obj, device.slave_dev
         end
     end
+end
+
+describe Syskit::Robot::SlaveDeviceInstance do
+    include Syskit::SelfTest
+
+    attr_reader :task_m, :device_m, :slave_m
+    attr_reader :device, :slave_device
+    before do
+        device_m = @device_m = Syskit::Device.new_submodel
+        slave_m = @slave_m = Syskit::DataService.new_submodel
+        @task_m = Syskit::TaskContext.new_submodel do
+            driver_for device_m, :as => 'driver'
+            provides slave_m, :as => 'slave', :slave_of => 'driver'
+        end
+        @device = robot.device device_m, :as => 'dev'
+        @slave_device = device.slave('slave')
+    end
+
+    describe "#each_fullfilled_model" do
+        it "should enumerate the device's device type model as well as the submodels it provides" do
+            srv_m = Syskit::DataService.new_submodel
+            slave_m.provides srv_m
+            assert_equal [slave_m, srv_m, Syskit::DataService], slave_device.each_fullfilled_model.to_a
+        end
+    end
+
 end

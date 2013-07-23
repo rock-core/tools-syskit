@@ -398,7 +398,7 @@ module Syskit
                 end
 
                 context = log_nest(4) do
-                    selection = self.selections.dup
+                    selection = self.resolved_dependency_injection.current_state.dup
                     selection.remove_unresolved
                     DependencyInjectionContext.new(selection)
                 end
@@ -450,6 +450,14 @@ module Syskit
                     models.first
                 else Syskit.proxy_task_model_for(models)
                 end
+            end
+
+            # Returns the DI context used by this instance requirements task
+            def resolved_dependency_injection
+                context = DependencyInjectionContext.new
+                context.concat(dependency_injection_context)
+                context.push(selections)
+                context
             end
 
             # Create a concrete task for this requirement

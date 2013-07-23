@@ -54,7 +54,6 @@ module Syskit
 
                 @permanent = permanent
                 @instance_txt.text = arguments
-                compute
             end
 
             def create_toolbar

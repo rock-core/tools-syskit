@@ -95,7 +95,7 @@ module Syskit
                 if !req
                     raise ArgumentError, "#{self} has no definition called #{name}"
                 end
-                req
+                req.dup
             end
 
             # Returns the instance requirement object that represents the given

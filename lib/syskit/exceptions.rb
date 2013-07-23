@@ -156,7 +156,7 @@ module Syskit
                 pp.nest(2) do
                     pp.breakable
                     pp.seplist(candidates) do |service|
-                        pp.text service.full_name
+                        pp.text(service.name || service.to_s)
                     end
                 end
             end
@@ -443,7 +443,7 @@ module Syskit
                     has_free_deployment = possible_deployments.any? { |_, _, _, existing| existing.empty? }
                     pp.breakable
                     if has_free_deployment
-                        pp.text "#{task}: multiple possible deployments, choose one with #use_deployments"
+                        pp.text "#{task}: multiple possible deployments, choose one with #use_deployments(deployed_task_name)"
                     elsif possible_deployments.empty?
                         pp.text "#{task}: no deployments available"
                     else
@@ -702,6 +702,34 @@ module Syskit
             
             def pretty_print(pp)
                 pp.text "models #{model_a.short_name} and #{model_b.short_name} are incompatible"
+            end
+        end
+
+        # Exception raised when a connection is being created with mismatching
+        # ports (i.e. not input -> output)
+        class WrongPortConnectionDirection < RuntimeError
+            attr_reader :source, :sink
+            def initialize(source, sink)
+                @source = source
+                @sink = sink
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot connect #{source} to #{sink}: this is not an output-to-input connection"
+            end
+        end
+
+        # Exception raised when a connection is being created between two ports
+        # of the same component
+        class SelfConnection < RuntimeError
+            attr_reader :source, :sink
+            def initialize(source, sink)
+                @source = source
+                @sink = sink
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot connect #{source} to #{sink}: they are ports of the same component"
             end
         end
 
