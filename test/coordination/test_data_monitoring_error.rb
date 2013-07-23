@@ -2,6 +2,7 @@ require 'syskit/test'
 require 'stringio'
 
 describe Syskit::Coordination::DataMonitor do
+    include Syskit::SelfTest
     describe "#pretty_print" do
         it "does not raise" do
             monitor = Syskit::Coordination::DataMonitoringError.

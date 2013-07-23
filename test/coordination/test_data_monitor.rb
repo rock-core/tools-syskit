@@ -1,6 +1,7 @@
 require 'syskit/test'
 
 describe Syskit::Coordination::DataMonitor do
+    include Syskit::SelfTest
     describe "#poll" do
         class StreamStub < Array
             def read_new
