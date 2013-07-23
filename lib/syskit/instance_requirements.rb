@@ -636,7 +636,7 @@ module Syskit
                     if port = find_port(port_name)
                         return port
                     end
-                    raise NoMethodError, "no port called #{port_name} in any of #{models.map(&:short_name).short.join(", ")}"
+                    raise NoMethodError, "no port called #{port_name} in any of #{models.map(&:short_name).sort.join(", ")}"
                 end
                 super(method.to_sym, *args)
             end
