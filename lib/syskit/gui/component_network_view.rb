@@ -69,7 +69,7 @@ module Syskit
                 disconnect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
             end
 
-            def render(model, options = Hash.new)
+            def render(model, render_options = Hash.new)
                 super
 
                 plan.clear
@@ -82,10 +82,22 @@ module Syskit
                             else raise
                             end
                         end
-                render_plan
+                render_plan(render_options)
             end
 
-            def render_plan
+            def render_plan(options = Hash.new)
+                options = Kernel.validate_options options, :interactive => true
+
+                hierarchy_options = self.hierarchy_options.dup
+                dataflow_options = self.dataflow_options.dup
+                if !options[:interactive]
+                    hierarchy_options.delete(:buttons)
+                    dataflow_options.delete(:buttons)
+                    Syskit::Graphviz.available_annotations.sort.each do |ann_name|
+                        dataflow_options[:annotations] << ann_name
+                    end
+                end
+
                 page.push_plan('Task Dependency Hierarchy', 'hierarchy', plan, hierarchy_options)
                 page.push_plan('Dataflow', 'dataflow', plan, dataflow_options)
                 emit updated

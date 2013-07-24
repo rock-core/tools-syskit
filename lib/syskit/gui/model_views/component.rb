@@ -4,7 +4,7 @@ module Syskit::GUI
         # Visualization of a single component model. It is used to visualize the
         # taks contexts and data services
         class Component < ComponentNetworkBaseView
-            def render(model)
+            def render(model, options = Hash.new)
                 super
 
                 task = instanciate_model(model)

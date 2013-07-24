@@ -10,7 +10,7 @@ module Syskit::GUI
                 @orogen_rendering = Orocos::HTML::TaskContext.new(page)
             end
 
-            def render(model)
+            def render(model, options = Hash.new)
                 task_model_view.render(model)
                 super
 

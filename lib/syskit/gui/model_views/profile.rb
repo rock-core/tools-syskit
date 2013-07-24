@@ -63,7 +63,7 @@ module Syskit::GUI
                 render_links(title, links)
             end
 
-            def render(model)
+            def render(model, options = Hash.new)
                 html = []
                 if file = ComponentNetworkBaseView.find_definition_place(model)
                     html <<  "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>"
