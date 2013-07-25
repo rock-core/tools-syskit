@@ -51,11 +51,11 @@ module Syskit
                 hierarchy_options[:buttons] = buttons
             end
 
-            def render(model, render_options = Hash.new)
+            def render(model, options = Hash.new)
                 super
 
                 plan.clear
-                options = Kernel.validate_options options, :method => :instanciate_model
+                options, render_options = Kernel.filter_options options, :method => :instanciate_model
                 @task = begin send(options[:method], model, plan)
                         rescue Exception => e
                             if view_partial_plans? then
