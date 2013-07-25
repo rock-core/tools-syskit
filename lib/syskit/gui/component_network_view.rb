@@ -68,20 +68,16 @@ module Syskit
             end
 
             def render_plan(options = Hash.new)
-                options = Kernel.validate_options options, :interactive => true
+                all_annotations = Syskit::Graphviz.available_annotations.to_set
 
-                hierarchy_options = self.hierarchy_options.dup
-                dataflow_options = self.dataflow_options.dup
-                if !options[:interactive]
-                    hierarchy_options.delete(:buttons)
-                    dataflow_options.delete(:buttons)
-                    Syskit::Graphviz.available_annotations.sort.each do |ann_name|
-                        dataflow_options[:annotations] << ann_name
-                    end
-                end
+                specific_options, options = Kernel.filter_options options,
+                    :dataflow => Hash.new, :hierarchy => Hash.new
 
-                push_plan('hierarchy', plan)
-                push_plan('dataflow', plan)
+                hierarchy_options = options.merge(specific_options[:hierarchy])
+                push_plan('hierarchy', plan, hierarchy_options)
+                dataflow_options = Hash[:annotations => all_annotations].
+                    merge(options).merge(specific_options[:dataflow])
+                push_plan('dataflow', plan, dataflow_options)
                 emit updated
             end
         end

@@ -15,7 +15,8 @@ module Syskit
                     :buttons => [],
                     :id => id,
                     :zoom => 1,
-                    :mode => id
+                    :mode => id,
+                    :external_objects => nil
                 mode = view_options.delete(:mode)
 
                 svg_io = Tempfile.open(mode)
@@ -29,10 +30,16 @@ module Syskit
                     width, w_unit, height, h_unit = *match.captures
                     svg = match.pre_match + "svg width=\"#{(Float(width) * zoom * 0.6)}#{w_unit}\" height=\"#{(Float(height) * zoom * 0.6)}#{h_unit}\"" + match.post_match
                 end
-                push(title, svg, view_options)
+                if pattern = view_options.delete(:external_objects)
+                    file = pattern % view_options[:id] + ".svg"
+                    File.open(file, 'w') do |io|
+                        io.write(svg)
+                    end
+                    push(title, "<object data=\"#{file}\" type=\"image/svg+xml\"></object>", view_options)
+                else
+                    push(title, svg, view_options)
+                end
             rescue Exception => e
-                pp e
-                pp e.backtrace
                 Roby.app.register_exception(e)
                 emit :updated
             end

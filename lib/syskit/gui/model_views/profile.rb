@@ -41,55 +41,107 @@ module Syskit::GUI
             end
 
             def render_links(title, links)
-                "<div class=\"button_bar\"><em>#{title}:</em> #{links.map { |format, url, text| format % ["<a href=\"btn://#{url}\">#{text}</a>"] }.join(" / ")}</div>"
+                "<div class=\"button_bar\"><em>#{title}:</em> #{links.map { |_, format, url, text| format % ["<a href=\"#{url}\">#{text}</a>"] }.join(" / ")}</div>"
             end
 
-            def render_name_to_model_mapping(title, mapping, with_value)
-                links = mapping.keys.sort_by { |v| if v.respond_to?(:to_str) then v else html_model(v) end }.map do |key|
-                    model = mapping[key]
-                    if !key.respond_to?(:to_str)
-                        key = html_model(key)
-                    end
+            def element_link_target(object, interactive)
+                if interactive
+                    id =  "btn://metaruby/profiles/#{object.object_id}"
+                else
+                    id =  "##{object.object_id}"
+                end
+            end
 
-                    id =  "metaruby/profiles/#{model.object_id}"
+            def render_name_to_model_mapping(mapping, with_value, interactive = true)
+                keys = mapping.keys.map do |key|
+                    if !key.respond_to?(:to_str)
+                        [key, html_model(key)]
+                    else
+                        [key, key]
+                    end
+                end
+
+                links = keys.map do |key, key_text|
+                    model = mapping[key]
+                    id = element_link_target(model, interactive)
                     models[model.object_id] = model
                     if with_value
                         text = html_model(model)
-                        ["#{key} => %s", id, text]
+                        [model, "#{key_text} => %s", id, text]
                     else
-                        ["%s", id, key]
+                        [model, "%s", id, key_text]
                     end
                 end
-                render_links(title, links)
             end
 
-            def render(model, options = Hash.new)
-                html = []
-                if file = ComponentNetworkBaseView.find_definition_place(model)
-                    html <<  "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>"
-                end
-                html << render_name_to_model_mapping("Explicit selections", model.dependency_injection.explicit, true)
+            def compute_toplevel_links(model, options)
+                explicit_selections = render_name_to_model_mapping(
+                    model.dependency_injection.explicit,
+                    true, options[:interactive])
 
-                links = model.dependency_injection.defaults.map do |model|
+                default_selections = model.dependency_injection.defaults.map do |model|
                     text = html_model(model)
                     models[model.object_id] = model
-                    ["%s", "metaruby/profiles/#{model.object_id}", text]
+                    [model, "%s", element_link_target(model), text]
                 end
-                html << render_links("Default selections", links)
 
                 definitions = Hash.new
                 model.definitions.each_key do |name|
                     definitions[name] = model.resolved_definition(name)
                 end
-                html << render_name_to_model_mapping("Definitions", definitions, false)
+                definitions = render_name_to_model_mapping(
+                    definitions, false, options[:interactive])
+
                 devices = Hash.new
                 model.robot.each_device do |dev|
                     req = dev.to_instance_requirements
                     model.inject_di_context(req)
                     devices[dev.name] = req
                 end
-                html << render_name_to_model_mapping("Devices", devices, false)
+                devices = render_name_to_model_mapping(
+                    devices, false, options[:interactive])
+
+                return explicit_selections, default_selections, definitions, devices
+            end
+
+
+            def render(model, options = Hash.new)
+                options, push_options = Kernel.filter_options options, :interactive => true
+
+                explicit_selections, default_selections, definitions, devices =
+                    compute_toplevel_links(model, options)
+
+                html = []
+                if file = ComponentNetworkBaseView.find_definition_place(model)
+                    html <<  "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>"
+                end
+                html << render_links("Explicit Selection", explicit_selections)
+                html << render_links("Default selections", default_selections)
+                html << render_links("Definitions", definitions)
+                html << render_links("Devices", devices)
                 page.push(nil, html.join("\n"))
+
+                if !options[:interactive]
+                    render_all_elements(explicit_selections + default_selections + definitions + devices, options.merge(push_options))
+                end
+            end
+
+            def render_all_elements(all, options)
+                all.each do |model, format, url, text|
+                    page.push(nil, "<h1 id=#{model.object_id}>#{format % text}</h1>")
+
+                    dataflow_options  = Hash[:id => "dataflow-#{model.object_id}"]
+                    hierarchy_options = Hash[:id => "hierarchy-#{model.object_id}"]
+                    if external_objects = options.delete(:external_objects)
+                        model_file_suffix = (format % text).gsub(/[^\w]/, "_")
+                        dataflow_options[:external_objects] = external_objects % "dataflow-#{model_file_suffix}"
+                        hierarchy_options[:external_objects] = external_objects % "hierarchy-#{model_file_suffix}"
+                    end
+
+                    render_network(model,
+                                   options.merge(:dataflow => dataflow_options, :hierarchy => hierarchy_options)
+                                  )
+                end
             end
 
             def linkClicked(url)
@@ -100,10 +152,10 @@ module Syskit::GUI
             end
             slots 'linkClicked(const QUrl&)'
 
-            def render_network(spec)
+            def render_network(spec, options = Hash.new)
                 return if spec.respond_to?(:to_str)
                 spec = spec.to_instance_requirements
-                network_renderer.render(spec, :method => instanciation_method)
+                network_renderer.render(spec, Hash[:method => instanciation_method].merge(options))
                 emit updated
             rescue ::Exception => e
                 Roby.app.register_exception(e)

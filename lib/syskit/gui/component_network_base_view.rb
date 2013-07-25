@@ -208,10 +208,14 @@ module Syskit
 
             signals 'updated()'
 
-            def push_plan(id, plan)
+            def push_plan(id, plan, options = Hash.new)
+                options, push_options = Kernel.filter_options options, :interactive => true
                 config = send("#{id}_options").dup
+                if !options[:interactive]
+                    config.delete(:buttons)
+                end
                 title = config.delete(:title)
-                page.push_plan(title, id, plan, config)
+                page.push_plan(title, id, plan, config.merge(push_options))
             end
         end
     end

@@ -22,7 +22,7 @@ module Syskit::GUI
                 task = instanciate_model(model)
                 @plan = task.plan
 
-                push_plan('interface', task.plan)
+                push_plan('interface', task.plan, options)
                 render_data_services(task)
             end
         end
