@@ -10,11 +10,13 @@ module Syskit
             end
 
             # Adds a PlanDisplay widget with the given title and parameters
-            def push_plan(title, mode, plan, options)
+            def push_plan(title, id, plan, options)
                 view_options, options = Kernel.filter_options options,
                     :buttons => [],
-                    :id => nil,
-                    :zoom => 1
+                    :id => id,
+                    :zoom => 1,
+                    :mode => id
+                mode = view_options.delete(:mode)
 
                 svg_io = Tempfile.open(mode)
                 Syskit::Graphviz.new(plan, self).

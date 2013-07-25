@@ -8,6 +8,12 @@ module Syskit::GUI
                 super(page)
                 @task_model_view = Roby::GUI::ModelViews::Task.new(page)
                 @orogen_rendering = Orocos::HTML::TaskContext.new(page)
+                buttons = Array.new
+                buttons.concat(self.class.common_graph_buttons('interface'))
+                Syskit::Graphviz.available_task_annotations.sort.each do |ann_name|
+                    interface_options[:annotations] << ann_name
+                end
+                interface_options[:buttons] = buttons
             end
 
             def render(model, options = Hash.new)
@@ -16,10 +22,6 @@ module Syskit::GUI
 
                 page.push("oroGen Model", "<p><b>oroGen name:</b> #{model.orogen_model.name}</p>")
                 orogen_rendering.render(model.orogen_model)
-            end
-
-            def plan_display_options
-                Hash[:remove_compositions => nil, :annotations => ['task_info', 'port_details'].to_set]
             end
         end
     end

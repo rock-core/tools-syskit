@@ -4,6 +4,33 @@ module Syskit
         class ComponentNetworkBaseView < Qt::Object
             attr_reader :current_model
             attr_reader :page
+            # The last generated plan
+            attr_reader :plan
+
+            Button = MetaRuby::GUI::HTML::Button
+
+            def self.make_annotation_buttons(namespace, annotations, defaults)
+                annotations.sort.map do |ann_name|
+                    Button.new("#{namespace}/annotations/#{ann_name}",
+                               :on_text => "Show #{ann_name}",
+                               :off_text => "Hide #{ann_name}",
+                               :state => defaults.include?(ann_name))
+                end
+            end
+
+            def self.common_graph_buttons(namespace)
+                [Button.new("#{namespace}/zoom", :text => "Zoom +"),
+                 Button.new("#{namespace}/unzoom", :text => "Zoom -"),
+                 Button.new("#{namespace}/save", :text => "Save SVG")]
+            end
+
+            def self.task_annotation_buttons(namespace, defaults)
+                make_annotation_buttons(namespace, Graphviz.available_task_annotations, defaults)
+            end
+
+            def self.graph_annotation_buttons(namespace, defaults)
+                make_annotation_buttons(namespace, Graphviz.available_graph_annotations, defaults)
+            end
 
             def initialize(page)
                 super()
@@ -11,9 +38,11 @@ module Syskit
             end
 
             def enable
+                connect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
             end
 
             def disable
+                disconnect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
             end
 
             DATA_SERVICE_WITHOUT_NAMES_TEMPLATE = <<-EOD
@@ -137,7 +166,53 @@ module Syskit
                 @current_model = model
             end
 
+            def save_svg(id)
+                page.fragments.each do |f|
+                    if f.id == id
+                        file_name = Qt::FileDialog::getSaveFileName @parent, 
+                            "Save #{id} as SVG", ".", "SVG (*.svg)"
+                        if file_name
+                            File.open(file_name,"w") do |file|
+                                file.write f.html
+                            end
+                        end
+                    end
+                end
+            end
+
+            def buttonClicked(button_id, new_state)
+                button_id =~ /\/(\w+)(.*)/
+                namespace, button_id = $1, $2
+                config = send("#{namespace}_options")
+                case button_id
+                when /\/show_compositions/
+                    config[:remove_compositions] = !new_state
+                when /\/zoom/
+                    config[:zoom] += 0.1
+                when /\/unzoom/
+                    if config[:zoom] > 0.1
+                        config[:zoom] -= 0.1
+                    end
+                when /\/save/
+                    save_svg namespace
+                when  /\/annotations\/(\w+)/
+                    ann_name = $1
+                    if new_state then config[:annotations] << ann_name
+                    else config[:annotations].delete(ann_name)
+                    end
+                end
+                push_plan(namespace, plan)
+                emit updated
+            end
+            slots 'buttonClicked(const QString&,bool)'
+
             signals 'updated()'
+
+            def push_plan(id, plan)
+                config = send("#{id}_options").dup
+                title = config.delete(:title)
+                page.push_plan(title, id, plan, config)
+            end
         end
     end
 end

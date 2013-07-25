@@ -18,11 +18,14 @@ module Syskit
                 @plan = Roby::Plan.new
 
                 @hierarchy_options = Hash[
+                    :title => 'Task Dependency Hierarchy',
                     :id => 'hierarchy',
                     :remove_compositions => false,
-                    :annotations => ['task_info', 'port_details'].to_set
+                    :annotations => ['task_info', 'port_details'].to_set,
+                    :zoom => 1
                 ]
                 @dataflow_options = Hash[
+                    :title => 'Dataflow',
                     :id => 'dataflow',
                     :remove_compositions => false,
                     :annotations => ['task_info'].to_set,
@@ -30,43 +33,22 @@ module Syskit
                 ]
 
                 buttons = []
-                buttons << MetaRuby::GUI::HTML::Button.new("dataflow/show_compositions",
-                                                           :on_text => 'Show compositions',
-                                                           :off_text => 'Hide compositions',
-                                                           :state => !dataflow_options[:remove_compositions])
-                buttons << MetaRuby::GUI::HTML::Button.new("dataflow/zoom",
-                                                           :on_text => "Zoom +",
-                                                           :off_text => "Zoom +",
-                                                           :state => true)
-                buttons << MetaRuby::GUI::HTML::Button.new("dataflow/unzoom",
-                                                           :on_text => "Zoom -",
-                                                           :off_text => "Zoom -",
-                                                           :state => true)
-                buttons << MetaRuby::GUI::HTML::Button.new("dataflow/save",
-                                                           :on_text => "Save svg",
-                                                           :off_text => "Save svg",
-                                                           :state => true)
-                Syskit::Graphviz.available_annotations.sort.each do |ann_name|
-                    buttons << MetaRuby::GUI::HTML::Button.new("annotations/#{ann_name}",
-                                                :on_text => "Show #{ann_name}",
-                                                :off_text => "Hide #{ann_name}",
-                                                :state => dataflow_options[:annotations].include?(ann_name))
-                end
+                buttons << Button.new("dataflow/show_compositions",
+                                      :on_text => 'Show compositions',
+                                      :off_text => 'Hide compositions',
+                                      :state => !dataflow_options[:remove_compositions])
+                buttons << Button.new("dataflow/show_loggers",
+                                      :on_text => 'Show loggers',
+                                      :off_text => 'Hide loggers',
+                                      :state => !dataflow_options[:remove_loggers])
+                buttons.concat(self.class.common_graph_buttons('dataflow'))
+                buttons.concat(self.class.task_annotation_buttons('dataflow', dataflow_options[:annotations]))
+                buttons.concat(self.class.graph_annotation_buttons('dataflow', dataflow_options[:annotations]))
                 dataflow_options[:buttons] = buttons
+
                 buttons = []
-                buttons << MetaRuby::GUI::HTML::Button.new("hierarchy/save",
-                                                           :on_text => "Save svg",
-                                                           :off_text => "Save svg",
-                                                           :state => true)
+                buttons.concat(self.class.common_graph_buttons('hierarchy'))
                 hierarchy_options[:buttons] = buttons
-            end
-
-            def enable
-                connect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
-            end
-
-            def disable
-                disconnect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
             end
 
             def render(model, render_options = Hash.new)
@@ -98,50 +80,10 @@ module Syskit
                     end
                 end
 
-                page.push_plan('Task Dependency Hierarchy', 'hierarchy', plan, hierarchy_options)
-                page.push_plan('Dataflow', 'dataflow', plan, dataflow_options)
+                push_plan('hierarchy', plan)
+                push_plan('dataflow', plan)
                 emit updated
             end
-
-            def save_svg title
-                page.fragments.each do |f|
-                    if f.title == title
-                        file_name = Qt::FileDialog::getSaveFileName @parent, 
-                            "Save #{title} as SVG", ".", "SVG (*.svg)"
-                        if file_name
-                            File.open(file_name,"w") do |file|
-                                file.write f.html
-                            end
-                        end
-                    end
-                end
-            end
-
-            def buttonClicked(button_id, new_state)
-                case button_id
-                when /\/dataflow\/show_compositions/
-                    dataflow_options[:remove_compositions] = !new_state
-                when /\/dataflow\/zoom/
-                    dataflow_options[:zoom] += 0.1
-                when /\/dataflow\/unzoom/
-                    if dataflow_options[:zoom] > 0.1
-                        dataflow_options[:zoom] -= 0.1
-                    end
-                    dataflow_options[:remove_compositions] = !new_state
-                when /\/dataflow\/save/
-                    save_svg "Dataflow"
-                when /\/hierarchy\/save/
-                    save_svg "Task Dependency Hierarchy"
-                when  /\/annotations\/(\w+)/
-                    ann_name = $1
-                    if new_state then dataflow_options[:annotations] << ann_name
-                    else dataflow_options[:annotations].delete(ann_name)
-                    end
-                end
-                page.push_plan('Dataflow', 'dataflow', plan, dataflow_options)
-                emit updated
-            end
-            slots 'buttonClicked(const QString&,bool)'
         end
     end
 end

@@ -46,6 +46,17 @@ module Syskit
             # @return [#link_to(object[, text])]
             attr_reader :page
 
+            class << self
+                # @return [Set<String>] set of annotation names that make sense
+                #   for a task alone
+                attr_reader :available_task_annotations
+                # @return [Set<String>] set of annotation names that make sense
+                #   only for tasks that are part of a graph
+                attr_reader :available_graph_annotations
+            end
+            @available_task_annotations = Set.new
+            @available_graph_annotations = Set.new
+
             class DummyPage
                 def link_to(obj, text = nil)
                     if text then text
@@ -310,6 +321,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     end
                 end
             end
+            available_task_annotations << 'port_details'
 
             def add_task_info_annotations
                 plan.find_local_tasks(Component).each do |task|
@@ -317,6 +329,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     add_task_annotation(task, "Roles", task.roles.to_a.sort.join(", "))
                 end
             end
+            available_task_annotations << 'task_info'
 
             def add_connection_policy_annotations
                 plan.find_local_tasks(TaskContext).each do |source_task|
@@ -336,6 +349,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     end
                 end
             end
+            available_graph_annotations << 'connection_policy'
 
             def add_trigger_annotations
                 plan.find_local_tasks(TaskContext).each do |task|
@@ -355,6 +369,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     end
                 end
             end
+            available_graph_annotations << 'connection_policy'
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
