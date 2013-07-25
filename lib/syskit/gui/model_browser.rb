@@ -8,9 +8,9 @@ module Syskit
             AVAILABLE_VIEWS = [
                 View.new(Syskit::TaskContext, ModelViews::TaskContext, 'Task Contexts', 1),
                 View.new(Syskit::Composition, ModelViews::Composition, 'Compositions', 1),
-                View.new(Syskit::DataService, ModelViews::DataService, 'Data Services'),
-                View.new(Syskit::Actions::Profile, ModelViews::Profile, 'Profiles'),
-                View.new(Typelib::Type, ModelViews::Type, 'Types')
+                View.new(Syskit::DataService, ModelViews::DataService, 'Data Services', 0),
+                View.new(Syskit::Actions::Profile, ModelViews::Profile, 'Profiles', 0),
+                View.new(Typelib::Type, ModelViews::Type, 'Types', 0)
             ]
 
             def initialize(parent = nil)
