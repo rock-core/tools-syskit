@@ -51,7 +51,7 @@ module Syskit
             <tr><td>
               <%= provided_services.map do |srv_model, srv_port_mappings|
                     if srv_port_mappings.empty? 
-                        srv_model_name
+                        page.link_to(srv_model)
                     else
                         "\#{page.link_to(srv_model)}: \#{srv_port_mappings}"
                     end
