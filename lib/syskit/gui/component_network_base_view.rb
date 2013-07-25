@@ -49,11 +49,11 @@ module Syskit
             <table>
             <% services.each do |service_name, provided_services| %>
             <tr><td>
-              <%= provided_services.map do |srv_model_name, srv_port_mappings|
+              <%= provided_services.map do |srv_model, srv_port_mappings|
                     if srv_port_mappings.empty? 
                         srv_model_name
                     else
-                        "\#{srv_model_name}: \#{srv_port_mappings}"
+                        "\#{page.link_to(srv_model)}: \#{srv_port_mappings}"
                     end
                   end.join("</td></tr><tr><td>")
               %>
@@ -66,11 +66,11 @@ module Syskit
             <table>
             <% services.each do |service_name, provided_services| %>
             <tr><th><%= service_name %></th><td>
-              <%= provided_services.map do |srv_model_name, srv_port_mappings|
+              <%= provided_services.map do |srv_model, srv_port_mappings|
                     if srv_port_mappings.empty? 
-                        srv_model_name
+                        page.link_to(srv_model)
                     else
-                        "\#{srv_model_name}: \#{srv_port_mappings}"
+                        "\#{page.link_to(srv_model)}: \#{srv_port_mappings}"
                     end
                   end.join("</td></tr><tr><td>&nbsp;</td><td>")
               %>
@@ -124,7 +124,7 @@ module Syskit
                         port_mappings.delete_if do |from, to|
                             from == to
                         end
-                        provided_services << [m.name, port_mappings]
+                        provided_services << [m, port_mappings]
                     end
                     services << [service_name, provided_services]
                 end
