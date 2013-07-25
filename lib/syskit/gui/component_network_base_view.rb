@@ -159,7 +159,7 @@ module Syskit
                         page.push(nil, "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>")
                         if req_base = $LOAD_PATH.find { |p| File.fnmatch?(File.join(p, "*") , file[0]) }
                             req = Pathname.new(file[0]).relative_path_from(Pathname.new(req_base))
-                            page.push(nil, "<code>require '#{req.sub_ext("")}'<code>")
+                            page.push(nil, "<code>require '#{req.sub_ext("")}'</code>")
                         end
                     end
                 end
