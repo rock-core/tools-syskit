@@ -381,6 +381,43 @@ module Syskit
                 end
             end
 
+            class SpecializationBlockContext < BasicObject
+                attr_reader :model
+                attr_reader :specialized_children
+
+                def initialize(model, specialized_children)
+                    @model, @specialized_children =
+                        model, specialized_children
+                end
+
+                def apply_block(block)
+                    if !model.definition_blocks.include?(block)
+                        instance_eval(&block)
+                        model.definition_blocks << block
+                    end
+                end
+ 
+                def respond_to_missing?(symbol, include_private)
+                    model.respond_to?(symbol, include_private)
+                end
+
+                def method_missing(m, *args, &block)
+                    if m.to_s =~ /(.*)_child$/
+                        child_name = $1
+                        child = model.send(m, *args, &block)
+                        if specialized_model = specialized_children[$1]
+                            selected = child.as(specialized_model)
+                            if selected.service
+                                selected.service.attach(child)
+                            else selected
+                            end
+                        else child
+                        end
+                    else model.send(m, *args, &block)
+                    end
+                end
+            end
+
             def create_specialized_model(composite_spec, applied_specializations)
                 # There's no composition with that spec. Create a new one
                 child_composition = composition_model.new_specialized_submodel
@@ -395,8 +432,10 @@ module Syskit
                 composite_spec.specialized_children.each do |child_name, child_models|
                     child_composition.overload child_name, child_models
                 end
+
+                context = SpecializationBlockContext.new(child_composition, composite_spec.specialized_children)
                 composite_spec.specialization_blocks.each do |block|
-                    child_composition.apply_specialization_block(block)
+                    context.apply_block(block)
                 end
                 child_composition
             end

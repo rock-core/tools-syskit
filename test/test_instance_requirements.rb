@@ -57,6 +57,16 @@ describe Syskit::InstanceRequirements do
             req = Syskit::InstanceRequirements.new([srv_model, task_model])
             assert_raises(Syskit::AmbiguousPortName) { req.find_port('out') }
         end
+        it "picks the port on the selected service if there is one" do
+            req.select_service(simple_task_model.srv_srv)
+            assert req.find_port 'srv_in'
+            assert req.find_port 'srv_out'
+        end
+        it "picks the port on the selected service if there is one" do
+            req.select_service(simple_task_model.srv_srv)
+            assert req.find_port 'srv_in'
+            assert req.find_port 'srv_out'
+        end
     end
 
     describe "#find_data_service" do

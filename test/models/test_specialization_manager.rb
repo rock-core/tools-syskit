@@ -148,7 +148,7 @@ describe Syskit::Models::SpecializationManager do
         end
 
         it "should validate the given specialization block" do
-            assert_raises(NameError) do
+            assert_raises(NoMethodError) do
                 mng.specialize 'srv' => simple_composition_model do
                     this_method_does_not_exist
                 end
@@ -206,10 +206,13 @@ describe Syskit::Models::SpecializationManager do
         it "should apply the specialization blocks" do
             srv2 = Syskit::DataService.new_submodel
             spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model], 'srv2' => [srv2])
-            blocks = (1..2).map { Object.new }
+            recorder = flexmock
+            blocks = (1..2).map do
+                proc { recorder.called(object_id) }
+            end
             spec.add(Hash.new, blocks)
-            specialized_model.should_receive(:apply_specialization_block).with(blocks[0]).once
-            specialized_model.should_receive(:apply_specialization_block).with(blocks[1]).once
+
+            recorder.should_receive(:called).with(specialized_model.object_id).twice
             mng.specialized_model(spec)
         end
 
@@ -367,6 +370,32 @@ describe Syskit::Models::SpecializationManager do
             flexmock(spec2).should_receive(:compatibilities).and_return([spec1])
             m = root.specializations.create_specialized_model(spec2, [spec2])
             assert_equal [spec1], m.specializations.each_specialization.to_a
+        end
+        it "should apply the block within a context where the children are typed appropriately" do
+            # What we do here is create a specialization that assumes that the
+            # child is of the service given for specialization, and then apply
+            # it on a subclass of the root in which the child is a task that
+            # requires some port mappings. The port mapping should be properly
+            # applied
+            base_srv_m = Syskit::DataService.new_submodel
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'srv_out', '/double'
+                provides base_srv_m
+            end
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+                provides srv_m, :as => 'test'
+            end
+
+            root_m = Syskit::Composition.new_submodel do
+                add base_srv_m, :as => 'test'
+            end
+            root_m.specialize root_m.test_child => srv_m do
+                export test_child.srv_out_port
+            end
+            child_m = root_m.new_submodel
+            child_m.overload 'test', task_m
+            child_m.instanciate(plan)
         end
     end
 end

@@ -405,9 +405,9 @@ module Syskit
 
                 case port
                 when InputPort
-                    exported_inputs[name] = port
+                    exported_inputs[name] = port.to_component_port
                 when OutputPort
-                    exported_outputs[name] = port
+                    exported_outputs[name] = port.to_component_port
                 else
                     raise TypeError, "invalid port #{port.port} of type #{port.port.class}"
                 end
@@ -978,7 +978,10 @@ module Syskit
                 if options[:register_specializations]
                     specializations.each_specialization do |spec|
                         spec.specialization_blocks.each do |block|
-                            submodel.specialize(spec.specialized_children, &block)
+                            specialized_children = spec.specialized_children.map_key do |child_name, child_model|
+                                submodel.find_child(child_name)
+                            end
+                            submodel.specialize(specialized_children, &block)
                         end
                     end
                 end
