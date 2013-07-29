@@ -114,6 +114,10 @@ module Syskit
                 Syskit.connect(self, sink, policy)
             end
 
+            def to_s
+                "#{object.to_s}.as(#{required.each_required_model.map(&:name).sort.join(",")})"
+            end
+
             def method_missing(m, *args, &block)
                 MetaRuby::DSLs.find_through_method_missing(self, m, args, "port") ||
                     super
