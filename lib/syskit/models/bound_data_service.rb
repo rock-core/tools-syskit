@@ -23,11 +23,21 @@ module Syskit
             # True if this service is not a slave service
             def master?; !@master end
 
-            def ==(other)
+            def to_component_model; component_model.to_component_model end
+
+            def dependency_injection_names; Array.new end
+
+            def eql?(other)
                 other.kind_of?(self.class) &&
                     other.full_name == full_name &&
                     other.component_model == component_model
             end
+
+            def ==(other)
+                eql?(other)
+            end
+
+            def hash; [self.class, full_name, component_model].hash end
 
             def initialize(name, component_model, master, model, port_mappings)
                 @name, @component_model, @master, @model, @port_mappings = 
@@ -129,9 +139,12 @@ module Syskit
                 if !models.respond_to?(:each)
                     models = [models]
                 end
-                components, services = models.partition { |m| m <= Syskit::Component }
-                components.empty? &&
-                    (services.empty? || self.model.fullfills?(services))
+                models.each do |required_m|
+                    required_m.each_fullfilled_model do |m|
+                        return false if !self.model.fullfills?(m)
+                    end
+                end
+                true
             end
 
             # Returns the port mappings that should be applied from the service
@@ -168,14 +181,13 @@ module Syskit
                 component_model.each_slave_data_service(self, &block)
             end
 
-            def each_fullfilled_model
-                return enum_for(:each_fullfilled_model) if !block_given?
-                yield(component_model)
-                model.ancestors.each do |m|
-                    if m <= Component || m <= DataService
-                        yield(m)
-                    end
-                end
+            def each_fullfilled_model(&block)
+                model.each_fullfilled_model(&block)
+            end
+
+            def merge(other_model)
+                m = other_model.merge(component_model)
+                attach(m)
             end
 
             # Returns the BoundDataService object that binds this provided
@@ -192,7 +204,7 @@ module Syskit
             # Creates, in the given plan, a new task matching this service in
             # the given context, and returns the instanciated data service
             def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new)
-                to_instance_requirements.instanciate(plan, context, options)
+                bind(component_model.instanciate(plan, context, options))
             end
 
             # Returns the BoundDataService object that binds this provided
@@ -209,6 +221,11 @@ module Syskit
                 req = component_model.to_instance_requirements
                 req.select_service(self)
                 req
+            end
+
+            def each_required_model
+                return enum_for(:each_required_model) if !block_given?
+                yield(model)
             end
 
             extend InstanceRequirements::Auto

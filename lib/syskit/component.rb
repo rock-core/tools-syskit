@@ -442,9 +442,6 @@ module Syskit
                 # uses a specialized model
                 req = self.concrete_model.to_instance_requirements
                 req.with_arguments(arguments)
-                if requirements.service
-                    req.select_service(requirements.service)
-                end
                 if required_host
                     req.on_server(required_host) 
                 end

@@ -17,22 +17,55 @@ module Syskit
 
             def initialize(component = nil, selected = InstanceRequirements.new([Component]), required = InstanceRequirements.new, mappings = Hash.new)
                 @component = component
+
+                selected = selected.dup
+                required = required.dup
+                selected = autoselect_service_if_needed(selected, required, mappings)
+
                 @selected = selected
                 @required = required
                 @service_selection =
-                    InstanceSelection.compute_service_selection(Syskit.proxy_task_model_for(selected.base_models), required.base_models, mappings)
+                    InstanceSelection.compute_service_selection(selected, required, mappings)
             end
 
             def initialize_copy(old)
                 @component = old.component
                 @selected = old.selected.dup
-                @required = old.required
+                @required = old.required.dup
                 @service_selection = service_selection.dup
+            end
+
+            def autoselect_service_if_needed(selected, required, mappings)
+                return selected if selected.service
+
+                if required_srv = required.service
+                    if srv = selected.find_data_service(required_srv.name)
+                        srv
+                    elsif m = mappings[required.service.model]
+                        selected.select_service(m)
+                    else
+                        selected.find_data_service_from_type(required_srv.model)
+                    end
+
+                elsif !required.component_model
+                    required_services = required.each_required_service_model.to_a
+                    if required_services.size == 1
+                        required_srv = required_services.first
+                        if m = mappings[required_srv]
+                            selected.select_service(m)
+                        else
+                            selected.find_data_service_from_type(required_srv)
+                        end
+                    else selected
+                    end
+
+                else selected
+                end
             end
 
             # Returns the selected component model
             def component_model
-                selected.base_models.first
+                selected.base_model
             end
 
             # Computes the service selection that will allow to replace a
@@ -53,29 +86,40 @@ module Syskit
             #   service of component_model, or does not fullfill the data service
             #   it is selected for
             # @raise (see Models::Component#find_data_service_from_type)
-            def self.compute_service_selection(component_m, required, mappings)
-                selection = Hash.new
+            def self.compute_service_selection(selected, required, mappings)
+                mappings = mappings.dup
+                if selected.kind_of?(Models::BoundDataService)
+                    # Save this selection explicitly
+                    mappings[selected.model] = selected
+                end
 
-                required.each do |required_m|
-                    if required_m.kind_of?(Class) && (required_m <= Syskit::Component)
-                        selected_m = required_m
-                    elsif selected_m = mappings[required_m]
+                selected_component_model = selected.model.to_component_model
+                required_component_model, required_service_models =
+                    required.component_model || Syskit::Component,
+                    required.each_required_service_model.to_a
+
+                mappings[required_component_model] =
+                    selected_component_model
+
+                required_service_models.each do |required_m|
+                    if selected_m = mappings[required_m]
                         # Verify that it is of the right type
-                        if !selected_m.component_model.fullfills?(component_m)
+                        if !selected_m.component_model.fullfills?(selected_component_model)
                             raise ArgumentError, "#{selected_m} was explicitly selected for #{required_m}, but is not a service of the selected component model #{component_m}"
                         elsif !selected_m.fullfills?(required_m)
                             raise ArgumentError, "#{selected_m} was explicitly selected for #{required_m}, but does not provide it"
                         end
+                        mappings[required_m] = selected_m.attach(selected_component_model)
                     else
-                        selected_m = component_m.find_data_service_from_type(required_m)
+                        selected_m = selected_component_model.find_data_service_from_type(required_m)
+                        if !selected_m
+                            raise ArgumentError, "selected model #{selected} does not provide required service #{required_m.short_name}"
+                        end
                     end
 
-                    if !selected_m
-                        raise ArgumentError, "selected model #{component_m.short_name} does not provide required service #{required_m.short_name}"
-                    end
-                    selection[required_m] = selected_m
+                    mappings[required_m] = selected_m
                 end
-                selection
+                mappings
             end
 
             # Compute the combined port mappings given the service selection in
@@ -105,15 +149,13 @@ module Syskit
             # If this selection does not yet have an associated task,
             # instanciate one
             def instanciate(plan, context = Syskit::DependencyInjectionContext.new, options = Hash.new)
-                if selected.component_model?
-                    selected_services = service_selection.values.find_all { |srv| srv.kind_of?(Models::BoundDataService) }
-                    if selected_services.size == 1
-                        selected.select_service(selected_services.first)
-                    end
-                end
-
                 if component
-                    selected.bind(component)
+                    # We have an explicitly selected component. We just need to
+                    # bind the bound data service if there is one
+                    if selected_service = selected.service
+                        selected_service.bind(component)
+                    else component
+                    end
                 else
                     selected.instanciate(plan, context, options)
                 end

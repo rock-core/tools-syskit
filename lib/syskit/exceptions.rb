@@ -667,7 +667,7 @@ module Syskit
                             if key.respond_to?(:short_name)
                                 key = key.short_name
                             end
-                            value = value.requirements.models
+                            value = value.requirements.each_required_model
                             value = value.map do |v|
                                 if v.respond_to?(:short_name) then v.short_name
                                 else v.to_s
@@ -746,33 +746,6 @@ module Syskit
 
             def pretty_print(pp)
                 pp.text "cannot compute port mappings: #{model_a.short_name} and #{model_b.short_name} share the same port name #{port_name}"
-            end
-        end
-
-        # Exception raised in InstanceRequirements when two models share the
-        # same port name
-        class AmbiguousPortName < Ambiguous
-            attr_reader :requirements
-            attr_reader :name
-            attr_reader :candidates
-            def initialize(requirements, name, candidates)
-                @requirements, @name, @candidates =
-                    requirements, name, candidates
-            end
-            def pretty_print(pp)
-                pp.text "more than one port matches #{name} in"
-                pp.nest(2) do
-                    pp.nest(2) do
-                        pp.breakable
-                        requirements.pretty_print(pp)
-                    end
-                    pp.breakable
-                    pp.text "Candidates:"
-                    pp.breakable
-                    pp.seplist(candidates) do |obj|
-                        obj.pretty_print(pp)
-                    end
-                end
             end
         end
 

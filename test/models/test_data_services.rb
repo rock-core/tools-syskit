@@ -63,7 +63,7 @@ module Test_DataServiceModel
     def test_proxy_task_model
         model = new_submodel
         proxy_model = model.proxy_task_model
-        assert(proxy_model <= TaskContext)
+        assert(proxy_model <= Component)
         assert(proxy_model.fullfills?(model))
         assert_equal([model], proxy_model.proxied_data_services.to_a)
     end

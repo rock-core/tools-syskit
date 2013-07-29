@@ -37,18 +37,18 @@ module Syskit
                         req = profile.resolved_definition(name)
                         action_model = Models::Action.new(self, req, "definition from profile #{profile.name}")
                         action_model.name = action_name
-                        if task_model = req.find_model_by_type(Roby::Task)
-                            task_model.arguments.each do |arg_name|
-                                if task_model.default_argument(arg_name) || req.arguments.has_key?(arg_name.to_s)
-                                    action_model.optional_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
-                                else
-                                    action_model.required_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
-                                end
+
+                        task_model = req.component_model
+                        task_model.arguments.each do |arg_name|
+                            if task_model.default_argument(arg_name) || req.arguments.has_key?(arg_name.to_s)
+                                action_model.optional_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
+                            else
+                                action_model.required_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
                             end
                         end
 
                         actions[action_name] = action_model
-                        if task_model && !task_model.arguments.empty?
+                        if !task_model.arguments.empty?
                             define_method(action_name) do |arguments|
                                 final_req = req.dup
                                 final_req.with_arguments(arguments)

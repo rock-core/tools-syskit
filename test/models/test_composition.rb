@@ -54,14 +54,15 @@ describe Syskit::Models::Composition do
         it "applies specializations from the parent model to the child model" do
             root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
             block0 = proc { }
-            spec0 = root.specialize(root.srv_child => Syskit::DataService.new_submodel, &block0)
+
+            srv0 = Syskit::DataService.new_submodel
+            spec0 = root.specialize(root.srv_child => srv0, &block0)
             block1 = proc { }
-            spec1 = root.specialize(root.srv_child => Syskit::DataService.new_submodel, &block1)
-            submodel = Class.new(root)
-            flexmock(Class).should_receive(:new).with(root).and_return(submodel)
-            flexmock(submodel).should_receive(:specialize).with(spec0.specialized_children, eq(block0)).once
-            flexmock(submodel).should_receive(:specialize).with(spec1.specialized_children, eq(block1)).once
-            assert_same submodel, root.new_submodel
+            srv1 = Syskit::DataService.new_submodel
+            spec1 = root.specialize(root.srv_child => srv1, &block1)
+            submodel = root.new_submodel
+            assert_equal submodel.specializations.specializations.keys,
+                root.specializations.specializations.keys
         end
     end
 
@@ -324,7 +325,7 @@ describe Syskit::Models::Composition do
             assert_same task, root.cmp_child.srv_child.class
         end
 
-        it "sets the selected requirements on the task instance" do
+        it "sets the selected requirements on the per-role selected models" do
             srv = Syskit::DataService.new_submodel(:name => "Srv")
             task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }
             cmp = Syskit::Composition.new_submodel(:name => "RootCmp") do
@@ -332,7 +333,7 @@ describe Syskit::Models::Composition do
             end
 
             cmp_task = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new('child' => task))
-            assert_equal task.srv_srv, cmp_task.child_child.requirements.service
+            assert_equal task.srv_srv, cmp_task.child_selection['child'].service_selection[srv]
         end
 
         it "allows to use grandchildren as use flags for other children" do
@@ -370,19 +371,19 @@ describe Syskit::Models::Composition do
             task_m = simple_task_model
             # The value returned by #find_children_models_and_tasks is a
             # name-to-InstanceSelection mapping
-            explicit   = Hash['srv' => flexmock(:selected => flexmock(:models => [task_m]))]
-            selections = Hash['srv2' => flexmock(:selected => flexmock(:models => [task_m]))]
+            explicit   = Hash['srv' => flexmock(:selected => flexmock(:component_model => task_m))]
+            selections = Hash['srv2' => flexmock(:selected => flexmock(:component_model => task_m))]
             cmp_m = simple_composition_model
             subcmp_m = cmp_m.new_submodel(:name => 'Sub')
             final_cmp_m = subcmp_m.new_submodel(:name => 'Final')
             flexmock(cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(cmp_m.specializations, "mng").should_receive(:matching_specialized_model).with('srv' => [task_m]).once.ordered.and_return(subcmp_m)
+            flexmock(cmp_m.specializations, "mng").should_receive(:matching_specialized_model).with('srv' => task_m).once.ordered.and_return(subcmp_m)
             flexmock(subcmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with('srv' => [task_m]).once.ordered.and_return(subcmp_m)
-            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with('srv2' => [task_m]).once.ordered.and_return(final_cmp_m)
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with('srv' => task_m).once.ordered.and_return(subcmp_m)
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with('srv2' => task_m).once.ordered.and_return(final_cmp_m)
             flexmock(final_cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with('srv' => [task_m]).once.ordered.and_return(final_cmp_m)
-            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with('srv2' => [task_m]).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with('srv' => task_m).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with('srv2' => task_m).once.ordered.and_return(final_cmp_m)
 
             flexmock(final_cmp_m).should_receive(:new).and_throw(:pass)
             catch(:pass) do
@@ -458,21 +459,46 @@ describe Syskit::Models::Composition do
                 task = instanciate
                 assert_dependency_contains :roles => ['a_new_role', 'srv'].to_set
             end
-            it "overrides remove_when_done" do
-                composition_model :remove_when_done => true
-                task = instanciate
-                assert_dependency_contains :remove_when_done => true
-            end
-            it "overrides consider_in_pending" do
-                composition_model :consider_in_pending => true
-                task = instanciate
-                assert_dependency_contains :consider_in_pending => true
-            end
+            #it "overrides remove_when_done" do
+            #    composition_model :remove_when_done => true
+            #    task = instanciate
+            #    assert_dependency_contains :remove_when_done => true
+            #end
+            #it "overrides consider_in_pending" do
+            #    composition_model :consider_in_pending => true
+            #    task = instanciate
+            #    assert_dependency_contains :consider_in_pending => true
+            #end
             it "uses :failure => [:stop] as default dependency option" do
                 composition_model(Hash.new)
                 task = instanciate
                 assert_dependency_contains :failure => :start.never.or(:stop.to_unbound_task_predicate)
             end
+        end
+    end
+
+    describe "#required_composition_child_from_role" do
+        it "returns the whole task if more than one service is selected" do
+            srv0_m = Syskit::DataService.new_submodel
+            srv1_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv0_m, :as => 'test0'
+            task_m.provides srv1_m, :as => 'test1'
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add [srv0_m,srv1_m], :as => 'test'
+
+            cmp = Syskit::InstanceRequirements.new([cmp_m]).use(task_m).instanciate(plan)
+            assert_equal cmp.test_child, cmp.required_composition_child_from_role('test')
+        end
+        it "gives access to the exact data service selected for the child" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, :as => 'test'
+
+            cmp = Syskit::InstanceRequirements.new([cmp_m]).use(task_m).instanciate(plan)
+            assert_equal cmp.test_child.test_srv, cmp.required_composition_child_from_role('test')
         end
     end
 
@@ -504,15 +530,30 @@ describe Syskit::Models::Composition do
         end
 
         describe "#add" do
+            it "registers the topmost model as child model" do
+                service, component, composition = models
+                c0 = composition.new_submodel(:name => "C0")
+                c0.overload('srv', component)
+                assert_is_proxy_model_for component, c0.srv_child.model
+            end
+            it "creates a new CompositionChild model for the children" do
+                srv = Syskit::DataService.new_submodel
+                cmp = Syskit::Composition.new_submodel
+                child = cmp.add(srv, :as => 'test')
+                assert_kind_of Syskit::Models::CompositionChild, child
+                assert_equal cmp, child.composition_model
+                assert_equal 'test', child.child_name
+                assert_is_proxy_model_for srv, child.model
+            end
             it "adds new models to an existing set if there is one" do
                 srv1 = Syskit::DataService.new_submodel
                 srv2 = Syskit::DataService.new_submodel
                 cmp = Syskit::Composition.new_submodel do
                     add srv1, :as => 'test'
                 end
-                assert_equal [srv1].to_set, cmp.test_child.models.to_set
+                assert_is_proxy_model_for [srv1], cmp.test_child.model
                 cmp.overload 'test', srv2
-                assert_equal [srv1, srv2].to_set, cmp.test_child.models.to_set
+                assert_is_proxy_model_for [srv1, srv2], cmp.test_child.model
             end
             it "adds new models to the definition of the superclass if there is one" do
                 srv1 = Syskit::DataService.new_submodel
@@ -520,10 +561,10 @@ describe Syskit::Models::Composition do
                 cmp = Syskit::Composition.new_submodel do
                     add srv1, :as => 'test'
                 end
-                assert_equal [srv1].to_set, cmp.test_child.models.to_set
+                assert_is_proxy_model_for [srv1], cmp.test_child.model
                 cmp = cmp.new_submodel
                 cmp.overload 'test', srv2
-                assert_equal [srv1, srv2].to_set, cmp.test_child.models.to_set
+                assert_is_proxy_model_for [srv1, srv2], cmp.test_child.model
             end
             it "computes port mappings when overloading a child" do
                 service, component, composition = models
@@ -537,18 +578,18 @@ describe Syskit::Models::Composition do
                 c0 = composition.new_submodel(:name => "C0")
                 c0.overload('srv', service1)
                 child = c0.find_child('srv')
-                assert_same composition.find_child('srv'), child.overload_info.required
-                assert_equal [service], child.overload_info.required.base_models.to_a
-                assert_equal [service1], child.overload_info.selected.base_models.to_a
+                assert_equal composition.find_child('srv'), child.overload_info.required
+                assert_is_proxy_model_for [service], child.overload_info.required.base_model
+                assert_is_proxy_model_for [service1], child.overload_info.selected.base_model
                 assert_equal Hash['srv_in' => 'specialized_in', 'srv_out' => 'specialized_out'],
                     child.port_mappings
 
                 c1 = c0.new_submodel(:name => "C1")
                 c1.overload('srv', component)
                 child = c1.find_child('srv')
-                assert_same c0.find_child('srv'), child.overload_info.required
-                assert_equal [service1], child.overload_info.required.base_models.to_a
-                assert_equal [component], child.overload_info.selected.base_models.to_a
+                assert_equal c0.find_child('srv'), child.overload_info.required
+                assert_is_proxy_model_for [service1], child.overload_info.required.base_model
+                assert_is_proxy_model_for [component.srv1_srv], child.overload_info.selected.base_model
                 assert_equal Hash['specialized_in' => 'in', 'specialized_out' => 'out'],
                     child.port_mappings
             end
@@ -573,6 +614,16 @@ describe Syskit::Models::Composition do
     end
 
     describe "#find_child" do
+        it "returns the CompositionChild instance for a given child" do
+            srv_m = Syskit::DataService.new_submodel
+            cmp_m = Syskit::Composition.new_submodel
+            child = cmp_m.add(srv_m, :as => 'child')
+            assert_same child, cmp_m.find_child('child')
+        end
+        it "returns nil for children that do not exist" do
+            cmp_m = Syskit::Composition.new_submodel
+            assert !cmp_m.find_child('does_not_exist')
+        end
         it "promotes child models to the current composition model" do
             srv_m = Syskit::DataService.new_submodel
             parent_m = Syskit::Composition.new_submodel do
@@ -618,11 +669,10 @@ describe Syskit::Models::Composition do
             provides generic_srv_m
         end
 
-        vision_m = Syskit::Composition.new_submodel do
-            add shared_task_m, :as => :shared
-            add generic_srv_m, :as => :task
-            task_child.connect_to shared_child
-        end
+        vision_m = Syskit::Composition.new_submodel
+        vision_m.add shared_task_m, :as => :shared
+        vision_m.add generic_srv_m, :as => :task
+        vision_m.task_child.connect_to vision_m.shared_child
         specialized_m = vision_m.specialize vision_m.task_child => special_srv_m do
             shared_child.connect_to task_child
         end

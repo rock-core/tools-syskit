@@ -5,12 +5,11 @@ describe Syskit::Models::CompositionChild do
     include Syskit::SelfTest
     describe "#try_resolve" do
         it "returns the composition child if it exists" do
+            task_m = Syskit::Component.new_submodel
             cmp_m = Syskit::Composition.new_submodel
-            plan.add(cmp = cmp_m.new)
-            task = Syskit::Component.new
-            cmp.depends_on task, :role => 'task'
-            child = Syskit::Models::CompositionChild.new(cmp_m, 'task')
-            assert_equal task, child.try_resolve(cmp)
+            cmp_m.add task_m, :as => 'task'
+            plan.add(cmp = cmp_m.instanciate(plan))
+            assert_equal cmp.task_child, cmp_m.task_child.try_resolve(cmp)
         end
         it "binds the found task to the expected service if there is an expected service" do
             srv_m  = Syskit::DataService.new_submodel
@@ -62,11 +61,10 @@ describe Syskit::Models::CompositionChild do
             srv_out_m = Syskit::DataService.new_submodel do
                 output_port 'out', '/double'
             end
-            cmp_m = Syskit::Composition.new_submodel do
-                add srv_out_m, :as => 'out'
-                add task_in_m, :as => 'in'
-                out_child.connect_to in_child.test_srv
-            end
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_out_m, :as => 'out'
+            cmp_m.add task_in_m, :as => 'in'
+            cmp_m.out_child.connect_to cmp_m.in_child.test_srv
 
             expected = Hash[
                 ['out', 'in'] => {['out', 'in0'] => Hash.new}
@@ -98,4 +96,24 @@ describe Syskit::Models::CompositionChild do
         end
     end
 end
+
+describe Syskit::Models::InvalidCompositionChildPort do
+    include Syskit::SelfTest
+     
+    attr_reader :cmp_m
+    before do
+        task_m = Syskit::TaskContext.new_submodel do
+            input_port 'in', '/double'
+            output_port 'out', '/double'
+        end
+        @cmp_m = Syskit::Composition.new_submodel
+        cmp_m.add task_m, :as => 'test'
+    end
+
+    it "can be pretty-printed" do
+        e = Syskit::Models::InvalidCompositionChildPort.new(cmp_m, 'test', 'bla')
+        PP.pp(e, "")
+    end
+end
+
 

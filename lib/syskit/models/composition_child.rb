@@ -45,12 +45,7 @@ module Syskit
             # @return [nil,Roby::Task]
             def try_resolve(task)
                 if task = composition_model.try_resolve(task)
-                    child = task.find_child_from_role(child_name)
-                    if !child then return
-                    elsif selection = task.child_selection[child_name]
-                        selection.bind(child)
-                    else child
-                    end
+                    return task.find_required_composition_child_from_role(child_name)
                 end
             end
 
@@ -77,84 +72,6 @@ module Syskit
                 @optional = true
             end
 
-            def find_input_port(name)
-                name = name.to_s
-                candidates = []
-                models.map do |child_model|
-                    if port  = child_model.find_input_port(name)
-                        candidates << [child_model, port]
-                    end
-                end
-
-                if candidates.size > 1
-                    candidates = candidates.map do |model, port|
-                        "#{model.short_name}.#{port.name}"
-                    end
-                    raise AmbiguousChildPort.new(self, name, candidates), "#{name} is ambiguous on the child #{child_name} of #{composition_model.short_name}: #{candidates.join(", ")}"
-                elsif candidates.size == 1
-                    port = candidates.first[1]
-                    return InputPort.new(self, port.orogen_model, name)
-                end
-                nil
-            end
-
-            def find_output_port(name)
-                name = name.to_s
-                candidates = []
-                models.map do |child_model|
-                    if port = child_model.find_output_port(name)
-                        candidates << [child_model, port]
-                    end
-                end
-
-                if candidates.size > 1
-                    candidates = candidates.map do |model, port|
-                        "#{model.short_name}.#{port.name}"
-                    end
-                    raise AmbiguousChildPort.new(self, name, candidates), "#{name} is ambiguous on the child #{child_name} of #{composition_model.short_name}: #{candidates.join(", ")}"
-                elsif candidates.size == 1
-                    port = candidates.first[1]
-                    return OutputPort.new(self, port.orogen_model, name)
-                end
-                nil
-            end
-
-            def find_port(name)
-                find_input_port(name) || find_output_port(name)
-            end
-
-            def port_by_name(name)
-                if p = find_port(name)
-                    p
-                else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(", ")}"
-                end
-            end
-
-            # Enumerates all of this component's ports
-            def each_port(&block)
-                return enum_for(:each_port) if !block_given?
-                each_output_port(&block)
-                each_input_port(&block)
-            end
-
-            def each_input_port
-                return enum_for(:each_input_port) if !block_given?
-                models.each do |child_model|
-                    child_model.each_input_port do |p|
-                        yield(p.attach(self))
-                    end
-                end
-            end
-
-            def each_output_port
-                return enum_for(:each_output_port) if !block_given?
-                models.each do |child_model|
-                    child_model.each_output_port do |p|
-                        yield(p.attach(self))
-                    end
-                end
-            end
-
             # Automatically computes the connections between the output ports of
             # self to the given port or component interface
             #
@@ -164,11 +81,6 @@ module Syskit
             # @return [Array<Port>] the set of created connections
             def connect_to(sink, policy = Hash.new)
                 Syskit.connect(self, sink, policy)
-            end
-
-            # (see Component#self_port_to_component_port)
-            def self_port_to_component_port(port)
-                return port
             end
 
             # (see Component#connect_ports)
@@ -204,8 +116,16 @@ module Syskit
 
             def to_s; "#{composition_model}.#{child_name}_child[#{super}]" end
 
+            def pretty_print(pp)
+                pp.text "child #{child_name} of type "
+                super
+                pp.breakable
+                pp.text "of #{composition_model}"
+            end
+
+
             def short_name
-                "#{composition_model.short_name}.#{child_name}_child[#{models.map(&:short_name).join(", ")}]"
+                "#{composition_model.short_name}.#{child_name}_child[#{model.short_name}]"
             end
 
             def attach(composition_model)
@@ -240,7 +160,7 @@ module Syskit
             def initialize(composition_model, child_name, port_name)
                 @composition_model, @child_name, @port_name =
                     composition_model, child_name, port_name
-                @existing_ports = composition_model.find_child(child_name).models.map do |child_model|
+                @existing_ports = composition_model.find_child(child_name).each_required_model.map do |child_model|
                     [child_model, child_model.each_input_port.sort_by(&:name), child_model.each_output_port.sort_by(&:name)]
                 end
             end

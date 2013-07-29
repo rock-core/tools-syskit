@@ -156,6 +156,7 @@ describe Syskit::Models::SpecializationManager do
         end
 
         it "should add the new block to an existing specialization definition if one already exists" do
+            raise NotImplementedError
             spec = mng.specialize 'srv' => simple_component_model
             my_proc = proc { }
             flexmock(spec).should_receive(:add).with(Hash['srv' => [simple_component_model].to_set], my_proc).once
@@ -298,7 +299,7 @@ describe Syskit::Models::SpecializationManager do
             assert_equal [], result[0][1]
         end
         it "should return the non-specialized model if it is given a selection that does not match a specialization" do
-            result = mng.find_matching_specializations('srv' => [Syskit::TaskContext.new_submodel])
+            result = mng.find_matching_specializations('srv' => Syskit::TaskContext.new_submodel)
             assert_equal 1, result.size
             assert result[0][0].specialized_children.empty?
             assert_equal [], result[0][1]

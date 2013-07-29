@@ -51,7 +51,7 @@ describe Syskit::InstanceRequirementsTask do
             plan.add(task = Syskit::InstanceRequirementsTask.subplan(c))
             task = task.planning_task
             assert_kind_of Syskit::InstanceRequirementsTask, task
-            assert_equal [c], task.requirements.models.to_a
+            assert_equal c, task.requirements.model
         end
     end
 end

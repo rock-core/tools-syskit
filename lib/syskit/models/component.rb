@@ -7,6 +7,8 @@ module Syskit
             include MetaRuby::ModelAsClass
             include Syskit::DataService
 
+            def to_component_model; self end
+
             # Method that maps data services from this component's parent models
             # to this composition's own
             #
@@ -429,6 +431,13 @@ module Syskit
                 dyn.instanciate(service_name, dyn_options)
             end
 
+            def each_port; end
+            def each_input_port; end
+            def each_output_port; end
+            def find_input_port(name); end
+            def find_output_port(name); end
+            def find_port(name); end
+
             PROVIDES_ARGUMENTS = { :as => nil, :slave_of => nil }
 
             # Declares that this component provides the given data service.
@@ -699,7 +708,6 @@ module Syskit
                 model.proxied_data_services = service_models.dup
 		model.fullfilled_model = [self] + model.proxied_data_services.to_a
 
-                Syskit::Models.merge_orogen_task_context_models(model.orogen_model, service_models.map(&:orogen_model))
                 service_models.each_with_index do |m, i|
                     model.provides m, :as => "m#{i}"
                 end
@@ -779,6 +787,34 @@ module Syskit
                 end
                 return true
             end
+
+            # Returns the component model that is the merge model of self and
+            # the given other model
+            #
+            # It will return self or other_model if they are "plain" models. In
+            # case other_model is a placeholder task model, the corresponding
+            # data service mappings will be computed and either self or another
+            # placeholder task model will be returned
+            def merge(other_model)
+                if other_model.respond_to?(:proxied_data_services)
+                    return other_model.merge(self)
+                elsif other_model.kind_of?(Syskit::Models::BoundDataService)
+                    return other_model.merge(self)
+                end
+
+                if self <= other_model
+                    return self
+                elsif other_model <= self
+                    return other_model
+                else
+                    raise IncompatibleComponentModels.new(self, other_model), "models #{short_name} and #{other_model.short_name} are not compatible"
+                end
+            end
+
+            def each_required_model
+                return enum_for(:each_required_model) if !block_given?
+                yield(self)
+            end
         end
     end
 
@@ -789,8 +825,100 @@ module Syskit
         module ClassExtension
             attr_accessor :proxied_data_services
 
+            def proxied_task_context_model
+                s = superclass
+                if s != Syskit::Component
+                    s
+                end
+            end
+
             def to_instance_requirements
-                Syskit::InstanceRequirements.new(proxied_data_services)
+                Syskit::InstanceRequirements.new([self])
+            end
+
+            def each_fullfilled_model(&block)
+                fullfilled_model.each(&block)
+            end
+
+            def fullfilled_model
+                result = Set.new
+                if m = proxied_task_context_model
+                    m.each_fullfilled_model do |m|
+                        result << m
+                    end
+                end
+                proxied_data_services.each do |srv|
+                    srv.each_fullfilled_model do |m|
+                        result << m
+                    end
+                end
+                result
+            end
+
+            def each_required_model
+                return enum_for(:each_required_model) if !block_given?
+                if m = proxied_task_context_model
+                    yield(m)
+                end
+                proxied_data_services.each do |m|
+                    yield(m)
+                end
+            end
+
+            def merge(other_model)
+                if other_model.kind_of?(Models::BoundDataService)
+                    return other_model.merge(self)
+                end
+
+                merged = Models.merge_model_lists(each_required_model, other_model.each_required_model)
+                Syskit.proxy_task_model_for(merged)
+            end
+
+            def each_output_port
+                each_required_model do |m|
+                    m.each_output_port do |p|
+                        yield(p.attach(self))
+                    end
+                end
+            end
+
+            def each_input_port
+                each_required_model do |m|
+                    m.each_input_port do |p|
+                        yield(p.attach(self))
+                    end
+                end
+            end
+
+            def each_port
+                each_output_port { |p| yield(p) }
+                each_input_port { |p| yield(p) }
+            end
+
+            def find_output_port(name)
+                each_required_model do |m|
+                    if p = m.find_output_port(name)
+                        return p.attach(self)
+                    end
+                end
+                nil
+            end
+
+            def find_input_port(name)
+                each_required_model do |m|
+                    if p = m.find_input_port(name)
+                        return p.attach(self)
+                    end
+                end
+                nil
+            end
+
+            def find_port(name)
+                find_output_port(name) || find_input_port(name)
+            end
+
+            def to_s
+                name
             end
         end
 
@@ -803,18 +931,32 @@ module Syskit
     # models listed in +models+ in a plan. The returned task model is
     # obviously abstract
     def self.proxy_task_model_for(models)
+        service = nil
+        models = models.map do |m|
+            if m.respond_to?(:component_model)
+                service = m
+                m.component_model
+            else m
+            end
+        end
         task_models, service_models = models.partition { |t| t <= Component }
         if task_models.size > 1
             raise ArgumentError, "cannot create a proxy for multiple component models at the same time"
         end
-        task_model = task_models.first || TaskContext
 
         # If all that is required is a proper task model, just return it
-        if service_models.empty?
-            return task_model
+        task_model = task_models.first || Component
+        task_model =
+            if service_models.empty?
+                task_model
+            else
+                task_model.proxy_task_model(service_models)
+            end
+        
+        if service
+            service.attach(task_model)
+        else task_model
         end
-
-        task_model.proxy_task_model(service_models)
     end
 end
 

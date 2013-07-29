@@ -17,7 +17,7 @@ module Syskit
 
             # The set of specializations defined on {#composition_model}
             #
-            # @return [{{String => # Array<Model<DataService>,Model<Component>>}=>CompositionSpecialization}]
+            # @return [{{String => Array<Model<DataService>,Model<Component>>}=>CompositionSpecialization}]
             attribute(:specializations) { Hash.new }
 
             # Registers the given specialization on this manager
@@ -181,7 +181,7 @@ module Syskit
                         elsif children.size > 1
                             children = children.map do |child_name|
                                 child_models = composition_model.find_child(child_name).
-                                    models.map(&:short_name).sort.join(",")
+                                    each_required_model.map(&:short_name).sort.join(",")
                                 "#{child_name}: #{child_models}"
                             end
                             raise ArgumentError, "invalid specialization #{child.short_name} => #{child_model.short_name}: more than one child of #{composition_model.short_name} fullfills #{child.short_name} (#{children.sort.join("; ")}). You probably want to select one specifically by name"
@@ -216,14 +216,14 @@ module Syskit
             #   model
             def validate_specialization_mappings(new_spec)
                 new_spec.each do |child_name, child_models|
-                    if !composition_model.has_child?(child_name)
+                    child_m = composition_model.find_child(child_name)
+                    if !child_m
                         raise ArgumentError, "there is no child called #{child_name} in #{composition_model.short_name}"
                     end
 
-                    parent_models = composition_model.find_child(child_name).models
-                    result = Models.merge_model_lists(parent_models, child_models)
-                    if result == parent_models
-                        raise ArgumentError, "#{child_models.map(&:short_name).sort.join(",")} does not specify a specialization of #{parent_models.map(&:short_name)}"
+                    merged = Syskit.proxy_task_model_for(child_models).merge(child_m.model)
+                    if merged == child_m.model
+                        raise ArgumentError, "#{child_models.map(&:short_name).sort.join(",")} does not specify a specialization of #{child_m.model}"
                     end
                 end
             end
@@ -563,7 +563,7 @@ module Syskit
             # Looks for a single composition model that matches the given
             # selection
             #
-            # @param [{String=>SelectionModel}] selection the selections, as a
+            # @param [{String=>Model<Component>}] selection the selections, as a
             #   mapping from a child name to a suitable selection in
             #   DependencyInjection
             # @option options [Boolean] strict (true)

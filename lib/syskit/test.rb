@@ -345,6 +345,22 @@ module Syskit
             super
         end
 
+        def assert_is_proxy_model_for(models, result)
+            srv = nil
+            proxied_models = Array(models).map do |m|
+                if m.kind_of?(Syskit::Models::BoundDataService)
+                    srv = m
+                    m.component_model
+                else m
+                end
+            end
+            expected = Syskit.proxy_task_model_for(proxied_models)
+            if srv
+                expected = srv.attach(expected)
+            end
+            assert_equal expected, result, "#{result} was expected to be a proxy model for #{models} (#{expected})"
+        end
+
         module ClassExtension
             def it(*args, &block)
                 super(*args) do

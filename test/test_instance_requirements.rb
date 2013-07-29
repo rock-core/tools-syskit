@@ -9,6 +9,29 @@ describe Syskit::InstanceRequirements do
         create_simple_composition_model
     end
 
+    describe "#component_model" do
+        it "returns the model if it is not a proxied model" do
+            task_m = Syskit::Component.new_submodel
+            req = Syskit::InstanceRequirements.new([task_m])
+            assert_same task_m, req.component_model
+        end
+
+        it "strips out the data service first" do
+            task_m = Syskit::Component.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            req = Syskit::InstanceRequirements.new([task_m.test_srv])
+            assert_same task_m, req.component_model
+        end
+
+        it "returns the proxied component model if its required model is one" do
+            task_m = Syskit::Component.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            req = Syskit::InstanceRequirements.new([task_m,srv_m])
+            assert_same task_m, req.component_model
+        end
+    end
+
     describe "#==" do
         describe "the models are identical and a service is selected" do
             attr_reader :a, :b
@@ -51,11 +74,11 @@ describe Syskit::InstanceRequirements do
         it "returns nil on non-existent ports" do
             assert_equal nil, req.find_port('bla')
         end
-        it "raises AmbiguousPortName if the same port is present on multiple models" do
+        it "raises AmbiguousInstanceRequirementPort if the same port is present on multiple models" do
             srv_model = Syskit::DataService.new_submodel { output_port 'out', '/double' }
             task_model = Syskit::TaskContext.new_submodel { output_port 'out', '/double' }
             req = Syskit::InstanceRequirements.new([srv_model, task_model])
-            assert_raises(Syskit::AmbiguousPortName) { req.find_port('out') }
+            assert_raises(Syskit::AmbiguousInstanceRequirementPort) { req.find_port('out') }
         end
         it "picks the port on the selected service if there is one" do
             req.select_service(simple_task_model.srv_srv)
@@ -77,14 +100,10 @@ describe Syskit::InstanceRequirements do
         it "gives access to a service" do
             srv = req.find_data_service 'srv'
             assert srv
-            assert_equal req.models, srv.models
             assert_equal simple_task_model.srv_srv, srv.service
         end
         it "returns nil on non-existent services" do
             assert_equal nil, req.find_data_service('bla')
-        end
-        it "raises if used on a requirement that does not have a task context" do
-            assert_raises(ArgumentError) { Syskit::InstanceRequirements.new.find_data_service('bla') }
         end
     end
 
@@ -161,7 +180,8 @@ describe Syskit::InstanceRequirements do
             s = Syskit::DataService.new_submodel
             subs = s.new_submodel
             req = Syskit::InstanceRequirements.new([subs])
-            assert_same req, req.find_data_service_from_type(s)
+            req = req.find_data_service_from_type(s)
+            assert_same subs, req.service.model
         end
 
         it "should return a bound data service if the service is provided by a component model" do
@@ -196,7 +216,7 @@ describe Syskit::InstanceRequirements do
         it "should raise if the data service is provided by both a component model and a service" do
             s = Syskit::DataService.new_submodel
             s2 = s.new_submodel
-            c = Syskit::Component.new_submodel { provides s, :as => 'srv' }
+            c = Syskit::TaskContext.new_submodel { provides s, :as => 'srv' }
             req = Syskit::InstanceRequirements.new([c, s2])
             assert_raises(Syskit::AmbiguousServiceSelection) { req.find_data_service_from_type(s) }
         end
@@ -241,7 +261,7 @@ describe Syskit::InstanceRequirements do
                 provides srv1, :as => "1"
                 provides srv2, :as => "2"
             end
-            assert_equal [srv1, srv2].to_set, Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1].to_set
+            assert_equal [srv1, srv2, Syskit::DataService].to_set, Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1].to_set
         end
         it "should return the required arguments as third element" do
             arguments = Hash['an argument' => 'for the task']
@@ -269,6 +289,25 @@ describe Syskit::InstanceRequirements do
         end
     end
 
+    describe "#unselect_service" do
+        it "strips off the data service if there is one" do
+            task_m = Syskit::TaskContext.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            req = Syskit::InstanceRequirements.new([task_m.test_srv])
+            req.unselect_service
+            assert_same task_m, req.base_model
+            assert_same task_m, req.model
+        end
+        it "does nothing if the requirements point to no service" do
+            task_m = Syskit::TaskContext.new_submodel
+            req = Syskit::InstanceRequirements.new([task_m])
+            req.unselect_service
+            assert_same task_m, req.base_model
+            assert_same task_m, req.model
+        end
+    end
+
     describe "#narrow_model" do
         attr_reader :srv_m, :task_m, :cmp_m
         before do
@@ -289,6 +328,54 @@ describe Syskit::InstanceRequirements do
             di.dependency_injection_context.push(Syskit::DependencyInjection.new('test0' => task_m))
             model = di.narrow_model
             assert model.is_specialization?
+        end
+    end
+
+    describe "#merge" do
+        attr_reader :srv_m, :task_m, :with_service, :without_service
+        before do
+            @srv_m = Syskit::DataService.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, :as => 'test'
+
+            @with_service = Syskit::InstanceRequirements.new([task_m.test_srv])
+            @without_service = Syskit::InstanceRequirements.new([task_m])
+        end
+
+        it "should keep the selected service from the receiver if there is one" do
+            assert_equal task_m.test_srv, with_service.merge(without_service).service
+        end
+        it "should keep the selected service from the argument if there is one" do
+            assert_equal task_m.test_srv, without_service.merge(with_service).service
+        end
+        it "should keep the selected service if both have a compatible selection" do
+            assert_equal task_m.test_srv, with_service.merge(with_service.dup).service
+        end
+    end
+
+    describe "#self_port_to_component_port" do
+        it "does not modify ports if the model is a component model already" do
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end
+            ir = Syskit::InstanceRequirements.new([task_m])
+            port = ir.out_port
+            resolved = port.to_component_port
+            assert_equal resolved, port
+        end
+        it "does port mapping if the model is a service" do
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'srv_out', '/double'
+            end
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end
+            task_m.provides srv_m, :as => 'test'
+
+            ir = Syskit::InstanceRequirements.new([task_m.test_srv])
+            port = ir.srv_out_port
+            resolved = port.to_component_port
+            assert_equal resolved, ir.to_component_model.out_port
         end
     end
 end

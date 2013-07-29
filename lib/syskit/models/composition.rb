@@ -155,30 +155,30 @@ module Syskit
                 # Anyway, the remainder checks that the new definition is a
                 # valid overloading of the previous one.
                 
-                current_model = find_child(name) || CompositionChild.new(self, name)
-                child_models = Models.merge_model_lists(child_models, current_model.base_models)
+                child_model = find_child(name) || CompositionChild.new(self, name)
+                child_model.merge(InstanceRequirements.new(Array(child_models)))
                 dependency_options = Roby::TaskStructure::DependencyGraphClass.
-                    merge_dependency_options(current_model.dependency_options, dependency_options)
+                    merge_dependency_options(child_model.dependency_options, dependency_options)
+                child_model.dependency_options.clear
+                child_model.dependency_options.merge!(dependency_options)
 
-                parent_model = superclass.find_child(name)
-                result = CompositionChild.new(self, name, child_models, dependency_options, parent_model)
                 Models.debug do
                     Models.debug "added child #{name} to #{short_name}"
-                    Models.debug "  with models #{result.models.map(&:short_name).join(", ")}"
-                    if parent_model && !parent_model.models.empty?
-                        Models.debug "  updated from #{parent_model.models.map(&:short_name).join(", ")}"
+                    Models.debug "  with models #{child_model.model}"
+                    if parent_model = superclass.find_child(name)
+                        Models.debug "  updated from #{parent_model.model}"
                     end
-                    if !result.port_mappings.empty?
+                    if !child_model.port_mappings.empty?
                         Models.debug "  port mappings"
                         Models.log_nest(4) do
-                            result.port_mappings.each_value do |mappings|
+                            child_model.port_mappings.each_value do |mappings|
                                 Models.log_pp(:debug, mappings)
                             end
                         end
                     end
                     break
                 end
-                children[name] = result
+                children[name] = child_model
             end
 
             # Overloads an existing child with a new model and/or options
@@ -697,7 +697,7 @@ module Syskit
                     find_children_models_and_tasks(context)
 
                 specialization_selector = explicit_selections.map_value do |_, sel|
-                    sel.selected.models
+                    sel.selected.component_model
                 end
                 specialized_model = specializations.matching_specialized_model(specialization_selector)
                 if specialized_model != self
@@ -705,7 +705,7 @@ module Syskit
                 end
 
                 specialization_selector = selected_models.map_value do |_, sel|
-                    sel.selected.models
+                    sel.selected.component_model
                 end
                 specialized_model = specializations.matching_specialized_model(specialization_selector)
                 if specialized_model != self
@@ -716,7 +716,7 @@ module Syskit
 
             def find_applicable_specialization_from_selection(explicit_selections, selections)
                 specialization_selector = explicit_selections.map_value do |_, sel|
-                    sel.selected.models
+                    sel.selected.component_model
                 end
                 specialized_model = specializations.matching_specialized_model(specialization_selector)
                 if specialized_model != self
@@ -724,7 +724,7 @@ module Syskit
                 end
 
                 specialization_selector = selections.map_value do |_, sel|
-                    sel.selected.models
+                    sel.selected.component_model
                 end
                 return specializations.matching_specialized_model(specialization_selector)
             end
@@ -793,7 +793,7 @@ module Syskit
                 while !remaining_children_models.empty?
                     current_size = remaining_children_models.size
                     remaining_children_models.delete_if do |child_name, selected_child|
-                        if selected_child.selected.models.any? { |m| m <= Syskit::Composition }
+                        if selected_child.selected.fullfills?(Syskit::Composition)
                             # Check if selected_child points to another child of
                             # self, and if it is the case, make sure it is available
                             selected_child = selected_child.dup
@@ -838,7 +838,7 @@ module Syskit
                         role = [child_name].to_set
                         children_tasks[child_name] = child_task
 
-                        dependent_models    = find_child(child_name).models.to_a
+                        dependent_models    = find_child(child_name).each_required_model.to_a
                         dependent_arguments = dependent_models.inject(Hash.new) do |result, m|
                             result.merge(m.meaningful_arguments(child_task.arguments))
                         end
@@ -944,7 +944,7 @@ module Syskit
                 # io << "  label=\"#{model.name}\";"
                 # io << "  C#{id} [style=invisible];"
                 each_child do |child_name, child_definition|
-                    child_model = child_definition.models
+                    child_model = child_definition.each_required_model
 
                     task_label = child_model.map(&:short_name).join(',')
                     task_label = "#{child_name}[#{task_label}]"
@@ -954,7 +954,7 @@ module Syskit
                         inject(&:concat).to_a
                     label = Graphviz.dot_iolabel(task_label, inputs, outputs)
 
-                    if child_model.any? { |m| !(m <= Component) || m.abstract? }
+                    if child_model.any? { |m| !m.fullfills?(Component) || m.abstract? }
                         color = ", color=\"red\""
                     end
                     io << "  C#{id}#{child_name} [label=\"#{label}\"#{color},fontsize=15];"
@@ -1089,18 +1089,19 @@ module Syskit
             # Reimplemented from Roby::Task to take into account the multiple
             # inheritance mechanisms that is the composition specializations
             def fullfills?(models)
-                models = [models] if !models.respond_to?(:each)
-                compo, normal = models.partition { |m| m <= Composition }
-                if !super(normal)
-                    return false
-                elsif compo.empty?
-                    return true
-                else
-                    (self <= compo.first) ||
-                        compo.first.parent_model_of?(self)
+                models = [models] if !models.respond_to?(:map)
+                models = models.map do |other_model|
+                    if other_model.respond_to?(:applied_specializations)
+                        if !(other_model.applied_specializations - applied_specializations).empty?
+                            return false
+                        end
+                        other_model.root_model
+                    else
+                        other_model
+                    end
                 end
+                return super(models)
             end
-
         end
     end
 end

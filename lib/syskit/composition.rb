@@ -53,20 +53,19 @@ module Syskit
 
         # Exception raised when CompositionChild#method_missing is called to
         # resolve a port but the port name is ambiguous
-        class AmbiguousChildPort < RuntimeError
-            attr_reader :composition_child
+        class AmbiguousInstanceRequirementPort < RuntimeError
+            attr_reader :instance_requirement
             attr_reader :port_name
             attr_reader :candidates
 
-            def initialize(composition_child, port_name, candidates)
-                @composition_child, @port_name, @candidates =
-                    composition_child, port_name, candidates
+            def initialize(instance_requirement, port_name, candidates)
+                @instance_requirement, @port_name, @candidates =
+                    instance_requirement, port_name, candidates
             end
 
             def pretty_print(pp)
-                pp.text "#{port_name} is ambiguous on the child #{composition_child.child_name} of"
-                pp.breakable
-                composition_child.composition.pretty_print(pp)
+                pp.text "#{port_name} is ambiguous on "
+                instance_requirement.pretty_print(pp)
                 pp.breakable
                 pp.text "Candidates:"
                 pp.nest(2) do
@@ -143,6 +142,19 @@ module Syskit
                 result
             end
 
+            def resolve_port(port_name)
+                export = model.find_exported_input(port_name) ||
+                    model.find_exported_output(port_name)
+                child_name = export.component_model.child_name
+                if child = find_child_from_role(child_name)
+                    actual_port_name = child_selection[child_name].port_mappings[export.name]
+                    if child.respond_to?(:resolve_port)
+                        child.resolve_port(actual_port_name)
+                    else child.find_port(actual_port_name)
+                    end
+                end
+            end
+
             # Maps a port exported on this composition to the actual orocos port
             # that it represents
             #
@@ -170,6 +182,38 @@ module Syskit
                     p
                 else raise ArgumentError, "#{self} has no port called #{name}, known ports are: #{each_port.map(&:name).sort.join(", ")}"
                 end
+            end
+
+            # Returns a child from its role, as the composition model tells we
+            # should see it
+            #
+            # Generally speaking, if the composition model requires a data
+            # service, this service is going to be returned instead of the
+            # whole task
+            #
+            # @return [Component,BoundDataService,nil]
+            def find_required_composition_child_from_role(role)
+                selected = child_selection[role]
+                return if !selected
+                # Check what the child is made of ... We might not have to
+                # return a service
+                task = child_from_role(role)
+                if srv = model.find_child(role).service
+                    return selected.service_selection[srv.model].bind(task)
+                else return task
+                end
+            end
+
+            # (see find_required_composition_child_from_role)
+            #
+            # @return [Component,BoundDataService]
+            # @raise ArgumentError if the requested child does not exist
+            def required_composition_child_from_role(role)
+                selected = find_required_composition_child_from_role(role)
+                if !selected
+                    raise ArgumentError, "#{role} does not seem to be a proper child of this composition"
+                end
+                selected
             end
 
             # Overriden from Roby::Task
@@ -206,19 +250,11 @@ module Syskit
 
                 if child.kind_of?(TaskContext)
                     Flows::DataFlow.modified_tasks << child
-                elsif child_object?(child, Roby::TaskStructure::Dependency)
-                    mappings ||= self[child, Flows::DataFlow]
-                    mappings.each_key do |source_port, sink_port|
-                        real_task, _ = resolve_input_port(source_port)
-                        if real_task && !real_task.transaction_proxy? # can be nil if the child has been removed
-                            Flows::DataFlow.modified_tasks << real_task
-                        end
-                    end
-
                 else
                     mappings ||= self[child, Flows::DataFlow]
                     mappings.each_key do |source_port, sink_port|
-                        real_task, _ = resolve_output_port(source_port)
+                        real_port = resolve_port(source_port)
+                        real_task = real_port.component
                         if real_task && !real_task.transaction_proxy? # can be nil if the child has been removed
                             Flows::DataFlow.modified_tasks << real_task
                         end
@@ -248,24 +284,6 @@ module Syskit
                 if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
                     dataflow_change_handler(child, nil)
                 end
-            end
-
-            def fullfills?(models, arguments = Hash.new)
-                if !models.respond_to?(:map)
-                    models = [models]
-                end
-
-                models = models.map do |other_model|
-                    if other_model <= Composition
-                        if !(other_model.applied_specializations - model.applied_specializations).empty?
-                            return false
-                        end
-                        other_model.root_model
-                    else
-                        other_model
-                    end
-                end
-                return super(models, arguments)
             end
 
             # Generates the InstanceRequirements object that represents +self+

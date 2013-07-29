@@ -17,17 +17,16 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	]
 	proxy = Syskit.proxy_task_model_for(services)
 	assert(proxy.abstract?)
-	assert_equal('Syskit::PlaceholderTask<Syskit::TaskContext,A,B,C>', proxy.name)
+	assert_equal('Syskit::PlaceholderTask<Syskit::Component,A,B,C>', proxy.name)
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
-	assert_equal(([Syskit::TaskContext] + services).to_set, proxy.fullfilled_model.to_set)
+	assert_equal(([Syskit::DataService] + services).to_set, proxy.fullfilled_model.to_set)
 	services.each do |srv|
 	    assert(proxy.fullfills?(srv))
 	end
     end
 
     def test_proxy_task_and_data_service_mix
-	# TODO: task_model should be allowed to be any component model
-	task_model = TaskContext.new_submodel
+	task_model = Component.new_submodel
         task_model.name = "NewComponentModel"
 	services = [
 	    data_service_type('B'),
@@ -41,7 +40,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	assert_equal("Syskit::PlaceholderTask<#{task_model.name},A,B,C>", proxy.name)
 
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
-	assert_equal(([task_model] + services).to_set, proxy.fullfilled_model.to_set)
+	assert_equal(([task_model, Syskit::Component, Roby::Task, Syskit::DataService] + services).to_set, proxy.fullfilled_model.to_set)
 	assert(proxy.fullfills?(task_model))
 	services.each do |srv|
 	    assert(proxy.fullfills?(srv))
@@ -115,6 +114,18 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
         task0 = TaskContext.new_submodel
         task1 = TaskContext.new_submodel
         assert_raises(ArgumentError) { Syskit.proxy_task_model_for([task0, task1]) }
+    end
+
+    def test_each_fullfilled_model_yields_real_task_model_as_well_as_proxied_services
+	task_model = TaskContext.new_submodel
+        task_model.name = "NewComponentModel"
+	services = [
+	    data_service_type('B'),
+	    data_service_type('A'),
+	    data_service_type('C')
+	]
+	proxy = Syskit.proxy_task_model_for(services + [task_model])
+        assert_equal [task_model, Syskit::TaskContext, Syskit::Component, Roby::Task, Syskit::DataService, *services].to_set, proxy.each_fullfilled_model.to_set
     end
 end
 

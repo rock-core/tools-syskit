@@ -56,6 +56,11 @@ module Syskit
                 end
             end
 
+            def each_required_model
+                return enum_for(:each_required_model) if !block_given?
+                yield(self)
+            end
+
             # Internal class used to apply configuration blocks to data
             # services. I.e. when one does
             #
@@ -219,6 +224,8 @@ module Syskit
             def create_proxy_task
                 proxy_task_model.new
             end
+
+            def to_component_model; self end
 
             # Create a task instance that can be used in a plan to represent
             # this service

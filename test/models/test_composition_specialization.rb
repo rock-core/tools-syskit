@@ -94,27 +94,27 @@ describe Syskit::Models::CompositionSpecialization do
     describe "#weak_match?" do
         it "should return true if some of the specialized children are not selected and other are with match" do
             spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_service_model], 'other_child' => [simple_component_model])
-            assert spec.weak_match?('srv' => [simple_component_model])
+            assert spec.weak_match?('srv' => simple_component_model)
         end
         it "should return false for over-specialized selections" do
             spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model.new_submodel], 'other_child' => [simple_component_model])
-            assert !spec.weak_match?('srv' => [simple_component_model])
+            assert !spec.weak_match?('srv' => simple_component_model)
         end
         it "should return false if some of the specialized children are not selected and other are with no match" do
             spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_service_model], 'other_child' => [simple_component_model])
-            assert !spec.weak_match?('srv' => [Syskit::TaskContext.new_submodel])
+            assert !spec.weak_match?('srv' => Syskit::TaskContext.new_submodel)
         end
         it "should return true if there is a match and other unrelated entries in the selection" do
             spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_service_model])
-            assert spec.weak_match?('srv' => [simple_component_model], 'other_child' => [simple_component_model])
+            assert spec.weak_match?('srv' => simple_component_model, 'other_child' => [simple_component_model])
         end
         it "should return false if none of the entries in the selection match the specialization" do
             spec = Syskit::Models::CompositionSpecialization.new('other_child' => [simple_service_model])
-            assert !spec.weak_match?('srv' => [simple_component_model])
+            assert !spec.weak_match?('srv' => simple_component_model)
         end
         it "should return false if given an unrelated model" do
             spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_service_model])
-            assert !spec.weak_match?('srv' => [Syskit::TaskContext.new_submodel])
+            assert !spec.weak_match?('srv' => Syskit::TaskContext.new_submodel)
         end
     end
 end

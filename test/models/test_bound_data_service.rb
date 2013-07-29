@@ -5,6 +5,44 @@ describe Syskit::Models::BoundDataService do
     include Syskit::SelfTest
     include Syskit::Fixtures::SimpleCompositionModel
 
+    def setup_transitive_services
+        base = Syskit::DataService.new_submodel do
+            input_port "in_base", "/int"
+            input_port 'in_base_unmapped', '/double'
+            output_port "out_base", "/int"
+            output_port 'out_base_unmapped', '/double'
+        end
+        parent = Syskit::DataService.new_submodel do
+            input_port "in_parent", "/int"
+            input_port 'in_parent_unmapped', '/double'
+            output_port "out_parent", "/int"
+            output_port 'out_parent_unmapped', '/double'
+        end
+        parent.provides base, 'in_base' => 'in_parent', 'out_base' => 'out_parent'
+        model = Syskit::DataService.new_submodel do
+            input_port "in_model", "/int"
+            output_port "out_model", "/int"
+        end
+        model.provides parent, 'in_parent' => 'in_model', 'out_parent' => 'out_model'
+
+        component_model = Syskit::TaskContext.new_submodel do
+            input_port 'in_port', '/int'
+            output_port 'out_port', '/int'
+            output_port 'other_port', '/int'
+
+            input_port 'in_parent_unmapped', '/double'
+            input_port 'in_base_unmapped', '/double'
+            output_port 'out_parent_unmapped', '/double'
+            output_port 'out_base_unmapped', '/double'
+        end
+        service = component_model.provides(model,
+                    :as => 'test',
+                    'in_model' => 'in_port',
+                    'out_model' => 'out_port')
+
+        return base, parent, model, component_model, service
+    end
+
     describe "#self_port_to_component_port" do
         it "should return the port mapped on the task" do
             create_simple_composition_model
@@ -105,6 +143,38 @@ describe Syskit::Models::BoundDataService do
             assert_raises(ArgumentError) { srv_m.bind(Syskit::TaskContext.new_submodel.new) }
         end
     end
+
+    describe "#fullfills?" do
+        attr_reader :base, :parent, :model, :component_model, :service
+        before do
+            @base, @parent, @model, @component_model, @service =
+                setup_transitive_services
+        end
+
+        it "returns false for component models" do
+            assert !service.fullfills?(component_model)
+            assert !service.fullfills?([component_model, base])
+        end
+
+        it "returns true for its own data service model" do
+            assert service.fullfills?(model)
+        end
+
+        it "returns true for provided services" do
+            assert service.fullfills?(base)
+            assert service.fullfills?(parent)
+        end
+
+        it "returns false for services that it does not provide" do
+            other_service = Syskit::DataService.new_submodel
+            assert !service.fullfills?(other_service)
+        end
+
+        it "returns true for service proxies that list provided services" do
+            proxy = Syskit.proxy_task_model_for([parent])
+            assert service.fullfills?(proxy)
+        end
+    end
 end
 
 class TC_Models_BoundDataService < Test::Unit::TestCase
@@ -179,21 +249,6 @@ class TC_Models_BoundDataService < Test::Unit::TestCase
         assert(!service.fullfills?(other_service_model))
     end
 
-    def test_fullfills_p
-        base, parent, model, component_model, service =
-            setup_transitive_services
-
-        other_service = DataService.new_submodel
-        component_model.provides other_service, :as => 'unrelated_service'
-
-        assert !service.fullfills?(component_model)
-        assert !service.fullfills?([component_model, base])
-        assert service.fullfills?(base)
-        assert service.fullfills?(parent)
-        assert service.fullfills?(model)
-        assert !service.fullfills?(other_service)
-    end
-
     def test_each_fullfilled_model
         base, parent, model, component_model, service =
             setup_transitive_services
@@ -201,7 +256,7 @@ class TC_Models_BoundDataService < Test::Unit::TestCase
         other_service = DataService.new_submodel
         component_model.provides other_service, :as => 'unrelated_service'
 
-        assert_equal [base,parent,model,DataService,component_model].to_set,
+        assert_equal [base,parent,model,DataService].to_set,
             service.each_fullfilled_model.to_set
     end
 

@@ -283,12 +283,12 @@ module Syskit
                 if name && (sel = selection[name])
                     selections << sel
                 else
-                    requirements.models.each do |required_m|
+                    requirements.each_required_model do |required_m|
                         selections << [(selection[required_m] || required_m), required_m]
                     end
                 end
 
-                instance, component_model = nil, InstanceRequirements.new
+                instance, requirements = nil, InstanceRequirements.new
                 selected_services = Hash.new
                 selections.each do |sel_m, required_m|
                     if sel_m.respond_to?(:to_task)
@@ -303,15 +303,14 @@ module Syskit
                     if sel_m.service
                         selected_services[required_m || sel_m.service.model] = sel_m.service
                     end
-                    component_model.merge(sel_m)
-                end
-                component_model.unselect_service
-
-                if instance && !instance.fullfills?(component_model.base_models, component_model.arguments)
-                    raise ArgumentError, "explicitly selected #{instance}, but it does not fullfill the required #{component_model}"
+                    requirements.merge(sel_m.to_component_model)
                 end
 
-                return instance, component_model, selected_services
+                if instance && !instance.fullfills?(requirements.component_model, requirements.arguments)
+                    raise ArgumentError, "explicitly selected #{instance}, but it does not fullfill the required #{requirements}"
+                end
+
+                return instance, requirements, selected_services
             end
 
             # Resolves the selections by generating a direct mapping (as a hash)

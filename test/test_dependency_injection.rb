@@ -6,7 +6,8 @@ describe Syskit::DependencyInjection do
         it "returns an existing instance if one is selected" do
             task = Syskit::Component.new_submodel.new
             di = Syskit::DependencyInjection.new('child' => task)
-            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new], di.selection_for('child', Syskit::InstanceRequirements.new)
+            result = di.selection_for('child', Syskit::InstanceRequirements.new)
+            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new], result
         end
         it "returns an existing instance service if one is selected" do
             srv = Syskit::DataService.new_submodel
@@ -178,7 +179,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
     def test_normalize_selection_accepts_data_service_to_instance_requirements_that_fullfill_the_key
         key = DataService.new_submodel
         req = InstanceRequirements.new([key])
-        assert_equal(Hash[key => req], DependencyInjection.normalize_selection(key => req))
+        assert_equal(Hash[key => req.find_data_service_from_type(key)], DependencyInjection.normalize_selection(key => req))
     end
 
     def test_normalize_selection_accepts_data_service_to_instance_requirements_that_fullfill_the_key_and_selects_the_corresponding_service
