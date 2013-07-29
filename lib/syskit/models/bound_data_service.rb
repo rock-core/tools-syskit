@@ -81,6 +81,12 @@ module Syskit
             end
 
             def attach(new_component_model)
+                if new_component_model == self
+                    return self
+                elsif !new_component_model.fullfills?(component_model)
+                    raise ArgumentError, "cannot attach #{self} on #{new_component_model}: does not fullfill #{component_model}"
+                end
+
                 result = dup
                 result.instance_variable_set :@component_model, new_component_model
                 result
