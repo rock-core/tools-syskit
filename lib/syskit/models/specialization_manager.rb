@@ -441,8 +441,8 @@ module Syskit
                     child_composition.overload child_name, child_models
                 end
 
-                composite_spec.specialization_blocks.each do |block|
-                    applied_specializations.each do |applied_spec|
+                applied_specializations.each do |applied_spec|
+                    applied_spec.specialization_blocks.each do |block|
                         reference_model =
                             if applied_spec == composite_spec
                                 child_composition
