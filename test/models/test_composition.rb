@@ -459,16 +459,18 @@ describe Syskit::Models::Composition do
                 task = instanciate
                 assert_dependency_contains :roles => ['a_new_role', 'srv'].to_set
             end
-            #it "overrides remove_when_done" do
-            #    composition_model :remove_when_done => true
-            #    task = instanciate
-            #    assert_dependency_contains :remove_when_done => true
-            #end
-            #it "overrides consider_in_pending" do
-            #    composition_model :consider_in_pending => true
-            #    task = instanciate
-            #    assert_dependency_contains :consider_in_pending => true
-            #end
+            it "overrides remove_when_done" do
+                raise NotImplementedError
+                composition_model :remove_when_done => true
+                task = instanciate
+                assert_dependency_contains :remove_when_done => true
+            end
+            it "overrides consider_in_pending" do
+                raise NotImplementedError
+                composition_model :consider_in_pending => true
+                task = instanciate
+                assert_dependency_contains :consider_in_pending => true
+            end
             it "uses :failure => [:stop] as default dependency option" do
                 composition_model(Hash.new)
                 task = instanciate
