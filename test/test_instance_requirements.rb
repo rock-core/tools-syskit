@@ -74,12 +74,6 @@ describe Syskit::InstanceRequirements do
         it "returns nil on non-existent ports" do
             assert_equal nil, req.find_port('bla')
         end
-        it "raises AmbiguousInstanceRequirementPort if the same port is present on multiple models" do
-            srv_model = Syskit::DataService.new_submodel { output_port 'out', '/double' }
-            task_model = Syskit::TaskContext.new_submodel { output_port 'out', '/double' }
-            req = Syskit::InstanceRequirements.new([srv_model, task_model])
-            assert_raises(Syskit::AmbiguousInstanceRequirementPort) { req.find_port('out') }
-        end
         it "picks the port on the selected service if there is one" do
             req.select_service(simple_task_model.srv_srv)
             assert req.find_port 'srv_in'

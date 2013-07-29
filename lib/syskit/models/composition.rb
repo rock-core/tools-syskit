@@ -532,38 +532,6 @@ module Syskit
                 result
             end
 
-            # Verifies that +selected_model+ is an acceptable selection for
-            # +child_name+ on +self+. Raises InvalidSelection if it is not the case,
-            # and ArgumentError if the specified child is not a child of this
-            # composition.
-            #
-            # See also #acceptable_selection?
-            def verify_acceptable_selection(child_name, selected_model, user_call = true) # :nodoc:
-                dependent_model = find_child(child_name)
-                if !dependent_model
-                    raise ArgumentError, "#{child_name} is not the name of a child of #{self}"
-                end
-
-                dependent_model = dependent_model.models
-                if !selected_model.fullfills?(dependent_model)
-                    throw :invalid_selection if !user_call
-                    raise InvalidSelection.new(self, child_name, selected_model, dependent_model),
-                        "cannot select #{selected_model} for #{child_name}: [#{selected_model}] is not a specialization of [#{dependent_model.map(&:short_name).join(", ")}]"
-                end
-            end
-
-            # Returns true if +selected_child+ is an acceptable selection for
-            # +child_name+ on +self+
-            #
-            # See also #verify_acceptable_selection
-            def acceptable_selection?(child_name, selected_child) # :nodoc:
-                catch :invalid_selection do
-                    verify_acceptable_selection(child_name, selected_child, false)
-                    return true
-                end
-                return false
-            end
-
             # The list of names that will be used by this model as keys in a
             # DependencyInjection object,
             #
