@@ -532,11 +532,26 @@ describe Syskit::Models::Composition do
         end
 
         describe "#add" do
-            it "registers the topmost model as child model" do
+            it "registers only the new model if the existing model is superseded by it" do
                 service, component, composition = models
                 c0 = composition.new_submodel(:name => "C0")
                 c0.overload('srv', component)
                 assert_is_proxy_model_for component, c0.srv_child.model
+            end
+            it "registers a composite model if unrelated services are given" do
+                service, component, composition = models
+                srv1 = Syskit::DataService.new_submodel
+                c0 = composition.new_submodel(:name => "C0")
+                c0.overload('srv', srv1)
+                assert_is_proxy_model_for [service, srv1], c0.srv_child.model
+            end
+            it "registers the new service if it provides the existing one" do
+                service, component, composition = models
+                srv1 = Syskit::DataService.new_submodel
+                srv1.provides service
+                c0 = composition.new_submodel(:name => "C0")
+                c0.overload('srv', srv1)
+                assert_is_proxy_model_for [srv1], c0.srv_child.model
             end
             it "creates a new CompositionChild model for the children" do
                 srv = Syskit::DataService.new_submodel
