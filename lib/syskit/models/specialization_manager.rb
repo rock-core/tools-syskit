@@ -382,12 +382,21 @@ module Syskit
             end
 
             class SpecializationBlockContext < BasicObject
+                # The final composition model (i.e. the one on which the
+                # specialization is being applied)
                 attr_reader :model
-                attr_reader :specialized_children
+                # The composition model that is made of the root model and only
+                # the relevant specialization applied
+                attr_reader :reference_model
+                # The overload information
+                #
+                # @return [Models::FacetedAccess]
+                attr_reader :overload_info
 
-                def initialize(model, specialized_children)
-                    @model, @specialized_children =
-                        model, specialized_children
+                def initialize(model, reference_model)
+                    @model, @reference_model =
+                        model, reference_model
+                    @overload_info = ::Hash.new
                 end
 
                 def apply_block(block)
@@ -404,14 +413,13 @@ module Syskit
                 def method_missing(m, *args, &block)
                     if m.to_s =~ /(.*)_child$/
                         child_name = $1
-                        child = model.send(m, *args, &block)
-                        if specialized_model = specialized_children[$1]
-                            selected = child.as(specialized_model)
-                            if selected.service
-                                selected.service.attach(child)
-                            else selected
-                            end
-                        else child
+                        if info = overload_info[child_name]
+                            info
+                        else
+                            child = model.send(m, *args, &block)
+                            ref_child = reference_model.send(m, *args, &block)
+                            overload_info[name] = Models::FacetedAccess.new(
+                                child, ref_child)
                         end
                     else model.send(m, *args, &block)
                     end
@@ -433,9 +441,18 @@ module Syskit
                     child_composition.overload child_name, child_models
                 end
 
-                context = SpecializationBlockContext.new(child_composition, composite_spec.specialized_children)
                 composite_spec.specialization_blocks.each do |block|
-                    context.apply_block(block)
+                    applied_specializations.each do |applied_spec|
+                        reference_model =
+                            if applied_spec == composite_spec
+                                child_composition
+                            else
+                                applied_spec.composition_model
+                            end
+
+                        context = SpecializationBlockContext.new(child_composition, reference_model)
+                        context.apply_block(block)
+                    end
                 end
                 child_composition
             end

@@ -875,6 +875,7 @@ module Syskit
             end
 
             def each_output_port
+                return enum_for(:each_output_port) if !block_given?
                 each_required_model do |m|
                     m.each_output_port do |p|
                         yield(p.attach(self))
@@ -883,6 +884,7 @@ module Syskit
             end
 
             def each_input_port
+                return enum_for(:each_input_port) if !block_given?
                 each_required_model do |m|
                     m.each_input_port do |p|
                         yield(p.attach(self))
@@ -891,6 +893,7 @@ module Syskit
             end
 
             def each_port
+                return enum_for(:each_port) if !block_given?
                 each_output_port { |p| yield(p) }
                 each_input_port { |p| yield(p) }
             end

@@ -748,6 +748,28 @@ module Syskit
                 @dynamic_service = dynamic_service
             end
         end
+
+        # Exception raised when trying to refer to a port on a composite model
+        # (a.k.a. proxy model, i.e. a model that refers to a task and services
+        # that are not provided by this task), and both the task and the
+        # services have ports with that name
+        class AmbiguousPortOnCompositeModel < Ambiguous
+            attr_reader :model, :models, :port_name, :candidates
+            def initialize(model, models, port_name, candidates)
+                @model, @models, @port_name, @candidates = model, models, port_name, candidates
+            end
+            def pretty_print(pp)
+                pp.text "port name #{port_name} is ambiguous on #{model}"
+                pp.breakable
+                pp.text "it exists #{candidates.size} times:"
+                pp.nest(2) do
+                    pp.seplist(candidates) do |p|
+                        pp.breakable
+                        p.pretty_print(pp)
+                    end
+                end
+            end
+        end
 end
 
 

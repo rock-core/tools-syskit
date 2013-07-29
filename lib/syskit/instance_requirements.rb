@@ -207,18 +207,9 @@ module Syskit
                 end
             end
 
-            def as(service_type)
-                if m = find_data_service_from_type(service_type)
-                    m
-                else raise ArgumentError, "#{self} does not provide #{service_type}"
-                end
-            end
-
-            def as(service_type)
-                if m = find_data_service_from_type(service_type)
-                    m
-                else raise ArgumentError, "#{self} does not provide #{service_type}"
-                end
+            def as(models)
+                models = Array(models) if !models.respond_to?(:each)
+                Models::FacetedAccess.new(self, Syskit.proxy_task_model_for(models))
             end
 
             # Finds the composition's child by name

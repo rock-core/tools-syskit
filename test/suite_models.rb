@@ -14,6 +14,7 @@ require './test/models/test_data_services'
 require './test/models/test_deployment'
 require './test/models/test_specialization_manager'
 require './test/models/test_task_context'
+require './test/models/test_faceted_access'
 
 Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
 Syskit.logger.level = Logger::DEBUG

@@ -46,6 +46,7 @@ require 'syskit/bound_data_service'
 require 'syskit/dependency_injection'
 require 'syskit/dependency_injection_context'
 require 'syskit/instance_selection'
+require 'syskit/models/faceted_access'
 
 # Actions
 require 'syskit/actions'
