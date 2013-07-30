@@ -152,7 +152,7 @@ module Syskit
             def has_selection_for?(name)
                 !!explicit[name]
             end
-
+            
             # Normalizes an explicit selection
             #
             # The input can map any of string, Component and DataService to
@@ -183,20 +183,7 @@ module Syskit
                     end
 
                     # 'value' must be one of String,Model<Component>,Component,DataService,Model<BoundDataService>,BoundDataService or nil
-                    if value &&
-                        !value.respond_to?(:to_str) &&
-                        !value.kind_of?(Component) &&
-                        !value.kind_of?(BoundDataService) &&
-                        !value.kind_of?(Models::BoundDataService) &&
-                        !value.kind_of?(Models::DataServiceModel) &&
-                        !value.kind_of?(InstanceRequirements) &&
-                        (!value.kind_of?(Class) || !(value <= Component))
-                        if value.respond_to?(:to_instance_requirements)
-                            value = value.to_instance_requirements
-                        else
-                            raise ArgumentError, "found #{value} as a selection for #{key}, but only nil,name,component models,components,data service models and bound data services are allowed"
-                        end
-                    end
+                    value = normalize_selected_object(value, key)
 
                     if key.respond_to?(:to_str)
                         normalized[key] = value
@@ -456,6 +443,30 @@ module Syskit
             IGNORED_MODELS = [DataService]
             ROOT_MODELS = [TaskContext, Component, Composition]
 
+            def self.normalize_selected_object(value, key = nil)
+                return if !value
+
+                # 'value' must be one of String,Model<Component>,Component,DataService,Model<BoundDataService>,BoundDataService or nil
+                if !value.respond_to?(:to_str) &&
+                    !value.kind_of?(Component) &&
+                    !value.kind_of?(BoundDataService) &&
+                    !value.kind_of?(Models::BoundDataService) &&
+                    !value.kind_of?(Models::DataServiceModel) &&
+                    !value.kind_of?(InstanceRequirements) &&
+                    (!value.kind_of?(Class) || !(value <= Component))
+                    if value.respond_to?(:to_instance_requirements)
+                        value = value.to_instance_requirements
+                    else
+                        if key
+                            raise ArgumentError, "found #{value} as a selection for #{key}, but only nil,name,component models,components,data service models and bound data services are allowed"
+                        else
+                            raise ArgumentError, "found #{value} as a selection, but only nil,name,component models,components,data service models and bound data services are allowed"
+                        end
+                    end
+                end
+                value
+            end
+
             # Helper methods that adds to a dependency inject mapping a list of
             # default selections
             #
@@ -485,6 +496,7 @@ module Syskit
                 resolved_default_selections = Hash.new
 
                 default_selections.each do |selection|
+                    selection = normalize_selected_object(selection)
                     selection = resolve_selection_recursively(selection, using_spec)
                     selection.each_fullfilled_model do |m|
                         next if IGNORED_MODELS.include?(m)
