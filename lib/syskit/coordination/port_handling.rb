@@ -4,7 +4,12 @@ module Syskit
         module PortHandling
             def find_port(port_name)
                 if model_port = model.find_port(port_name)
-                    model_port.bind(self)
+                    case model_port
+                    when Syskit::Models::OutputPort
+                        OutputPort.new(model_port, model_port.component_model.bind(self))
+                    when Syskit::Models::InputPort
+                        InputPort.new(model_port, model_port.component_model.bind(self))
+                    end
                 end
             end
 
@@ -32,6 +37,36 @@ module Syskit
                     end
                 end
                 super
+            end
+        end
+
+        class OutputPort < Syskit::OutputPort
+            def reader(policy = Hash.new)
+                # The 'rescue' case is used only on first evaluation of the
+                # block, when Roby instanciates it to check syntax.
+                # The script blocks have to be re-instanciated for each
+                # task they get applied on
+                begin
+                    component.resolve
+                    super
+                rescue Roby::Coordination::ResolvingUnboundObject
+                    Syskit::Models::OutputReader.new(self, policy)
+                end
+            end
+        end
+
+        class InputPort < Syskit::InputPort
+            def writer(policy = Hash.new)
+                # The 'rescue' case is used only on first evaluation of the
+                # block, when Roby instanciates it to check syntax.
+                # The script blocks have to be re-instanciated for each
+                # task they get applied on
+                begin
+                    component.resolve
+                    super
+                rescue Roby::Coordination::ResolvingUnboundObject
+                    Syskit::Models::InputWriter.new(self, policy)
+                end
             end
         end
     end
