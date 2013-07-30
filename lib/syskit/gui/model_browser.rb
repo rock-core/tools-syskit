@@ -18,9 +18,6 @@ module Syskit
             def initialize(parent = nil)
                 super
 
-                # Composition and task context must have a higher priority than
-                # data services, as task contexts also have DataService in their
-                # ancestry
                 self.page = Page.new(display)
                 AVAILABLE_VIEWS.each do |view|
                     register_type(view.root_model, view.renderer, view.name, view.priority)
