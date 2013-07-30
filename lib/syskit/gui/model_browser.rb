@@ -1,6 +1,7 @@
 require 'metaruby/gui'
 require 'syskit/gui/model_views'
 require 'syskit/gui/page'
+require 'roby/gui/model_views'
 module Syskit
     module GUI
         class ModelBrowser < MetaRuby::GUI::ModelBrowser
@@ -10,6 +11,7 @@ module Syskit
                 View.new(Syskit::Composition, ModelViews::Composition, 'Compositions', 1),
                 View.new(Syskit::DataService, ModelViews::DataService, 'Data Services', 0),
                 View.new(Syskit::Actions::Profile, ModelViews::Profile, 'Profiles', 0),
+                View.new(Roby::Actions::Interface, Roby::GUI::ModelViews::ActionInterface, 'Action Interfaces', 0),
                 View.new(Typelib::Type, ModelViews::Type, 'Types', 0)
             ]
 
