@@ -55,7 +55,9 @@ module Syskit
                 super
 
                 plan.clear
-                options, render_options = Kernel.filter_options options, :method => :instanciate_model
+                options, render_options = Kernel.filter_options options,
+                    :method => :instanciate_model, :name => nil
+
                 @task = begin send(options[:method], model, plan)
                         rescue Exception => e
                             if view_partial_plans? then
@@ -64,7 +66,29 @@ module Syskit
                             else raise
                             end
                         end
-                render_plan(render_options)
+
+                specific_options, render_options = Kernel.filter_options render_options,
+                    :dataflow => Hash.new, :hierarchy => Hash.new
+                hierarchy_options = render_options.merge(specific_options[:hierarchy])
+                hierarchy_options = process_options('hierarchy', model, hierarchy_options)
+                dataflow_options = render_options.merge(specific_options[:dataflow])
+                dataflow_options = process_options('dataflow', model, dataflow_options)
+
+                render_plan(:hierarchy => hierarchy_options, :dataflow => dataflow_options)
+            end
+
+            def process_options(kind, model, options)
+                options = Kernel.normalize_options options
+
+                name = options[:name] || model.object_id.to_s
+                if options[:id]
+                    options[:id] = options[:id] % "#{kind}-#{name}"
+                end
+
+                if externals = options.delete(:external_objects)
+                    options[:external_objects] = externals % "#{kind}-#{name}"
+                end
+                options
             end
 
             def render_plan(options = Hash.new)
