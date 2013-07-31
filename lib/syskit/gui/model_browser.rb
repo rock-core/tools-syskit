@@ -12,6 +12,7 @@ module Syskit
                 View.new(Syskit::DataService, ModelViews::DataService, 'Data Services', 0),
                 View.new(Syskit::Actions::Profile, ModelViews::Profile, 'Profiles', 0),
                 View.new(Roby::Actions::Interface, Roby::GUI::ModelViews::ActionInterface, 'Action Interfaces', 0),
+                View.new(Roby::Task, Roby::GUI::ModelViews::Task, 'Roby Tasks', 0),
                 View.new(Typelib::Type, ModelViews::Type, 'Types', 0)
             ]
 
