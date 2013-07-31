@@ -275,29 +275,37 @@ module Syskit
                     end
                 end
 
-                instance, requirements = nil, InstanceRequirements.new
+                selected_instance, selected_requirements = nil, InstanceRequirements.new
                 selected_services = Hash.new
                 selections.each do |sel_m, required_m|
                     if sel_m.respond_to?(:to_task)
                         sel_task = sel_m.to_task
-                        instance ||= sel_task
-                        if instance != sel_task
-                            raise ArgumentError, "task instances #{instance} and #{sel_m} are both selected for #{required_m || requirements}, but they are not compatible"
+                        selected_instance ||= sel_task
+                        if selected_instance != sel_task
+                            raise ArgumentError, "task instances #{selected_instance} and #{sel_m} are both selected for #{required_m || requirements}, but they are not compatible"
                         end
                     end
 
                     sel_m = sel_m.to_instance_requirements
                     if sel_m.service
-                        selected_services[required_m || sel_m.service.model] = sel_m.service
+                        if required_m
+                            selected_services[required_m] = sel_m.service
+                        else
+                            requirements.each_required_model do |req_m|
+                                if sel_m.fullfills?(req_m)
+                                    selected_services[req_m] ||= sel_m.service
+                                end
+                            end
+                        end
                     end
-                    requirements.merge(sel_m.to_component_model)
+                    selected_requirements.merge(sel_m.to_component_model)
                 end
 
-                if instance && !instance.fullfills?(requirements.component_model, requirements.arguments)
-                    raise ArgumentError, "explicitly selected #{instance}, but it does not fullfill the required #{requirements}"
+                if selected_instance && !selected_instance.fullfills?(requirements.component_model, requirements.arguments)
+                    raise ArgumentError, "explicitly selected #{selected_instance}, but it does not fullfill the required #{requirements}"
                 end
 
-                return instance, requirements, selected_services
+                return selected_instance, selected_requirements, selected_services
             end
 
             # Resolves the selections by generating a direct mapping (as a hash)

@@ -9,12 +9,25 @@ describe Syskit::DependencyInjection do
             result = di.selection_for('child', Syskit::InstanceRequirements.new)
             assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new], result
         end
-        it "returns an existing instance service if one is selected" do
+        it "returns an existing instance service if one is selected and required" do
             srv = Syskit::DataService.new_submodel
             task = Syskit::Component.new_submodel { provides srv, :as => 'srv' }.new
             di = Syskit::DependencyInjection.new('child' => task.srv_srv)
-            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), {srv => task.model.srv_srv}],
-                di.selection_for('child', Syskit::InstanceRequirements.new)
+
+            instance, requirements, services = di.selection_for('child', Syskit::InstanceRequirements.new([srv]))
+            assert_equal task, instance
+            assert_equal Syskit::InstanceRequirements.new([task.model]), requirements
+            assert_equal Hash[srv => task.model.srv_srv], services
+        end
+        it "maps name-to-service selections to the requirements" do
+            base_srv_m = Syskit::DataService.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            srv_m.provides base_srv_m
+            task_m = Syskit::Component.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            di = Syskit::DependencyInjection.new('child' => task_m.test_srv)
+            _, _, service_selections = di.selection_for('child', Syskit::InstanceRequirements.new([base_srv_m]))
+            assert_equal task_m.test_srv, service_selections[base_srv_m]
         end
     end
 
