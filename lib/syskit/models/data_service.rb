@@ -373,6 +373,11 @@ module Syskit
                 model.attached_device_configuration_module.include(attached_device_configuration_module)
             end
 
+            def clear_model
+                super
+                @message_type = nil
+            end
+
             # The name of the bus_in_srv dynamic service defined on driver tasks
             def dynamic_service_name
                 name = "com_bus"
