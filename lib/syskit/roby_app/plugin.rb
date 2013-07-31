@@ -427,6 +427,16 @@ module Syskit
                 app.loaded_orogen_projects.clear
                 Syskit.conf.deployments.clear
                 Syskit::Actions::Profile.clear_model
+
+                # This needs to be cleared here and not in
+                # Component.clear_model. The main reason is that we need to
+                # clear them on every component model class. Some of them are
+                # therefore not reloaded by the regular Roby model-clearing
+                # mechanism
+                Syskit::Component.proxy_task_models.clear
+                Syskit::Component.each_submodel do |sub|
+                    sub.proxy_task_models.clear
+                end
             end
 
             def self.cleanup(app)
