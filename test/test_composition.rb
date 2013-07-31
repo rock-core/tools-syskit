@@ -4,6 +4,42 @@ require './test/fixtures/simple_composition_model'
 describe Syskit::Composition do
     include Syskit::SelfTest
     include Syskit::Fixtures::SimpleCompositionModel
+    
+    describe "#find_required_composition_child_from_role" do
+        attr_reader :composition_m, :base_srv_m, :srv_m, :task_m
+        before do
+            @base_srv_m = Syskit::DataService.new_submodel :name => 'BaseSrv'
+            @srv_m = Syskit::DataService.new_submodel :name => 'Srv'
+            srv_m.provides base_srv_m
+            @task_m = Syskit::TaskContext.new_submodel :name => 'Task'
+            task_m.provides srv_m, :as => 'test1'
+            task_m.provides srv_m, :as => 'test2'
+        end
+        it "returns nil for non-existent children" do
+            composition_m = Syskit::Composition.new_submodel
+            composition = composition_m.instanciate(plan)
+            assert !composition.find_required_composition_child_from_role('bla')
+        end
+        it "returns the task if the composition does not require a service" do
+            composition_m = Syskit::Composition.new_submodel
+            composition_m.add task_m, :as => 'test'
+            composition = composition_m.instanciate(plan)
+            assert_equal composition.test_child, composition.find_required_composition_child_from_role('test')
+        end
+        it "selects the child service as the child selection specifies it" do
+            composition_m = Syskit::Composition.new_submodel
+            composition_m.add srv_m, :as => 'test'
+            composition = composition_m.use('test' => task_m.test1_srv).instanciate(plan)
+            assert_equal composition.test_child.test1_srv, composition.find_required_composition_child_from_role('test')
+        end
+        it "refines the returned service to match the composition model" do
+            composition_m = Syskit::Composition.new_submodel
+            composition_m.add base_srv_m, :as => 'test'
+            composition = composition_m.use('test' => task_m.test1_srv).instanciate(plan)
+            result = composition.find_required_composition_child_from_role('test')
+            assert_equal composition.test_child.test1_srv.as(base_srv_m), result
+        end
+    end
 
     describe "port access" do
         attr_reader :task, :cmp, :srv

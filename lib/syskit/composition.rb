@@ -121,7 +121,7 @@ module Syskit
                 # return a service
                 task = child_from_role(role)
                 if srv = model.find_child(role).service
-                    return selected.service_selection[srv.model].bind(task)
+                    return selected.service_selection[srv.model].bind(task).as(srv.model)
                 else return task
                 end
             end
