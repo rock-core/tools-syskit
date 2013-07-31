@@ -25,6 +25,7 @@ module Syskit
             def clear_model
                 super
                 data_services.clear
+                dynamic_services.clear
                 # Note: the proxy_task_models cache is cleared separately. The
                 # reason is that we need to clear it on permanent and
                 # non-permanent models alike, including component models that
