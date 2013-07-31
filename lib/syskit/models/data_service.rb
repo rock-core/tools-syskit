@@ -254,13 +254,12 @@ module Syskit
 
         # Metamodel for all devices
         class DeviceModel < DataServiceModel
-            def new_submodel(options = Hash.new, &block)
-                model = super(options, &block)
+            def setup_submodel(submodel, options = Hash.new, &block)
+                super
                 if device_configuration_module
-                    model.device_configuration_module = Module.new
-                    model.device_configuration_module.include(device_configuration_module)
+                    submodel.device_configuration_module = Module.new
+                    submodel.device_configuration_module.include(device_configuration_module)
                 end
-                model
             end
 
             attribute(:device_configuration_module)
@@ -341,10 +340,14 @@ module Syskit
             #   type that is used by this combus to communicate with the
             #   components it supports
             def new_submodel(options = Hash.new, &block)
+                super(options, &block)
+            end
+
+            def setup_submodel(model, options = Hash.new, &block)
                 bus_options, options = Kernel.filter_options options,
                     :override_policy => override_policy?, :message_type => message_type
+                super(model, options, &block)
 
-                model = super(options, &block)
                 model.override_policy = bus_options[:override_policy]
                 if !bus_options[:message_type] && !model.message_type
                     raise ArgumentError, "com bus types must either have a message_type or provide another com bus type that does"
@@ -357,7 +360,6 @@ module Syskit
                 end
 
                 model.attached_device_configuration_module.include(attached_device_configuration_module)
-                model
             end
 
             # The name of the bus_in_srv dynamic service defined on driver tasks
