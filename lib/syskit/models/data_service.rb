@@ -19,7 +19,7 @@ module Syskit
             end
 
             def initialize
-                clear_model
+                @orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project)
                 super
             end
 
