@@ -285,6 +285,11 @@ class TC_Models_DataService < Test::Unit::TestCase
         combus = Syskit::Device.new_submodel
         assert_raises(ArgumentError) { srv.provides combus }
     end
+
+    def test_it_is_registered_as_a_submodel_of_TaskService
+        srv = Syskit::DataService.new_submodel
+        assert Roby::TaskService.each_submodel.to_a.include?(srv)
+    end
 end
 
 class TC_Models_Device < Test::Unit::TestCase
@@ -315,6 +320,11 @@ class TC_Models_Device < Test::Unit::TestCase
         srv = Syskit::Device.new_submodel
         combus = Syskit::ComBus.new_submodel :message_type => '/int'
         assert_raises(ArgumentError) { srv.provides combus }
+    end
+
+    def test_it_is_registered_as_a_submodel_of_TaskService
+        device = Syskit::Device.new_submodel
+        assert Roby::TaskService.each_submodel.to_a.include?(device)
     end
 end
 
@@ -421,6 +431,11 @@ describe Syskit::ComBus do
         m = new_submodel
         m.clear_model
         m.provides Syskit::ComBus
+    end
+
+    it "is registered as a submodel of Roby::TaskService" do
+        combus = Syskit::ComBus.new_submodel :message_type => '/int'
+        assert Roby::TaskService.each_submodel.to_a.include?(combus)
     end
 
     it "declares the necesary dynamic service when provided on its driver" do

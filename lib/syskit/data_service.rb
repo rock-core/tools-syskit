@@ -28,6 +28,7 @@ module Syskit
 
         Device   = Models::DeviceModel.new
         Device.root = true
+        Device.provides DataService
         Models::DeviceModel.base_module = Device
 
         # Modelling and instance-level functionality for devices
@@ -42,8 +43,6 @@ module Syskit
         # the system model, or SystemModel#device_type if it should be
         # registered
         module Device
-            include DataService
-
             def each_master_driver_service
                 model.each_master_driver_service do |srv|
                     yield(srv.bind(self))
@@ -126,14 +125,13 @@ module Syskit
 
         ComBus = Models::ComBusModel.new
         ComBus.root = true
+        ComBus.provides Device
         Models::ComBusModel.base_module = ComBus
 
         # Module that represents the communication busses in the task models. It
         # defines the methods that are available on task instances. For methods
         # that are added to the task models, see ComBus::ClassExtension
         module ComBus
-            include Device
-
             # Enumerates the communication busses this task is a driver for
             #
             # @yieldparam [Robot::ComBus] the communication bus device
