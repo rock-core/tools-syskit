@@ -63,8 +63,8 @@ describe Syskit::Composition do
                 provides srv_m, :as => 'test', 'srv_out' => 'out', 'srv_in' => 'in'
             end
             @cmp = cmp_m.use('srv' => task_m).instanciate(plan)
-            @task = stub_deployed_task('task', task_m)
-            @srv  = stub_deployed_task('srv', task_m)
+            @task = syskit_deploy_task_context(task_m, 'task')
+            @srv  = syskit_deploy_task_context(task_m, 'srv')
             plan.replace_task(cmp.child_from_role('task'), task)
             plan.replace_task(cmp.child_from_role('srv'), srv)
         end

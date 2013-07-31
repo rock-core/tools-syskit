@@ -74,8 +74,7 @@ describe Syskit::OutputReader do
         policy = Hash[:type => :buffer, :size => 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_reader = abstract_task.out_port.reader(policy)
-        plan.add(task = task_m.new)
-        stub_deployed_task 'task', task
+        task = syskit_deploy_task_context(task_m, 'task')
         plan.replace(abstract_task, task)
 
         start_task_context(task)

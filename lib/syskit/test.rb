@@ -71,16 +71,46 @@ module Syskit
                 end
             end
 
-            def stub_roby_task_context(name = "task", task_model = nil, &block)
-                task_model ||= TaskContext.new_submodel(&block)
-                plan.add(task = task_model.new)
+            # Create a new task context model with the given name
+            #
+            # @yield a block in which the task context interface can be
+            #   defined
+            def stub_syskit_task_context_model(name, &block)
+                TaskContext.new_submodel(:name => name, &block)
+            end
+
+            # Create a new stub task context instance and add it to the plan
+            #
+            # @param [String] name the orocos_name of the new task
+            # @param [Model<Syskit::TaskContext>,String,nil] task_model the task
+            #   model. If a string or nil, a new task context model will be
+            #   created using task_model as a name (or no name if nil). In this
+            #   case, the given block is used to define the task context
+            #   interface
+            # @return [Syskit::TaskContext] the new task instance. It is already
+            #   added to #plan
+            def stub_syskit_task_context(name = "task", task_model = nil, &block)
+                if !task_model || task_model.respond_to?(:to_str)
+                    task_model = stub_syskit_task_context_model(task_model, &block)
+                end
+                plan.add_permanent(task = task_model.new(:orocos_name => name))
                 task
             end
 
-            def stub_roby_deployment_model(*args, &block)
-                stub_syskit_deployment_model(*args, &block)
-            end
-
+            # Create a new stub deployment model that can deploy a given task
+            # context model
+            #
+            # @param [Model<Syskit::TaskContext>,nil] task_model if given, a
+            #   task model that should be deployed by this deployment model
+            # @param [String] name the name of the deployed task as well as
+            #   of the deployment. If not given, and if task_model is provided,
+            #   task_model.name is used as default
+            # @yield the deployment model context, i.e. a context in which the
+            #   same declarations than in oroGen's #deployment statement are
+            #   available
+            # @return [Model<Syskit::Deployment>] the deployment model. This
+            #   deployment is declared as available on the 'stubs' process server,
+            #   i.e. it can be started
             def stub_syskit_deployment_model(task_model = nil, name = nil, &block)
                 if task_model
                     name ||= task_model.name
@@ -100,32 +130,43 @@ module Syskit
                 deployment_model
             end
 
+            # Create a new stub deployment instance
             def stub_syskit_deployment(name = "deployment", deployment_model = nil, &block)
-                deployment_model ||= stub_roby_deployment_model(nil, name, &block)
-                plan.add_mission(task = deployment_model.new(:on => 'stubs'))
+                deployment_model ||= stub_syskit_deployment_model(nil, name, &block)
+                plan.add_permanent(task = deployment_model.new(:on => 'stubs'))
                 task
             end
 
-            def stub_deployed_task(name = 'task', task = nil, &block)
-                if !task || task.kind_of?(Class)
-                    plan.add_mission(task = stub_roby_task_context(name, task, &block))
+            # Create a new deployed instance of a task context model
+            #
+            # @param [Model<Syskit::TaskContext>,String] task_model the task
+            #   context model. If it is a string, it is the name fo a task
+            #   context model that is created using a block given to the method
+            # @param [String] the name of the deployed task
+            #
+            # @overload syskit_deploy_task_context(task_m, 'stub_task')
+            # @overload syskit_deploy_task_context('Task', 'stub_task') { # output_port ... }
+            def syskit_deploy_task_context(task_model, orocos_name = 'task')
+                if task_model.respond_to?(:to_str)
+                    task_model = stub_syskit_task_context_model(task_model, &proc)
                 end
-                task.orocos_name ||= name
-                deployment = stub_syskit_deployment("deployment_#{name}") do
-                    task name, task.model.orogen_model
-                end
-                task.executed_by deployment
+                deployment_m = stub_syskit_deployment_model(task_model, orocos_name)
+                plan.add(deployment = deployment_m.new(:on => 'stubs'))
+                task = deployment.task orocos_name
+                plan.add_permanent(task)
                 deployment.start!
-                task.orocos_task = deployment.orocos_process.tasks[name]
                 task
             end
 
-            def deploy_and_start_task_context(name, task)
-                task = stub_deployed_task(name, task)
-                start_task_context(task)
+            # Create a new deployed instance of a task context model and start
+            # it
+            def syskit_deploy_and_start_task_context(task_model, name = 'task')
+                task = syskit_deploy_task_context(task_model, name)
+                syskit_start_component(task)
                 task
             end
 
+            # Set this component instance up
             def syskit_setup_component(component)
                 if component.kind_of?(Syskit::TaskContext)
                     if !component.execution_agent.running?
@@ -136,6 +177,9 @@ module Syskit
                 component.setup
             end
 
+            # Start this component
+            #
+            # If needed, it sets it up first
             def syskit_start_component(component)
                 if component.kind_of?(Syskit::Composition)
                     component.each_child do |child_task|
@@ -155,8 +199,19 @@ module Syskit
                 end
             end
 
+            # @deprecated
             def start_task_context(task)
                 syskit_start_component(task)
+            end
+
+            # @deprecated
+            def stub_roby_task_context(name = "task", task_model = nil, &block)
+                stub_syskit_task_context(name, task_model, &block)
+            end
+
+            # @deprecated
+            def stub_roby_deployment_model(*args, &block)
+                stub_syskit_deployment_model(*args, &block)
             end
 
             def setup

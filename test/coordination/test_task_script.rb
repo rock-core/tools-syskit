@@ -16,7 +16,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         before do
             @srv_m = srv_m = Syskit::DataService.new_submodel { input_port 'srv_in', '/double' }
-            @component = stub_deployed_task do
+            @component = syskit_deploy_task_context 'Task' do
                 input_port 'in', '/double'
                 provides srv_m, :as => 'test'
             end
@@ -54,8 +54,8 @@ describe Syskit::Coordination::TaskScriptExtension do
                 writer = test_child.srv_in_port.writer
             end
 
-            start_task_context(composition)
-            start_task_context(component)
+            syskit_start_component(composition)
+            syskit_start_component(component)
             writer.write(10)
             assert_equal 10, component.orocos_task.in.read
         end
@@ -77,7 +77,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         before do
             @srv_m = srv_m = Syskit::DataService.new_submodel { output_port 'srv_out', '/double' }
-            @component = stub_deployed_task do
+            @component = syskit_deploy_task_context 'Task' do
                 output_port 'out', '/double'
                 provides srv_m, :as => 'test'
             end

@@ -7,7 +7,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
         table_m = Syskit::Coordination::DataMonitoringTable.new_submodel(component_m)
         table_m.monitor('sample_value_10', table_m.out_port)
-        plan.add(root_task = deploy_and_start_task_context('task', component_m))
+        root_task = syskit_deploy_and_start_task_context(component_m, 'task')
         assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) { table_m.new(root_task) }
     end
 
@@ -16,7 +16,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         table_m = Syskit::Coordination::DataMonitoringTable.new_submodel(component_m)
         table_m.monitor('sample_value_10', table_m.out_port).
             trigger_on { |sample| }
-        plan.add(root_task = deploy_and_start_task_context('task', component_m))
+        root_task = syskit_deploy_and_start_task_context(component_m, 'task')
         assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) { table_m.new(root_task) }
     end
 
@@ -49,7 +49,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(5, 2).once.ordered
         recorder.should_receive(:called).with(5, 7).once.ordered
 
-        plan.add(component = deploy_and_start_task_context('task', component_m))
+        component = syskit_deploy_and_start_task_context(component_m, 'task')
         table = table_model.new(component)
         process_events
         component.orocos_task.out1.write(5)
@@ -86,10 +86,10 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(2).once.ordered
         recorder.should_receive(:called).with(12).once.ordered
 
-        composition = composition_m.use('test' => component_m.test2_srv).instanciate(plan)
+        component = syskit_deploy_and_start_task_context(component_m, 'task')
+        composition = composition_m.use('test' => component.test2_srv).instanciate(plan)
         composition.depends_on composition.test_child, :success => :success, :remove_when_done => false
         plan.add_permanent(composition)
-        deploy_and_start_task_context('task', composition.test_child)
 
         table = table_model.new(composition)
         process_events
@@ -122,7 +122,6 @@ describe Syskit::Coordination::DataMonitoringTable do
         table_model = Syskit::Coordination::DataMonitoringTable.
             new_submodel(composition_m)
         recorder = flexmock
-        stub_roby_deployment_model(component_m)
         monitor_task = table_model.task(composition_m.use('test' => component_m.test2_srv))
         table_model.monitor('sample_value_10', table_model.out_port, monitor_task.out_port).
             trigger_on do |sample1, sample2|
@@ -135,7 +134,8 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(4, 2).once.ordered
         recorder.should_receive(:called).with(1, 12).once.ordered
 
-        composition = deploy(composition_m.use('test' => component_m.test1_srv))
+        component = syskit_deploy_task_context(component_m)
+        plan.add_permanent(composition = composition_m.use('test' => component.test1_srv).instanciate(plan))
         syskit_start_component(composition)
         table = table_model.new(composition)
         process_events

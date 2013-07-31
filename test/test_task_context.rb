@@ -78,7 +78,7 @@ describe Syskit::TaskContext do
     describe "#find_input_port" do
         attr_reader :task
         before do
-            @task = stub_deployed_task do
+            @task = syskit_deploy_task_context 'Task' do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -98,7 +98,7 @@ describe Syskit::TaskContext do
     describe "#find_output_port" do
         attr_reader :task
         before do
-            @task = stub_deployed_task do
+            @task = syskit_deploy_task_context 'Task' do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -365,7 +365,7 @@ describe Syskit::TaskContext do
     describe "#ready_for_setup?" do
         attr_reader :task, :orocos_task
         before do
-            @task = flexmock(stub_deployed_task)
+            @task = flexmock(syskit_deploy_task_context('Task') {})
             task.conf = []
             @orocos_task = flexmock
             task.should_receive(:orocos_task).and_return(orocos_task)
@@ -452,7 +452,7 @@ describe Syskit::TaskContext do
     describe "#prepare_for_setup" do
         attr_reader :task, :orocos_task
         before do
-            @task = stub_deployed_task do
+            @task = syskit_deploy_task_context 'Task' do
                 input_port "in", "/double"
                 output_port "out", "/double"
             end
@@ -499,7 +499,7 @@ describe Syskit::TaskContext do
     describe "#setup" do
         attr_reader :task, :orocos_task
         before do
-            @task = stub_deployed_task do
+            @task = syskit_deploy_task_context 'Task' do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -591,7 +591,7 @@ describe Syskit::TaskContext do
     describe "#configure" do
         attr_reader :task, :orocos_task
         before do
-            @task = stub_deployed_task do
+            @task = syskit_deploy_task_context 'Task' do
                 input_port "in", "int"
                 output_port "out", "int"
             end
