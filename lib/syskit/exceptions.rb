@@ -608,7 +608,7 @@ module Syskit
         class AmbiguousSpecialization < Ambiguous
             # The composition model that was being instanciated
             attr_reader :composition_model
-            # The user selection (see Composition.instanciate for details)
+            # @return [{String=>Model}] the specialization selector
             attr_reader :selection
             # The set of possible specializations given the model and the
             # selection. This is a list of [merged, set] tuples where +set+ is
@@ -635,7 +635,7 @@ module Syskit
                             if key.respond_to?(:short_name)
                                 key = key.short_name
                             end
-                            value = value.requirements.each_required_model
+                            value = value.each_required_model
                             value = value.map do |v|
                                 if v.respond_to?(:short_name) then v.short_name
                                 else v.to_s
