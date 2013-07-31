@@ -4,11 +4,7 @@ require 'metaruby/gui/html/page'
 require 'metaruby/gui/html/button'
 module Syskit
     module GUI
-        class Page < MetaRuby::GUI::HTML::Page
-            def link_to(obj, text = nil)
-                super
-            end
-
+        module PageExtension
             # Adds a PlanDisplay widget with the given title and parameters
             def push_plan(title, id, plan, options)
                 view_options, options = Kernel.filter_options options,
@@ -44,5 +40,6 @@ module Syskit
                 emit :updated
             end
         end
+        MetaRuby::GUI::HTML::Page.include PageExtension
     end
 end

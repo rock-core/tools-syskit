@@ -18,7 +18,6 @@ module Syskit
             def initialize(parent = nil)
                 super
 
-                self.page = Page.new(display)
                 AVAILABLE_VIEWS.each do |view|
                     register_type(view.root_model, view.renderer, view.name, view.priority)
                 end
