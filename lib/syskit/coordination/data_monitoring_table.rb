@@ -51,9 +51,10 @@ module Syskit
             # @return [Array<DataMonitor>] list of instanciated data monitors
             attr_reader :monitors
 
-            def initialize(root_task, arguments = Hash.new, instances = Hash.new, options = Hash.new)
-                super(root_task, arguments, instances, options)
-                options = Kernel.validate_options options, :on_replace => :drop
+            # (see Roby::Coordination::Base)
+            def initialize(root_task, arguments = Hash.new, options = Hash.new)
+                super(root_task, arguments, options)
+                options, _ = Kernel.filter_options options, :on_replace => :drop
                 root_task.poll(options) do
                     poll
                 end
@@ -67,7 +68,7 @@ module Syskit
                 model.each_task do |coordination_task_model|
                     if coordination_task_model.respond_to?(:instanciate)
                         root_task.depends_on(task_instance = coordination_task_model.instanciate(root_task.plan))
-                        instance_for(coordination_task_model).bind(task_instance)
+                        bind_coordination_task_to_instance(instance_for(coordination_task_model), task_instance)
                     end
                 end
 

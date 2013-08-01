@@ -12,3 +12,5 @@ require 'syskit/coordination/task_script_extension'
 require 'syskit/coordination/plan_extension'
 require 'syskit/coordination/fault_response_table_extension'
 require 'syskit/coordination/models/fault_response_table_extension'
+
+require 'syskit/coordination/models/task_extension'
