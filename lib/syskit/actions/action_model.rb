@@ -45,12 +45,14 @@ module Syskit
                 super
                 @requirements = Syskit::InstanceRequirements.new
             end
-            
-            # Allows to refine an action "on the fly"
-            def use(*args)
-                req = requirements.dup
-                req.use(*args)
-                Actions::Models::Action.new(action_interface_model, req, doc)
+
+            def method_missing(m, *args, &block)
+                if requirements.respond_to?(m)
+                    req = requirements.dup
+                    req.send(m, *args, &block)
+                    Actions::Models::Action.new(action_interface_model, req, doc)
+                else super
+                end
             end
         end
         end
