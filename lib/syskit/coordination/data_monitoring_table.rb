@@ -1,5 +1,50 @@
 module Syskit
     module Coordination
+        # Definition of a data monitoring table
+        #
+        # @example Define a data monitoring table that attaches to all tasks of a given type
+        #   module Asguard
+        #     data_monitoring_table 'TrajectoryFollowing' do
+        #       attach_to ControlLoop.specialized_on 'controller' => TrajectoryFollower::Task
+        #       monitor('pose', pose_child.pose_samples_port).
+        #         trigger_on do |pose|
+        #           # Verify that pose is within reasonable bounds of trajectory
+        #         end.
+        #         raise_exception
+        #     end
+        #     # Later, in an action interface file
+        #     class Main < Roby::Actions::Interface
+        #       use_data_monitoring_table Asguard::TrajectoryFollowing
+        #     end
+        #   end
+        #
+        # @example Define a standalone monitoring subsystem
+        #   module Asguard
+        #     class LowLevelMonitor < Syskit::Composition
+        #       add BatteryStatusSrv, :as => 'battery_provider'
+        #
+        #       data_monitoring_table do
+        #         monitor('battery_level', battery_provider_child.battery_status_port).
+        #           trigger_on do |battery_status|
+        #             battery_status.level < Robot.battery_required_to_reach_base
+        #           end.
+        #           raise_exception
+        #       end
+        #     end
+        #   end
+        #   # Later, in a profile definition
+        #   define 'low_level_monitor', Asguard::LowLevelMonitor.use(battery_dev)
+        #
+        # @example Use a data monitoring table in a fault response table
+        #   module Asguard
+        #     fault_response_table 'Safing' do
+        #       use_data_monitoring_table LowLevelMonitor
+        #       on_fault battery_level_monitor do
+        #         go_recharge
+        #       end
+        #     end
+        #   end
+        #   
         class DataMonitoringTable < Roby::Coordination::Base
             extend Models::DataMonitoringTable
 

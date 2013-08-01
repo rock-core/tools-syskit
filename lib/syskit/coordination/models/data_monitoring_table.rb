@@ -6,6 +6,9 @@ module Syskit
                 attr_reader :monitor
             end
 
+            # Model-level API for data monitoring tables
+            #
+            # @see Syskit::Coordination::DataMonitoringTable
             module DataMonitoringTable
                 include Roby::Coordination::Models::Base
 
@@ -22,10 +25,18 @@ module Syskit
 
                 # Define a new data monitor
                 #
-                # @overload monitor(:low_battery, battery_status_port) { |level| # level < 1 }
-                #   Calls the provided block each time a new sample is available
-                #   on the given port. The monitor will trigger (i.e. raise a
-                #   DataMonitoringError) when the predicate returns true
+                # Data monitors are objects that watch some data streams and
+                # either emit events and/or raise exceptions
+                #
+                # @example Register a block and emit an event when it returns true
+                #   monitor(:low_battery, battery_status_port).
+                #       trigger_on { |level| # level < 1 }.
+                #       emit battery_low_event
+                #
+                # @example Register a block and generate a DataMonitoringError when it returns true
+                #   monitor(:low_battery, battery_status_port).
+                #       trigger_on { |level| # level < 1 }.
+                #       raise_exception
                 #
                 # @return [DataMonitor] the new data monitor model
                 def monitor(name, *data_streams)
