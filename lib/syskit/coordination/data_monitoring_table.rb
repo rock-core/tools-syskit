@@ -51,9 +51,10 @@ module Syskit
             # @return [Array<DataMonitor>] list of instanciated data monitors
             attr_reader :monitors
 
-            def initialize(root_task)
-                super
-                root_task.poll(:on_replace => :drop) do
+            def initialize(root_task, arguments = Hash.new, instances = Hash.new, options = Hash.new)
+                super(root_task, arguments, instances, options)
+                options = Kernel.validate_options options, :on_replace => :drop
+                root_task.poll(options) do
                     poll
                 end
                 @monitors = Array.new
@@ -79,7 +80,7 @@ module Syskit
             # if their predicate triggers
             def poll
                 monitors.each do |m|
-                    m.poll(root_task)
+                    m.poll(instance_for(model.root).resolve)
                 end
             end
         end
