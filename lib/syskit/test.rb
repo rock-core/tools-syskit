@@ -273,7 +273,12 @@ module Syskit
 
             attr_predicate :keep_logs?, true
 
-            def deploy(base_task = nil, resolve_options = Hash.new, &block)
+            def deploy(*args, &block)
+                syskit_run_deployer(*args, &block)
+            end
+
+            # Run Syskit's deployer (i.e. engine) on the current plan
+            def syskit_run_deployer(base_task = nil, resolve_options = Hash.new, &block)
                 if engine.running?
                     execute do
                         syskit_engine.redeploy
