@@ -52,4 +52,32 @@ describe Syskit::Coordination::Models::TaskExtension do
         process_events
         assert task.current_task_child.monitor_failed?
     end
+
+    it "passes arguments from the state machine to the monitors" do
+        component_m = self.component_m
+        recorder = flexmock
+        task = nil
+        action_m.describe('').required_arg('arg')
+        action_m.action_state_machine :test_machine do
+            task = state component_m
+            task.monitor('thresholding', task.out_port, :test_arg => arg).
+                trigger_on do |value|
+                    recorder.called(test_arg)
+                    false
+                end.raise_exception
+            start task
+        end
+        assert_equal [:test_arg], task.data_monitoring_table.arguments
+        assert_equal Hash[:arg => :test_arg], task.data_monitoring_arguments
+
+        stub_syskit_deployment_model(component_m)
+        task = action_m.test_machine(:arg => 0).instanciate(plan)
+        recorder.should_receive(:called).with(0).once
+        plan.add_mission(task)
+        task.start!
+        syskit_run_deployer(task.current_task_child)
+        syskit_start_component(task.current_task_child)
+        task.current_task_child.orocos_task.out.write(20)
+        process_events
+    end
 end

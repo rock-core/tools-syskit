@@ -8,15 +8,39 @@ module Syskit
                     @data_monitoring_table ||= Syskit::Coordination::DataMonitoringTable.new_submodel(model)
                 end
 
+                # Mapping from data monitoring arguments to coordination context variables
+                def data_monitoring_arguments
+                    @data_monitoring_arguments ||= Hash.new
+                end
+
                 # Add a data monitor on this particular coordination task
                 #
                 # It will be added to all the instances of this task
                 def monitor(name, *data_streams)
+                    if data_streams.last.kind_of?(Hash)
+                        options = Kernel.normalize_options data_streams.pop
+                        options.each do |key, value|
+                            if key.respond_to?(:to_sym) && value.kind_of?(Roby::Coordination::Models::Variable)
+                                data_monitoring_arguments[value.name] = key
+                                data_monitoring_table.arguments << key
+                            end
+                        end
+                    end
+
                     data_monitoring_table.monitor(name, *data_streams)
                 end
 
                 def setup_instanciated_task(coordination_context, task, arguments = Hash.new)
-                    data_monitoring_table.new(task, arguments, :on_replace => :copy, :parent => coordination_context)
+                    table_arguments = Hash.new
+                    arguments.each do |key, value|
+                        if var = data_monitoring_arguments[key]
+                            table_arguments[var] = value
+                        end
+                    end
+                    data_monitoring_table.new(
+                        task, table_arguments,
+                        :on_replace => :copy,
+                        :parent => coordination_context)
                     super if defined? super
                 end
             end
