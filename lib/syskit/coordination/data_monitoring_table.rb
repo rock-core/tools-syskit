@@ -74,7 +74,9 @@ module Syskit
 
                 monitors_m = model.each_monitor.to_a
                 model.validate_monitors(monitors_m)
-                monitors.concat(monitors_m.map { |m| m.bind(self) })
+                root_task.execute do
+                    monitors.concat(monitors_m.map { |m| m.bind(self) })
+                end
             end
 
             # Checks all the monitors for new data, and issue the related errors
