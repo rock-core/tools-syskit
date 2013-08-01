@@ -30,6 +30,75 @@ describe Syskit::Coordination::DataMonitoringTable do
         end
     end
 
+    it "generates a CodeError if the trigger raises" do
+        component_m = Syskit::TaskContext.new_submodel do
+            output_port 'out', '/int'
+        end
+        recorder = flexmock
+        table_model = Syskit::Coordination::DataMonitoringTable.
+            new_submodel(component_m)
+        table_model.monitor('test', table_model.out_port).
+            trigger_on { |sample| raise }.
+            raise_exception
+
+        component = syskit_deploy_task_context(component_m, 'task')
+        table = table_model.new(component, :arg => 10)
+        syskit_start_component(component)
+        component.orocos_task.out.write(10)
+        inhibit_fatal_messages do
+            process_events
+        end
+        assert_kind_of Roby::CodeError, component.failure_reason
+    end
+
+    it "gives access to the monitoring table arguments as local variables in the blocks" do
+        component_m = Syskit::TaskContext.new_submodel do
+            output_port 'out', '/int'
+        end
+        recorder = flexmock
+        table_model = Syskit::Coordination::DataMonitoringTable.
+            new_submodel(component_m)
+        table_model.arguments << :arg
+        table_model.monitor('test', table_model.out_port).
+            trigger_on do |sample|
+                recorder.called(arg)
+                false
+            end.raise_exception
+
+        component = syskit_deploy_task_context(component_m, 'task')
+        table = table_model.new(component, :arg => 10)
+        recorder.should_receive(:called).with(10).at_least.once
+        syskit_start_component(component)
+        component.orocos_task.out.write(20)
+        process_events
+    end
+
+    it "allows to store state using local variables" do
+        component_m = Syskit::TaskContext.new_submodel do
+            output_port 'out', '/int'
+        end
+        recorder = flexmock
+        table_model = Syskit::Coordination::DataMonitoringTable.
+            new_submodel(component_m)
+        table_model.arguments << :arg
+        table_model.monitor('test', table_model.out_port).
+            trigger_on do |sample|
+                @value = !@value
+                recorder.called(@value)
+                false
+            end.raise_exception
+
+        component = syskit_deploy_task_context(component_m, 'task')
+        table = table_model.new(component, :arg => 10)
+        recorder.should_receive(:called).with(true).at_least.once
+        recorder.should_receive(:called).with(false).at_least.once
+        syskit_start_component(component)
+        component.orocos_task.out.write(20)
+        process_events
+        component.orocos_task.out.write(20)
+        process_events
+    end
+
     it "can attach to a component and trigger an error when the condition is met" do
         component_m = Syskit::TaskContext.new_submodel do
             output_port 'out1', '/int'

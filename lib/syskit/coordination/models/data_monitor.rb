@@ -45,7 +45,7 @@ module Syskit
                     data_streams = self.data_streams.map do |reader|
                         reader.bind(table.instance_for(reader.port.component_model))
                     end
-                    predicate = self.predicate.bind(data_streams)
+                    predicate = self.predicate.bind(table, data_streams)
                     monitor = Syskit::Coordination::DataMonitor.new(self, data_streams)
                     monitor.trigger_on(predicate)
                     emitted_events.each do |ev|

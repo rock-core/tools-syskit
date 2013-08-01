@@ -19,15 +19,19 @@ module Syskit
                 def has_new_sample?
                     @new_sample
                 end
+                # @return [Hash] set of arguments that are needed by the
+                # predicate block
+                attr_reader :arguments
 
                 # @param [Array<Syskit::Models::OutputReader>] data_streams the
                 #   data streams, in the same order than expected by the given
                 #   block
                 # @param [#call] predicate_block the predicate object. See the
                 #   documentation of {#block}
-                def initialize(data_streams, predicate_block)
+                def initialize(data_streams, predicate_block, arguments = Hash.new)
                     check_arity(predicate_block, data_streams.size)
 
+                    @arguments = arguments
                     @stream_to_index = Hash.new
                     data_streams.each_with_index do |s, idx|
                         stream_to_index[s] = idx
@@ -41,8 +45,8 @@ module Syskit
                     @new_sample = false
                 end
 
-                def bind(data_streams)
-                    self.class.new(data_streams, block)
+                def bind(table, data_streams)
+                    self.class.new(data_streams, block, table.arguments)
                 end
 
                 # Called when a new sample has been received
@@ -65,7 +69,17 @@ module Syskit
                         @full = true
                     end
                     @new_samples = false
-                    block.call(*samples)
+                    instance_exec(*samples, &block)
+                end
+
+                def method_missing(m, *args, &block)
+                    if arguments.has_key?(m)
+                        if !args.empty?
+                            raise ArgumentError, "#{args.size} provided to #{m}, zero expected"
+                        end
+                        return arguments[m]
+                    end
+                    return super
                 end
             end
         end
