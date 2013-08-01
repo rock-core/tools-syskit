@@ -115,9 +115,12 @@ module Syskit
                 if !models.respond_to?(:each)
                     models = [models]
                 end
-                components, services = models.partition { |m| m <= Syskit::Component }
-                components.empty? &&
-                    (services.empty? || self.model.fullfills?(services))
+                models.each do |required_m|
+                    required_m.each_fullfilled_model do |m|
+                        return false if !self.model.fullfills?(m)
+                    end
+                end
+                true
             end
 
             # Returns the port mappings that should be applied from the service
@@ -156,12 +159,7 @@ module Syskit
 
             def each_fullfilled_model
                 return enum_for(:each_fullfilled_model) if !block_given?
-                yield(component_model)
-                model.ancestors.each do |m|
-                    if m <= Component || m <= DataService
-                        yield(m)
-                    end
-                end
+                model.each_fullfilled_model(&proc)
             end
 
             # Returns the BoundDataService object that binds this provided
