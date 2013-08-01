@@ -32,7 +32,7 @@ module Syskit
 
                 # Add the main view
                 @display = Qt::WebView.new
-                @page = Syskit::GUI::Page.new(@display)
+                @page = MetaRuby::GUI::HTML::Page.new(@display.page)
                 main_layout.add_widget(@display)
                 @rendering = Syskit::GUI::ComponentNetworkView.new(@page)
                 rendering.enable
