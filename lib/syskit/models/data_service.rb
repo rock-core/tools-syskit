@@ -241,6 +241,23 @@ module Syskit
                 pp.text short_name
             end
 
+            # Resolves a bound data service of this model from the given task
+            def try_resolve(task)
+                begin
+                    task.find_data_service_from_type(self)
+                rescue AmbiguousServiceSelection
+                end
+            end
+
+            # Resolves a bound data service of this model from the given task
+            def resolve(task)
+                if task = try_resolve(task)
+                    task
+                else
+                    raise ArgumentError, "cannot resolve #{self} into #{task}"
+                end
+            end
+
             def to_dot(io)
                 id = object_id.abs
                 inputs = orogen_model.all_input_ports.map(&:name)

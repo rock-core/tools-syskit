@@ -409,6 +409,50 @@ class TC_Models_ComBus < Test::Unit::TestCase
     end
 end
 
+describe Syskit::DataService do
+    include Syskit::SelfTest
+
+    describe "#try_resolve" do
+        it "returns a non-ambiguous bound service if there is one" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::Component.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            plan.add(task = task_m.new)
+            assert_equal task.test_srv, srv_m.try_resolve(task)
+        end
+        it "returns nil on ambiguities" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::Component.new_submodel
+            task_m.provides srv_m, :as => 'test1'
+            task_m.provides srv_m, :as => 'test2'
+            plan.add(task = task_m.new)
+            assert !srv_m.try_resolve(task)
+        end
+        it "returns nil if no service matches" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::Component.new_submodel
+            plan.add(task = task_m.new)
+            assert !srv_m.try_resolve(task)
+        end
+    end
+
+    describe "#resolve" do
+        it "returns the value of try_resolve is non-nil" do
+            srv_m = Syskit::DataService.new_submodel
+            flexmock(srv_m).should_receive(:try_resolve).with(task = flexmock).and_return(obj = flexmock)
+            assert_equal obj, srv_m.resolve(task)
+        end
+
+        it "raises if try_resolve returns nil" do
+            srv_m = Syskit::DataService.new_submodel
+            flexmock(srv_m).should_receive(:try_resolve).with(task = flexmock).and_return(nil)
+            assert_raises(ArgumentError) do
+                srv_m.resolve(task)
+            end
+        end
+    end
+end
+
 describe Syskit::ComBus do
     include Test_DataServiceModel
 
