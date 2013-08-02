@@ -144,7 +144,7 @@ module Syskit
                         return port
                     else
                         raise InvalidCompositionChildPort.new(composition_model, child_name, name),
-                            "in composition #{composition_model.short_name}: child #{child_name} of type #{models.map(&:short_name).join(", ")} has no port named #{name}", caller(1)
+                            "in composition #{composition_model.short_name}: child #{child_name} of type #{model} has no port named #{name}", caller(1)
                     end
                 end
                 super
