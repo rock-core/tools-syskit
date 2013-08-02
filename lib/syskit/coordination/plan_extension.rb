@@ -10,7 +10,11 @@ module Syskit
             # {Models::DataMonitoringTable#attach_to}). If no attachment points
             # have been given, every tasks matching the table's root model will
             # be selected
-            def use_data_monitoring_table(table_m)
+            def use_data_monitoring_table(table_m, arguments = Hash.new)
+                # Verify that all required arguments are set, and that all
+                # arguments are known
+                arguments = table_m.validate_arguments(arguments)
+
                 queries = table_m.each_attachment_point.to_a
                 if queries.empty?
                     queries << table_m.task_model.match.not_abstract
@@ -21,7 +25,7 @@ module Syskit
                         if tasks = data_monitoring_tables[table_m]
                             if !tasks.include?(task)
                                 tasks << task
-                                table_m.new(task)
+                                table_m.new(task, arguments)
                             end
                         end
                     end

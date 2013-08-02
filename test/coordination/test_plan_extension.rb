@@ -8,7 +8,7 @@ describe Syskit::Coordination::PlanExtension do
         plan.use_data_monitoring_table table
 
         task = component_m.new
-        flexmock(table).should_receive(:new).with(task).once
+        flexmock(table).should_receive(:new).with(task, Hash.new).once
         plan.add(task)
     end
 end

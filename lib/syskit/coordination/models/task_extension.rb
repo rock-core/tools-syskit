@@ -22,7 +22,7 @@ module Syskit
                         options.each do |key, value|
                             if key.respond_to?(:to_sym) && value.kind_of?(Roby::Coordination::Models::Variable)
                                 data_monitoring_arguments[value.name] = key
-                                data_monitoring_table.arguments << key
+                                data_monitoring_table.argument key
                             end
                         end
                     end

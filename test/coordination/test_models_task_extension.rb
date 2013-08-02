@@ -67,7 +67,7 @@ describe Syskit::Coordination::Models::TaskExtension do
                 end.raise_exception
             start task
         end
-        assert_equal [:test_arg], task.data_monitoring_table.arguments
+        assert_equal Roby::Coordination::Models::Base::Argument.new(:test_arg, true, nil), task.data_monitoring_table.arguments[:test_arg]
         assert_equal Hash[:arg => :test_arg], task.data_monitoring_arguments
 
         stub_syskit_deployment_model(component_m)

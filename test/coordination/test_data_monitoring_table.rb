@@ -42,7 +42,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             raise_exception
 
         component = syskit_deploy_task_context(component_m, 'task')
-        table = table_model.new(component, :arg => 10)
+        table = table_model.new(component)
         syskit_start_component(component)
         component.orocos_task.out.write(10)
         inhibit_fatal_messages do
