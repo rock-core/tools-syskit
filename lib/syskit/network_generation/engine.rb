@@ -582,25 +582,26 @@ module Syskit
                         debug "cannot find requested orocos name #{task.orocos_name}"
                     end
                     return resolved
-                else
-                    # Look to disambiguate using deployment hints
-                    resolved = candidates.find_all do |_, deployment_model, task_name|
-                        task.deployment_hints.any? do |rx|
-                            rx === task_name
-                        end
-                    end
-                    if resolved.size != 1
-                        debug do
-                            debug "ambiguous deployment for #{task} (#{task.model.name})"
-                            candidates.each do |machine, deployment_model, task_name|
-                                debug "  #{task_name} of #{deployment_model.short_name} on #{machine}"
-                            end
-                            break
-                        end
-                        return
-                    end
-                    return resolved.first
                 end
+                hints = task.deployment_hints
+                debug "#{task}.deployment_hints: #{hints.map(&:to_s).join(", ")}"
+                # Look to disambiguate using deployment hints
+                resolved = candidates.find_all do |_, deployment_model, task_name|
+                    task.deployment_hints.any? do |rx|
+                        rx === task_name
+                    end
+                end
+                if resolved.size != 1
+                    debug do
+                        debug "ambiguous deployment for #{task} (#{task.model.name})"
+                        candidates.each do |machine, deployment_model, task_name|
+                            debug "  #{task_name} of #{deployment_model.short_name} on #{machine}"
+                        end
+                        break
+                    end
+                    return
+                end
+                return resolved.first
             end
 
             # Called after compute_system_network to map the required component
