@@ -314,6 +314,28 @@ describe Syskit::Models::Component do
             assert_equal task_m.out_port, task_m.self_port_to_component_port(task_m.out_port)
         end
     end
+
+    describe "#find_all_data_services_from_type" do
+        it "should return an empty set if there are no matches" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            assert(component.find_all_data_services_from_type(service).empty?)
+        end
+
+        it "should return the set of matching services" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+
+            bound_services = Set.new
+            bound_services << component.provides(service, :as => 'image')
+            assert_equal(bound_services,
+                         component.find_all_data_services_from_type(service).to_set)
+            bound_services << component.provides(service, :as => 'camera')
+            assert_equal(bound_services,
+                         component.find_all_data_services_from_type(service).to_set)
+        end
+    end
+
 end
 
 class TC_Models_Component < Test::Unit::TestCase
@@ -496,22 +518,6 @@ class TC_Models_Component < Test::Unit::TestCase
 
         bound_service = component.provides service, :as => 'camera'
         assert_raises(Syskit::AmbiguousServiceSelection) { component.find_data_service_from_type(service) }
-    end
-
-    def test_find_all_data_services_from_type
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        assert(component.find_all_data_services_from_type(service).empty?)
-
-        bound_services = Set.new
-
-        bound_services << component.provides(service, :as => 'image')
-        assert_equal(bound_services,
-                     component.find_all_data_services_from_type(service).to_set)
-
-        bound_services << component.provides(service, :as => 'camera')
-        assert_equal(bound_services,
-                     component.find_all_data_services_from_type(service).to_set)
     end
 
     def test_provides_with_port_mappings
