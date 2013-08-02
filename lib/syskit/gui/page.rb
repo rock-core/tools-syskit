@@ -36,8 +36,6 @@ module Syskit
                 else
                     push(title, svg, view_options)
                 end
-            rescue Exception => e
-                Roby.app.register_exception(e)
                 emit :updated
             end
         end
