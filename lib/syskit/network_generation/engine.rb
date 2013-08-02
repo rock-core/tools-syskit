@@ -576,6 +576,7 @@ module Syskit
             #   nil otherwise.
             def resolve_deployment_ambiguity(candidates, task)
                 if task.orocos_name
+                    debug "#{task} requests orocos_name to be #{task.orocos_name}"
                     resolved = candidates.find { |_, _, task_name| task_name == task.orocos_name }
                     if !resolved
                         debug "cannot find requested orocos name #{task.orocos_name}"
@@ -608,9 +609,29 @@ module Syskit
             # We are still purely within {#work_plan}, the mapping to
             # {#real_plan} is done by calling {#finalize_deployed_tasks}
             def deploy_system_network
-                debug "deploying the system network"
-
                 deployed_models = task_context_deployment_candidates
+                debug do
+                    debug "Deploying the system network"
+                    debug "Available deployments"
+                    log_nest(2) do
+                        deployed_models.each do |model, deployments|
+                            if !deployments
+                                debug "#{model}: no deployments"
+                            elsif deployments.size == 1
+                                debug "#{model}: #{deployments.first}"
+                            else
+                                debug "#{model}"
+                                log_nest(2) do
+                                    deployments.each do |deployment|
+                                        debug deployment.to_s
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    break
+                end
+
                 used_deployments = Set.new
 
                 missing_deployments = []
@@ -627,7 +648,11 @@ module Syskit
                         missing_deployments << task
                         next
                     elsif candidates.size > 1
-                        if !(selected = resolve_deployment_ambiguity(candidates, task))
+                        debug { "multiple deployments available for #{task} (#{task.concrete_model.short_name}), trying to resolve" }
+                        selected = log_nest(2) do
+                            resolve_deployment_ambiguity(candidates, task)
+                        end
+                        if !selected
                             debug { "deployment of #{task} (#{task.concrete_model.short_name}) is ambiguous" }
                             missing_deployments << task
                             next
