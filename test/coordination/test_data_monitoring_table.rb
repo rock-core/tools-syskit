@@ -162,6 +162,7 @@ describe Syskit::Coordination::DataMonitoringTable do
 
         table = table_model.new(composition)
         process_events
+        process_events
         component = composition.test_child
         component.orocos_task.out1.write(2)
         component.orocos_task.out2.write(2)
