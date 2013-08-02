@@ -5,7 +5,7 @@ describe Syskit::Coordination::DataMonitoringTable do
 
     it "generates an error if one of its monitor has no trigger" do
         component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
-        table_m = Syskit::Coordination::DataMonitoringTable.new_submodel(component_m)
+        table_m = Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m)
         table_m.monitor('sample_value_10', table_m.out_port)
         root_task = syskit_deploy_and_start_task_context(component_m, 'task')
         assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) { table_m.new(root_task) }
@@ -13,7 +13,7 @@ describe Syskit::Coordination::DataMonitoringTable do
 
     it "generates an error if one of its monitor has no effect" do
         component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
-        table_m = Syskit::Coordination::DataMonitoringTable.new_submodel(component_m)
+        table_m = Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m)
         table_m.monitor('sample_value_10', table_m.out_port).
             trigger_on { |sample| }
         root_task = syskit_deploy_and_start_task_context(component_m, 'task')
@@ -23,7 +23,7 @@ describe Syskit::Coordination::DataMonitoringTable do
     it "should raise if some monitors have no effect at the end of the definition block" do
         component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
         assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) do
-            Syskit::Coordination::DataMonitoringTable.new_submodel(component_m) do
+            Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m) do
                 monitor 'test', out_port do
                 end
             end
@@ -36,7 +36,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         end
         recorder = flexmock
         table_model = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(component_m)
+            new_submodel(:root => component_m)
         table_model.monitor('test', table_model.out_port).
             trigger_on { |sample| raise }.
             raise_exception
@@ -57,8 +57,8 @@ describe Syskit::Coordination::DataMonitoringTable do
         end
         recorder = flexmock
         table_model = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(component_m)
-        table_model.arguments << :arg
+            new_submodel(:root => component_m)
+        table_model.argument :arg
         table_model.monitor('test', table_model.out_port).
             trigger_on do |sample|
                 recorder.called(arg)
@@ -79,8 +79,8 @@ describe Syskit::Coordination::DataMonitoringTable do
         end
         recorder = flexmock
         table_model = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(component_m)
-        table_model.arguments << :arg
+            new_submodel(:root => component_m)
+        table_model.argument :arg
         table_model.monitor('test', table_model.out_port).
             trigger_on do |sample|
                 @value = !@value
@@ -105,7 +105,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             output_port 'out2', '/int'
         end
         table_model = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(component_m)
+            new_submodel(:root => component_m)
         recorder = flexmock
         table_model.monitor('sample_value_10', table_model.out1_port, table_model.out2_port).
             trigger_on do |sample1, sample2|
@@ -142,7 +142,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             provides srv_m, :as => 'test2', 'out' => 'out2'
         end
         table_model = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(composition_m)
+            new_submodel(:root => composition_m)
         recorder = flexmock
         table_model.monitor('sample_value_10', table_model.test_child.out_port).
             raise_exception.
@@ -189,7 +189,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             provides srv_m, :as => 'test2', 'out' => 'out2'
         end
         table_model = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(composition_m)
+            new_submodel(:root => composition_m)
         recorder = flexmock
         monitor_task = table_model.task(composition_m.use('test' => component_m.test2_srv))
         table_model.monitor('sample_value_10', table_model.out_port, monitor_task.out_port).

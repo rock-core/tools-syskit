@@ -5,7 +5,7 @@ module Syskit
                 # Returns the data monitoring table that should be added to all
                 # instances of this task
                 def data_monitoring_table
-                    @data_monitoring_table ||= Syskit::Coordination::DataMonitoringTable.new_submodel(model)
+                    @data_monitoring_table ||= Syskit::Coordination::DataMonitoringTable.new_submodel(:root => model)
                 end
 
                 # Mapping from data monitoring arguments to coordination context variables

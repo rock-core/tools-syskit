@@ -6,7 +6,7 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
     it "should attach the associated data monitoring tables to the plan it is attached to" do
         component_m = Syskit::TaskContext.new_submodel
         fault_m = Roby::Coordination::FaultResponseTable.new_submodel
-        data_m = Syskit::Coordination::DataMonitoringTable.new_submodel(component_m)
+        data_m = Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m)
         fault_m.use_data_monitoring_table data_m
         flexmock(plan).should_receive(:use_data_monitoring_table).with(data_m).once
         plan.use_fault_response_table fault_m
