@@ -60,8 +60,8 @@ module Syskit
                 if default_logger?
                     deployment = execution_agent
                     if !deployment.arguments[:log] ||
-                        Roby::State.orocos.deployment_excluded_from_log?(deployment)
-                        Robot.info "not automatically logging any port in deployment #{name}"
+                        Syskit.conf.deployment_excluded_from_log?(deployment)
+                        Syskit.info "not automatically logging any port in deployment #{name}"
                     else
                         # Only setup the logger
                         deployment.orocos_process.setup_default_logger(

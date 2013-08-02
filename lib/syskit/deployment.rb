@@ -182,11 +182,11 @@ module Syskit
             # Returns true if the syskit plugin configuration requires
             # +port+ to be logged
             def log_port?(port)
-                result = !Roby::State.orocos.port_excluded_from_log?(self,
+                result = !Syskit.conf.port_excluded_from_log?(self,
                         port.component_model, port)
 
                 if !result
-                    Robot.info "not logging #{port.task.name}:#{port.name}"
+                    ::Syskit.info "not logging #{port.component_model.short_name}:#{port.name}"
                 end
                 result
             end
