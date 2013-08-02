@@ -21,6 +21,7 @@ module Syskit
                 svg_io.flush
                 svg_io.rewind
                 svg = svg_io.read
+                svg = svg.encode 'utf-8', :invalid => :replace
                 zoom = view_options.delete :zoom
                 if match = /svg width=\"(\d+)(\w+)\" height=\"(\d+)(\w+)\"/.match(svg)
                     width, w_unit, height, h_unit = *match.captures
