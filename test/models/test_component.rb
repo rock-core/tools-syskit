@@ -334,6 +334,16 @@ describe Syskit::Models::Component do
             assert_equal(bound_services,
                          component.find_all_data_services_from_type(service).to_set)
         end
+
+        it "should return services faceted to the required model when the bound data service is a subtype of the required one" do
+            srv_m = Syskit::DataService.new_submodel
+            sub_srv_m = Syskit::DataService.new_submodel
+            sub_srv_m.provides srv_m
+            cmp_m = Syskit::Component.new_submodel
+            cmp_m.provides sub_srv_m, :as => 'test'
+
+            assert_equal [cmp_m.test_srv.as(srv_m)], cmp_m.find_all_data_services_from_type(srv_m)
+        end
     end
 
 end

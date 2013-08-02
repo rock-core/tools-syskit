@@ -170,12 +170,12 @@ describe Syskit::InstanceRequirements do
     end
 
     describe "#find_data_service_from_type" do
-        it "should return the receiver if the service is explicitly listed in models" do
+        it "should return the expected model if the requirements represent a service of a subtype" do
             s = Syskit::DataService.new_submodel
             subs = s.new_submodel
             req = Syskit::InstanceRequirements.new([subs])
             req = req.find_data_service_from_type(s)
-            assert_same subs, req.service.model
+            assert_same s, req.service.model
         end
 
         it "should return a bound data service if the service is provided by a component model" do

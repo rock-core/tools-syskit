@@ -242,7 +242,7 @@ module Syskit
             def find_all_data_services_from_type(type)
                 result = []
                 each_data_service do |_, m|
-                    result << m if m.fullfills?(type)
+                    result << m.as(type) if m.fullfills?(type)
                 end
                 result
             end
