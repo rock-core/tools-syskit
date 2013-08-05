@@ -184,11 +184,11 @@ module Syskit
 
             # Returns true if the port with name +port_name+ of task model
             # +task_model+ in deployment +deployment+ should be logged or not
-            def port_excluded_from_log?(deployment, task_model, port)
+            def port_excluded_from_log?(deployment, port)
                 if !log_enabled?
                     true
                 else
-                    matches = log_groups.find_all { |_, group| group.matches_port?(deployment, task_mode, port) }
+                    matches = log_groups.find_all { |_, group| group.matches_port?(deployment, port) }
                     !matches.empty? && matches.all? { |_, group| !group.enabled? }
                 end
             end

@@ -13,6 +13,7 @@ module Syskit
                 @deployments = Set.new
                 @tasks = Set.new
                 @ports = Set.new
+                @types = Set.new
                 @names = Set.new
                 @enabled = enabled
             end
@@ -20,6 +21,7 @@ module Syskit
             attr_reader :deployments
             attr_reader :tasks
             attr_reader :ports
+            attr_reader :types
             attr_reader :names
 
             attr_predicate :enabled? , true
@@ -58,18 +60,28 @@ module Syskit
                 end
             end
 
-            def matches_port?(deployment, task_model, port)
-                if ports.any? { |model, port_name| port.name == port_name && task_model.fullfills?(model) }
+            # Tests if this group matches the given port
+            #
+            # @param [Syskit::Deployment] the deployment that runs the task of
+            #   which {port} is a port
+            # @param [Syskit::OutputPort] the port that is being tested
+            # @return [Boolean]
+            def matches_port?(deployment, port)
+                if ports.any? { |model, port_name| port.name == port_name && port.component.fullfills?(model) }
                     true
-                elsif tasks.include?(task_model)
+                elsif tasks.include?(port.component.model)
                     true
                 elsif deployments.include?(deployment.model)
                     true
+                elsif types.include?(port.type)
+                    true
                 else
-                    names.include?(port.type_name) ||
-                        names.include?(port.task.name) ||
-                        names.include?(port.name) ||
-                        names.include?("#{port.task.name}.#{port.name}")
+                    names.any? do |n|
+                        n === port.type.name ||
+                        n === port.component.orocos_name ||
+                        n === port.name ||
+                        n === "#{port.component.orocos_name}.#{port.name}"
+                    end
                 end
             end
         end

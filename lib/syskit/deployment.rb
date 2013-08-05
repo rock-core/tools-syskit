@@ -181,12 +181,13 @@ module Syskit
 
             # Returns true if the syskit plugin configuration requires
             # +port+ to be logged
+            #
+            # @param [Syskit::Port] port
+            # @return [Boolean]
             def log_port?(port)
-                result = !Syskit.conf.port_excluded_from_log?(self,
-                        port.component_model, port)
-
+                result = !Syskit.conf.port_excluded_from_log?(self, port)
                 if !result
-                    ::Syskit.info "not logging #{port.component_model.short_name}:#{port.name}"
+                    Syskit.info "not logging #{port.component}.#{port.name}"
                 end
                 result
             end

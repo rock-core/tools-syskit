@@ -124,7 +124,7 @@ module Syskit
 
                         all_ports = []
 
-                        t.model.each_output_port do |p|
+                        t.each_output_port do |p|
                             all_ports << [p.name, p]
                         end
 
