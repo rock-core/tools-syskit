@@ -19,15 +19,13 @@ module Syskit
 
             # Wrapper on top of the createLoggingPort operation
             #
-            # +sink_port_name+ is the port name of the logging task,
-            # +logged_task+ the Syskit::TaskContext object from
-            # which the data is being logged and +logged_port+ the
-            # Orocos::Spec::OutputPort model object of the port that we want to
-            # log.
+            # @param [String] sink_port_name the desired port name on the logger
+            # @param [TaskContext] the task context that is being logged
+            # @param [OutputPort] the port that is being logged
             def createLoggingPort(sink_port_name, logged_task, logged_port)
                 return if logged_ports.include?([sink_port_name, logged_port.type.name])
 
-                logged_port_type = logged_port.orocos_type_name
+                logged_port_type = logged_port.model.orocos_type_name
 
                 metadata = Hash[
                     'rock_task_model' => logged_task.model.orogen_model.name,
@@ -73,7 +71,7 @@ module Syskit
                 end
 
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|
-                    source_port = source_task.model.find_output_port(source_port_name)
+                    source_port = source_task.find_output_port(source_port_name)
                     createLoggingPort(sink_port_name, source_task, source_port)
                 end
             end
