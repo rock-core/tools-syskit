@@ -1008,7 +1008,7 @@ module Syskit
                             end
                         end
 
-                        new_task = existing_deployment_task.task(task.orocos_name, task.model)
+                        new_task = existing_deployment_task.task(task.orocos_name, task.concrete_model)
                         debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
                         if existing_task
                             debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
