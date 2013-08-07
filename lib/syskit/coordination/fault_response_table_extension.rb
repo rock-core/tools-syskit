@@ -19,7 +19,8 @@ module Syskit
             #
             # @see Roby::Coordination::Actions#attach_to
             def attach_to(plan)
-                super
+                super if defined? super
+
                 @data_monitoring_tables = Array.new
                 model.each_data_monitoring_table do |tbl|
                     data_args = tbl.arguments.map_value do |data_arg, fault_arg|
@@ -31,7 +32,6 @@ module Syskit
                     data_monitoring_tables << plan.use_data_monitoring_table(tbl.table, data_args)
                 end
             end
-
         end
     end
 end
