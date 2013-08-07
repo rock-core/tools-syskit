@@ -59,7 +59,7 @@ describe Syskit::NetworkGeneration::Engine do
             
             inhibit_fatal_messages do
                 begin planning_task.emit :failed
-                rescue Roby::SynchronousEventProcessingMultipleErrors
+                rescue Roby::PlanningFailedError
                 end
             end
             flexmock(requirements).should_receive(:instanciate).never
