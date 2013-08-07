@@ -233,5 +233,34 @@ describe Syskit::Coordination::DataMonitoringTable do
             assert !component.finished?
         end
     end
+
+    describe "transactions" do
+        before do
+            table_m.argument :arg
+        end
+        it "can be added in a transaction" do
+            flexmock(plan).should_receive(:use_data_monitoring_table).with(table_m, :arg => 10).once
+            plan.in_transaction do |trsc|
+                trsc.use_data_monitoring_table table_m, :arg => 10
+                trsc.commit_transaction
+            end
+        end
+        it "is not added if the transaction is discarded" do
+            flexmock(plan).should_receive(:use_data_monitoring_table).never
+            plan.in_transaction do |trsc|
+                trsc.use_data_monitoring_table table_m, :arg => 10
+                trsc.discard_transaction
+            end
+        end
+        it "is added only once if added to the transaction through a fault response table" do
+            fault_table_m = Roby::Coordination::FaultResponseTable.new_submodel
+            fault_table_m.use_data_monitoring_table table_m, :arg => 10
+            flexmock(plan).should_receive(:use_data_monitoring_table).with(table_m, :arg => 10).once
+            plan.in_transaction do |trsc|
+                trsc.use_fault_response_table fault_table_m
+                trsc.commit_transaction
+            end
+        end
+    end
 end
 
