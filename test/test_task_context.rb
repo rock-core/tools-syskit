@@ -628,5 +628,20 @@ describe Syskit::TaskContext do
             assert_event_emission task.stop_event
         end
     end
+
+    describe "#deployment_hints" do
+        it "should add the hints from its attached devices if there are some" do
+            device_hint, component_hint = flexmock, flexmock
+            task_m = Syskit::TaskContext.new_submodel
+            device_m = Syskit::Device.new_submodel
+            task_m.driver_for device_m, :as => 'test'
+            dev = robot.device(device_m, :as => 'test').
+                use_deployments(device_hint)
+
+            task = task_m.new("test_dev" => dev)
+            task.requirements.deployment_hints << component_hint
+            assert_equal [component_hint, device_hint].to_set, task.deployment_hints.to_set
+        end
+    end
 end
 
