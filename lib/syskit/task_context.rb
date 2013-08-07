@@ -225,6 +225,17 @@ module Syskit
                 nil
             end
 
+            def deployment_hints
+                hints = requirements.deployment_hints.to_set.dup
+                each_master_device do |dev|
+                    hints |= dev.requirements.deployment_hints.to_set
+                end
+                if hints.empty?
+                    return super
+                else return hints
+                end
+            end
+
             def operation(name)
                 orocos_task.operation(name)
             end
