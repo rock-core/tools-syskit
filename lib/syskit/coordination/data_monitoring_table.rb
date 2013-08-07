@@ -55,11 +55,19 @@ module Syskit
             def initialize(root_task, arguments = Hash.new, options = Hash.new)
                 super(root_task, arguments, options)
                 options, _ = Kernel.filter_options options, :on_replace => :drop
-                root_task.poll(options) do
+                @poll_id = root_task.poll(options) do
                     poll
                 end
                 @monitors = Array.new
                 resolve_monitors
+            end
+
+            # Untie this table from the task it is currently attached to
+            #
+            # It CANNOT be reused afterwards
+            # @return [void]
+            def remove!
+                root_task.remove_poll_handler(@poll_id)
             end
 
             # Instanciates all data monitor registered on this table's models

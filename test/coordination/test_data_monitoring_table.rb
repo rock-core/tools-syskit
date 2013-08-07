@@ -3,17 +3,20 @@ require 'syskit/test'
 describe Syskit::Coordination::DataMonitoringTable do
     include Syskit::SelfTest
 
+    attr_reader :component_m, :table_m
+    before do
+        @component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
+        @table_m = Syskit::Coordination::DataMonitoringTable.
+            new_submodel(:root => component_m)
+    end
+
     it "generates an error if one of its monitor has no trigger" do
-        component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
-        table_m = Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m)
         table_m.monitor('sample_value_10', table_m.out_port)
         root_task = syskit_deploy_and_start_task_context(component_m, 'task')
         assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) { table_m.new(root_task) }
     end
 
     it "generates an error if one of its monitor has no effect" do
-        component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
-        table_m = Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m)
         table_m.monitor('sample_value_10', table_m.out_port).
             trigger_on { |sample| }
         root_task = syskit_deploy_and_start_task_context(component_m, 'task')
@@ -21,7 +24,6 @@ describe Syskit::Coordination::DataMonitoringTable do
     end
 
     it "should raise if some monitors have no effect at the end of the definition block" do
-        component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
         assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) do
             Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m) do
                 monitor 'test', out_port do
@@ -31,18 +33,13 @@ describe Syskit::Coordination::DataMonitoringTable do
     end
 
     it "generates a CodeError if the trigger raises" do
-        component_m = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/int'
-        end
         recorder = flexmock
-        table_model = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(:root => component_m)
-        table_model.monitor('test', table_model.out_port).
+        table_m.monitor('test', table_m.out_port).
             trigger_on { |sample| raise }.
             raise_exception
 
         component = syskit_deploy_task_context(component_m, 'task')
-        table = table_model.new(component)
+        table = table_m.new(component)
         syskit_start_component(component)
         component.orocos_task.out.write(10)
         inhibit_fatal_messages do
@@ -52,21 +49,16 @@ describe Syskit::Coordination::DataMonitoringTable do
     end
 
     it "gives access to the monitoring table arguments as local variables in the blocks" do
-        component_m = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/int'
-        end
         recorder = flexmock
-        table_model = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(:root => component_m)
-        table_model.argument :arg
-        table_model.monitor('test', table_model.out_port).
+        table_m.argument :arg
+        table_m.monitor('test', table_m.out_port).
             trigger_on do |sample|
                 recorder.called(arg)
                 false
             end.raise_exception
 
         component = syskit_deploy_task_context(component_m, 'task')
-        table = table_model.new(component, :arg => 10)
+        table = table_m.new(component, :arg => 10)
         recorder.should_receive(:called).with(10).at_least.once
         syskit_start_component(component)
         component.orocos_task.out.write(20)
@@ -74,14 +66,9 @@ describe Syskit::Coordination::DataMonitoringTable do
     end
 
     it "allows to store state using local variables" do
-        component_m = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/int'
-        end
         recorder = flexmock
-        table_model = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(:root => component_m)
-        table_model.argument :arg
-        table_model.monitor('test', table_model.out_port).
+        table_m.argument :arg
+        table_m.monitor('test', table_m.out_port).
             trigger_on do |sample|
                 @value = !@value
                 recorder.called(@value)
@@ -89,7 +76,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             end.raise_exception
 
         component = syskit_deploy_task_context(component_m, 'task')
-        table = table_model.new(component, :arg => 10)
+        table = table_m.new(component, :arg => 10)
         recorder.should_receive(:called).with(true).at_least.once
         recorder.should_receive(:called).with(false).at_least.once
         syskit_start_component(component)
@@ -104,22 +91,22 @@ describe Syskit::Coordination::DataMonitoringTable do
             output_port 'out1', '/int'
             output_port 'out2', '/int'
         end
-        table_model = Syskit::Coordination::DataMonitoringTable.
+        table_m = Syskit::Coordination::DataMonitoringTable.
             new_submodel(:root => component_m)
         recorder = flexmock
-        table_model.monitor('sample_value_10', table_model.out1_port, table_model.out2_port).
+        table_m.monitor('sample_value_10', table_m.out1_port, table_m.out2_port).
             trigger_on do |sample1, sample2|
                 recorder.called(sample1, sample2)
                 sample1 + sample2 > 10
             end.
-            emit(table_model.success_event).
+            emit(table_m.success_event).
             raise_exception
 
         recorder.should_receive(:called).with(5, 2).once.ordered
         recorder.should_receive(:called).with(5, 7).once.ordered
 
         component = syskit_deploy_and_start_task_context(component_m, 'task')
-        table = table_model.new(component)
+        table = table_m.new(component)
         process_events
         component.orocos_task.out1.write(5)
         component.orocos_task.out2.write(2)
@@ -141,12 +128,12 @@ describe Syskit::Coordination::DataMonitoringTable do
             provides srv_m, :as => 'test1', 'out' => 'out1'
             provides srv_m, :as => 'test2', 'out' => 'out2'
         end
-        table_model = Syskit::Coordination::DataMonitoringTable.
+        table_m = Syskit::Coordination::DataMonitoringTable.
             new_submodel(:root => composition_m)
         recorder = flexmock
-        table_model.monitor('sample_value_10', table_model.test_child.out_port).
+        table_m.monitor('sample_value_10', table_m.test_child.out_port).
             raise_exception.
-            emit(table_model.test_child.success_event).
+            emit(table_m.test_child.success_event).
             trigger_on do |sample|
                 recorder.called(sample)
                 sample > 10
@@ -160,7 +147,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         composition.depends_on composition.test_child, :success => :success, :remove_when_done => false
         plan.add_permanent(composition)
 
-        table = table_model.new(composition)
+        table = table_m.new(composition)
         process_events
         process_events
         component = composition.test_child
@@ -189,16 +176,16 @@ describe Syskit::Coordination::DataMonitoringTable do
             provides srv_m, :as => 'test1', 'out' => 'out1'
             provides srv_m, :as => 'test2', 'out' => 'out2'
         end
-        table_model = Syskit::Coordination::DataMonitoringTable.
+        table_m = Syskit::Coordination::DataMonitoringTable.
             new_submodel(:root => composition_m)
         recorder = flexmock
-        monitor_task = table_model.task(composition_m.use('test' => component_m.test2_srv))
-        table_model.monitor('sample_value_10', table_model.out_port, monitor_task.out_port).
+        monitor_task = table_m.task(composition_m.use('test' => component_m.test2_srv))
+        table_m.monitor('sample_value_10', table_m.out_port, monitor_task.out_port).
             trigger_on do |sample1, sample2|
                 recorder.called(sample1, sample2)
                 sample1 + sample2 > 10
             end.
-            emit(table_model.success_event).
+            emit(table_m.success_event).
             raise_exception
 
         recorder.should_receive(:called).with(4, 2).once.ordered
@@ -207,7 +194,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         component = syskit_deploy_task_context(component_m)
         plan.add_permanent(composition = composition_m.use('test' => component.test1_srv).instanciate(plan))
         syskit_start_component(composition)
-        table = table_model.new(composition)
+        table = table_m.new(composition)
         process_events
         Syskit::Runtime.apply_requirement_modifications(plan)
 
@@ -228,6 +215,23 @@ describe Syskit::Coordination::DataMonitoringTable do
             end
         end
         assert composition.success?
+    end
+
+    describe "#remove!" do
+        it "allows to untie the table from the task" do
+            recorder = flexmock
+            table_m.monitor('test', table_m.out_port).
+                trigger_on { |sample| true }.
+                emit table_m.success_event
+
+            component = syskit_deploy_task_context(component_m, 'task')
+            table = table_m.new(component)
+            syskit_start_component(component)
+            table.remove!
+            component.orocos_task.out.write(10)
+            process_events
+            assert !component.finished?
+        end
     end
 end
 

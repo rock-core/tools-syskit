@@ -12,6 +12,22 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         plan.use_fault_response_table fault_m
     end
 
+    it "should remove the associated data monitoring tables from the plan when it is removed from it" do
+        component_m = Syskit::TaskContext.new_submodel
+        fault_m = Roby::Coordination::FaultResponseTable.new_submodel
+        data_m = Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m)
+        fault_m.use_data_monitoring_table data_m
+
+        assert plan.data_monitoring_tables.empty?
+        fault = plan.use_fault_response_table fault_m
+        active_tables = plan.data_monitoring_tables
+        assert_equal 1, active_tables.size
+        table = active_tables.first
+        flexmock(plan).should_receive(:remove_data_monitoring_table).with(table).once.pass_thru
+        plan.remove_fault_response_table fault
+        assert plan.data_monitoring_tables.empty?
+    end
+
     it "should allow using monitors as fault descriptions, and properly set them up at runtime" do
         recorder = flexmock
         response_task_m = Roby::Task.new_submodel do
@@ -39,8 +55,8 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         end
 
         plan.use_fault_response_table table_model
-        assert_equal Hash[table_model.data_monitoring_tables.first.table => []],
-            plan.data_monitoring_tables
+        assert_equal Array[table_model.data_monitoring_tables.first.table],
+            plan.data_monitoring_tables.map(&:model)
         stub_syskit_deployment_model(component_m)
         component = deploy(component_m)
         syskit_start_component(component)
