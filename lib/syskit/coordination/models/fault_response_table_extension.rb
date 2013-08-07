@@ -8,8 +8,19 @@ module Syskit
 
                 UsedDataMonitoringTable = Struct.new :table, :arguments
 
+                # @return [Array<Model<Coordination::DataMonitoringTable>]
                 inherited_attribute(:data_monitoring_table, :data_monitoring_tables) { Array.new }
 
+                # @overload data_monitoring_table { root root_model; ... }
+                #   Defines a data monitoring table that is embedded in this
+                #   fault response table. It is a shorthand for defining a
+                #   separate table and calling {#use_data_monitoring_table}
+                #
+                # @overload data_monitoring_table
+                #   Returns the data monitoring table embedded in this fault
+                #   response table
+                #
+                # @return [Model<Coordination::DataMonitoringTable>]
                 def data_monitoring_table(&block)
                     if !@embedded_table
                         table = Syskit::Coordination::DataMonitoringTable.new_submodel(&block)
@@ -47,6 +58,14 @@ module Syskit
                     self
                 end
 
+                # Find a data monitor by its name
+                #
+                # It searches for all used data monitoring tables and returns
+                # the first monitor that has the given name
+                #
+                # @param [String] name the monitor name
+                # @return [Model<Coordination::DataMonitor>,nil] the data
+                #   monitor, or nil if there is none with that name
                 def find_monitor(name)
                     each_data_monitoring_table do |tbl|
                         if m = tbl.table.find_monitor(name)
