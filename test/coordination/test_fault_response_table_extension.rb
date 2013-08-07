@@ -57,46 +57,59 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         assert(response_task = plan.find_tasks(response_task_m).running.first)
     end
 
-    it "should allow passing arguments to the used data monitoring tables" do
-        recorder = flexmock
-        component_m = Syskit::TaskContext.new_submodel do
-            output_port 'out', '/int'
-        end
-        data_m = Syskit::Coordination::DataMonitoringTable.new_submodel do
-            root component_m
-            argument :arg
-            monitor('test', out_port).
-                trigger_on do |value|
-                    recorder.called(arg)
-                    false
-                end.
-                raise_exception
-        end
-        fault_m = Roby::Coordination::FaultResponseTable.new_submodel do
-            argument :test_arg
-            use_data_monitoring_table data_m, :arg => test_arg
+    describe "argument passing" do
+        attr_reader :component_m, :data_m, :fault_m
+
+        before do
+            @data_m = Syskit::Coordination::DataMonitoringTable.new_submodel
+            data_m.argument :arg
+            @fault_m = Roby::Coordination::FaultResponseTable.new_submodel
+            fault_m.argument :test_arg
         end
 
-        recorder.should_receive(:called).with(10).at_least.once
-        plan.use_fault_response_table fault_m, :test_arg => 10
-        component = syskit_deploy_and_start_task_context(component_m)
-        process_events
-        process_events
-        component.orocos_task.out.write(10)
-        process_events
-    end
 
-    it "should raise if the embedded data monitoring table requires arguments that do not exist on the fault response table" do
-        assert_raises(ArgumentError) do
-            Roby::Coordination::FaultResponseTable.new_submodel do
-                data_monitoring_table { argument :bla }
+        it "should allow giving static arguments to the used data monitoring tables" do
+            fault_m.use_data_monitoring_table data_m, :arg => 10
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, :arg => 10)
+            plan.use_fault_response_table fault_m, :test_arg => 20
+        end
+
+        it "should allow passing fault response arguments to the used data monitoring tables" do
+            fault_m.use_data_monitoring_table data_m, :arg => fault_m.test_arg
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, :arg => 10)
+            plan.use_fault_response_table fault_m, :test_arg => 10
+        end
+
+        it "should allow passing fault response arguments that are also name of arguments on the fault response table" do
+            fault_m.use_data_monitoring_table data_m, :arg => :test_arg
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, :arg => :test_arg)
+            plan.use_fault_response_table fault_m, :test_arg => 10
+        end
+
+        it "should raise if the embedded data monitoring table requires arguments that do not exist on the fault response table" do
+            assert_raises(ArgumentError) do
+                Roby::Coordination::FaultResponseTable.new_submodel do
+                    data_monitoring_table { argument :bla }
+                end
             end
         end
-    end
 
-    it "should allow having optional arguments embedded data monitoring table requires arguments without a corresponding one on the fault response table" do
-        Roby::Coordination::FaultResponseTable.new_submodel do
-            data_monitoring_table { argument :bla, :default => 10 }
+        it "should allow the embedded data monitoring table to have optional arguments" do
+            fault_m = Roby::Coordination::FaultResponseTable.new_submodel do
+                data_monitoring_table do
+                    argument :arg, :default => 10
+                end
+            end
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(fault_m.data_monitoring_table, Hash.new)
+            plan.use_fault_response_table fault_m
+        end
+        it "should allow used data monitoring tables to have optional arguments" do
+            data_m = Syskit::Coordination::DataMonitoringTable.new_submodel
+            data_m.argument :arg, :default => 10
+            fault_m = Roby::Coordination::FaultResponseTable.new_submodel
+            fault_m.use_data_monitoring_table data_m
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, Hash.new)
+            plan.use_fault_response_table fault_m
         end
     end
 end
