@@ -241,6 +241,12 @@ describe Syskit::InstanceRequirements do
         it "should return Syskit::Component as first element if the models do not contain any component models" do
             assert_equal Syskit::Component, Syskit::InstanceRequirements.new([]).fullfilled_model[0]
         end
+        it "should return Syskit::Component as first element if the model is a data service" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::Component.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            assert_equal Syskit::Component, Syskit::InstanceRequirements.new([srv_m]).fullfilled_model[0]
+        end
         it "should return the component model as first element" do
             component_model = Syskit::Component.new_submodel
             assert_equal component_model, Syskit::InstanceRequirements.new([component_model]).fullfilled_model[0]

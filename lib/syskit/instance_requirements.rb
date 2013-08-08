@@ -538,7 +538,7 @@ module Syskit
 
             def fullfilled_model
                 fullfilled = model.fullfilled_model
-                task_model = fullfilled.find { |m| m <= Roby::Task }
+                task_model = fullfilled.find { |m| m <= Roby::Task } || Syskit::Component
                 tags = fullfilled.find_all { |m| m.kind_of?(Syskit::Models::DataServiceModel) || m.kind_of?(Roby::Models::TaskServiceModel) }
                 [task_model, tags, @arguments.dup]
             end
