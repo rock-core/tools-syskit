@@ -28,7 +28,7 @@ module Syskit
             # This is valid only during resolution
             #
             # It is alised to {#plan} for backward compatibility reasons
-            attr_reader :work_plan
+            attr_accessor :work_plan
             # The robot on which the software is running
             attr_reader :robot
             # A mapping from requirement tasks in the real plan to the tasks
@@ -229,11 +229,8 @@ module Syskit
 
             # Must be called everytime the system model changes. It updates the
             # values that are cached to speed up the instanciation process
-            def prepare(options = Hash.new)
+            def prepare
                 add_timepoint 'prepare', 'start'
-
-                options = validate_resolve_options(options)
-                self.options = options
 
                 Engine.model_postprocessing.each do |block|
                     block.call
@@ -245,7 +242,6 @@ module Syskit
                 @main_automatic_selection = DependencyInjection.new
                 main_automatic_selection.add_defaults(@deployed_component_models)
 
-                @work_plan = Roby::Transaction.new(real_plan)
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @required_instances = Hash.new
                 @toplevel_tasks.clear
@@ -1023,32 +1019,13 @@ module Syskit
                 work_plan.remove_object(deployment_task)
             end
 
-            # Generate the deployment according to the current requirements, and
-            # merges it into the current plan
-            #
-            # The following options are understood:
-            #
-            # compute_policies::
-            #   if false, it will not compute the policies between ports. Mainly
-            #   useful for offline testing
-            # compute_deployments::
-            #   if false, it will not do the deployment allocation. Mainly
-            #   useful for testing/debugging purposes. It obviously turns off
-            #   the policy computation as well.
-            # garbage_collect::
-            #   if false, it will not clean up the plan from all tasks that are
-            #   not useful. Mainly useful for testing/debugging purposes
-            # on_error::
-            #   by default, #resolve will generate a dot file containing the
-            #   current plan state if an error occurs. This corresponds to a
-            #   :save value for this option. It can also be set to :commit, in
-            #   which case the current state of the transaction is committed to
-            #   the plan, allowing to display it anyway (for debugging of models
-            #   for instance). Set it to false to do no special action (i.e.
-            #   drop the currently generated plan)
-            def resolve(options = Hash.new)
-                @timepoints = []
-	    	return if disabled?
+            # This method is the entry point for the heavy-lifting, computing
+            # the transaction that adapts the current {#real_plan} to the
+            # network that provides all the InstanceRequirements
+            def compute_adapted_network(work_plan, requirements, options = Hash.new)
+                @timepoints ||= []
+
+                @work_plan = work_plan
 
                 # Set some objects to nil to make sure that noone is using them
                 # while they are not valid
@@ -1056,10 +1033,10 @@ module Syskit
                     @port_dynamics =
                     @deployment_tasks = nil
 
-                prepare(options)
-                # We use simply "options" below, which resolves to the local
-                # variable. Update it.
-                options = self.options
+                options = validate_resolve_options(options)
+                self.options = options
+
+                prepare
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
@@ -1114,9 +1091,41 @@ module Syskit
                     output_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
                     info "saved generated plan into #{output_path}"
                 end
+            end
+
+            # Generate the deployment according to the current requirements, and
+            # merges it into the current plan
+            #
+            # The following options are understood:
+            #
+            # compute_policies::
+            #   if false, it will not compute the policies between ports. Mainly
+            #   useful for offline testing
+            # compute_deployments::
+            #   if false, it will not do the deployment allocation. Mainly
+            #   useful for testing/debugging purposes. It obviously turns off
+            #   the policy computation as well.
+            # garbage_collect::
+            #   if false, it will not clean up the plan from all tasks that are
+            #   not useful. Mainly useful for testing/debugging purposes
+            # on_error::
+            #   by default, #resolve will generate a dot file containing the
+            #   current plan state if an error occurs. This corresponds to a
+            #   :save value for this option. It can also be set to :commit, in
+            #   which case the current state of the transaction is committed to
+            #   the plan, allowing to display it anyway (for debugging of models
+            #   for instance). Set it to false to do no special action (i.e.
+            #   drop the currently generated plan)
+            def resolve(options = Hash.new)
+	    	return if disabled?
+
+                @timepoints = []
+                work_plan = Roby::Transaction.new(real_plan)
+                compute_adapted_network(work_plan, options)
                 work_plan.commit_transaction
 
             rescue Exception => e
+                options = self.options
                 if work_plan != real_plan # we started processing, look at what the user wants to do with the partial transaction
                     if options[:on_error] == :save
                         log_pp(:fatal, e)

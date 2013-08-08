@@ -109,6 +109,7 @@ describe Syskit::NetworkGeneration::Engine do
         before do
             plan.add(@original_task = simple_component_model.as_plan)
             @planning_task = original_task.planning_task
+            syskit_engine.work_plan = Roby::Transaction.new(plan)
             syskit_engine.prepare
             syskit_engine.work_plan.add_permanent(@final_task = simple_component_model.new)
             syskit_engine.required_instances[original_task.planning_task] = final_task
@@ -241,7 +242,8 @@ describe Syskit::NetworkGeneration::Engine do
             ]
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments).by_default
-            syskit_engine.prepare(:validate_network => false)
+            syskit_engine.options = Hash[:validate_network => false]
+            syskit_engine.prepare
             flexmock(syskit_engine.work_plan).should_receive(:find_local_tasks).
                 with(Syskit::Deployment).and_return([])
         end
