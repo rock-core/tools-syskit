@@ -638,7 +638,7 @@ module Syskit
                 # First, set configuration from the configuration files
                 # Note: it can only set properties
                 conf = self.conf
-                if Orocos.conf.apply(orocos_task, conf, true)
+                if Orocos.conf.apply(orocos_task, conf, :model_name => concrete_model.orogen_model.name, :override => true)
                     ::Robot.info "applied configuration #{conf} to #{orocos_task.name}"
                 end
 
