@@ -175,6 +175,15 @@ describe Syskit::Models::BoundDataService do
             assert service.fullfills?(proxy)
         end
     end
+
+    describe "#fullfilled_model" do
+        it "should return the service model" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::Component.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            assert_equal [srv_m], task_m.test_srv.fullfilled_model
+        end
+    end
 end
 
 class TC_Models_BoundDataService < Test::Unit::TestCase

@@ -135,6 +135,10 @@ module Syskit
                 result
             end
 
+            def fullfilled_model
+                [model]
+            end
+
             def fullfills?(models)
                 if !models.respond_to?(:each)
                     models = [models]
