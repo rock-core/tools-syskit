@@ -468,7 +468,7 @@ module Syskit
             #
             # The returned task is always marked as abstract
             def create_proxy_task
-                task = model.new(@arguments)
+                task = component_model.new(@arguments)
                 task.required_host = self.required_host
                 task.abstract = true
                 task

@@ -372,5 +372,29 @@ describe Syskit::InstanceRequirements do
             assert_equal resolved, ir.to_component_model.out_port
         end
     end
+
+    describe "#as_plan" do
+        attr_reader :task_m, :srv_m
+        before do
+            @srv_m = Syskit::DataService.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, :as => 'test'
+        end
+        it "should return a planning pattern for itself" do
+            ir = Syskit::InstanceRequirements.new([task_m])
+            plan.add(task = ir.as_plan)
+            assert_kind_of task_m, task
+            assert task.planning_task
+            assert_equal ir, task.planning_task.requirements
+        end
+
+        it "should allow to be created from a service selection" do
+            ir = Syskit::InstanceRequirements.new([task_m.test_srv])
+            plan.add(task = ir.as_plan)
+            assert_kind_of task_m, task
+            assert task.planning_task
+            assert_equal ir, task.planning_task.requirements
+        end
+    end
 end
 
