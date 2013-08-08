@@ -599,7 +599,15 @@ describe Syskit::TaskContext do
         end
         it "applies the selected configuration" do
             task.conf = ['my', 'conf']
-            flexmock(Orocos.conf).should_receive(:apply).with(orocos_task, ['my', 'conf'], true).once
+            flexmock(task.model.orogen_model).should_receive(:name).and_return('test::Task')
+            flexmock(Orocos.conf).should_receive(:apply).with(orocos_task, ['my', 'conf'], :model_name => 'test::Task', :override => true).once
+            task.configure
+        end
+        it "applies the selected configuration from the parent model on specialized models" do
+            flexmock(task.model.orogen_model).should_receive(:name).and_return('test::Task')
+            task = syskit_deploy_task_context self.task.model.specialize, 'SpecializedTask'
+            task.conf = ['my', 'conf']
+            flexmock(Orocos.conf).should_receive(:apply).with(task.orocos_task, ['my', 'conf'], :model_name => 'test::Task', :override => true).once
             task.configure
         end
     end
