@@ -395,6 +395,7 @@ module Syskit
                 @handler_ids.clear
                 @handler_ids << engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_deployment_states))
                 @handler_ids << engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_task_states))
+                @handler_ids << engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime::ConnectionManagement.method(:update))
             end
         end
 
