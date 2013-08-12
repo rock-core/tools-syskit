@@ -370,7 +370,11 @@ describe Syskit::NetworkGeneration::Engine do
         attr_reader :create_task
         attr_reader :merge
         before do
-            @task_model = Class.new(Roby::Task) { argument :orocos_name; argument :conf }
+            @task_model = Class.new(Roby::Task) do
+                argument :orocos_name
+                argument :conf
+                def concrete_model; model end
+            end
             @deployment_model = Class.new(Roby::Task) { event :ready }
             @existing_task, @existing_deployment_task = task_model.new, deployment_model.new
             existing_task.executed_by existing_deployment_task
