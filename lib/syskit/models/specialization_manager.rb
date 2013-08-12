@@ -337,12 +337,12 @@ module Syskit
                 result
             end
 
-            # [Hash{Hash{String=>Model} => CompositionSpecialization}] set of
-            # specialized composition models already instantiated with
-            # {#specialized_model}. The key is the specialization selectors and
-            # the value the composite specialization, in which
-            # {CompositionSpecialization#composition_model} returns the
-            # composition model
+            # @return [Hash{Hash{String=>Model} => CompositionSpecialization}] set of
+            #   specialized composition models already instantiated with
+            #   {#specialized_model}. The key is the specialization selectors and
+            #   the value the composite specialization, in which
+            #   {CompositionSpecialization#composition_model} returns the
+            #   composition model
             def instanciated_specializations
                 root = composition_model.root_model
                 if root == composition_model
