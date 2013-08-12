@@ -684,7 +684,7 @@ module Syskit
 
             def find_applicable_specialization_from_selection(explicit_selections, selections)
                 specialization_selector = explicit_selections.map_value do |_, sel|
-                    sel.selected.component_model
+                    sel.selected.model
                 end
                 specialized_model = specializations.matching_specialized_model(specialization_selector)
                 if specialized_model != self
@@ -692,7 +692,7 @@ module Syskit
                 end
 
                 specialization_selector = selections.map_value do |_, sel|
-                    sel.selected.component_model
+                    sel.selected.model
                 end
                 return specializations.matching_specialized_model(specialization_selector)
             end

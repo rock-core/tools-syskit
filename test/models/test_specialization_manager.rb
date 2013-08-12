@@ -346,6 +346,19 @@ describe Syskit::Models::SpecializationManager do
                 with(matches[0][0], matches[0][1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(selection, :strict => false)
         end
+        it "can disambiguate among the possible specializations based on the selected services" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            selection = Hash['child' => task_m.test_srv]
+            matches = [[a = flexmock, [flexmock]], [b = flexmock, [flexmock]]]
+            a.should_receive(:weak_match?).with(selection).and_return(true)
+            b.should_receive(:weak_match?).with(selection).and_return(false)
+            flexmock(mng).should_receive(:find_matching_specializations).with('child' => task_m).and_return(matches)
+            flexmock(mng).should_receive(:specialized_model).once.
+                with(matches[0][0], matches[0][1]).and_return(model = flexmock)
+            assert_equal model, mng.matching_specialized_model(selection, :strict => true)
+        end
     end
 
     describe "#find_common_specialization_subset" do

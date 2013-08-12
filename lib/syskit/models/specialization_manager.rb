@@ -593,7 +593,20 @@ module Syskit
             def matching_specialized_model(selection, options = Hash.new)
                 options = Kernel.validate_options options, :strict => true
 
-                candidates = find_matching_specializations(selection)
+                component_selection = selection.map_value do |_, sel|
+                    sel.to_component_model
+                end
+
+                candidates = find_matching_specializations(component_selection)
+                if candidates.size > 1
+                    filtered_candidates = candidates.find_all do |s, _|
+                        s.weak_match?(selection)
+                    end
+                    if !filtered_candidates.empty?
+                        candidates = filtered_candidates
+                    end
+                end
+
                 if candidates.empty?
                     return composition_model
                 elsif candidates.size > 1
