@@ -95,7 +95,7 @@ module Syskit
             #
             # The "configuration" means that we create the necessary connections
             # between each component's port and the logger
-            def self.add_logging_to_network(engine, plan)
+            def self.add_logging_to_network(engine, work_plan)
                 logger_model = TaskContext.find_model_from_orogen_name 'logger::Logger'
                 return if !logger_model
                 logger_model.include LoggerConfigurationSupport
@@ -138,14 +138,6 @@ module Syskit
                         required_connections << [t, connections]
                     end
 
-                    if required_connections.empty?
-                        if logger_task
-                            # Keep loggers alive even if not needed
-                            plan.add_mission(logger_task)
-                        end
-                        next 
-                    end
-
                     logger_task ||=
                         begin
                             deployment.task(logger_task_name)
@@ -153,7 +145,6 @@ module Syskit
                             warn "deployment #{deployment.process_name} has no logger (#{logger_task_name})"
                             next
                         end
-                    engine.work_plan.add_permanent(logger_task)
                     logger_task.default_logger = true
                     # Make sure that the tasks are started after the logger was
                     # started
@@ -189,7 +180,7 @@ module Syskit
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
-                engine.work_plan.find_local_tasks(logger_model).
+                work_plan.find_local_tasks(logger_model).
                     each do |task|
                         if !task.arguments[:conf]
                             task.arguments[:conf] = ['default']
@@ -197,7 +188,7 @@ module Syskit
                     end
 
                 # Mark as permanent any currently running logger
-                engine.work_plan.find_tasks(logger_model).
+                work_plan.find_tasks(logger_model).
                     not_finished.
                     each do |t|
                         engine.add_toplevel_task(t, false, true)
