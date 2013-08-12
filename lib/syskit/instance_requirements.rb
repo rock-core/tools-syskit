@@ -365,12 +365,15 @@ module Syskit
                     break
                 end
 
+                # Validate the new mappings first
+                new_mappings = selections.dup
+                new_mappings.add_explicit(explicit)
                 explicit.each do |child_name, req|
-                    if req.respond_to?(:fullfills?) # Might be a string
-                        if child = model.find_child(child_name)
-                            if !req.fullfills?(child.base_model)
-                                raise ArgumentError, "cannot use #{req} as a selection for #{child_name}: incompatible with #{child.base_model.name}"
-                            end
+                    next if !req.respond_to?(:fullfills?)
+                    if child = model.find_child(child_name)
+                        _, selected_m, _ = new_mappings.selection_for(child_name, model.find_child(child_name))
+                        if !selected_m.fullfills?(child)
+                            raise ArgumentError, "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
                         end
                     end
                 end
