@@ -89,7 +89,7 @@ module Syskit
                 deployment_model ||= Deployment.new_submodel(:name => name, &block)
                 Syskit.process_servers['stubs'].first.
                     register_deployment_model(deployment_model.orogen_model)
-                plan.add(task = deployment_model.new(:on => 'stubs'))
+                plan.add(task = deployment_model.new(:process_name => name, :on => 'stubs'))
                 task
             end
 
