@@ -133,7 +133,7 @@ module Syskit
             # Create a new stub deployment instance
             def stub_syskit_deployment(name = "deployment", deployment_model = nil, &block)
                 deployment_model ||= stub_syskit_deployment_model(nil, name, &block)
-                plan.add_permanent(task = deployment_model.new(:on => 'stubs'))
+                plan.add_permanent(task = deployment_model.new(:process_name => name, :on => 'stubs'))
                 task
             end
 
