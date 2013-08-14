@@ -404,7 +404,7 @@ module Syskit
                 self
             end
 
-            # @deprecated
+            # @deprecated use {#with_conf} instead
             def use_conf(*conf)
                 Roby.warn_deprecated "InstanceRequirements#use_conf is deprecated. Use #with_conf instead"
                 with_conf(*conf)
