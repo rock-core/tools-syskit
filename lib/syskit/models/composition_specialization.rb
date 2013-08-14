@@ -54,6 +54,8 @@ module Syskit
 
             # The specialization constraints, as a map from child name to
             # set of models (data services or components)
+            #
+            # @return [{String=>[Model<Component>,Model<DataService>]}]
             attr_reader :specialized_children
 
             # The set of blocks that have been passed to the corresponding

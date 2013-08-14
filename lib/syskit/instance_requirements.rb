@@ -22,6 +22,11 @@ module Syskit
             # @see prefer_deployed_tasks
             attr_reader :deployment_hints
 
+            # A set of hints for specialization disambiguation 
+            #
+            # @see prefer_specializations
+            attr_reader :specialization_hints
+
             # Custom specification of task dynamics. This is not used as
             # requirements, but more exactly as hints to the dataflow dynamics
             # computations
@@ -45,6 +50,7 @@ module Syskit
                 @selections = DependencyInjection.new
                 @dependency_injection_context = DependencyInjectionContext.new
                 @deployment_hints = Set.new
+                @specialization_hints = Set.new
                 @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), [])
             end
 
@@ -54,6 +60,7 @@ module Syskit
                 @arguments = old.arguments.dup
                 @selections = old.selections.dup
                 @deployment_hints = old.deployment_hints.dup
+                @specialization_hints = old.specialization_hints.dup
                 @dependency_injection_context = old.dependency_injection_context.dup
             end
 
@@ -290,6 +297,7 @@ module Syskit
                 @selections.merge(other_spec.selections)
 
                 @deployment_hints |= other_spec.deployment_hints
+                @specialization_hints |= other_spec.specialization_hints
                 @dependency_injection_context.concat(other_spec.dependency_injection_context)
                 # Call modules that could have been included in the class to
                 # extend it
@@ -440,12 +448,30 @@ module Syskit
                 self
             end
 
+            # Give information needed to disambiguate the specialization
+            # selection
+            #
+            # Whenever a specialization ambiguity exists, the possible matches
+            # will be evaluated against each selector given through this method.
+            # Only the ones that match at least one will be selected in the end
+            #
+            # @param [{String=>Model<Component>}]
+            # @return [self]
+            def prefer_specializations(*specialization_selectors)
+                if !composition_model?
+                    raise ArgumentError, "#{self} does not represent a composition, cannot use #prefer_specializations"
+                end
+
+                @specialization_hints << specialization_selectors
+                self
+            end
+
             # Computes the value of +model+ based on the current selection
             # (in #selections) and the base model specified in #add or
             # #define
             def narrow_model
                 model = @base_model.to_component_model
-                if (model <= Syskit::Composition) && !model.specializations.empty?
+                if composition_model? && !model.specializations.empty?
                     debug do
                         debug "narrowing model"
                         debug "  from #{model.short_name}"
@@ -459,7 +485,7 @@ module Syskit
                     end
 
                     model = log_nest(2) do
-                        model.narrow(context)
+                        model.narrow(context, :specialization_hints => specialization_hints)
                     end
 
                     debug do
@@ -537,6 +563,9 @@ module Syskit
                 instanciate_arguments = { :task_arguments => self.arguments }
                 if arguments[:task_arguments]
                     instanciate_arguments[:task_arguments].merge!(arguments[:task_arguments])
+                end
+                if !specialization_hints.empty?
+                    instanciate_arguments[:specialization_hints] = specialization_hints
                 end
 
                 task = task_model.instanciate(plan, context, instanciate_arguments)
@@ -660,7 +689,7 @@ module Syskit
 
             # Tests if these requirements explicitly point to a composition model
             def composition_model?
-                model <= Syskit::Composition
+                model.fullfills?(Syskit::Composition)
             end
 
             def period(value)
@@ -689,6 +718,10 @@ module Syskit
 
             def to_coordination_task(task_model)
                 Roby::Coordination::Models::TaskFromAsPlan.new(self, proxy_task_model)
+            end
+
+            def selected_for(requirements)
+                Syskit::InstanceSelection.new(nil, self, requirements.to_instance_requirements)
             end
         end
 end

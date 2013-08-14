@@ -821,6 +821,10 @@ module Syskit
                 return enum_for(:each_required_model) if !block_given?
                 yield(self)
             end
+
+            def selected_for(requirements)
+                InstanceSelection.new(nil, self.to_instance_requirements, requirements.to_instance_requirements)
+            end
         end
     end
 

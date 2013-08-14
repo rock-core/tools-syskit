@@ -1,17 +1,22 @@
 require 'syskit/test'
-require './test/fixtures/simple_composition_model'
 require 'minitest/spec'
 
 describe Syskit::Models::SpecializationManager do
     include Syskit::SelfTest
-    include Syskit::Fixtures::SimpleCompositionModel
 
     # [Syskit::Models::SpecializationManager] the manager under test
     attr_reader :mng
 
+    attr_reader :cmp_m, :task_m, :srv_m
+
     before do
-        create_simple_composition_model
-        @mng = Syskit::Models::SpecializationManager.new(simple_composition_model)
+        @srv_m = Syskit::DataService.new_submodel
+        @task_m = Syskit::TaskContext.new_submodel
+        task_m.provides srv_m, :as => 'test'
+        @cmp_m = Syskit::Composition.new_submodel
+        cmp_m.add srv_m, :as => 'test'
+        cmp_m.add srv_m, :as => 'second'
+        @mng = cmp_m.specializations
     end
 
     describe "#each_specialization" do
@@ -38,7 +43,7 @@ describe Syskit::Models::SpecializationManager do
             assert_raises(ArgumentError) { mng.normalize_specialization_mappings(Object.new => Syskit::DataService.new_submodel) }
         end
         it "should reject invalid models" do
-            assert_raises(ArgumentError) { mng.normalize_specialization_mappings('srv' => Object.new) }
+            assert_raises(ArgumentError) { mng.normalize_specialization_mappings('test' => Object.new) }
         end
         it "should pass thru strings to models" do
             srv = Syskit::DataService.new_submodel
@@ -51,25 +56,25 @@ describe Syskit::Models::SpecializationManager do
                 mng.normalize_specialization_mappings('string' => srv)
         end
         it "should convert a component model selector into the corresponding child name" do
-            simple_composition_model.overload('srv', simple_component_model)
-            c = simple_component_model.new_submodel
-            assert_equal Hash['srv' => [c].to_set],
-                mng.normalize_specialization_mappings(simple_component_model => c)
+            cmp_m.overload('test', task_m)
+            c = task_m.new_submodel
+            assert_equal Hash['test' => [c].to_set],
+                mng.normalize_specialization_mappings(task_m => c)
         end
         it "should convert a data service selector into the corresponding child name" do
             srv2 = Syskit::DataService.new_submodel
-            simple_composition_model.overload('srv', srv2)
-            assert_equal Hash['srv' => [simple_component_model].to_set],
-                mng.normalize_specialization_mappings(srv2 => simple_component_model)
+            cmp_m.overload('test', srv2)
+            assert_equal Hash['test' => [task_m].to_set],
+                mng.normalize_specialization_mappings(srv2 => task_m)
         end
         it "should raise if a model is used as selector, but there are no corresponding children available" do
             assert_raises(ArgumentError) do
-                mng.normalize_specialization_mappings(Syskit::DataService.new_submodel => simple_component_model)
+                mng.normalize_specialization_mappings(Syskit::DataService.new_submodel => task_m)
             end
         end
         it "should raise if an ambiguous component model is used as selector" do
             assert_raises(ArgumentError) do
-                mng.normalize_specialization_mappings(simple_service_model => simple_component_model)
+                mng.normalize_specialization_mappings(srv_m => task_m)
             end
         end
     end
@@ -77,26 +82,26 @@ describe Syskit::Models::SpecializationManager do
     describe "#validate_specialization_mappings" do
         it "should do nothing if the mappings add a new service to a child" do
             srv2 = Syskit::DataService.new_submodel
-            mng.validate_specialization_mappings('srv' => [srv2])
+            mng.validate_specialization_mappings('test' => [srv2])
         end
         it "should do nothing if the mappings update the model of a child" do
-            mng.validate_specialization_mappings('srv' => [simple_component_model])
+            mng.validate_specialization_mappings('test' => [task_m])
         end
         it "should raise if the mappings contain a non-existent child" do
             assert_raises(ArgumentError) do
-                mng.validate_specialization_mappings('bla' => [simple_component_model])
+                mng.validate_specialization_mappings('bla' => [task_m])
             end
         end
         it "should raise if the mappings give a specification for a child, but do not overload it" do
             assert_raises(ArgumentError) do
-                mng.validate_specialization_mappings('srv' => [simple_service_model])
+                mng.validate_specialization_mappings('test' => [srv_m])
             end
         end
         it "should raise if the mappings give a non-compatible specification for a child" do
-            simple_composition_model.overload 'srv', simple_component_model
+            cmp_m.overload 'test', task_m
             c = Syskit::TaskContext.new_submodel
             assert_raises(Syskit::IncompatibleComponentModels) do
-                mng.validate_specialization_mappings('srv' => [c])
+                mng.validate_specialization_mappings('test' => [c])
             end
         end
     end
@@ -124,13 +129,13 @@ describe Syskit::Models::SpecializationManager do
 
         it "should setup compatibilities based on constraint blocks" do
             mng.add_specialization_constraint do |a, b|
-                !(a.specialized_children['srv'].first <= Syskit::Component && b.specialized_children['srv'].first <= Syskit::Component)
+                !(a.specialized_children['test'].first <= Syskit::Component && b.specialized_children['test'].first <= Syskit::Component)
             end
-            spec0 = mng.specialize 'srv' => simple_component_model
-            spec1 = mng.specialize 'srv' => simple_composition_model
+            spec0 = mng.specialize 'test' => task_m
+            spec1 = mng.specialize 'test' => cmp_m
             assert !spec0.compatible_with?(spec1)
             assert !spec1.compatible_with?(spec0)
-            spec2 = mng.specialize 'srv' => Syskit::DataService.new_submodel
+            spec2 = mng.specialize 'test' => Syskit::DataService.new_submodel
             assert !spec0.compatible_with?(spec1)
             assert spec0.compatible_with?(spec2)
             assert !spec1.compatible_with?(spec0)
@@ -141,33 +146,34 @@ describe Syskit::Models::SpecializationManager do
 
         it "should detect non symmetric compatibility blocks" do
             mng.add_specialization_constraint do |a, b|
-                a.specialized_children['srv'].first == simple_component_model
+                a.specialized_children['test'].first == task_m
             end
-            mng.specialize 'srv' => simple_component_model
-            assert_raises(Syskit::NonSymmetricSpecializationConstraint) { mng.specialize 'srv' => simple_composition_model }
+            mng.specialize 'test' => task_m
+            assert_raises(Syskit::NonSymmetricSpecializationConstraint) { mng.specialize 'test' => cmp_m }
         end
 
         it "should validate the given specialization block" do
             assert_raises(NoMethodError) do
-                mng.specialize 'srv' => simple_composition_model do
+                mng.specialize 'test' => cmp_m do
                     this_method_does_not_exist
                 end
             end
         end
 
         it "should add the new block to an existing specialization definition if one already exists" do
-            raise NotImplementedError
-            spec = mng.specialize 'srv' => simple_component_model
+            spec = mng.specialize 'test' => task_m
+            new_spec = Syskit::Models::CompositionSpecialization.new
+            flexmock(spec).should_receive(:dup).and_return(new_spec)
             my_proc = proc { }
-            flexmock(spec).should_receive(:add).with(Hash['srv' => [simple_component_model].to_set], my_proc).once
-            assert_same spec, mng.specialize('srv' => simple_component_model, &my_proc)
+            flexmock(new_spec).should_receive(:add).with(Hash['test' => [task_m].to_set], my_proc).once
+            assert_same new_spec, mng.specialize('test' => task_m, &my_proc)
         end
 
         it "should invalidate the specialized composition models if a block is added to an existing specialization" do
-            spec = mng.specialize 'srv' => simple_component_model
+            spec = mng.specialize 'test' => task_m
             cmp_m = mng.specialized_model(spec)
             assert_same cmp_m, mng.specialized_model(spec)
-            mng.specialize('srv' => simple_component_model)
+            mng.specialize('test' => task_m)
             refute_same cmp_m, mng.specialized_model(spec)
         end
     end
@@ -180,33 +186,33 @@ describe Syskit::Models::SpecializationManager do
         attr_reader :specialized_model
 
         before do
-            @specialized_model = flexmock(simple_composition_model.new_submodel)
-            flexmock(simple_composition_model).should_receive(:new_submodel).and_return(@specialized_model)
+            @specialized_model = flexmock(cmp_m.new_submodel)
+            flexmock(cmp_m).should_receive(:new_submodel).and_return(@specialized_model)
         end
 
         it "should return the base composition model if no specializations are selected" do
-            assert_same simple_composition_model,
+            assert_same cmp_m,
                 mng.specialized_model(Syskit::Models::CompositionSpecialization.new)
         end
 
         it "should return the same model for the same specializations" do
             srv2 = Syskit::DataService.new_submodel
-            spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model], 'srv2' => [srv2])
+            spec = Syskit::Models::CompositionSpecialization.new('test' => [task_m], 'second' => [srv2])
             value = mng.specialized_model(spec)
             assert_same value, mng.specialized_model(spec)
         end
 
         it "should overload the specialized children" do
             srv2 = Syskit::DataService.new_submodel
-            specialized_model.should_receive(:overload).with('srv', [simple_component_model]).once
-            specialized_model.should_receive(:overload).with('srv2', [srv2]).once
-            spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model], 'srv2' => [srv2])
+            specialized_model.should_receive(:overload).with('test', [task_m]).once
+            specialized_model.should_receive(:overload).with('second', [srv2]).once
+            spec = Syskit::Models::CompositionSpecialization.new('test' => [task_m], 'second' => [srv2])
             mng.specialized_model(spec)
         end
 
         it "should apply the specialization blocks" do
             srv2 = Syskit::DataService.new_submodel
-            spec = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model], 'srv2' => [srv2])
+            spec = Syskit::Models::CompositionSpecialization.new('test' => [task_m], 'second' => [srv2])
             recorder = flexmock
             blocks = (1..2).map do
                 proc { recorder.called(object_id) }
@@ -219,8 +225,8 @@ describe Syskit::Models::SpecializationManager do
 
         it "should register the compatible specializations in the new model's specialization manager" do
             srv2 = Syskit::DataService.new_submodel
-            spec0 = Syskit::Models::CompositionSpecialization.new('srv2' => [srv2])
-            spec1 = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model])
+            spec0 = Syskit::Models::CompositionSpecialization.new('second' => [srv2])
+            spec1 = Syskit::Models::CompositionSpecialization.new('test' => [task_m])
 
             flexmock(Syskit::Models::SpecializationManager).new_instances.should_receive(:register).with(spec1).once
             spec0.compatibilities << spec1
@@ -230,8 +236,8 @@ describe Syskit::Models::SpecializationManager do
 
         it "should register the specializations in #applied_specializations" do
             srv2 = Syskit::DataService.new_submodel
-            spec0 = Syskit::Models::CompositionSpecialization.new('srv2' => [srv2])
-            spec1 = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model])
+            spec0 = Syskit::Models::CompositionSpecialization.new('second' => [srv2])
+            spec1 = Syskit::Models::CompositionSpecialization.new('test' => [task_m])
             model = mng.specialized_model(spec0.merge(spec1), [spec0, spec1])
             assert_equal model.applied_specializations, [spec0, spec1]
         end
@@ -243,9 +249,9 @@ describe Syskit::Models::SpecializationManager do
         attr_reader :spec2
 
         before do
-            @spec0 = Syskit::Models::CompositionSpecialization.new('srv2' => [simple_component_model])
-            @spec1 = Syskit::Models::CompositionSpecialization.new('srv' => [simple_component_model])
-            @spec2 = Syskit::Models::CompositionSpecialization.new('srv' => [simple_composition_model])
+            @spec0 = Syskit::Models::CompositionSpecialization.new('second' => [task_m])
+            @spec1 = Syskit::Models::CompositionSpecialization.new('test' => [task_m])
+            @spec2 = Syskit::Models::CompositionSpecialization.new('test' => [cmp_m])
             spec0.compatibilities << spec1 << spec2
             spec1.compatibilities << spec0
             spec2.compatibilities << spec0
@@ -280,14 +286,14 @@ describe Syskit::Models::SpecializationManager do
     describe "#find_matching_specializations" do
         attr_reader :spec0, :spec1, :spec2
         before do
-            @spec0 = mng.specialize 'srv' => simple_component_model
-            @spec1 = mng.specialize 'srv' => simple_composition_model
-            @spec2 = mng.specialize 'srv2' => simple_component_model
+            @spec0 = mng.specialize 'test' => task_m
+            @spec1 = mng.specialize 'test' => cmp_m
+            @spec2 = mng.specialize 'second' => task_m
         end
 
         it "should return the non-specialized model if it has no specializations" do
             mng.specializations.clear
-            result = mng.find_matching_specializations('srv' => simple_component_model)
+            result = mng.find_matching_specializations('test' => task_m)
             assert_equal 1, result.size
             assert result[0][0].specialized_children.empty?
             assert_equal [], result[0][1]
@@ -299,14 +305,14 @@ describe Syskit::Models::SpecializationManager do
             assert_equal [], result[0][1]
         end
         it "should return the non-specialized model if it is given a selection that does not match a specialization" do
-            result = mng.find_matching_specializations('srv' => Syskit::TaskContext.new_submodel)
+            result = mng.find_matching_specializations('test' => Syskit::TaskContext.new_submodel)
             assert_equal 1, result.size
             assert result[0][0].specialized_children.empty?
             assert_equal [], result[0][1]
         end
 
         it "should return the partitioned specializations that match the selection weakly" do
-            selection = {'srv' => simple_component_model}
+            selection = {'test' => task_m}
             flexmock(spec0).should_receive(:weak_match?).with(selection).and_return(true)
             flexmock(spec1).should_receive(:weak_match?).with(selection).and_return(true)
             flexmock(spec2).should_receive(:weak_match?).with(selection).and_return(false)
@@ -319,7 +325,7 @@ describe Syskit::Models::SpecializationManager do
         it "returns the composition model if no specialization matches" do
             selection = Hash.new
             flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return([])
-            assert_equal simple_composition_model, mng.matching_specialized_model(selection)
+            assert_equal cmp_m, mng.matching_specialized_model(selection)
         end
         it "returns the composition model for a single match" do
             selection = Hash.new
@@ -330,15 +336,17 @@ describe Syskit::Models::SpecializationManager do
             assert_equal model, mng.matching_specialized_model(selection)
         end
         it "raises if more than one specialization matches and strict is set" do
-            selection = Hash.new
-            flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return([1, 2])
+            selection = Hash['child' => task_m.selected_for(srv_m)]
+            flexmock(mng).should_receive(:find_matching_specializations).
+                with('child' => task_m).
+                and_return([[flexmock(:weak_match? => true), []], [flexmock(:weak_match? => true), []]])
             assert_raises(Syskit::AmbiguousSpecialization) do
                 mng.matching_specialized_model(selection, :strict => true)
             end
         end
         it "uses the common subset if more than one specialization matches and strict is not set" do
             selection = Hash.new
-            matches = [[flexmock, [flexmock]], [flexmock, [flexmock]]]
+            matches = [[flexmock(:weak_match? => true), [flexmock]], [flexmock(:weak_match? => true), [flexmock]]]
             flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return(matches)
             flexmock(mng).should_receive(:find_common_specialization_subset).once.
                 with(matches).and_return(matches[0])
@@ -346,18 +354,38 @@ describe Syskit::Models::SpecializationManager do
                 with(matches[0][0], matches[0][1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(selection, :strict => false)
         end
+        it "applies specializations that are orthogonal from the service selection" do
+            task_spec = cmp_m.specialize cmp_m.test_child => task_m
+            selection = Syskit::DependencyInjection.new('test' => task_m).
+                instance_selection_for('test', cmp_m.test_child)
+            selection = Hash['test' => selection]
+            result = cmp_m.specializations.
+                matching_specialized_model(selection, :strict => true)
+            assert result.applied_specializations.include?(task_spec)
+        end
         it "can disambiguate among the possible specializations based on the selected services" do
-            srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, :as => 'test'
-            selection = Hash['child' => task_m.test_srv]
+            selection = Hash['test' => task_m.test_srv.selected_for(cmp_m.test_child)]
             matches = [[a = flexmock, [flexmock]], [b = flexmock, [flexmock]]]
             a.should_receive(:weak_match?).with(selection).and_return(true)
             b.should_receive(:weak_match?).with(selection).and_return(false)
-            flexmock(mng).should_receive(:find_matching_specializations).with('child' => task_m).and_return(matches)
+            flexmock(mng).should_receive(:find_matching_specializations).with('test' => task_m).and_return(matches)
             flexmock(mng).should_receive(:specialized_model).once.
                 with(matches[0][0], matches[0][1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(selection, :strict => true)
+        end
+        it "can disambiguate among the possible specializations based on the specialization hints" do
+            selection = flexmock
+            selection.should_receive(:map_value).and_return(selection)
+            matches = [[a = flexmock, [flexmock]], [b = flexmock, [flexmock]]]
+            hint = flexmock
+            a.should_receive(:weak_match?).with(hint).and_return(true)
+            b.should_receive(:weak_match?).with(hint).and_return(false)
+            flexmock(mng).should_receive(:find_matching_specializations).with(selection).and_return(matches)
+            flexmock(mng).should_receive(:specialized_model).once.
+                with(matches[0][0], matches[0][1]).and_return(model = flexmock)
+            assert_equal model, mng.matching_specialized_model(
+                selection, :strict => true,
+                :specialization_hints => [hint])
         end
     end
 
@@ -377,10 +405,10 @@ describe Syskit::Models::SpecializationManager do
 
     describe "#create_specialized_model" do
         it "should only inherit compatible specializations from the root" do
-            root = Syskit::Composition.new_submodel(:name => 'Cmp') { add Syskit::DataService.new_submodel, :as => 'srv' }
-            spec0 = root.specialize(root.srv_child => (srv0 = Syskit::DataService.new_submodel))
-            spec1 = root.specialize(root.srv_child => (srv1 = Syskit::DataService.new_submodel))
-            spec2 = root.specialize(root.srv_child => (srv2 = Syskit::DataService.new_submodel))
+            root = Syskit::Composition.new_submodel(:name => 'Cmp') { add Syskit::DataService.new_submodel, :as => 'test' }
+            spec0 = root.specialize(root.test_child => (srv0 = Syskit::DataService.new_submodel))
+            spec1 = root.specialize(root.test_child => (srv1 = Syskit::DataService.new_submodel))
+            spec2 = root.specialize(root.test_child => (srv2 = Syskit::DataService.new_submodel))
             flexmock(spec2).should_receive(:compatibilities).and_return([spec1])
             m = root.specializations.create_specialized_model(spec2, [spec2])
             assert_equal [spec1], m.specializations.each_specialization.to_a

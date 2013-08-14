@@ -555,7 +555,7 @@ module Syskit
                         Models.log_nest(2) do
                             Models.debug "on the basis of"
                             Models.log_nest(2) do
-                                Models.log_pp(:debug, context.current_state)
+                                Models.log_pp(:debug, context)
                             end
                         end
                         break
@@ -580,10 +580,14 @@ module Syskit
 
             # Returns the set of specializations that match the given dependency
             # injection context
-            def narrow(context)
+            #
+            # @param [DependencyInjection] context the dependency injection
+            #   object that is used to determine the selected model
+            # @return [Model<Composition>]
+            def narrow(context, options = Hash.new)
                 explicit_selections, selected_models =
                     find_children_models_and_tasks(context)
-                find_applicable_specialization_from_selection(explicit_selections, selected_models)
+                find_applicable_specialization_from_selection(explicit_selections, selected_models, options)
             end
 
             # This returns an InstanciatedComponent object that can be used in
@@ -682,19 +686,12 @@ module Syskit
                 return explicit_selections, selected_models, self
             end
 
-            def find_applicable_specialization_from_selection(explicit_selections, selections)
-                specialization_selector = explicit_selections.map_value do |_, sel|
-                    sel.selected.model
-                end
-                specialized_model = specializations.matching_specialized_model(specialization_selector)
+            def find_applicable_specialization_from_selection(explicit_selections, selections, options = Hash.new)
+                specialized_model = specializations.matching_specialized_model(explicit_selections, options)
                 if specialized_model != self
                     return specialized_model
                 end
-
-                specialization_selector = selections.map_value do |_, sel|
-                    sel.selected.model
-                end
-                return specializations.matching_specialized_model(specialization_selector)
+                return specializations.matching_specialized_model(selections, options)
             end
 
             # Creates the required task and children for this composition model.
@@ -729,7 +726,7 @@ module Syskit
                 # is the set of children for which a selection existed and
                 # +selected_models+ all the models we should use
                 explicit_selections, selected_models =
-                    find_children_models_and_tasks(context)
+                    find_children_models_and_tasks(context.current_state)
 
                 if arguments[:specialize]
                     specialized_model = find_applicable_specialization_from_selection(explicit_selections, selected_models)

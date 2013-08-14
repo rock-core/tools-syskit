@@ -170,7 +170,7 @@ module Syskit
             end
 
             def fullfills?(set)
-                required.fullfills?(set)
+                selected.fullfills?(set)
             end
 
             def to_s
