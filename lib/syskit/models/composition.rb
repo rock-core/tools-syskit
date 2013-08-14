@@ -668,28 +668,6 @@ module Syskit
                 end
             end
 
-            def resolve_selection_and_specialization(context)
-                explicit_selections, selected_models =
-                    find_children_models_and_tasks(context)
-
-                specialization_selector = explicit_selections.map_value do |_, sel|
-                    sel.selected.component_model
-                end
-                specialized_model = specializations.matching_specialized_model(specialization_selector)
-                if specialized_model != self
-                    return specialized_model.resolve_selection_and_specialization(context)
-                end
-
-                specialization_selector = selected_models.map_value do |_, sel|
-                    sel.selected.component_model
-                end
-                specialized_model = specializations.matching_specialized_model(specialization_selector)
-                if specialized_model != self
-                    return specialized_model.resolve_selection_and_specialization(context)
-                end
-                return explicit_selections, selected_models, self
-            end
-
             def find_applicable_specialization_from_selection(explicit_selections, selections, options = Hash.new)
                 specialized_model = specializations.matching_specialized_model(explicit_selections, options)
                 if specialized_model != self
