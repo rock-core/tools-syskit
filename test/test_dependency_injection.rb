@@ -29,6 +29,17 @@ describe Syskit::DependencyInjection do
             _, _, service_selections = di.selection_for('child', Syskit::InstanceRequirements.new([base_srv_m]))
             assert_equal task_m.test_srv, service_selections[base_srv_m]
         end
+        it "uses service-to-bound_service selections as service mappings when matching the task model" do
+            base_srv_m = Syskit::DataService.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            srv_m.provides base_srv_m
+            task_m = Syskit::Component.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, :as => 'ambiguous'
+            di = Syskit::DependencyInjection.new('child' => task_m, srv_m => task_m.test_srv)
+            _, _, service_selections = di.selection_for('child', Syskit::InstanceRequirements.new([base_srv_m]))
+            assert_equal task_m.test_srv, service_selections[base_srv_m]
+        end
     end
 
     describe "#add_explicit" do
