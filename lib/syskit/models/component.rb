@@ -188,6 +188,9 @@ module Syskit
             # only then call #as on the returned BoundDataService object
             def as(service_model)
                 srv = find_data_service_from_type(service_model)
+                if !srv
+                    raise ArgumentError, "no service of #{self} provides #{service_model}"
+                end
                 return srv.as(service_model)
             end
 
