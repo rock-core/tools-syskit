@@ -22,12 +22,22 @@ module Syskit::GUI
                 super
 
                 providers = Array.new
-                Syskit::Component.each_submodel do |component_m|
+                Syskit::TaskContext.each_submodel do |component_m|
+                    next if component_m.respond_to?(:proxied_data_services)
                     if component_m.fullfills?(model)
-                        if component_m.permanent_model?
-                            providers << [component_m.name, component_m]
-                        elsif component_m.respond_to?(:is_specialization?)
-                            providers << [component_m.name, component_m.root_model]
+                        providers << [component_m.name, component_m]
+                    end
+                end
+                Syskit::Composition.each_submodel do |composition_m|
+                    next if composition_m.respond_to?(:proxied_data_services)
+                    next if composition_m.is_specialization?
+                    if composition_m.fullfills?(model)
+                        providers << [composition_m.name, composition_m]
+                    else
+                        composition_m.specializations.each_specialization do |spec|
+                            if spec.composition_model.fullfills?(model)
+                                providers << [spec.to_s, composition_m.root_model]
+                            end
                         end
                     end
                 end
