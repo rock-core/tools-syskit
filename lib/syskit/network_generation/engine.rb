@@ -29,8 +29,6 @@ module Syskit
             #
             # It is alised to {#plan} for backward compatibility reasons
             attr_reader :work_plan
-            # The robot on which the software is running
-            attr_reader :robot
             # A mapping from requirement tasks in the real plan to the tasks
             # that have been instantiated in the working plan
             #
@@ -120,10 +118,9 @@ module Syskit
             # plugins to configure their behaviours
             attr_accessor :options
 
-            def initialize(plan, robot = Syskit.conf.robot)
+            def initialize(plan)
                 @real_plan = plan
                 @work_plan = plan
-                @robot     = robot
                 real_plan.extend PlanExtension
                 real_plan.syskit_engine = self
 
@@ -288,17 +285,6 @@ module Syskit
             # @return [DependencyInjectionContext]
             def compute_main_dependency_injection
                 main_selection = DependencyInjectionContext.new
-
-                # Push the devices as a name-to-task mapping
-                devices = Hash.new
-                robot.each_master_device do |name, device_instance|
-                    task = device_instance.instanciate(work_plan, main_selection)
-                    devices[name] = task
-                    task.model.each_data_service do |_, srv|
-                        devices["#{name}.#{srv.full_name}"] = task
-                    end
-                end
-                main_selection.push(devices)
 
                 # Push the automatically-computed selections if it is required
                 if use_automatic_selection?
