@@ -18,6 +18,27 @@ module Syskit::GUI
                 end
             end
 
+            def render(model, options = Hash.new)
+                super
+
+                providers = Array.new
+                Syskit::Component.each_submodel do |component_m|
+                    if component_m.fullfills?(model)
+                        if component_m.permanent_model?
+                            providers << [component_m.name, component_m]
+                        elsif component_m.respond_to?(:is_specialization?)
+                            providers << [component_m.name, component_m.root_model]
+                        end
+                    end
+                end
+
+                providers = providers.sort_by(&:first).
+                    map do |name, model|
+                        page.link_to(model, name)
+                    end
+                page.render_list("Provided By", providers)
+            end
+
             def render_data_services(task, with_names = false)
                 super
             end
