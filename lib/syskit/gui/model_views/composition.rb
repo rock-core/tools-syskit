@@ -115,8 +115,14 @@ module Syskit::GUI
             end
 
             def render(model, options = Hash.new)
-                super
-                task_model_view.render(model)
+                options, super_options = Kernel.filter_options options,
+                    :doc => true
+                if options[:doc] && model.doc
+                    page.push nil, page.main_doc(model.doc)
+                end
+
+                super(model, super_options)
+                task_model_view.render(model, :doc => false)
                 if task
                     render_data_services(task)
                 end

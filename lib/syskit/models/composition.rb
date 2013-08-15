@@ -917,6 +917,12 @@ module Syskit
                 submodel
             end
 
+            # Overloaded to set the model documentation
+            def inherited(submodel)
+                super
+                submodel.doc MetaRuby::DSLs.parse_documentation_block(/.*/, /^inherited/)
+            end
+
             # Create a new submodel of this composition model
             def setup_submodel(submodel, options = Hash.new, &block)
                 options, submodel_options = Kernel.filter_options options, :register_specializations => true

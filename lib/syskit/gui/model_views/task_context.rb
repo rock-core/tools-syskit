@@ -17,11 +17,15 @@ module Syskit::GUI
             end
 
             def render(model, options = Hash.new)
+                doc = [model.doc, model.orogen_model.doc].compact.join("\n\n").strip
+                if !doc.empty?
+                    page.push nil, page.main_doc(doc)
+                end
                 task_model_view.render(model, :external_objects => options[:external_objects])
                 super
 
                 page.push("oroGen Model", "<p><b>oroGen name:</b> #{model.orogen_model.name}</p>")
-                orogen_rendering.render(model.orogen_model, :external_objects => options[:external_objects])
+                orogen_rendering.render(model.orogen_model, :external_objects => options[:external_objects], :doc => false)
             end
         end
     end
