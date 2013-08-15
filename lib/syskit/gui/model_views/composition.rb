@@ -79,7 +79,7 @@ module Syskit::GUI
                 plan = Roby::Plan.new
                 specializations = Hash.new
                 root_model.specializations.each_specialization.map do |spec|
-                    task_model = root_model.specializations.create_specialized_model(spec, [spec])
+                    task_model = root_model.specializations.specialized_model(spec, [spec])
                     plan.add(task = task_model.new)
                     specializations[spec] = task
                 end
