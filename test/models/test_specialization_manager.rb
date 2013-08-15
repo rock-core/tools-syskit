@@ -171,10 +171,20 @@ describe Syskit::Models::SpecializationManager do
 
         it "should invalidate the specialized composition models if a block is added to an existing specialization" do
             spec = mng.specialize 'test' => task_m
-            cmp_m = mng.specialized_model(spec)
-            assert_same cmp_m, mng.specialized_model(spec)
             mng.specialize('test' => task_m)
-            refute_same cmp_m, mng.specialized_model(spec)
+            refute_same spec.composition_model, mng.specialized_model(spec)
+        end
+
+        it "should deregister the created submodel when a specialization is modified" do
+            spec = mng.specialize 'test' => task_m
+            assert(mng.composition_model.each_submodel.to_a.include?(spec.composition_model))
+            mng.specialize('test' => task_m)
+            assert(!mng.composition_model.each_submodel.to_a.include?(spec.composition_model))
+        end
+
+        it "should ensure that #specialized_model returns the same model than the one created during the definition" do
+            spec = mng.specialize 'test' => task_m
+            assert_same spec.composition_model, mng.specialized_model(spec)
         end
     end
 

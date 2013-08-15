@@ -74,6 +74,13 @@ module Syskit
             # the required models.
             attr_reader :compatibilities
 
+            # The name of the composition model that is being specialized.
+            #
+            # It is only used for display purposes
+            #
+            # @return [String]
+            attr_accessor :root_name
+
             # The composition model that can be used to instanciate this
             # specialization. This is a subclass of the composition that
             # this specialization specializes.
@@ -100,7 +107,7 @@ module Syskit
             end
 
             def to_s
-                composition_model.short_name + "/" + specialized_children.map do |child_name, child_models|
+                root_name.to_s + "/" + specialized_children.map do |child_name, child_models|
                     "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
                 end.join(",")
             end

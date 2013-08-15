@@ -25,7 +25,7 @@ module Syskit
             # @param [CompositionSpecialization] specialization the new specialization
             # @return [void]
             def register(specialization)
-                instanciated_specializations.delete(specialization.specialized_children)
+                specialization.root_name = composition_model.root_model.name
                 specializations[specialization.specialized_children] = specialization
             end
 
@@ -38,6 +38,7 @@ module Syskit
                 if specializations[specialization.specialized_children] == specialization
                     instanciated_specializations.delete(specialization.specialized_children)
                     specializations.delete(specialization.specialized_children)
+                    composition_model.deregister_submodels([specialization.composition_model].to_set)
                 end
             end
 
@@ -140,8 +141,9 @@ module Syskit
                 if specialization
                     deregister(specialization)
                 end
-                register(new_specialization)
                 new_specialization.composition_model = specialized_composition_model
+                instanciated_specializations[new_specialization.specialized_children] = new_specialization
+                register(new_specialization)
 
                 # Finally, we create 
                 new_specialization
