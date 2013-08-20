@@ -142,7 +142,6 @@ module Syskit
                     deregister(specialization)
                 end
                 new_specialization.composition_model = specialized_composition_model
-                instanciated_specializations[new_specialization.specialized_children] = new_specialization
                 register(new_specialization)
 
                 # Finally, we create 

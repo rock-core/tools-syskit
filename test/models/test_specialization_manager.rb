@@ -182,9 +182,9 @@ describe Syskit::Models::SpecializationManager do
             assert(!mng.composition_model.each_submodel.to_a.include?(spec.composition_model))
         end
 
-        it "should ensure that #specialized_model returns the same model than the one created during the definition" do
+        it "should ensure that #specialized_model does not return the same model than the one created during the definition" do
             spec = mng.specialize 'test' => task_m
-            assert_same spec.composition_model, mng.specialized_model(spec)
+            refute_same spec.composition_model, mng.specialized_model(spec)
         end
     end
 
