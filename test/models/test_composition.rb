@@ -612,6 +612,22 @@ describe Syskit::Models::Composition do
                 assert_equal Hash['specialized_in' => 'in', 'specialized_out' => 'out'],
                     child.port_mappings
             end
+
+            it "does nothing if the child already provides the service" do
+                base_srv_m = Syskit::DataService.new_submodel
+                srv_m = Syskit::DataService.new_submodel
+                srv_m.provides base_srv_m
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.provides srv_m, :as => 'test'
+                
+                base_cmp_m = Syskit::Composition.new_submodel
+                base_cmp_m.add base_srv_m, :as => 'test'
+                cmp_m = base_cmp_m.new_submodel
+                cmp_m.overload 'test', task_m
+                final_cmp_m = cmp_m.new_submodel
+                final_cmp_m.overload 'test', srv_m
+                assert_same task_m, final_cmp_m.test_child.model
+            end
         end
     end
 
