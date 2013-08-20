@@ -310,7 +310,7 @@ module Syskit
                     selected_requirements.merge(sel_m.to_component_model)
                 end
 
-                if selected_instance && !selected_instance.fullfills?(requirements.component_model, requirements.arguments)
+                if selected_instance && !selected_instance.fullfills?(requirements, requirements.arguments)
                     raise ArgumentError, "explicitly selected #{selected_instance}, but it does not fullfill the required #{requirements}"
                 end
 
