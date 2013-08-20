@@ -594,16 +594,30 @@ module Syskit
                 find_applicable_specialization_from_selection(explicit_selections, selected_models, options)
             end
 
-            # This returns an InstanciatedComponent object that can be used in
-            # other #use statements in the deployment spec
+            # Returns this composition associated with dependency injection
+            # information
             #
             # For instance,
             #
-            #   add(Cmp::CorridorServoing).
-            #       use(Cmp::Odometry.use(XsensImu::Task))
+            #   CorridorServoing.
+            #       use(Odometry.use(XsensImu::Task))
             #
+            # (see InstanceRequirements#use)
             def use(*spec)
                 InstanceRequirements.new([self]).use(*spec)
+            end
+
+            # Returns this composition associated with specialization
+            # disambiguation information
+            #
+            # For instance,
+            #
+            #   CorridorServoing.
+            #       prefer_specializations('child' => XsensImu::Task)
+            #
+            # (see InstanceRequirements#prefer_specializations)
+            def prefer_specializations(*spec)
+                InstanceRequirements.new([self]).prefer_specializations(*spec)
             end
 
             # Instanciates a task for the required child
@@ -702,7 +716,10 @@ module Syskit
                     break
                 end
 
-                arguments = Kernel.validate_options arguments, :task_arguments => Hash.new, :specialize => true
+                arguments = Kernel.validate_options arguments,
+                    :task_arguments => Hash.new,
+                    :specialize => true,
+                    :specialization_hints => Array.new
 
                 # Find what we should use for our children. +explicit_selection+
                 # is the set of children for which a selection existed and
@@ -711,7 +728,10 @@ module Syskit
                     find_children_models_and_tasks(context.current_state)
 
                 if arguments[:specialize]
-                    specialized_model = find_applicable_specialization_from_selection(explicit_selections, selected_models)
+                    specialized_model = find_applicable_specialization_from_selection(
+                        explicit_selections,
+                        selected_models,
+                        :specialization_hints => arguments[:specialization_hints])
                     if specialized_model != self
                         return specialized_model.instanciate(plan, context, arguments)
                     end

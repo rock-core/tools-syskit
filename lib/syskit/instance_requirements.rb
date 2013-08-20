@@ -457,7 +457,7 @@ module Syskit
             #
             # @param [{String=>Model<Component>}]
             # @return [self]
-            def prefer_specializations(*specialization_selectors)
+            def prefer_specializations(specialization_selectors)
                 if !composition_model?
                     raise ArgumentError, "#{self} does not represent a composition, cannot use #prefer_specializations"
                 end
