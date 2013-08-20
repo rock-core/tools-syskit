@@ -713,6 +713,7 @@ module Syskit
                 name = "Syskit::PlaceholderTask<#{self.short_name},#{service_models.map(&:short_name).sort.join(",")}>"
                 model = specialize(name)
                 model.abstract
+                model.concrete_model = nil
                 model.include PlaceholderTask
                 model.proxied_data_services = service_models.dup
 		model.fullfilled_model = [self] + model.proxied_data_services.to_a
