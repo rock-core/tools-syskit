@@ -689,7 +689,7 @@ module Syskit
 
             # Tests if these requirements explicitly point to a composition model
             def composition_model?
-                model.fullfills?(Syskit::Composition)
+                base_model.fullfills?(Syskit::Composition)
             end
 
             def period(value)
