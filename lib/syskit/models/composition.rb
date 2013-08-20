@@ -751,7 +751,6 @@ module Syskit
                 # composition use flags
                 child_selection_context = context.dup
                 composition_use_flags = child_selection_context.pop
-                child_use_flags = Hash.new
 
                 # Finally, instanciate the missing tasks and add them to our
                 # children
