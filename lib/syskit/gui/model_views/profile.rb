@@ -18,7 +18,7 @@ module Syskit::GUI
                 if value.service
                     value.service.to_s
                 else
-                    value.models.map(&:name).sort.join(",")
+                    value.model.to_s
                 end
             end
 
