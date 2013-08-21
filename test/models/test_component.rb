@@ -284,6 +284,7 @@ describe Syskit::Models::Component do
                         with(srv_m, 'out' => 'out_port', 'in' => 'in_port', :as => 'dyn').
                         and_return(result = flexmock)
                     result.should_receive(:dynamic_service=)
+                    result.should_receive(:dynamic_service_options=)
                     context.provides(srv_m, 'out' => 'out_port', 'in' => 'in_port')
                 end
                 it "should set the dynamic service attribute" do

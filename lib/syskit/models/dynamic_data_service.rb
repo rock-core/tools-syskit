@@ -62,6 +62,7 @@ module Syskit
                     end
                     @service = component_model.provides_dynamic(service_model, arguments.merge(:as => name))
                     service.dynamic_service = dynamic_service
+                    service.dynamic_service_options = self.options.dup
                     service
                 end
             end
