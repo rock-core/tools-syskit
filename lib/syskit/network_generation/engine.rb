@@ -435,9 +435,7 @@ module Syskit
                 # remaining tasks that do not have a 'conf' argument set
                 work_plan.find_local_tasks(Component).
                     each do |task|
-                        if !task.arguments[:conf]
-                            task.arguments[:conf] = ['default']
-                        end
+                        task.freeze_delayed_arguments
                     end
                 add_timepoint 'compute_system_network', 'default_conf'
 

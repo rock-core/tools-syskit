@@ -299,7 +299,7 @@ describe Syskit::Models::Composition do
             end
             cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task))
             assert_same task, cmp.srv_child.class
-            assert_equal Hash[:test => 10], cmp.srv_child.arguments
+            assert_equal [[:test, 10]], cmp.srv_child.arguments.each_assigned_argument.to_a
         end
 
         it "does not pass additional informations from the child if overriden in the selection" do
@@ -311,7 +311,7 @@ describe Syskit::Models::Composition do
             end
             cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task.with_arguments(:bla => 20)))
             assert_same task, cmp.srv_child.class
-            assert_equal Hash[:bla => 20], cmp.srv_child.arguments
+            assert_equal [[:bla, 20]], cmp.srv_child.arguments.each_assigned_argument.to_a
         end
 
         it "allows to specify selections for granchildren" do
