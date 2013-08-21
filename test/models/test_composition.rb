@@ -379,13 +379,13 @@ describe Syskit::Models::Composition do
             subcmp_m = cmp_m.new_submodel(:name => 'Sub')
             final_cmp_m = subcmp_m.new_submodel(:name => 'Final')
             flexmock(cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(cmp_m.specializations, "mng").should_receive(:matching_specialized_model).with(Hash['srv' => srv], Hash.new).once.ordered.and_return(subcmp_m)
+            flexmock(cmp_m.specializations, "mng").should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh(Hash.new)).once.ordered.and_return(subcmp_m)
             flexmock(subcmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], Hash.new).once.ordered.and_return(subcmp_m)
-            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], Hash.new).once.ordered.and_return(final_cmp_m)
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh(Hash.new)).once.ordered.and_return(subcmp_m)
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], hsh(Hash.new)).once.ordered.and_return(final_cmp_m)
             flexmock(final_cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], Hash.new).once.ordered.and_return(final_cmp_m)
-            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], Hash.new).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh(Hash.new)).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], hsh(Hash.new)).once.ordered.and_return(final_cmp_m)
 
             flexmock(final_cmp_m).should_receive(:new).and_throw(:pass)
             catch(:pass) do
