@@ -159,6 +159,15 @@ describe Syskit::Models::Component do
                     provides srv_m, "out" => "#{name}_out"
                 end
             end
+            it "should allow to create arguments using #argument" do
+                srv_m = Syskit::DataService.new_submodel
+                task_m.dynamic_service srv_m, :as => 'test' do
+                    argument "#{name}_arg"
+                    provides srv_m
+                end
+                srv = task_m.require_dynamic_service 'test', :as => 'test'
+                assert srv.component_model.has_argument?(:test_arg)
+            end
         end
 
         describe Syskit::Models::DynamicDataService do
