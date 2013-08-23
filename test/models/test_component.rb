@@ -159,6 +159,15 @@ describe Syskit::Models::Component do
                     provides srv_m, "out" => "#{name}_out"
                 end
             end
+            it "should allow to create arguments using #argument" do
+                srv_m = Syskit::DataService.new_submodel
+                task_m.dynamic_service srv_m, :as => 'test' do
+                    argument "#{name}_arg"
+                    provides srv_m
+                end
+                srv = task_m.require_dynamic_service 'test', :as => 'test'
+                assert srv.component_model.has_argument?(:test_arg)
+            end
         end
 
         describe Syskit::Models::DynamicDataService do
@@ -284,6 +293,7 @@ describe Syskit::Models::Component do
                         with(srv_m, 'out' => 'out_port', 'in' => 'in_port', :as => 'dyn').
                         and_return(result = flexmock)
                     result.should_receive(:dynamic_service=)
+                    result.should_receive(:dynamic_service_options=)
                     context.provides(srv_m, 'out' => 'out_port', 'in' => 'in_port')
                 end
                 it "should set the dynamic service attribute" do

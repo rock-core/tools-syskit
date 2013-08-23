@@ -188,6 +188,9 @@ module Syskit
             # only then call #as on the returned BoundDataService object
             def as(service_model)
                 srv = find_data_service_from_type(service_model)
+                if !srv
+                    raise ArgumentError, "no service of #{self} provides #{service_model}"
+                end
                 return srv.as(service_model)
             end
 
@@ -710,6 +713,7 @@ module Syskit
                 name = "Syskit::PlaceholderTask<#{self.short_name},#{service_models.map(&:short_name).sort.join(",")}>"
                 model = specialize(name)
                 model.abstract
+                model.concrete_model = nil
                 model.include PlaceholderTask
                 model.proxied_data_services = service_models.dup
 		model.fullfilled_model = [self] + model.proxied_data_services.to_a
@@ -820,6 +824,10 @@ module Syskit
             def each_required_model
                 return enum_for(:each_required_model) if !block_given?
                 yield(self)
+            end
+
+            def selected_for(requirements)
+                InstanceSelection.new(nil, self.to_instance_requirements, requirements.to_instance_requirements)
             end
         end
     end

@@ -40,14 +40,45 @@ compositions = Syskit::Composition.each_submodel.
 data_services = Syskit::DataService.each_submodel
 profiles = Syskit::Actions::Profile.profiles
 
-class Page < Syskit::GUI::Page
+class Page < MetaRuby::GUI::HTML::Page
     attr_accessor :root_dir
 
+    def self.filter_file_path(elements)
+        elements.map { |el| el.gsub(/[^\w]/, "_") }
+    end
+
+    def self.make_file_path(object, root_dir)
+        if object.kind_of?(Class) && (object <= Typelib::Type)
+            make_type_file_path(object, root_dir)
+        else make_object_file_path(object, root_dir)
+        end
+    end
+
+    def self.make_type_file_path(type, root_dir)
+        name_elements = type.split_typename
+        path = filter_file_path(name_elements)
+        File.join(*(root_dir + ['types', *path])) + ".html"
+    end
+
+    def self.make_object_file_path(object, root_dir)
+        path = filter_file_path(object.name.split("::"))
+        File.join(*(root_dir + path)) + ".html"
+    end
+
     def link_to(object, text = nil)
-        if object.name
+        if object.kind_of?(Orocos::Spec::TaskContext)
+            link_to(Syskit::TaskContext.find_model_from_orogen_name(object.name), text)
+
+        elsif object.kind_of?(Class) && (object <= Typelib::Type)
             text = MetaRuby::GUI::HTML.escape_html(text || object.name)
-            relative_path = File.join(*(root_dir + object.name.split("::"))) + ".html"
+            relative_path = Page.make_type_file_path(object, root_dir)
             "<a href=\"#{relative_path}\">#{text}</a>"
+
+        elsif object.name
+            text = MetaRuby::GUI::HTML.escape_html(text || object.name)
+            relative_path = Page.make_object_file_path(object, root_dir)
+            "<a href=\"#{relative_path}\">#{text}</a>"
+
         else super
         end
     end
@@ -68,36 +99,34 @@ MetaRuby::GUI::HTML::Page.copy_assets_to(File.join(root_dir, asset_dir))
 Hash[Syskit::TaskContext => task_contexts,
      Syskit::Composition => compositions,
      Syskit::DataService => data_services,
-     Syskit::Actions::Profile => profiles
-     ].each do |root_model, model_set|
+     Syskit::Actions::Profile => profiles,
+     Typelib::Type => Orocos.registry.each.to_a].each do |root_model, model_set|
 
     model_set.each do |sub|
-        path_elements = sub.name.split('::')
-        path = File.join(root_dir, *path_elements)
+        path = Page.make_file_path(sub, [root_dir])
+        relative_to_root = Pathname.new(root_dir).relative_path_from(Pathname.new(path).dirname).to_path
 
         view = Syskit::GUI::ModelBrowser::AVAILABLE_VIEWS.find { |v| v.root_model == root_model }
         FileUtils.mkdir_p File.dirname(path)
-        File.open(path + ".html", 'w') do |io|
-            relative_to_root = [".."] * (path_elements.size - 1)
+        File.open(path, 'w') do |io|
             io.write Page.to_html(sub, view.renderer, :interactive => false,
                                   :external_objects => path + "-%s",
-                                  :root_dir => relative_to_root,
-                                  :ressource_dir => File.join(relative_to_root, 'assets'))
+                                  :root_dir => [relative_to_root],
+                                  :ressource_dir => File.join(relative_to_root, asset_dir))
         end
         puts "written #{path}"
     end
-
 end
 
 index_page = Page.new(MetaRuby::GUI::HTML::HTMLPage.new)
 index_page.root_dir = []
 
-all_items = (task_contexts.to_a + compositions.to_a + data_services.to_a + profiles.to_a).
+all_items = (task_contexts.to_a + compositions.to_a + data_services.to_a + profiles.to_a + Orocos.registry.each.to_a).
     sort_by { |m| m.name }.
     map { |m| index_page.link_to(m) }
-index_page.render_list(nil, all_items, :id => 'model-index')
-index_page.update_html
+index_page.render_list(nil, all_items, :filter => true, :id => 'model-index')
+html = index_page.html(:ressource_dir => asset_dir)
 File.open(File.join("doc", "index.html"), "w") do |io|
-    io.write(index_page.html)
+    io.write(html)
 end
 

@@ -79,7 +79,7 @@ module Syskit::GUI
                 plan = Roby::Plan.new
                 specializations = Hash.new
                 root_model.specializations.each_specialization.map do |spec|
-                    task_model = root_model.specializations.create_specialized_model(spec, [spec])
+                    task_model = root_model.specializations.specialized_model(spec, [spec])
                     plan.add(task = task_model.new)
                     specializations[spec] = task
                 end
@@ -115,8 +115,14 @@ module Syskit::GUI
             end
 
             def render(model, options = Hash.new)
-                super
-                task_model_view.render(model)
+                options, super_options = Kernel.filter_options options,
+                    :doc => true
+                if options[:doc] && model.doc
+                    page.push nil, page.main_doc(model.doc)
+                end
+
+                super(model, super_options)
+                task_model_view.render(model, :doc => false)
                 if task
                     render_data_services(task)
                 end

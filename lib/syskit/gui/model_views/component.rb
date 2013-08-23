@@ -17,12 +17,19 @@ module Syskit::GUI
             end
 
             def render(model, options = Hash.new)
+                options, push_options = Kernel.filter_options options,
+                    :doc => true
+
+                if options[:doc] && model.doc
+                    page.push nil, page.main_doc(model.doc)
+                end
+
                 super
 
                 task = instanciate_model(model)
                 @plan = task.plan
 
-                push_plan('interface', task.plan, options)
+                push_plan('interface', task.plan, push_options)
                 render_data_services(task)
             end
         end

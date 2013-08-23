@@ -47,6 +47,19 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	end
     end
 
+    def test_proxy_model_concrete_model_is_the_proxy_model_itself
+	task_model = Component.new_submodel
+        task_model.name = "NewComponentModel"
+	services = [
+	    data_service_type('B'),
+	    data_service_type('A'),
+	    data_service_type('C')
+	]
+	proxy = Syskit.proxy_task_model_for(services + [task_model])
+        plan.add(task = proxy.new)
+        assert_equal proxy, task.concrete_model
+    end
+
     def test_proxy_tasks_are_registered_as_submodels
 	task_model = TaskContext.new_submodel
 	proxy_model = Syskit.proxy_task_model_for([data_service_type('A'), task_model])

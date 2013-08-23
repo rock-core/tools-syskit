@@ -105,7 +105,7 @@ module Syskit
                     if selected_m = mappings[required_m]
                         # Verify that it is of the right type
                         if !selected_m.component_model.fullfills?(selected_component_model)
-                            raise ArgumentError, "#{selected_m} was explicitly selected for #{required_m}, but is not a service of the selected component model #{component_m}"
+                            raise ArgumentError, "#{selected_m} was explicitly selected for #{required_m}, but is not a service of the selected component model #{selected_component_model}"
                         elsif !selected_m.fullfills?(required_m)
                             raise ArgumentError, "#{selected_m} was explicitly selected for #{required_m}, but does not provide it"
                         end
@@ -170,7 +170,7 @@ module Syskit
             end
 
             def fullfills?(set)
-                required.fullfills?(set)
+                selected.fullfills?(set)
             end
 
             def to_s

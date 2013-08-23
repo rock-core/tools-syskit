@@ -175,10 +175,11 @@ module Syskit
                 else
                     mappings ||= self[child, Flows::DataFlow]
                     mappings.each_key do |source_port, sink_port|
-                        real_port = resolve_port(source_port)
-                        real_task = real_port.component
-                        if real_task && !real_task.transaction_proxy? # can be nil if the child has been removed
-                            Flows::DataFlow.modified_tasks << real_task
+                        if real_port = resolve_port(source_port)
+                            real_task = real_port.component
+                            if real_task && !real_task.transaction_proxy? # can be nil if the child has been removed
+                                Flows::DataFlow.modified_tasks << real_task
+                            end
                         end
                     end
                 end
@@ -216,7 +217,7 @@ module Syskit
                 req = super
                 use_flags = Hash.new
                 model.each_child do |child_name, _|
-                    use_flags[child_name] = child_from_role(child_name).to_instance_requirements
+                    use_flags[child_name] = required_composition_child_from_role(child_name).to_instance_requirements
                 end
                 req.use(use_flags)
                 req

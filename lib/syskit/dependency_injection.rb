@@ -266,9 +266,19 @@ module Syskit
                     return @resolved.selection_for(name, requirements)
                 end
 
+                selected_services = Hash.new
                 selections = Set.new
                 if name && (sel = selection[name])
                     selections << sel
+                    selection.each do |key, value|
+                        next if !value.respond_to?(:component_model) || value.component_model != sel
+
+                        requirements.each_required_model do |req_m|
+                            if key.respond_to?(:fullfills?) && key.fullfills?(req_m)
+                                selected_services[req_m] ||= value
+                            end
+                        end
+                    end
                 else
                     requirements.each_required_model do |required_m|
                         selections << [(selection[required_m] || required_m), required_m]
@@ -276,7 +286,6 @@ module Syskit
                 end
 
                 selected_instance, selected_requirements = nil, InstanceRequirements.new
-                selected_services = Hash.new
                 selections.each do |sel_m, required_m|
                     if sel_m.respond_to?(:to_task)
                         sel_task = sel_m.to_task
@@ -301,7 +310,7 @@ module Syskit
                     selected_requirements.merge(sel_m.to_component_model)
                 end
 
-                if selected_instance && !selected_instance.fullfills?(requirements.component_model, requirements.arguments)
+                if selected_instance && !selected_instance.fullfills?(requirements, requirements.arguments)
                     raise ArgumentError, "explicitly selected #{selected_instance}, but it does not fullfill the required #{requirements}"
                 end
 

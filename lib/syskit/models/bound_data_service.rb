@@ -259,6 +259,10 @@ module Syskit
                 super
             end
 
+            def selected_for(requirements)
+                InstanceSelection.new(nil, self.to_instance_requirements, requirements.to_instance_requirements)
+            end
+
             DRoby = Struct.new :name, :component_model, :master, :model do
                 def proxy(peer)
                     component_model = peer.local_object(self.component_model)

@@ -101,6 +101,10 @@ module Syskit
 
             # (see SpecializationManager#specialize)
             def specialize(options = Hash.new, &block)
+                if options.respond_to?(:to_str) || options.empty?
+                    return super
+                end
+
                 options = options.map_key do |key, value|
                     if key.respond_to?(:to_str) || key.respond_to?(:to_sym)
                         Roby.warn_deprecated "calling #specialize with child names is deprecated, use _child accessors instead (i.e. #{key}_child here)", 5
@@ -555,7 +559,7 @@ module Syskit
                         Models.log_nest(2) do
                             Models.debug "on the basis of"
                             Models.log_nest(2) do
-                                Models.log_pp(:debug, context.current_state)
+                                Models.log_pp(:debug, context)
                             end
                         end
                         break
@@ -580,22 +584,40 @@ module Syskit
 
             # Returns the set of specializations that match the given dependency
             # injection context
-            def narrow(context)
+            #
+            # @param [DependencyInjection] context the dependency injection
+            #   object that is used to determine the selected model
+            # @return [Model<Composition>]
+            def narrow(context, options = Hash.new)
                 explicit_selections, selected_models =
                     find_children_models_and_tasks(context)
-                find_applicable_specialization_from_selection(explicit_selections, selected_models)
+                find_applicable_specialization_from_selection(explicit_selections, selected_models, options)
             end
 
-            # This returns an InstanciatedComponent object that can be used in
-            # other #use statements in the deployment spec
+            # Returns this composition associated with dependency injection
+            # information
             #
             # For instance,
             #
-            #   add(Cmp::CorridorServoing).
-            #       use(Cmp::Odometry.use(XsensImu::Task))
+            #   CorridorServoing.
+            #       use(Odometry.use(XsensImu::Task))
             #
+            # (see InstanceRequirements#use)
             def use(*spec)
                 InstanceRequirements.new([self]).use(*spec)
+            end
+
+            # Returns this composition associated with specialization
+            # disambiguation information
+            #
+            # For instance,
+            #
+            #   CorridorServoing.
+            #       prefer_specializations('child' => XsensImu::Task)
+            #
+            # (see InstanceRequirements#prefer_specializations)
+            def prefer_specializations(*spec)
+                InstanceRequirements.new([self]).prefer_specializations(*spec)
             end
 
             # Instanciates a task for the required child
@@ -660,41 +682,12 @@ module Syskit
                 end
             end
 
-            def resolve_selection_and_specialization(context)
-                explicit_selections, selected_models =
-                    find_children_models_and_tasks(context)
-
-                specialization_selector = explicit_selections.map_value do |_, sel|
-                    sel.selected.component_model
-                end
-                specialized_model = specializations.matching_specialized_model(specialization_selector)
-                if specialized_model != self
-                    return specialized_model.resolve_selection_and_specialization(context)
-                end
-
-                specialization_selector = selected_models.map_value do |_, sel|
-                    sel.selected.component_model
-                end
-                specialized_model = specializations.matching_specialized_model(specialization_selector)
-                if specialized_model != self
-                    return specialized_model.resolve_selection_and_specialization(context)
-                end
-                return explicit_selections, selected_models, self
-            end
-
-            def find_applicable_specialization_from_selection(explicit_selections, selections)
-                specialization_selector = explicit_selections.map_value do |_, sel|
-                    sel.selected.component_model
-                end
-                specialized_model = specializations.matching_specialized_model(specialization_selector)
+            def find_applicable_specialization_from_selection(explicit_selections, selections, options = Hash.new)
+                specialized_model = specializations.matching_specialized_model(explicit_selections, options)
                 if specialized_model != self
                     return specialized_model
                 end
-
-                specialization_selector = selections.map_value do |_, sel|
-                    sel.selected.component_model
-                end
-                return specializations.matching_specialized_model(specialization_selector)
+                return specializations.matching_specialized_model(selections, options)
             end
 
             # Creates the required task and children for this composition model.
@@ -723,16 +716,22 @@ module Syskit
                     break
                 end
 
-                arguments = Kernel.validate_options arguments, :task_arguments => Hash.new, :specialize => true
+                arguments = Kernel.validate_options arguments,
+                    :task_arguments => Hash.new,
+                    :specialize => true,
+                    :specialization_hints => Array.new
 
                 # Find what we should use for our children. +explicit_selection+
                 # is the set of children for which a selection existed and
                 # +selected_models+ all the models we should use
                 explicit_selections, selected_models =
-                    find_children_models_and_tasks(context)
+                    find_children_models_and_tasks(context.current_state)
 
                 if arguments[:specialize]
-                    specialized_model = find_applicable_specialization_from_selection(explicit_selections, selected_models)
+                    specialized_model = find_applicable_specialization_from_selection(
+                        explicit_selections,
+                        selected_models,
+                        :specialization_hints => arguments[:specialization_hints])
                     if specialized_model != self
                         return specialized_model.instanciate(plan, context, arguments)
                     end
@@ -752,7 +751,6 @@ module Syskit
                 # composition use flags
                 child_selection_context = context.dup
                 composition_use_flags = child_selection_context.pop
-                child_use_flags = Hash.new
 
                 # Finally, instanciate the missing tasks and add them to our
                 # children
@@ -938,10 +936,16 @@ module Syskit
                 submodel
             end
 
+            # Overloaded to set the model documentation
+            def inherited(submodel)
+                super
+                submodel.doc MetaRuby::DSLs.parse_documentation_block(/.*/, /^inherited/)
+            end
+
             # Create a new submodel of this composition model
-            def new_submodel(options = Hash.new, &block)
+            def setup_submodel(submodel, options = Hash.new, &block)
                 options, submodel_options = Kernel.filter_options options, :register_specializations => true
-                submodel = super(submodel_options)
+                super(submodel, submodel_options, &block)
 
                 if options[:register_specializations]
                     specializations.each_specialization do |spec|

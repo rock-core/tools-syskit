@@ -299,7 +299,7 @@ describe Syskit::Models::Composition do
             end
             cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task))
             assert_same task, cmp.srv_child.class
-            assert_equal Hash[:test => 10], cmp.srv_child.arguments
+            assert_equal [[:test, 10]], cmp.srv_child.arguments.each_assigned_argument.to_a
         end
 
         it "does not pass additional informations from the child if overriden in the selection" do
@@ -311,7 +311,7 @@ describe Syskit::Models::Composition do
             end
             cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task.with_arguments(:bla => 20)))
             assert_same task, cmp.srv_child.class
-            assert_equal Hash[:bla => 20], cmp.srv_child.arguments
+            assert_equal [[:bla, 20]], cmp.srv_child.arguments.each_assigned_argument.to_a
         end
 
         it "allows to specify selections for granchildren" do
@@ -371,19 +371,21 @@ describe Syskit::Models::Composition do
             task_m = simple_task_model
             # The value returned by #find_children_models_and_tasks is a
             # name-to-InstanceSelection mapping
-            explicit   = Hash['srv' => flexmock(:selected => flexmock(:component_model => task_m))]
-            selections = Hash['srv2' => flexmock(:selected => flexmock(:component_model => task_m))]
+            srv = flexmock(:selected => flexmock(:component_model => task_m))
+            srv2 = flexmock(:selected => flexmock(:component_model => task_m))
+            explicit   = Hash['srv' => srv]
+            selections = Hash['srv2' => srv2]
             cmp_m = simple_composition_model
             subcmp_m = cmp_m.new_submodel(:name => 'Sub')
             final_cmp_m = subcmp_m.new_submodel(:name => 'Final')
             flexmock(cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(cmp_m.specializations, "mng").should_receive(:matching_specialized_model).with('srv' => task_m).once.ordered.and_return(subcmp_m)
+            flexmock(cmp_m.specializations, "mng").should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh(Hash.new)).once.ordered.and_return(subcmp_m)
             flexmock(subcmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with('srv' => task_m).once.ordered.and_return(subcmp_m)
-            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with('srv2' => task_m).once.ordered.and_return(final_cmp_m)
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh(Hash.new)).once.ordered.and_return(subcmp_m)
+            flexmock(subcmp_m.specializations, 'sub_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], hsh(Hash.new)).once.ordered.and_return(final_cmp_m)
             flexmock(final_cmp_m).should_receive(:find_children_models_and_tasks).and_return([explicit, selections])
-            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with('srv' => task_m).once.ordered.and_return(final_cmp_m)
-            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with('srv2' => task_m).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv' => srv], hsh(Hash.new)).once.ordered.and_return(final_cmp_m)
+            flexmock(final_cmp_m.specializations, 'final_mng').should_receive(:matching_specialized_model).with(Hash['srv2' => srv2], hsh(Hash.new)).once.ordered.and_return(final_cmp_m)
 
             flexmock(final_cmp_m).should_receive(:new).and_throw(:pass)
             catch(:pass) do
@@ -610,6 +612,22 @@ describe Syskit::Models::Composition do
                 assert_equal Hash['specialized_in' => 'in', 'specialized_out' => 'out'],
                     child.port_mappings
             end
+
+            it "does nothing if the child already provides the service" do
+                base_srv_m = Syskit::DataService.new_submodel
+                srv_m = Syskit::DataService.new_submodel
+                srv_m.provides base_srv_m
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.provides srv_m, :as => 'test'
+                
+                base_cmp_m = Syskit::Composition.new_submodel
+                base_cmp_m.add base_srv_m, :as => 'test'
+                cmp_m = base_cmp_m.new_submodel
+                cmp_m.overload 'test', task_m
+                final_cmp_m = cmp_m.new_submodel
+                final_cmp_m.overload 'test', srv_m
+                assert_same task_m, final_cmp_m.test_child.model
+            end
         end
     end
 
@@ -711,6 +729,49 @@ describe Syskit::Models::Composition do
             simple_composition_model.conf 'test', \
                 'srv' => ['default', 'test']
             assert_equal Hash['srv' => ['default', 'test']], simple_composition_model.configurations['test']
+        end
+    end
+
+    describe "#narrow" do
+        attr_reader :base_srv_m, :x_srv_m, :y_srv_m, :task_m, :cmp_m
+        before do
+            @base_srv_m = Syskit::DataService.new_submodel
+            @x_srv_m = base_srv_m.new_submodel(:name => 'X')
+            @y_srv_m = Syskit::DataService.new_submodel(:name => 'Y')
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides x_srv_m, :as => 'x'
+            task_m.provides y_srv_m, :as => 'y'
+
+            @cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add base_srv_m, :as => 'test'
+        end
+
+        it "should be able to disambiguate specializations by selecting a service for the child" do
+            y_srv_m.provides base_srv_m
+            cmp_m.add_specialization_constraint { |_,_| false }
+            x_spec = cmp_m.specialize cmp_m.test_child => x_srv_m
+            y_spec = cmp_m.specialize cmp_m.test_child => y_srv_m
+            result = cmp_m.narrow(Syskit::DependencyInjection.new('test' => task_m.x_srv))
+            assert_equal [x_spec].to_set, result.applied_specializations
+        end
+
+        it "should be able to disambiguate specializations by selecting a service for the child's model" do
+            y_srv_m.provides base_srv_m
+            cmp_m.add_specialization_constraint { |_,_| false }
+            x_spec    = cmp_m.specialize cmp_m.test_child => x_srv_m
+            y_spec    = cmp_m.specialize cmp_m.test_child => y_srv_m
+            result = cmp_m.narrow(Syskit::DependencyInjection.new('test' => task_m, base_srv_m => task_m.x_srv))
+            assert_equal [x_spec].to_set, result.applied_specializations
+        end
+
+        it "should be able to disambiguate specializations using explicit hints" do
+            cmp_m.add_specialization_constraint { |_,_| false }
+            x_spec    = cmp_m.specialize cmp_m.test_child => x_srv_m
+            y_spec    = cmp_m.specialize cmp_m.test_child => y_srv_m
+            result = cmp_m.narrow(
+                Syskit::DependencyInjection.new('test' => task_m),
+                :specialization_hints => ['test' => x_srv_m])
+            assert_equal [x_spec].to_set, result.applied_specializations
         end
     end
 end

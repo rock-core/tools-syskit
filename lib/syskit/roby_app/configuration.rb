@@ -49,9 +49,6 @@ module Syskit
                         main_group.names << t.name
                     end
                 end
-
-                @robot = Robot::RobotDefinition.new
-
             end
 
             def create_subfield(name)
@@ -65,20 +62,6 @@ module Syskit
             #
             # @return [Integer]
             attr_accessor :default_logging_buffer_size
-
-            # Describes the robot. Example:
-            #
-            #   robot do
-            #       device 'device_type'
-            #       device 'device_name', :type => 'device_type'
-            #   end
-            #
-            def robot(&block)
-                if block_given?
-                    @robot.instance_eval(&block)
-                end
-                @robot
-            end
 
             # The set of currently defined log groups
             #

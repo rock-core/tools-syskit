@@ -9,6 +9,25 @@ describe Syskit::DependencyInjection do
             result = di.selection_for('child', Syskit::InstanceRequirements.new)
             assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new], result
         end
+        it "validates the instance with the provided requirements and pass if it fullfills" do
+            task = Syskit::Component.new_submodel.new
+            di = Syskit::DependencyInjection.new('child' => task)
+
+            requirements = task.model.to_instance_requirements
+            flexmock(task).should_receive(:fullfills?).with(requirements, Hash.new).and_return(true)
+            result = di.selection_for('child', requirements)
+            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new], result
+        end
+        it "validates the instance with the provided requirements and raises if it does not match" do
+            task = Syskit::Component.new_submodel.new
+            di = Syskit::DependencyInjection.new('child' => task)
+
+            requirements = task.model.to_instance_requirements
+            flexmock(task).should_receive(:fullfills?).with(requirements, Hash.new).and_return(false)
+            assert_raises(ArgumentError) do
+                di.selection_for('child', requirements)
+            end
+        end
         it "returns an existing instance service if one is selected and required" do
             srv = Syskit::DataService.new_submodel
             task = Syskit::Component.new_submodel { provides srv, :as => 'srv' }.new
@@ -26,6 +45,17 @@ describe Syskit::DependencyInjection do
             task_m = Syskit::Component.new_submodel
             task_m.provides srv_m, :as => 'test'
             di = Syskit::DependencyInjection.new('child' => task_m.test_srv)
+            _, _, service_selections = di.selection_for('child', Syskit::InstanceRequirements.new([base_srv_m]))
+            assert_equal task_m.test_srv, service_selections[base_srv_m]
+        end
+        it "uses service-to-bound_service selections as service mappings when matching the task model" do
+            base_srv_m = Syskit::DataService.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            srv_m.provides base_srv_m
+            task_m = Syskit::Component.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, :as => 'ambiguous'
+            di = Syskit::DependencyInjection.new('child' => task_m, srv_m => task_m.test_srv)
             _, _, service_selections = di.selection_for('child', Syskit::InstanceRequirements.new([base_srv_m]))
             assert_equal task_m.test_srv, service_selections[base_srv_m]
         end

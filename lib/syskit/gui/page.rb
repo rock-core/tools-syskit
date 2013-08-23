@@ -23,9 +23,12 @@ module Syskit
                 svg = svg_io.read
                 svg = svg.encode 'utf-8', :invalid => :replace
                 zoom = view_options.delete :zoom
-                if match = /svg width=\"(\d+)(\w+)\" height=\"(\d+)(\w+)\"/.match(svg)
-                    width, w_unit, height, h_unit = *match.captures
-                    svg = match.pre_match + "svg width=\"#{(Float(width) * zoom * 0.6)}#{w_unit}\" height=\"#{(Float(height) * zoom * 0.6)}#{h_unit}\"" + match.post_match
+                begin
+                    if match = /svg width=\"(\d+)(\w+)\" height=\"(\d+)(\w+)\"/.match(svg)
+                        width, w_unit, height, h_unit = *match.captures
+                        svg = match.pre_match + "svg width=\"#{(Float(width) * zoom * 0.6)}#{w_unit}\" height=\"#{(Float(height) * zoom * 0.6)}#{h_unit}\"" + match.post_match
+                    end
+                rescue ArgumentError
                 end
                 if pattern = view_options.delete(:external_objects)
                     file = pattern % view_options[:id] + ".svg"

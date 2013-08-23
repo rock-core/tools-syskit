@@ -45,6 +45,12 @@ module Syskit
                         component_model, name, dynamic_service, options
                 end
 
+                # Proxy to declare a new argument on the (specialized) component
+                # model
+                def argument(name, options = Hash.new)
+                    component_model.argument(name, options)
+                end
+
                 # Proxy for component_model#provides which does some sanity
                 # checks
                 def provides(service_model, arguments = Hash.new)
@@ -62,6 +68,7 @@ module Syskit
                     end
                     @service = component_model.provides_dynamic(service_model, arguments.merge(:as => name))
                     service.dynamic_service = dynamic_service
+                    service.dynamic_service_options = self.options.dup
                     service
                 end
             end

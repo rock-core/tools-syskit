@@ -18,6 +18,37 @@ module Syskit::GUI
                 end
             end
 
+            def render(model, options = Hash.new)
+                super
+
+                providers = Array.new
+                Syskit::TaskContext.each_submodel do |component_m|
+                    next if component_m.respond_to?(:proxied_data_services)
+                    if component_m.fullfills?(model)
+                        providers << [component_m.name, component_m]
+                    end
+                end
+                Syskit::Composition.each_submodel do |composition_m|
+                    next if composition_m.respond_to?(:proxied_data_services)
+                    next if composition_m.is_specialization?
+                    if composition_m.fullfills?(model)
+                        providers << [composition_m.name, composition_m]
+                    else
+                        composition_m.specializations.each_specialization do |spec|
+                            if spec.composition_model.fullfills?(model)
+                                providers << [spec.to_s, composition_m.root_model]
+                            end
+                        end
+                    end
+                end
+
+                providers = providers.sort_by(&:first).
+                    map do |name, model|
+                        page.link_to(model, name)
+                    end
+                page.render_list("Provided By", providers)
+            end
+
             def render_data_services(task, with_names = false)
                 super
             end

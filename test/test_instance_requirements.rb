@@ -235,6 +235,15 @@ describe Syskit::InstanceRequirements do
                 simple_composition_model.use('srv' => Syskit::TaskContext.new_submodel)
             end
         end
+        it "should allow providing a service submodel as a selection for a composition child" do
+            srv_m = Syskit::DataService.new_submodel
+            subsrv_m = srv_m.new_submodel
+            cmp_m = Syskit::Composition.new_submodel do
+                add srv_m, :as => 'test'
+            end
+            ir = Syskit::InstanceRequirements.new([cmp_m])
+            ir.use('test' => subsrv_m)
+        end
     end
 
     describe "#fullfilled_model" do

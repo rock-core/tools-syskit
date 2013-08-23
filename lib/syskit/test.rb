@@ -133,7 +133,7 @@ module Syskit
             # Create a new stub deployment instance
             def stub_syskit_deployment(name = "deployment", deployment_model = nil, &block)
                 deployment_model ||= stub_syskit_deployment_model(nil, name, &block)
-                plan.add_permanent(task = deployment_model.new(:on => 'stubs'))
+                plan.add_permanent(task = deployment_model.new(:process_name => name, :on => 'stubs'))
                 task
             end
 
@@ -395,6 +395,7 @@ module Syskit
                 @handler_ids.clear
                 @handler_ids << engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_deployment_states))
                 @handler_ids << engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_task_states))
+                @handler_ids << engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime::ConnectionManagement.method(:update))
             end
         end
 

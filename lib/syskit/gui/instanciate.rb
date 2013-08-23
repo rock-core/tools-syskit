@@ -72,11 +72,10 @@ module Syskit
 
                 begin
                     Instanciate.compute(plan, passes, true, true, true, false, permanent)
-                    rendering.render_plan
                 rescue Exception => e
                     exception_view.push(e)
                 end
-
+                rendering.render_plan
             end
             slots 'compute()'
 

@@ -30,7 +30,7 @@ module Syskit
             # For instance ['default', 'left_camera'] will apply the 'default'
             # section of config/orogen/orogen_project::TaskClassName.yml and
             # then override with the 'left_camera' section of the same file
-            argument :conf
+            argument :conf, :default => ['default']
             # The name of the remote task context, i.e. the name under which it
             # can be resolved by Orocos.name_service
             argument :orocos_name
@@ -227,9 +227,12 @@ module Syskit
 
             def deployment_hints
                 hints = requirements.deployment_hints.to_set.dup
-                each_master_device do |dev|
-                    hints |= dev.requirements.deployment_hints.to_set
+                if respond_to?(:each_master_device)
+                    each_master_device do |dev|
+                        hints |= dev.requirements.deployment_hints.to_set
+                    end
                 end
+
                 if hints.empty?
                     return super
                 else return hints

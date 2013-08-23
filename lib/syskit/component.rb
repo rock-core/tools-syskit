@@ -213,8 +213,10 @@ module Syskit
                             # is attached on #merged_task and we need the
                             # service on self
                             master = if srv.master then srv.master.full_name end
-                            model.provides_dynamic srv.model, Hash[:as => srv.name, :slave_of => master].
-                                merge(srv.port_mappings_for_task)
+
+                            dynamic_service_options = Hash[:as => srv.name].
+                                merge(srv.dynamic_service_options)
+                            model.require_dynamic_service srv.dynamic_service.name, dynamic_service_options
                         end
                     end
                 end

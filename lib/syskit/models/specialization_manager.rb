@@ -25,7 +25,7 @@ module Syskit
             # @param [CompositionSpecialization] specialization the new specialization
             # @return [void]
             def register(specialization)
-                instanciated_specializations.delete(specialization.specialized_children)
+                specialization.root_name = composition_model.root_model.name
                 specializations[specialization.specialized_children] = specialization
             end
 
@@ -38,6 +38,7 @@ module Syskit
                 if specializations[specialization.specialized_children] == specialization
                     instanciated_specializations.delete(specialization.specialized_children)
                     specializations.delete(specialization.specialized_children)
+                    composition_model.deregister_submodels([specialization.composition_model].to_set)
                 end
             end
 
@@ -140,8 +141,8 @@ module Syskit
                 if specialization
                     deregister(specialization)
                 end
-                register(new_specialization)
                 new_specialization.composition_model = specialized_composition_model
+                register(new_specialization)
 
                 # Finally, we create 
                 new_specialization
@@ -239,7 +240,7 @@ module Syskit
             # specializations are not compatible (i.e. should never be applied
             # at the same time).
             #
-            # @param [#[a,b]] a proc object given explicitly if the block form
+            # @param [#[]] a proc object given explicitly if the block form
             #   is not desired
             # @yieldparam spec0 [CompositionSpecialization] the first
             #   specialization
@@ -337,12 +338,12 @@ module Syskit
                 result
             end
 
-            # [Hash{Hash{String=>Model} => CompositionSpecialization}] set of
-            # specialized composition models already instantiated with
-            # {#specialized_model}. The key is the specialization selectors and
-            # the value the composite specialization, in which
-            # {CompositionSpecialization#composition_model} returns the
-            # composition model
+            # @return [Hash{Hash{String=>Model} => CompositionSpecialization}] set of
+            #   specialized composition models already instantiated with
+            #   {#specialized_model}. The key is the specialization selectors and
+            #   the value the composite specialization, in which
+            #   {CompositionSpecialization#composition_model} returns the
+            #   composition model
             def instanciated_specializations
                 root = composition_model.root_model
                 if root == composition_model
@@ -580,9 +581,7 @@ module Syskit
             # Looks for a single composition model that matches the given
             # selection
             #
-            # @param [{String=>Model<Component>}] selection the selections, as a
-            #   mapping from a child name to a suitable selection in
-            #   DependencyInjection
+            # @param [InstanceSelection] selection the current selection
             # @option options [Boolean] strict (true)
             #   If true, an ambiguous match will make the method raise.
             #   Otherwise, the method will return the common subset of the
@@ -591,13 +590,41 @@ module Syskit
             #   {#composition_model} if no specializations match
             # @raise [AmbiguousSpecialization] if multiple models match
             def matching_specialized_model(selection, options = Hash.new)
-                options = Kernel.validate_options options, :strict => true
+                options = Kernel.validate_options options,
+                    :strict => true,
+                    :specialization_hints => Set.new
 
-                candidates = find_matching_specializations(selection)
+                component_selection = selection.map_value do |_, selected|
+                    selected.selected.model.to_component_model
+                end
+                candidates = find_matching_specializations(component_selection)
+
+                if candidates.size > 1
+                    filtered_candidates = candidates.find_all do |spec, _|
+                        options[:specialization_hints].any? do |hint|
+                            spec.weak_match?(hint)
+                        end
+                    end
+                    if !filtered_candidates.empty?
+                        candidates = filtered_candidates
+                    end
+                end
+                if candidates.size > 1
+                    filtered_candidates = candidates.find_all do |spec, _|
+                        spec.weak_match?(selection)
+                    end
+                    if !filtered_candidates.empty?
+                        candidates = filtered_candidates
+                    end
+                end
+
                 if candidates.empty?
                     return composition_model
                 elsif candidates.size > 1
                     if options[:strict]
+                        selection = selection.map_value do |_, sel|
+                            sel.selected
+                        end
                         raise AmbiguousSpecialization.new(composition_model, selection, candidates)
                     else
                         candidates = [find_common_specialization_subset(candidates)]

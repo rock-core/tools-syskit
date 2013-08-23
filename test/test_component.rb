@@ -182,7 +182,7 @@ describe Syskit::Component do
             merged_task.specialize
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel)
             task.specialize
-            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => nil).once
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => nil).once.pass_thru
             task.merge(merged_task)
         end
         it "adds slave dynamic services as slaves" do
@@ -190,7 +190,17 @@ describe Syskit::Component do
             merged_task.specialize
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
             task.specialize
-            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => 'master').once
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => 'master').once.pass_thru
+            task.merge(merged_task)
+        end
+        # This is necessary as the block can do anything, as e.g. create new
+        # arguments or events on the task model.
+        it "uses #require_dynamic_service to create the new services in order to re-evaluate the block" do
+            merged_task.specialize
+            merged_task.require_dynamic_service 'dyn', :as => 'srv', :argument => 10
+            task.specialize
+            flexmock(task.model).should_receive(:require_dynamic_service).once.
+                with('dyn', :as => 'srv', :slave_of => nil, :argument => 10)
             task.merge(merged_task)
         end
     end

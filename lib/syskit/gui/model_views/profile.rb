@@ -18,7 +18,7 @@ module Syskit::GUI
                 if value.service
                     value.service.to_s
                 else
-                    value.models.map(&:name).sort.join(",")
+                    value.model.to_s
                 end
             end
 
@@ -28,12 +28,14 @@ module Syskit::GUI
                     id = element_link_target(object, interactive)
 
                     key_text =
-                        if key.respond_to?(:to_str) then key
+                        if with_value
+                            key.to_s
+                        elsif key.respond_to?(:to_str) then key
                         else render_object_as_text(key)
                         end
 
                     if with_value
-                        text = render_object_as_text(model)
+                        text = render_object_as_text(object)
                         Element.new(object, "#{key_text} => %s", id, text, Hash.new)
                     else
                         Element.new(object, "%s", id, key, Hash.new)
