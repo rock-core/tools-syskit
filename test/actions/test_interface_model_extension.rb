@@ -44,6 +44,24 @@ describe Syskit::Actions::InterfaceModelExtension do
             assert arg.required
         end
 
+        it "should not make arguments of Composition arguments of the action" do
+            task_m = Syskit::Composition.new_submodel
+            profile.define('def', task_m)
+            actions.use_profile(profile)
+            action = actions.find_action_by_name('def_def')
+
+            assert action.arguments.empty?
+        end
+
+        it "should not make arguments of TaskContext arguments of the action" do
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define('def', task_m)
+            actions.use_profile(profile)
+            action = actions.find_action_by_name('def_def')
+
+            assert action.arguments.empty?
+        end
+
         it "should make task arguments that do have a default an optional argument of the action model" do
             task_m = Syskit::TaskContext.new_submodel { argument :arg0, :default => nil }
             profile.define('def', task_m)
