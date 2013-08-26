@@ -611,8 +611,10 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     next if (values.empty? && !options[:include_empty])
 
                     values = values.map { |v| v.tr("<>", "[]") }
-                    "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
-                    values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
+                    values = values.map { |v| v.tr("{}", "[]") }
+
+                   "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
+                   values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\"></TD>#{v}</TR>" }.join("\n")
                 end.flatten
 
                 if !result.empty?
