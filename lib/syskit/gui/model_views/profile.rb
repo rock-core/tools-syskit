@@ -10,7 +10,7 @@ module Syskit::GUI
                 super(page)
                 @instanciation_method = :compute_system_network
 
-                register_type Syskit::InstanceRequirements, ComponentNetworkView.new(page)
+                register_type Syskit::InstanceRequirements, ComponentNetworkView.new(page), :method => :compute_system_network
             end
 
             def render_object_as_text(model)
