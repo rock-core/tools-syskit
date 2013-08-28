@@ -1,6 +1,7 @@
 module Syskit
         DataService = Models::DataServiceModel.new
         DataService.root = true
+        DataService.permanent_model = true
         DataService.provides Roby::TaskService
         Models::DataServiceModel.base_module = DataService
         module DataService
@@ -28,6 +29,7 @@ module Syskit
 
         Device   = Models::DeviceModel.new
         Device.root = true
+        Device.permanent_model = true
         Device.provides DataService
         Models::DeviceModel.base_module = Device
 
@@ -125,6 +127,7 @@ module Syskit
 
         ComBus = Models::ComBusModel.new
         ComBus.root = true
+        ComBus.permanent_model = true
         ComBus.provides Device
         Models::ComBusModel.base_module = ComBus
 
