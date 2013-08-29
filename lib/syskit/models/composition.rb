@@ -206,28 +206,26 @@ module Syskit
 
             # Add an element in this composition.
             #
-            # This method adds a new element from the given component or data
-            # service model. Raises ArgumentError if +model+ is of neither type.
+            # @param [Array<Model>,Model] models the child's model. Can be a set
+            #   of models to provide e.g. multiple unrelated data services, or a
+            #   task context and a data service type that would be provided by a
+            #   dynamic data service on the task context.
+            # @param [Hash] options set of options for the new child, as well as
+            #   any option that is valid to be passed to Roby::Task#depends_on
+            # @option options [String] :as this is actually mandatory, but is
+            #   keps as an option for backward compatibility reasons. It is the
+            #   name of the child. The new child can be accessed by calling
+            #   #childname_child on the new model (see example below)
+            # @return [CompositionChild]
             #
-            # If an 'as' option is provided, this name will be used as the child
-            # name. Otherwise, the basename of 'model' is used as the child
-            # name. It will raise ArgumentError if the name is already used in this
-            # composition.
-            #
-            # Returns the child definition as a CompositionChild instance. This
-            # instance can also be accessed with Composition.[]
-            #
-            # For instance
-            #   
-            #   orientation_provider = data_service 'Orientation'
-            #   # This child will be naned 'Orientation'
-            #   composition.add orientation_provider
-            #   # This child will be named 'imu'
-            #   composition.add orientation_provider, :as => 'imu'
-            #   composition['Orientation'] # => CompositionChild representing
-            #                              # the first element
-            #   composition['imu'] # => CompositionChild representing the second
-            #                      # element
+            # @example
+            #   data_service_type 'OrientationSrv'
+            #   class OrientationFilter < Syskit::Composition
+            #     # Add a child called 'orientation'
+            #     add OrientationSrv, :as => 'orientation'
+            #   end
+            #   # Returns the object that defines the new child
+            #   Orientation.orientation_child
             #
             # == Subclassing
             #
@@ -237,27 +235,27 @@ module Syskit
             # a subclass of any component model that has been used in the parent
             # composition. Otherwise, #add raises ArgumentError
             #
-            # For instance,
+            # @example overloading a child with an unrelated data service
             #
-            #   raw_imu_readings = data_service "RawImuReadings"
-            #   submodel = composition.new_submodel 'Foo'
-            #   # This is fine as +raw_imu_readings+ and +orientation_provider+
-            #   # can be combined. +submodel+ will require 'imu' to provide both
-            #   # a RawImuReadings data service and a Orientation data service.
-            #   submodel.add submodel, :as => 'imu' 
+            #   data_service_type "RawImuReadings"
+            #   class Foo < Orientation
+            #     # This is fine as +raw_imu_readings+ and +orientation_provider+
+            #     # can be combined. +submodel+ will require 'imu' to provide both
+            #     # a RawImuReadings data service and a Orientation data service.
+            #     add RawImuReadings, :as => 'imu' 
+            #   end
             #
-            # Now, let's assume that 'imu' was declared as
+            # @example overloading a child with an incompatible task model
             #
-            #   composition.add XsensImu::Task, :as => 'imu'
+            #   class Foo < Syskit::Composition
+            #     add XsensImu::Task, :as => 'imu'
+            #   end
+            #   class Bar < Foo
+            #     # This overload is invalid if the two tasks are unrelated
+            #     # (i.e. if DfkiImu::Task is not a subclass of XsensImu::Task)
+            #     add DfkiImu::Task, :as => 'imu'
+            #   end
             #
-            # where XsensImu::Task is an actual component that drives IMUs from
-            # the Xsens company. Then,
-            #
-            #   submodel.add DfkiImu::Task, :as => 'imu'
-            #
-            # would be invalid as the 'imu' child cannot be both an XsensImu and
-            # DfkiImu task. In this case, you would need to define a common data
-            # service that is provided by both components.
             def add(models, options = Hash.new)
                 if !models.respond_to?(:each)
                     models = [models]
