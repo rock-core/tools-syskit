@@ -278,6 +278,15 @@ module Syskit
                 add_child(options[:as], models, dependency_options)
             end
 
+            # Add a child that may not be provided
+            #
+            # (see #add)
+            def add_optional(models, options = Hash.new)
+                child = add(models, options)
+                child.optional
+                child
+            end
+
             # Returns this composition's main task
             #
             # The main task is the task that performs the composition's main
