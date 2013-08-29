@@ -298,4 +298,40 @@ describe Syskit::Models::TaskContext do
             assert_equal([[task_model], arguments], task.fullfilled_model)
         end
     end
+
+    describe "#has_dynamic_input_port?" do
+        attr_reader :task_m, :opaque_t, :intermediate_t
+        before do
+            @opaque_t = Orocos.registry.create_opaque '/opaque', 0
+            @intermediate_t = Orocos.registry.create_opaque '/intermediate', 0
+            Orocos.master_project.opaques << Orocos::Generation::OpaqueDefinition.new(opaque_t, intermediate_t, Hash.new, nil)
+
+            @task_m = Syskit::TaskContext.new_submodel do
+                dynamic_input_port 'test', '/opaque'
+            end
+        end
+        it "should convert the given type into the orocos type name before checking for existence" do
+            flexmock(task_m.orogen_model).should_receive(:has_dynamic_input_port?).once.
+                with('test', opaque_t).pass_thru
+            assert task_m.has_dynamic_input_port?('test', intermediate_t)
+        end
+    end
+
+    describe "#has_dynamic_output_port?" do
+        attr_reader :task_m, :opaque_t, :intermediate_t
+        before do
+            @opaque_t = Orocos.registry.create_opaque '/opaque', 0
+            @intermediate_t = Orocos.registry.create_opaque '/intermediate', 0
+            Orocos.master_project.opaques << Orocos::Generation::OpaqueDefinition.new(opaque_t, intermediate_t, Hash.new, nil)
+
+            @task_m = Syskit::TaskContext.new_submodel do
+                dynamic_output_port 'test', '/opaque'
+            end
+        end
+        it "should convert the given type into the orocos type name before checking for existence" do
+            flexmock(task_m.orogen_model).should_receive(:has_dynamic_output_port?).once.
+                with('test', opaque_t).pass_thru
+            assert task_m.has_dynamic_output_port?('test', intermediate_t)
+        end
+    end
 end
