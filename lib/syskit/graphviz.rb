@@ -325,7 +325,13 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
 
             def add_task_info_annotations
                 plan.find_local_tasks(Component).each do |task|
-                    add_task_annotation(task, "Arguments", task.arguments.map { |k, v| "#{k}: #{v}" })
+                    arguments = task.arguments.map { |k, v| "#{k}: #{v}" }
+                    task.model.arguments.each do |arg_name|
+                        if !task.arguments.has_key?(arg_name)
+                            arguments << "#{arg_name}: (unset)"
+                        end
+                    end
+                    add_task_annotation(task, "Arguments", arguments.sort)
                     add_task_annotation(task, "Roles", task.roles.to_a.sort.join(", "))
                 end
             end
