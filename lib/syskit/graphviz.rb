@@ -614,7 +614,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     values = values.map { |v| v.tr("{}", "[]") }
 
                    "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
-                   values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\"></TD>#{v}</TR>" }.join("\n")
+                   values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
                 end.flatten
 
                 if !result.empty?
