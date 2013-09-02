@@ -380,7 +380,7 @@ module Syskit
                 explicit.each do |child_name, req|
                     next if !req.respond_to?(:fullfills?)
                     if child = model.find_child(child_name)
-                        _, selected_m, _ = new_mappings.selection_for(child_name, model.find_child(child_name))
+                        _, selected_m, _ = new_mappings.selection_for(child_name, child)
                         if !selected_m.fullfills?(child)
                             raise ArgumentError, "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
                         end
