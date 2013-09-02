@@ -714,7 +714,9 @@ module Syskit
             #   resolution is bypassed.
             # @option arguments [Hash] task_arguments the set of arguments that
             #   should be passed to the composition task instance
-            #
+            # @option arguments [Boolean] keep_optional_children (false) control
+            #   whether optional children that are not given should be added to
+            #   the instanciated composition anyways
             def instanciate(plan, context = DependencyInjectionContext.new, arguments = Hash.new)
                 Models.debug do
                     Models.debug "instanciating #{short_name} with"
@@ -726,7 +728,8 @@ module Syskit
                 arguments = Kernel.validate_options arguments,
                     :task_arguments => Hash.new,
                     :specialize => true,
-                    :specialization_hints => Array.new
+                    :specialization_hints => Array.new,
+                    :keep_optional_children => false
 
                 # Find what we should use for our children. +explicit_selection+
                 # is the set of children for which a selection existed and
@@ -798,7 +801,7 @@ module Syskit
                                                        self_task, child_name, selected_child)
 
                         child_task = child_task.to_task
-                        if child_task.abstract? && find_child(child_name).optional?
+                        if !arguments[:keep_optional_children] && child_task.abstract? && find_child(child_name).optional?
                             Models.debug "not adding optional child #{child_name}"
                             removed_optional_children << child_name
                             next(true)

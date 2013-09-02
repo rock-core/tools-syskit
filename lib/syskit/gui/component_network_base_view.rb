@@ -97,12 +97,13 @@ module Syskit
                 end
             end
 
-            def instanciate_model(model, main_plan = nil)
+            def instanciate_model(model, main_plan = nil, options = Hash.new)
                 main_plan ||= Roby::Plan.new
                 requirements = model.to_instance_requirements
                 task = requirements.instanciate(
                     main_plan,
-                    Syskit::DependencyInjectionContext.new)
+                    Syskit::DependencyInjectionContext.new,
+                    options)
                 main_plan.add(task)
                 task
             end

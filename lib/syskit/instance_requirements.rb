@@ -559,16 +559,10 @@ module Syskit
                 context.concat(dependency_injection_context)
                 context.push(selections)
 
-                arguments = Kernel.validate_options arguments, :task_arguments => nil
-                instanciate_arguments = { :task_arguments => self.arguments }
-                if arguments[:task_arguments]
-                    instanciate_arguments[:task_arguments].merge!(arguments[:task_arguments])
-                end
-                if !specialization_hints.empty?
-                    instanciate_arguments[:specialization_hints] = specialization_hints
-                end
-
-                task = task_model.instanciate(plan, context, instanciate_arguments)
+                arguments = Kernel.normalize_options arguments
+                arguments[:task_arguments] = self.arguments.merge(arguments[:task_arguments] || Hash.new)
+                arguments[:specialization_hints] = specialization_hints | (arguments[:specialization_hints] || Set.new)
+                task = task_model.instanciate(plan, context, arguments)
                 task.requirements.merge(to_component_model)
 
                 if required_host && task.respond_to?(:required_host=)
