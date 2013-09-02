@@ -3,9 +3,15 @@ module Syskit
         # Representation of a deployment that is configured with name mappings
         # and spawn options
         class ConfiguredDeployment
+            # @return [String] the process name
             attr_reader :process_name
+            # @return [Model<Syskit::Deployment>] the deployment model
             attr_reader :model
+            # @return [Hash] the options that should be passed at deployment
+            #   startup
             attr_reader :spawn_options
+            # @return [Hash] the name mappings, e.g. the mapping from a task
+            #   name in {#model} to the name this task should have while running
             attr_reader :name_mappings
 
             def initialize(model, name_mappings = Hash.new, process_name = model.name, spawn_options = Hash.new)
