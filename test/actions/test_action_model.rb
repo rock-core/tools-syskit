@@ -23,6 +23,34 @@ describe Syskit::Actions::Models::Action do
             assert_equal task_m, reloaded.returned_type
         end
     end
+
+    describe "#plan_pattern" do
+        it "adds the arguments to the underlying instance requirement object" do
+            req = Syskit::InstanceRequirements.new
+            action_m = Syskit::Actions::Models::Action.new(nil, req)
+            plan.add(task = action_m.plan_pattern(:test => 10))
+            assert_equal 10, task.arguments[:test]
+            assert_equal Hash[:test => 10], task.planning_task.requirements.arguments
+        end
+    end
+
+    describe "#run" do
+        attr_reader :req, :action_m, :interface
+        before do
+            @req = Syskit::InstanceRequirements.new
+            @action_m = Syskit::Actions::Models::Action.new(nil, req)
+            @interface = flexmock(:plan => plan)
+        end
+        it "adds the task to the interface's plan" do
+            task = action_m.run(interface, :test => 10)
+            assert plan.include?(task)
+        end
+        it "adds the arguments to the underlying instance requirement object" do
+            task = action_m.run(interface, :test => 10)
+            assert_equal 10, task.arguments[:test]
+            assert_equal Hash[:test => 10], task.planning_task.requirements.arguments
+        end
+    end
 end
 
 

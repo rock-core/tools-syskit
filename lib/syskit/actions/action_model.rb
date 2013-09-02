@@ -20,7 +20,9 @@ module Syskit
             end
 
             def plan_pattern(arguments = Hash.new)
-                requirements.as_plan
+                req = requirements.dup
+                req.with_arguments(arguments)
+                req.as_plan
             end
 
             # Injects the tasks necessary to deploy #requirements on the plan
@@ -30,9 +32,7 @@ module Syskit
             # @param [Hash] arguments the arguments (unused)
             # @return [Roby::Task] the action task
             def run(action_interface, arguments = Hash.new)
-                req = requirements.dup
-                req.with_arguments(arguments)
-                action_interface.plan.add(task = req.as_plan)
+                action_interface.plan.add(task = plan_pattern(arguments))
                 task
             end
 

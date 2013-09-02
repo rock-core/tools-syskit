@@ -101,11 +101,21 @@ describe Syskit::Actions::InterfaceModelExtension do
             assert !arg.required
         end
 
-        it "should pass the action arguments to the instanciated task context" do
+        it "should pass the action arguments to the instanciated task context when Action#instanciate is called" do
             task_m = Syskit::TaskContext.new_submodel { argument :arg0 }
             profile.define('def', task_m)
             actions.use_profile(profile)
             act = actions.def_def.instanciate(plan, 'arg0' => 10)
+            assert_equal 10, act.arg0
+        end
+
+        it "should pass the action arguments to the instanciated task context when the generated action method is called" do
+            task_m = Syskit::TaskContext.new_submodel { argument :arg0 }
+            profile.define('def', task_m)
+            actions.use_profile(profile)
+
+            actions = self.actions.new(plan)
+            plan.add(act = actions.def_def(:arg0 => 10))
             assert_equal 10, act.arg0
         end
     end
