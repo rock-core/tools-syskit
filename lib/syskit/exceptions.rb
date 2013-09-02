@@ -32,6 +32,36 @@ module Syskit
             end
         end
 
+        # Raised when an incompatible dependency injection selection is given
+        class InvalidSelection < SpecError
+            # The selection key
+            # @return [nil,Object]
+            attr_reader :key
+            # The selection
+            attr_reader :selected
+            # The expected model
+            attr_reader :expected
+
+
+            def initialize(key, selected, expected)
+                @key, @selected, @expected = key, selected, expected
+            end
+
+            def pretty_print(pp)
+                if key
+                    pp.text "invalid selection for #{key}"
+                    pp.breakable
+                    pp.text "got "
+                else
+                    pp.text "invalid selection: got "
+                end
+                selected.pretty_print(pp)
+                pp.breakable
+                pp.text "expected something that provides "
+                expected.pretty_print(pp)
+            end
+        end
+
         # Exception raised during instanciation if there is an ambiguity for a
         # composition child
         class AmbiguousIndirectCompositionSelection < Ambiguous

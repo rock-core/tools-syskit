@@ -382,7 +382,7 @@ module Syskit
                     if child = model.find_child(child_name)
                         _, selected_m, _ = new_mappings.selection_for(child_name, child)
                         if !selected_m.fullfills?(child)
-                            raise ArgumentError, "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
+                            raise InvalidSelection.new(child_name, req, child), "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
                         end
                     end
                 end
