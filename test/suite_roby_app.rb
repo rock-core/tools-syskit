@@ -4,6 +4,7 @@ end
 require 'syskit/test'
 
 require './test/roby_app/test_plugin'
+require './test/roby_app/test_configuration'
 
 Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
 Syskit.logger.level = Logger::DEBUG
