@@ -309,6 +309,30 @@ describe Syskit::Component do
             assert task.model.find_output_port('name')
         end
     end
+
+    describe "#to_instance_requirements" do
+        it "should list assigned arguments" do
+            task_m = Syskit::Component.new_submodel do
+                argument :arg
+            end
+            req = task_m.new(:arg => 10).to_instance_requirements
+            assert_equal Hash[:arg => 10], req.arguments.to_hash
+        end
+        it "should not list unassigned arguments" do
+            task_m = Syskit::Component.new_submodel do
+                argument :arg
+            end
+            req = task_m.new.to_instance_requirements
+            assert req.arguments.empty?
+        end
+        it "should not list unset arguments with defaults" do
+            task_m = Syskit::Component.new_submodel do
+                argument :arg, :default => nil
+            end
+            req = task_m.new.to_instance_requirements
+            assert req.arguments.empty?
+        end
+    end
 end
 
 class TC_Component < Test::Unit::TestCase

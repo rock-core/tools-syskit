@@ -443,7 +443,7 @@ module Syskit
                 # Do not use #model here as we don't want a requirement that
                 # uses a specialized model
                 req = self.concrete_model.to_instance_requirements
-                req.with_arguments(arguments)
+                req.with_arguments(arguments.assigned_arguments)
                 if required_host
                     req.on_server(required_host) 
                 end
