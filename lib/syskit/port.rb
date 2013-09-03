@@ -216,7 +216,11 @@ module Syskit
         end
 
         def write(sample) 
-            writer.write(sample) if writer
+            if writer
+                writer.write(sample)
+            else
+                Typelib.from_ruby(sample, port.type)
+            end
         end
 
         def new_sample

@@ -64,6 +64,36 @@ describe Syskit::Port do
     end
 end
 
+describe Syskit::InputWriter do
+    include Syskit::SelfTest
+
+    it "validates the given samples if the writer is not yet accessible" do
+        task_m = Syskit::TaskContext.new_submodel do
+            input_port 'in', '/double'
+        end
+        policy = Hash[:type => :buffer, :size => 10]
+        plan.add_permanent(abstract_task = task_m.as_plan)
+        port_writer = abstract_task.in_port.writer(policy)
+        flexmock(Typelib).should_receive(:from_ruby).once.with([], abstract_task.in_port.type)
+        port_writer.write([])
+    end
+
+    it "should be able to rebind to actual tasks that replaced the task" do
+        task_m = Syskit::TaskContext.new_submodel do
+            input_port 'in', '/double'
+        end
+        policy = Hash[:type => :buffer, :size => 10]
+        plan.add_permanent(abstract_task = task_m.as_plan)
+        port_writer = abstract_task.in_port.writer(policy)
+        task = syskit_deploy_task_context(task_m, 'task')
+        plan.replace(abstract_task, task)
+
+        start_task_context(task)
+        assert_equal task.in_port, port_writer.resolved_port
+        assert_equal task.orocos_task.port('in'), port_writer.writer.port
+    end
+end
+
 describe Syskit::OutputReader do
     include Syskit::SelfTest
 
