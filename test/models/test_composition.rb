@@ -336,6 +336,19 @@ describe Syskit::Models::Composition do
             assert_equal task.srv_srv, cmp_task.child_selection['child'].service_selection[srv]
         end
 
+        it "does not store instances in #child_selection when using children as flags for other children" do
+            srv = Syskit::DataService.new_submodel(:name => "Srv")
+            task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }
+            second = Syskit::Composition.new_submodel(:name => "SecondCmp") { add srv, :as => 'second_test' }
+            cmp = Syskit::Composition.new_submodel(:name => "RootCmp") do
+                add task, :as => 'first'
+                add(second, :as => 'second').
+                    use(srv => first_child)
+            end
+            root = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new('first.first_test' => task))
+            assert_equal cmp.first_child, root.child_selection['second'].selected.selections.explicit[srv]
+        end
+
         it "allows to use grandchildren as use flags for other children" do
             srv = Syskit::DataService.new_submodel(:name => "Srv")
             task = Syskit::TaskContext.new_submodel(:name => "Task") { provides srv, :as => 'srv' }

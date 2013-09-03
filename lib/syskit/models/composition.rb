@@ -769,11 +769,13 @@ module Syskit
                 while !remaining_children_models.empty?
                     current_size = remaining_children_models.size
                     remaining_children_models.delete_if do |child_name, selected_child|
+                        selected_child = selected_child.dup
+
                         if selected_child.selected.fullfills?(Syskit::Composition)
                             # Check if selected_child points to another child of
                             # self, and if it is the case, make sure it is available
-                            selected_child = selected_child.dup
-                            all_done = selected_child.selected.map_use_selections! do |sel|
+                            resolved_selected_child = selected_child.dup
+                            all_done = resolved_selected_child.selected.map_use_selections! do |sel|
                                 if sel.kind_of?(CompositionChild)
                                     if task = sel.try_resolve(self_task)
                                         task
@@ -794,11 +796,13 @@ module Syskit
                                     child_user_selection[$1] = sel
                                 end
                             end
+                            resolved_selected_child.selected.use(child_user_selection)
                             selected_child.selected.use(child_user_selection)
+                        else resolved_selected_child = selected_child
                         end
 
                         child_task = instanciate_child(plan, child_selection_context,
-                                                       self_task, child_name, selected_child)
+                                                       self_task, child_name, resolved_selected_child)
 
                         child_task = child_task.to_task
                         if !arguments[:keep_optional_children] && child_task.abstract? && find_child(child_name).optional?
