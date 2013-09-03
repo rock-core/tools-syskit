@@ -276,7 +276,11 @@ module Syskit
                 explicit_mappings.each do |from, to|
                     from = from.to_s if from.kind_of?(Symbol)
                     to   = to.to_s   if to.kind_of?(Symbol)
-                    if from.respond_to?(:to_str) && to.respond_to?(:to_str)
+                    if !from.respond_to?(:to_str)
+                        raise ArgumentError, "unexpected value given in port mapping: #{from}, expected a string"
+                    elsif !to.respond_to?(:to_str)
+                        raise ArgumentError, "unexpected value given in port mapping: #{to}, expected a string"
+                    else
                         normalized_mappings[from] = to 
                     end
                 end

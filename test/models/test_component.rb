@@ -87,6 +87,12 @@ describe Syskit::Models::Component do
             assert_equal Hash['out' => 'out_int', 'in' => 'in_double'],
                 task_m.compute_port_mappings(srv_m)
         end
+        it "raises if mappings are not string-to-string" do
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'bla', 'double'
+            end
+            assert_raises(ArgumentError) { task_m.compute_port_mappings(srv_m, flexmock => flexmock) }
+        end
         it "raises if asked to select a component port for an ambiguous type" do
             srv_m = Syskit::DataService.new_submodel do
                 output_port 'bla', 'double'
