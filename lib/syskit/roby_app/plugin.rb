@@ -176,10 +176,15 @@ module Syskit
             def self.reload_config(app)
                 Syskit.conf.clear
             end
+        
+            def self.load_orocosrb(app)
+                ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
+                Orocos.load
+            end
 
             def self.require_models(app)
                 if !Orocos.loaded?
-                    Orocos.load
+                    load_orocosrb(app)
                 end
                 # Load user-defined dummy orogen projects
                 all_files =
@@ -469,7 +474,7 @@ module Syskit
                 attr_accessor :toplevel_object
             end
             def self.enable
-                Orocos.load
+                load_orocosrb(Roby.app)
                 ::Robot.include Syskit::RobyApp::RobotExtension
                 ::Roby.conf.syskit = Syskit.conf
                 ::Roby.extend Syskit::RobyApp::Toplevel

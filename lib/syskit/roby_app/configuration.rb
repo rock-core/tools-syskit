@@ -39,6 +39,8 @@ module Syskit
                 @ignore_missing_orogen_projects_during_load = false
                 @ignore_load_errors = false
                 @buffer_size_margin = 0.1
+                @deployments = Hash.new { |h, k| h[k] = Set.new }
+                @deployed_tasks = Hash.new
 
                 @log_groups = { nil => LogGroup.new(false) }
 
@@ -248,7 +250,12 @@ module Syskit
             attr_reader :sd_publish_list
 
             # The set of known deployments
-            attribute(:deployments) { Hash.new { |h, k| h[k] = Set.new } }
+            attr_reader :deployments
+
+            # A mapping from a task name to the deployment that provides it
+            #
+            # @return [{String => Models::ConfiguredDeployment}]
+            attr_reader :deployed_tasks
 
             # Margin added to computed buffer sizes
             #
@@ -275,7 +282,12 @@ module Syskit
                 # We allow the user to specify a task model as a Roby task. Map that
                 names = names.map do |n|
                     if n.respond_to?(:to_hash)
-                        n.map_key { |k| k.orogen_model.name if k.respond_to?(:orogen_model) }
+                        n.map_key do |k|
+                            if k.respond_to?(:orogen_model)
+                                k.orogen_model.name 
+                            else k
+                            end
+                        end
                     else n
                     end
                 end
@@ -285,7 +297,19 @@ module Syskit
                     model = Deployment.find_model_from_orogen_name(deployment_name) ||
                         Roby.app.load_deployment_model(deployment_name)
                     model.default_run_options.merge!(default_run_options(model))
-                    deployments[options[:on]] << Models::ConfiguredDeployment.new(model, mappings, name, spawn_options)
+
+                    configured_deployment = Models::ConfiguredDeployment.new(options[:on], model, mappings, name, spawn_options)
+                    configured_deployment.each_orogen_deployed_task_context_model do |task|
+                        orocos_name = task.name
+                        if deployed_tasks[orocos_name] && deployed_tasks[orocos_name] != configured_deployment
+                            raise TaskNameAlreadyInUse.new(orocos_name, deployed_tasks[orocos_name], configured_deployment), "there is already a deployment that provides #{orocos_name}"
+                        end
+                    end
+                    configured_deployment.each_orogen_deployed_task_context_model do |task|
+                        deployed_tasks[task.name] = configured_deployment
+                    end
+                    deployments[options[:on]] << configured_deployment
+                    configured_deployment
                 end
                 model
             end

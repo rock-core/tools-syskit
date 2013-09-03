@@ -115,6 +115,9 @@ module Syskit
             # One can then match if a given string (+name+) matches one of the
             # dynamic output port declarations using this predicate.
             def has_dynamic_output_port?(name, type = nil)
+                if type
+                    type = Orocos.orocos_type_for(type)
+                end
                 orogen_model.has_dynamic_output_port?(name, type)
             end
 
@@ -130,6 +133,9 @@ module Syskit
             # One can then match if a given string (+name+) matches one of the
             # dynamic input port declarations using this predicate.
             def has_dynamic_input_port?(name, type = nil)
+                if type
+                    type = Orocos.orocos_type_for(type)
+                end
                 orogen_model.has_dynamic_input_port?(name, type)
             end
         end

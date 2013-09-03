@@ -325,7 +325,13 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
 
             def add_task_info_annotations
                 plan.find_local_tasks(Component).each do |task|
-                    add_task_annotation(task, "Arguments", task.arguments.map { |k, v| "#{k}: #{v}" })
+                    arguments = task.arguments.map { |k, v| "#{k}: #{v}" }
+                    task.model.arguments.each do |arg_name|
+                        if !task.arguments.has_key?(arg_name)
+                            arguments << "#{arg_name}: (unset)"
+                        end
+                    end
+                    add_task_annotation(task, "Arguments", arguments.sort)
                     add_task_annotation(task, "Roles", task.roles.to_a.sort.join(", "))
                 end
             end
@@ -611,8 +617,10 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     next if (values.empty? && !options[:include_empty])
 
                     values = values.map { |v| v.tr("<>", "[]") }
-                    "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
-                    values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
+                    values = values.map { |v| v.tr("{}", "[]") }
+
+                   "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
+                   values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
                 end.flatten
 
                 if !result.empty?

@@ -32,6 +32,36 @@ module Syskit
             end
         end
 
+        # Raised when an incompatible dependency injection selection is given
+        class InvalidSelection < SpecError
+            # The selection key
+            # @return [nil,Object]
+            attr_reader :key
+            # The selection
+            attr_reader :selected
+            # The expected model
+            attr_reader :expected
+
+
+            def initialize(key, selected, expected)
+                @key, @selected, @expected = key, selected, expected
+            end
+
+            def pretty_print(pp)
+                if key
+                    pp.text "invalid selection for #{key}"
+                    pp.breakable
+                    pp.text "got "
+                else
+                    pp.text "invalid selection: got "
+                end
+                selected.pretty_print(pp)
+                pp.breakable
+                pp.text "expected something that provides "
+                expected.pretty_print(pp)
+            end
+        end
+
         # Exception raised during instanciation if there is an ambiguity for a
         # composition child
         class AmbiguousIndirectCompositionSelection < Ambiguous
@@ -768,6 +798,32 @@ module Syskit
                         p.pretty_print(pp)
                     end
                 end
+            end
+        end
+
+        # Exception raised in {RobyApp::Configuration#use_deployment} when
+        # trying to register a deployment that provides a task identical to an
+        # existing task
+        class TaskNameAlreadyInUse < ArgumentError
+            # @return [String] the problematic task name
+            attr_reader :task_name
+            # @return [Models::ConfiguredDeployment] the already registered
+            #   deployment
+            attr_reader :existing_deployment
+            # @return [Models::ConfiguredDeployment] the new deployment
+            attr_reader :new_deployment
+
+            def initialize(task_name, existing_deployment, new_deployment)
+                @task_name, @existing_deployment, @new_deployment =
+                    task_name, existing_deployment, new_deployment
+            end
+
+            def pretty_print(pp)
+                pp.text "trying to register #{task_name} from "
+                new_deployment.pretty_print(pp)
+                pp.breakable
+                pp.text "but it is already provided by "
+                existing_deployment.pretty_print(pp)
             end
         end
 end

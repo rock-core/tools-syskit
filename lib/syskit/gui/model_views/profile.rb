@@ -2,6 +2,90 @@ require 'utilrb/qt/variant/from_ruby'
 require 'syskit/gui/component_network_view'
 module Syskit::GUI
     module ModelViews
+        def self.render_selection_mapping(page, mapping)
+            mapping.each_with_index.map do |(key, sel), sel_index|
+                render_mapping(page, key, sel)
+            end
+        end
+
+        def self.render_mapping(page, key, sel)
+            if key.respond_to?(:to_instance_requirements)
+                key = render_instance_requirements(page, key.to_instance_requirements)
+            else
+                key = [key.to_s]
+            end
+            if sel.respond_to?(:to_instance_requirements)
+                sel = render_instance_requirements(page, sel.to_instance_requirements)
+            else
+                sel = [sel.to_s]
+            end
+            longest_key_line = key.max { |l| l.size }.size
+            if key.size < sel.size
+                key += [" " * longest_key_line] * (sel.size - key.size)
+            end
+            key.each_with_index.map do |k, key_index|
+                if v = sel[key_index]
+                    k += " " * (longest_key_line - k.size)
+                    if key_index == 0
+                        k += " => #{v}"
+                    else
+                        k += "    #{v}"
+                    end
+                else
+                    k
+                end
+            end
+        end
+
+        def self.render_instance_requirements(page, req, options = Hash.new)
+            options = Kernel.validate_options options,
+                :resolve_dependency_injection => false
+
+            # First, render the main model
+            component_model = [req.component_model]
+            req_component = req.to_component_model
+
+            if !component_model.first # This is a service proxy
+                component_model.pop
+            end
+            if req_component.model.respond_to?(:proxied_data_services)
+                component_model.concat(req.model.proxied_data_services.sort_by(&:name).compact)
+            end
+            formatted = [component_model.map { |m| page.link_to(m) }.join(",")]
+
+            selections = req.selections
+            if !selections.empty?
+                if options[:resolve_dependency_injection]
+                    selections = selections.resolve
+                end
+
+                defaults = selections.defaults.map do |defsel|
+                    render_instance_requirements(page, defsel.to_instance_requirements)
+                end
+                explicit = render_selection_mapping(page, selections.explicit)
+                all = defaults + explicit
+                all = all.each_with_index.map do |block, i|
+                    if i == 0
+                        block[0] = "  use(" + block.first
+                    else
+                        block[0] = "      " + block.first
+                    end
+                    block = [block[0]] + block[1..-1].map do |line|
+                        line = "      " + line
+                    end
+                    if i == all.size - 1
+                        block[-1] = block.last + ")"
+                    else
+                        block[-1] = block.last + ","
+                    end
+                    block
+                end.flatten
+                formatted[-1] += "."
+                formatted.concat all
+            end
+            formatted
+        end
+
         # Visualization of a syskit profile
         class Profile < MetaRuby::GUI::HTML::Collection
             attr_accessor :instanciation_method
@@ -10,16 +94,11 @@ module Syskit::GUI
                 super(page)
                 @instanciation_method = :compute_system_network
 
-                register_type Syskit::InstanceRequirements, ComponentNetworkView.new(page)
+                register_type Syskit::InstanceRequirements, ComponentNetworkView.new(page), :method => :compute_system_network, :show_requirements => true
             end
 
             def render_object_as_text(model)
-                value = model.to_instance_requirements
-                if value.service
-                    value.service.to_s
-                else
-                    value.model.to_s
-                end
+                render_instance_requirements(model.to_instance_requirements).join("\n")
             end
 
             def mapping_to_links(mapping, with_value, interactive = true)
@@ -27,16 +106,11 @@ module Syskit::GUI
                     object = mapping[key]
                     id = element_link_target(object, interactive)
 
-                    key_text =
-                        if with_value
-                            key.to_s
-                        elsif key.respond_to?(:to_str) then key
-                        else render_object_as_text(key)
-                        end
-
                     if with_value
-                        text = render_object_as_text(object)
-                        Element.new(object, "#{key_text} => %s", id, text, Hash.new)
+                        text = ModelViews.render_mapping(page, key, object)
+                        key_text, value_text = text.first.split(" => ")
+                        text[0] = "%s => #{value_text}"
+                        Element.new(object, "<pre>#{text.join("\n")}</pre>", id, key_text, Hash.new)
                     else
                         Element.new(object, "%s", id, key, Hash.new)
                     end
@@ -61,7 +135,7 @@ module Syskit::GUI
                     definitions[name] = model.resolved_definition(name)
                 end
                 definitions = mapping_to_links(
-                    definitions, false, options[:interactive])
+                    definitions, true, options[:interactive])
 
                 devices = Hash.new
                 model.robot.each_device do |dev|

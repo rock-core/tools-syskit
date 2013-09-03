@@ -6,11 +6,16 @@ require 'kramdown'
 
 Scripts = Syskit::Scripts
 
+load_all = false
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD
 Usage: syskit doc [options]
 Generate HTML documentation for all the models present in this bundle
     EOD
+
+    opt.on '--all', '-a', "Load all models from all active bundles instead of only the ones from the current" do
+        load_all = true
+    end
 end
 Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
@@ -25,7 +30,7 @@ direct_files, model_names = remaining.partition do |arg|
     File.file?(arg)
 end
 # Load all task libraries if we don't get a file to require
-Roby.app.syskit_load_all = direct_files.empty?
+Roby.app.syskit_load_all = load_all
 Roby.app.additional_model_files.concat(direct_files)
 
 Qt::Application.new(ARGV)

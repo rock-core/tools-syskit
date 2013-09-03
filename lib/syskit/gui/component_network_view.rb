@@ -56,9 +56,20 @@ module Syskit
 
                 plan.clear
                 options, render_options = Kernel.filter_options options,
-                    :method => :instanciate_model, :name => nil
+                    :method => :instanciate_model, :name => nil, :show_requirements => false, :instanciate_options => Hash.new
 
-                @task = begin send(options[:method], model, plan)
+                if options[:show_requirements]
+                    html = ModelViews.render_instance_requirements(page,
+                            model.to_instance_requirements,
+                            :resolve_dependency_injection => true).join("\n")
+                    page.push("Resolved Requirements", "<pre>#{html}</pre>")
+                end
+
+                @task = begin
+                            if options[:method] == :compute_system_network
+                                compute_system_network(model, plan)
+                            else instanciate_model(model, plan, options[:instanciate_options])
+                            end
                         rescue Exception => e
                             if view_partial_plans? then
                                 Roby.app.register_exception(e)

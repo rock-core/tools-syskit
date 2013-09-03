@@ -380,9 +380,9 @@ module Syskit
                 explicit.each do |child_name, req|
                     next if !req.respond_to?(:fullfills?)
                     if child = model.find_child(child_name)
-                        _, selected_m, _ = new_mappings.selection_for(child_name, model.find_child(child_name))
+                        _, selected_m, _ = new_mappings.selection_for(child_name, child)
                         if !selected_m.fullfills?(child)
-                            raise ArgumentError, "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
+                            raise InvalidSelection.new(child_name, req, child), "#{req} is not a valid selection for #{child_name}. Was expecting something that provides #{child}"
                         end
                     end
                 end
@@ -559,16 +559,10 @@ module Syskit
                 context.concat(dependency_injection_context)
                 context.push(selections)
 
-                arguments = Kernel.validate_options arguments, :task_arguments => nil
-                instanciate_arguments = { :task_arguments => self.arguments }
-                if arguments[:task_arguments]
-                    instanciate_arguments[:task_arguments].merge!(arguments[:task_arguments])
-                end
-                if !specialization_hints.empty?
-                    instanciate_arguments[:specialization_hints] = specialization_hints
-                end
-
-                task = task_model.instanciate(plan, context, instanciate_arguments)
+                arguments = Kernel.normalize_options arguments
+                arguments[:task_arguments] = self.arguments.merge(arguments[:task_arguments] || Hash.new)
+                arguments[:specialization_hints] = specialization_hints | (arguments[:specialization_hints] || Set.new)
+                task = task_model.instanciate(plan, context, arguments)
                 task.requirements.merge(to_component_model)
 
                 if required_host && task.respond_to?(:required_host=)

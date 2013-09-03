@@ -39,17 +39,28 @@ module Syskit
                         action_model.name = action_name
 
                         task_model = req.component_model
-                        task_model.arguments.each do |arg_name|
+                        root_model = [Syskit::TaskContext, Syskit::Composition, Syskit::Component].find { |m| task_model <= m }
+                        task_arguments = task_model.arguments.to_a - root_model.arguments.to_a
+
+                        has_required_arguments = false
+                        task_arguments.each do |arg_name|
                             if task_model.default_argument(arg_name) || req.arguments.has_key?(arg_name.to_s)
                                 action_model.optional_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
                             else
+                                has_required_arguments = true
                                 action_model.required_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
                             end
                         end
 
                         actions[action_name] = action_model
-                        if !task_model.arguments.empty?
+                        if has_required_arguments
                             define_method(action_name) do |arguments|
+                                final_req = req.dup
+                                final_req.with_arguments(arguments)
+                                final_req.as_plan
+                            end
+                        elsif !task_arguments.empty?
+                            define_method(action_name) do |arguments = Hash.new|
                                 final_req = req.dup
                                 final_req.with_arguments(arguments)
                                 final_req.as_plan

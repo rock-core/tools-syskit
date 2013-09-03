@@ -193,7 +193,11 @@ module Syskit
                         next if deployed_models.include?(composition_m)
                         available = composition_m.each_child.all? do |child_name, child_m|
                             child_m.each_fullfilled_model.all? do |fullfilled_m|
-                                deployed_models.include?(fullfilled_m)
+                                if !(fullfilled_m <= Syskit::Component) && !(fullfilled_m.kind_of?(Models::DataServiceModel))
+                                    true
+                                else
+                                    deployed_models.include?(fullfilled_m)
+                                end
                             end
                         end
                         if available
