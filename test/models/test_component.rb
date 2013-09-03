@@ -93,6 +93,27 @@ describe Syskit::Models::Component do
             end
             assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m) }
         end
+        it "raises if asked to map multiple service ports to the same task port" do
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'bla', 'double'
+                output_port 'blo', 'double'
+            end
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'test', 'double'
+            end
+            assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m) }
+            assert_raises(Syskit::InvalidPortMapping) { task_m.compute_port_mappings(srv_m, 'bla' => 'test') }
+        end
+        it "allows to map multiple service ports to the same task port explicitly" do
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'bla', 'double'
+                output_port 'blo', 'double'
+            end
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'test', 'double'
+            end
+            task_m.compute_port_mappings(srv_m, 'bla' => 'test', 'blo' => 'test')
+        end
     end
 
     describe "the dynamic service support" do

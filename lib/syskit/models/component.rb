@@ -281,10 +281,16 @@ module Syskit
                     end
                 end
 
+                # This is used later to verify that we don't automatically map
+                # two different ports to the same port. It can be done
+                # explicitly, though
+                mapped_to_original = Hash.new { |h, k| h[k] = Array.new }
+
                 result = Hash.new
                 service_model.each_output_port do |port|
                     if mapped_name = find_directional_port_mapping('output', port, normalized_mappings[port.name])
                         result[port.name] = mapped_name
+                        mapped_to_original[mapped_name] << port.name
                     else
                         raise InvalidPortMapping, "cannot find an equivalent output port for #{port.name}[#{port.type_name}] on #{short_name}"
                     end
@@ -292,10 +298,23 @@ module Syskit
                 service_model.each_input_port do |port|
                     if mapped_name = find_directional_port_mapping('input', port, normalized_mappings[port.name])
                         result[port.name] = mapped_name
+                        mapped_to_original[mapped_name] << port.name
                     else
                         raise InvalidPortMapping, "cannot find an equivalent input port for #{port.name}[#{port.type_name}] on #{short_name}"
                     end
                 end
+
+                # Verify that we don't automatically map two different ports to
+                # the same port
+                mapped_to_original.each do |mapped, original|
+                    if original.size > 1
+                        not_explicit = original.find_all { |pname| !normalized_mappings.has_key?(pname) }
+                        if !not_explicit.empty?
+                            raise InvalidPortMapping, "automatic port mapping would map ports #{original.sort.join(", ")} to the same port #{mapped}. I refuse to do this. If you actually mean to do it, provide the mapping #{original.map { |o| "\"#{o}\" => \"#{mapped}\"" }.join(", ")} explicitly"
+                        end
+                    end
+                end
+
                 result
             end
 
