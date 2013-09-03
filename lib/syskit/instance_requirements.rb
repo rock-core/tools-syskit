@@ -563,7 +563,14 @@ module Syskit
                 arguments[:task_arguments] = self.arguments.merge(arguments[:task_arguments] || Hash.new)
                 arguments[:specialization_hints] = specialization_hints | (arguments[:specialization_hints] || Set.new)
                 task = task_model.instanciate(plan, context, arguments)
-                task.requirements.merge(to_component_model)
+                task_requirements = to_component_model
+                task_requirements.map_use_selections! do |sel|
+                    if !Models.is_model?(sel)
+                        sel.to_instance_requirements
+                    else sel
+                    end
+                end
+                task.requirements.merge(task_requirements)
 
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host

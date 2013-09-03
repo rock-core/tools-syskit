@@ -298,6 +298,40 @@ describe Syskit::InstanceRequirements do
         end
     end
 
+    describe "#instanciate" do
+        it "merges self with unselected services into the task's instance requirements" do
+            task_m = Syskit::TaskContext.new_submodel
+            plan.add(task = task_m.new)
+            ir = Syskit::InstanceRequirements.new([task_m])
+            ir_component_model = Syskit::InstanceRequirements.new([task_m])
+            flexmock(ir).should_receive(:to_component_model).and_return(ir_component_model)
+            flexmock(task_m).should_receive(:new).once.and_return(task)
+            flexmock(task.requirements).should_receive(:merge).once.with(ir_component_model)
+            ir.instanciate(plan)
+        end
+
+        it "resolves the instances inside the requirements before merging them into Task#requirements" do
+            task_m = Syskit::TaskContext.new_submodel
+            plan.add(task = task_m.new)
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, :as => 'test'
+            ir = cmp_m.use('test' => task)
+            cmp = ir.instanciate(plan)
+            assert_equal Syskit::InstanceRequirements.new([task_m]), cmp.requirements.selections.explicit['test']
+            assert_same task, cmp.test_child
+        end
+
+        it "does not resolve plain models before merging them into Task#requirements" do
+            task_m = Syskit::TaskContext.new_submodel
+            plan.add(task = task_m.new)
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, :as => 'test'
+            ir = cmp_m.use('test' => task_m)
+            cmp = ir.instanciate(plan)
+            assert_equal task_m, cmp.requirements.selections.explicit['test']
+        end
+    end
+
     describe "#unselect_service" do
         it "strips off the data service if there is one" do
             task_m = Syskit::TaskContext.new_submodel
