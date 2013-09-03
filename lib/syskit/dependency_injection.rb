@@ -602,9 +602,9 @@ module Syskit
                 @explicit.merge!(other.explicit) do |match, model1, model2|
                     if model1 == model2
                         model1
-                    elsif model1 <= model2
+                    elsif model1.fullfills?(model2)
                         model1
-                    elsif model2 <= model1
+                    elsif model2.fullfills?(model1)
                         model2
                     else
                         raise ArgumentError, "cannot use both #{model1} and #{model2} for #{match}"

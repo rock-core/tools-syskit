@@ -70,6 +70,47 @@ describe Syskit::DependencyInjection do
             assert_equal Hash[a => b], di.explicit
         end
     end
+
+    describe "#merge" do
+        attr_reader :model0, :model1, :di0, :di1
+        before do
+            @model0 = flexmock
+            @model1 = flexmock
+            model0.should_receive(:to_instance_requirements).and_return(model0)
+            model1.should_receive(:to_instance_requirements).and_return(model1)
+            @di0 = Syskit::DependencyInjection.new('test' => model0)
+            @di1 = Syskit::DependencyInjection.new('test' => model1)
+        end
+
+        it "should simply pass on identical models" do
+            model0.should_receive(:==).with(model1).and_return(true)
+            di0.merge(di1)
+            assert_same model0, di0.explicit['test']
+        end
+
+        it "should use the most-specific model if both DI objects have conflicting selections" do
+            model0.should_receive(:fullfills?).with(model1).and_return(true)
+            model1.should_receive(:fullfills?).with(model0).and_return(false)
+
+            di0, di1 = self.di0.dup, self.di1.dup
+            di0.merge(di1)
+            assert_same model0, di0.explicit['test']
+
+            # Test the other way around
+            di0, di1 = self.di0.dup, self.di1.dup
+            di1.merge(di0)
+            assert_same model0, di1.explicit['test']
+        end
+
+        it "should raise if conflicting selections cannot be resolved" do
+            model0.should_receive(:fullfills?).with(model1).and_return(false)
+            model1.should_receive(:fullfills?).with(model0).and_return(false)
+
+            assert_raises(ArgumentError) do
+                di0.merge(di1)
+            end
+        end
+    end
 end
 
 class TC_DependencyInjection < Test::Unit::TestCase
