@@ -124,7 +124,7 @@ module Syskit
                     end
                 end
 
-                Syskit.conf.deployments['stubs'] << Syskit::Models::ConfiguredDeployment.new(deployment_model, Hash.new)
+                Syskit.conf.deployments['stubs'] << Syskit::Models::ConfiguredDeployment.new('stubs', deployment_model, Hash.new)
                 Syskit.process_servers['stubs'].first.
                     register_deployment_model(deployment_model.orogen_model)
                 deployment_model
