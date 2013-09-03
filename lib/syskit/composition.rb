@@ -119,7 +119,9 @@ module Syskit
                 return if !selected
                 # Check what the child is made of ... We might not have to
                 # return a service
-                task = child_from_role(role)
+                task = find_child_from_role(role)
+                return if !task
+
                 if srv = model.find_child(role).service
                     return selected.service_selection[srv.model].bind(task).as(srv.model)
                 else return task
