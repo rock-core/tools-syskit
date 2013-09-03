@@ -194,7 +194,7 @@ module Syskit
 
                     child_model = Array(child_model)
                     child_model.each do |m|
-                        if !Syskit::Models.is_model?(m)
+                        if !Models.is_model?(m) || m.kind_of?(Models::BoundDataService)
                             raise ArgumentError, "invalid specialization selector #{child} => #{child_model}: #{m} is not a component model or a data service model"
                         end
                     end

@@ -137,7 +137,7 @@ module Syskit
         end
 
         def self.is_model?(m)
-            m.kind_of?(Module) && (m.singleton_class <= Syskit::Models::Base)
+            m.kind_of?(Syskit::Models::Base)
         end
     end
 end
