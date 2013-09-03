@@ -207,7 +207,7 @@ module Syskit
                 if !@resolved_port
                     raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
                 end
-                @writer= @resolved_port.to_orocos_port.writer(policy)
+                @writer = @resolved_port.to_orocos_port.writer(policy)
             end
         end
 
