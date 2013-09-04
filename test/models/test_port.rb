@@ -59,6 +59,17 @@ describe Syskit::Models::Port do
                 out_task_m.out_port.connect_to out_task_m.in_port
             end
         end
+        it "raises WrongPortConnectionTypes if the source and sink are not of the same type" do
+            out_task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end
+            in_task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/int'
+            end
+            assert_raises(Syskit::WrongPortConnectionTypes) do
+                out_task_m.out_port.connect_to in_task_m.in_port
+            end
+        end
     end
 end
 

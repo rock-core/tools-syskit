@@ -704,7 +704,7 @@ module Syskit
         end
 
         # Exception raised when a connection is being created with mismatching
-        # ports (i.e. not input -> output)
+        # port directions
         class WrongPortConnectionDirection < RuntimeError
             attr_reader :source, :sink
             def initialize(source, sink)
@@ -714,6 +714,20 @@ module Syskit
 
             def pretty_print(pp)
                 pp.text "cannot connect #{source} to #{sink}: this is not an output-to-input connection"
+            end
+        end
+
+        # Exception raised when a connection is being created with mismatching
+        # port types
+        class WrongPortConnectionTypes < RuntimeError
+            attr_reader :source, :sink
+            def initialize(source, sink)
+                @source = source
+                @sink = sink
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot connect output port #{source} to input port #{sink}: types mismatch (resp. #{source.type} and #{sink.type})"
             end
         end
 
