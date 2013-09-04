@@ -69,6 +69,7 @@ module Syskit
             # +to_port+ are the names of the ports that have to be disconnected
             # (i.e. strings)
             def compute_connection_changes(tasks)
+                #binding.pry
                 if dry_run?
                     return [], []
                 end
@@ -391,6 +392,7 @@ module Syskit
                     end
 
                     new, removed = compute_connection_changes(main_tasks)
+                    #binding.pry
                     if new
                         debug do
                             debug "  new connections:"
@@ -455,6 +457,7 @@ module Syskit
                         end
                     end
                 end
+                [new, removed]
             end
         end
     end

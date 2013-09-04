@@ -167,7 +167,11 @@ module Syskit
                 if !@resolved_port
                     raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
                 end
-                @reader = @resolved_port.to_orocos_port.reader(policy)
+                @reader = @resolved_port.to_orocos_port
+                if(!reader)
+                    binding.pry
+                end
+                @reader = @reader.reader
             end
         end
 

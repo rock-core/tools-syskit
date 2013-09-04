@@ -1082,6 +1082,23 @@ module Syskit
                     output_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
                     info "saved generated plan into #{output_path}"
                 end
+                file = 0
+                loop do
+                    if !File.exists?("matthias_debug.#{file}.txt")
+                        file = File.new("matthias_debug.#{file}.txt", File::CREAT|File::TRUNC|File::RDWR, 0644)
+                        break
+                    end
+                    file = file +1
+                end
+                
+                binding.pry
+                
+                file.write("Tasks to start\n#{work_plan.tasks_to_start}\n")
+                file.write("Tasks to stop\n#{work_plan.tasks_to_stop}\n")
+                file.write("Tasks to reconfigure\n#{work_plan.tasks_to_reconfigure}\n")
+                file.write("Dataflow changes:\n#{work_plan.changes_in_dataflow}\n")
+                file.close
+                
             end
 
             # Generate the deployment according to the current requirements, and
