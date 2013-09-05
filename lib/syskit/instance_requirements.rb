@@ -398,7 +398,11 @@ module Syskit
                         parts = obj.split('.')
                         first_part = parts.first
                         if !composition_model.has_child?(first_part)
-                            raise "#{first_part} is not a known child of #{composition_model.name}"
+                            children = Hash.new
+                            composition_model.each_child do |name, child|
+                                children[name] = child
+                            end
+                            raise Roby::NoSuchChild.new(composition_model, first_part, children), "#{first_part} is not a known child of #{composition_model.name}"
                         end
                     end
                 end
