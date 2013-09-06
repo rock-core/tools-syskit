@@ -162,6 +162,23 @@ module Syskit
                 additional_edges << [from, to, label]
             end
 
+            def run_dot_with_retries(retry_count, command)
+                retry_count.times do |i|
+                    Tempfile.open('roby_orocos_graphviz') do |io|
+                        dot_graph = yield
+                        io.write dot_graph
+                        io.flush
+
+                        graph = `#{command % [io.path]}`
+                        if $?.exited?
+                            return graph
+                        end
+                        puts "dot crashed, retrying (#{i}/#{retry_count})"
+                    end
+                end
+                nil
+            end
+
             # Generate a svg file representing the current state of the
             # deployment
             def to_file(kind, format, output_io = nil, options = Hash.new)
@@ -174,47 +191,41 @@ module Syskit
                 file_options, display_options = Kernel.filter_options options,
                     :graphviz_tool => "dot"
 
-                Tempfile.open('roby_orocos_graphviz') do |io|
-                    dot_graph = send(kind, display_options)
-                    io.write dot_graph
-                    io.flush
-                    graph = `#{file_options[:graphviz_tool]} -T#{format} #{io.path}`
-                    if !$?.success?
-                        Syskit.debug do
-                            i = 0
-                            pattern = "syskit_graphviz_%i.dot"
-                            while File.file?(pattern % [i])
-                                i += 1
-                            end
-                            path = pattern % [i]
-                            File.open(path, 'w') { |io| io.write dot_graph }
-                            "saved graphviz input in #{path}"
-                        end
-                    end
+                graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -T#{format} %s") do
+                    send(kind, display_options)
+                end
 
-                    if !$?.exited?
-                        STDOUT.puts "Called #{file_options[:graphviz_tool]} -T#{format} #{io.path}"
-                        system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug.png")
-                        f = File.new("Debug.grapth.dot",File::CREAT|File::TRUNC|File::RDWR) 
-                        f.write dot_graph
-                        f.flush
-                        f.close
-                        raise DotCrashError, "dot crashed while trying to generate the graph \
+                if !$?.exited?
+                    system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug.png")
+                    f = File.new("Debug.grapth.dot",File::CREAT|File::TRUNC|File::RDWR) 
+                    f.write dot_graph
+                    f.flush
+                    f.close
+                    raise DotCrashError, "dot crashed while trying to generate the graph \
 the command was \"#{file_options[:graphviz_tool]} -T#{format} #{io.path}\". \
 Instead created an png version with name debug.png in #{Dir.pwd}/debug.png \
 For debuggin the input file (Debug.grapth.dot) for dot was created too"
-                    elsif !$?.success?
-                        raise DotFailedError, "dot reported an error generating the graph"
-                    end
-
-                    if output_io.respond_to?(:to_str)
-                        File.open(output_io, 'w') do |io|
-                            io.puts(graph)
+                elsif !$?.success?
+                    raise DotFailedError, "dot reported an error generating the graph"
+                    Syskit.debug do
+                        i = 0
+                        pattern = "syskit_graphviz_%i.dot"
+                        while File.file?(pattern % [i])
+                            i += 1
                         end
-                    else
-                        output_io.puts(graph)
-                        output_io.flush
+                        path = pattern % [i]
+                        File.open(path, 'w') { |io| io.write dot_graph }
+                        "saved graphviz input in #{path}"
                     end
+                end
+
+                if output_io.respond_to?(:to_str)
+                    File.open(output_io, 'w') do |io|
+                        io.puts(graph)
+                    end
+                else
+                    output_io.puts(graph)
+                    output_io.flush
                 end
             end
 
