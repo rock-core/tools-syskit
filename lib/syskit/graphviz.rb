@@ -433,7 +433,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 # as connections between either two inputs or two outputs
                 plan.find_local_tasks(Component).each do |source_task|
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
-                    next if excluded_models.include?(source_task.model)
+                    next if excluded_models.include?(source_task.concrete_model)
 
                     source_task.model.each_input_port do |port|
                         input_ports[source_task] << port.name
@@ -446,13 +446,13 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
 
                     if !source_task.kind_of?(Composition)
                         source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                            next if excluded_models.include?(sink_task.model)
+                            next if excluded_models.include?(sink_task.concrete_model)
                             connections[[source_task, source_port, sink_port, sink_task]] = policy
                         end
                     end
                     source_task.each_output_connection do |source_port, sink_port, sink_task, policy|
                         next if connections.has_key?([source_port, sink_port, sink_task])
-                        next if excluded_models.include?(sink_task.model)
+                        next if excluded_models.include?(sink_task.concrete_model)
                         next if options[:remove_compositions] && sink_task.kind_of?(Composition)
                         connections[[source_task, source_port, sink_port, sink_task]] = policy
                     end
