@@ -1013,7 +1013,7 @@ module Syskit
             # This method is the entry point for the heavy-lifting, computing
             # the transaction that adapts the current {#real_plan} to the
             # network that provides all the InstanceRequirements
-            def compute_adapted_network(work_plan, requirements, options = Hash.new)
+            def compute_adapted_network(work_plan, options = Hash.new)
                 @timepoints ||= []
 
                 @work_plan = work_plan
