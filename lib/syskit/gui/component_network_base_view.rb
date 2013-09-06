@@ -188,6 +188,12 @@ module Syskit
                 case button_id
                 when /\/show_compositions/
                     config[:remove_compositions] = !new_state
+                when /\/show_logger/
+                    if new_state
+                        config[:excluded_models].delete(Logger::Logger)
+                    else
+                        config[:excluded_models] << Logger::Logger
+                    end
                 when /\/zoom/
                     config[:zoom] += 0.1
                 when /\/unzoom/
