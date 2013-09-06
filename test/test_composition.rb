@@ -24,7 +24,7 @@ describe Syskit::Composition do
             composition_m = Syskit::Composition.new_submodel
             composition_m.add task_m, :as => 'test'
             composition = composition_m.instanciate(plan)
-            composition.remove_dependency(composition_m.test_child)
+            composition.remove_dependency(composition.test_child)
             assert !composition.find_required_composition_child_from_role('test')
         end
         it "returns the task if the composition does not require a service" do
