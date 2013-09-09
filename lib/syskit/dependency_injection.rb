@@ -192,7 +192,7 @@ module Syskit
 
                     if value.respond_to?(:fullfills?)
                         if !value.fullfills?(key)
-                            raise ArgumentError, "found #{value.short_name} as a selection for #{key.short_name}, but #{value.short_name} does not fullfill #{key.short_name}"
+                            raise ArgumentError, "found #{value.short_name}(of class #{value.class}) as a selection for #{key.short_name}, but #{value.short_name} does not fullfill #{key.short_name}"
                         end
                     end
 
@@ -474,9 +474,9 @@ module Syskit
                         value = value.to_instance_requirements
                     else
                         if key
-                            raise ArgumentError, "found #{value} as a selection for #{key}, but only nil,name,component models,components,data service models and bound data services are allowed"
+                            raise ArgumentError, "found #{value}(of class #{value.class}) as a selection for #{key}, but only nil,name,component models,components,data service models and bound data services are allowed"
                         else
-                            raise ArgumentError, "found #{value} as a selection, but only nil,name,component models,components,data service models and bound data services are allowed"
+                            raise ArgumentError, "found #{value}(of class #{value.class}) as a selection, but only nil,name,component models,components,data service models and bound data services are allowed"
                         end
                     end
                 end
