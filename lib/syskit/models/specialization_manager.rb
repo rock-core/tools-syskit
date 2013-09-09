@@ -382,6 +382,13 @@ module Syskit
                 end
             end
 
+            # Class used to give a proper evaluation context to the
+            # specialization blocks
+            #
+            # Its job is to make sure that the composition that is being
+            # modified by the specialization block "looks like" the plain
+            # composition plus the specialization, regardless of all the other
+            # specializations that have been applied
             class SpecializationBlockContext < BasicObject
                 # The final composition model (i.e. the one on which the
                 # specialization is being applied)
@@ -393,6 +400,11 @@ module Syskit
                 #
                 # @return [Models::FacetedAccess]
                 attr_reader :overload_info
+
+                # Representation of a composition child within the block context
+                class Child < Models::FacetedAccess
+                    def child_name; object.child_name end
+                end
 
                 def initialize(model, reference_model)
                     @model, @reference_model =
@@ -419,8 +431,7 @@ module Syskit
                         else
                             child = model.send(m, *args, &block)
                             ref_child = reference_model.send(m, *args, &block)
-                            overload_info[name] = Models::FacetedAccess.new(
-                                child, ref_child)
+                            overload_info[name] = Child.new(child, ref_child)
                         end
                     else model.send(m, *args, &block)
                     end
