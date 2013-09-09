@@ -25,6 +25,10 @@ module Syskit
                 req.as_plan
             end
 
+            def to_instance_requirements
+                new.to_instance_requirements
+            end
+
             # Injects the tasks necessary to deploy #requirements on the plan
             # associated with the given action interface
             #
