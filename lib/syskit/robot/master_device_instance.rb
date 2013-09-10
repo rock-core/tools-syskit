@@ -244,8 +244,14 @@ module Syskit
                 requirements.use_frames(frame_mappings)
             end
 
+	    def prefer_deployed_tasks(hints)
+		requirements.prefer_deployed_tasks(hints)
+		self
+	    end
+
             def use_deployments(hints)
-                requirements.use_deployments(hints)
+                Roby.warn_deprecated "MasterDeviceInstance#use_deployments is deprecated. Use #prefer_deployed_tasks instead"
+                prefer_deployed_tasks(hints)
                 self
             end
 
