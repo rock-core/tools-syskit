@@ -32,7 +32,44 @@ describe Syskit::Coordination::TaskScriptExtension do
             composition_m.add base_srv_m, :as => 'test'
         end
 
-        describe "when mapping ports from services" do
+        describe "mapping ports from services using submodel creation" do
+            def start
+                component = syskit_deploy_task_context(component_m)
+                composition_m = self.composition_m.new_submodel
+                composition_m.overload 'test', component_m
+                composition = composition_m.use('test' => component).instanciate(plan)
+                plan.add_permanent(composition)
+                syskit_start_component(composition)
+                syskit_start_component(component)
+                return composition, component
+            end
+
+            it "gives writer access to input ports mapped from services" do
+                writer = nil
+                composition_m.script do
+                    writer = test_child.base_in_port.writer
+                    begin
+                        test_child.base_in_port.to_component_port
+                    rescue
+                    end
+                end
+                composition, component = start
+                writer.write(10)
+                assert_equal 10, composition.test_child.orocos_task.in.read
+            end
+
+            it "gives reader access to input ports mapped from services" do
+                reader = nil
+                composition_m.script do
+                    reader = test_child.base_out_port.reader
+                end
+                composition, component = start
+                composition.test_child.orocos_task.out.write(10)
+                assert_equal 10, reader.read
+            end
+        end
+
+        describe "mapping ports from services using dependency injection" do
             def start
                 component = syskit_deploy_task_context(component_m)
                 composition = composition_m.use('test' => component).instanciate(plan)

@@ -114,7 +114,7 @@ module Syskit
             # whole task
             #
             # @return [Component,BoundDataService,nil]
-            def find_required_composition_child_from_role(role)
+            def find_required_composition_child_from_role(role, from_model = self.model)
                 selected = child_selection[role]
                 return if !selected
                 # Check what the child is made of ... We might not have to
@@ -122,8 +122,24 @@ module Syskit
                 task = find_child_from_role(role)
                 return if !task
 
-                if srv = model.find_child(role).service
-                    return selected.service_selection[srv.model].bind(task).as(srv.model)
+                target_child_model = from_model.find_child(role)
+                if target_srv = target_child_model.service
+                    service_selections = [selected.service_selection]
+                    child_model = self.model.find_child(role)
+                    while !from_model.fullfills?(child_model.composition_model)
+                        service_selections.unshift child_model.overload_info.service_selection
+                        child_model = child_model.parent_model
+                    end
+                    selected_service_m = service_selections.inject(target_srv.model) do |srv, selections|
+                        if selected_srv = selections[srv]
+                            if task.model <= selected_srv.component_model
+                                selected_srv
+                            else selected_srv.as_real_model.model
+                            end
+                        else break srv
+                        end
+                    end
+                    return selected_service_m.bind(task).as(target_srv.model)
                 else return task
                 end
             end

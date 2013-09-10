@@ -45,7 +45,7 @@ module Syskit
             # @return [nil,Roby::Task]
             def try_resolve(task)
                 if task = composition_model.try_resolve(task)
-                    return task.find_required_composition_child_from_role(child_name)
+                    return task.find_required_composition_child_from_role(child_name, composition_model)
                 end
             end
 

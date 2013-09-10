@@ -46,6 +46,15 @@ describe Syskit::Composition do
             result = composition.find_required_composition_child_from_role('test')
             assert_equal composition.test_child.test1_srv.as(base_srv_m), result
         end
+        it "can map all the way from a parent of the composition model to the actual task" do
+            composition_m = Syskit::Composition.new_submodel
+            composition_m.add base_srv_m, :as => 'test'
+            subcomposition_m = composition_m.new_submodel
+            subcomposition_m.overload 'test', srv_m
+            composition = subcomposition_m.use('test' => task_m.test1_srv).instanciate(plan)
+            result = composition.find_required_composition_child_from_role('test', composition_m)
+            assert_equal composition.test_child.test1_srv.as(base_srv_m), result
+        end
     end
 
     describe "port access" do

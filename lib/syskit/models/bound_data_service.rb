@@ -136,6 +136,10 @@ module Syskit
                 result
             end
 
+            def as_real_model
+                component_model.find_data_service(full_name)
+            end
+
             def fullfilled_model
                 [model]
             end
