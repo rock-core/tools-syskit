@@ -200,7 +200,7 @@ describe Syskit::Component do
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :argument => 10
             task.specialize
             flexmock(task.model).should_receive(:require_dynamic_service).once.
-                with('dyn', :as => 'srv', :slave_of => nil, :argument => 10)
+                with('dyn', :as => 'srv', :argument => 10)
             task.merge(merged_task)
         end
     end
