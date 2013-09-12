@@ -135,7 +135,7 @@ module Syskit
             # It creates a new task from the component model using
             # Component.new, adds it to the plan and returns it.
             def instanciate(plan, context = DependencyInjectionContext.new, arguments = Hash.new)
-                task_arguments, instanciate_arguments = Kernel.
+                task_arguments, _ = Kernel.
                     filter_options arguments, :task_arguments => Hash.new
                 plan.add(task = new(task_arguments[:task_arguments]))
                 task
@@ -856,8 +856,8 @@ module Syskit
 
             def fullfilled_model
                 result = Set.new
-                if m = proxied_task_context_model
-                    m.each_fullfilled_model do |m|
+                if task_m = proxied_task_context_model
+                    task_m.each_fullfilled_model do |m|
                         result << m
                     end
                 end
@@ -871,8 +871,8 @@ module Syskit
 
             def each_required_model
                 return enum_for(:each_required_model) if !block_given?
-                if m = proxied_task_context_model
-                    yield(m)
+                if task_m = proxied_task_context_model
+                    yield(task_m)
                 end
                 proxied_data_services.each do |m|
                     yield(m)
