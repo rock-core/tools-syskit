@@ -640,6 +640,13 @@ module Syskit
                 klass
             end
 
+            def each_fullfilled_model
+                return enum_for(:each_fullfilled_model) if !block_given?
+                super do |m|
+                    yield(m) if !m.respond_to?(:private_specialization?) || !m.private_specialization?
+                end
+            end
+
             # Makes sure this is a private specialized model
             #
             # @return [Model<Component>] calls #specialize, and returns the new

@@ -193,6 +193,12 @@ describe Syskit::Component do
             flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => 'master').once.pass_thru
             task.merge(merged_task)
         end
+        it "can merge a task built from a specialized model into one that is not specialized" do
+            task_m.provides srv_m, :as => 'master'
+            merged_task_m = task_m.specialize
+            plan.add(merged_task = merged_task_m.new)
+            task.merge(merged_task)
+        end
         # This is necessary as the block can do anything, as e.g. create new
         # arguments or events on the task model.
         it "uses #require_dynamic_service to create the new services in order to re-evaluate the block" do
