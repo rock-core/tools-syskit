@@ -1,4 +1,5 @@
 module Syskit
+
     module NetworkGeneration
         module PlanExtension
             attr_accessor :syskit_engine
@@ -19,6 +20,7 @@ module Syskit
             def format_timepoints
                 super + merge_solver.format_timepoints
             end
+            
 
             # The actual plan we are modifying
             attr_reader :real_plan
@@ -1091,14 +1093,32 @@ module Syskit
                     file = file +1
                 end
                 
-                binding.pry
-                
+
                 file.write("Tasks to start\n#{work_plan.tasks_to_start}\n")
                 file.write("Tasks to stop\n#{work_plan.tasks_to_stop}\n")
                 file.write("Tasks to reconfigure\n#{work_plan.tasks_to_reconfigure}\n")
                 file.write("Dataflow changes:\n#{work_plan.changes_in_dataflow}\n")
                 file.close
+              
                 
+                time = Syskit::Realtime.create_plan_iteration
+                work_plan.tasks_to_start.each do |task|
+                    if task.class < Syskit::Component
+                        Syskit::Realtime.add_task_start_point(task,time)
+                    end
+                end
+                work_plan.tasks_to_stop.each do |task|
+                    if task.class < Syskit::Component
+                        Syskit::Realtime.add_task_stop_point(task,time)
+                    end
+                end
+
+#                work_plan.tasks_to_reconfigure.each do |task|
+#                    if task.class < Syskit::Component
+#                        task.model.reconfigure_points =  Array.new if(task.model.reconfigure_points.nil?)
+#                        task.model.reconfigure_points << time
+#                    end
+#                end
             end
 
             # Generate the deployment according to the current requirements, and

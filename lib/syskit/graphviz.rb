@@ -233,6 +233,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
             def relation_to_dot(options = Hash.new)
                 options = Kernel.validate_options options,
                     :accessor => nil,
+                    :remove_logger => true,
                     :dot_edge_mark => "->",
                     :dot_graph_type => 'digraph',
                     :highlights => [],
@@ -255,9 +256,14 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 result << "  node [shape=record,height=.1,fontname=\"Arial\"];"
 
                 all_tasks = ValueSet.new
+                #arr = plan.find_local_tasks(Component).to_a | Syskit::TaskContext.each_submodel.select { |sub| !sub.start_points.nil? }
+               # arr = plan.find_local_tasks(Component).to_a | Syskit::Realtime.known_task_models
 
-                plan.find_local_tasks(Component).each do |task|
+                
+                plan.find_local_tasks(Component).to_a.each do |task|
+                    next if task.name =~ /Logger/ if options[:remove_logger]
                     all_tasks << task
+                    next if !task.respond_to?(options[:accessor])
                     task.send(options[:accessor]) do |child_task, edge_info|
                         label = []
                         options[:displayed_options].each do |key|
@@ -267,8 +273,14 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         result << "  #{task.dot_id} #{options[:dot_edge_mark]} #{child_task.dot_id} [label=\"#{label.join("\\n")}\"];"
                     end
                 end
+                
+                Syskit::Realtime.known_task_models.each do |task|
+                    next if task.name =~ /Logger/ if options[:remove_logger]
+                    all_tasks << task 
+                end
 
                 all_tasks.each do |task|
+                    STDOUT.puts task.name
                     attributes = []
                     task_label = format_task_label(task)
                     label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
@@ -324,18 +336,33 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
             available_task_annotations << 'port_details'
 
             def add_task_info_annotations
-                plan.find_local_tasks(Component).each do |task|
+                #arr = (plan.find_local_tasks(Component).to_a | Syskit::TaskContext.each_submodel.select { |sub| !sub.start_points.nil? })
+                arr = (plan.find_local_tasks(Component).to_a | Syskit::Realtime.known_task_models)
+                arr.each do |task|
+                    model = task
                     arguments = task.arguments.map { |k, v| "#{k}: #{v}" }
-                    task.model.arguments.each do |arg_name|
-                        if !task.arguments.has_key?(arg_name)
-                            arguments << "#{arg_name}: (unset)"
+                    if task.respond_to?("model")
+                        model = task.model 
+                        model.arguments.each do |arg_name|
+                            if !task.arguments.has_key?(arg_name)
+                                arguments << "#{arg_name}: (unset)"
+                            end
                         end
+                        add_task_annotation(task, "Arguments", arguments.sort)
+                    else
+                        add_task_annotation(task, "State", "Stopped")
                     end
-                    add_task_annotation(task, "Arguments", arguments.sort)
-                    add_task_annotation(task, "Roles", task.roles.to_a.sort.join(", "))
+                    add_task_annotation(task, "Roles", task.roles.to_a.sort.join(", ")) if task.respond_to?("roles")
+                    #add_task_annotation(task, "Start Points", model.start_points.sort.join(", ")) if model.start_points
+                    #add_task_annotation(task, "Stop Points", model.stop_points.sort.join(", ")) if model.stop_points
+                    #add_task_annotation(task, "Reconfigure Points", model.reconfigure_points.sort.join(", ")) if model.reconfigure_points
+                    add_task_annotation(task, "Start Points", Syskit::Realtime.start_indexes(model).join(", ")) if Syskit::Realtime.start_indexes(model)
+                    add_task_annotation(task, "Stop Points", Syskit::Realtime.stop_indexes(model).join(", ")) if Syskit::Realtime.stop_indexes(model)
+                    add_task_annotation(task, "Reconfigure Points", Syskit::Realtime.reconfigure_indexes(model).join(", ")) if Syskit::Realtime.reconfigure_indexes(model)
                 end
             end
-            available_task_annotations << 'task_info'
+            
+                available_task_annotations << 'task_info'
 
             def add_connection_policy_annotations
                 plan.find_local_tasks(TaskContext).each do |source_task|
@@ -387,6 +414,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 end
 
                 options = Kernel.validate_options options,
+                    :remove_logger=> false,
                     :remove_compositions => false,
                     :excluded_models => ValueSet.new,
                     :annotations => Set.new,
@@ -416,6 +444,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 # to an input: on compositions, exported ports are represented
                 # as connections between either two inputs or two outputs
                 plan.find_local_tasks(Component).each do |source_task|
+                    next if options[:remove_logger] && source_task.name =~ /Logger/
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
                     next if excluded_models.include?(source_task.model)
 
@@ -642,10 +671,12 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     label << "<TR><TD COLSPAN=\"2\">#{name.join(",")}</TD></TR>"
                 else
                     annotations = Array.new
-                    if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
+                    model = task
+                    model = task.model if task.respond_to?("model")
+                    if model.respond_to?(:is_specialization?) && model.is_specialization?
                         annotations = [["Specialized On", [""]]]
-                        name = task.model.root_model.name || ""
-                        task.model.specialized_children.each do |child_name, child_models|
+                        name = model.root_model.name || ""
+                        model.specialized_children.each do |child_name, child_models|
                             child_models = child_models.map(&:short_name)
                             annotations << [child_name, child_models.shift]
                             child_models.each do |m|
@@ -654,7 +685,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         end
 
                     else
-                        name = task.model.name || ""
+                        name = model.name || ""
                     end
 
                     if task.execution_agent && task.respond_to?(:orocos_name)

@@ -59,6 +59,7 @@ require 'syskit/coordination'
 require 'syskit/models/composition_child'
 
 # Algorithms
+require 'syskit/realtime_usage'
 require 'syskit/connection_graphs'
 require 'syskit/exceptions'
 require 'syskit/robot'
