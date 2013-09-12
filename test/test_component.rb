@@ -193,6 +193,27 @@ describe Syskit::Component do
             flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => 'master').once.pass_thru
             task.merge(merged_task)
         end
+        it "specializes the target task regardless of whether the target model was already specialized" do
+            task_m = self.task_m.new_submodel
+            task_m.provides srv_m, :as => 'master'
+            task_m = task_m.specialize
+            merged_task_m = task_m.specialize
+            merged_task_m.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
+            plan.add(merged_task = merged_task_m.new)
+            plan.add(task = task_m.new)
+            flexmock(task).should_receive(:specialize).once
+            task.merge(merged_task)
+        end
+        it "does not modify its current model unless it is its singleton class" do
+            task_m = self.task_m.new_submodel
+            task_m.provides srv_m, :as => 'master'
+            merged_task_m = task_m.specialize
+            merged_task_m.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
+            plan.add(task = task_m.new)
+            plan.add(merged_task = merged_task_m.new)
+            task.merge(merged_task)
+            assert task_m.each_required_dynamic_service.empty?
+        end
         it "can merge a task built from a specialized model into one that is not specialized" do
             task_m.provides srv_m, :as => 'master'
             merged_task_m = task_m.specialize
