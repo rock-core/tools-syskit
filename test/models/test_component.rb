@@ -383,6 +383,28 @@ describe Syskit::Models::Component do
         end
     end
 
+    describe "#each_dynamic_service" do
+        it "should yield nothing for plain models" do
+            task_m = Syskit::TaskContext.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            task_m.each_required_dynamic_service.empty?
+        end
+
+        it "should yield services instanciated through the dynamic service mechanism" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            dyn_srv_m = task_m.dynamic_service srv_m, :as => 'dyn' do
+                provides srv_m, :as => name
+            end
+            task_m.each_required_dynamic_service.empty?
+            
+            model_m = task_m.new_submodel
+            dyn_srv = model_m.require_dynamic_service 'dyn', :as => 'test'
+            assert_equal [dyn_srv], model_m.each_required_dynamic_service.to_a
+        end
+    end
+
 end
 
 class TC_Models_Component < Test::Unit::TestCase

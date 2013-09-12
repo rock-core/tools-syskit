@@ -430,6 +430,19 @@ module Syskit
                 dynamic_services[arguments[:as]] = DynamicDataService.new(self, arguments[:as], model, block)
             end
 
+            # Enumerates the services that have been created from a dynamic
+            # service using #require_dynamic_service
+            #
+            # @yieldparam [DynamicDataService] srv
+            def each_required_dynamic_service
+                return enum_for(:each_required_dynamic_service) if !block_given?
+                each_data_service do |_, srv|
+                    if srv.respond_to?(:dynamic_service)
+                        yield(srv) 
+                    end
+                end
+            end
+
             # Returns a model specialized from 'self' that has the required
             # dynamic service
             #

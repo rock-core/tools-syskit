@@ -404,10 +404,20 @@ module Syskit
                 bound_service.bind(self)
             end
 
-            def each_dynamic_service
+            # @deprecated has been renamed to {#each_required_dynamic_service}
+            #   for consistency with the model-level method
+            def each_dynamic_service(&block)
+                each_required_dynamic_service(&block)
+            end
+
+            # Yields the data services that have been created through the
+            # dynamic data service mechanism
+            #
+            # @yieldparam [BoundDataService] srv
+            def each_required_dynamic_service
                 return enum_for(:each_dynamic_service) if !block_given?
                 each_data_service do |srv|
-                    if srv.respond_to?(:dynamic_service)
+                    if srv.model.respond_to?(:dynamic_service)
                         yield(srv)
                     end
                 end

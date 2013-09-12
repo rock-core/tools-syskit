@@ -211,6 +211,28 @@ describe Syskit::Component do
         end
     end
 
+    describe "#each_required_dynamic_service" do
+        it "should yield nothing for plain models" do
+            task_m = Syskit::Component.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            assert task_m.new.each_required_dynamic_service.empty?
+        end
+
+        it "should yield services instanciated through the dynamic service mechanism" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.dynamic_service srv_m, :as => 'dyn' do
+                provides srv_m, :as => name
+            end
+
+            model_m = task_m.new_submodel
+            srv = model_m.require_dynamic_service 'dyn', :as => 'test'
+            task = model_m.new
+            assert_equal [srv.bind(task)], task.each_required_dynamic_service.to_a
+        end
+    end
+
     describe "#deployment_hints" do
         it "should return requirements.deployment_hints if it is not empty" do
             task = Syskit::Component.new
