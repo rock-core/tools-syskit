@@ -84,6 +84,13 @@ module Syskit
                 @additional_edges    = Array.new
             end
 
+            def escape_dot(string)
+                string.
+                    gsub(/</, "&lt;").
+                    gsub(/>/, "&gt;").
+                    gsub(/[^&;:\w]/, "_")
+            end
+
             def annotate_tasks(annotations)
                 task_annotations.merge!(annotations) do |_, old, new|
                     old.merge!(new) do |_, old_array, new_array|
@@ -488,8 +495,8 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         style = "style=dashed,"
                     end
 
-                    source_port_id = source_port.gsub(/[^\w]/, '_')
-                    sink_port_id   = sink_port.gsub(/[^\w]/, '_')
+                    source_port_id = escape_dot(source_port)
+                    sink_port_id   = escape_dot(sink_port)
 
                     label = conn_annotations[[source_task, source_port, sink_task, sink_port]].join(",")
                     result << "  #{source_type}#{source_task.dot_id}:#{source_port_id} -> #{sink_type}#{sink_task.dot_id}:#{sink_port_id} [#{style}label=\"#{label}\"];"
@@ -589,7 +596,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 if !input_ports.empty?
                     input_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     input_ports.each do |p|
-                        port_id = p.gsub(/[^\w]/, '_')
+                        port_id = escape_dot(p)
                         ann = format_annotations(port_annotations, [task, p])
                         input_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
@@ -601,7 +608,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 if !output_ports.empty?
                     output_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     output_ports.each do |p|
-                        port_id = p.gsub(/[^\w]/, '_')
+                        port_id = escape_dot(p)
                         ann = format_annotations(port_annotations, [task, p])
                         output_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
@@ -655,7 +662,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     if task.model.superclass != Syskit::TaskContext
                         name = [task.model.superclass.short_name] + name
                     end
-                    label << "<TR><TD COLSPAN=\"2\">#{name.join(",")}</TD></TR>"
+                    label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name.join(","))}</TD></TR>"
                 else
                     annotations = Array.new
                     if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
@@ -676,7 +683,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"
                     end
-                    label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
+                    label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name)}</TD></TR>"
                     ann = format_annotations(annotations)
                     label << ann
                 end
