@@ -88,7 +88,7 @@ module Syskit
                 string.
                     gsub(/</, "&lt;").
                     gsub(/>/, "&gt;").
-                    gsub(/[^&;:\w]/, "_")
+                    gsub(/[^\[\]&;:\w]/, "_")
             end
 
             def annotate_tasks(annotations)
