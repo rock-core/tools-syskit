@@ -160,8 +160,14 @@ module Syskit
                 InstanceRequirements.new([self]).with_arguments(*spec, &block)
             end
 
+            # @deprecated replaced by {prefer_deployed_tasks}
             def use_deployments(*selection)
-                to_instance_requirements.use_deployments(*selection)
+                prefer_deployed_tasks(*selection)
+            end
+
+            # @see InstanceRequirements#prefer_deployed_tasks
+            def prefer_deployed_tasks(*selections)
+                to_instance_requirements.prefer_deployed_tasks(*selections)
             end
 
             # @deprecated
