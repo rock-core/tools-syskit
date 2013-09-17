@@ -25,6 +25,10 @@ module Syskit
                 end
             end
 
+            def to_s
+                name
+            end
+
             # Generates the InstanceRequirements object that represents +self+
             # best
             #

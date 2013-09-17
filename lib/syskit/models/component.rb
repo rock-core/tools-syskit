@@ -641,11 +641,19 @@ module Syskit
             # @return [Model<TaskContext>]
             attr_predicate :private_specialization?, true
 
+            # An ID that represents which specialized model this is
+            def specialization_counter
+                @specialization_counter ||= 0
+                @specialization_counter += 1
+            end
+
             # Creates a private specialization of the current model
             def specialize(name = nil)
                 klass = new_submodel
                 if name
                     klass.name = name
+                else
+                    klass.name = "#{self.name}{#{self.specialization_counter}}"
                 end
                 klass.private_specialization = true
                 klass.private_model
