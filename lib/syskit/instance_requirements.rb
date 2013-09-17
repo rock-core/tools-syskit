@@ -630,7 +630,7 @@ module Syskit
                     end
                     if !arguments.empty?
                         pp.breakable
-                        pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }})"
+                        pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }.join(", ")})"
                     end
                 end
             end
