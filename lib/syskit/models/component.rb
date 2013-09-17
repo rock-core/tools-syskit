@@ -349,7 +349,9 @@ module Syskit
                     return port_name
                 elsif expected_name
                     if !component_port
-                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is not a #{direction} port in #{short_name}"
+                        known_ports = send("each_#{direction}_port").
+                            map { |p| "#{p.name}[#{p.type.name}]" }
+                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is not a #{direction} port in #{short_name}. Known output ports are #{known_ports.sort.join(", ")}"
                     else
                         raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is of type #{component_port.type_name} in #{short_name} and I was expecting #{port.type}"
                     end
