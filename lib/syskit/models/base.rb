@@ -26,7 +26,7 @@ module Syskit
             end
 
             def to_s
-                name
+                name || super
             end
 
             # Generates the InstanceRequirements object that represents +self+
