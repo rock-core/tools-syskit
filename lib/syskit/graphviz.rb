@@ -261,6 +261,9 @@ module Syskit
                     raise ArgumentError, "no :accessor option given"
                 end
 
+                port_annotations.clear
+                task_annotations.clear
+
                 options[:annotations].each do |ann_name|
                     send("add_#{ann_name}_annotations")
                 end
@@ -410,6 +413,9 @@ module Syskit
                     :highlights => Set.new
                 excluded_models = options[:excluded_models]
                     
+                port_annotations.clear
+                task_annotations.clear
+
                 annotations = options[:annotations].to_set
                 annotations.each do |ann|
                     send("add_#{ann}_annotations")
