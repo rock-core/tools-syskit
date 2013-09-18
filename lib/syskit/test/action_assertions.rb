@@ -14,7 +14,7 @@ module Syskit
 
                 engine = Syskit::NetworkGeneration::Engine.new(plan)
                 resolve_options = Hash[:requirement_tasks => requirement_tasks,
-                                       :on_error => :commit].merge(options)
+                                       :on_error => :discard].merge(options)
                 engine.resolve(resolve_options)
             end
 
