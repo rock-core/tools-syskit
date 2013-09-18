@@ -119,7 +119,7 @@ module Syskit
                 end
 
                 task_annotations[task].merge!(name => ann) do |_, old, new|
-                    old.concat(new)
+                    old + new
                 end
             end
 
@@ -147,7 +147,7 @@ module Syskit
             # @return [void]
             def add_port_annotation(task, port_name, name, ann)
                 port_annotations[[task, port_name]].merge!(name => ann) do |_, old, new|
-                    old.concat(new)
+                    old + new
                 end
             end
 
