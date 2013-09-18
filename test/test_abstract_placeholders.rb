@@ -140,5 +140,32 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	proxy = Syskit.proxy_task_model_for(services + [task_model])
         assert_equal [task_model, Syskit::TaskContext, Syskit::Component, Roby::Task, Syskit::DataService, *services].to_set, proxy.each_fullfilled_model.to_set
     end
+
+    def test_merge_removes_duplicate_proxied_data_services
+        srvA_m = Syskit::DataService.new_submodel(:name => 'A')
+        srvB_m = Syskit::DataService.new_submodel(:name => 'B')
+        srvB_m.provides srvA_m
+	proxyA = Syskit.proxy_task_model_for([srvA_m])
+	proxyB = Syskit.proxy_task_model_for([srvB_m])
+        result = proxyA.merge(proxyB)
+        assert_equal [srvB_m], result.proxied_data_services.to_a
+    end
+
+    def test_merge_uses_the_component_model_s_merge_to_determine_the_target_task_model
+        srvA_m = Syskit::DataService.new_submodel(:name => 'A')
+        srvB_m = Syskit::DataService.new_submodel(:name => 'B')
+        srvB_m.provides srvA_m
+
+        taskA_m = Syskit::TaskContext.new_submodel
+        taskB_m = Syskit::TaskContext.new_submodel
+        merged_m = Syskit::TaskContext.new_submodel
+        merged_m.provides srvB_m, :as => 'test'
+        flexmock(taskA_m).should_receive(:merge).with(taskB_m).and_return(merged_m)
+
+	proxyA = Syskit.proxy_task_model_for([taskA_m, srvA_m])
+	proxyB = Syskit.proxy_task_model_for([taskB_m, srvB_m])
+        result = proxyA.merge(proxyB)
+        assert_equal merged_m, result
+    end
 end
 

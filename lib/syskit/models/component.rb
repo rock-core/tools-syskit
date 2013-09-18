@@ -949,8 +949,17 @@ module Syskit
                     return other_model.merge(self)
                 end
 
-                merged = Models.merge_model_lists(each_required_model, other_model.each_required_model)
-                Syskit.proxy_task_model_for(merged)
+                task_model, service_models, other_service_models = superclass, proxied_data_services, []
+                if other_model.respond_to?(:proxied_data_services)
+                    task_model = task_model.merge(other_model.superclass)
+                    other_service_models = other_model.proxied_data_services
+                else
+                    task_model = task_model.merge(other_model)
+                end
+
+                model_list = Models.merge_model_lists([task_model], service_models)
+                model_list = Models.merge_model_lists(model_list, other_service_models)
+                Syskit.proxy_task_model_for(model_list)
             end
 
             def each_output_port
