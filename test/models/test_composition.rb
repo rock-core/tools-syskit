@@ -14,8 +14,8 @@ describe Syskit::Models::Composition do
     end
 
     def create_specialized_model(root_m)
-        block = proc { }
         srv = Syskit::DataService.new_submodel
+        block = proc { provides srv, :as => "#{srv}" }
         root_m.specialize(root_m.srv_child => srv, &block)
         m = root_m.narrow(Syskit::DependencyInjection.new('srv' => srv))
         return m, srv
@@ -855,6 +855,18 @@ describe Syskit::Models::Composition do
             refute_same merged, spec1_m
             union = spec0_m.applied_specializations | spec1_m.applied_specializations
             assert_equal union, merged.applied_specializations
+        end
+        it "simplifies task proxy models when merging one" do
+            spec0_m, srv0_m = create_specialized_model
+            proxy_m = Syskit.proxy_task_model_for([srv0_m])
+            result = spec0_m.merge(proxy_m)
+            assert_equal spec0_m, result
+        end
+        it "simplifies task proxy models when being merged in one" do
+            spec0_m, srv0_m = create_specialized_model
+            proxy_m = Syskit.proxy_task_model_for([srv0_m])
+            result = proxy_m.merge(spec0_m)
+            assert_equal spec0_m, result
         end
     end
 end
