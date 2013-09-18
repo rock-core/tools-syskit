@@ -655,9 +655,15 @@ module Syskit
                 @specialization_counter += 1
             end
 
+            # Called by {Component.specialize} to create the composition model
+            # that will be used for a private specialization
+            def create_private_specialization
+                new_submodel
+            end
+
             # Creates a private specialization of the current model
             def specialize(name = nil)
-                klass = new_submodel
+                klass = create_private_specialization
                 if name
                     klass.name = name
                 else

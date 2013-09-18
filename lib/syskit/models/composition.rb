@@ -99,6 +99,12 @@ module Syskit
             # model graph up to this model
             attribute(:applied_specializations) { Set.new }
 
+            # Called by {Component.specialize} to create the composition model
+            # that will be used for a private specialization
+            def create_private_specialization
+                new_submodel(:register_specializations => false)
+            end
+
             # (see SpecializationManager#specialize)
             def specialize(options = Hash.new, &block)
                 if options.respond_to?(:to_str) || options.empty?
