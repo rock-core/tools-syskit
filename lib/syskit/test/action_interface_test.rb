@@ -56,9 +56,13 @@ module Syskit
             #
             # Note that it passes even though it cannot be deployed (e.g. if some
             # components do not have a corresponding deployment)
-            def self.it_can_instanciate_all
+            def self.it_can_instanciate_all(options = Hash.new)
+                options = Kernel.validate_options options, :except => []
+                exceptions = Array(options.delete(:except)).map(&:model)
                 desc.each_action do |act|
-                    it_can_instanciate act
+                    if !exceptions.include?(act)
+                        it_can_instanciate act
+                    end
                 end
             end
 
@@ -77,9 +81,13 @@ module Syskit
             #
             # It is stronger (and therefore includes)
             # {it_can_instanciate_all}
-            def self.it_can_deploy_all
+            def self.it_can_deploy_all(options = Hash.new)
+                options = Kernel.validate_options options, :except => []
+                exceptions = Array(options.delete(:except)).map(&:model)
                 desc.each_action do |act|
-                    it_can_deploy act
+                    if !exceptions.include?(act)
+                        it_can_deploy act
+                    end
                 end
             end
 
@@ -100,9 +108,13 @@ module Syskit
             #
             # It is stronger (and therefore includes)
             # {it_can_deploy}
-            def self.it_can_configure_all
+            def self.it_can_configure_all(options = Hash.new)
+                options = Kernel.validate_options options, :except => []
+                exceptions = Array(options.delete(:except)).map(&:model)
                 desc.each_action do |act|
-                    it_can_configure act
+                    if !exceptions.include?(act)
+                        it_can_configure act
+                    end
                 end
             end
 
