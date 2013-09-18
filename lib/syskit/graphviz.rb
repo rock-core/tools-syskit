@@ -392,7 +392,7 @@ module Syskit
                     end
                 end
             end
-            available_graph_annotations << 'connection_policy'
+            available_graph_annotations << 'trigger'
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
