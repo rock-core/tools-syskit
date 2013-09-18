@@ -963,6 +963,7 @@ module Syskit
 
                 if options[:register_specializations]
                     specializations.each_specialization do |spec|
+                        next if applied_specializations.include?(spec)
                         spec.specialization_blocks.each do |spec_block|
                             specialized_children = spec.specialized_children.map_key do |child_name, child_model|
                                 submodel.find_child(child_name)
@@ -971,6 +972,7 @@ module Syskit
                         end
                     end
                 end
+                submodel.applied_specializations |= applied_specializations.to_set
                 submodel
             end
 

@@ -18,6 +18,8 @@ module Syskit
                 # This is formatted as
                 # root_model/child_name.is_a?(specialized_list),other_child.is_a?(...)
                 def name
+                    return super if root_model == self
+
                     specializations = self.specialized_children.map do |child_name, child_models|
                         "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
                     end
@@ -25,24 +27,9 @@ module Syskit
                     "#{root_model.short_name}/#{specializations}"
                 end
 
-                # Creates a new composition model that has the same
-                # specializations applied but is different than self
-                def new_submodel(options = Hash.new)
-                    composite_spec = CompositionSpecialization.new
-                    applied_specializations.each do |spec|
-                        composite_spec.merge(spec)
-                    end
-
-                    root_model.specializations.create_specialized_model(
-                        composite_spec, applied_specializations)
-                end
-
-                # It is forbidden to create a submodel of a specialized
-                # composition model by other means than calling #new_submodel
-                #
-                # @raise RuntimeError
                 def setup_submodel(submodel, options = Hash.new)
-                    raise RuntimeError, "one must use #new_submodel to create a submodel of a specialized composition model"
+                    submodel.root_model = submodel
+                    super
                 end
 
                 # Applies the specialization block +block+ on +self+. If +recursive+
@@ -64,6 +51,8 @@ module Syskit
                 # +self+. The generated model is registered on the root model (not
                 # this one)
                 def instanciate_specialization(merged, list)
+                    return super if root_model == self
+
                     applied_specializations.each do |s|
                         merged.merge(s)
                     end
