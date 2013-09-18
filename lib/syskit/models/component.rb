@@ -746,8 +746,11 @@ module Syskit
                     return task_model
                 end
 
-                name = "Syskit::PlaceholderTask<#{self.short_name},#{service_models.map(&:short_name).sort.join(",")}>"
-                model = specialize(name)
+                name_models = service_models.map(&:to_s).sort.join(",")
+                if self != Syskit::Component
+                    name_models = "#{self},#{name_models}"
+                end
+                model = specialize("Syskit::PlaceholderTask<#{name_models}>")
                 model.abstract
                 model.concrete_model = nil
                 model.include PlaceholderTask
