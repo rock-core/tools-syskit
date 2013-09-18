@@ -13,6 +13,14 @@ describe Syskit::Models::Composition do
         return simple_service_model, simple_component_model, simple_composition_model
     end
 
+    def create_specialized_model(root_m)
+        block = proc { }
+        srv = Syskit::DataService.new_submodel
+        root_m.specialize(root_m.srv_child => srv, &block)
+        m = root_m.narrow(Syskit::DependencyInjection.new('srv' => srv))
+        return m, srv
+    end
+
     before do
         create_simple_composition_model
     end
@@ -49,14 +57,6 @@ describe Syskit::Models::Composition do
 
             assert !ds.submodels.include?(subsubmodel)
             assert submodel.submodels.include?(subsubmodel)
-        end
-
-        def create_specialized_model(root_m)
-            block = proc { }
-            srv = Syskit::DataService.new_submodel
-            root_m.specialize(root_m.srv_child => srv, &block)
-            m = root_m.narrow(Syskit::DependencyInjection.new('srv' => srv))
-            return m, srv
         end
 
         it "registers specializations from the parent model to the child model" do
@@ -816,11 +816,7 @@ describe Syskit::Models::Composition do
         end
 
         def create_specialized_model
-            block = proc { }
-            srv = Syskit::DataService.new_submodel
-            root_m.specialize(root_m.srv_child => srv, &block)
-            m = root_m.narrow(Syskit::DependencyInjection.new('srv' => srv))
-            return m, srv
+            super(root_m)
         end
 
         it "says that the submodel of a specialized composition fullfills the specialized composition" do 
@@ -834,6 +830,31 @@ describe Syskit::Models::Composition do
             spec2_m = root_m.narrow(Syskit::DependencyInjection.new('srv' => composite_m))
             assert_equal 2, spec2_m.applied_specializations.size
             assert spec2_m.new_submodel.fullfills?(spec1_m)
+        end
+    end
+    
+    describe "#merge" do
+        attr_reader :root_m
+
+        before do
+            @root_m = Syskit::Composition.new_submodel do
+                add Syskit::DataService.new_submodel, :as => 'srv'
+            end
+        end
+
+        def create_specialized_model
+            super(root_m)
+        end
+
+        it "merges two specialized composition models by creating a specialized submodels on which the union is applied" do
+            spec0_m, _ = create_specialized_model
+            spec1_m, _ = create_specialized_model
+            merged = spec0_m.merge(spec1_m)
+            refute_same merged, root_m
+            refute_same merged, spec0_m
+            refute_same merged, spec1_m
+            union = spec0_m.applied_specializations | spec1_m.applied_specializations
+            assert_equal union, merged.applied_specializations
         end
     end
 end

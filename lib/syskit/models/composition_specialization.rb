@@ -160,6 +160,18 @@ module Syskit
                 end
             end
 
+            # Create a new composition specialization object which is the merge
+            # of all the given specs
+            #
+            # @return [CompositionSpecialization]
+            def self.merge(*specs)
+                composite_spec = CompositionSpecialization.new
+                specs.each do |spec|
+                    composite_spec.merge(spec)
+                end
+                composite_spec
+            end
+
             # Merge the specialization specification of +other_spec+ into
             # +self+
             def merge(other_spec)

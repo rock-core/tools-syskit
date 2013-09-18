@@ -1074,6 +1074,26 @@ module Syskit
                 configurations[name] = mappings
             end
 
+            # Merge two models, making sure that specializations are properly
+            # applied on the result
+            def merge(other_model)
+                needed_specializations = self.applied_specializations
+                if other_model.respond_to?(:root_model)
+                    needed_specializations |= other_model.applied_specializations
+                    other_model = other_model.root_model
+                end
+
+                if needed_specializations.empty?
+                    super(other_model)
+                else
+                    base_model = root_model.merge(other_model)
+                    composite_spec = CompositionSpecialization.
+                        merge(*needed_specializations)
+                    base_model.specializations.create_specialized_model(
+                        composite_spec, needed_specializations)
+                end
+            end
+
             # Reimplemented from Roby::Task to take into account the multiple
             # inheritance mechanisms that is the composition specializations
             def fullfills?(models)
