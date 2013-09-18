@@ -712,7 +712,7 @@ module Syskit
             #
             # The object must define #to_instance_requirements
             module Auto
-                METHODS = [:with_arguments, :use_conf, :use_deployments, :period]
+                METHODS = [:with_arguments, :with_conf, :prefer_deployed_tasks, :use_conf, :use_deployments, :period]
                 METHODS.each do |m|
                     class_eval <<-EOD
                     def #{m}(*args, &block)
