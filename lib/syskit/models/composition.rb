@@ -963,11 +963,11 @@ module Syskit
 
                 if options[:register_specializations]
                     specializations.each_specialization do |spec|
-                        spec.specialization_blocks.each do |block|
+                        spec.specialization_blocks.each do |spec_block|
                             specialized_children = spec.specialized_children.map_key do |child_name, child_model|
                                 submodel.find_child(child_name)
                             end
-                            submodel.specialize(specialized_children, &block)
+                            submodel.specialize(specialized_children, &spec_block)
                         end
                     end
                 end
