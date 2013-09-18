@@ -445,7 +445,7 @@ module Syskit
                 child_composition.root_model = composition_model.root_model
 
                 child_composition.specialized_children.merge!(composite_spec.specialized_children)
-                child_composition.applied_specializations = applied_specializations
+                child_composition.applied_specializations = applied_specializations.to_set
                 composite_spec.compatibilities.each do |single_spec|
                     child_composition.specializations.register(single_spec)
                 end
