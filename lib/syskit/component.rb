@@ -454,7 +454,7 @@ module Syskit
             def to_instance_requirements
                 # Do not use #model here as we don't want a requirement that
                 # uses a specialized model
-                req = self.concrete_model.to_instance_requirements
+                req = self.class.to_instance_requirements
                 req.with_arguments(arguments.assigned_arguments)
                 if required_host
                     req.on_server(required_host) 
