@@ -957,7 +957,7 @@ module Syskit
                         # Nothing to do, we leave the plan as it is
                         result << deployment_task
                     elsif existing_deployment_tasks.size != 1
-                        raise InternalError, "more than one task for #{existing_deployment_task} present in the plan"
+                        raise InternalError, "more than one task for #{deploment_task.process_name} present in the plan: #{existing_deployment_tasks}"
                     else
                         adapt_existing_deployment(deployment_task, existing_deployment_tasks.first)
                         result << existing_deployment_tasks.first
