@@ -203,17 +203,10 @@ module Syskit
                 end
 
                 if !$?.exited?
-                    system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug.png")
-                    f = File.new("Debug.grapth.dot",File::CREAT|File::TRUNC|File::RDWR) 
-                    f.write dot_graph
-                    f.flush
-                    f.close
-                    raise DotCrashError, "dot crashed while trying to generate the graph \
-the command was \"#{file_options[:graphviz_tool]} -T#{format} #{io.path}\". \
-Instead created an png version with name debug.png in #{Dir.pwd}/debug.png \
-For debuggin the input file (Debug.grapth.dot) for dot was created too"
+                    graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -Tpng %s") do
+                        send(kind, display_options)
+                    end
                 elsif !$?.success?
-                    raise DotFailedError, "dot reported an error generating the graph"
                     Syskit.debug do
                         i = 0
                         pattern = "syskit_graphviz_%i.dot"
@@ -221,9 +214,10 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                             i += 1
                         end
                         path = pattern % [i]
-                        File.open(path, 'w') { |io| io.write dot_graph }
+                        File.open(path, 'w') { |io| io.write send(kind, display_options) }
                         "saved graphviz input in #{path}"
                     end
+                    raise DotFailedError, "dot reported an error generating the graph"
                 end
 
                 if output_io.respond_to?(:to_str)
