@@ -16,9 +16,6 @@ module Syskit
                 resolve_options = Hash[:requirement_tasks => requirement_tasks,
                                        :on_error => :commit].merge(options)
                 engine.resolve(resolve_options)
-                plan.static_garbage_collect do |task|
-                    plan.remove_object(task)
-                end
             end
 
             # Tests that the given syskit-generated actions can be instanciated
