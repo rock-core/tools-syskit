@@ -754,6 +754,9 @@ module Syskit
                 model.abstract
                 model.concrete_model = nil
                 model.include PlaceholderTask
+                if self != Syskit::Component
+                    model.proxied_task_context_model = self
+                end
                 model.proxied_data_services = service_models.dup
 		model.fullfilled_model = [self] + model.proxied_data_services.to_a
 
@@ -907,12 +910,7 @@ module Syskit
         module ClassExtension
             attr_accessor :proxied_data_services
 
-            def proxied_task_context_model
-                s = superclass
-                if s != Syskit::Component
-                    s
-                end
-            end
+            attr_accessor :proxied_task_context_model
 
             def to_instance_requirements
                 Syskit::InstanceRequirements.new([self])
@@ -952,9 +950,9 @@ module Syskit
                     return other_model.merge(self)
                 end
 
-                task_model, service_models, other_service_models = superclass, proxied_data_services, []
+                task_model, service_models, other_service_models = (proxied_task_context_model || Syskit::Component), proxied_data_services, []
                 if other_model.respond_to?(:proxied_data_services)
-                    task_model = task_model.merge(other_model.superclass)
+                    task_model = task_model.merge(other_model.proxied_task_context_model || Syskit::Component)
                     other_service_models = other_model.proxied_data_services
                 else
                     task_model = task_model.merge(other_model)
