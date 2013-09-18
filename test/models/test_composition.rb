@@ -51,18 +51,36 @@ describe Syskit::Models::Composition do
             assert submodel.submodels.include?(subsubmodel)
         end
 
-        it "applies specializations from the parent model to the child model" do
-            root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
-            block0 = proc { }
+        def create_specialized_model(root_m)
+            block = proc { }
+            srv = Syskit::DataService.new_submodel
+            root_m.specialize(root_m.srv_child => srv, &block)
+            m = root_m.narrow(Syskit::DependencyInjection.new('srv' => srv))
+            return m, srv
+        end
 
-            srv0 = Syskit::DataService.new_submodel
-            spec0 = root.specialize(root.srv_child => srv0, &block0)
-            block1 = proc { }
-            srv1 = Syskit::DataService.new_submodel
-            spec1 = root.specialize(root.srv_child => srv1, &block1)
+        it "registers specializations from the parent model to the child model" do
+            root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
+            create_specialized_model(root)
+            create_specialized_model(root)
             submodel = root.new_submodel
             assert_equal submodel.specializations.specializations.keys,
                 root.specializations.specializations.keys
+        end
+
+        it "raises if trying to subclass a specialized composition model" do
+            root_m = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
+            spec0_m, srv0_m = create_specialized_model(root_m)
+            assert_raises(RuntimeError) do
+                Class.new(spec0_m)
+            end
+        end
+
+        it "registers specializations applied on the parent model on the child model" do
+            root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
+            specialized_m, _ = create_specialized_model(root)
+            test_m = specialized_m.new_submodel
+            assert_equal specialized_m.applied_specializations, test_m.applied_specializations
         end
     end
 
@@ -785,6 +803,37 @@ describe Syskit::Models::Composition do
                 Syskit::DependencyInjection.new('test' => task_m),
                 :specialization_hints => ['test' => x_srv_m])
             assert_equal [x_spec].to_set, result.applied_specializations
+        end
+    end
+
+    describe "#fullfills?" do
+        attr_reader :root_m
+
+        before do
+            @root_m = Syskit::Composition.new_submodel do
+                add Syskit::DataService.new_submodel, :as => 'srv'
+            end
+        end
+
+        def create_specialized_model
+            block = proc { }
+            srv = Syskit::DataService.new_submodel
+            root_m.specialize(root_m.srv_child => srv, &block)
+            m = root_m.narrow(Syskit::DependencyInjection.new('srv' => srv))
+            return m, srv
+        end
+
+        it "says that the submodel of a specialized composition fullfills the specialized composition" do 
+            spec_m, _ = create_specialized_model
+            assert spec_m.new_submodel.fullfills?(spec_m)
+        end
+        it "says that a specialized composition fullfills another if it has at least the same specializations" do 
+            spec0_m, srv0_m = create_specialized_model
+            spec1_m, srv1_m = create_specialized_model
+            composite_m = Syskit.proxy_task_model_for([srv0_m, srv1_m])
+            spec2_m = root_m.narrow(Syskit::DependencyInjection.new('srv' => composite_m))
+            assert_equal 2, spec2_m.applied_specializations.size
+            assert spec2_m.new_submodel.fullfills?(spec1_m)
         end
     end
 end

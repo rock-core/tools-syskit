@@ -25,6 +25,26 @@ module Syskit
                     "#{root_model.short_name}/#{specializations}"
                 end
 
+                # Creates a new composition model that has the same
+                # specializations applied but is different than self
+                def new_submodel(options = Hash.new)
+                    composite_spec = CompositionSpecialization.new
+                    applied_specializations.each do |spec|
+                        composite_spec.merge(spec)
+                    end
+
+                    root_model.specializations.create_specialized_model(
+                        composite_spec, applied_specializations)
+                end
+
+                # It is forbidden to create a submodel of a specialized
+                # composition model by other means than calling #new_submodel
+                #
+                # @raise RuntimeError
+                def setup_submodel(submodel, options = Hash.new)
+                    raise RuntimeError, "one must use #new_submodel to create a submodel of a specialized composition model"
+                end
+
                 # Applies the specialization block +block+ on +self+. If +recursive+
                 # is true, also applies it on the children of this particular
                 # specialization
