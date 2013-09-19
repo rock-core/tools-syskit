@@ -263,7 +263,12 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 plan.find_local_tasks(Component).to_a.each do |task|
                     next if task.name =~ /Logger/ if options[:remove_logger]
                     all_tasks << task
-                    next if !task.respond_to?(options[:accessor])
+
+                    if !task.respond_to?(options[:accessor])
+                        binding.pry
+                        next
+                    end
+
                     task.send(options[:accessor]) do |child_task, edge_info|
                         label = []
                         options[:displayed_options].each do |key|
@@ -443,7 +448,9 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 # Note that a connection is not guaranteed to be from an output
                 # to an input: on compositions, exported ports are represented
                 # as connections between either two inputs or two outputs
-                plan.find_local_tasks(Component).each do |source_task|
+
+                (plan.find_local_tasks(Component).to_a | Syskit::Realtime.stopped_tasks.to_a).each do |source_task|
+#                plan.find_local_tasks(Component).each do |source_task|
                     next if options[:remove_logger] && source_task.name =~ /Logger/
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
                     next if excluded_models.include?(source_task.model)
@@ -497,8 +504,51 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                             "inputs"
                         end
 
+                    style = String.new 
                     if source_task.kind_of?(Composition) || sink_task.kind_of?(Composition)
                         style = "style=dashed,"
+                    end
+
+                    #TODO Missing connections to NEW tasks
+                    if not Syskit::Realtime.created_connections[source_task.model].nil?
+                        arr = Syskit::Realtime.created_connections[source_task.model].select do |iteration,from,to,ports|
+                            valid = nil
+                            if iteration == Syskit::Realtime.current_iteration and from == source_task and to == sink_task
+                                #binding.pry
+                                ports.each do |from_p,to_p,options|
+                                    if from_p == source_port and to_p == sink_port
+                                        #STDOUT.puts "J---------------------------- VALID-----------------------    #{from}.#{from_p} #{to_p}"
+                                        valid = true
+                                        break
+                                    end
+                                end
+                            end
+                            valid
+                        end
+                        if not arr.empty?
+                            style = style + "color=green,penwidth=5,"
+                        end
+                    end
+                    
+                    #TODO Missing connections to NEW tasks
+                    if not Syskit::Realtime.released_connections[source_task.model].nil?
+                        arr = Syskit::Realtime.released_connections[source_task.model].select do |iteration,from,to,ports|
+                            valid = nil
+                            if iteration == Syskit::Realtime.current_iteration and from == source_task and to == sink_task
+                                #binding.pry
+                                ports.each do |from_p,to_p,options|
+                                    if from_p == source_port and to_p == sink_port
+                                        STDOUT.puts "---------------------------- VALID-----------------------    #{from}.#{from_p} #{to_p}"
+                                        valid = true
+                                        break
+                                    end
+                                end
+                            end
+                            valid
+                        end
+                        if not arr.empty?
+                            style = style + "color=red,penwidth=5,"
+                        end
                     end
 
                     source_port_id = source_port.gsub(/[^\w]/, '_')
@@ -588,6 +638,14 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 result << "        label=\"\";"
                 if task.abstract?
                     result << "      color=\"red\";"
+                end
+                if Syskit::Realtime.was_stopped(task.model)
+                    result << "      color=\"red\";"
+                    result << "      penwidth=\"3\";"
+                end
+                if Syskit::Realtime.was_started(task.model)
+                    result << "      color=\"green\";"
+                    result << "      penwidth=\"3\";"
                 end
                 result << style if style
 

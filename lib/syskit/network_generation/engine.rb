@@ -1084,41 +1084,95 @@ module Syskit
                     output_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
                     info "saved generated plan into #{output_path}"
                 end
-                file = 0
-                loop do
-                    if !File.exists?("matthias_debug.#{file}.txt")
-                        file = File.new("matthias_debug.#{file}.txt", File::CREAT|File::TRUNC|File::RDWR, 0644)
-                        break
-                    end
-                    file = file +1
-                end
-                
 
-                file.write("Tasks to start\n#{work_plan.tasks_to_start}\n")
-                file.write("Tasks to stop\n#{work_plan.tasks_to_stop}\n")
-                file.write("Tasks to reconfigure\n#{work_plan.tasks_to_reconfigure}\n")
-                file.write("Dataflow changes:\n#{work_plan.changes_in_dataflow}\n")
-                file.close
+#                file = 0
+#                loop do
+#                    if !File.exists?("matthias_debug.#{file}.txt")
+#                        file = File.new("matthias_debug.#{file}.txt", File::CREAT|File::TRUNC|File::RDWR, 0644)
+#                        break
+#                    end
+#                    file = file +1
+#                end
+#                
+#
+#                file.write("Tasks to start\n#{work_plan.tasks_to_start}\n")
+#                file.write("Tasks to stop\n#{work_plan.tasks_to_stop}\n")
+#                file.write("Tasks to reconfigure\n#{work_plan.tasks_to_reconfigure}\n")
+#                file.write("Dataflow changes:\n#{work_plan.changes_in_dataflow}\n")
+#                file.close
               
                 
                 time = Syskit::Realtime.create_plan_iteration
+                new = Hash.new
+                
                 work_plan.tasks_to_start.each do |task|
                     if task.class < Syskit::Component
                         Syskit::Realtime.add_task_start_point(task,time)
+                        if task.class < Syskit::TaskContext
+                            task.each_concrete_output_connection do |sink_task, source_port, sink_port|
+                                #TODO Create hint's
+                                Syskit::Realtime.add_connections(task,sink_task,[[source_port,sink_port],nil],time)
+                            end
+                            task.each_concrete_input_connection do |source_task, source_port, sink_port|
+                                #TODO Create conn hint's
+                                Syskit::Realtime.add_connections(source_task,task,[[source_port,sink_port],nil],time)
+                            end
+                        end
                     end
                 end
+
                 work_plan.tasks_to_stop.each do |task|
                     if task.class < Syskit::Component
                         Syskit::Realtime.add_task_stop_point(task,time)
                     end
                 end
 
-#                work_plan.tasks_to_reconfigure.each do |task|
-#                    if task.class < Syskit::Component
-#                        task.model.reconfigure_points =  Array.new if(task.model.reconfigure_points.nil?)
-#                        task.model.reconfigure_points << time
-#                    end
-#                end
+                work_plan.tasks_to_reconfigure.each do |task|
+                    if task.class < Syskit::Component
+                        Syskit::Realtime.add_task_reconfigurarion(task,time)
+                    end
+                end
+                
+                new_edges, removed_edges, updated_edges = work_plan.changes_in_dataflow
+
+                new_edges.each do |source_task, sink_task|
+#                    binding.pry
+                    #                                                       RequiredDataFlow
+                    new[[source_task, sink_task]] = source_task[sink_task, Syskit::Flows::DataFlow]
+                end
+                
+                removed = Hash.new
+                removed_edges.each do |source_task, sink_task|
+#                    binding.pry
+                    #removed[[source_task, sink_task]] = source_task[sink_task, ActualDataFlow].keys.to_set
+                    removed[[source_task, sink_task]] = source_task[sink_task, Syskit::Flows::DataFlow].keys.to_set
+                end
+                
+
+
+                new.to_a.each do |(source,target),conns|
+                    Syskit::Realtime.add_connections(source,target,conns,time)
+                    #conns.each do |(out,inp),info|
+                    #    add_connections(source,target,conns,time)
+                        #binding.pry
+                    #    STDOUT.puts "New connection from #{source.class.name}.#{out} to #{target.class.name}.#{inp}"
+                    #end
+                end
+                
+                removed.to_a.each do |(source,target),conns|
+                    Syskit::Realtime.add_connections(source,target,conns,time)
+                    #conns.each do |(out,inp),info|
+                    #    #binding.pry
+                    #    STDOUT.puts "REMOVED connection from #{source.class.name}.#{out} to #{target.class.name}.#{inp}"
+                    #end
+                end
+
+
+                #TODO Add reconfigured ports
+                
+                #binding.pry
+
+
             end
 
             # Generate the deployment according to the current requirements, and
