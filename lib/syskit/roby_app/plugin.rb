@@ -483,6 +483,8 @@ module Syskit
 
                 Orocos.load_orogen_plugins('syskit')
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROGEN_LIB_DIR))
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROCOSRB_LIB_DIR))
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Typelib::TYPELIB_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(File.expand_path(File.join('..', ".."), File.dirname(__FILE__))))
                 toplevel_object.extend LoadToplevelMethods
             end
