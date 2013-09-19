@@ -427,7 +427,7 @@ module Syskit
                     ensure
                         all_handlers = roby_engine_propagation_handlers
                         handlers.each do |h|
-                            roby_engine.add_propagation_handler(all_handlers[h][1], &all_handlers[h][0])
+                            @handler_ids[h] = roby_engine.add_propagation_handler(all_handlers[h][1], &all_handlers[h][0])
                         end
                     end
                 else yield
