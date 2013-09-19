@@ -68,14 +68,6 @@ describe Syskit::Models::Composition do
                 root.specializations.specializations.keys
         end
 
-        it "raises if trying to subclass a specialized composition model" do
-            root_m = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
-            spec0_m, srv0_m = create_specialized_model(root_m)
-            assert_raises(RuntimeError) do
-                Class.new(spec0_m)
-            end
-        end
-
         it "registers specializations applied on the parent model on the child model" do
             root = Syskit::Composition.new_submodel { add Syskit::DataService.new_submodel, :as => 'srv' }
             specialized_m, _ = create_specialized_model(root)
