@@ -408,26 +408,17 @@ module Syskit
                 end
             end
 
-            def self.run(app)
+
+                end
+
+            def self.prepare(app)
                 if has_local_process_server?
                     connect_to_local_process_server
                 end
 
-                handler_ids = plug_engine_in_roby(Roby.engine)
-
-                yield
-
-            ensure
-                remaining = Orocos.each_process.to_a
-                if !remaining.empty?
-                    Syskit.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
-                    Orocos::Process.kill(remaining)
-                end
-
-                if handler_ids
-                    unplug_engine_from_roby(handler_ids, Roby.engine)
-                end
+                @handler_ids = plug_engine_in_roby(Roby.engine)
             end
+
 
             def self.clear_models(app)
                 Orocos.clear
@@ -447,6 +438,17 @@ module Syskit
             end
 
             def self.cleanup(app)
+                remaining = Orocos.each_process.to_a
+                if !remaining.empty?
+                    Syskit.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
+                    Orocos::Process.kill(remaining)
+                end
+
+                if @handler_ids
+                    unplug_engine_from_roby(@handler_ids.values, Roby.engine)
+                    @handler_ids = nil
+                end
+
                 Syskit.conf.deployments.clear
                 stop_process_servers
                 stop_local_process_server
