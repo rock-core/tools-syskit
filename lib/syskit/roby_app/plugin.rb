@@ -393,12 +393,20 @@ module Syskit
             # machines/servers
             attr_predicate :local_only?, true
 
+            def self.roby_engine_propagation_handlers
+                handlers = Hash.new
+                handlers[:update_deployment_states] = [Runtime.method(:update_deployment_states), :type => :external_events]
+                handlers[:update_task_states] = [Runtime.method(:update_task_states), :type => :external_events]
+                handlers[:update] = [Runtime::ConnectionManagement.method(:update), :type => :propagation, :late => true]
+                handlers[:apply_requirement_modifications] = [Runtime.method(:apply_requirement_modifications), :type => :propagation, :late => true]
+                handlers
+            end
+
             def self.plug_engine_in_roby(roby_engine)
-                handler_ids = []
-                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_deployment_states))
-                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_task_states))
-                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime::ConnectionManagement.method(:update))
-                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime.method(:apply_requirement_modifications))
+                handler_ids = Hash.new
+                roby_engine_propagation_handlers.each do |name, (m, options)|
+                    handler_ids[name] = roby_engine.add_propagation_handler(options, &m)
+                end
                 handler_ids
             end
 
@@ -408,8 +416,23 @@ module Syskit
                 end
             end
 
+            def self.disable_engine_in_roby(roby_engine, *handlers)
+                if @handler_ids
+                    handlers.each do |h|
+                        roby_engine.remove_propagation_handler(@handler_ids.delete(h))
+                    end
 
+                    begin
+                        yield
+                    ensure
+                        all_handlers = roby_engine_propagation_handlers
+                        handlers.each do |h|
+                            roby_engine.add_propagation_handler(all_handlers[h][1], &all_handlers[h][0])
+                        end
+                    end
+                else yield
                 end
+            end
 
             def self.prepare(app)
                 if has_local_process_server?
