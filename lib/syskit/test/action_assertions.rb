@@ -58,6 +58,11 @@ module Syskit
                         if !deployment.running?
                             Syskit::RobyApp::Plugin.disable_engine_in_roby engine, :update_task_states do
                                 deployment.start!
+                            end
+                        end
+
+                        if !deployment.ready?
+                            Syskit::RobyApp::Plugin.disable_engine_in_roby engine, :update_task_states do
                                 assert_event_emission deployment.ready_event
                             end
                         end
