@@ -249,7 +249,7 @@ describe Syskit::Models::SpecializationManager do
             spec0 = Syskit::Models::CompositionSpecialization.new('second' => [srv2])
             spec1 = Syskit::Models::CompositionSpecialization.new('test' => [task_m])
             model = mng.specialized_model(spec0.merge(spec1), [spec0, spec1])
-            assert_equal model.applied_specializations, [spec0, spec1]
+            assert_equal model.applied_specializations, [spec0, spec1].to_set
         end
     end
 
