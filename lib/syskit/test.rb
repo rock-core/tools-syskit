@@ -25,7 +25,7 @@ require 'roby/test/common'
 require 'roby/schedulers/temporal'
 require 'orocos/ruby_process_server'
 
-require 'test/unit'
+require 'test/unit/testcase'
 require 'flexmock/test_unit'
 require 'minitest/spec'
 
