@@ -57,15 +57,6 @@ module Syskit
         def teardown
             super
 
-            if plan
-                deployments = plan.find_tasks(Deployment).running.to_a
-                deployments.each do |task|
-                    if task.orocos_process.alive?
-                        task.orocos_process.kill
-                    end
-                end
-            end
-
             @task_stubs.each do |t|
                 t.dispose
             end
