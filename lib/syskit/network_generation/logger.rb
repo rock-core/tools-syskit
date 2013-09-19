@@ -28,7 +28,7 @@ module Syskit
                 logged_port_type = logged_port.model.orocos_type_name
 
                 metadata = Hash[
-                    'rock_task_model' => logged_task.model.orogen_model.name,
+                    'rock_task_model' => logged_task.concrete_model.orogen_model.name,
                     'rock_task_name' => logged_task.orocos_name,
                     'rock_task_object_name' => logged_port.name,
                     'rock_stream_type' => 'port']
