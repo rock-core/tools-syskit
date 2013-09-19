@@ -9,7 +9,7 @@ module Syskit
                         plan.add_mission(task)
                         task
                     end
-                end
+                end.compact
                 requirement_tasks = requirement_tasks.map(&:planning_task)
 
                 engine = Syskit::NetworkGeneration::Engine.new(plan)
