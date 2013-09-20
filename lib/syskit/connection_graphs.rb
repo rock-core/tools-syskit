@@ -514,7 +514,7 @@ module Syskit
             #   each_output_connection
             def each_input_connection(required_port = nil)
                 if !block_given?
-                    return enum_for(:each_input_connection)
+                    return enum_for(:each_input_connection, required_port)
                 end
 
                 if required_port.respond_to? :name
