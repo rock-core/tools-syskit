@@ -1112,6 +1112,10 @@ module Syskit
                             task.each_concrete_output_connection do |sink_task, source_port, sink_port|
                                 #TODO Create hint's
                                 #@sylvain: how can i get the connection policy of non-created-yet connection?
+                                #@matthias: the information in the transaction
+                                #  gives you that already. Just add the missing
+                                #  fourth argument to the block (it is the
+                                #  policy)
                                 Syskit::Realtime.add_connections(task,sink_task,[[source_port,sink_port],nil],time)
                             end
                             task.each_concrete_input_connection do |source_task, source_port, sink_port|
@@ -1139,14 +1143,24 @@ module Syskit
                 new_edges.each do |source_task, sink_task|
                     #@Sylvain, other modules uses RequiredDataFlow, but if i try this i get an error that 
                     #the node is not within the graph?
-                    #                                                       RequiredDataFlow
+                    #@matthias: RequiredDataFlow is only updated at runtime, and
+                    #  only for the "real plan" (not the transaction). However,
+                    #  you could refactor Runtime::ConnectionManagement so that
+                    #  it can work on any set of graphs / plans. You could then
+                    #  use #update_required_dataflow_graph to compute the
+                    #  required graph for the transaction and then compute the
+                    #  difference between RequiredDataFlow and the transaction's
+                    #  graph. You would then bypass the compositions completely
+                    #  (which is probably what you actually want)
                     new[[source_task, sink_task]] = source_task[sink_task, Syskit::Flows::DataFlow]
                 end
                 
                 removed = Hash.new
                 removed_edges.each do |source_task, sink_task|
                     #@Sylvain same question here, ActualDataFlow does not work
-                    #removed[[source_task, sink_task]] = source_task[sink_task, ActualDataFlow].keys.to_set
+                    #@matthias: ActualDataFlow is really only meaningful for the
+                    #  runtime part of syskit. It stores the connections between
+                    #  the Orocos::Task instances
                     removed[[source_task, sink_task]] = source_task[sink_task, Syskit::Flows::DataFlow].keys.to_set
                 end
                 
