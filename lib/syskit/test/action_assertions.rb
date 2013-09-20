@@ -68,7 +68,12 @@ module Syskit
                         end
                     end
 
-                    task_context.configure
+                    # The task may have been garbage-collected while we were
+                    # starting the deployment ... call #configure only if it is
+                    # not the case
+                    if task_context.plan
+                        task_context.configure
+                    end
                 end
             end
         end
