@@ -788,7 +788,7 @@ module Syskit
             def merge_info(source, sink, current_mappings, additional_mappings)
                 super
 
-                current_mappings.merge(additional_mappings) do |(from, to), old_options, new_options|
+                current_mappings.merge(additional_mappings) do |_, old_options, new_options|
                     Syskit.update_connection_policy(old_options, new_options)
                 end
             end
