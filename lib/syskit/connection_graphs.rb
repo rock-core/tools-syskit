@@ -571,7 +571,12 @@ module Syskit
                                 raise SpecError, "incompatible policies in input chain for #{self}:#{sink_port}: #{e.message}"
                             end
 
-                            yield(source_task, source_port, sink_port, policy)
+                            policy_copy = this_policy.dup
+                            yield(source_task, source_port, sink_port, this_policy)
+                            if policy_copy != this_policy
+                                connection_policy.clear
+                                connection_policy.merge!(this_policy)
+                            end
                         end
                     else
                         yield(source_task, source_port, sink_port, policy)
