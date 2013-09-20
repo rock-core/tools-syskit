@@ -1111,6 +1111,7 @@ module Syskit
                         if task.class < Syskit::TaskContext
                             task.each_concrete_output_connection do |sink_task, source_port, sink_port|
                                 #TODO Create hint's
+                                #@sylvain: how can i get the connection policy of non-created-yet connection?
                                 Syskit::Realtime.add_connections(task,sink_task,[[source_port,sink_port],nil],time)
                             end
                             task.each_concrete_input_connection do |source_task, source_port, sink_port|
@@ -1134,16 +1135,17 @@ module Syskit
                 end
                 
                 new_edges, removed_edges, updated_edges = work_plan.changes_in_dataflow
-
+ 
                 new_edges.each do |source_task, sink_task|
-#                    binding.pry
+                    #@Sylvain, other modules uses RequiredDataFlow, but if i try this i get an error that 
+                    #the node is not within the graph?
                     #                                                       RequiredDataFlow
                     new[[source_task, sink_task]] = source_task[sink_task, Syskit::Flows::DataFlow]
                 end
                 
                 removed = Hash.new
                 removed_edges.each do |source_task, sink_task|
-#                    binding.pry
+                    #@Sylvain same question here, ActualDataFlow does not work
                     #removed[[source_task, sink_task]] = source_task[sink_task, ActualDataFlow].keys.to_set
                     removed[[source_task, sink_task]] = source_task[sink_task, Syskit::Flows::DataFlow].keys.to_set
                 end
@@ -1152,27 +1154,24 @@ module Syskit
 
                 new.to_a.each do |(source,target),conns|
                     Syskit::Realtime.add_connections(source,target,conns,time)
-                    #conns.each do |(out,inp),info|
-                    #    add_connections(source,target,conns,time)
-                        #binding.pry
-                    #    STDOUT.puts "New connection from #{source.class.name}.#{out} to #{target.class.name}.#{inp}"
-                    #end
                 end
                 
                 removed.to_a.each do |(source,target),conns|
-                    Syskit::Realtime.add_connections(source,target,conns,time)
-                    #conns.each do |(out,inp),info|
-                    #    #binding.pry
-                    #    STDOUT.puts "REMOVED connection from #{source.class.name}.#{out} to #{target.class.name}.#{inp}"
-                    #end
+                    #@Sylain now here i got a problem, i got also compositions and not only real-task-connection
+                    #sure i could anyhow by comparing/caching figure it out by my own which connection is what
+                    #is there maybe any kind of function hat resolves a abstract port on composition level
+                    #to the real underlaying task-port?
+                    #
+                    #Also missing are connection between stopped components
+                    #am i right if i can simply call on "every removed_task each_concrete connection
+                    #to figure out the connections between removed tasks
+                    #currently only verticies are known if one (or both) tasks are still in the new-graph
+                    Syskit::Realtime.remove_connections(source,target,conns,time)
                 end
 
 
                 #TODO Add reconfigured ports
                 
-                #binding.pry
-
-
             end
 
             # Generate the deployment according to the current requirements, and

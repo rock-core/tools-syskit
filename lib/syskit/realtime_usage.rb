@@ -57,10 +57,12 @@ module Syskit
         end
         
         def remove_connections(from,to,ports,time)
+            binding.pry if from.kind_of?(Syskit::Composition)
+            binding.pry if to.kind_of?(Syskit::Composition)
             model = from
             model = from.model if from.respond_to?("model")
-            removed_connections[model] = Array.new if removed_connections[model].nil?
-            removed_connections[model] << [time,from,to,ports] 
+            released_connections[model] = Array.new if released_connections[model].nil?
+            released_connections[model] << [time,from,to,ports] 
         end
 
         def add_task_start_point(task, iteration)

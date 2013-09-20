@@ -476,6 +476,21 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         next if options[:remove_compositions] && sink_task.kind_of?(Composition)
                         connections[[source_task, source_port, sink_port, sink_task]] = policy
                     end
+
+                    ####TODO hier add missing connections thar are RELEASED in this cycle and NOT painted yet
+                    if not Syskit::Realtime.released_connections[source_task.model].nil?
+                        Syskit::Realtime.released_connections[source_task.model].each do |iteration,from,to,ports|
+                            #Skip all ports that are not removed within the last cycle
+                            next if iteration != Syskit::Realtime.current_iteration 
+                            ports.each do |source_port,target_port,policy|
+                                STDOUT.puts "Connection removed: ################################## #{from.class.name}.#{source_port} -> #{to.class.name}.#{target_port}"
+                    #            binding.pry
+                                #HACK
+                                connections[[from,source_port,target_port,to]] = {:type=>:data, :init=>false, :pull=>false, :data_size=>0, :size=>0, :lock=>:lock_free, :transport=>0, :name_id=>""} #Hash.new 
+                            end
+                        end
+                    end
+
                 end
 
                 # Register ports that are part of connections, but are not
@@ -488,6 +503,8 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         input_ports[sink_task] << sink_port
                     end
                 end
+
+
 
                 # Finally, emit the dot code for connections
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
@@ -509,7 +526,6 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         style = "style=dashed,"
                     end
 
-                    #TODO Missing connections to NEW tasks
                     if not Syskit::Realtime.created_connections[source_task.model].nil?
                         arr = Syskit::Realtime.created_connections[source_task.model].select do |iteration,from,to,ports|
                             valid = nil
@@ -517,7 +533,6 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                                 #binding.pry
                                 ports.each do |from_p,to_p,options|
                                     if from_p == source_port and to_p == sink_port
-                                        #STDOUT.puts "J---------------------------- VALID-----------------------    #{from}.#{from_p} #{to_p}"
                                         valid = true
                                         break
                                     end
@@ -530,15 +545,28 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         end
                     end
                     
-                    #TODO Missing connections to NEW tasks
                     if not Syskit::Realtime.released_connections[source_task.model].nil?
                         arr = Syskit::Realtime.released_connections[source_task.model].select do |iteration,from,to,ports|
                             valid = nil
-                            if iteration == Syskit::Realtime.current_iteration and from == source_task and to == sink_task
+
+                            
+                            #TODO Sylvain: better way to check
+                            target_compare1 = from == source_task
+                            target_compare2 = to == sink_task
+
+#                            target_compare1 = source_task.child_object?(from) if(source_task.class < Syskit::Composition) and !target_compare1
+#                            target_compare2 = sink_task.child_object?(to) if(sink_task.class < Syskit::Composition) and !target_compare2
+#                            target_compare1 = from.child_object?(source_task) if(from.class < Syskit::Composition) and !target_compare1
+#                            target_compare2 = to.child_object?(sink_task) if(to.class < Syskit::Composition) and !target_compare2
+                            #end hacky
+
+                           
+                            if iteration == Syskit::Realtime.current_iteration and target_compare1 and target_compare2 
+#                                binding.pry if(from.class.name == "AuvRelPosController::Task") 
                                 #binding.pry
                                 ports.each do |from_p,to_p,options|
                                     if from_p == source_port and to_p == sink_port
-                                        STDOUT.puts "---------------------------- VALID-----------------------    #{from}.#{from_p} #{to_p}"
+                                        STDOUT.puts "---------------------------- VALID REMOVED-----------------------    #{from.class.name}.#{from_p} -> #{to.class.name}.#{to_p}"
                                         valid = true
                                         break
                                     end
@@ -551,8 +579,12 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         end
                     end
 
+                    begin
                     source_port_id = source_port.gsub(/[^\w]/, '_')
                     sink_port_id   = sink_port.gsub(/[^\w]/, '_')
+                    rescue Exception => e
+                        binding.pry
+                    end
 
                     label = conn_annotations[[source_task, source_port, sink_task, sink_port]].join(",")
                     result << "  #{source_type}#{source_task.dot_id}:#{source_port_id} -> #{sink_type}#{sink_task.dot_id}:#{sink_port_id} [#{style}label=\"#{label}\"];"
