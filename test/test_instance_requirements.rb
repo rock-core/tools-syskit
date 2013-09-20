@@ -337,6 +337,27 @@ describe Syskit::InstanceRequirements do
             cmp = ir.instanciate(plan)
             assert_equal task_m, cmp.requirements.selections.explicit['test']
         end
+
+        it "adds a barrier to make sure that the models' direct dependencies can only be picked by the direct use() flags" do
+            model_m = Syskit::Composition.new_submodel
+            flexmock(model_m).should_receive(:dependency_injection_names).and_return(%w{child})
+            context = Syskit::DependencyInjectionContext.new(Syskit::DependencyInjection.new('child' => model_m))
+            flexmock(model_m).should_receive(:instanciate).
+                with(any, lambda { |c| !c.current_state.direct_selection_for('child') }, any).
+                once.pass_thru
+            model_m.to_instance_requirements.instanciate(plan, context)
+        end
+
+        it "adds a barrier to make sure that the models' direct dependencies can only be picked by the direct use() flags even if a service is selected" do
+            model_m = Syskit::Composition.new_submodel
+            model_m.provides Syskit::DataService, :as => 'test'
+            flexmock(model_m).should_receive(:dependency_injection_names).and_return(%w{child})
+            context = Syskit::DependencyInjectionContext.new(Syskit::DependencyInjection.new('child' => model_m))
+            flexmock(model_m).should_receive(:instanciate).
+                with(any, lambda { |c| !c.current_state.direct_selection_for('child') }, any).
+                once.pass_thru
+            model_m.test_srv.to_instance_requirements.instanciate(plan, context)
+        end
     end
 
     describe "#unselect_service" do

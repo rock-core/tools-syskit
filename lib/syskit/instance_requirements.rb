@@ -551,17 +551,11 @@ module Syskit
                 # required to avoid recursively reusing names (which was once
                 # upon a time, and is a very confusing feature)
                 barrier = Hash.new
-                model.dependency_injection_names.each do |n|
-                    if !selections.has_selection_for?(n)
-                        barrier[n] = nil
-                    end
-                end
-                selections = self.selections
-                if !barrier.empty?
-                    selections = selections.dup
-                    selections.add_explicit(barrier)
+                task_model.dependency_injection_names.each do |n|
+                    barrier[n] = nil
                 end
                 context.concat(dependency_injection_context)
+                context.push(Syskit::DependencyInjection.new(barrier))
                 context.push(selections)
 
                 arguments = Kernel.normalize_options arguments
