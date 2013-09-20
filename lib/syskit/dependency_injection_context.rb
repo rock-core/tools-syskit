@@ -73,8 +73,9 @@ module Syskit
                 end
             end
 
-            # Pushes the current state of the context. #restore will go back to
-            # this exact state, regardless of the number of #push calls.
+            # Pushes the current state of the context on the save stack.
+            # #restore will go back to this exact state, regardless of the
+            # number of {push} calls, and {pop} will stop at the last savepoint
             #
             # The save/restore mechanism is stack-based, so when doing
             #
@@ -89,9 +90,10 @@ module Syskit
             # @overload save()
             #   adds a savepoint that is going to be restored by the matching
             #   {#restore} call
-            # @overload save { }
+            # @overload save() { }
             #   saves the current state, executes the block and calls {#restore}
             #   when the execution quits the block
+            # @return [void]
             def save
                 if !block_given?
                     @savepoints << stack.size
@@ -181,6 +183,8 @@ module Syskit
 
             # Returns the StackLevel object representing the last added level on
             # the stack
+            #
+            # @return [StackLevel]
             def top
                 stack.last
             end
@@ -190,6 +194,8 @@ module Syskit
             #
             # Will stop at the last saved context (saved with #save). Returns
             # nil in this case
+            #
+            # @return [StackLevel,nil]
             def pop
                 if stack.size == 1
                     return StackLevel.new(DependencyInjection.new, DependencyInjection.new)
