@@ -366,7 +366,7 @@ describe Syskit::Models::SpecializationManager do
         end
         it "applies specializations that are orthogonal from the service selection" do
             task_spec = cmp_m.specialize cmp_m.test_child => task_m
-            selection = Syskit::DependencyInjection.new('test' => task_m).
+            selection, _ = Syskit::DependencyInjection.new('test' => task_m).
                 instance_selection_for('test', cmp_m.test_child)
             selection = Hash['test' => selection]
             result = cmp_m.specializations.

@@ -560,12 +560,15 @@ module Syskit
             # Given a dependency injection context, it computes the models and
             # task instances for each of the composition's children
             #
-            # @return [(Hash<String,InstanceSelection>,Hash<String,InstanceSelection>)] the resolved selections.
+            # @return [(Hash<String,InstanceSelection>,Hash<String,InstanceSelection>,Hash<String,Set>)] the resolved selections.
             #   The first hash is the set of explicitly selected children (i.e.
-            #   selected by name) and the second is all the selections
+            #   selected by name) and the second is all the selections. The last
+            #   returned value is the set keys in context that have been used to
+            #   perform the resolution
             def find_children_models_and_tasks(context)
                 explicit = Hash.new
                 result   = Hash.new
+                used_keys = Hash.new
                 each_child do |child_name, child_requirements|
                     Models.debug do
                         Models.debug "selecting #{child_name}:"
@@ -577,7 +580,8 @@ module Syskit
                         end
                         break
                     end
-                    selected_child = context.instance_selection_for(child_name, child_requirements)
+                    selected_child, used_keys[child_name] =
+                        context.instance_selection_for(child_name, child_requirements)
                     Models.debug do
                         Models.debug "selected"
                         Models.log_nest(2) do
@@ -592,7 +596,7 @@ module Syskit
                     result[child_name] = selected_child
                 end
 
-                return explicit, result
+                return explicit, result, used_keys
             end
 
             # Returns the set of specializations that match the given dependency
@@ -602,7 +606,7 @@ module Syskit
             #   object that is used to determine the selected model
             # @return [Model<Composition>]
             def narrow(context, options = Hash.new)
-                explicit_selections, selected_models =
+                explicit_selections, selected_models, _ =
                     find_children_models_and_tasks(context)
                 find_applicable_specialization_from_selection(explicit_selections, selected_models, options)
             end
@@ -816,7 +820,7 @@ module Syskit
                 # Find what we should use for our children. +explicit_selection+
                 # is the set of children for which a selection existed and
                 # +selected_models+ all the models we should use
-                explicit_selections, selected_models =
+                explicit_selections, selected_models, used_keys =
                     find_children_models_and_tasks(context.current_state)
 
                 if arguments[:specialize]
@@ -836,13 +840,15 @@ module Syskit
                        else Hash.new
                        end
 
+                # This stores the names of the optional children that have not
+                # been set 
                 removed_optional_children = Set.new
 
-                # We need the context without the child selections for the
-                # composition itself. Dup the current context and pop the
-                # composition use flags
-                child_selection_context = context.dup
-                composition_use_flags = child_selection_context.pop
+                # This is the part of the context that is directly associated
+                # with the composition. We use it later to extract by-name
+                # selections for the children of the form
+                # child_name.child_of_child_name
+                composition_use_flags = context.top
 
                 # Finally, instanciate the missing tasks and add them to our
                 # children
@@ -864,9 +870,14 @@ module Syskit
                             resolved_selected_child.selected.use(child_user_selection)
                         end
 
-                        child_task = instanciate_child(plan, child_selection_context,
-                                                       self_task, child_name, resolved_selected_child)
-
+                        child_task = context.save do
+                            # Push a mask for the keys that have been used to
+                            # resolve the child, to avoid infinite recursions
+                            mask = Hash.new
+                            used_keys[child_name].each { |key| mask[key] = nil }
+                            context.push(DependencyInjection.new(mask))
+                            instanciate_child(plan, context, self_task, child_name, resolved_selected_child)
+                        end
                         child_task = child_task.to_task
                         if !arguments[:keep_optional_children] && child_task.abstract? && find_child(child_name).optional?
                             Models.debug "not adding optional child #{child_name}"
