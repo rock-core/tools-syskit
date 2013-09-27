@@ -187,17 +187,23 @@ module Syskit
                         end
                     end
 
-                    if !$?.exited?
-                        STDOUT.puts "Called #{file_options[:graphviz_tool]} -T#{format} #{io.path}"
-                        system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug.png")
-                        f = File.new("Debug.grapth.dot",File::CREAT|File::TRUNC|File::RDWR) 
+                    if !$?.exited? || !ENV['SAVE_DOT'].nil?
+                        name = 0
+                        while File.exists?("Debug.grapth#{name}.dot")
+                            name = name +1
+                        end
+                        #STDOUT.puts "Called #{file_options[:graphviz_tool]} -T#{format} #{io.path}"
+                        system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug#{name}.png")
+                        f = File.new("Debug.grapth#{name}.dot",File::CREAT|File::TRUNC|File::RDWR) 
                         f.write dot_graph
                         f.flush
                         f.close
-                        raise ArgumentError, "dot crashed while trying to generate the graph \
+                        if(ENV['SAVE_DOT'].nil?)
+                            raise ArgumentError, "dot crashed while trying to generate the graph \
 the command was \"#{file_options[:graphviz_tool]} -T#{format} #{io.path}\". \
-Instead created an png version with name debug.png in #{Dir.pwd}/debug.png \
-For debuggin the input file (Debug.grapth.dot) for dot was created too"
+Instead created an png version with name debug#{name}.png in #{Dir.pwd}/debug#{name}.png \
+For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
+                        end
                     elsif !$?.success?
                         raise ArgumentError, "dot reported an error generating the graph"
                     end
@@ -550,7 +556,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                             valid = nil
 
                             
-                            #TODO Sylvain: better way to check
+                            #TODO Sylvain: better way to check, should not needed anymore if i only handle concrete connection
                             target_compare1 = from == source_task
                             target_compare2 = to == sink_task
 
