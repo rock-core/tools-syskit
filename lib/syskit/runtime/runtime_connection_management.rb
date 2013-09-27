@@ -23,24 +23,24 @@ module Syskit
             # we store the concrete connections. We don't try to be smart:
             # remove all tasks that have to be updated and add their connections
             # again
-            def update_required_dataflow_graph(tasks)
+            def self.update_required_dataflow_graph(tasks, data_flow = RequiredDataFlow)
                 seen = ValueSet.new
 
                 # Remove first all tasks. Otherwise, removing some tasks will
                 # also remove the new edges we just added
                 for t in tasks
-                    RequiredDataFlow.remove(t)
+                    data_flow.remove(t)
                 end
 
                 # Create the new connections
                 for t in tasks
                     t.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                         next if seen.include?(source_task)
-                        RequiredDataFlow.add_connections(source_task, t, [source_port, sink_port] => policy)
+                        data_flow.add_connections(source_task, t, [source_port, sink_port] => policy)
                     end
                     t.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
                         next if seen.include?(sink_task)
-                        RequiredDataFlow.add_connections(t, sink_task, [source_port, sink_port] => policy)
+                        data_flow.add_connections(t, sink_task, [source_port, sink_port] => policy)
                     end
                     seen << t
                 end
@@ -99,6 +99,7 @@ module Syskit
                 removed_edges.each do |source_task, sink_task|
                     removed[[source_task, sink_task]] = source_task[sink_task, ActualDataFlow].keys.to_set
                 end
+
 
                 # We have to work on +updated+. The graphs are between tasks,
                 # not between ports because of how ports are handled on both the
