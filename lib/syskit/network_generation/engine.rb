@@ -1142,60 +1142,19 @@ module Syskit
                 
                 new_flow, new_edges, removed_edges, updated_edges = work_plan.changes_in_dataflow
 
-#                binding.pry 
-
                 new_edges.each do |source_task, sink_task, policy|
-                    #@Sylvain, other modules uses RequiredDataFlow, but if i try this i get an error that 
-                    #the node is not within the graph?
-                    #@matthias: RequiredDataFlow is only updated at runtime, and
-                    #  only for the "real plan" (not the transaction). However,
-                    #  you could refactor Runtime::ConnectionManagement so that
-                    #  it can work on any set of graphs / plans. You could then
-                    #  use #update_required_dataflow_graph to compute the
-                    #  required graph for the transaction and then compute the
-                    #  difference between RequiredDataFlow and the transaction's
-                    #  graph. You would then bypass the compositions completely
-                    #  (which is probably what you actually want)
-                    #binding.pry
-                    #new[[source_task, sink_task]] = source_task[sink_task, Syskit::Flows::DataFlow]
-                    #new[[source_task, sink_task]] = source_task[sink_task, new_flow]
-                     
                     Syskit::Realtime.add_connections(source_task,sink_task,policy,time)
 
                 end
                 
                 removed = Hash.new
                 removed_edges.each do |source_task, sink_task,conns|
-                    Syskit::Realtime.remove_connections(source,target,conns,time)
-
-                    #@Sylvain same question here, ActualDataFlow does not work
-                    #@matthias: ActualDataFlow is really only meaningful for the
-                    #  runtime part of syskit. It stores the connections between
-                    #  the Orocos::Task instances
-#                    removed[[source_task, sink_task]] = source_task[sink_task, Syskit::Flows::DataFlow].keys.to_set
+                    Syskit::Realtime.remove_connections(source_task,sink_task,conns,time)
                 end
                 
-
-
- #               new.to_a.each do |(source,target),conns|
-#                    Syskit::Realtime.add_connections(source,target,conns,time)
-  #              end
-                
-#                removed.to_a.each do |(source,target),conns|
-#                    #@Sylain now here i got a problem, i got also compositions and not only real-task-connection
-#                    #sure i could anyhow by comparing/caching figure it out by my own which connection is what
-#                    #is there maybe any kind of function hat resolves a abstract port on composition level
-#                    #to the real underlaying task-port?
-#                    #
-#                    #Also missing are connection between stopped components
-#                    #am i right if i can simply call on "every removed_task each_concrete connection
-#                    #to figure out the connections between removed tasks
-#                    #currently only verticies are known if one (or both) tasks are still in the new-graph
-#                    Syskit::Realtime.remove_connections(source,target,conns,time)
-#                end
-#
-#
-                #TODO Add reconfigured ports
+                updated_edges.each do |source_task, sink_task,conns|
+                    Syskit::Realtime.reconfigured_connetion(source_task,sink_task,conns,time)
+                end
                 
             end
 

@@ -192,7 +192,6 @@ module Syskit
                         while File.exists?("Debug.grapth#{name}.dot")
                             name = name +1
                         end
-                        #STDOUT.puts "Called #{file_options[:graphviz_tool]} -T#{format} #{io.path}"
                         system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug#{name}.png")
                         f = File.new("Debug.grapth#{name}.dot",File::CREAT|File::TRUNC|File::RDWR) 
                         f.write dot_graph
@@ -291,7 +290,6 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                 end
 
                 all_tasks.each do |task|
-                    STDOUT.puts task.name
                     attributes = []
                     task_label = format_task_label(task)
                     label = "  <TABLE ALIGN=\"LEFT\" COLOR=\"white\" BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\">\n#{task_label}</TABLE>"
@@ -488,11 +486,8 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                         Syskit::Realtime.released_connections[source_task.model].each do |iteration,from,to,ports|
                             #Skip all ports that are not removed within the last cycle
                             next if iteration != Syskit::Realtime.current_iteration 
-                            ports.each do |source_port,target_port,policy|
-                                STDOUT.puts "Connection removed: ################################## #{from.class.name}.#{source_port} -> #{to.class.name}.#{target_port}"
-                    #            binding.pry
-                                #HACK
-                                connections[[from,source_port,target_port,to]] = {:type=>:data, :init=>false, :pull=>false, :data_size=>0, :size=>0, :lock=>:lock_free, :transport=>0, :name_id=>""} #Hash.new 
+                            ports.each do |(source_port,target_port),policy|
+                                connections[[from,source_port,target_port,to]] = policy 
                             end
                         end
                     end
@@ -532,6 +527,7 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                         style = "style=dashed,"
                     end
 
+
                     if not Syskit::Realtime.created_connections[source_task.model].nil?
                         arr = Syskit::Realtime.created_connections[source_task.model].select do |iteration,from,to,ports|
                             valid = nil
@@ -551,28 +547,14 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                         end
                     end
                     
+                    
                     if not Syskit::Realtime.released_connections[source_task.model].nil?
                         arr = Syskit::Realtime.released_connections[source_task.model].select do |iteration,from,to,ports|
                             valid = nil
-
                             
-                            #TODO Sylvain: better way to check, should not needed anymore if i only handle concrete connection
-                            target_compare1 = from == source_task
-                            target_compare2 = to == sink_task
-
-#                            target_compare1 = source_task.child_object?(from) if(source_task.class < Syskit::Composition) and !target_compare1
-#                            target_compare2 = sink_task.child_object?(to) if(sink_task.class < Syskit::Composition) and !target_compare2
-#                            target_compare1 = from.child_object?(source_task) if(from.class < Syskit::Composition) and !target_compare1
-#                            target_compare2 = to.child_object?(sink_task) if(to.class < Syskit::Composition) and !target_compare2
-                            #end hacky
-
-                           
-                            if iteration == Syskit::Realtime.current_iteration and target_compare1 and target_compare2 
-#                                binding.pry if(from.class.name == "AuvRelPosController::Task") 
-                                #binding.pry
-                                ports.each do |from_p,to_p,options|
+                            if iteration == Syskit::Realtime.current_iteration and (from == source_task) and (to == sink_task) 
+                                ports.each do |(from_p,to_p),options|
                                     if from_p == source_port and to_p == sink_port
-                                        STDOUT.puts "---------------------------- VALID REMOVED-----------------------    #{from.class.name}.#{from_p} -> #{to.class.name}.#{to_p}"
                                         valid = true
                                         break
                                     end
@@ -581,7 +563,29 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                             valid
                         end
                         if not arr.empty?
-                            style = style + "color=red,penwidth=5,"
+                            if(style.include?("color=green"))
+                                style.sub!("green","yellow")
+                            else
+                                style = style + "color=red,penwidth=5,"
+                            end
+                        end
+                    end
+                    
+                    if not Syskit::Realtime.reconfigured_connections[source_task.model].nil?
+                        arr = Syskit::Realtime.reconfigured_connections[source_task.model].select do |iteration,from,to,ports|
+                            valid = nil
+                            if iteration == Syskit::Realtime.current_iteration and from == source_task and to == sink_task
+                                ports.each do |from_p,to_p,options|
+                                    if from_p == source_port and to_p == sink_port
+                                        valid = true
+                                        break
+                                    end
+                                end
+                            end
+                            valid
+                        end
+                        if not arr.empty?
+                            style = style + "color=blue,penwidth=5,"
                         end
                     end
 
@@ -677,14 +681,25 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                 if task.abstract?
                     result << "      color=\"red\";"
                 end
+                stopped = false
                 if Syskit::Realtime.was_stopped(task.model)
-                    result << "      color=\"red\";"
                     result << "      penwidth=\"3\";"
+                    stopped = true
                 end
+                started = false
                 if Syskit::Realtime.was_started(task.model)
-                    result << "      color=\"green\";"
+                    started = true
                     result << "      penwidth=\"3\";"
                 end
+                
+                if stopped and started
+                    result << "      color=\"yellow\";"
+                elsif stopped
+                    result << "      color=\"red\";"
+                elsif started 
+                    result << "      color=\"green\";"
+                end
+
                 result << style if style
 
                 additional_vertices[task].each do |vertex_name, vertex_label|

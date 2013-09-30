@@ -65,6 +65,15 @@ module Syskit
             released_connections[model] << [time,from,to,ports] 
         end
 
+        def reconfigured_connetion(from,to,ports,time)
+            binding.pry if from.kind_of?(Syskit::Composition)
+            binding.pry if to.kind_of?(Syskit::Composition)
+            model = from
+            model = from.model if from.respond_to?("model")
+            reconfigured_connections[model] = Array.new if released_connections[model].nil?
+            reconfigured_connections[model] << [time,from,to,ports] 
+        end
+
         def add_task_start_point(task, iteration)
             add_task_to_runtime_change(@start_points,task,iteration)
         end
