@@ -4,6 +4,8 @@ module Syskit
     class InstanceRequirementsTask < Roby::Task
         terminates
 
+        provides Roby::Interface::Job
+
         # The instance that should be added to the network
         #
         # @return [InstanceRequirements]
