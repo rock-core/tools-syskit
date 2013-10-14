@@ -11,6 +11,11 @@ module Syskit
             COLOR_PALETTE[@current_color]
         end
         @current_color = 0
+        
+        # Exception raised when the dot subprocess crashes in the Graphviz class
+        class DotCrashError < RuntimeError; end
+        # Exception raised when the dot subprocess reported a failure in the Graphviz class
+        class DotFailedError < RuntimeError; end
 
         # General support to export a generated plan into a dot-compatible
         # format
@@ -79,6 +84,13 @@ module Syskit
                 @additional_edges    = Array.new
             end
 
+            def escape_dot(string)
+                string.
+                    gsub(/</, "&lt;").
+                    gsub(/>/, "&gt;").
+                    gsub(/[^\[\]&;:\w]/, "_")
+            end
+
             def annotate_tasks(annotations)
                 task_annotations.merge!(annotations) do |_, old, new|
                     old.merge!(new) do |_, old_array, new_array|
@@ -107,7 +119,7 @@ module Syskit
                 end
 
                 task_annotations[task].merge!(name => ann) do |_, old, new|
-                    old.concat(new)
+                    old + new
                 end
             end
 
@@ -135,7 +147,7 @@ module Syskit
             # @return [void]
             def add_port_annotation(task, port_name, name, ann)
                 port_annotations[[task, port_name]].merge!(name => ann) do |_, old, new|
-                    old.concat(new)
+                    old + new
                 end
             end
 
@@ -157,6 +169,23 @@ module Syskit
                 additional_edges << [from, to, label]
             end
 
+            def run_dot_with_retries(retry_count, command)
+                retry_count.times do |i|
+                    Tempfile.open('roby_orocos_graphviz') do |io|
+                        dot_graph = yield
+                        io.write dot_graph
+                        io.flush
+
+                        graph = `#{command % [io.path]}`
+                        if $?.exited?
+                            return graph
+                        end
+                        puts "dot crashed, retrying (#{i}/#{retry_count})"
+                    end
+                end
+                nil
+            end
+
             # Generate a svg file representing the current state of the
             # deployment
             def to_file(kind, format, output_io = nil, options = Hash.new)
@@ -169,23 +198,27 @@ module Syskit
                 file_options, display_options = Kernel.filter_options options,
                     :graphviz_tool => "dot"
 
-                Tempfile.open('roby_orocos_graphviz') do |io|
-                    dot_graph = send(kind, display_options)
-                    io.write dot_graph
-                    io.flush
-                    graph = `#{file_options[:graphviz_tool]} -T#{format} #{io.path}`
-                    if !$?.success?
-                        Syskit.debug do
-                            i = 0
-                            pattern = "syskit_graphviz_%i.dot"
-                            while File.file?(pattern % [i])
-                                i += 1
-                            end
-                            path = pattern % [i]
-                            File.open(path, 'w') { |io| io.write dot_graph }
-                            "saved graphviz input in #{path}"
-                        end
+                graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -T#{format} %s") do
+                    send(kind, display_options)
+                end
+
+                if !$?.exited?
+                    graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -Tpng %s") do
+                        send(kind, display_options)
                     end
+                elsif !$?.success?
+                    Syskit.debug do
+                        i = 0
+                        pattern = "syskit_graphviz_%i.dot"
+                        while File.file?(pattern % [i])
+                            i += 1
+                        end
+                        path = pattern % [i]
+                        File.open(path, 'w') { |io| io.write send(kind, display_options) }
+                        "saved graphviz input in #{path}"
+                    end
+                    raise DotFailedError, "dot reported an error generating the graph"
+                end
 
                     if !$?.exited? || !ENV['SAVE_DOT'].nil?
                         name = 0
@@ -214,8 +247,6 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                     else
                         output_io.puts(graph)
                         output_io.flush
-                    end
-                end
             end
 
             COLORS = {
@@ -249,6 +280,9 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                 if !options[:accessor]
                     raise ArgumentError, "no :accessor option given"
                 end
+
+                port_annotations.clear
+                task_annotations.clear
 
                 options[:annotations].each do |ann_name|
                     send("add_#{ann_name}_annotations")
@@ -411,7 +445,7 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                     end
                 end
             end
-            available_graph_annotations << 'connection_policy'
+            available_graph_annotations << 'trigger'
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
@@ -430,6 +464,9 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                     :highlights => Set.new
                 excluded_models = options[:excluded_models]
                     
+                port_annotations.clear
+                task_annotations.clear
+
                 annotations = options[:annotations].to_set
                 annotations.each do |ann|
                     send("add_#{ann}_annotations")
@@ -457,7 +494,7 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
 #                plan.find_local_tasks(Component).each do |source_task|
                     next if options[:remove_logger] && source_task.name =~ /Logger/
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
-                    next if excluded_models.include?(source_task.model)
+                    next if excluded_models.include?(source_task.concrete_model)
 
                     source_task.model.each_input_port do |port|
                         input_ports[source_task] << port.name
@@ -470,13 +507,13 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
 
                     if !source_task.kind_of?(Composition)
                         source_task.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                            next if excluded_models.include?(sink_task.model)
+                            next if excluded_models.include?(sink_task.concrete_model)
                             connections[[source_task, source_port, sink_port, sink_task]] = policy
                         end
                     end
                     source_task.each_output_connection do |source_port, sink_port, sink_task, policy|
                         next if connections.has_key?([source_port, sink_port, sink_task])
-                        next if excluded_models.include?(sink_task.model)
+                        next if excluded_models.include?(sink_task.concrete_model)
                         next if options[:remove_compositions] && sink_task.kind_of?(Composition)
                         connections[[source_task, source_port, sink_port, sink_task]] = policy
                     end
@@ -526,7 +563,6 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                     if source_task.kind_of?(Composition) || sink_task.kind_of?(Composition)
                         style = "style=dashed,"
                     end
-
 
                     if not Syskit::Realtime.created_connections[source_task.model].nil?
                         arr = Syskit::Realtime.created_connections[source_task.model].select do |iteration,from,to,ports|
@@ -590,8 +626,8 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                     end
 
                     begin
-                    source_port_id = source_port.gsub(/[^\w]/, '_')
-                    sink_port_id   = sink_port.gsub(/[^\w]/, '_')
+                    source_port_id = escape_dot(source_port)
+                    sink_port_id   = escape_dot(sink_port)
                     rescue Exception => e
                         binding.pry
                     end
@@ -713,7 +749,7 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                 if !input_ports.empty?
                     input_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     input_ports.each do |p|
-                        port_id = p.gsub(/[^\w]/, '_')
+                        port_id = escape_dot(p)
                         ann = format_annotations(port_annotations, [task, p])
                         input_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
@@ -725,7 +761,7 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                 if !output_ports.empty?
                     output_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     output_ports.each do |p|
-                        port_id = p.gsub(/[^\w]/, '_')
+                        port_id = escape_dot(p)
                         ann = format_annotations(port_annotations, [task, p])
                         output_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
@@ -779,7 +815,7 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                     if task.model.superclass != Syskit::TaskContext
                         name = [task.model.superclass.short_name] + name
                     end
-                    label << "<TR><TD COLSPAN=\"2\">#{name.join(",")}</TD></TR>"
+                    label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name.join(","))}</TD></TR>"
                 else
                     annotations = Array.new
                     model = task
@@ -802,7 +838,7 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"
                     end
-                    label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
+                    label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name)}</TD></TR>"
                     ann = format_annotations(annotations)
                     label << ann
                 end

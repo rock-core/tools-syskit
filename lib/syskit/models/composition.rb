@@ -99,6 +99,12 @@ module Syskit
             # model graph up to this model
             attribute(:applied_specializations) { Set.new }
 
+            # Called by {Component.specialize} to create the composition model
+            # that will be used for a private specialization
+            def create_private_specialization
+                new_submodel(:register_specializations => false)
+            end
+
             # (see SpecializationManager#specialize)
             def specialize(options = Hash.new, &block)
                 if options.respond_to?(:to_str) || options.empty?
@@ -769,11 +775,13 @@ module Syskit
                 while !remaining_children_models.empty?
                     current_size = remaining_children_models.size
                     remaining_children_models.delete_if do |child_name, selected_child|
+                        selected_child = selected_child.dup
+
                         if selected_child.selected.fullfills?(Syskit::Composition)
                             # Check if selected_child points to another child of
                             # self, and if it is the case, make sure it is available
-                            selected_child = selected_child.dup
-                            all_done = selected_child.selected.map_use_selections! do |sel|
+                            resolved_selected_child = selected_child.dup
+                            all_done = resolved_selected_child.selected.map_use_selections! do |sel|
                                 if sel.kind_of?(CompositionChild)
                                     if task = sel.try_resolve(self_task)
                                         task
@@ -794,11 +802,13 @@ module Syskit
                                     child_user_selection[$1] = sel
                                 end
                             end
+                            resolved_selected_child.selected.use(child_user_selection)
                             selected_child.selected.use(child_user_selection)
+                        else resolved_selected_child = selected_child
                         end
 
                         child_task = instanciate_child(plan, child_selection_context,
-                                                       self_task, child_name, selected_child)
+                                                       self_task, child_name, resolved_selected_child)
 
                         child_task = child_task.to_task
                         if !arguments[:keep_optional_children] && child_task.abstract? && find_child(child_name).optional?
@@ -959,14 +969,16 @@ module Syskit
 
                 if options[:register_specializations]
                     specializations.each_specialization do |spec|
-                        spec.specialization_blocks.each do |block|
+                        next if applied_specializations.include?(spec)
+                        spec.specialization_blocks.each do |spec_block|
                             specialized_children = spec.specialized_children.map_key do |child_name, child_model|
                                 submodel.find_child(child_name)
                             end
-                            submodel.specialize(specialized_children, &block)
+                            submodel.specialize(specialized_children, &spec_block)
                         end
                     end
                 end
+                submodel.applied_specializations |= applied_specializations.to_set
                 submodel
             end
 
@@ -1066,6 +1078,38 @@ module Syskit
                     end
                 end
                 configurations[name] = mappings
+            end
+
+            # Merge two models, making sure that specializations are properly
+            # applied on the result
+            def merge(other_model)
+                needed_specializations = self.applied_specializations
+                if other_model.respond_to?(:root_model)
+                    needed_specializations |= other_model.applied_specializations
+                    other_model = other_model.root_model
+                end
+
+                if needed_specializations.empty?
+                    super(other_model)
+                else
+                    base_model = root_model.merge(other_model)
+                    # If base_model is a proxy task model, we apply the
+                    # specialization on the proper composition model and then
+                    # re-proxy it
+                    base_model, services = base_model, []
+                    if base_model.respond_to?(:proxied_data_services)
+                        base_model, services = base_model.proxied_task_context_model, base_model.proxied_data_services
+                    end
+
+                    composite_spec = CompositionSpecialization.
+                        merge(*needed_specializations)
+                    result = base_model.specializations.specialized_model(
+                        composite_spec, needed_specializations)
+                    # The specializations might have added some services to the
+                    # task model. Remote those first
+                    services.delete_if { |s| result.fullfills?(s) }
+                    Syskit.proxy_task_model_for([result] + services.to_a)
+                end
             end
 
             # Reimplemented from Roby::Task to take into account the multiple

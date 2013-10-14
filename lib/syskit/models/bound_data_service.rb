@@ -2,6 +2,7 @@ module Syskit
     module Models
         # Representation of a data service as provided by a component model
         class BoundDataService
+            include Models::Base
             include Models::PortAccess
 
             # The task model which provides this service
@@ -133,6 +134,10 @@ module Syskit
                 result.instance_variable_set(:@port_mappings, mappings)
                 result.ports.clear
                 result
+            end
+
+            def as_real_model
+                component_model.find_data_service(full_name)
             end
 
             def fullfilled_model

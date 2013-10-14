@@ -203,7 +203,9 @@ module Syskit
                 end
                 # Load configuration directories
                 app.find_dirs('config', 'orogen', 'ROBOT', :order => :specific_last, :all => true).each do |dir|
-                    Orocos.conf.load_dir(dir)
+                    app.isolate_load_errors("could not load oroGen configuration files in #{dir}") do
+                        Orocos.conf.load_dir(dir)
+                    end
                 end
 
                 Syskit.process_servers.each do |name, (client, log_dir)|

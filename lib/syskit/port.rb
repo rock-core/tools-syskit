@@ -211,7 +211,7 @@ module Syskit
                 if !@resolved_port
                     raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
                 end
-                @writer= @resolved_port.to_orocos_port.writer(policy)
+                @writer = @resolved_port.to_orocos_port.writer(policy)
             end
         end
 
@@ -220,7 +220,11 @@ module Syskit
         end
 
         def write(sample) 
-            writer.write(sample) if writer
+            if writer
+                writer.write(sample)
+            else
+                Typelib.from_ruby(sample, port.type)
+            end
         end
 
         def new_sample

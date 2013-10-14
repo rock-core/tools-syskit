@@ -31,6 +31,7 @@ module Syskit
                     :remove_logger => true,
                     :remove_compositions => true,
                     :annotations => ['task_info'].to_set,
+                    :excluded_models => Set.new,
                     :zoom => 1
                 ]
 
@@ -39,10 +40,15 @@ module Syskit
                                       :on_text => 'Show compositions',
                                       :off_text => 'Hide compositions',
                                       :state => !dataflow_options[:remove_compositions])
-                buttons << Button.new("dataflow/show_loggers",
-                                      :on_text => 'Show loggers',
-                                      :off_text => 'Hide loggers',
-                                      :state => !dataflow_options[:remove_loggers])
+
+                if defined? ::Logger::Logger
+                    dataflow_options[:excluded_models] << ::Logger::Logger
+                    buttons << Button.new("dataflow/show_loggers",
+                                          :on_text => 'Show loggers',
+                                          :off_text => 'Hide loggers',
+                                          :state => false)
+                end
+
                 buttons.concat(self.class.common_graph_buttons('dataflow'))
                 buttons.concat(self.class.task_annotation_buttons('dataflow', dataflow_options[:annotations]))
                 buttons.concat(self.class.graph_annotation_buttons('dataflow', dataflow_options[:annotations]))

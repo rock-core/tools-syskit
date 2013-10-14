@@ -75,6 +75,8 @@ module Syskit
                             raise WrongPortConnectionDirection.new(self, in_port), "cannot connect #{out_port} to #{in_port}: #{in_port} is not an input port"
                         elsif out_port.component_model == in_port.component_model
                             raise SelfConnection.new(out_port, in_port), "cannot connect #{out_port} to #{in_port}: they are both ports of the same component"
+                        elsif out_port.type != in_port.type
+                            raise WrongPortConnectionTypes.new(self, in_port), "cannot connect #{out_port} to #{in_port}: types mismatch"
                         end
 
                         component_model.connect_ports(in_port.component_model, [out_port.name, in_port.name] => policy)

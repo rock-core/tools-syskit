@@ -84,6 +84,7 @@ if annotations.empty?
 end
 
 Roby.app.using_plugins 'syskit'
+Roby.app.ignore_all_load_errors = true
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
 

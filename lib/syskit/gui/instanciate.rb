@@ -107,10 +107,14 @@ module Syskit
                     requirement_tasks = actions.map do |action_name|
                         action_name = action_name.gsub(/!$/, '')
                         _, act = ::Robot.action_from_name(action_name)
-                        if !act.respond_to?(:requirements)
+
+                        # Instanciate the action, and find out if it is actually
+                        # a syskit-centric action or not
+                        task = act.instanciate(plan)
+                        if !(planner = task.planning_task) || !planner.respond_to?(:requirements)
                             raise ArgumentError, "#{action_name} is not an action created from a Syskit definition or device"
                         end
-                        plan.add_mission(task = act.requirements.as_plan)
+                        plan.add_mission(task)
                         task
                     end
                     permanent.each do |req|

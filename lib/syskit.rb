@@ -27,7 +27,6 @@ require 'syskit/models/dynamic_data_service'
 require 'syskit/models/component'
 require 'syskit/models/bound_data_service'
 require 'syskit/models/bound_dynamic_data_service'
-require 'syskit/models/specialization_manager'
 require 'syskit/models/composition_specialization'
 require 'syskit/models/composition'
 require 'syskit/models/task_context'
@@ -48,6 +47,8 @@ require 'syskit/dependency_injection'
 require 'syskit/dependency_injection_context'
 require 'syskit/instance_selection'
 require 'syskit/models/faceted_access'
+
+require 'syskit/models/specialization_manager'
 
 # Actions
 require 'syskit/actions'

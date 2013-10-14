@@ -249,7 +249,7 @@ describe Syskit::Models::SpecializationManager do
             spec0 = Syskit::Models::CompositionSpecialization.new('second' => [srv2])
             spec1 = Syskit::Models::CompositionSpecialization.new('test' => [task_m])
             model = mng.specialized_model(spec0.merge(spec1), [spec0, spec1])
-            assert_equal model.applied_specializations, [spec0, spec1]
+            assert_equal model.applied_specializations, [spec0, spec1].to_set
         end
     end
 
@@ -423,7 +423,8 @@ describe Syskit::Models::SpecializationManager do
             m = root.specializations.create_specialized_model(spec2, [spec2])
             assert_equal [spec1], m.specializations.each_specialization.to_a
         end
-        it "should apply the block within a context where the children are typed appropriately" do
+
+        def create_complex_specialization
             # What we do here is create a specialization that assumes that the
             # child is of the service given for specialization, and then apply
             # it on a subclass of the root in which the child is a task that
@@ -442,6 +443,19 @@ describe Syskit::Models::SpecializationManager do
             root_m = Syskit::Composition.new_submodel do
                 add base_srv_m, :as => 'test'
             end
+            return root_m, task_m, srv_m
+        end
+
+        it "should give a child that responds to #child_name" do
+            child = nil
+            root_m, task_m, srv_m = create_complex_specialization
+            root_m.specialize root_m.test_child => srv_m do
+                child = test_child.child_name
+            end
+            assert_equal 'test', child
+        end
+        it "should apply the block within a context where the children are typed appropriately" do
+            root_m, task_m, srv_m = create_complex_specialization
             root_m.specialize root_m.test_child => srv_m do
                 export test_child.srv_out_port
             end

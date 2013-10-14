@@ -167,33 +167,6 @@ describe Syskit::Models::TaskContext do
         assert_equal "DefinitionModule::Task", model.name
     end
 
-    describe "#driver_for" do
-        it "creates a new device model if given a string" do
-            model = Syskit::TaskContext.new_submodel do
-                input_port "port", "int"
-                property "property", "int"
-            end
-            service = model.driver_for "Camera", :as => 'camera'
-
-            device_model = service.model
-            assert_equal "Camera", device_model.name
-            assert_kind_of Syskit::Models::DeviceModel, device_model
-            assert model.fullfills?(device_model)
-        end
-
-        it "assigns the newly created model to a constant if called with a string on a component model that is defined in a module" do
-            model = Syskit::TaskContext.new_submodel do
-                input_port "port", "int"
-                property "property", "int"
-            end
-            DefinitionModule.const_set :Task, model
-            model.driver_for "Camera", :as => 'camera'
-
-            assert_kind_of Syskit::Models::DeviceModel, DefinitionModule::Camera
-            assert model.fullfills?(DefinitionModule::Camera)
-        end
-    end
-
     describe "#define_from_orogen" do
         it "calls new_submodel to create the new model" do
             model = Syskit::TaskContext.new_submodel

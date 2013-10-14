@@ -377,7 +377,8 @@ module Syskit
                 # Validate the new mappings first
                 new_mappings = selections.dup
                 new_mappings.add_explicit(explicit)
-                explicit.each do |child_name, req|
+                explicit.each_key do |child_name|
+                    req = new_mappings.explicit[child_name] # Benefit from the requirement normalization done by #add_explicit
                     next if !req.respond_to?(:fullfills?)
                     if child = model.find_child(child_name)
                         _, selected_m, _ = new_mappings.selection_for(child_name, child)
@@ -398,7 +399,11 @@ module Syskit
                         parts = obj.split('.')
                         first_part = parts.first
                         if !composition_model.has_child?(first_part)
-                            raise "#{first_part} is not a known child of #{composition_model.name}"
+                            children = Hash.new
+                            composition_model.each_child do |name, child|
+                                children[name] = child
+                            end
+                            raise Roby::NoSuchChild.new(composition_model, first_part, children), "#{first_part} is not a known child of #{composition_model.name}"
                         end
                     end
                 end
@@ -563,7 +568,14 @@ module Syskit
                 arguments[:task_arguments] = self.arguments.merge(arguments[:task_arguments] || Hash.new)
                 arguments[:specialization_hints] = specialization_hints | (arguments[:specialization_hints] || Set.new)
                 task = task_model.instanciate(plan, context, arguments)
-                task.requirements.merge(to_component_model)
+                task_requirements = to_component_model
+                task_requirements.map_use_selections! do |sel|
+                    if !Models.is_model?(sel)
+                        sel.to_instance_requirements
+                    else sel
+                    end
+                end
+                task.requirements.merge(task_requirements)
 
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host
@@ -618,7 +630,7 @@ module Syskit
                     end
                     if !arguments.empty?
                         pp.breakable
-                        pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }})"
+                        pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }.join(", ")})"
                     end
                 end
             end
@@ -700,7 +712,7 @@ module Syskit
             #
             # The object must define #to_instance_requirements
             module Auto
-                METHODS = [:with_arguments, :use_conf, :use_deployments, :period]
+                METHODS = [:with_arguments, :with_conf, :prefer_deployed_tasks, :use_conf, :use_deployments, :period]
                 METHODS.each do |m|
                     class_eval <<-EOD
                     def #{m}(*args, &block)

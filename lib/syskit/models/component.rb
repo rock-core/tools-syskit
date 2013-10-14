@@ -135,7 +135,7 @@ module Syskit
             # It creates a new task from the component model using
             # Component.new, adds it to the plan and returns it.
             def instanciate(plan, context = DependencyInjectionContext.new, arguments = Hash.new)
-                task_arguments, instanciate_arguments = Kernel.
+                task_arguments, _ = Kernel.
                     filter_options arguments, :task_arguments => Hash.new
                 plan.add(task = new(task_arguments[:task_arguments]))
                 task
@@ -160,8 +160,14 @@ module Syskit
                 InstanceRequirements.new([self]).with_arguments(*spec, &block)
             end
 
+            # @deprecated replaced by {prefer_deployed_tasks}
             def use_deployments(*selection)
-                to_instance_requirements.use_deployments(*selection)
+                prefer_deployed_tasks(*selection)
+            end
+
+            # @see InstanceRequirements#prefer_deployed_tasks
+            def prefer_deployed_tasks(*selections)
+                to_instance_requirements.prefer_deployed_tasks(*selections)
             end
 
             # @deprecated
@@ -276,15 +282,25 @@ module Syskit
                 explicit_mappings.each do |from, to|
                     from = from.to_s if from.kind_of?(Symbol)
                     to   = to.to_s   if to.kind_of?(Symbol)
-                    if from.respond_to?(:to_str) && to.respond_to?(:to_str)
+                    if !from.respond_to?(:to_str)
+                        raise ArgumentError, "unexpected value given in port mapping: #{from}, expected a string"
+                    elsif !to.respond_to?(:to_str)
+                        raise ArgumentError, "unexpected value given in port mapping: #{to}, expected a string"
+                    else
                         normalized_mappings[from] = to 
                     end
                 end
+
+                # This is used later to verify that we don't automatically map
+                # two different ports to the same port. It can be done
+                # explicitly, though
+                mapped_to_original = Hash.new { |h, k| h[k] = Array.new }
 
                 result = Hash.new
                 service_model.each_output_port do |port|
                     if mapped_name = find_directional_port_mapping('output', port, normalized_mappings[port.name])
                         result[port.name] = mapped_name
+                        mapped_to_original[mapped_name] << port.name
                     else
                         raise InvalidPortMapping, "cannot find an equivalent output port for #{port.name}[#{port.type_name}] on #{short_name}"
                     end
@@ -292,10 +308,23 @@ module Syskit
                 service_model.each_input_port do |port|
                     if mapped_name = find_directional_port_mapping('input', port, normalized_mappings[port.name])
                         result[port.name] = mapped_name
+                        mapped_to_original[mapped_name] << port.name
                     else
                         raise InvalidPortMapping, "cannot find an equivalent input port for #{port.name}[#{port.type_name}] on #{short_name}"
                     end
                 end
+
+                # Verify that we don't automatically map two different ports to
+                # the same port
+                mapped_to_original.each do |mapped, original|
+                    if original.size > 1
+                        not_explicit = original.find_all { |pname| !normalized_mappings.has_key?(pname) }
+                        if !not_explicit.empty?
+                            raise InvalidPortMapping, "automatic port mapping would map ports #{original.sort.join(", ")} to the same port #{mapped}. I refuse to do this. If you actually mean to do it, provide the mapping #{original.map { |o| "\"#{o}\" => \"#{mapped}\"" }.join(", ")} explicitly"
+                        end
+                    end
+                end
+
                 result
             end
 
@@ -326,7 +355,9 @@ module Syskit
                     return port_name
                 elsif expected_name
                     if !component_port
-                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is not a #{direction} port in #{short_name}"
+                        known_ports = send("each_#{direction}_port").
+                            map { |p| "#{p.name}[#{p.type.name}]" }
+                        raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is not a #{direction} port in #{short_name}. Known output ports are #{known_ports.sort.join(", ")}"
                     else
                         raise InvalidPortMapping, "the provided port mapping from #{port.name} to #{port_name} is invalid: #{port_name} is of type #{component_port.type_name} in #{short_name} and I was expecting #{port.type}"
                     end
@@ -405,6 +436,19 @@ module Syskit
                 end
 
                 dynamic_services[arguments[:as]] = DynamicDataService.new(self, arguments[:as], model, block)
+            end
+
+            # Enumerates the services that have been created from a dynamic
+            # service using #require_dynamic_service
+            #
+            # @yieldparam [DynamicDataService] srv
+            def each_required_dynamic_service
+                return enum_for(:each_required_dynamic_service) if !block_given?
+                each_data_service do |_, srv|
+                    if srv.respond_to?(:dynamic_service)
+                        yield(srv) 
+                    end
+                end
             end
 
             # Returns a model specialized from 'self' that has the required
@@ -605,16 +649,37 @@ module Syskit
             # @return [Model<TaskContext>]
             attr_predicate :private_specialization?, true
 
+            # An ID that represents which specialized model this is
+            def specialization_counter
+                @specialization_counter ||= 0
+                @specialization_counter += 1
+            end
+
+            # Called by {Component.specialize} to create the composition model
+            # that will be used for a private specialization
+            def create_private_specialization
+                new_submodel
+            end
+
             # Creates a private specialization of the current model
             def specialize(name = nil)
-                klass = new_submodel
+                klass = create_private_specialization
                 if name
                     klass.name = name
+                else
+                    klass.name = "#{self.name}{#{self.specialization_counter}}"
                 end
                 klass.private_specialization = true
                 klass.private_model
                 klass.concrete_model = concrete_model
                 klass
+            end
+
+            def each_fullfilled_model
+                return enum_for(:each_fullfilled_model) if !block_given?
+                super do |m|
+                    yield(m) if !m.respond_to?(:private_specialization?) || !m.private_specialization?
+                end
             end
 
             # Makes sure this is a private specialized model
@@ -687,11 +752,17 @@ module Syskit
                     return task_model
                 end
 
-                name = "Syskit::PlaceholderTask<#{self.short_name},#{service_models.map(&:short_name).sort.join(",")}>"
-                model = specialize(name)
+                name_models = service_models.map(&:to_s).sort.join(",")
+                if self != Syskit::Component
+                    name_models = "#{self},#{name_models}"
+                end
+                model = specialize("Syskit::PlaceholderTask<#{name_models}>")
                 model.abstract
                 model.concrete_model = nil
                 model.include PlaceholderTask
+                if self != Syskit::Component
+                    model.proxied_task_context_model = self
+                end
                 model.proxied_data_services = service_models.dup
 		model.fullfilled_model = [self] + model.proxied_data_services.to_a
 
@@ -775,6 +846,30 @@ module Syskit
                 return true
             end
 
+            def apply_missing_dynamic_services_from(from, specialize_if_needed = true)
+                missing_services = from.each_data_service.find_all do |_, srv|
+                    !find_data_service(srv.full_name)
+                end
+
+                if !missing_services.empty?
+                    # We really really need to specialize self. The reason is
+                    # that self.model, even though it has private
+                    # specializations, might be a reusable model from the system
+                    # designer's point of view. With the singleton class, we
+                    # know that it is not
+                    base_model = if specialize_if_needed then specialize
+                                 else self
+                                 end
+                    missing_services.each do |_, srv|
+                        dynamic_service_options = Hash[:as => srv.name].
+                            merge(srv.dynamic_service_options)
+                        base_model.require_dynamic_service srv.dynamic_service.name, dynamic_service_options
+                    end
+                    base_model
+                else self
+                end
+            end
+
             # Returns the component model that is the merge model of self and
             # the given other model
             #
@@ -793,6 +888,11 @@ module Syskit
                     return self
                 elsif other_model <= self
                     return other_model
+                elsif other_model.private_specialization? || private_specialization?
+                    base_model = result = concrete_model.merge(other_model.concrete_model)
+                    result = base_model.apply_missing_dynamic_services_from(self, true)
+                    return result.apply_missing_dynamic_services_from(other_model, base_model == result)
+
                 else
                     raise IncompatibleComponentModels.new(self, other_model), "models #{short_name} and #{other_model.short_name} are not compatible"
                 end
@@ -816,12 +916,7 @@ module Syskit
         module ClassExtension
             attr_accessor :proxied_data_services
 
-            def proxied_task_context_model
-                s = superclass
-                if s != Syskit::Component
-                    s
-                end
-            end
+            attr_accessor :proxied_task_context_model
 
             def to_instance_requirements
                 Syskit::InstanceRequirements.new([self])
@@ -833,8 +928,8 @@ module Syskit
 
             def fullfilled_model
                 result = Set.new
-                if m = proxied_task_context_model
-                    m.each_fullfilled_model do |m|
+                if task_m = proxied_task_context_model
+                    task_m.each_fullfilled_model do |m|
                         result << m
                     end
                 end
@@ -848,8 +943,8 @@ module Syskit
 
             def each_required_model
                 return enum_for(:each_required_model) if !block_given?
-                if m = proxied_task_context_model
-                    yield(m)
+                if task_m = proxied_task_context_model
+                    yield(task_m)
                 end
                 proxied_data_services.each do |m|
                     yield(m)
@@ -861,8 +956,17 @@ module Syskit
                     return other_model.merge(self)
                 end
 
-                merged = Models.merge_model_lists(each_required_model, other_model.each_required_model)
-                Syskit.proxy_task_model_for(merged)
+                task_model, service_models, other_service_models = (proxied_task_context_model || Syskit::Component), proxied_data_services, []
+                if other_model.respond_to?(:proxied_data_services)
+                    task_model = task_model.merge(other_model.proxied_task_context_model || Syskit::Component)
+                    other_service_models = other_model.proxied_data_services
+                else
+                    task_model = task_model.merge(other_model)
+                end
+
+                model_list = Models.merge_model_lists([task_model], service_models)
+                model_list = Models.merge_model_lists(model_list, other_service_models)
+                Syskit.proxy_task_model_for(model_list)
             end
 
             def each_output_port

@@ -339,7 +339,7 @@ module Syskit
                     done_task_info(task)
                 elsif activity_type == "SlaveActivity"
                 else
-                    if !task.orogen_model.task_model.each_event_port.find { true }
+                    if !task.model.each_event_port.find { true }
                         done_task_info(task)
                     end
                 end

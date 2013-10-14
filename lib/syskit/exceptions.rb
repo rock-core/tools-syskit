@@ -441,7 +441,13 @@ module Syskit
                     has_free_deployment = possible_deployments.any? { |_, _, _, existing| existing.empty? }
                     pp.breakable
                     if has_free_deployment
-                        pp.text "#{task}: multiple possible deployments, choose one with #use_deployments(deployed_task_name)"
+                        pp.text "#{task}: multiple possible deployments, choose one with #prefer_deployed_tasks(deployed_task_name)"
+                        current_hints = task.deployment_hints
+                        if !current_hints.empty?
+                            current_hints.each do |hint|
+                                pp.text "  current hints: #{current_hints.map(&:to_s).join(", ")}"
+                            end
+                        end
                     elsif possible_deployments.empty?
                         pp.text "#{task}: no deployments available"
                     else
@@ -704,7 +710,7 @@ module Syskit
         end
 
         # Exception raised when a connection is being created with mismatching
-        # ports (i.e. not input -> output)
+        # port directions
         class WrongPortConnectionDirection < RuntimeError
             attr_reader :source, :sink
             def initialize(source, sink)
@@ -714,6 +720,20 @@ module Syskit
 
             def pretty_print(pp)
                 pp.text "cannot connect #{source} to #{sink}: this is not an output-to-input connection"
+            end
+        end
+
+        # Exception raised when a connection is being created with mismatching
+        # port types
+        class WrongPortConnectionTypes < RuntimeError
+            attr_reader :source, :sink
+            def initialize(source, sink)
+                @source = source
+                @sink = sink
+            end
+
+            def pretty_print(pp)
+                pp.text "cannot connect output port #{source} to input port #{sink}: types mismatch (resp. #{source.type} and #{sink.type})"
             end
         end
 

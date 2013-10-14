@@ -16,12 +16,17 @@ module Syskit
                 mode = view_options.delete(:mode)
 
                 svg_io = Tempfile.open(mode)
-                Syskit::Graphviz.new(plan, self).
-                    to_file(mode, 'svg', svg_io, options)
-                svg_io.flush
-                svg_io.rewind
-                svg = svg_io.read
-                svg = svg.encode 'utf-8', :invalid => :replace
+                begin
+                    Syskit::Graphviz.new(plan, self).
+                        to_file(mode, 'svg', svg_io, options)
+                    svg_io.flush
+                    svg_io.rewind
+                    svg = svg_io.read
+                    svg = svg.encode 'utf-8', :invalid => :replace
+                rescue DotCrashError, DotFailedError => e
+                    svg = e.message
+                end
+
                 zoom = view_options.delete :zoom
                 begin
                     if match = /svg width=\"(\d+)(\w+)\" height=\"(\d+)(\w+)\"/.match(svg)

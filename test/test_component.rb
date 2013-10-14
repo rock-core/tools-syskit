@@ -193,6 +193,33 @@ describe Syskit::Component do
             flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => 'master').once.pass_thru
             task.merge(merged_task)
         end
+        it "specializes the target task regardless of whether the target model was already specialized" do
+            task_m = self.task_m.new_submodel
+            task_m.provides srv_m, :as => 'master'
+            task_m = task_m.specialize
+            merged_task_m = task_m.specialize
+            merged_task_m.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
+            plan.add(merged_task = merged_task_m.new)
+            plan.add(task = task_m.new)
+            flexmock(task).should_receive(:specialize).once
+            task.merge(merged_task)
+        end
+        it "does not modify its current model unless it is its singleton class" do
+            task_m = self.task_m.new_submodel
+            task_m.provides srv_m, :as => 'master'
+            merged_task_m = task_m.specialize
+            merged_task_m.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
+            plan.add(task = task_m.new)
+            plan.add(merged_task = merged_task_m.new)
+            task.merge(merged_task)
+            assert task_m.each_required_dynamic_service.empty?
+        end
+        it "can merge a task built from a specialized model into one that is not specialized" do
+            task_m.provides srv_m, :as => 'master'
+            merged_task_m = task_m.specialize
+            plan.add(merged_task = merged_task_m.new)
+            task.merge(merged_task)
+        end
         # This is necessary as the block can do anything, as e.g. create new
         # arguments or events on the task model.
         it "uses #require_dynamic_service to create the new services in order to re-evaluate the block" do
@@ -200,8 +227,30 @@ describe Syskit::Component do
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :argument => 10
             task.specialize
             flexmock(task.model).should_receive(:require_dynamic_service).once.
-                with('dyn', :as => 'srv', :slave_of => nil, :argument => 10)
+                with('dyn', :as => 'srv', :argument => 10)
             task.merge(merged_task)
+        end
+    end
+
+    describe "#each_required_dynamic_service" do
+        it "should yield nothing for plain models" do
+            task_m = Syskit::Component.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            assert task_m.new.each_required_dynamic_service.empty?
+        end
+
+        it "should yield services instanciated through the dynamic service mechanism" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.dynamic_service srv_m, :as => 'dyn' do
+                provides srv_m, :as => name
+            end
+
+            model_m = task_m.new_submodel
+            srv = model_m.require_dynamic_service 'dyn', :as => 'test'
+            task = model_m.new
+            assert_equal [srv.bind(task)], task.each_required_dynamic_service.to_a
         end
     end
 
@@ -307,6 +356,30 @@ describe Syskit::Component do
             end
             assert task.specialized_model?
             assert task.model.find_output_port('name')
+        end
+    end
+
+    describe "#to_instance_requirements" do
+        it "should list assigned arguments" do
+            task_m = Syskit::Component.new_submodel do
+                argument :arg
+            end
+            req = task_m.new(:arg => 10).to_instance_requirements
+            assert_equal Hash[:arg => 10], req.arguments.to_hash
+        end
+        it "should not list unassigned arguments" do
+            task_m = Syskit::Component.new_submodel do
+                argument :arg
+            end
+            req = task_m.new.to_instance_requirements
+            assert req.arguments.empty?
+        end
+        it "should not list unset arguments with defaults" do
+            task_m = Syskit::Component.new_submodel do
+                argument :arg, :default => nil
+            end
+            req = task_m.new.to_instance_requirements
+            assert req.arguments.empty?
         end
     end
 end

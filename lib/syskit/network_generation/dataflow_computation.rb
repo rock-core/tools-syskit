@@ -344,20 +344,6 @@ module Syskit
 
             # Called when all information on +task+.+port_name+ has been added
             def done_port_info(task, port_name)
-                debug do
-                    debug "done computing information for #{task}.#{port_name}"
-                    log_nest(4) do
-                        if has_information_for_port?(task, port_name)
-                            log_pp(:debug, port_info(task, port_name))
-                        else
-                            debug "no stored information"
-                        end
-                    end
-                    @done_at ||= Hash.new
-                    @done_at[[task, port_name]] = caller
-                    break
-                end
-
                 if !done_ports[task].include?(port_name)
                     @changed = true
 
@@ -374,6 +360,20 @@ module Syskit
                             missing_ports.delete(task)
                         end
                     end
+                end
+
+                debug do
+                    debug "done computing information for #{task}.#{port_name}"
+                    log_nest(4) do
+                        if has_information_for_port?(task, port_name)
+                            log_pp(:debug, port_info(task, port_name))
+                        else
+                            debug "no stored information"
+                        end
+                    end
+                    @done_at ||= Hash.new
+                    @done_at[[task, port_name]] = caller
+                    break
                 end
             end
 
