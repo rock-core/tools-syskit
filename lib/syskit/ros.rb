@@ -1,0 +1,1 @@
+require 'syskit/ros/node'

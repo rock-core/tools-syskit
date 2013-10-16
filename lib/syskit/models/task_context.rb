@@ -60,7 +60,7 @@ module Syskit
 
                 superclass = orogen_model.superclass
                 if !superclass # we are defining a root model
-                    supermodel = Syskit::TaskContext
+                    supermodel = self
                 else
                     supermodel = find_model_by_orogen(superclass) ||
                         define_from_orogen(superclass, :register => options[:register])

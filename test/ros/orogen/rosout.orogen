@@ -1,0 +1,8 @@
+name 'rosout'
+
+ros_node 'rosout' do
+end
+
+ros_launcher 'default_rosout_launcher' do
+    node('rosout', 'rosout::rosout')
+end
