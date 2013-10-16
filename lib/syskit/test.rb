@@ -25,7 +25,7 @@ require 'roby/test/common'
 require 'roby/schedulers/temporal'
 require 'orocos/ruby_process_server'
 
-require 'test/unit'
+require 'test/unit/testcase'
 require 'flexmock/test_unit'
 require 'minitest/spec'
 
@@ -56,15 +56,6 @@ module Syskit
 
         def teardown
             super
-
-            if plan
-                deployments = plan.find_tasks(Deployment).running.to_a
-                deployments.each do |task|
-                    if task.orocos_process.alive?
-                        task.orocos_process.kill
-                    end
-                end
-            end
 
             @task_stubs.each do |t|
                 t.dispose

@@ -16,6 +16,10 @@ module Syskit
             attr_reader :selections
             # A DI context that should be used to instanciate this task
             attr_reader :dependency_injection_context
+            # The set of pushed selections
+            #
+            # @see push_selections
+            attr_reader :pushed_selections
 
             # A set of hints for deployment disambiguation
             #
@@ -40,7 +44,7 @@ module Syskit
             end
 
             def plain?
-                arguments.empty? && selections.empty?
+                arguments.empty? && selections.empty? && pushed_selections.empty?
             end
 
             def initialize(models = [])
@@ -48,6 +52,7 @@ module Syskit
                 @model = base_model
                 @arguments = Hash.new
                 @selections = DependencyInjection.new
+                @pushed_selections = DependencyInjection.new
                 @dependency_injection_context = DependencyInjectionContext.new
                 @deployment_hints = Set.new
                 @specialization_hints = Set.new
@@ -59,6 +64,7 @@ module Syskit
                 @base_model = old.base_model
                 @arguments = old.arguments.dup
                 @selections = old.selections.dup
+                @pushed_selections = old.pushed_selections.dup
                 @deployment_hints = old.deployment_hints.dup
                 @specialization_hints = old.specialization_hints.dup
                 @dependency_injection_context = old.dependency_injection_context.dup
@@ -87,6 +93,9 @@ module Syskit
             # @return [self]
             def map_use_selections!
                 selections.map! do |value|
+                    yield(value)
+                end
+                pushed_selections.map! do |value|
                     yield(value)
                 end
                 self
@@ -295,6 +304,7 @@ module Syskit
                     v1
                 end
                 @selections.merge(other_spec.selections)
+                @pushed_selections.merge(other_spec.pushed_selections)
 
                 @deployment_hints |= other_spec.deployment_hints
                 @specialization_hints |= other_spec.specialization_hints
@@ -313,6 +323,7 @@ module Syskit
                 obj.kind_of?(InstanceRequirements) &&
                     obj.base_model == base_model &&
                     obj.selections == selections &&
+                    obj.pushed_selections == pushed_selections &&
                     obj.arguments == arguments
             end
             def ==(obj)
@@ -409,6 +420,15 @@ module Syskit
                 end
 
                 self
+            end
+
+            def push_selections
+                merger = DependencyInjectionContext.new
+                merger.push pushed_selections
+                merger.push selections
+                @pushed_selections = merger.current_state
+                @selections = DependencyInjection.new
+                nil
             end
 
             # Specifies new arguments that must be set to the instanciated task
@@ -534,9 +554,12 @@ module Syskit
             end
 
             # Returns the DI context used by this instance requirements task
+            #
+            # @return [DependencyInjectionContext]
             def resolved_dependency_injection
                 context = DependencyInjectionContext.new
                 context.concat(dependency_injection_context)
+                context.push(pushed_selections)
                 context.push(selections)
                 context
             end
@@ -551,17 +574,12 @@ module Syskit
                 # required to avoid recursively reusing names (which was once
                 # upon a time, and is a very confusing feature)
                 barrier = Hash.new
-                model.dependency_injection_names.each do |n|
-                    if !selections.has_selection_for?(n)
-                        barrier[n] = nil
-                    end
-                end
-                selections = self.selections
-                if !barrier.empty?
-                    selections = selections.dup
-                    selections.add_explicit(barrier)
+                task_model.dependency_injection_names.each do |n|
+                    barrier[n] = nil
                 end
                 context.concat(dependency_injection_context)
+                context.push(Syskit::DependencyInjection.new(barrier))
+                context.push(pushed_selections)
                 context.push(selections)
 
                 arguments = Kernel.normalize_options arguments
@@ -608,8 +626,12 @@ module Syskit
                 if model != base_model
                     result << "[narrowed to #{model.short_name}]"
                 end
+                if !pushed_selections.empty?
+                    result << ".use<0>(#{pushed_selections})"
+                    use_suffix = "<1>"
+                end
                 if !selections.empty?
-                    result << ".use(#{selections})"
+                    result << ".use#{use_suffix}(#{selections})"
                 end
                 if !arguments.empty?
                     result << ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }})"
@@ -624,9 +646,14 @@ module Syskit
                     pp.text "#{model}"
                 end
                 pp.nest(2) do
+                    if !pushed_selections.empty?
+                        pp.breakable
+                        pp.text ".use<0>(#{pushed_selections})"
+                        use_suffix = "<1>"
+                    end
                     if !selections.empty?
                         pp.breakable
-                        pp.text ".use(#{selections})"
+                        pp.text ".use#{use_suffix}(#{selections})"
                     end
                     if !arguments.empty?
                         pp.breakable

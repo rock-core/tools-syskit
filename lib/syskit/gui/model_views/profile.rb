@@ -37,6 +37,30 @@ module Syskit::GUI
             end
         end
 
+        def self.render_instance_requirements_selections(page, selections, use_method = "use")
+            defaults = selections.defaults.map do |defsel|
+                render_instance_requirements(page, defsel.to_instance_requirements)
+            end
+            explicit = render_selection_mapping(page, selections.explicit)
+            all = defaults + explicit
+            all = all.each_with_index.map do |block, i|
+                if i == 0
+                    block[0] = "  use(" + block.first
+                else
+                    block[0] = "      " + block.first
+                end
+                block = [block[0]] + block[1..-1].map do |line|
+                    line = "      " + line
+                end
+                if i == all.size - 1
+                    block[-1] = block.last + ")"
+                else
+                    block[-1] = block.last + ","
+                end
+                block
+            end.flatten
+        end
+
         def self.render_instance_requirements(page, req, options = Hash.new)
             options = Kernel.validate_options options,
                 :resolve_dependency_injection => false
@@ -53,35 +77,28 @@ module Syskit::GUI
             end
             formatted = [component_model.map { |m| page.link_to(m) }.join(",")]
 
-            selections = req.selections
-            if !selections.empty?
-                if options[:resolve_dependency_injection]
-                    selections = selections.resolve
+            if options[:resolve_dependency_injection]
+                selections = req.resolved_dependency_injection.current_state
+                if !selections.empty?
+                    formatted_selections = render_instance_requirements_selections(page, selections)
+                    formatted[-1] += "."
+                    formatted.concat formatted_selections
+                end
+            else
+                pushed_selections = req.pushed_selections
+                if !pushed_selections.empty?
+                    formatted_selections = render_instance_requirements_selections(page, pushed_selections, "use<0>")
+                    formatted[-1] += "."
+                    formatted.concat formatted_selections
+                    use_suffix = "<1>"
                 end
 
-                defaults = selections.defaults.map do |defsel|
-                    render_instance_requirements(page, defsel.to_instance_requirements)
+                selections = req.selections
+                if !selections.empty?
+                    formatted_selections = render_instance_requirements_selections(page, selections, "use#{use_suffix}")
+                    formatted[-1] += "."
+                    formatted.concat formatted_selections
                 end
-                explicit = render_selection_mapping(page, selections.explicit)
-                all = defaults + explicit
-                all = all.each_with_index.map do |block, i|
-                    if i == 0
-                        block[0] = "  use(" + block.first
-                    else
-                        block[0] = "      " + block.first
-                    end
-                    block = [block[0]] + block[1..-1].map do |line|
-                        line = "      " + line
-                    end
-                    if i == all.size - 1
-                        block[-1] = block.last + ")"
-                    else
-                        block[-1] = block.last + ","
-                    end
-                    block
-                end.flatten
-                formatted[-1] += "."
-                formatted.concat all
             end
             formatted
         end

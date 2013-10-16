@@ -232,8 +232,14 @@ module Syskit
             # @return [InstanceSelection]
             # @raise (see #selection_for)
             def instance_selection_for(name, requirements)
-                instance, component_model, selected_services = selection_for(name, requirements)
-                InstanceSelection.new(instance, InstanceRequirements.from_object(component_model, requirements), requirements, selected_services)
+                instance, component_model, selected_services, used_keys =
+                    selection_for(name, requirements)
+                selection = InstanceSelection.new(
+                    instance,
+                    InstanceRequirements.from_object(component_model, requirements), 
+                    requirements,
+                    selected_services)
+                return selection, used_keys
             end
 
             def direct_selection_for(obj)
@@ -251,9 +257,12 @@ module Syskit
             # @param [String,nil] name the selection name if there is one, or nil
             # @param [InstanceRequirements] requirements the requirements for the selected
             #   instance
-            # @return [(Task,Model<Component>,Hash)] the selected instance. If
-            #   no matching selection is found, a matching model task proxy is
-            #   created.
+            # @return
+            # [(Task,Model<Component>,Hash<Model<DataService>,Models::BoundDataService>,Set<Object>)] the selected instance.
+            #   If no matching selection is found, a matching model task proxy
+            #   is created. The first hash is a service mapping, from requested
+            #   service models to bound services in the task model. Finally, the
+            #   last set is the set of keys that have been used for the resolution.
             # @raise [IncompatibleComponentModels] if the various selections
             #   lead to component models that are incompatible (i.e. to two
             #   component models that are different and not subclassing one
@@ -266,9 +275,11 @@ module Syskit
                     return @resolved.selection_for(name, requirements)
                 end
 
+                used_keys = Set.new
                 selected_services = Hash.new
                 selections = Set.new
                 if name && (sel = selection[name])
+                    used_keys << name
                     selections << sel
                     selection.each do |key, value|
                         next if !value.respond_to?(:component_model) || value.component_model != sel
@@ -281,7 +292,10 @@ module Syskit
                     end
                 else
                     requirements.each_required_model do |required_m|
-                        selections << [(selection[required_m] || required_m), required_m]
+                        if selected = selection[required_m]
+                            used_keys << required_m
+                        end
+                        selections << [(selected || required_m), required_m]
                     end
                 end
 
@@ -314,7 +328,7 @@ module Syskit
                     raise ArgumentError, "explicitly selected #{selected_instance}, but it does not fullfill the required #{requirements}"
                 end
 
-                return selected_instance, selected_requirements, selected_services
+                return selected_instance, selected_requirements, selected_services, used_keys
             end
 
             # Resolves the selections by generating a direct mapping (as a hash)
@@ -430,6 +444,14 @@ module Syskit
                 @defaults.map! do |v|
                     yield(v)
                 end
+                self
+            end
+
+            # Enumerates the selected objects (not the keys)
+            def each(&block)
+                block_given? or return enum_for(__method__)
+                explicit.each_value(&block)
+                defaults.each(&block)
                 self
             end
 
