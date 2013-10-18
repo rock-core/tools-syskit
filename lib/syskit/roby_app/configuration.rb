@@ -407,7 +407,7 @@ module Syskit
             # machines/servers
             attr_predicate :local_only?, true
 
-            # Call to declare a new process server to to the set of servers that
+            # Call to declare a new process server and add to the set of servers that
             # can be used by this plan manager
             #
             # If 'host' is set to localhost, it disables the automatic startup
