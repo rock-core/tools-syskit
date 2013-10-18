@@ -9,8 +9,10 @@ module Syskit
                     :orogen_model => nil
                 super(task_options)
 
+                # While the spec can be the task deployment, the orogen model
+                # will be Orocos::ROS::Spec::Node
                 @orogen_model   = options[:orogen_model] ||
-                    Orocos::ROS::Spec::Node.new(nil, model.orogen_model)
+                    Orocos::Spec::TaskDeployment.new(nil, model.orogen_model)
 
                 # All tasks start with executable? and setup? set to false
                 #
