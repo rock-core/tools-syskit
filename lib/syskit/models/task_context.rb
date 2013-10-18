@@ -104,7 +104,43 @@ module Syskit
                 end
             end
 
-            # [Orocos::Spec::TaskContext] The oroGen model that represents this task context model
+            # @return [Array<Array>] Model mapping from Orogen to Syskit
+            def base_taskmodel_mapping_extension
+                # Use array to maintain the right order of evaluation
+                { Orocos::ROS::Spec::Node => Syskit::ROS::Node }
+            end
+
+            def syskit_base_taskmodel_from_orogen(orogen_model)
+                if !orogen_model.kind_of?(Class)
+                    orogen_model = orogen_model.class
+                end
+                if syskit_model = base_taskmodel_mapping_extension[orogen_model]
+                    return syskit_model
+                else # default syskit model
+                    return Syskit::TaskContext
+                end
+
+            end
+
+            def orogen_base_taskmodel_from_syskit(syskit_model)
+                if !syskit_model.kind_of?(Class)
+                    syskit_model = syskit_model.class
+                end
+                base_taskmodel_mapping_extension do |orogen,syskit|
+                    if syskit == syskit_model
+                        return orogen
+                    end
+                end
+
+                # default orogen model
+                return Orocos::Spec::TaskContext
+            end
+
+            def alternative_task_context?(orogen_model)
+                base_taskmodel_mapping_extension.values.include?(orogen_model)
+            end
+
+            # [Orocos::Spec::TaskContext] The base oroGen model that all submodels need to subclass
             attribute(:orogen_model) { Orocos::Spec::TaskContext.new }
 
             # A state_name => event_name mapping that maps the component's
@@ -117,16 +153,23 @@ module Syskit
             # @option options [String] name (nil) forcefully set a name for the model.
             #   This is only useful for "anonymous" models, i.e. models that are
             #   never assigned in the Ruby constant hierarchy
-            # @option options [Orocos::Spec::TaskContext] orogen_model (nil) the
+            # @option options [Orocos::Spec::TaskContext, Orocos::ROS::Spec::Node] orogen_model (nil) the
             #   oroGen model that should be used. If not given, an empty model
             #   is created, possibly with the name given to the method as well.
             def new_submodel(options = Hash.new, &block)
-                orogen_model, options = Kernel.filter_options options, :orogen_model
+                orogen_model, options = Kernel.filter_options options, 
+                    :orogen_model
 
-                model = super(options, &block)
+                model = nil
+                if !alternative_task_context?(super)
+                    model = super(options, &block)
+                end
+
                 if orogen_model = orogen_model[:orogen_model]
+                    model = syskit_base_taskmodel_from_orogen(orogen_model).new(options, &block) unless model
                     model.orogen_model = orogen_model
                 end
+
                 model.make_state_events
                 model
             end
@@ -141,7 +184,7 @@ module Syskit
             # @param [String] name an optional name for this submodel
             # @return [void]
             def setup_submodel(submodel, options = Hash.new)
-                submodel.orogen_model = Orocos::Spec::TaskContext.new(Orocos.master_project, nil)
+                submodel.orogen_model = orogen_base_taskmodel_from_syskit(submodel).new(Orocos.master_project, nil)
                 submodel.orogen_model.subclasses orogen_model
 
                 super
