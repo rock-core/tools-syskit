@@ -295,7 +295,7 @@ module Syskit
                 new_deployments, _ = Orocos::Process.parse_run_options(*names)
                 new_deployments.each do |deployment_name, mappings, name, spawn_options|
                     model = Deployment.find_model_from_orogen_name(deployment_name) ||
-                        Roby.app.load_deployment_model(deployment_name)
+                        Roby.app.load_deployment_model(deployment_name, options)
                     model.default_run_options.merge!(default_run_options(model))
 
                     configured_deployment = Models::ConfiguredDeployment.new(options[:on], model, mappings, name, spawn_options)
