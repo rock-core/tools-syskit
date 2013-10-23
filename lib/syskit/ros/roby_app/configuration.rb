@@ -25,11 +25,16 @@ module Syskit
                     @ros_launchers = Array.new
                 end
 
+                launcher_found = false
                 Orocos::ROS.available_launchers.each do |name, launcher|
                     if launcher.project.name == project_name
                         @ros_launchers << launcher
                         use_roslauncher(name, options)
+                        launcher_found = true
                     end
+                end
+                if !launcher_found
+                    raise ArgumentError, "Syskit::ROS: did not find any launchers for project: '#{project_name}'. Search dirs: #{Orocos::ROS.spec_search_directories.join(",")}"
                 end
 
                 @ros_launchers
