@@ -105,7 +105,7 @@ module Syskit
 
                 new_launchers, options = Orocos::ROS::LauncherProcess.parse_run_options(*names)
 
-                options, run_options = Kernel.filter_options names.last,
+                options, run_options = Kernel.validate_options names.last,
                     :on => 'localhost'
 
                 new_launchers.each do |launcher_name|
