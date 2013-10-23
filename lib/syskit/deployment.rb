@@ -128,7 +128,7 @@ module Syskit
             def initialize_running_task(task, orocos_task)
                 task.orocos_task = orocos_task
                 if task.orocos_task.respond_to?(:model=)
-                    task.orocos_task.model = task.model.orogen_model unless task.orocos_task.model
+                    task.orocos_task.model = task.model.orogen_model
                 end
                 if Syskit.conf.conf_log_enabled?
                     task.orocos_task.log_all_configuration(Orocos.configuration_log)
