@@ -42,6 +42,8 @@ module Syskit
 
 
             # Define project from launcher and 
+            #
+            # @return [Orocos::ROS::Generation::Project]
             def load_ros_project_by_name(project_name)
                 if loaded_ros_project?(project_name)
                     return loaded_ros_projects[project_name] 
@@ -61,7 +63,9 @@ module Syskit
                     end
                 end
 
-                # no task extensions will be loaded 
+                Roby.app.load_component_extension(project_name)
+
+                project
             end
 
             def load_launcher_model(launcher_name, options = Hash.new)
