@@ -8,52 +8,40 @@ module Syskit
                 super
             end
 
-
-
-            def needs_reconfiguration?
-                false
-            end
-
-            def reusable?
+            def prepare_for_setup(state = nil)
                 true
             end
 
-            def prepare_for_setup(state = :RUNNING)
-                true
-            end
-
-            def needs_reconfiguration!
-                # n/a for ROS node
-            end
-
-            def reusable?
-                # ROS node do not change configuration -- remain always running
-                true
-            end
-
-            def is_setup!
-                @setup = true
+            def ready_for_setup?(state = nil)
+                super(:PRE_OPERATIONAL)
             end
 
             def setup
-                if Orocos::ROS.rosnode_running?(orogen_model.ros_name)
+                if Orocos::ROS.rosnode_running?(orocos_name)
                     is_setup!
                 else
-                    raise InternalError, "#setup called but ROS node '#{name}' is not running"
+                    raise InternalError, "#setup called but ROS node '#{orocos_name}' is not running"
                 end
             end
 
+            def needs_reconfiguration!
+                raise NotImplementedError, "cannot reconfigure a Syskit::ROS::Node"
+            end
+
             event :start do |context|
+                emit :start
+            end
+
+            event :stop do |context|
+                emit :stop
+            end
+
+            def update_orogen_state
             end
 
             def configure
-                # n/a for ROS node
             end
-
-            def apply_configuration(config_type)
-                # n/a for ROS node
-            end
-
         end
     end
 end
+
