@@ -81,17 +81,9 @@ module Syskit
                     load_ros_project_by_name(project_name)
                 end
 
-                #deployer.used_typekits.each do |tk|
-                #    next if tk.virtual?
-                #    if Syskit.conf.only_load_models?
-                #        Orocos.load_typekit_registry(tk.name)
-                #    else
-                #        Orocos.load_typekit(tk.name)
-                #    end
-                #    if server.respond_to?(:preload_typekit)
-                #        server.preload_typekit(tk.name)
-                #    end
-                #end
+                launcher.used_task_libraries.each do |t|
+                    load_ros_project_by_name(t.name)
+                end
 
                 Deployment.find_model_from_orogen_name(launcher_name)
             end
