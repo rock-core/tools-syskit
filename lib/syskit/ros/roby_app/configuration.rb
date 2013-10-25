@@ -49,7 +49,7 @@ module Syskit
                     return loaded_ros_projects[project_name] 
                 end
 
-                project,_ = Orocos::ROS.available_projects[project_name]
+                project,_ = Orocos::ROS.available_ros_projects[project_name]
 
                 project.self_tasks.each do |task_def|
                     if !TaskContext.has_model_for?(task_def)
