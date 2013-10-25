@@ -71,7 +71,7 @@ module Syskit
             def load_launcher_model(launcher_name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
                 server   = Syskit.conf.process_server_for(options[:on])
-                launcher = server.load_orogen_deployment(launcher_name)
+                launcher = server.load_ros_launcher(launcher_name)
 
                 project_name = launcher.project.name
                 if !loaded_ros_project?(project_name)
