@@ -160,15 +160,15 @@ module Syskit
                 orogen_model, options = Kernel.filter_options options, 
                     :orogen_model
 
-                model = nil
-                if !alternative_task_context?(super)
-                    model = super(options, &block)
-                end
+                model = super(options, &block)
 
                 if orogen_model = orogen_model[:orogen_model]
-                    model = syskit_base_taskmodel_from_orogen(orogen_model).new(options, &block) unless model
+                    if alternative_task_context?(model)
+                        model = syskit_base_taskmodel_from_orogen(orogen_model).new(options, &block)
+                    end
                     model.orogen_model = orogen_model
                 end
+
 
                 model.make_state_events
                 model
