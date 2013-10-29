@@ -81,13 +81,18 @@ module Syskit
                 if base_task
                     base_task = base_task.as_plan
                     plan.add_mission(base_task)
-                    if !base_task.planning_task.running?
-                        base_task.planning_task.start!
+
+                    planning_task = base_task.planning_task
+                    if !planning_task.running?
+                        planning_task.start!
                     end
                     base_task = base_task.as_service
                 end
                 syskit_engine.enable_updates
                 syskit_engine.resolve(resolve_options)
+                if planning_task
+                    planning_task.emit :success
+                end
             end
             if block_given?
                 execute(&block)
