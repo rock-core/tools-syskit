@@ -44,8 +44,18 @@ module Syskit
         # @raise [ArgumentError] if it is not possible (for instance, ports on
         #   InstanceRequirements are not associated with a component port)
         # @return [Orocos::Port] the resolved port
-        def to_orocos_port
+        def to_actual_port
             component_port = to_component_port
+            component_port.component.self_port_to_actual_port(component_port)
+        end
+
+        # Returns the orocos port attached that corresponds to self
+        #
+        # @raise [ArgumentError] if it is not possible (for instance, ports on
+        #   InstanceRequirements are not associated with a component port)
+        # @return [Orocos::Port] the resolved port
+        def to_orocos_port
+            component_port = to_actual_port
             component_port.component.self_port_to_orocos_port(component_port)
         end
 
