@@ -67,7 +67,11 @@ module Syskit
                 used_profiles.push(profile)
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
-                new_definitions = profile.definitions.map_value { |_, val| val.dup }
+                new_definitions = profile.definitions.map_value do |_, req|
+                    req = req.dup
+                    req.push_selections
+                    req
+                end
                 @definitions = new_definitions.merge(definitions)
                 robot.use_robot(profile.robot)
                 nil

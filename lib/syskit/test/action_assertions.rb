@@ -54,7 +54,26 @@ module Syskit
             def assert_can_configure_together(*actions)
                 assert_can_deploy_together(*actions)
                 plan.find_tasks(Syskit::TaskContext).each do |task_context|
-                    syskit_setup_component(task_context)
+                    if task_context.kind_of?(Syskit::TaskContext) && (deployment = task_context.execution_agent)
+                        if !deployment.running?
+                            Syskit::RobyApp::Plugin.disable_engine_in_roby engine, :update_task_states do
+                                deployment.start!
+                            end
+                        end
+
+                        if !deployment.ready?
+                            Syskit::RobyApp::Plugin.disable_engine_in_roby engine, :update_task_states do
+                                assert_event_emission deployment.ready_event
+                            end
+                        end
+                    end
+
+                    # The task may have been garbage-collected while we were
+                    # starting the deployment ... call #configure only if it is
+                    # not the case
+                    if task_context.plan
+                        task_context.configure
+                    end
                 end
             end
         end

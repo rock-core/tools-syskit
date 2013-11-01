@@ -393,12 +393,20 @@ module Syskit
             # machines/servers
             attr_predicate :local_only?, true
 
+            def self.roby_engine_propagation_handlers
+                handlers = Hash.new
+                handlers[:update_deployment_states] = [Runtime.method(:update_deployment_states), :type => :external_events]
+                handlers[:update_task_states] = [Runtime.method(:update_task_states), :type => :external_events]
+                handlers[:update] = [Runtime::ConnectionManagement.method(:update), :type => :propagation, :late => true]
+                handlers[:apply_requirement_modifications] = [Runtime.method(:apply_requirement_modifications), :type => :propagation, :late => true]
+                handlers
+            end
+
             def self.plug_engine_in_roby(roby_engine)
-                handler_ids = []
-                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_deployment_states))
-                handler_ids << roby_engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_task_states))
-                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime::ConnectionManagement.method(:update))
-                handler_ids << roby_engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime.method(:apply_requirement_modifications))
+                handler_ids = Hash.new
+                roby_engine_propagation_handlers.each do |name, (m, options)|
+                    handler_ids[name] = roby_engine.add_propagation_handler(options, &m)
+                end
                 handler_ids
             end
 
@@ -408,26 +416,32 @@ module Syskit
                 end
             end
 
-            def self.run(app)
+            def self.disable_engine_in_roby(roby_engine, *handlers)
+                if @handler_ids
+                    handlers.each do |h|
+                        roby_engine.remove_propagation_handler(@handler_ids.delete(h))
+                    end
+
+                    begin
+                        yield
+                    ensure
+                        all_handlers = roby_engine_propagation_handlers
+                        handlers.each do |h|
+                            @handler_ids[h] = roby_engine.add_propagation_handler(all_handlers[h][1], &all_handlers[h][0])
+                        end
+                    end
+                else yield
+                end
+            end
+
+            def self.prepare(app)
                 if has_local_process_server?
                     connect_to_local_process_server
                 end
 
-                handler_ids = plug_engine_in_roby(Roby.engine)
-
-                yield
-
-            ensure
-                remaining = Orocos.each_process.to_a
-                if !remaining.empty?
-                    Syskit.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
-                    Orocos::Process.kill(remaining)
-                end
-
-                if handler_ids
-                    unplug_engine_from_roby(handler_ids, Roby.engine)
-                end
+                @handler_ids = plug_engine_in_roby(Roby.engine)
             end
+
 
             def self.clear_models(app)
                 Orocos.clear
@@ -447,6 +461,17 @@ module Syskit
             end
 
             def self.cleanup(app)
+                remaining = Orocos.each_process.to_a
+                if !remaining.empty?
+                    Syskit.warn "killing remaining Orocos processes: #{remaining.map(&:name).join(", ")}"
+                    Orocos::Process.kill(remaining)
+                end
+
+                if @handler_ids
+                    unplug_engine_from_roby(@handler_ids.values, Roby.engine)
+                    @handler_ids = nil
+                end
+
                 Syskit.conf.deployments.clear
                 stop_process_servers
                 stop_local_process_server
@@ -483,6 +508,8 @@ module Syskit
 
                 Orocos.load_orogen_plugins('syskit')
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROGEN_LIB_DIR))
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROCOSRB_LIB_DIR))
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Typelib::TYPELIB_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(File.expand_path(File.join('..', ".."), File.dirname(__FILE__))))
                 toplevel_object.extend LoadToplevelMethods
             end

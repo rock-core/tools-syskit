@@ -71,5 +71,4 @@ require 'syskit/instance_requirements_task'
 
 # App support
 require 'syskit/graphviz'
-require 'syskit/shell'
 require 'syskit/roby_app'

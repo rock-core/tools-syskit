@@ -144,7 +144,7 @@ describe Syskit::Coordination::DataMonitoringTable do
 
         component = syskit_deploy_and_start_task_context(component_m, 'task')
         composition = composition_m.use('test' => component.test2_srv).instanciate(plan)
-        composition.depends_on composition.test_child, :success => :success, :remove_when_done => false
+        composition.depends_on composition.test_child, :success => :success, :remove_when_done => true
         plan.add_permanent(composition)
 
         table = table_m.new(composition)
@@ -162,6 +162,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             end
         end
         assert component.success?
+        composition.emit :success
     end
 
     it "can use whole component networks as data sources" do
@@ -201,7 +202,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         monitor     = (plan.find_tasks(composition_m).to_a - [composition]).first
         # We want the fault table to emit 'success', don't make it an error
         composition.depends_on composition.test_child,
-            :success => :success, :remove_when_done => false
+            :success => :success, :remove_when_done => true
 
         component = composition.test_child
         component.orocos_task.out1.write(4)

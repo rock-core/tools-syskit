@@ -8,11 +8,26 @@ describe Syskit::Actions::Profile do
             task_m = Syskit::TaskContext.new_submodel
             src = Syskit::Actions::Profile.new
             src.define 'test', task_m
-            flexmock(src.definitions['test']).should_receive(:dup).once.
-                and_return(duped = Object.new)
+
+            define = flexmock(src.definitions['test'])
+            define.should_receive(:dup).
+                and_return(duped = flexmock(:push_selections => nil))
             dst = Syskit::Actions::Profile.new
             dst.use_profile src
             assert_same duped, dst.definitions['test'] 
+        end
+
+        it "pushes selections on the copied definition" do
+            task_m = Syskit::TaskContext.new_submodel
+            src = Syskit::Actions::Profile.new
+            src.define 'test', task_m
+
+            define = flexmock(src.definitions['test'])
+            define.should_receive(:dup).once.
+                and_return(duped = flexmock)
+            duped.should_receive(:push_selections).once
+            dst = Syskit::Actions::Profile.new
+            dst.use_profile src
         end
 
         it "resolves definitions using the use flags" do

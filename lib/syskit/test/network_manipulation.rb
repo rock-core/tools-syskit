@@ -99,6 +99,10 @@ module Syskit
 
             # Set this component instance up
             def syskit_setup_component(component)
+                if component.abstract?
+                    component = syskit_run_deployer(component)
+                end
+
                 if component.kind_of?(Syskit::TaskContext)
                     if !component.execution_agent.running?
                         component.execution_agent.start!
@@ -112,6 +116,10 @@ module Syskit
             #
             # If needed, it sets it up first
             def syskit_start_component(component)
+                if component.abstract?
+                    component = syskit_run_deployer(component)
+                end
+
                 if component.kind_of?(Syskit::Composition)
                     component.each_child do |child_task|
                         if !child_task.setup?
