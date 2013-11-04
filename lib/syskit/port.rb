@@ -203,6 +203,10 @@ module Syskit
         # on an abstract task that got replaced
         # @return [Syskit::OutputPort]
         attr_reader :resolved_port
+	# The actual port, when resolved. This is the port on the TaskContext
+	# object that actually serves the data
+        # @return [Syskit::OutputPort]
+        attr_reader :actual_port
         # The connection policy
         attr_reader :policy
         # The actual data writer itself
@@ -217,7 +221,8 @@ module Syskit
                 if !@resolved_port
                     raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
                 end
-                @writer = @resolved_port.to_orocos_port.writer(policy)
+		@actual_port = resolved_port.to_actual_port
+                @writer = @actual_port.to_orocos_port.writer(policy)
             end
         end
 
@@ -225,8 +230,12 @@ module Syskit
             Models::InputWriter.new(port.model, policy)
         end
 
+	def ready?
+	    writer && actual_port.component.running?
+	end
+
         def write(sample) 
-            if writer
+            if ready?
                 writer.write(sample)
             else
                 Typelib.from_ruby(sample, port.type)
