@@ -655,6 +655,8 @@ module Syskit
                 # Filter.
                 possible_cycles = possible_cycles.map do |task, target_task|
                     task, target_task = replacement_for(task), replacement_for(target_task)
+		    next if merge_graph.linked?(task, target_task)
+
                     result = resolve_single_merge(task, target_task)
                     if result.nil?
                         [task, target_task]
