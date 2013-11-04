@@ -288,6 +288,7 @@ module Syskit
                     # for task
                     (source_task, source_port), policy = inputs[sink_port].first
                     if source_port != target_source_port
+                        debug { "cannot merge #{target_task} into #{self}: #{sink_port} is connected to a port named #{target_source_port} resp. #{source_port}" }
                         return
                     end
                     if !policy.empty? && !target_policy.empty? && (Syskit.update_connection_policy(policy, target_policy) != target_policy)
@@ -298,6 +299,7 @@ module Syskit
                     # If we already have a mapping, it is not possible to
                     # resolve a cycle to make the inputs match. Just say "no"
                     if is_mapped
+                        debug { "cannot merge #{target_task} into #{self}: would need to map to multiple tasks while resolving the cycle" }
                         return
                     end
 
