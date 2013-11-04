@@ -234,11 +234,16 @@ module Syskit
 	    writer && actual_port.component.running?
 	end
 
+	# Write a sample on the associated port
+	#
+	# @return [Boolean] true if the writer was in a state that allowed
+	#   writing to the actual task, false otherwise
         def write(sample) 
             if ready?
                 writer.write(sample)
             else
                 Typelib.from_ruby(sample, port.type)
+		nil
             end
         end
 
