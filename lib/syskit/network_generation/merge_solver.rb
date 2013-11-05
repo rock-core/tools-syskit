@@ -645,6 +645,14 @@ module Syskit
                 result
             end
 
+            # Processes cycles
+            #
+            # It stops as soon as one cycle got resolved. The corresponding cycle seeds
+            # get added to the merge graph.
+            #
+            # @param [BGL::Graph] merge_graph the merge graph
+            # @param [Set<(Component,Component)>] possible_cycles possible cycle seeds
+            # @return [Set<(Component,Component)>] cycle seeds that have not been processed
             def process_possible_cycles(merge_graph, possible_cycles)
                 debug "  -- Looking for merges in dataflow cycles"
 
