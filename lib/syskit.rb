@@ -71,6 +71,7 @@ require 'syskit/instance_requirements_task'
 # App support
 require 'syskit/graphviz'
 require 'syskit/roby_app'
+require 'syskit/typelib_marshalling'
 
 # Ros support
 #if Orocos::ROS.enabled?
