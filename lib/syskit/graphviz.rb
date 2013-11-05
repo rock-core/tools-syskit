@@ -247,6 +247,7 @@ For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
                     else
                         output_io.puts(graph)
                         output_io.flush
+                    end
             end
 
             COLORS = {
