@@ -221,7 +221,7 @@ module Syskit
                 end
 
                 # Finally, check if the inputs match
-                mismatching_inputs = resolve_input_matching(task, target_task, Hash.new)
+                mismatching_inputs = resolve_input_matching(task, target_task)
                 if !mismatching_inputs
                     debug { "rejecting #{target_task}.merge(#{task}) as their inputs are incompatible" }
                     return false
@@ -245,7 +245,7 @@ module Syskit
             #   not match even after a merge cycle resolution pass.
             #   Otherwise, the set of mismatching inputs is returned, in which
             #   each mismatch is a tuple (port_name,source_port,task_source,target_source).
-            def resolve_input_matching(task, target_task, mappings)
+            def resolve_input_matching(task, target_task)
                 # Now check that the connections are compatible
                 #
                 # We search for connections that use the same input port, and
@@ -256,20 +256,12 @@ module Syskit
                 end
 
                 mismatched_inputs = []
-                target_task.each_concrete_input_connection do |real_target_source_task, target_source_port, sink_port, target_policy|
+                target_task.each_concrete_input_connection do |target_source_task, target_source_port, sink_port, target_policy|
                     # If +self+ has no connection on +sink_port+, it is valid
                     if !inputs.has_key?(sink_port)
                         next
                     end
 
-                    # We keep is_mapped for later, as we will return nil
-                    # (instead of adding to mismatched_inputs) if there is
-                    # already a mapping for an input
-                    is_mapped = mappings.has_key?(real_target_source_task)
-                    target_source_task = mappings[real_target_source_task] || real_target_source_task
-
-                    # If the exact same connection is provided, verify that
-                    # the policies match
                     if policy = inputs[sink_port][[target_source_task, target_source_port]]
                         if !policy.empty? && !target_policy.empty? && (Syskit.update_connection_policy(policy, target_policy) != target_policy)
                             debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
@@ -288,24 +280,26 @@ module Syskit
                     # for task
                     (source_task, source_port), policy = inputs[sink_port].first
                     if source_port != target_source_port
-                        debug { "cannot merge #{target_task} into #{self}: #{sink_port} is connected to a port named #{target_source_port} resp. #{source_port}" }
+                        debug { "cannot merge #{target_task} into #{task}: #{sink_port} is connected to a port named #{target_source_port} resp. #{source_port}" }
                         return
                     end
                     if !policy.empty? && !target_policy.empty? && (Syskit.update_connection_policy(policy, target_policy) != target_policy)
-                        debug { "cannot merge #{target_task} into #{self}: incompatible policies on #{sink_port}" }
-                        return
-                    end
-
-                    # If we already have a mapping, it is not possible to
-                    # resolve a cycle to make the inputs match. Just say "no"
-                    if is_mapped
-                        debug { "cannot merge #{target_task} into #{self}: would need to map to multiple tasks while resolving the cycle" }
+                        debug { "cannot merge #{target_task} into #{task}: incompatible policies on #{sink_port}" }
                         return
                     end
 
                     mismatched_inputs << [sink_port, source_port, source_task, target_source_task]
                 end
                 mismatched_inputs
+            end
+
+            def update_cycle_mapping(mappings, task, target_task)
+                task_m   = mappings[task] || [task].to_set
+                target_m = mappings[target_task] || [target_task].to_set
+                m = task_m | target_m
+                m.each do |t|
+                    mappings[t] = m
+                end
             end
 
             # Checks if target_task.merge(task) could be done, but taking into
@@ -328,9 +322,9 @@ module Syskit
             #   resolved.
             def resolve_cycle_candidate(cycle_candidates, task, target_task, mappings = Hash.new)
                 debug { "looking to resolve cycle between #{task} and #{target_task}" }
-                mappings = mappings.merge(target_task => task)
+                update_cycle_mapping(mappings, task, target_task)
 
-                mismatched_inputs = resolve_input_matching(task, target_task, mappings)
+                mismatched_inputs = resolve_input_matching(task, target_task)
                 if !mismatched_inputs
                     return
                 end
@@ -339,13 +333,11 @@ module Syskit
                     # Since we recursively call #can_merge_cycle?, we might
                     # already have found a mapping for target_source_task. Take
                     # that into account
-                    if known_mapping = mappings[target_source_task]
-                        if known_mapping != source_task
-                            debug { "#{target_source_task} is already resolved to #{known_mapping}: not matching" }
-                            return
+                    if known_mappings = mappings[target_source_task]
+                        if known_mappings.include?(target_source_task)
+                            debug { "#{target_source_task} and #{source_task} are already paired in the cycle merge: matching" }
+                            next
                         end
-                        debug { "#{target_source_task} is already resolved to #{known_mapping}: matching" }
-                        next
                     end
 
                     if !cycle_candidates.include?([source_task, target_source_task])
@@ -354,21 +346,19 @@ module Syskit
                     end
 
 
-                    new_mappings = 
-                        log_nest(2) do
-                            resolve_cycle_candidate(
-                                cycle_candidates, source_task, target_source_task, mappings)
-                        end
+                    resolved_cycle = log_nest(2) do
+                        resolve_cycle_candidate(
+                            cycle_candidates, source_task, target_source_task, mappings)
+                    end
 
-                    if new_mappings
-                        debug { "resolved cycle: #{source_task} and #{target_source_task} with #{new_mappings}" }
-                        mappings.merge!(new_mappings)
+                    if resolved_cycle
+                        debug { "resolved cycle: #{source_task} and #{target_source_task}" }
                     else
                         debug { "not a cycle: cannot find mapping to merge #{source_task} and #{target_source_task}" }
                         return
                     end
                 end
-                mappings
+                true
             end
 
             # Find merge candidates and returns them as a graph
