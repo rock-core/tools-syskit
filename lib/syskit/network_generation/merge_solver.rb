@@ -674,7 +674,12 @@ module Syskit
                         nil
                     end
                 end
-                possible_cycles = possible_cycles.compact.to_set.to_a
+                possible_cycles = possible_cycles.compact.to_set
+                if !merge_graph.empty?
+                    return possible_cycles
+                end
+
+                possible_cycles = possible_cycles.to_a
 
                 # Find one cycle to solve. Once we found one, we
                 # give the hand to the normal merge processing
