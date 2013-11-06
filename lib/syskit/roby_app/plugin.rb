@@ -233,26 +233,28 @@ module Syskit
                     else [app.app_dir]
                     end
 
-                all_files =
-                    app.find_files_in_dirs("models", "blueprints", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
-                    app.find_files_in_dirs("models", "profiles", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/)
-                all_files.each do |path|
-                    begin
-                        app.require(path)
-                    rescue Orocos::Generation::Project::TypeImportError => e
-                        if Syskit.conf.ignore_missing_orogen_projects_during_load?
-                            ::Robot.warn "ignored file #{path}: cannot load required typekit #{e.name}"
-                        else raise
-                        end
-                    rescue Orocos::Generation::Project::MissingTaskLibrary => e
-                        if Syskit.conf.ignore_missing_orogen_projects_during_load?
-                            ::Robot.warn "ignored file #{path}: cannot load required task library #{e.name}"
-                        else raise
+                if !app.testing?
+                    all_files =
+                        app.find_files_in_dirs("models", "blueprints", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                        app.find_files_in_dirs("models", "profiles", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/)
+                    all_files.each do |path|
+                        begin
+                            app.require(path)
+                        rescue Orocos::Generation::Project::TypeImportError => e
+                            if Syskit.conf.ignore_missing_orogen_projects_during_load?
+                                ::Robot.warn "ignored file #{path}: cannot load required typekit #{e.name}"
+                            else raise
+                            end
+                        rescue Orocos::Generation::Project::MissingTaskLibrary => e
+                            if Syskit.conf.ignore_missing_orogen_projects_during_load?
+                                ::Robot.warn "ignored file #{path}: cannot load required task library #{e.name}"
+                            else raise
+                            end
                         end
                     end
-                end
-                if app.syskit_load_all?
-                    app.syskit_load_all
+                    if app.syskit_load_all?
+                        app.syskit_load_all
+                    end
                 end
             end
 
