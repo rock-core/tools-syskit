@@ -71,31 +71,22 @@ module Syskit
 
         # Run Syskit's deployer (i.e. engine) on the current plan
         def syskit_run_deployer(base_task = nil, resolve_options = Hash.new, &block)
-            if engine.running?
-                execute do
-                    syskit_engine.redeploy
-                end
-                engine.wait_one_cycle
-            else
-                syskit_engine.disable_updates
-                if base_task
-                    base_task = base_task.as_plan
-                    plan.add_mission(base_task)
+            syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
+            syskit_engine.disable_updates
+            if base_task
+                base_task = base_task.as_plan
+                plan.add_mission(base_task)
+                base_task = base_task.as_service
 
-                    planning_task = base_task.planning_task
-                    if !planning_task.running?
-                        planning_task.start!
-                    end
-                    base_task = base_task.as_service
-                end
-                syskit_engine.enable_updates
-                syskit_engine.resolve(resolve_options)
-                if planning_task
-                    planning_task.emit :success
+                planning_task = base_task.planning_task
+                if !planning_task.running?
+                    planning_task.start!
                 end
             end
-            if block_given?
-                execute(&block)
+            syskit_engine.enable_updates
+            syskit_engine.resolve(resolve_options)
+            if planning_task
+                planning_task.emit :success
             end
             if base_task
                 base_task.task
@@ -124,6 +115,41 @@ module Syskit
                     raise
                 end
             end
+        end
+
+        def run_engine(timeout, poll_period = 0.1)
+            start_time = Time.now
+            cycle_start = Time.now
+            while Time.now < start_time + timeout
+                process_events
+                yield if block_given?
+
+                sleep_time = Time.now - cycle_start - poll_period
+                if sleep_time > 0
+                    sleep(sleep_time)
+                end
+                cycle_start += poll_period
+            end
+        end
+        
+        # Verify that no sample arrives on +reader+ within +timeout+ seconds
+        def assert_has_no_new_sample(reader, timeout = 0.2)
+            run_engine(timeout) do
+                if sample = reader.read_new
+                    flunk("#{reader} has one new sample #{sample}, but none was expected")
+                end
+            end
+            assert(true, "no sample got received by #{reader}")
+        end
+
+        # Verifies that +reader+ gets one sample within +timeout+ seconds
+        def assert_has_one_new_sample(reader, timeout = 3)
+            run_engine(timeout) do
+                if sample = reader.read_new
+                    return sample
+                end
+            end
+            flunk("expected to get one new sample out of #{reader}, but got none")
         end
     end
 
