@@ -163,6 +163,10 @@ module Syskit
         # on an abstract task that got replaced
         # @return [Syskit::OutputPort]
         attr_reader :resolved_port
+	# The actual port, when resolved. This is the port on the TaskContext
+	# object that actually serves the data
+        # @return [Syskit::OutputPort]
+        attr_reader :actual_port
         # The connection policy
         attr_reader :policy
         # The actual data reader itself
@@ -177,7 +181,8 @@ module Syskit
                 if !@resolved_port
                     raise ArgumentError, "cannot find a port called #{@port.name} on #{component}"
                 end
-                @reader = @resolved_port.to_orocos_port.reader(policy)
+		@actual_port = resolved_port.to_actual_port
+                @reader = @actual_port.to_orocos_port.reader(policy)
             end
         end
 
