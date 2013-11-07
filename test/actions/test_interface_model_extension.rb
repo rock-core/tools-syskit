@@ -119,5 +119,63 @@ describe Syskit::Actions::InterfaceModelExtension do
             assert_equal 10, act.arg0
         end
     end
+
+    describe "the generated action method" do
+        attr_reader :actions, :profile
+        before do
+            @actions = Roby::Actions::Interface.new_submodel
+            @profile = Syskit::Actions::Profile.new(nil)
+        end
+
+        def call_action_method(*arguments, &block)
+            task_m = Syskit::TaskContext.new_submodel(&block)
+            profile.define('test', task_m)
+            actions.use_profile(profile)
+            task = actions.new(plan).test_def(*arguments)
+            plan.add(task)
+            return task_m, task
+        end
+
+        it "should return a plan pattern whose requirements are the definition's" do
+            task_m, task = call_action_method
+            assert_equal task_m, task.planning_task.requirements.model
+        end
+        it "should return the updated requirements if called from a submodel" do
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define('test', task_m)
+            subprofile = Syskit::Actions::Profile.new(nil)
+            task_m = task_m.new_submodel
+            subprofile.use_profile profile
+            subprofile.define('test', task_m)
+
+            actions.use_profile(subprofile)
+            task = actions.new(plan).test_def
+            plan.add(task)
+            assert_equal task_m, task.planning_task.requirements.model
+        end
+        it "should allow passing arguments if the main model has some" do
+            task_m, task = call_action_method(:arg0 => 10) { argument :arg0 }
+            assert_equal Hash[:arg0 => 10], task.planning_task.requirements.arguments
+        end
+        it "should require passing arguments if the main model has some without defaults" do
+            task_m = Syskit::TaskContext.new_submodel do
+                argument :arg0
+                argument :with_defaults, :default => nil
+            end
+            profile.define('test', task_m)
+            actions.use_profile(profile)
+            assert_raises(ArgumentError) { actions.new(plan).test_def }
+        end
+        it "should allow calling without arguments if the task has defaults" do
+            task_m = Syskit::TaskContext.new_submodel do
+                argument :arg0, :default => 10
+            end
+            profile.define('test', task_m)
+            actions.use_profile(profile)
+            task = actions.new(plan).test_def
+            plan.add(task)
+            assert_equal Hash[], task.planning_task.requirements.arguments
+        end
+    end
 end
 
