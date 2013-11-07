@@ -537,17 +537,17 @@ describe Syskit::Models::Composition do
 
                 c0 = composition.new_submodel(:name => "C0")
                 c0.overload('srv', service1)
-                assert_single_export 'srv_in', c0.srv_child.specialized_in_port, c0.each_exported_input
-                assert_single_export 'srv_out', c0.srv_child.specialized_out_port, c0.each_exported_output
+                assert_equal c0.srv_child.specialized_in_port, c0.find_exported_input('srv_in')
+                assert_equal c0.srv_child.specialized_out_port, c0.find_exported_output('srv_out')
 
                 c1 = c0.new_submodel(:name => "C1")
                 c1.overload('srv', component)
                 # Re-test for c0 to make sure that the overload did not touch the base
                 # model
-                assert_single_export 'srv_in', c0.srv_child.specialized_in_port, c0.each_exported_input
-                assert_single_export 'srv_out', c0.srv_child.specialized_out_port, c0.each_exported_output
-                assert_single_export 'srv_in', c1.srv_child.in_port, c1.each_exported_input
-                assert_single_export 'srv_out', c1.srv_child.out_port, c1.each_exported_output
+                assert_equal c0.srv_child.specialized_in_port, c0.find_exported_input('srv_in')
+                assert_equal c0.srv_child.specialized_out_port, c0.find_exported_output('srv_out')
+                assert_equal c1.srv_child.in_port, c1.find_exported_input('srv_in')
+                assert_equal c1.srv_child.out_port, c1.find_exported_output('srv_out')
             end
         end
 

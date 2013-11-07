@@ -109,5 +109,44 @@ describe Syskit::Composition do
             assert_equal srv.orocos_task.port("out"),
                 cmp.find_output_port("srv_out").to_orocos_port
         end
+
+        it "should be able to map an renamed exported port even if the original child got overloaded" do
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'srv_out', '/double'
+            end
+            cmp_m = Syskit::Composition.new_submodel do
+                add srv_m, :as => 'test'
+                export test_child.srv_out_port, :as => 'new_name'
+            end
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+                provides srv_m, :as => 'test'
+            end
+            overloaded_m = cmp_m.new_submodel do
+                overload 'test', task_m
+            end
+
+            cmp = overloaded_m.instanciate(plan)
+            assert_equal cmp.test_child.out_port, overloaded_m.new_name_port.bind(cmp).to_actual_port
+        end
+
+        it "should be able to map a port whose actually selected task has a different name" do
+            srv_m = Syskit::DataService.new_submodel :name => 'Srv' do
+                output_port 'srv_out', '/double'
+            end
+            cmp_m = Syskit::Composition.new_submodel :name => 'ChildCmp' do
+                add srv_m, :as => 'test'
+                export test_child.srv_out_port, :as => 'new_name'
+                provides srv_m, :as => 'test'
+            end
+            task_m = Syskit::TaskContext.new_submodel :name => 'Task' do
+                output_port 'out', '/double'
+                provides srv_m, :as => 'test'
+            end
+            cmp_m.specialize cmp_m.test_child => task_m
+            
+            cmp = cmp_m.use(task_m).instanciate(plan)
+            assert_equal cmp.test_child.out_port, cmp_m.test_child.srv_out_port.bind(cmp.test_child).to_actual_port
+        end
     end
 end
