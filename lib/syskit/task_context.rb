@@ -692,17 +692,6 @@ module Syskit
                 @orocos_task = Orocos::RubyTaskContext.from_orogen_model(orocos_name, model.orogen_model)
             end
 
-	    # Resolves the given Syskit::Port object into a port object that
-	    # points to the real task context port
-            #
-            # It should not be used directly. One should usually use
-            # Port#to_actual_port instead
-            #
-            # @return [Syskit::Port]
-            def self_port_to_actual_port(port)
-		port
-            end
-
             # Resolves the given Syskit::Port object into the actual Port object
             # on the underlying task.
             #
