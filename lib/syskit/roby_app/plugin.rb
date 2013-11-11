@@ -50,7 +50,11 @@ module Syskit
             def load_orogen_project(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
                 server = Syskit.conf.process_server_for(options[:on])
-                server.load_orogen_project(name)
+                project = server.load_orogen_project(name)
+                if !loaded_orogen_project?(project.name)
+                    project_define_from_orogen(project.name, project)
+                end
+                project
             end
 
             # Registers all objects contained in a given oroGen project
@@ -93,7 +97,7 @@ module Syskit
                 loaded_orogen_projects[name] = orogen
 
                 orogen.used_task_libraries.dup.each do |lib|
-                    using_task_library(lib.name)
+                    using_task_library(lib)
                 end
 
                 orogen.self_tasks.each do |task_def|
