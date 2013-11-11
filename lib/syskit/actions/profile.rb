@@ -43,13 +43,17 @@ module Syskit
                 self
             end
 
-            def dependency_injection_context(context = nil)
-                context ||= DependencyInjectionContext.new
-                used_profiles.each do |profile|
-                    context.push(profile.dependency_injection)
+            def resolved_dependency_injection
+                if !@di
+                    di = DependencyInjectionContext.new
+                    di.push(robot.to_dependency_injection)
+                    all_used_profiles.each do |prof|
+                        di.push(prof.dependency_injection)
+                    end
+                    di.push(dependency_injection)
+                    @di = di.current_state
                 end
-                context.push(dependency_injection)
-                context
+                @di
             end
 
             def to_s
@@ -83,8 +87,8 @@ module Syskit
             #
             # @return [InstanceRequirements] the added instance requirement
             def define(name, requirements)
-                resolved = dependency_injection_context.
-                    current_state.direct_selection_for(requirements) || requirements
+                resolved = resolved_dependency_injection.
+                    direct_selection_for(requirements) || requirements
                 definitions[name] = resolved.to_instance_requirements
             end
 
@@ -141,16 +145,7 @@ module Syskit
             # @param [InstanceRequirements] req the instance requirement object
             # @return [void]
             def inject_di_context(req)
-                if !@di
-                    di = DependencyInjectionContext.new
-                    di.push(robot.to_dependency_injection)
-                    all_used_profiles.each do |prof|
-                        di.push(prof.dependency_injection)
-                    end
-                    di.push(dependency_injection)
-                    @di = di.current_state
-                end
-                req.dependency_injection_context.push(@di)
+                req.dependency_injection_context.push(resolved_dependency_injection)
                 super if defined? super
                 nil
             end

@@ -78,7 +78,7 @@ module Syskit::GUI
             formatted = [component_model.map { |m| page.link_to(m) }.join(",")]
 
             if options[:resolve_dependency_injection]
-                selections = req.resolved_dependency_injection.current_state
+                selections = req.resolved_dependency_injection
                 if !selections.empty?
                     formatted_selections = render_instance_requirements_selections(page, selections)
                     formatted[-1] += "."
