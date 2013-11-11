@@ -19,20 +19,15 @@ module Syskit
             #
             # @return the ROS::Nodes in use
             def use_roslaunchers_from(project_name, options = Hash.new)
-                if !ros_launchers
-                    @ros_launchers = Array.new
+                @ros_launchers ||= Set.new
+                project = Roby.app.using_ros_package(project_name)
+                if project.ros_launchers.empty?
+                    raise ArgumentError, "Syskit::ROS: did not find any launchers for project: '#{project_name}'. Search dirs: #{Orocos::ROS.spec_search_directories.join(",")}"
                 end
 
-                launcher_found = false
-                Orocos::ROS.available_launchers.each do |name, launcher|
-                    if launcher.project.name == project_name
-                        @ros_launchers << launcher
-                        use_roslauncher(name, options)
-                        launcher_found = true
-                    end
-                end
-                if !launcher_found
-                    raise ArgumentError, "Syskit::ROS: did not find any launchers for project: '#{project_name}'. Search dirs: #{Orocos::ROS.spec_search_directories.join(",")}"
+                project.ros_launchers.each do |launcher|
+                    ros_launchers << launcher
+                    use_roslauncher(launcher.name, options)
                 end
 
                 @ros_launchers
@@ -47,7 +42,7 @@ module Syskit
                     return loaded_ros_projects[project_name] 
                 end
 
-                project,_ = Orocos::ROS.available_ros_projects[project_name]
+                project,_ = Orocos::ROS.load_ros_project(project_name)
 
                 project.self_tasks.each do |task_def|
                     if !TaskContext.has_model_for?(task_def)
