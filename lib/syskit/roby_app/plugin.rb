@@ -70,7 +70,7 @@ module Syskit
 
                 # If it is a task library, register it on our main project
                 if !orogen.self_tasks.empty?
-                    Orocos.master_project.using_task_library(name)
+                    Orocos.master_project.using_task_library(orogen)
                 end
 
 		Orocos.registry.merge(orogen.registry)

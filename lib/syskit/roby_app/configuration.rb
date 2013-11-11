@@ -284,7 +284,7 @@ module Syskit
                     if n.respond_to?(:to_hash)
                         n.map_key do |k|
                             if k.respond_to?(:orogen_model)
-                                k.orogen_model.name 
+                                k.orogen_model
                             else k
                             end
                         end
