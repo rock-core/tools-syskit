@@ -19,8 +19,6 @@ module Syskit
             #
             # @return the ROS::Nodes in use
             def use_roslaunchers_from(project_name, options = Hash.new)
-                Orocos::ROS.load
-
                 if !ros_launchers
                     @ros_launchers = Array.new
                 end

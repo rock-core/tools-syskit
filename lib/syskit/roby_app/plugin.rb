@@ -149,6 +149,28 @@ module Syskit
             # Called by the main Roby application on setup. This is the first
             # configuration step.
             def self.setup(app)
+                Orocos::ROS.load
+
+                all_files =
+                    app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
+                all_files.each do |path|
+                    name = File.basename(path, ".orogen")
+                    Orocos.master_project.register_orogen_file path, name
+                end
+
+                all_files =
+                    app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => true, :order => :specific_last, :pattern => /\.typelist$/)
+                all_files.each do |path|
+                    name = File.basename(path, ".typelist")
+                    base_path = File.join(File.dirname(path), name)
+                    Orocos.master_project.register_typekit name, File.read("#{base_path}.tlb"), File.read("#{base_path}.typelist")
+                    Orocos::ROS.master_project.register_typekit name, File.read("#{base_path}.tlb"), File.read("#{base_path}.typelist")
+                end
+
+                Orocos::ROS.spec_search_directories.concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => true, :order => :specific_first))
+                Orocos::ROS.pack_paths.concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
+                Orocos::ROS.register_ros_models
+
                 if app.shell?
                     return
                 end
@@ -163,9 +185,13 @@ module Syskit
                 Dir.chdir(app.log_dir) do
                     if !Syskit.conf.only_load_models?
                         Orocos.initialize
+                        if Orocos::ROS.enabled?
+                            Orocos::ROS.initialize
+                            Orocos::ROS.roscore_start(:wait => true)
+                        end
                     end
 
-                    if !app.shell? && !Syskit.conf.disables_local_process_server?
+                    if !Syskit.conf.disables_local_process_server?
                         start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
                     end
                 end
@@ -197,35 +223,21 @@ module Syskit
                 if !Orocos.loaded?
                     load_orocosrb(app)
                 end
-                # Load user-defined dummy orogen projects
-                all_files =
-                    app.find_files_in_dirs("models", "orogen", "ROBOT", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
-                all_files.each do |path|
-                    name = File.basename(path, ".orogen")
-                    if !Orocos.available_projects.has_key?(name)
-                        begin
-                            Orocos.beautify_loading_errors("#{name}.orogen") do
-                                Orocos.load_independent_orogen_project(path)
-                            end
-                        rescue Exception => e
-                            Roby.app.register_exception(e)
-                        end
-                    end
-                end
 
-                Syskit.process_servers.each do |name, (client, log_dir)|
-		    client.available_projects.each do |name, orogen_model|
-		    	if !Orocos.available_projects.has_key?(name)
-			    Orocos.master_project.register_orogen_file(orogen_model, name)
+                Orocos::ROS.load
+
+                Syskit.process_servers.each_value do |client, _|
+		    client.available_projects.each do |project_name, orogen_model|
+		    	if !Orocos.available_projects.has_key?(project_name)
+			    Orocos.master_project.register_orogen_file(orogen_model, project_name)
 			end
 		    end
-		    client.available_typekits.each do |name, (registry, typelist)|
-		    	if !Orocos.available_typekits.has_key?(name)
-			    Orocos.master_project.register_typekit(name, registry, typelist)
+		    client.available_typekits.each do |typekit_name, (registry, typelist)|
+		    	if !Orocos.available_typekits.has_key?(typekit_name)
+			    Orocos.master_project.register_typekit(typekit_name, registry, typelist)
 			end
 		    end
 		end
-
 
                 # Load the data services and task models
                 search_path =
@@ -273,6 +285,17 @@ module Syskit
             # Loads the required typekit
             def import_types_from(typekit_name)
                 Orocos.master_project.import_types_from(typekit_name)
+            end
+
+            # Loads the required ROS package
+            def using_ros_package(name)
+                orogen = Orocos::ROS.load_ros_project(name)
+                if !loaded_orogen_project?(name)
+                    # The project was already loaded on
+                    # Orocos.master_project before Roby kicked in. Just load
+                    # the Roby part
+                    project_define_from_orogen(name, orogen)
+                end
             end
 
             def self.load_task_extension(file, app)
@@ -501,6 +524,11 @@ module Syskit
                 # Loads the given task library
                 def using_task_library(name)
                     Roby.app.using_task_library(name)
+                end
+
+                # Loads a ROS package description
+                def using_ros_package(name)
+                    Roby.app.using_ros_package(name)
                 end
             end
 
