@@ -27,25 +27,36 @@ module Syskit
                 end
             end
 
+            attr_reader :resolved
+
             def initialize_copy(from)
-                @resolved = nil
+                mappings = Hash.new
                 @explicit = from.explicit.map_value do |key, obj|
-                    case obj
-                    when InstanceRequirements
-                        obj.dup
-                    else obj
-                    end
-                end
-                @defaults = Set.new
-                from.defaults.each do |obj|
-                    obj =
+                    new_obj =
                         case obj
                         when InstanceRequirements
                             obj.dup
                         else obj
                         end
+                    mappings[obj] = new_obj
+                end
+                @defaults = Set.new
+                from.defaults.each do |obj|
+                    new_obj =
+                        case obj
+                        when InstanceRequirements
+                            obj.dup
+                        else obj
+                        end
+                    mappings[obj] = new_obj
+                    @defaults << new_obj
+                end
 
-                    @defaults << obj
+                @resolved = nil
+                if from.resolved
+                    @resolved = from.resolved.map_value do |key, obj|
+                        mappings[obj]
+                    end
                 end
             end
 
