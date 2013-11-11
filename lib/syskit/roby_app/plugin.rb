@@ -97,6 +97,12 @@ module Syskit
                 end
 
                 orogen.self_tasks.each do |task_def|
+                    # Load configuration directories
+                    if conf_file = find_file('config', 'orogen', 'ROBOT', "#{task_def.name}.yml", :order => :specific_first, :all => true)
+                        isolate_load_errors("could not load oroGen configuration file #{conf_file}") do
+                            Orocos.conf.load_file(conf_file, task_def)
+                        end
+                    end
                     if !TaskContext.has_model_for?(task_def)
                         Syskit::TaskContext.define_from_orogen(task_def, :register => true)
                     end
@@ -204,12 +210,6 @@ module Syskit
                         rescue Exception => e
                             Roby.app.register_exception(e)
                         end
-                    end
-                end
-                # Load configuration directories
-                app.find_dirs('config', 'orogen', 'ROBOT', :order => :specific_last, :all => true).each do |dir|
-                    app.isolate_load_errors("could not load oroGen configuration files in #{dir}") do
-                        Orocos.conf.load_dir(dir)
                     end
                 end
 
