@@ -331,9 +331,7 @@ module Syskit
                         Syskit.info "  #{deployment_def.name}"
                         # Currently, the supervision cannot handle orogen_default tasks 
                         # properly, thus filtering them out for now 
-                        if /^orogen_default/ !~ "#{deployment_def.name}"
-                            result << use_deployment(deployment_def.name, options)
-                        end
+                        result << use_deployment(deployment_def, options)
                     end
                 end
                 result
