@@ -104,42 +104,6 @@ module Syskit
                 end
             end
 
-            # @return [Array<Array>] Model mapping from Orogen to Syskit
-            def base_taskmodel_mapping_extension
-                # Use array to maintain the right order of evaluation
-                { Orocos::ROS::Spec::Node => Syskit::ROS::Node }
-            end
-
-            def syskit_base_taskmodel_from_orogen(orogen_model)
-                if !orogen_model.kind_of?(Class)
-                    orogen_model = orogen_model.class
-                end
-                if syskit_model = base_taskmodel_mapping_extension[orogen_model]
-                    return syskit_model
-                else # default syskit model
-                    return Syskit::TaskContext
-                end
-
-            end
-
-            def orogen_base_taskmodel_from_syskit(syskit_model)
-                if !syskit_model.kind_of?(Class)
-                    syskit_model = syskit_model.class
-                end
-                base_taskmodel_mapping_extension do |orogen,syskit|
-                    if syskit == syskit_model
-                        return orogen
-                    end
-                end
-
-                # default orogen model
-                return Orocos::Spec::TaskContext
-            end
-
-            def alternative_task_context?(orogen_model)
-                base_taskmodel_mapping_extension.values.include?(orogen_model)
-            end
-
             # [Orocos::Spec::TaskContext] The base oroGen model that all submodels need to subclass
             attribute(:orogen_model) { Orocos::Spec::TaskContext.new }
 
@@ -157,21 +121,7 @@ module Syskit
             #   oroGen model that should be used. If not given, an empty model
             #   is created, possibly with the name given to the method as well.
             def new_submodel(options = Hash.new, &block)
-                orogen_model, options = Kernel.filter_options options, 
-                    :orogen_model
-
-                model = super(options, &block)
-
-                if orogen_model = orogen_model[:orogen_model]
-                    if alternative_task_context?(model)
-                        model = syskit_base_taskmodel_from_orogen(orogen_model).new(options, &block)
-                    end
-                    model.orogen_model = orogen_model
-                end
-
-
-                model.make_state_events
-                model
+                super
             end
 
             def apply_block(&block)
@@ -184,10 +134,15 @@ module Syskit
             # @param [String] name an optional name for this submodel
             # @return [void]
             def setup_submodel(submodel, options = Hash.new)
-                submodel.orogen_model = orogen_base_taskmodel_from_syskit(submodel).new(Orocos.master_project, nil)
-                submodel.orogen_model.subclasses orogen_model
-
                 super
+
+                orogen_model, options = Kernel.filter_options options, :orogen_model
+                if !(m = orogen_model[:orogen_model])
+                    m = self.orogen_model.class.new(Orocos.master_project, nil)
+                    m.subclasses self.orogen_model
+                end
+                submodel.orogen_model = m
+                submodel.make_state_events
             end
 
             def worstcase_processing_time(value)
