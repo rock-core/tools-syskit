@@ -5,6 +5,9 @@ module Syskit
         # The main configuration instance is accessible as Syskit.conf or (if
         # running in a Roby application) as Conf.syskit
         class Configuration < Roby::OpenStruct
+            # The application that we are configuring
+            # @return [Roby::Application]
+            attr_reader :app
             # If true, we will load the component-specific code in
             # tasks/orocos/. It is true by default
             attr_predicate :load_component_extensions, true
@@ -20,9 +23,10 @@ module Syskit
             # errors
             attr_predicate :ignore_load_errors, true
 
-            def initialize
+            def initialize(app)
                 super
 
+                @app = app
                 @load_component_extensions = true
                 @log_enabled = true
                 @conf_log_enabled = true
