@@ -68,6 +68,67 @@ module Syskit
                 task
             end
 
+            # Deploy the given composition, replacing every single data service
+            # and task context by a ruby task context, allowing to then test.
+            #
+            # The resulting composition gets started (recursively)
+            #
+            # @option options [Boolean] :recursive (false) if true, the
+            #   method will stub the children of compositions that are used by
+            #   the root composition. Otherwise, you have to refer to them in
+            #   the original instance requirements
+            #
+            # @example reuse toplevel tasks in children-of-children
+            #   class Cmp < Syskit::Composition
+            #      add PoseSrv, :as => 'pose'
+            #   end
+            #   class RootCmp < Syskit::Composition
+            #      add PoseSrv, :as => 'pose'
+            #      add Cmp, :as => 'processor'
+            #   end
+            #   model = RootCmp.use(
+            #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
+            #   stub_deploy_and_start_composition(model)
+            def stub_deploy_and_start_composition(model, options = Hash.new)
+                model = model.to_instance_requirements.dup
+                options = Kernel.validate_options options, :recursive => false
+
+                model.model.each_child do |child_name, child|
+                    if child.composition_model? 
+                        if options[:recursive]
+                            model.use(child_name => syskit_stub_and_deploy_composition(child))
+                        end
+                        next
+                    end
+
+                    task_m = child.model
+                    if task_m.respond_to?(:proxied_data_services)
+                        superclass = if task_m.superclass <= Syskit::TaskContext
+                                         task_m.superclass
+                                     else Syskit::TaskContext
+                                     end
+
+                        services = task_m.proxied_data_services
+                        task_m = superclass.new_submodel
+                        services.each_with_index do |srv, idx|
+                            srv.each_input_port do |p|
+                                task_m.orogen_model.input_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
+                            end
+                            srv.each_output_port do |p|
+                                task_m.orogen_model.output_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
+                            end
+                            task_m.provides srv, :as => "srv#{idx}"
+                        end
+                    elsif task_m.abstract?
+                        task_m = task_m.new_submodel
+                    end
+                    stub_syskit_deployment_model(task_m, child_name)
+                    model.use(child_name => task_m).prefer_deployed_tasks(child_name)
+                end
+                root = syskit_run_deployer(model)
+                syskit_start_component(root)
+            end
+
             # Create a new deployed instance of a task context model
             #
             # @param [Model<Syskit::TaskContext>,String] task_model the task
