@@ -6,6 +6,14 @@ module Syskit
 
         provides Roby::Interface::Job
 
+        # If this planning task has been created through an action object, this
+        # is it
+        argument :action_model, :default => nil
+
+        # If this planning task has been created through an action object, this
+        # contains the arguments that were passed to it
+        argument :action_arguments, :default => nil
+
         # The instance that should be added to the network
         #
         # @return [InstanceRequirements]

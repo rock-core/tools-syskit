@@ -22,7 +22,10 @@ module Syskit
             def plan_pattern(arguments = Hash.new)
                 req = requirements.dup
                 req.with_arguments(arguments)
-                req.as_plan
+                placeholder = req.as_plan
+                placeholder.planning_task.action_model = self
+                placeholder.planning_task.action_arguments = arguments
+                placeholder
             end
 
             def to_instance_requirements
