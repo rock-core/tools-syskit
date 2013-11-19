@@ -201,6 +201,30 @@ module Syskit
                 graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -T#{format} %s") do
                     send(kind, display_options)
                 end
+                    if !$?.exited? || !ENV['SAVE_DOT'].nil?
+                        name = 0
+                        while File.exists?("Debug.grapth#{name}.dot")
+                            name = name +1
+                        end
+                         Tempfile.open('roby_orocos_graphviz') do |io|
+                            io.write send(kind,display_options)
+                            io.flush
+                            system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug#{name}.png")
+                            f = File.new("Debug.grapth#{name}.dot",File::CREAT|File::TRUNC|File::RDWR) 
+                            f.write send(kind,display_options) 
+                            f.flush
+                            f.close
+                         end
+                    end
+
+                    if output_io.respond_to?(:to_str)
+                        File.open(output_io, 'w') do |io|
+                            io.puts(graph)
+                        end
+                    else
+                        output_io.puts(graph)
+                        output_io.flush
+                    end
 
                 if !$?.exited?
                     graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -Tpng %s") do
@@ -220,34 +244,6 @@ module Syskit
                     raise DotFailedError, "dot reported an error generating the graph"
                 end
 
-                    if !$?.exited? || !ENV['SAVE_DOT'].nil?
-                        name = 0
-                        while File.exists?("Debug.grapth#{name}.dot")
-                            name = name +1
-                        end
-                        system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug#{name}.png")
-                        f = File.new("Debug.grapth#{name}.dot",File::CREAT|File::TRUNC|File::RDWR) 
-                        f.write dot_graph
-                        f.flush
-                        f.close
-                        if(ENV['SAVE_DOT'].nil?)
-                            raise ArgumentError, "dot crashed while trying to generate the graph \
-the command was \"#{file_options[:graphviz_tool]} -T#{format} #{io.path}\". \
-Instead created an png version with name debug#{name}.png in #{Dir.pwd}/debug#{name}.png \
-For debuggin the input file (Debug.grapth#{name}.dot) for dot was created too"
-                        end
-                    elsif !$?.success?
-                        raise ArgumentError, "dot reported an error generating the graph"
-                    end
-
-                    if output_io.respond_to?(:to_str)
-                        File.open(output_io, 'w') do |io|
-                            io.puts(graph)
-                        end
-                    else
-                        output_io.puts(graph)
-                        output_io.flush
-                    end
             end
 
             COLORS = {
