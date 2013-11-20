@@ -4,18 +4,12 @@ end
 
 module Syskit
         class << self
-            # The set of known process servers.
-            #
-            # It maps the server name to the Orocos::ProcessServer instance
-            attr_reader :process_servers
-
             # Registers the given process server to the set of usable process
             # servers
             def register_process_server(name, client, log_dir)
-                Syskit.process_servers[name] = [client, log_dir]
+                Syskit.conf.register_process_server(name, client, log_dir)
             end
         end
-        @process_servers = Hash.new
 
         # In oroGen, a deployment is a Unix process that holds a certain number
         # of task contexts. This Roby task represents the unix process itself.
@@ -142,12 +136,11 @@ module Syskit
             # :ready event will be emitted when the deployment is up and
             # running.
             event :start do |context|
-                process_server, log_dir = Syskit.process_servers[host]
-                if !process_server
-                    raise ArgumentError, "cannot find the process server for #{host}"
-                elsif !process_name
+                if !process_name
                     raise ArgumentError, "must set process_name"
                 end
+                process_server = Syskit.conf.process_server_for(host)
+                log_dir = Syskit.conf.log_dir_for(host)
 
                 spawn_options = self.spawn_options
                 options = (spawn_options[:cmdline_args] || Hash.new).dup
@@ -171,7 +164,7 @@ module Syskit
             end
 
             def log_dir
-                process_server, log_dir = Syskit.process_servers[host]
+                _, log_dir = Syskit.conf.process_server(host)
                 log_dir
             end
 

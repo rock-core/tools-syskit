@@ -22,7 +22,8 @@ module Syskit
         #
         # For consistency reasons, it is also available as Roby.conf.syskit when
         # running in a Roby application
-        attr_reader :conf
+        def conf
+            @conf ||= RobyApp::Configuration.new(Roby.app)
+        end
     end
-    @conf = RobyApp::Configuration.new
 end

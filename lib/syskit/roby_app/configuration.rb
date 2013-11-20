@@ -1,3 +1,4 @@
+require 'orocos/ruby_process_server'
 module Syskit
     module RobyApp
         # Syskit engine configuration interface
@@ -24,15 +25,16 @@ module Syskit
             attr_predicate :ignore_load_errors, true
 
             def initialize(app)
-                super
+                super()
 
                 @app = app
+                @process_servers = Hash.new
                 @load_component_extensions = true
                 @log_enabled = true
                 @conf_log_enabled = true
                 @redirect_local_process_server = true
                 @default_logging_buffer_size = 25
-                @reject_ambiguous_deployments = false
+                @reject_ambiguous_deployments = true
                 @auto_configure = true
                 @only_load_models = false
                 @disables_local_process_server = false
@@ -282,6 +284,11 @@ module Syskit
                 options, run_options = Kernel.filter_options names.last,
                     :on => 'localhost'
                 names[-1] = run_options
+                process_server_name = options[:on]
+                if app.simulation?
+                    process_server_name = "#{process_server_name}-sim"
+                    sim_process_server(process_server_name)
+                end
 
                 # We allow the user to specify a task model as a Roby task. Map that
                 names = names.map do |n|
@@ -302,7 +309,7 @@ module Syskit
                         Roby.app.load_deployment_model(deployment_name, options)
                     model.default_run_options.merge!(default_run_options(model))
 
-                    configured_deployment = Models::ConfiguredDeployment.new(options[:on], model, mappings, name, spawn_options)
+                    configured_deployment = Models::ConfiguredDeployment.new(process_server_name, model, mappings, name, spawn_options)
                     configured_deployment.each_orogen_deployed_task_context_model do |task|
                         orocos_name = task.name
                         if deployed_tasks[orocos_name] && deployed_tasks[orocos_name] != configured_deployment
@@ -312,7 +319,7 @@ module Syskit
                     configured_deployment.each_orogen_deployed_task_context_model do |task|
                         deployed_tasks[task.name] = configured_deployment
                     end
-                    deployments[options[:on]] << configured_deployment
+                    deployments[process_server_name] << configured_deployment
                     configured_deployment
                 end
                 model
@@ -395,7 +402,7 @@ module Syskit
             # @param [String] name the process server name
             # @raise [ArgumentError] if no such process server exists
             def process_server_for(name)
-                server = Syskit.process_servers[name]
+                server = process_servers[name]
                 if server then return server.first
                 else
                     if name == 'localhost' || Roby.app.single?
@@ -405,9 +412,35 @@ module Syskit
                 end
             end
 
+            # Returns the log dir for the given process server
+            #
+            # @param [String] name the process server name
+            # @raise [ArgumentError] if no such process server exists
+            def log_dir_for(name)
+                server = process_servers[name]
+                if server then return server.last
+                else
+                    if name == 'localhost' || Roby.app.single?
+                        return app.log_dir
+                    end
+                    raise ArgumentError, "there is no registered process server called #{name}"
+                end
+            end
+
             # True if this application should not try to contact other
             # machines/servers
             attr_predicate :local_only?, true
+
+            def each_process_server
+                process_servers.each_value do |client, _|
+                    yield(client)
+                end
+            end
+
+            # @deprecated use {#connect_to_orocos_process_server} instead
+            def process_server(*args)
+                connect_to_orocos_process_server(*args)
+            end
 
             # Call to declare a new process server and add to the set of servers that
             # can be used by this plan manager
@@ -422,20 +455,20 @@ module Syskit
             #   {#local_only?} is set
             # @raise [ArgumentError] if there is already a process server
             #   registered with that name
-            def process_server(name, host, options = Hash.new)
+            def connect_to_orocos_process_server(name, host, options = Hash.new)
                 if Roby.app.single?
                     if disables_local_process_server?
                         return Orocos.master_project
                     else
                         client = Orocos::ProcessClient.new('localhost')
-                        Syskit.register_process_server(name, client, Roby.app.log_dir)
+                        register_process_server(name, client, app.log_dir)
                         return client
                     end
                 end
 
                 if local_only? && host != 'localhost'
                     raise ArgumentError, "in local only mode"
-                elsif Syskit.process_servers[name]
+                elsif process_servers[name]
                     raise ArgumentError, "there is already a process server called #{name} running"
                 end
 
@@ -457,8 +490,16 @@ module Syskit
                 client = Orocos::ProcessClient.new(host, port)
                 client.save_log_dir(options[:log_dir], options[:result_dir])
                 client.create_log_dir(options[:log_dir], Roby.app.time_tag)
-                Syskit.register_process_server(name, client, options[:log_dir])
+                register_process_server(name, client, options[:log_dir])
                 client
+            end
+
+            def register_process_server(name, client, log_dir)
+                process_servers[name] = [client, log_dir]
+            end
+
+            def remove_process_server(name)
+                process_servers.delete(name)
             end
         end
     end

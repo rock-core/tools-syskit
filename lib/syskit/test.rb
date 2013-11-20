@@ -49,7 +49,7 @@ module Syskit
             @old_loglevel = Orocos.logger.level
 
             Roby.app.filter_backtraces = false
-            Syskit.process_servers['stubs'] = [Orocos::RubyProcessServer.new, ""]
+            Syskit.conf.register_process_server('stubs', Orocos::RubyProcessServer.new, "")
 
             super
         end
@@ -57,6 +57,7 @@ module Syskit
         def teardown
             super
 
+            Syskit.conf.remove_process_server('stubs')
             @task_stubs.each do |t|
                 t.dispose
             end

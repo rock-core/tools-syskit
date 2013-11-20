@@ -9,7 +9,7 @@ module Syskit
             # between already-dead processes
 
             all_dead_deployments = ValueSet.new
-            for name, server in Syskit.process_servers
+            for name, server in Syskit.conf.process_servers
                 server = server.first
                 dead_deployments = server.wait_termination(0)
                 dead_deployments.each do |p, exit_status|

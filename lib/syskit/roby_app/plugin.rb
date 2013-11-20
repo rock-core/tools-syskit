@@ -230,7 +230,7 @@ module Syskit
 
                 Orocos::ROS.load
 
-                Syskit.process_servers.each_value do |client, _|
+                Syskit.conf.each_process_server do |client, _|
 		    client.available_projects.each do |project_name, orogen_model|
 		    	if !Orocos.available_projects.has_key?(project_name)
 			    Orocos.master_project.register_orogen_file(orogen_model, project_name)
@@ -313,7 +313,7 @@ module Syskit
                     port = Orocos::ProcessServer::DEFAULT_PORT)
 
                 options, server_options = Kernel.filter_options options, :redirect => true
-                if Syskit.process_servers['localhost']
+                if Syskit.conf.process_servers['localhost']
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
 
@@ -332,7 +332,7 @@ module Syskit
                 @server_pid
             end
 
-            def self.connect_to_local_process_server
+            def self.connect_to_local_process_server(app)
                 if !@server_pid
                     raise Orocos::ProcessClient::StartupFailed, "#connect_to_local_process_server got called but no process server is being started"
                 end
@@ -365,7 +365,7 @@ module Syskit
                 end
 
                 # Do *not* manage the log directory for that one ...
-                Syskit.register_process_server('localhost', client, Roby.app.log_dir)
+                Syskit.conf.register_process_server('localhost', client, app.log_dir)
             end
 
 
@@ -417,7 +417,7 @@ module Syskit
                     @server_pid = nil
                 rescue Errno::ESRCH
                 end
-                Syskit.process_servers.delete('localhost')
+                Syskit.conf.remove_process_server 'localhost'
             end
 
             ##
@@ -470,7 +470,7 @@ module Syskit
 
             def self.prepare(app)
                 if has_local_process_server?
-                    connect_to_local_process_server
+                    connect_to_local_process_server(app)
                 end
 
                 @handler_ids = plug_engine_in_roby(Roby.engine)
@@ -513,10 +513,10 @@ module Syskit
 
             def self.stop_process_servers
                 # Stop the local process server if we started it ourselves
-                Syskit.process_servers.each_value do |client, options|
+                Syskit.conf.each_process_server do |client, options|
                     client.disconnect
                 end
-                Syskit.process_servers.clear
+                Syskit.conf.process_servers.clear
             end
 
             module LoadToplevelMethods
