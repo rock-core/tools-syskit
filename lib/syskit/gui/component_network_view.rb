@@ -38,6 +38,10 @@ module Syskit
                                       :on_text => 'Show compositions',
                                       :off_text => 'Hide compositions',
                                       :state => !dataflow_options[:remove_compositions])
+                buttons << Button.new("dataflow/show_all_ports",
+                                      :on_text => 'Show all ports',
+                                      :off_text => 'Hide unused ports',
+                                      :state => !dataflow_options[:show_all_ports])
 
                 if defined? ::Logger::Logger
                     dataflow_options[:excluded_models] << ::Logger::Logger
@@ -91,7 +95,8 @@ module Syskit
                 dataflow_options = render_options.merge(specific_options[:dataflow])
                 dataflow_options = process_options('dataflow', model, dataflow_options)
 
-                render_plan(:hierarchy => hierarchy_options, :dataflow => dataflow_options)
+                render_plan(:hierarchy => hierarchy_options,
+                            :dataflow => dataflow_options)
             end
 
             def process_options(kind, model, options)
