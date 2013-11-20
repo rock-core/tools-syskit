@@ -10,12 +10,6 @@ module Syskit
                 end
             end
 
-            # The set of loaded orogen projects, as a mapping from the project
-            # name to the corresponding TaskLibrary instance
-            #
-            # See #load_orogen_project.
-            attribute(:loaded_orogen_projects) { Hash.new }
-
             # Set of requirements that should be added to the running system.
             # This is meant to be used only by "syskit scripts" through
             # SingleFileDSL
@@ -43,62 +37,13 @@ module Syskit
             # by #load_orogen_project
             def loaded_orogen_project?(name); loaded_orogen_projects.has_key?(name) end
 
-            # Load the given orogen project and defines the associated task
-            # models. It also loads the projects this one depends on.
-            #
-            # @return [Orocos::Generation::Project] the project object
-            def load_orogen_project(name, options = Hash.new)
-                options = Kernel.validate_options options, :on => 'localhost'
-                server = Syskit.conf.process_server_for(options[:on])
-                project = server.load_orogen_project(name)
-                if !loaded_orogen_project?(project.name)
-                    project_define_from_orogen(project.name, project)
-                end
-                project
-            end
-
             # Registers all objects contained in a given oroGen project
             #
-            # @return [Orocos::Generation::Project] the project object
-            def project_define_from_orogen(name, orogen)
-                return loaded_orogen_projects[name] if loaded_orogen_project?(name)
-                Syskit.info "loading oroGen project #{name}"
-
-                if Orocos.available_task_libraries[name].respond_to?(:to_str)
-                    orogen_path = Orocos.available_task_libraries[name]
-                    if File.file?(orogen_path)
-                        Orocos.master_project.register_orogen_file(Orocos.available_task_libraries[name], name)
-                    end
-                end
-                orogen ||= Orocos.master_project.load_orogen_project(name)
-
-                # If it is a task library, register it on our main project
-                if !orogen.self_tasks.empty?
-                    Orocos.master_project.using_task_library(orogen)
-                end
-
-		Orocos.registry.merge(orogen.registry)
-                if tk = orogen.typekit
-                    if Syskit.conf.only_load_models?
-                        Orocos.load_typekit_registry(orogen.name)
-                    else
-                        Orocos.load_typekit(orogen.name)
-                    end
-                end
-                orogen.used_typekits.each do |tk|
-                    next if tk.virtual?
-
-                    if Syskit.conf.only_load_models?
-                        Orocos.load_typekit_registry(tk.name)
-                    else
-                        Orocos.load_typekit(tk.name)
-                    end
-                end
-                loaded_orogen_projects[name] = orogen
-
-                orogen.used_task_libraries.dup.each do |lib|
-                    using_task_library(lib)
-                end
+            # @param [OroGen::Spec::Project] orogen the oroGen project that
+            #   should be added to the Syskit side
+            def project_define_from_orogen(orogen)
+                return if loaded_orogen_projects.has_key?(orogen.name)
+                Syskit.info "loading oroGen project #{orogen.name}"
 
                 orogen.self_tasks.each do |task_def|
                     # Load configuration directories
@@ -109,11 +54,6 @@ module Syskit
                     end
                     if !TaskContext.has_model_for?(task_def)
                         Syskit::TaskContext.define_from_orogen(task_def, :register => true)
-                    end
-                end
-                orogen.deployers.each do |deployment_def|
-                    if deployment_def.install? && !Deployment.has_model_for?(deployment_def)
-                        Syskit::Deployment.define_from_orogen(deployment_def, :register => true)
                     end
                 end
 
@@ -132,7 +72,7 @@ module Syskit
 
                     if file
                         Roby::Application.info "loading task extension #{file}"
-                        Plugin.load_task_extension(file, self)
+                        require file
                     end
                 end
             end
@@ -145,7 +85,7 @@ module Syskit
             # Loads all available oroGen projects
             def syskit_load_all
                 self.syskit_load_all = true
-                Orocos.available_task_libraries.each_key do |name|
+                Orocos.default_pkgconfig_loader.available_task_libraries.each_key do |name|
                     using_task_library(name)
                 end
             end
@@ -159,16 +99,15 @@ module Syskit
                     app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
                 all_files.each do |path|
                     name = File.basename(path, ".orogen")
-                    Orocos.master_project.register_orogen_file path, name
+                    Orocos.default_file_loader.register_orogen_file path, name
                 end
 
                 all_files =
                     app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => true, :order => :specific_last, :pattern => /\.typelist$/)
                 all_files.each do |path|
                     name = File.basename(path, ".typelist")
-                    base_path = File.join(File.dirname(path), name)
-                    Orocos.master_project.register_typekit name, File.read("#{base_path}.tlb"), File.read("#{base_path}.typelist")
-                    Orocos::ROS.master_project.register_typekit name, File.read("#{base_path}.tlb"), File.read("#{base_path}.typelist")
+                    dir  = File.dirname(path)
+                    Orocos.default_file_loader.register_typekit dir, name
                 end
 
                 Orocos::ROS.spec_search_directories.concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => true, :order => :specific_first))
@@ -230,19 +169,6 @@ module Syskit
 
                 Orocos::ROS.load
 
-                Syskit.conf.each_process_server do |client, _|
-		    client.available_projects.each do |project_name, orogen_model|
-		    	if !Orocos.available_projects.has_key?(project_name)
-			    Orocos.master_project.register_orogen_file(orogen_model, project_name)
-			end
-		    end
-		    client.available_typekits.each do |typekit_name, (registry, typelist)|
-		    	if !Orocos.available_typekits.has_key?(typekit_name)
-			    Orocos.master_project.register_typekit(typekit_name, registry, typelist)
-			end
-		    end
-		end
-
                 # Load the data services and task models
                 search_path =
                     if app.syskit_load_all? then app.search_path
@@ -274,36 +200,29 @@ module Syskit
                 end
             end
 
-            # Load the specified oroGen project and register the task contexts
-            # and deployments they contain.
-            def using_task_library(name)
-                orogen = Orocos.master_project.using_task_library(name)
-                if !loaded_orogen_project?(name)
-                    # The project was already loaded on
-                    # Orocos.master_project before Roby kicked in. Just load
-                    # the Roby part
-                    project_define_from_orogen(name, orogen)
-                end
+            # Loads the required typekit model by its name
+            def import_types_from(typekit_name)
+                orogen_loader.typekit_model_from_name(typekit_name)
             end
 
-            # Loads the required typekit
-            def import_types_from(typekit_name)
-                Orocos.master_project.import_types_from(typekit_name)
+            # Load the specified oroGen project and register the task contexts
+            # and deployments they contain.
+            def using_task_library(name, options = Hash.new)
+                options = Kernel.validate_options options, :on => 'localhost'
+                server = Syskit.conf.process_server_for(options[:on])
+                # The loader hooks will make sure that the models get defined
+                server.loader.project_model_from_name(name)
             end
 
             # Loads the required ROS package
-            def using_ros_package(name)
-                orogen = Orocos::ROS.load_ros_project(name)
-                if !loaded_orogen_project?(name)
-                    # The project was already loaded on
-                    # Orocos.master_project before Roby kicked in. Just load
-                    # the Roby part
-                    project_define_from_orogen(name, orogen)
-                end
+            def using_ros_package(name, options = Hash.new)
+                options = Kernel.validate_options options, :on => 'ros'
+                using_task_library(name, options)
             end
 
-            def self.load_task_extension(file, app)
-                app.require file
+            # @deprecated use {using_task_library} instead
+            def load_orogen_project(name, options = Hash.new)
+                using_task_library(name, options)
             end
 
             # Start a process server on the local machine, and register it in
@@ -368,6 +287,25 @@ module Syskit
                 Syskit.conf.register_process_server('localhost', client, app.log_dir)
             end
 
+            # Loads the oroGen deployment model for the given name and returns
+            # the corresponding syskit model
+            #
+            # @option options [String] :on the name of the process server this
+            #   deployment should be on. It is used for loading as well, i.e.
+            #   the model for the deployment will be loaded from that process
+            #   server
+            def using_deployment(name, options = Hash.new)
+                options = Kernel.validate_options options, :on => 'localhost'
+                server   = Syskit.conf.process_server_for(options[:on])
+                deployer = server.loader.deployment_model_from_name(name)
+                deployment_define_from_orogen(deployer)
+            end
+
+            # Loads the oroGen deployment model based on a ROS launcher file
+            def using_ros_launcher(name, options = Hash.new)
+                options = Kernel.validate_options options, :on => 'ros'
+                using_deployment(name, options)
+            end
 
             # Loads the oroGen deployment model for the given name and returns
             # the corresponding syskit model
@@ -376,34 +314,12 @@ module Syskit
             #   deployment should be on. It is used for loading as well, i.e.
             #   the model for the deployment will be loaded from that process
             #   server
-            def load_deployment_model(name, options = Hash.new)
-                options = Kernel.validate_options options, :on => 'localhost'
-                server   = Syskit.conf.process_server_for(options[:on])
-                deployer = server.load_orogen_deployment(name)
-
-                if !loaded_orogen_project?(deployer.project.name)
-                    # The project was already loaded on
-                    # Orocos.master_project before Roby kicked in. Just load
-                    # the Roby part
-                    project_define_from_orogen(deployer.project.name, deployer.project)
+            def deployment_define_from_orogen(deployer)
+                if Deployment.has_model_for?(deployer)
+                    Deployment.define_from_orogen(deployer, :register => true)
+                else
+                    Deployment.find_model_from_orogen_name(name)
                 end
-
-                deployer.used_typekits.each do |tk|
-                    next if tk.virtual?
-                    if Syskit.conf.only_load_models?
-                        Orocos.load_typekit_registry(tk.name)
-                    else
-                        Orocos.load_typekit(tk.name)
-                    end
-                    if server.respond_to?(:preload_typekit)
-                        server.preload_typekit(tk.name)
-                    end
-                end
-                deployer.used_task_libraries.each do |lib|
-                    using_task_library(lib.name)
-                end
-
-                Deployment.find_model_from_orogen_name(name)
             end
 
             # Stop the process server started by start_local_process_server if
@@ -479,7 +395,6 @@ module Syskit
 
             def self.clear_models(app)
                 Orocos.clear
-                app.loaded_orogen_projects.clear
                 Syskit.conf.deployments.clear
                 Syskit::Actions::Profile.clear_model
 

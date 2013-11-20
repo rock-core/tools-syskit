@@ -27,7 +27,7 @@ module Syskit
                     component_model, name, orogen_model
 
                 if orogen_model.type.contains_opaques?
-                    @type = Orocos.master_project.intermediate_type_for(orogen_model.type)
+                    @type = Orocos.default_loader.intermediate_type_for(orogen_model.type)
                 else
                     @type = orogen_model.type
                 end

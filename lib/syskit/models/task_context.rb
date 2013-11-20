@@ -138,7 +138,7 @@ module Syskit
 
                 orogen_model, options = Kernel.filter_options options, :orogen_model
                 if !(m = orogen_model[:orogen_model])
-                    m = self.orogen_model.class.new(Orocos.master_project, nil)
+                    m = self.orogen_model.class.new(Orocos.default_project, nil)
                     m.subclasses self.orogen_model
                 end
                 submodel.orogen_model = m
