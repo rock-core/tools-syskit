@@ -23,7 +23,7 @@ module Syskit
             #
             # @option options [String] :on (localhost) the name of the process
             #   server on which this deployment should be started
-            def use_roslauncher(*names)
+            def use_ros_launcher(*names)
                 if !names.last.kind_of?(Hash)
                     names << Hash.new
                 end
