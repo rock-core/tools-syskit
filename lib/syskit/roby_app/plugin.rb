@@ -319,9 +319,9 @@ module Syskit
             #   server
             def deployment_define_from_orogen(deployer)
                 if Deployment.has_model_for?(deployer)
-                    Deployment.define_from_orogen(deployer, :register => true)
+                    Deployment.find_model_by_orogen(deployer)
                 else
-                    Deployment.find_model_from_orogen_name(name)
+                    Deployment.define_from_orogen(deployer, :register => true)
                 end
             end
 
