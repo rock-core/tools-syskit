@@ -4,11 +4,19 @@ module Syskit
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
         module Plugin
+            def orogen_loader
+                Orocos.default_loader
+            end
+
             def syskit_engine
                 if plan && plan.respond_to?(:syskit_engine)
                     plan.syskit_engine
                 end
             end
+
+            # @return [Hash<String,OroGen::Spec::Project>] the set of projects
+            #   loaded so far
+            attribute(:loaded_orogen_projects) { Hash.new }
 
             # Set of requirements that should be added to the running system.
             # This is meant to be used only by "syskit scripts" through
@@ -45,7 +53,7 @@ module Syskit
                 return if loaded_orogen_projects.has_key?(orogen.name)
                 Syskit.info "loading oroGen project #{orogen.name}"
 
-                orogen.self_tasks.each do |task_def|
+                orogen.self_tasks.each_value do |task_def|
                     # Load configuration directories
                     if conf_file = find_file('config', 'orogen', 'ROBOT', "#{task_def.name}.yml", :order => :specific_first, :all => true)
                         isolate_load_errors("could not load oroGen configuration file #{conf_file}") do
@@ -57,7 +65,7 @@ module Syskit
                     end
                 end
 
-                load_component_extension(name)
+                load_component_extension(orogen.name)
 
                 orogen
             end
@@ -150,7 +158,7 @@ module Syskit
                     end
                 end
 
-                Syskit::TaskContext.define_from_orogen(Orocos::Spec::TaskContext.orogen_rtt_task_context, :register => true)
+                Syskit::TaskContext.define_from_orogen(app.orogen_loader.task_model_from_name("RTT::TaskContext"), :register => true)
 
                 if !app.additional_model_files.empty?
                     toplevel_object.extend SingleFileDSL
@@ -179,17 +187,12 @@ module Syskit
                     all_files =
                         app.find_files_in_dirs("models", "blueprints", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
                         app.find_files_in_dirs("models", "profiles", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/)
-                    all_files.each do |path|
+                   all_files.each do |path|
                         begin
                             app.require(path)
-                        rescue Orocos::Generation::Project::TypeImportError => e
+                        rescue OroGen::NotFound => e
                             if Syskit.conf.ignore_missing_orogen_projects_during_load?
-                                ::Robot.warn "ignored file #{path}: cannot load required typekit #{e.name}"
-                            else raise
-                            end
-                        rescue Orocos::Generation::Project::MissingTaskLibrary => e
-                            if Syskit.conf.ignore_missing_orogen_projects_during_load?
-                                ::Robot.warn "ignored file #{path}: cannot load required task library #{e.name}"
+                                ::Robot.warn "ignored file #{path}: #{e.message}"
                             else raise
                             end
                         end
@@ -459,8 +462,8 @@ module Syskit
                 ::Roby.conf.syskit = Syskit.conf
                 ::Roby.extend Syskit::RobyApp::Toplevel
 
-                Orocos.load_orogen_plugins('syskit')
-                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROGEN_LIB_DIR))
+                OroGen.load_orogen_plugins('syskit')
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(OroGen::OROGEN_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROCOSRB_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Typelib::TYPELIB_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(File.expand_path(File.join('..', ".."), File.dirname(__FILE__))))
