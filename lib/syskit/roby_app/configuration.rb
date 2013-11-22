@@ -26,6 +26,9 @@ module Syskit
             # The set of process servers registered so far
             # @return [Hash<String,Object>]
             attr_reader :process_servers
+            # Controls whether models from the installed components should be
+            # used or not
+            attr_predicate :use_only_model_pack?, true
 
             def initialize(app)
                 super()
@@ -50,6 +53,7 @@ module Syskit
                 @buffer_size_margin = 0.1
                 @deployments = Hash.new { |h, k| h[k] = Set.new }
                 @deployed_tasks = Hash.new
+                @use_only_model_pack = false
 
                 @log_groups = { nil => LogGroup.new(false) }
 

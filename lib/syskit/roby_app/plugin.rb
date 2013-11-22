@@ -101,6 +101,9 @@ module Syskit
             # Called by the main Roby application on setup. This is the first
             # configuration step.
             def self.setup(app)
+                if Syskit.conf.use_only_model_pack?
+                    Orocos.default_loader.remove Orocos.default_pkgconfig_loader
+                end
 
                 all_files =
                     app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
