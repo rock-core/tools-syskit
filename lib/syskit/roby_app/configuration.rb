@@ -23,6 +23,9 @@ module Syskit
             # benefit of GUIs like system_model even though some files have
             # errors
             attr_predicate :ignore_load_errors, true
+            # The set of process servers registered so far
+            # @return [Hash<String,Object>]
+            attr_reader :process_servers
 
             def initialize(app)
                 super()
@@ -397,8 +400,6 @@ module Syskit
                 end
             end
 
-            ModelOnlyServer = Struct.new :loader
-
             # Returns the process server object named +name+
             #
             # @param [String] name the process server name
@@ -407,9 +408,6 @@ module Syskit
                 server = process_servers[name]
                 if server then return server.first
                 else
-                    if name == 'localhost' || Roby.app.single?
-                        return ModelOnlyServer.new(Orocos.default_loader)
-                    end
                     raise ArgumentError, "there is no registered process server called #{name}"
                 end
             end
@@ -422,9 +420,6 @@ module Syskit
                 server = process_servers[name]
                 if server then return server.last
                 else
-                    if name == 'localhost' || Roby.app.single?
-                        return app.log_dir
-                    end
                     raise ArgumentError, "there is no registered process server called #{name}"
                 end
             end
@@ -444,6 +439,11 @@ module Syskit
                 connect_to_orocos_process_server(*args)
             end
 
+            ModelOnlyServer = Struct.new :loader do
+                def disconnect
+                end
+            end
+
             # Call to declare a new process server and add to the set of servers that
             # can be used by this plan manager
             #
@@ -458,14 +458,14 @@ module Syskit
             # @raise [ArgumentError] if there is already a process server
             #   registered with that name
             def connect_to_orocos_process_server(name, host, options = Hash.new)
-                if Roby.app.single?
-                    if disables_local_process_server?
-                        return ModelOnlyServer.new(Orocos.default_loader)
-                    else
-                        client = Orocos::ProcessClient.new('localhost')
-                        register_process_server(name, client, app.log_dir)
-                        return client
-                    end
+                if only_load_models?
+                    client = ModelOnlyServer.new(Orocos.default_loader)
+                    register_process_server(name, client, app.log_dir)
+                    return client
+                elsif single?
+                    client = Orocos::ProcessClient.new('localhost')
+                    register_process_server(name, client, app.log_dir)
+                    return client
                 end
 
                 if local_only? && host != 'localhost'
@@ -497,6 +497,9 @@ module Syskit
             end
 
             def register_process_server(name, client, log_dir)
+                client.loader.on_project_load do |project|
+                    app.project_define_from_orogen(project)
+                end
                 process_servers[name] = [client, log_dir]
             end
 

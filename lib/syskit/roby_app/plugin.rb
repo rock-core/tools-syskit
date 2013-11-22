@@ -93,7 +93,6 @@ module Syskit
             # Called by the main Roby application on setup. This is the first
             # configuration step.
             def self.setup(app)
-                Orocos::ROS.load
 
                 all_files =
                     app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
@@ -110,9 +109,10 @@ module Syskit
                     Orocos.default_file_loader.register_typekit dir, name
                 end
 
-                Orocos::ROS.spec_search_directories.concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => true, :order => :specific_first))
-                Orocos::ROS.pack_paths.concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
-                Orocos::ROS.register_ros_models
+                Orocos::ROS.default_loader.
+                    search_path.concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => true, :order => :specific_first))
+                Orocos::ROS.default_loader.
+                    packs.concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
 
                 if app.shell?
                     return
@@ -123,19 +123,30 @@ module Syskit
                 # Engine registers itself as plan.syskit_engine
                 NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
 
-                # Change to the log dir so that the IOR file created by the
-                # CORBA bindings ends up there
-                Dir.chdir(app.log_dir) do
-                    if !Syskit.conf.only_load_models?
+                Syskit.conf.register_process_server('ros', Orocos::ROS::ProcessManager.new, app.log_dir)
+
+                ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
+                if Syskit.conf.only_load_models?
+                    fake_client = Configuration::ModelOnlyServer.new(Orocos.default_loader)
+                    Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
+                    Orocos.load
+                    if Orocos::ROS.available?
+                        Orocos::ROS.load
+                    end
+
+                else
+                    # Change to the log dir so that the IOR file created by
+                    # the CORBA bindings ends up there
+                    Dir.chdir(app.log_dir) do
                         Orocos.initialize
                         if Orocos::ROS.enabled?
                             Orocos::ROS.initialize
                             Orocos::ROS.roscore_start(:wait => true)
                         end
-                    end
 
-                    if !Syskit.conf.disables_local_process_server?
-                        start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
+                        if !Syskit.conf.disables_local_process_server?
+                            start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
+                        end
                     end
                 end
 
@@ -156,19 +167,8 @@ module Syskit
             def self.reload_config(app)
                 Syskit.conf.clear
             end
-        
-            def self.load_orocosrb(app)
-                ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
-                Orocos.load
-            end
 
             def self.require_models(app)
-                if !Orocos.loaded?
-                    load_orocosrb(app)
-                end
-
-                Orocos::ROS.load
-
                 # Load the data services and task models
                 search_path =
                     if app.syskit_load_all? then app.search_path
@@ -455,7 +455,6 @@ module Syskit
                 attr_accessor :toplevel_object
             end
             def self.enable
-                load_orocosrb(Roby.app)
                 ::Robot.include Syskit::RobyApp::RobotExtension
                 ::Roby.conf.syskit = Syskit.conf
                 ::Roby.extend Syskit::RobyApp::Toplevel

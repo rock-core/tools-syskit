@@ -30,10 +30,7 @@ module Syskit
 
                 new_launchers, options = Orocos::ROS::LauncherProcess.parse_run_options(*names)
 
-                options, run_options = Kernel.filter_options names.last, :on
-                if !options[:on]
-                    raise ArgumentError, "an explicit selection of the processserver for ROS is required. Please specify the ':on' option."
-                end
+                options, run_options = Kernel.validate_options names.last, :on => 'ros'
 
                 new_launchers.each do |launcher_name|
                     model = app.using_ros_launcher(launcher_name, options)
