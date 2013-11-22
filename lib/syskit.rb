@@ -74,6 +74,4 @@ require 'syskit/roby_app'
 require 'syskit/typelib_marshalling'
 
 # Ros support
-#if Orocos::ROS.enabled?
-    require 'syskit/ros'
-#end
+require 'syskit/ros'

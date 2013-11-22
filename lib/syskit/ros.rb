@@ -1,3 +1,4 @@
+require 'orocos/ros'
 Orocos::ROS::Node.include BGL::Vertex
 
 require 'syskit/ros/node'
