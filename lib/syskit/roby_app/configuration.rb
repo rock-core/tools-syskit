@@ -340,10 +340,10 @@ module Syskit
             # @see #use_deployment
             def use_deployments_from(project_name, options = Hash.new)
                 Syskit.info "using deployments from #{project_name}"
-                orogen = Roby.app.load_orogen_project(project_name, options)
+                orogen = app.using_task_library(project_name, options)
 
                 result = []
-                orogen.deployers.each do |deployment_def|
+                orogen.deployers.each_value do |deployment_def|
                     if deployment_def.install?
                         Syskit.info "  #{deployment_def.name}"
                         # Currently, the supervision cannot handle orogen_default tasks 
