@@ -105,7 +105,7 @@ module Syskit
             end
 
             # [Orocos::Spec::TaskContext] The base oroGen model that all submodels need to subclass
-            attribute(:orogen_model) { Orocos::Spec::TaskContext.new }
+            attribute(:orogen_model) { OroGen::Spec::TaskContext.new(Orocos.default_project) }
 
             # A state_name => event_name mapping that maps the component's
             # state names to the event names that should be emitted when it
