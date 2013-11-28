@@ -238,10 +238,10 @@ module Syskit
             # Start a process server on the local machine, and register it in
             # Syskit.process_servers under the 'localhost' name
             def self.start_local_process_server(
-                    options = Orocos::ProcessServer::DEFAULT_OPTIONS,
-                    port = Orocos::ProcessServer::DEFAULT_PORT)
+                    options = Hash.new,
+                    port = Orocos::RemoteProcesses::DEFAULT_PORT)
 
-                options, server_options = Kernel.filter_options options, :redirect => true
+                options, _ = Kernel.filter_options options, :redirect => true
                 if Syskit.conf.process_servers['localhost']
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
@@ -290,7 +290,7 @@ module Syskit
                 # Verify that the server is actually ours (i.e. check that there
                 # was not one that was still running)
                 if client.server_pid != @server_pid
-                    raise Orocos::ProcessClient::StartupFailed, "failed to start the local process server. It seems that there is one still running as PID #{client.server_pid}"
+                    raise Orocos::RemoteProcesses::Client::StartupFailed, "failed to start the local process server. It seems that there is one still running as PID #{client.server_pid} (was expecting #{@server_pid})"
                 end
 
                 # Do *not* manage the log directory for that one ...
