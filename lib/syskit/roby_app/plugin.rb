@@ -157,6 +157,10 @@ module Syskit
 
                         if !Syskit.conf.disables_local_process_server?
                             start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
+                            # Register a fake process client until the local
+                            # process server is up and running
+                            fake_client = Configuration::ModelOnlyServer.new(Orocos.default_loader)
+                            Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
                         end
                     end
                 end
