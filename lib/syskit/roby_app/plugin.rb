@@ -104,6 +104,10 @@ module Syskit
                 if Syskit.conf.use_only_model_pack?
                     Orocos.default_loader.remove Orocos.default_pkgconfig_loader
                 end
+                # This is a HACK. We should be able to specify it differently
+                if app.testing? && app.auto_load_models?
+                    app.syskit_load_all = true
+                end
 
                 all_files =
                     app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
