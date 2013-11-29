@@ -74,6 +74,15 @@ module Syskit
                 klass
             end
 
+            # Translates an orogen task context model name into the syskit
+            # equivalent
+            #
+            # @return [(String,String)] the namespace and class names
+            def syskit_names_from_orogen_name(orogen_name)
+                namespace, basename = orogen_name.split '::'
+                return namespace.camelcase(:upper), basename.camelcase(:upper)
+            end
+
             # Registers the given syskit model on the class hierarchy, using the
             # (camelized) orogen name as a basis
             #
@@ -85,8 +94,7 @@ module Syskit
             def register_syskit_model_from_orogen_name(model)
                 orogen_model = model.orogen_model
 
-                namespace, basename = orogen_model.name.split '::'
-                namespace = namespace.camelcase(:upper)
+                namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
                 namespace =
                     if Object.const_defined_here?(namespace)
                         Object.const_get(namespace)
@@ -94,7 +102,6 @@ module Syskit
                         Object.const_set(namespace, Module.new)
                     end
 
-                basename = basename.camelcase(:upper)
                 if namespace.const_defined_here?(basename)
                     warn "there is already a constant with the name #{namespace.name}::#{basename}, I am not registering the model for #{orogen_model.name} there"
                     false

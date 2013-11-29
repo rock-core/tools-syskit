@@ -17,5 +17,8 @@ module Syskit
     if !defined?(BasicObject)
         BasicObject = Object
     end
+
+    SYSKIT_LIB_DIR = File.expand_path(File.dirname(__FILE__))
+    SYSKIT_ROOT_DIR = File.expand_path(File.join("..", '..'), File.dirname(__FILE__))
 end
 

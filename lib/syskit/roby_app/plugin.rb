@@ -477,10 +477,13 @@ module Syskit
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(OroGen::OROGEN_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Orocos::OROCOSRB_LIB_DIR))
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Typelib::TYPELIB_LIB_DIR))
-                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(File.expand_path(File.join('..', ".."), File.dirname(__FILE__))))
+                Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(Syskit::SYSKIT_LIB_DIR))
                 toplevel_object.extend LoadToplevelMethods
             end
 
+            def self.register_generators(app)
+                RubiGen::Base.__sources << RubiGen::PathSource.new(:syskit, File.join(Syskit::SYSKIT_ROOT_DIR, "generators"))
+            end
         end
     end
 end
