@@ -93,7 +93,7 @@ module Syskit
             # Loads all available oroGen projects
             def syskit_load_all
                 self.syskit_load_all = true
-                Orocos.default_pkgconfig_loader.available_task_libraries.each_key do |name|
+                Orocos.default_loader.each_available_project_name do |name|
                     using_task_library(name)
                 end
             end
