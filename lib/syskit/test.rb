@@ -166,6 +166,9 @@ module Syskit
     require 'syskit/test/action_interface_test'
     require 'syskit/test/action_test'
     require 'syskit/test/component_test'
+    MiniTest::Spec.register_spec_type Syskit::Test::Spec do |desc|
+        desc.kind_of?(Syskit::Models::DataServiceModel)
+    end
     MiniTest::Spec.register_spec_type Syskit::Test::ActionTest do |desc|
         desc.kind_of?(Roby::Actions::Models::Action) || desc.kind_of?(Roby::Actions::Action)
     end
