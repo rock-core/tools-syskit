@@ -527,7 +527,16 @@ module Syskit
             end
 
             def remove_process_server(name)
-                process_servers.delete(name)
+                ps = process_servers.delete(name)
+                if registered_deployments = deployments.delete(name)
+                    deployed_tasks.delete_if do |_, d|
+                        registered_deployments.include?(d)
+                    end
+                end
+                if app.simulation? && process_servers["#{name}-sim"]
+                    remove_process_server("#{name}-sim")
+                end
+                ps
             end
         end
     end
