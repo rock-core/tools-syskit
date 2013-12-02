@@ -146,13 +146,10 @@ module Syskit
 
                 ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
                 if Syskit.conf.only_load_models?
-                    fake_client = Configuration::ModelOnlyServer.new(Orocos.default_loader)
-                    Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
                     Orocos.load
                     if Orocos::ROS.available?
                         Orocos::ROS.load
                     end
-
                 else
                     # Change to the log dir so that the IOR file created by
                     # the CORBA bindings ends up there
@@ -162,16 +159,18 @@ module Syskit
                             Orocos::ROS.initialize
                             Orocos::ROS.roscore_start(:wait => true)
                         end
-
-                        if !Syskit.conf.disables_local_process_server?
-                            start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
-                            # Register a fake process client until the local
-                            # process server is up and running
-                            fake_client = Configuration::ModelOnlyServer.new(Orocos.default_loader)
-                            Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
-                        end
                     end
                 end
+
+                start_local_process_server = !Syskit.conf.only_load_models? &&
+                    !Syskit.conf.disables_process_server? &&
+                    !(app.single? && app.simulation?)
+
+                if start_local_process_server
+                    start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
+                end
+                fake_client = Configuration::ModelOnlyServer.new(Orocos.default_loader)
+                Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
 
                 Syskit::TaskContext.define_from_orogen(app.orogen_loader.task_model_from_name("RTT::TaskContext"), :register => true)
 
