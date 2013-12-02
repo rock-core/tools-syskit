@@ -56,8 +56,9 @@ module Syskit
                     end
                 end
 
-                Syskit.conf.process_server_for('stub').
+                Syskit.conf.process_server_for('stubs').
                     register_deployment_model(deployment_model.orogen_model)
+                Syskit.conf.use_deployment(deployment_model.orogen_model, :on => 'stubs')
                 deployment_model
             end
 
