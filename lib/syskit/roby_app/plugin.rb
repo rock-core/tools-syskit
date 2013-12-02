@@ -33,6 +33,10 @@ module Syskit
                     conf.sd_domain = options['sd_domain']
                     conf.publish_on_sd.concat(options['publish_on_sd'] || [])
                 end
+
+                if app.testing?
+                    require 'syskit/test'
+                end
             end
 
             def self.finalize_model_loading(app)
