@@ -278,6 +278,26 @@ module Syskit
             # @return [Float]
             attr_reader :buffer_size_margin
 
+            # The set of known process servers.
+            #
+            # It maps the server name to the Orocos::ProcessServer instance
+            attr_reader :process_servers
+
+            # Ensures that a ruby process server is present with the given name
+            #
+            # It is used when running in simulation mode, to "fake" the task
+            # contexts
+            #
+            # @param [String] name the name of the original process server
+            def sim_process_server(name)
+                sim_name = "#{name}-sim"
+                if !process_servers[sim_name]
+                    mng = Orocos::RubyTasks::ProcessManager.new(process_server_for(name).loader)
+                    register_process_server(sim_name, mng, "")
+                end
+                process_servers[sim_name]
+            end
+
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.
@@ -293,8 +313,8 @@ module Syskit
                 names[-1] = run_options
                 process_server_name = options[:on]
                 if app.simulation?
-                    process_server_name = "#{process_server_name}-sim"
                     sim_process_server(process_server_name)
+                    process_server_name += "-sim"
                 end
 
                 # We allow the user to specify a task model as a Roby task. Map that
