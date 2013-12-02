@@ -224,6 +224,8 @@ module Syskit
 
             # Load the specified oroGen project and register the task contexts
             # and deployments they contain.
+            #
+            # @return [OroGen::Spec::Project]
             def using_task_library(name, options = Hash.new)
                 options = Kernel.validate_options options, :on => 'localhost'
                 server = Syskit.conf.process_server_for(options[:on])
