@@ -141,8 +141,6 @@ module Syskit
             # @param [String] name an optional name for this submodel
             # @return [void]
             def setup_submodel(submodel, options = Hash.new)
-                super
-
                 orogen_model, options = Kernel.filter_options options, :orogen_model
                 if !(m = orogen_model[:orogen_model])
                     m = self.orogen_model.class.new(Orocos.default_project, nil)
@@ -150,6 +148,8 @@ module Syskit
                 end
                 submodel.orogen_model = m
                 submodel.make_state_events
+
+                super
             end
 
             def worstcase_processing_time(value)
