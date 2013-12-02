@@ -44,6 +44,7 @@ module Syskit
             #   i.e. it can be started
             def stub_syskit_deployment_model(task_model = nil, name = nil, &block)
                 if task_model
+                    task_model = task_model.to_component_model
                     name ||= task_model.name
                 end
                 deployment_model = Deployment.new_submodel(:name => name) do
