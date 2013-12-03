@@ -8,11 +8,14 @@ module Syskit
             end
 
             def add_followup_plan(plan)
+#                binding.pry
                known_networks[plan.missions] = plan
             end
 
             def get_plan_for_missions(missions)
-                known_networks[missions]
+                res = known_networks[missions]
+#                binding.pry
+                res
             end
         end
 
