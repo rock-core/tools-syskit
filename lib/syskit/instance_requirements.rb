@@ -229,6 +229,18 @@ module Syskit
                 Models::FacetedAccess.new(self, Syskit.proxy_task_model_for(models))
             end
 
+            def as_real_model
+                result = dup
+                result.as_real_model!
+                result
+            end
+
+            def as_real_model!
+                @base_model = base_model.as_real_model
+                @model = model.as_real_model
+                self
+            end
+
             # Finds the composition's child by name
             #
             # @raise [ArgumentError] if this InstanceRequirements object does
