@@ -3,6 +3,15 @@ module Syskit
         class ComponentTest < Spec
             include Syskit::Test
 
+            # Helper that creates a standard test which configures the
+            # underlying task
+            def self.it_should_be_configurable
+                it "should be configurable" do
+                    task = syskit_run_deployer(self.class.desc)
+                    syskit_setup_component(task)
+                end
+            end
+
             def self.roby_should_run(test, app)
                 super
 
