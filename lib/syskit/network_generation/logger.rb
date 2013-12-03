@@ -4,6 +4,9 @@ module Syskit
         #
         # It is automatically included in Engine#configure_logging
         module LoggerConfigurationSupport
+            extend Logger::Hierarchy
+            include Logger::Hierarchy
+
             attr_reader :logged_ports
 
             # True if this logger is its deployment's default logger
