@@ -28,6 +28,7 @@ class OrogenGenerator < Roby::App::GenBase
                 'orogen_project_module_name' => orogen_project_module_name]
             m.template 'class.rb', "models/#{subdir}/#{project_name}.rb", :assigns => local_vars
             m.template 'test.rb', "test/#{subdir}/test_#{project_name}.rb", :assigns => local_vars
+            register_in_aggregate_require_files(m, "require_file.rb", "test/#{subdir}/test_#{project_name}.rb", "test", "suite_%s.rb")
         end
     end
 end
