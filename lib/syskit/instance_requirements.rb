@@ -212,15 +212,14 @@ module Syskit
             # @raise [AmbiguousServiceSelection] if more than one service
             #   matches
             def find_data_service_from_type(service_type)
-                if model.respond_to?(:component_model) 
-                    if model.fullfills?(service_type)
-                        self
-                    else nil
+                if model.respond_to?(:find_data_service_from_type)
+                    if service = model.find_data_service_from_type(service_type)
+                        result = dup
+                        result.select_service(service)
+                        result
                     end
-                elsif service = model.find_data_service_from_type(service_type)
-                    result = dup
-                    result.select_service(service)
-                    result
+                elsif model.fullfills?(service_type)
+                    self
                 end
             end
 
