@@ -217,6 +217,20 @@ module Syskit
                 end
             end
 
+            # Finally, verify that we autoconnect multiple outputs to a single
+            # input only if it is a multiplexing port
+            outputs_per_input = Hash.new
+            result.each do |out_port, in_port|
+                if outputs_per_input[in_port]
+                    if !in_port.multiplexes?
+                        candidates = result.map { |o, i| o if i == in_port }.
+                            compact
+                        raise AmbiguousAutoConnection.new(in_port, candidates)
+                    end
+                end
+                outputs_per_input[in_port] = out_port
+            end
+
             Models.debug do
                 result.each do |out_port, in_port|
                     Models.debug "  #{out_port.name} => #{in_port.name}"
