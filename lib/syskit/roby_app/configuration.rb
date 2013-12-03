@@ -463,6 +463,9 @@ module Syskit
             end
 
             ModelOnlyServer = Struct.new :loader do
+                def wait_termination(timeout = 0)
+                    []
+                end
                 def disconnect
                 end
             end
