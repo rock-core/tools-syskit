@@ -55,7 +55,11 @@ module Syskit
         end
 
         def teardown
-            super
+            begin
+                super
+            rescue ::Exception => e
+                teardown_failure = e
+            end
 
             Syskit.conf.remove_process_server('stubs')
             @task_stubs.each do |t|
@@ -64,6 +68,9 @@ module Syskit
 
         ensure
             Orocos.logger.level = @old_loglevel if @old_loglevel
+            if teardown_failure
+                raise teardown_failure
+            end
         end
 
         def deploy(*args, &block)
