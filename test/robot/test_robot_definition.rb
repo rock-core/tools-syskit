@@ -13,6 +13,10 @@ describe Syskit::Robot::RobotDefinition do
             driver_model = flexmock(:name => 'dev_srv', :each_slave_data_service => nil)
             assert_kind_of Syskit::Robot::MasterDeviceInstance, robot.device(device_m, :using => driver_model, :as => 'dev')
         end
+        it "raises ArgumentError if given a task model that is not a driver for the device model" do
+            driver_m = Syskit::TaskContext.new_submodel
+            assert_raises(ArgumentError) { robot.device(device_m, :using => driver_m, :as => 'dev') }
+        end
         it "registers the new device" do
             driver_model = flexmock(:name => 'dev_srv', :each_slave_data_service => nil)
             device = robot.device(device_m, :using => driver_model, :as => 'dev')

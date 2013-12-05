@@ -151,6 +151,9 @@ module Syskit
                         rescue Syskit::AmbiguousServiceSelection => e
                             raise e, "#{e.message}, select one explicitly with the :using option", e.backtrace
                         end
+                    if !driver_model
+                        raise ArgumentError, "#{options[:using]}, given as the :using option to create #{self}, is not a driver for #{device_model}"
+                    end
                 end
 
                 device_instance = options[:class].new(
