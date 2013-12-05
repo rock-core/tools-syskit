@@ -7,7 +7,13 @@ module Syskit
             # underlying task
             def self.it_should_be_configurable
                 it "should be configurable" do
-                    task = syskit_run_deployer(self.class.desc)
+                    component_m = self.class.desc
+                    if driver_srv = component_m.each_master_driver_service.first
+                        component_m = stub_syskit_driver(driver_srv.model,
+                                                         :as => 'driver_task',
+                                                         :using => component_m)
+                    end
+                    task = syskit_run_deployer(component_m)
                     syskit_setup_component(task)
                 end
             end
