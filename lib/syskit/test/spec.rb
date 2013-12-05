@@ -18,6 +18,18 @@ module Syskit
                 end
             end
 
+            # Create a stub device
+            #
+            # @param [String] dev_name the name of the created device
+            # @return [Syskit::Component] the device driver task
+            def stub_syskit_driver(dev_m, options = Hash.new)
+                robot = Syskit::Robot::RobotDefinition.new
+                device = robot.device(dev_m, options)
+                task_srv = device.driver_model
+                stub_syskit_deployment_model(task_srv.component_model, device.name)
+                task_srv.component_model.with_arguments("#{task_srv.name}_dev" => device)
+            end
+
             # Create a stub device task attached to a given communication bus
             #
             # This is meant to be used to test the integration of specific com
