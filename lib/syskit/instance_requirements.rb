@@ -617,8 +617,8 @@ module Syskit
                 [task_model, tags, @arguments.dup]
             end
 
-            def as_plan
-                Syskit::InstanceRequirementsTask.subplan(self)
+            def as_plan(arguments = Hash.new)
+                Syskit::InstanceRequirementsTask.subplan(self, arguments)
             end
 
             def to_s

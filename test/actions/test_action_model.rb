@@ -32,6 +32,19 @@ describe Syskit::Actions::Models::Action do
             assert_equal 10, task.arguments[:test]
             assert_equal Hash[:test => 10], task.planning_task.requirements.arguments
         end
+        it "sets the job ID on the planning task" do
+            req = Syskit::InstanceRequirements.new
+            action_m = Syskit::Actions::Models::Action.new(nil, req)
+            plan.add(task = action_m.plan_pattern(:job_id => 20, :test => 10))
+            assert_equal 20, task.planning_task.job_id
+        end
+        it "does not set the job ID at all if not given" do
+            req = Syskit::InstanceRequirements.new
+            action_m = Syskit::Actions::Models::Action.new(nil, req)
+            plan.add(task = action_m.plan_pattern)
+            # Will raise if already set, even if set to nil
+            task.planning_task.job_id = 10
+        end
     end
 
     describe "#run" do

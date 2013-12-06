@@ -458,7 +458,8 @@ module Syskit
                     :remove_compositions => false,
                     :excluded_models => ValueSet.new,
                     :annotations => Set.new,
-                    :highlights => Set.new
+                    :highlights => Set.new,
+                    :show_all_ports => true
                 excluded_models = options[:excluded_models]
                     
                 port_annotations.clear
@@ -477,6 +478,16 @@ module Syskit
 
                 output_ports = Hash.new { |h, k| h[k] = Set.new }
                 input_ports  = Hash.new { |h, k| h[k] = Set.new }
+                connected_ports  = Hash.new { |h, k| h[k] = Set.new }
+                port_annotations.each do |task, p|
+                    connected_ports[task] << p
+                end
+                additional_edges.each do |(from_id, from_task), (to_id, to_task), _|
+                    from_id = from_id.name if from_id.respond_to?(:name)
+                    connected_ports[from_task] << from_id
+                    to_id = to_id.name if to_id.respond_to?(:name)
+                    connected_ports[to_task] << to_id
+                end
                 connections = Hash.new
 
                 all_tasks = plan.find_local_tasks(Deployment).to_value_set
@@ -531,6 +542,8 @@ module Syskit
                 # Register ports that are part of connections, but are not
                 # defined on the task's interface. They are dynamic ports.
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
+                    connected_ports[source_task] << source_port
+                    connected_ports[sink_task]   << sink_port
                     if !input_ports[source_task].include?(source_port)
                         output_ports[source_task] << source_port
                     end
@@ -667,7 +680,13 @@ module Syskit
                         if options[:highlights].include?(task)
                             style = "penwidth=3;"
                         end
-                        result << render_task(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort, style)
+                        inputs  = input_ports[task]
+                        outputs = output_ports[task]
+                        if options[:show_all_ports]
+                            inputs  = (inputs & connected_ports[task]).to_a.sort
+                            outputs = (outputs & connected_ports[task]).to_a.sort
+                        end
+                        result << render_task(task, inputs, outputs, style)
                     end
 
                     if deployment

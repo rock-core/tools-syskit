@@ -20,9 +20,13 @@ module Syskit
             end
 
             def plan_pattern(arguments = Hash.new)
+                job_id, arguments = Kernel.filter_options arguments, :job_id
                 req = requirements.dup
                 req.with_arguments(arguments)
-                req.as_plan
+                placeholder = req.as_plan(job_id)
+                placeholder.planning_task.action_model = self
+                placeholder.planning_task.action_arguments = arguments
+                placeholder
             end
 
             def to_instance_requirements

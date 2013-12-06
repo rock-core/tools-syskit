@@ -148,14 +148,14 @@ module Syskit::GUI
                     defaults, false, options[:interactive])
 
                 definitions = Hash.new
-                model.definitions.each_key do |name|
+                model.definitions.keys.sort.each do |name|
                     definitions[name] = model.resolved_definition(name)
                 end
                 definitions = mapping_to_links(
                     definitions, true, options[:interactive])
 
                 devices = Hash.new
-                model.robot.each_device do |dev|
+                model.robot.each_device.sort_by(&:name).each do |dev|
                     req = dev.to_instance_requirements
                     model.inject_di_context(req)
                     devices[dev.name] = req
