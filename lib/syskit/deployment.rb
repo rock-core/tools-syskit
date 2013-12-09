@@ -164,7 +164,7 @@ module Syskit
             end
 
             def log_dir
-                _, log_dir = Syskit.conf.process_server(host)
+                _, log_dir = Syskit.conf.process_server_for(host)
                 log_dir
             end
 
