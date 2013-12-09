@@ -62,6 +62,16 @@ module Syskit
             end
 
             def plan; Roby.plan end
+
+            def flexmock(*args)
+                # If we build a partial mock, define the mock methods from
+                # Syskit::Test::FlexMockExtension
+                result = super
+                if proxy = result.instance_variable_get("@flexmock_proxy")
+                    proxy.add_mock_method(:should_receive_operation)
+                end
+                result
+            end
         end
     end
 end

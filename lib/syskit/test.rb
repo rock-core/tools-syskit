@@ -27,6 +27,7 @@ require 'orocos/ruby_process_server'
 
 require 'test/unit/testcase'
 require 'flexmock/test_unit'
+require 'syskit/test/flexmock_extension'
 require 'minitest/spec'
 
 if ENV['SYSKIT_ENABLE_PRY'] != '0'
