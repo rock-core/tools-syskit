@@ -5,6 +5,11 @@ module Syskit
             include Test::ActionAssertions
             include Test::NetworkManipulation
 
+            def setup
+                super
+                Syskit.conf.disable_logging
+            end
+
             def self.it(*args, &block)
                 super(*args) do
                     begin
