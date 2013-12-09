@@ -790,7 +790,7 @@ module Syskit
             #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_input_ports
             # @return [Port] the new port's model
             def instanciate_dynamic_input_port(name, type, port)
-                orogen_model = Orocos::Spec::TaskContext.new
+                orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project)
                 orogen_model.input_ports[name] = port.instanciate(name, type)
                 Syskit::Models.merge_orogen_task_context_models(self.orogen_model, [orogen_model])
                 find_input_port(name)
@@ -803,7 +803,7 @@ module Syskit
             #   returned for instance by Orocos::Spec::TaskContext#find_dynamic_output_ports
             # @return [Port] the new port's model
             def instanciate_dynamic_output_port(name, type, port)
-                orogen_model = Orocos::Spec::TaskContext.new
+                orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project)
                 orogen_model.output_ports[name] = port.instanciate(name, type)
                 Syskit::Models.merge_orogen_task_context_models(self.orogen_model, [orogen_model])
                 find_output_port(name)
