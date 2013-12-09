@@ -396,7 +396,7 @@ describe Syskit::InstanceRequirements do
 
         it "applies the complete context to compute the narrowed model" do
             di = Syskit::InstanceRequirements.new([cmp_m])
-            di.dependency_injection_context.push(Syskit::DependencyInjection.new('test0' => task_m))
+            di.use('test0' => task_m)
             model = di.narrow_model
             assert model.is_specialization?
         end
