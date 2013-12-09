@@ -12,6 +12,8 @@ module Syskit
                         component_m = stub_syskit_driver(driver_srv.model,
                                                          :as => 'driver_task',
                                                          :using => component_m)
+                    else
+                        stub_syskit_deployment_model(component_m, 'task')
                     end
                     task = syskit_run_deployer(component_m)
                     syskit_setup_component(task)
