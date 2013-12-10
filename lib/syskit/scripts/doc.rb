@@ -30,7 +30,7 @@ direct_files, model_names = remaining.partition do |arg|
     File.file?(arg)
 end
 # Load all task libraries if we don't get a file to require
-Roby.app.syskit_load_all = load_all
+Roby.app.auto_load_all = load_all
 Roby.app.additional_model_files.concat(direct_files)
 
 Qt::Application.new(ARGV)

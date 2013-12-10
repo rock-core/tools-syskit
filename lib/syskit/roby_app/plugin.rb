@@ -92,11 +92,11 @@ module Syskit
             # If true, syskit is loading all available oroGen projects on this
             # system. It is set automatically by #syskit_load_all to ensure that
             # everything is reloaded when the app reloads its models
-            attr_predicate :syskit_load_all?, true
+            attr_predicate :auto_load_all_task_libraries?, true
 
             # Loads all available oroGen projects
-            def syskit_load_all
-                self.syskit_load_all = true
+            def auto_load_all_task_libraries
+                self.auto_load_all_task_libraries = true
                 Orocos.default_loader.each_available_project_name do |name|
                     using_task_library(name)
                 end
@@ -110,7 +110,7 @@ module Syskit
                 end
                 # This is a HACK. We should be able to specify it differently
                 if app.testing? && app.auto_load_models?
-                    app.syskit_load_all = true
+                    app.auto_load_all_task_libraries = true
                 end
 
                 all_files =
@@ -192,11 +192,7 @@ module Syskit
 
             def self.require_models(app)
                 # Load the data services and task models
-                search_path =
-                    if app.syskit_load_all? then app.search_path
-                    else [app.app_dir]
-                    end
-
+                search_path = app.auto_load_search_path
                 if app.auto_load_models?
                     all_files =
                         app.find_files_in_dirs("models", "blueprints", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
@@ -211,9 +207,9 @@ module Syskit
                             end
                         end
                     end
-                    if app.syskit_load_all?
-                        app.syskit_load_all
-                    end
+                end
+                if app.auto_load_all? || app.auto_load_all_task_libraries?
+                    app.auto_load_all_task_libraries
                 end
             end
 
