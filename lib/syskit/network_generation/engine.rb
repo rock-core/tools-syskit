@@ -1081,7 +1081,9 @@ module Syskit
                     @deployment_tasks = finalize_deployed_tasks
                     add_timepoint 'compute_deployment', 'done'
 
-                    @dataflow_dynamics.apply_merges(merge_solver)
+                    if @dataflow_dynamics
+                        @dataflow_dynamics.apply_merges(merge_solver)
+                    end
                     Engine.deployment_postprocessing.each do |block|
                         block.call(self, work_plan)
                         add_timepoint 'deployment_postprocessing', block.to_s
