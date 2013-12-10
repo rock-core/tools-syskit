@@ -90,14 +90,15 @@ module Syskit
             #   model = RootCmp.use(
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   stub_deploy_and_start_composition(model)
-            def stub_deploy_and_start_composition(model, options = Hash.new)
+            def stub_and_deploy_composition(model, options = Hash.new)
                 model = model.to_instance_requirements.dup
-                options = Kernel.validate_options options, :recursive => false
+                options = Kernel.validate_options options, :recursive => false,
+                    :prefix => ""
 
                 model.model.each_child do |child_name, child|
                     if child.composition_model? 
                         if options[:recursive]
-                            model.use(child_name => syskit_stub_and_deploy_composition(child))
+                            model.use(child_name => stub_and_deploy_composition(child, :prefix => "#{options[:prefix]}_#{child_name}"))
                         end
                         next
                     end
@@ -123,11 +124,20 @@ module Syskit
                     elsif task_m.abstract?
                         task_m = task_m.new_submodel
                     end
-                    stub_syskit_deployment_model(task_m, child_name)
+                    stub_syskit_deployment_model(task_m, "#{options[:prefix]}_#{child_name}")
                     model.use(child_name => task_m).prefer_deployed_tasks(child_name)
                 end
-                root = syskit_run_deployer(model)
+                syskit_run_deployer(model, :compute_policies => false)
+            end
+
+            def stub_deploy_and_start_composition(model, options = Hash.new)
+                root = stub_and_deploy_composition(model, options)
                 syskit_start_component(root)
+            end
+
+            def stub_deploy_and_configure_composition(model, options = Hash.new)
+                root = stub_and_deploy_composition(model, options)
+                syskit_setup_component(root)
             end
 
             # Create a new deployed instance of a task context model
@@ -165,9 +175,17 @@ module Syskit
                     component = syskit_run_deployer(component)
                 end
 
-                if component.kind_of?(Syskit::TaskContext)
-                    if !component.execution_agent.running?
-                        component.execution_agent.start!
+                if component.kind_of?(Syskit::Composition)
+                    component.each_child do |child_task|
+                        if !child_task.setup?
+                            syskit_setup_component(child_task)
+                        end
+                    end
+                end
+
+                if agent = component.execution_agent
+                    if !agent.running?
+                        agent.start!
                     end
                 end
                 component.arguments[:conf] ||= []
