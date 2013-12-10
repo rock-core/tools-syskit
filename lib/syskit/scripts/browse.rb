@@ -8,8 +8,8 @@ Scripts = Syskit::Scripts
 load_all = false
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD
-Usage: system_model [options]
-Loads the models listed by robot_name, and outputs their model structure
+Usage: browse [file] [options]
+Loads the models from this bundle and allows to browse them. If a file is given, only this file is loaded.
     EOD
 
     opt.on '--all', '-a', "Load all models from all active bundles instead of only the ones from the current" do
