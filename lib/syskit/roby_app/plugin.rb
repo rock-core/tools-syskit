@@ -409,7 +409,11 @@ module Syskit
 
 
             def self.clear_models(app)
-                Orocos.clear
+                app.loaded_orogen_projects.clear
+
+                Syskit.conf.each_process_server do |ps|
+                    ps.loader.clear
+                end
                 Syskit.conf.deployments.clear
                 Syskit::Actions::Profile.clear_model
 
