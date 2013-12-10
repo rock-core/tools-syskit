@@ -142,6 +142,8 @@ module Syskit
                 # Engine registers itself as plan.syskit_engine
                 NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
 
+                Syskit.conf.register_process_server('ruby_tasks', Orocos::RubyTasks::ProcessManager.new(Orocos.default_loader), app.log_dir)
+
                 Syskit.conf.register_process_server('ros', Orocos::ROS::ProcessManager.new, app.log_dir)
 
                 ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")

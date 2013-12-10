@@ -298,6 +298,11 @@ module Syskit
                 process_servers[sim_name]
             end
 
+            # Declare deployed versions of some Ruby tasks
+            def use_ruby_tasks(mappings)
+                use_deployments(mappings.merge(:on => 'ruby_tasks'))
+            end
+
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.
