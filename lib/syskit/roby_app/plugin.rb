@@ -114,22 +114,22 @@ module Syskit
                 end
 
                 all_files =
-                    app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => true, :order => :specific_last, :pattern => /\.orogen$/)
-                all_files.each do |path|
+                    app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => app.auto_load_all?, :order => :specific_first, :pattern => /\.orogen$/)
+                all_files.reverse.each do |path|
                     name = File.basename(path, ".orogen")
                     Orocos.default_file_loader.register_orogen_file path, name
                 end
 
                 all_files =
-                    app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => true, :order => :specific_last, :pattern => /\.typelist$/)
-                all_files.each do |path|
+                    app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => app.auto_load_all?, :order => :specific_first, :pattern => /\.typelist$/)
+                all_files.reverse.each do |path|
                     name = File.basename(path, ".typelist")
                     dir  = File.dirname(path)
                     Orocos.default_file_loader.register_typekit dir, name
                 end
 
                 Orocos::ROS.default_loader.
-                    search_path.concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => true, :order => :specific_first))
+                    search_path.concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => app.auto_load_all?, :order => :specific_first))
                 Orocos::ROS.default_loader.
                     packs.concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
 
