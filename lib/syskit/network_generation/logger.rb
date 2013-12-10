@@ -132,6 +132,7 @@ module Syskit
                         end
                         required_connections << [t, connections]
                     end
+                    next if required_logging_ports.empty?
 
                     logger_task ||=
                         begin
