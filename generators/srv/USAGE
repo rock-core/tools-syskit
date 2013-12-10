@@ -1,0 +1,11 @@
+Generates a new data service. The argument is the name of the service, either in
+CamelCase or in snake_case form. It can be prefixed with namespace(s)
+in/this/form or In::This::Form. It is not necessary to add the bundle namespace
+in front (it gets added automatically)
+
+Example: running the following command in a rock_auv app
+  roby gen srv sensors/depth_srv
+
+  will generate a RockAuv::Sensors::DepthSrv data service in
+  models/blueprints/sensors/depth_srv.rb. No test file are generated as there is
+  nothing to test in a data service
