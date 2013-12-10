@@ -295,7 +295,7 @@ module Syskit
                 new_deployments, _ = Orocos::Process.parse_run_options(*names)
                 new_deployments.each do |deployment_name, mappings, name, spawn_options|
                     model = Deployment.find_model_from_orogen_name(deployment_name) ||
-                        Roby.app.load_deployment_model(deployment_name)
+                        Roby.app.load_deployment_model(deployment_name, options)
                     model.default_run_options.merge!(default_run_options(model))
 
                     configured_deployment = Models::ConfiguredDeployment.new(options[:on], model, mappings, name, spawn_options)
@@ -331,9 +331,7 @@ module Syskit
                         Syskit.info "  #{deployment_def.name}"
                         # Currently, the supervision cannot handle orogen_default tasks 
                         # properly, thus filtering them out for now 
-                        if /^orogen_default/ !~ "#{deployment_def.name}"
-                            result << use_deployment(deployment_def.name, options)
-                        end
+                        result << use_deployment(deployment_def, options)
                     end
                 end
                 result
@@ -407,7 +405,7 @@ module Syskit
             # machines/servers
             attr_predicate :local_only?, true
 
-            # Call to declare a new process server to to the set of servers that
+            # Call to declare a new process server and add to the set of servers that
             # can be used by this plan manager
             #
             # If 'host' is set to localhost, it disables the automatic startup

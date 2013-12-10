@@ -309,6 +309,7 @@ module Syskit
                 @deployment_hints |= other_spec.deployment_hints
                 @specialization_hints |= other_spec.specialization_hints
                 @dependency_injection_context.concat(other_spec.dependency_injection_context)
+                @di = nil
                 # Call modules that could have been included in the class to
                 # extend it
                 super if defined? super
@@ -360,6 +361,8 @@ module Syskit
             #
             # See also Composition#instanciate
             def use(*mappings)
+                @di = nil
+
                 if !(model <= Syskit::Composition)
                     raise ArgumentError, "#use is available only for compositions, got #{base_model.short_name}"
                 end
@@ -423,6 +426,7 @@ module Syskit
             end
 
             def push_selections
+                @di = nil
                 merger = DependencyInjectionContext.new
                 merger.push pushed_selections
                 merger.push selections
@@ -504,7 +508,7 @@ module Syskit
                     end
 
                     context = log_nest(4) do
-                        selection = self.resolved_dependency_injection.current_state.dup
+                        selection = self.resolved_dependency_injection.dup
                         selection.remove_unresolved
                         DependencyInjectionContext.new(selection)
                     end
@@ -522,7 +526,10 @@ module Syskit
                     model = base_model.attach(model)
                 end
 
-                @model = model
+                if @model != model
+                    @di = nil
+                    @model = model
+                end
                 return model
             end
 
@@ -557,11 +564,22 @@ module Syskit
             #
             # @return [DependencyInjectionContext]
             def resolved_dependency_injection
-                context = DependencyInjectionContext.new
-                context.concat(dependency_injection_context)
-                context.push(pushed_selections)
-                context.push(selections)
-                context
+                if !@di
+                    context = DependencyInjectionContext.new
+                    context.concat(dependency_injection_context)
+                    # Add a barrier for the names that our models expect. This is
+                    # required to avoid recursively reusing names (which was once
+                    # upon a time, and is a very confusing feature)
+                    barrier = Hash.new
+                    self.proxy_task_model.dependency_injection_names.each do |n|
+                        barrier[n] = nil
+                    end
+                    context.push(Syskit::DependencyInjection.new(barrier))
+                    context.push(pushed_selections)
+                    context.push(selections)
+                    @di = context.current_state
+                end
+                @di
             end
 
             # Create a concrete task for this requirement
@@ -569,18 +587,7 @@ module Syskit
                 task_model = self.proxy_task_model
 
                 context.save
-
-                # Add a barrier for the names that our models expect. This is
-                # required to avoid recursively reusing names (which was once
-                # upon a time, and is a very confusing feature)
-                barrier = Hash.new
-                task_model.dependency_injection_names.each do |n|
-                    barrier[n] = nil
-                end
-                context.concat(dependency_injection_context)
-                context.push(Syskit::DependencyInjection.new(barrier))
-                context.push(pushed_selections)
-                context.push(selections)
+                context.push(resolved_dependency_injection)
 
                 arguments = Kernel.normalize_options arguments
                 arguments[:task_arguments] = self.arguments.merge(arguments[:task_arguments] || Hash.new)

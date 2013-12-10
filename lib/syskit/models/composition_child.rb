@@ -134,6 +134,12 @@ module Syskit
                 result
             end
 
+            def bind(component)
+                composition = composition_model.bind(component.parent_task)
+                composition.find_required_composition_child_from_role(
+                    child_name, composition_model.to_component_model)
+            end
+
             def method_missing(name, *args)
                 return super if !args.empty? || block_given?
 

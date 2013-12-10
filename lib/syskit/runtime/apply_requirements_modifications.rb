@@ -1,6 +1,8 @@
 module Syskit
     module Runtime
         def self.apply_requirement_modifications(plan)
+            return if plan.syskit_engine.disabled?
+
             tasks = plan.find_tasks(Syskit::InstanceRequirementsTask).running.to_a
             if !tasks.empty?
                 begin

@@ -1050,10 +1050,7 @@ module Syskit
             def promote_exported_port(export_name, port)
                 if new_child = children[port.component_model.child_name]
                     if new_port_name = new_child.port_mappings[port.actual_name]
-                        result = find_child(port.component_model.child_name).find_port(new_port_name)
-                        result = result.dup
-                        result.name = export_name
-                        result
+                        find_child(port.component_model.child_name).find_port(new_port_name).dup
                     else
                         port
                     end

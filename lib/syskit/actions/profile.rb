@@ -38,17 +38,22 @@ module Syskit
 
             # Add some dependency injections for the definitions in this profile
             def use(*args)
+                @di = nil
                 dependency_injection.add(*args)
                 self
             end
 
-            def dependency_injection_context(context = nil)
-                context ||= DependencyInjectionContext.new
-                used_profiles.each do |profile|
-                    context.push(profile.dependency_injection)
+            def resolved_dependency_injection
+                if !@di
+                    di = DependencyInjectionContext.new
+                    di.push(robot.to_dependency_injection)
+                    all_used_profiles.each do |prof|
+                        di.push(prof.dependency_injection)
+                    end
+                    di.push(dependency_injection)
+                    @di = di.current_state
                 end
-                context.push(dependency_injection)
-                context
+                @di
             end
 
             def to_s
@@ -64,6 +69,7 @@ module Syskit
             # @param [Profile] profile
             # @return [void]
             def use_profile(profile)
+                @di = nil
                 used_profiles.push(profile)
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
@@ -81,8 +87,8 @@ module Syskit
             #
             # @return [InstanceRequirements] the added instance requirement
             def define(name, requirements)
-                resolved = dependency_injection_context.
-                    current_state.direct_selection_for(requirements) || requirements
+                resolved = resolved_dependency_injection.
+                    direct_selection_for(requirements) || requirements
                 definitions[name] = resolved.to_instance_requirements
             end
 
@@ -117,17 +123,29 @@ module Syskit
                 req
             end
 
+            def all_used_profiles
+                resolve_used_profiles(Array.new, Set.new)
+            end
+
+            def resolve_used_profiles(list, set)
+                new_profiles = used_profiles.find_all do |p|
+                    !set.include?(p)
+                end
+                list.concat(new_profiles)
+                set |= new_profiles.to_set
+                new_profiles.each do |p|
+                    p.resolve_used_profiles(list, set)
+                end
+                list
+            end
+
             # Injects the DI information registered in this profile in the given
             # instance requirements
             #
             # @param [InstanceRequirements] req the instance requirement object
             # @return [void]
             def inject_di_context(req)
-                req.dependency_injection_context.push(robot.to_dependency_injection)
-                used_profiles.each do |prof|
-                    prof.inject_di_context(req)
-                end
-                req.dependency_injection_context.push(dependency_injection)
+                req.dependency_injection_context.push(resolved_dependency_injection)
                 super if defined? super
                 nil
             end

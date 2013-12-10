@@ -363,6 +363,17 @@ module Syskit
                 return model.as(service_model).bind(self)
             end
 
+	    # Resolves the given Syskit::Port object into a port object that
+	    # points to the real task context port
+            #
+            # It should not be used directly. One should usually use
+            # Port#to_actual_port instead
+            #
+            # @return [Syskit::Port]
+            def self_port_to_actual_port(port)
+		port
+            end
+
             # Resolves the given Syskit::Port object into a Port object where
             # #component is guaranteed to be a proper component instance
             #

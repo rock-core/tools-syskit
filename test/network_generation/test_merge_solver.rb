@@ -46,21 +46,21 @@ describe Syskit::NetworkGeneration::MergeSolver do
             task = flexmock(Syskit::Component.new)
             target_task = flexmock(Syskit::Component.new)
             target_task.should_receive(:can_merge?).with(task).and_return(true)
-            flexmock(solver).should_receive(:resolve_input_matching).with(task, target_task, Hash).and_return(false).once
+            flexmock(solver).should_receive(:resolve_input_matching).with(task, target_task).and_return(false).once
             assert_same false, solver.resolve_single_merge(task, target_task)
         end
         it "should return nil if #resolve_input_matching returns missing inputs" do
             task = flexmock(Syskit::Component.new)
             target_task = flexmock(Syskit::Component.new)
             target_task.should_receive(:can_merge?).with(task).and_return(true)
-            flexmock(solver).should_receive(:resolve_input_matching).with(task, target_task, Hash).and_return([Object.new]).once
+            flexmock(solver).should_receive(:resolve_input_matching).with(task, target_task).and_return([Object.new]).once
             assert_same nil, solver.resolve_single_merge(task, target_task)
         end
         it "should return true if can_merge? is true and #resolve_input_matching returns an empty set of missing inputs" do
             task = flexmock(Syskit::Component.new)
             target_task = flexmock(Syskit::Component.new)
             target_task.should_receive(:can_merge?).with(task).and_return(true)
-            flexmock(solver).should_receive(:resolve_input_matching).with(task, target_task, Hash).and_return([]).once
+            flexmock(solver).should_receive(:resolve_input_matching).with(task, target_task).and_return([]).once
             assert_same true, solver.resolve_single_merge(task, target_task)
         end
         it "returns true for compositions without children" do
@@ -117,14 +117,14 @@ describe Syskit::NetworkGeneration::MergeSolver do
             task = flexmock(:model => task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new).
                 mock
-            assert_equal [], solver.resolve_input_matching(task, task, Hash.new)
+            assert_equal [], solver.resolve_input_matching(task, task)
         end
         it "should not check for multiplexing ports for ports that do match" do
             task = flexmock(:model => task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new).
                 mock
             task_model.should_receive(:find_input_port).never
-            solver.resolve_input_matching(task, task, Hash.new)
+            solver.resolve_input_matching(task, task)
         end
         it "should return nil if the source port name is different" do
             task = flexmock(:model => task_model).
@@ -133,7 +133,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
             target_task = flexmock(:model => task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', Hash.new).
                 mock
-            assert !solver.resolve_input_matching(task, target_task, Hash.new)
+            assert !solver.resolve_input_matching(task, target_task)
         end
         it "should return nil if the policies are different" do
             task = flexmock(:model => task_model).
@@ -143,7 +143,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false)).
                 mock
             flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
-            assert !solver.resolve_input_matching(task, target_task, Hash.new)
+            assert !solver.resolve_input_matching(task, target_task)
         end
         it "should call the task model with the input port name to get the port model if connections mismatch" do
             task_model.should_receive(:find_input_port).with('sink_port').once.and_return(port_model)
@@ -154,7 +154,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false)).
                 mock
             flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
-            assert !solver.resolve_input_matching(task, target_task, Hash.new)
+            assert !solver.resolve_input_matching(task, target_task)
         end
         it "should return the mismatching connection if the source port task is different" do
             task = flexmock(:model => task_model).
@@ -163,7 +163,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
             target_task = flexmock(:model => task_model).
                 should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', Hash.new).
                 mock
-            assert_equal [["sink_port", "src_port", src, target_src]], solver.resolve_input_matching(task, target_task, Hash.new)
+            assert_equal [["sink_port", "src_port", src, target_src]], solver.resolve_input_matching(task, target_task)
         end
         it "should return nil if the source port tasks are different and the policies are not compatible" do
             task = flexmock(:model => task_model).
@@ -173,16 +173,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false)).
                 mock
             flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
-            assert !solver.resolve_input_matching(task, target_task, Hash.new)
-        end
-        it "should use the provided mapping to evaluate if the source tasks are the same" do
-            task = flexmock(:model => task_model).
-                should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new).
-                mock
-            target_task = flexmock(:model => task_model).
-                should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', Hash.new).
-                mock
-            assert_equal [], solver.resolve_input_matching(task, target_task, {target_src => src})
+            assert !solver.resolve_input_matching(task, target_task)
         end
         describe "connections to multiplexing inputs" do
             attr_reader :policy, :target_policy
@@ -199,7 +190,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 target_task = flexmock(:model => task_model).
                     should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy).
                     mock
-                assert !solver.resolve_input_matching(task, target_task, Hash.new)
+                assert !solver.resolve_input_matching(task, target_task)
             end
             it "should return an empty array for connections from different ports regardless of the connection policy" do
                 task = flexmock(:model => task_model).
@@ -208,7 +199,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 target_task = flexmock(:model => task_model).
                     should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy).
                     mock
-                assert_equal [], solver.resolve_input_matching(task, target_task, Hash.new)
+                assert_equal [], solver.resolve_input_matching(task, target_task)
             end
             it "should return an empty array for connections from different tasks regardless of the connection policy" do
                 task = flexmock(:model => task_model).
@@ -217,7 +208,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 target_task = flexmock(:model => task_model).
                     should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy).
                     mock
-                assert_equal [], solver.resolve_input_matching(task, target_task, Hash.new)
+                assert_equal [], solver.resolve_input_matching(task, target_task)
             end
         end
     end
@@ -240,14 +231,21 @@ describe Syskit::NetworkGeneration::MergeSolver do
             merge_solver.should_receive(:resolve_cycle_candidate).
                 with(any, new_task, new_merged_task).
                 once.and_return(false)
-            merge_solver.process_possible_cycles(nil, [[task, merged_task]])
+            merge_solver.process_possible_cycles(BGL::Graph.new, [[task, merged_task]])
         end
         it "should not process cycles for which the base tasks can not merge" do
             merge_solver.should_receive(:resolve_single_merge).
                 once.and_return(false)
             merge_solver.should_receive(:resolve_cycle_candidate).
                 never
-            merge_solver.process_possible_cycles(nil, [[task, merged_task]])
+            merge_solver.process_possible_cycles(BGL::Graph.new, [[task, merged_task]])
+        end
+        it "stops if new direct merges are found when preprocessing the possible_cycles graph" do
+            task2, merged_task2 = Object.new, Object.new
+            merge_solver.should_receive(:resolve_single_merge)
+            merge_solver.should_receive(:resolve_cycle_candidate).never
+            merge_solver.process_possible_cycles(flexmock(:link => nil, :linked? => false, :empty? => false),
+                            [[task, merged_task], [task2, merged_task2]])
         end
         it "stops at the first merged cycle and returns the unprocessed ones" do
             task2, merged_task2 = Object.new, Object.new
@@ -255,7 +253,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 and_return(nil)
             merge_solver.should_receive(:resolve_cycle_candidate).
                 once.and_return(true)
-            result = merge_solver.process_possible_cycles(flexmock(:link => nil),
+            result = merge_solver.process_possible_cycles(flexmock(:link => nil, :linked? => false, :empty? => true),
                             [[task, merged_task], [task2, merged_task2]])
             assert_equal [[task2, merged_task2]].to_set, result.to_set
         end
@@ -269,7 +267,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
 
         it "looks for mismatching inputs in its arguments and returns nil if there are no chances that they will match" do
-            flexmock(solver).should_receive(:resolve_input_matching).with(task, target_task, target_task => task).and_return(nil).once
+            flexmock(solver).should_receive(:resolve_input_matching).with(task, target_task).and_return(nil).once
             assert !solver.resolve_cycle_candidate([], task, target_task, Hash.new)
         end
 
@@ -280,50 +278,39 @@ describe Syskit::NetworkGeneration::MergeSolver do
             end
 
             def setup_base_calls(initial_mappings = Hash.new)
+                mappings = Hash.new
+                initial_mappings.each do |t1, t2|
+                    solver.update_cycle_mapping(mappings, t1, t2)
+                end
                 flexmock(solver).should_receive(:resolve_input_matching).once.
-                    with(task, target_task, initial_mappings.merge(target_task => task)).
+                    with(task, target_task).
                     and_return([['sink_port', 'src_port', src_task, src_target_task]]).
                     by_default
                 flexmock(solver).should_receive(:resolve_cycle_candidate).once.
-                    with(cycle_candidates, task, target_task, initial_mappings).
+                    with(cycle_candidates, task, target_task, mappings).
                     pass_thru
-                @initial_mappings = initial_mappings
+                @initial_mappings = mappings
             end
 
             it "iterates over the mismatching inputs and calls resolve_cycle_candidate recursively on them" do
                 setup_base_calls
                 flexmock(solver).should_receive(:resolve_cycle_candidate).once.
-                    with(cycle_candidates, src_task, src_target_task, target_task => task).
+                    with(cycle_candidates, src_task, src_target_task, Hash).
                     and_return(Hash.new)
                 assert solver.resolve_cycle_candidate(cycle_candidates, task, target_task, Hash.new)
-            end
-            it "merges the result of the resolve_cycle_candidate calls and returns the complete set of merges" do
-                setup_base_calls
-                flexmock(solver).should_receive(:resolve_cycle_candidate).once.
-                    with(cycle_candidates, src_task, src_target_task, target_task => task).
-                    and_return({src_target_task => src_task})
-                assert_equal Hash[target_task => task, src_target_task => src_task], solver.resolve_cycle_candidate(cycle_candidates, task, target_task, Hash.new)
             end
             it "returns nil if one of the recursive call returns nil" do
                 setup_base_calls
                 flexmock(solver).should_receive(:resolve_cycle_candidate).once.
-                    with(cycle_candidates, src_task, src_target_task, target_task => task).
+                    with(cycle_candidates, src_task, src_target_task, Hash).
                     and_return(nil)
                 assert !solver.resolve_cycle_candidate(cycle_candidates, task, target_task, Hash.new)
             end
             it "does not try to re-resolve an already known mapping" do
-                setup_base_calls(src_target_task => flexmock)
+                setup_base_calls(src_task => src_target_task)
                 flexmock(solver).should_receive(:resolve_cycle_candidate).never.
                     with(cycle_candidates, src_task, src_target_task, Hash)
                 solver.resolve_cycle_candidate(cycle_candidates, task, target_task, initial_mappings)
-            end
-            it "takes connections for which an already known mapping matches as OK" do
-                setup_base_calls(src_target_task => src_task)
-                assert solver.resolve_cycle_candidate(cycle_candidates, task, target_task, initial_mappings)
-            end
-            it "takes connections for which an already known mapping mismatches as not OK" do
-                setup_base_calls(src_target_task => flexmock)
-                assert !solver.resolve_cycle_candidate(cycle_candidates, task, target_task, initial_mappings)
             end
             it "does not resolve task pairs that are not included in cycle_candidates" do
                 cycle_candidates.clear

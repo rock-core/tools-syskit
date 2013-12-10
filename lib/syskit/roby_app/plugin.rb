@@ -107,6 +107,12 @@ module Syskit
                     end
                 end
 
+                load_component_extension(name)
+
+                orogen
+            end
+
+            def load_component_extension(name)
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
                 if Syskit.conf.load_component_extensions?
@@ -119,7 +125,6 @@ module Syskit
                         Plugin.load_task_extension(file, self)
                     end
                 end
-                orogen
             end
 
             # If true, syskit is loading all available oroGen projects on this

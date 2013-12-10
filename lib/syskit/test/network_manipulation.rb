@@ -130,11 +130,24 @@ module Syskit
                 if !component.setup?
                     syskit_setup_component(component)
                 end
-                if !component.running?
-                    if !component.starting?
+                if !component.running? && !component.starting?
+                    assert_event_emission component.start_event do
                         component.start!
                     end
-                    assert_event_emission component.start_event
+                end
+                syskit_start_task_recursively(component)
+                component
+            end
+
+            def syskit_start_task_recursively(root)
+                if !root.running?
+                    assert_event_emission root.start_event
+                end
+
+                root.each_child do |child|
+                    if !child.running?
+                        assert_event_emission child.start_event
+                    end
                 end
             end
 
