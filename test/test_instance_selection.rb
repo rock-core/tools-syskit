@@ -44,6 +44,13 @@ describe Syskit::InstanceSelection do
     end
 
     describe "instanciate" do
+        it "should return a selected component within the given plan" do
+            plan.add(task = Roby::Task.new)
+            sel = Syskit::InstanceSelection.new(task)
+            plan.in_transaction do |trsc|
+                assert_same trsc[task], sel.instanciate(trsc)
+            end
+        end
         it "should return the component if one is selected" do
             sel = Syskit::InstanceSelection.new(c = flexmock(:fullfills? => true))
             assert_same c, sel.instanciate(plan)

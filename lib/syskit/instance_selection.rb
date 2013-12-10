@@ -152,6 +152,7 @@ module Syskit
                 if component
                     # We have an explicitly selected component. We just need to
                     # bind the bound data service if there is one
+                    component = plan[self.component]
                     if selected_service = selected.service
                         selected_service.bind(component)
                     else component
