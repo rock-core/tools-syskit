@@ -1,7 +1,9 @@
-Generates a new empty task class. Pass the path to the new file
+Generates a new extension file for an oroGen project. It must be given the name
+of the oroGen project as argument.
 
 Example: running the following command in a rock_auv app
-  roby gen models/tasks/control/job
+  roby gen orogen auv_control
 
-  will generate a RockAuv::Control::Job class as well as the
-  associated test file in test/tasks/control/test_job.rb
+  will create a template extension file in models/orogen/auv_control.rb, which
+  already contains the definitions of the tasks found in the auv_control oroGen
+  project. It also generates an associated test file in test/orogen/test_auv_control.rb
