@@ -682,7 +682,7 @@ module Syskit
                         end
                         inputs  = input_ports[task]
                         outputs = output_ports[task]
-                        if options[:show_all_ports]
+                        if !options[:show_all_ports]
                             inputs  = (inputs & connected_ports[task]).to_a.sort
                             outputs = (outputs & connected_ports[task]).to_a.sort
                         end
