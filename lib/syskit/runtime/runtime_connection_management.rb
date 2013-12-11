@@ -86,7 +86,7 @@ module Syskit
                     return
                 end
 
-                update_required_dataflow_graph(tasks)
+                ConnectionManagement::update_required_dataflow_graph(tasks)
                 new_edges, removed_edges, updated_edges =
                     RequiredDataFlow.difference(ActualDataFlow, tasks, &:orocos_task)
 
