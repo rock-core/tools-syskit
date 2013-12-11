@@ -56,6 +56,8 @@ module Syskit::GUI
                 fragment = render_port_list(consumers.sort)
                 page.push('Consumers', fragment)
             end
+
+            signals 'updated()'
         end
     end
 end
