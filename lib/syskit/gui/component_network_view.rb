@@ -41,7 +41,7 @@ module Syskit
                 buttons << Button.new("dataflow/show_all_ports",
                                       :on_text => 'Show all ports',
                                       :off_text => 'Hide unused ports',
-                                      :state => !dataflow_options[:show_all_ports])
+                                      :state => dataflow_options[:show_all_ports])
 
                 if defined? ::Logger::Logger
                     dataflow_options[:excluded_models] << ::Logger::Logger

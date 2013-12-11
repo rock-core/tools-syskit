@@ -166,7 +166,7 @@ module Syskit
                 # valid overloading of the previous one.
                 
                 child_model = find_child(name) || CompositionChild.new(self, name)
-                child_model.merge(InstanceRequirements.new(Array(child_models)))
+                child_model.merge(child_models)
                 dependency_options = Roby::TaskStructure::DependencyGraphClass.
                     merge_dependency_options(child_model.dependency_options, dependency_options)
                 child_model.dependency_options.clear
@@ -263,16 +263,10 @@ module Syskit
             #   end
             #
             def add(models, options = Hash.new)
-                if !models.respond_to?(:each)
-                    models = [models]
-                end
-                models = models.to_value_set
-
-                wrong_type = models.find do |m|
-                    !m.kind_of?(Roby::Models::TaskServiceModel) && !(m.kind_of?(Class) && m < Syskit::Component)
-                end
-                if wrong_type
-                    raise ArgumentError, "wrong model type #{wrong_type.class} for #{wrong_type}"
+                if models.respond_to?(:to_instance_requirements)
+                    models = models.to_instance_requirements
+                else
+                    models = InstanceRequirements.new(Array(models))
                 end
 
                 options, dependency_options = Kernel.filter_options options,

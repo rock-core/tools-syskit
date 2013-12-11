@@ -212,21 +212,32 @@ module Syskit
             # @raise [AmbiguousServiceSelection] if more than one service
             #   matches
             def find_data_service_from_type(service_type)
-                if model.respond_to?(:component_model) 
-                    if model.fullfills?(service_type)
-                        self
-                    else nil
+                if model.respond_to?(:find_data_service_from_type)
+                    if service = model.find_data_service_from_type(service_type)
+                        result = dup
+                        result.select_service(service)
+                        result
                     end
-                elsif service = model.find_data_service_from_type(service_type)
-                    result = dup
-                    result.select_service(service)
-                    result
+                elsif model.fullfills?(service_type)
+                    self
                 end
             end
 
             def as(models)
                 models = Array(models) if !models.respond_to?(:each)
                 Models::FacetedAccess.new(self, Syskit.proxy_task_model_for(models))
+            end
+
+            def as_real_model
+                result = dup
+                result.as_real_model!
+                result
+            end
+
+            def as_real_model!
+                @base_model = base_model.as_real_model
+                @model = model.as_real_model
+                self
             end
 
             # Finds the composition's child by name
