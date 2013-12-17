@@ -1168,33 +1168,24 @@ module Syskit
             end
 
 
-            def internal_precompute(options = Hash.new)
+            def precompute(options = Hash.new)
+                return if disabled?
+                return if NetworkGeneration::NetworkCache.get_engine_for_missions(real_plan,options[:requirement_tasks]) ##Already calculated
+                #STDOUT.puts "doing precalculation"
+
                 timepoints = []
                 work_plan = Roby::Transaction.new(real_plan)
 
                 #Let roby do the work
                 compute_adapted_network(work_plan, options)
 
-                NetworkGeneration::NetworkCache.add_followup_plan(work_plan)
+                NetworkGeneration::NetworkCache.add_followup_plan(self,options[:requirement_tasks])
                 #returning the work_plan (aka new_plan) for the given network
                 if !work_plan
                     STDERR.puts "Error we could not get (whyever) a complete plan"
                     raise
                 end
                 work_plan
-
-            end
-
-            def precompute(options = Hash.new)
-                return if disabled?
-                #engine = self.dup
-
-                #TODO WTF?
-                #engine.work_plan = self.work_plan.deep_copy
-                #engine.real_plan = self.real_plan.deep_copy
-                #WTF END
-                
-                internal_precompute(options)
             end
 
 
@@ -1226,10 +1217,12 @@ module Syskit
             def resolve(options = Hash.new)
 	        return if disabled?
 
-                cached_plan = NetworkGeneration::NetworkCache.get_plan_for_missions(options[:requirement_tasks])
-                if cached_plan
-                    work_plan = cached_plan
-                    STDOUT.puts "YEHA we got a match in out cache"
+                cached_engine = NetworkGeneration::NetworkCache.get_engine_for_missions(real_plan,options[:requirement_tasks])
+
+                if cached_engine
+                    work_plan = cached_engine.work_plan
+                    #TODO copy engine or make this engince consistend
+                    STDOUT.puts "YEHA we got a match in out cache IN OUR ENGINE"
                 else
                     #@timepoints = []
                     #work_plan = Roby::Transaction.new(real_plan)
@@ -1243,7 +1236,7 @@ module Syskit
                     STDERR.puts "For whatever reason we don't have a stable plan here"
                     raise
                 end
-
+                #STDOUT.puts "plan from work_plan: #{work_plan.plan}"
                 work_plan.commit_transaction
 #            rescue Exception => e
 #                options = self.options
