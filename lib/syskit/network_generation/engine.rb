@@ -23,6 +23,7 @@ module Syskit
                 super + merge_solver.format_timepoints
             end
 
+            attr_reader :realtime
 
             # The actual plan we are modifying
             attr_accessor :real_plan
@@ -126,6 +127,8 @@ module Syskit
             attr_accessor :options
 
             def initialize(plan)
+                realtime = RealtimeHandler.new
+
                 @real_plan = plan
                 @work_plan = plan
                 real_plan.extend PlanExtension

@@ -19,16 +19,19 @@ module Syskit
 
             def add_followup_plan(engine,reqs)
                 @known_transitions << CacheEntry.new(engine.real_plan.dup,reqs,engine)
+#                STDOUT.puts "!!!!!!!!!!!!!!!!!!! Caching plan with missions !!!!!!!!!!!!!!!!!!!!!!"    
+#                engine.real_plan.missions.each {|m| STDOUT.puts m}
+#                STDOUT.puts "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"    
             end
 
             def get_engine_for_missions(current_plan,missions)
                 erg = @known_transitions.find_all do |cached|
                     a = true
                     if current_plan.missions.size == cached.real_plan.missions.size
-                        a = cached.real_plan.missions.all? do |o|
-                            current_plan.missions.find do |j|
-                                binding.pry
-                                o.fullfills?(j)
+                        a = current_plan.missions.all? do |new|
+                            cached.real_plan.missions.find do |orig|
+                                #binding.pry
+                                new.fullfills?(orig)
                                 #j.requirements == o.requirements
                             end
                         end
@@ -49,11 +52,11 @@ module Syskit
                     end
                     STDOUT.puts "Test: #{a} -- #{b}"
                     ###Debug
-                    STDOUT.puts "############## CURRENT MISSIONS DEBUG #######################"
-                    current_plan.missions.each {|m| STDOUT.puts m}
-                    STDOUT.puts "----------------------    VS --------------------------------"
-                    cached.real_plan.missions.each {|m| STDOUT.puts m}
-                    STDOUT.puts "##############################################################"
+#                    STDOUT.puts "############## CURRENT MISSIONS DEBUG #######################"
+#                    current_plan.missions.each {|m| STDOUT.puts m}
+#                    STDOUT.puts "----------------------    VS --------------------------------"
+#                    cached.real_plan.missions.each {|m| STDOUT.puts m}
+#                    STDOUT.puts "##############################################################"
                     ##end debug
 
 #                    ###Debug

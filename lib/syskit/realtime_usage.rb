@@ -189,5 +189,4 @@ module Syskit
     end
     
     
-    Realtime = RealtimeHandler.new
 end
