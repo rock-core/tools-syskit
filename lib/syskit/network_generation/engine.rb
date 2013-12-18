@@ -23,7 +23,7 @@ module Syskit
                 super + merge_solver.format_timepoints
             end
 
-            attr_reader :realtime
+            attr_accessor :realtime
 
             # The actual plan we are modifying
             attr_accessor :real_plan
@@ -74,6 +74,9 @@ module Syskit
                 #
                 # Set to true only for debugging reasons
                 attr_predicate :keep_internal_data_structures?, true
+                
+                #Workaround, current real last engine that was used to apply changes
+                attr_accessor :last_valid_engine
             end
             @keep_internal_data_structures = false
 
@@ -127,7 +130,18 @@ module Syskit
             attr_accessor :options
 
             def initialize(plan)
-                realtime = RealtimeHandler.new
+                if Engine::last_valid_engine
+                    if Engine::last_valid_engine.realtime
+                        self.realtime = Engine::last_valid_engine.realtime
+#                        binding.pry
+                    else
+                        self.realtime = RealtimeHandler.new 
+#                        binding.pry
+                    end
+                else
+                    self.realtime = RealtimeHandler.new 
+ #                   binding.pry
+                end
 
                 @real_plan = plan
                 @work_plan = plan
@@ -1113,13 +1127,16 @@ module Syskit
 #                file.write("Dataflow changes:\n#{work_plan.changes_in_dataflow}\n")
 #                file.close
 
+                if !realtime
+                    binding.pry
+                end
 
-                time = Syskit::Realtime.create_plan_iteration
+                time = realtime.create_plan_iteration
                 new = Hash.new
 
                 work_plan.tasks_to_start.each do |task|
                     if task.class < Syskit::Component
-                        Syskit::Realtime.add_task_start_point(task,time)
+                        realtime.add_task_start_point(task,time)
                         if task.class < Syskit::TaskContext
                             task.each_concrete_output_connection do |sink_task, source_port, sink_port, policy|
                                 raise if policy.nil?
@@ -1129,12 +1146,12 @@ module Syskit
                                 #  gives you that already. Just add the missing
                                 #  fourth argument to the block (it is the
                                 #  policy)
-                                Syskit::Realtime.add_connections(task,sink_task,[[source_port,sink_port],policy],time)
+                                realtime.add_connections(task,sink_task,[[source_port,sink_port],policy],time)
                             end
                             task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                                 raise if policy.nil?
                                 #TODO Create conn hint's
-                                Syskit::Realtime.add_connections(source_task,task,[[source_port,sink_port],policy],time)
+                                realtime.add_connections(source_task,task,[[source_port,sink_port],policy],time)
                             end
                         end
                     end
@@ -1142,30 +1159,30 @@ module Syskit
 
                 work_plan.tasks_to_stop.each do |task|
                     if task.class < Syskit::Component
-                        Syskit::Realtime.add_task_stop_point(task,time)
+                        realtime.add_task_stop_point(task,time)
                     end
                 end
 
                 work_plan.tasks_to_reconfigure.each do |task|
                     if task.class < Syskit::Component
-                        Syskit::Realtime.add_task_reconfigurarion(task,time)
+                        realtime.add_task_reconfigurarion(task,time)
                     end
                 end
 
                 new_flow, new_edges, removed_edges, updated_edges = work_plan.changes_in_dataflow
 
                 new_edges.each do |source_task, sink_task, policy|
-                    Syskit::Realtime.add_connections(source_task,sink_task,policy,time)
+                    realtime.add_connections(source_task,sink_task,policy,time)
 
                 end
 
                 removed = Hash.new
                 removed_edges.each do |source_task, sink_task,conns|
-                    Syskit::Realtime.remove_connections(source_task,sink_task,conns,time)
+                    realtime.remove_connections(source_task,sink_task,conns,time)
                 end
 
                 updated_edges.each do |source_task, sink_task,conns|
-                    Syskit::Realtime.reconfigured_connetion(source_task,sink_task,conns,time)
+                    realtime.reconfigured_connetion(source_task,sink_task,conns,time)
                 end
 
             end
@@ -1239,6 +1256,8 @@ module Syskit
                     STDERR.puts "For whatever reason we don't have a stable plan here"
                     raise
                 end
+
+                Engine::last_valid_engine = self
                 #STDOUT.puts "plan from work_plan: #{work_plan.plan}"
                 work_plan.commit_transaction
 #            rescue Exception => e

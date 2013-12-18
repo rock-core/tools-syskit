@@ -293,7 +293,7 @@ module Syskit
 
                 all_tasks = ValueSet.new
                 #arr = plan.find_local_tasks(Component).to_a | Syskit::TaskContext.each_submodel.select { |sub| !sub.start_points.nil? }
-               # arr = plan.find_local_tasks(Component).to_a | Syskit::Realtime.known_task_models
+               # arr = plan.find_local_tasks(Component).to_a | Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.known_task_models
 
                 
                 plan.find_local_tasks(Component).to_a.each do |task|
@@ -315,7 +315,7 @@ module Syskit
                     end
                 end
                 
-                Syskit::Realtime.known_task_models.each do |task|
+                Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.known_task_models.each do |task|
                     next if task.name =~ /Logger/ if options[:remove_logger]
                     all_tasks << task 
                 end
@@ -377,7 +377,7 @@ module Syskit
 
             def add_task_info_annotations
                 #arr = (plan.find_local_tasks(Component).to_a | Syskit::TaskContext.each_submodel.select { |sub| !sub.start_points.nil? })
-                arr = (plan.find_local_tasks(Component).to_a | Syskit::Realtime.known_task_models)
+                arr = (plan.find_local_tasks(Component).to_a | Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.known_task_models)
                 arr.each do |task|
                     model = task
                     arguments = task.arguments.map { |k, v| "#{k}: #{v}" }
@@ -396,9 +396,9 @@ module Syskit
                     #add_task_annotation(task, "Start Points", model.start_points.sort.join(", ")) if model.start_points
                     #add_task_annotation(task, "Stop Points", model.stop_points.sort.join(", ")) if model.stop_points
                     #add_task_annotation(task, "Reconfigure Points", model.reconfigure_points.sort.join(", ")) if model.reconfigure_points
-                    add_task_annotation(task, "Start Points", Syskit::Realtime.start_indexes(model).join(", ")) if Syskit::Realtime.start_indexes(model)
-                    add_task_annotation(task, "Stop Points", Syskit::Realtime.stop_indexes(model).join(", ")) if Syskit::Realtime.stop_indexes(model)
-                    add_task_annotation(task, "Reconfigure Points", Syskit::Realtime.reconfigure_indexes(model).join(", ")) if Syskit::Realtime.reconfigure_indexes(model)
+                    add_task_annotation(task, "Start Points", Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.start_indexes(model).join(", ")) if Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.start_indexes(model)
+                    add_task_annotation(task, "Stop Points", Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.stop_indexes(model).join(", ")) if Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.stop_indexes(model)
+                    add_task_annotation(task, "Reconfigure Points", Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.reconfigure_indexes(model).join(", ")) if Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.reconfigure_indexes(model)
                 end
             end
             
@@ -498,7 +498,7 @@ module Syskit
                 # to an input: on compositions, exported ports are represented
                 # as connections between either two inputs or two outputs
 
-                (plan.find_local_tasks(Component).to_a | Syskit::Realtime.stopped_tasks.to_a).each do |source_task|
+                (plan.find_local_tasks(Component).to_a | Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.stopped_tasks.to_a).each do |source_task|
 #                plan.find_local_tasks(Component).each do |source_task|
                     next if options[:remove_logger] && source_task.name =~ /Logger/
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
@@ -527,10 +527,10 @@ module Syskit
                     end
 
                     ####TODO hier add missing connections thar are RELEASED in this cycle and NOT painted yet
-                    if not Syskit::Realtime.released_connections[source_task.model].nil?
-                        Syskit::Realtime.released_connections[source_task.model].each do |iteration,from,to,ports|
+                    if not Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.released_connections[source_task.model].nil?
+                        Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.released_connections[source_task.model].each do |iteration,from,to,ports|
                             #Skip all ports that are not removed within the last cycle
-                            next if iteration != Syskit::Realtime.current_iteration 
+                            next if iteration != Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.current_iteration 
                             ports.each do |(source_port,target_port),policy|
                                 connections[[from,source_port,target_port,to]] = policy 
                             end
@@ -574,10 +574,10 @@ module Syskit
                         style = "style=dashed,"
                     end
 
-                    if not Syskit::Realtime.created_connections[source_task.model].nil?
-                        arr = Syskit::Realtime.created_connections[source_task.model].select do |iteration,from,to,ports|
+                    if not Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.created_connections[source_task.model].nil?
+                        arr = Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.created_connections[source_task.model].select do |iteration,from,to,ports|
                             valid = nil
-                            if iteration == Syskit::Realtime.current_iteration and from == source_task and to == sink_task
+                            if iteration == Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.current_iteration and from == source_task and to == sink_task
                                 #binding.pry
                                 ports.each do |from_p,to_p,options|
                                     if from_p == source_port and to_p == sink_port
@@ -594,11 +594,11 @@ module Syskit
                     end
                     
                     
-                    if not Syskit::Realtime.released_connections[source_task.model].nil?
-                        arr = Syskit::Realtime.released_connections[source_task.model].select do |iteration,from,to,ports|
+                    if not Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.released_connections[source_task.model].nil?
+                        arr = Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.released_connections[source_task.model].select do |iteration,from,to,ports|
                             valid = nil
                             
-                            if iteration == Syskit::Realtime.current_iteration and (from == source_task) and (to == sink_task) 
+                            if iteration == Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.current_iteration and (from == source_task) and (to == sink_task) 
                                 ports.each do |(from_p,to_p),options|
                                     if from_p == source_port and to_p == sink_port
                                         valid = true
@@ -617,10 +617,10 @@ module Syskit
                         end
                     end
                     
-                    if not Syskit::Realtime.reconfigured_connections[source_task.model].nil?
-                        arr = Syskit::Realtime.reconfigured_connections[source_task.model].select do |iteration,from,to,ports|
+                    if not Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.reconfigured_connections[source_task.model].nil?
+                        arr = Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.reconfigured_connections[source_task.model].select do |iteration,from,to,ports|
                             valid = nil
-                            if iteration == Syskit::Realtime.current_iteration and from == source_task and to == sink_task
+                            if iteration == Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.current_iteration and from == source_task and to == sink_task
                                 ports.each do |from_p,to_p,options|
                                     if from_p == source_port and to_p == sink_port
                                         valid = true
@@ -734,12 +734,12 @@ module Syskit
                     result << "      color=\"red\";"
                 end
                 stopped = false
-                if Syskit::Realtime.was_stopped(task.model)
+                if Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.was_stopped(task.model)
                     result << "      penwidth=\"3\";"
                     stopped = true
                 end
                 started = false
-                if Syskit::Realtime.was_started(task.model)
+                if Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.was_started(task.model)
                     started = true
                     result << "      penwidth=\"3\";"
                 end
