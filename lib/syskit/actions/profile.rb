@@ -123,7 +123,7 @@ module Syskit
             def definition(name)
                 req = definitions[name]
                 if !req
-                    raise ArgumentError, "#{self} has no definition called #{name}"
+                    raise ArgumentError, "profile #{self.name} has no definition called #{name}"
                 end
                 req.dup
             end
@@ -222,7 +222,7 @@ module Syskit
                 elsif m.to_s =~ /^(\w+)_def$/
                     defname = $1
                     if !definitions[defname]
-                        raise NoMethodError, "#{name} has no definition called #{defname}"
+                        raise NoMethodError.new(m), "#{name} has no definition called #{defname}"
                     elsif !args.empty?
                         raise ArgumentError, "expected zero arguments, got #{args.size}"
                     end
@@ -230,7 +230,7 @@ module Syskit
                 elsif m.to_s =~ /^(\w+)_dev$/
                     devname = $1
                     if !robot.devices[devname]
-                        raise NoMethodError, "#{name} has no device called #{devname}"
+                        raise NoMethodError.new(m), "#{name} has no device called #{devname}"
                     elsif !args.empty?
                         raise ArgumentError, "expected zero arguments, got #{args.size}"
                     end
