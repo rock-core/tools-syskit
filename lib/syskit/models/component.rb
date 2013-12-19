@@ -742,24 +742,28 @@ module Syskit
             # creates in #proxy_task_model
             attribute(:proxy_task_models) { Hash.new }
 
-            # Create a task model that can be used as a placeholder in a Roby
-            # plan for this task model and the following service models.
+            # Creates a new proxy task model, subclass of self, that provides
+            # the given services
             #
-            # @see Syskit.proxy_task_model_for
-            def proxy_task_model(service_models)
-                service_models = service_models.to_set
-                if task_model = proxy_task_models[service_models]
-                    return task_model
-                end
+            # You usually want to use {proxy_task_model}
+            #
+            # @option options [String] :extension (Syskit::PlaceholderTask) the
+            #   name of the module that is used to make the new task a
+            #   placeholder task
+            #
+            # @return [Model<Component>]
+            def create_proxy_task_model(service_models, options = Hash.new)
+                options = Kernel.validate_options options,
+                    :extension => PlaceholderTask
 
                 name_models = service_models.map(&:to_s).sort.join(",")
                 if self != Syskit::Component
                     name_models = "#{self},#{name_models}"
                 end
-                model = specialize("Syskit::PlaceholderTask<#{name_models}>")
+                model = specialize("#{options[:extension]}<%s>" % [name_models])
                 model.abstract
                 model.concrete_model = nil
-                model.include PlaceholderTask
+                model.include options[:extension]
                 if self != Syskit::Component
                     model.proxied_task_context_model = self
                 end
@@ -769,6 +773,22 @@ module Syskit
                 service_models.each_with_index do |m, i|
                     model.provides m, :as => "m#{i}"
                 end
+                model
+            end
+
+            # Create a task model that can be used as a placeholder in a Roby
+            # plan for this task model and the following service models.
+            #
+            # @option options [Boolean] :force (false) always create a new
+            #   proxy, do not look into the cache
+            #
+            # @see Syskit.proxy_task_model_for
+            def proxy_task_model(service_models)
+                service_models = service_models.to_set
+                if task_model = proxy_task_models[service_models]
+                    return task_model
+                end
+                model = create_proxy_task_model(service_models)
                 proxy_task_models[service_models] = model
                 model
             end
@@ -918,6 +938,10 @@ module Syskit
 
             attr_accessor :proxied_task_context_model
 
+            def basename
+                "ProxyTask"
+            end
+
             def to_instance_requirements
                 Syskit::InstanceRequirements.new([self])
             end
@@ -964,8 +988,17 @@ module Syskit
                     task_model = task_model.merge(other_model)
                 end
 
-                model_list = Models.merge_model_lists([task_model], service_models)
-                model_list = Models.merge_model_lists(model_list, other_service_models)
+                model_list = Models.merge_model_lists(service_models, other_service_models)
+
+                # Try to keep the type of submodels of PlaceholderTask for as
+                # long as possible. We re-create a proxy only when needed
+                if self <= task_model && model_list.all? { |m| service_models.include?(m) }
+                    return self
+                elsif other_model <= task_model && model_list.all? { |m| other_service_models.include?(m) }
+                    return other_model
+                end
+
+                model_list = Models.merge_model_lists([task_model], model_list)
                 Syskit.proxy_task_model_for(model_list)
             end
 
@@ -1025,10 +1058,16 @@ module Syskit
         end
     end
 
-    # This method creates a task model that can be used to represent the
-    # models listed in +models+ in a plan. The returned task model is
-    # obviously abstract
-    def self.proxy_task_model_for(models)
+    # Resolves the base task model and set of service models that should be used
+    # to create a proxy task model for the given component and/or service models
+    #
+    # @param [Array<Model<Component>,Model<DataService>>] set of component and
+    #   services that will be proxied
+    # @return [Model<Component>,Array<Model<DataService>>,(BoundDataService,nil)
+    #
+    # This is a helper method for {create_proxy_task_model_for} and
+    # {proxy_task_model_for}
+    def self.resolve_proxy_task_model_requirements(models)
         service = nil
         models = models.map do |m|
             if m.respond_to?(:component_model)
@@ -1041,9 +1080,31 @@ module Syskit
         if task_models.size > 1
             raise ArgumentError, "cannot create a proxy for multiple component models at the same time"
         end
+        return (task_models.first || Component), service_models, service
+    end
+
+    # This method creates a task model that is an aggregate of all the provided
+    # models (components and services)
+    #
+    # @option options (see Component#create_proxy_task_model)
+    def self.create_proxy_task_model_for(models, options = Hash.new)
+        task_model, service_models, _ = resolve_proxy_task_model_requirements(models)
+        task_model.create_proxy_task_model(service_models, options)
+    end
+
+    # This method creates a task model that can be used to represent the
+    # models listed in +models+ in a plan. The returned task model is
+    # obviously abstract
+    #
+    # @option options [Boolean] :force (false) if false, the returned model will
+    #   be a plain component model if the models argument contains only a
+    #   component model. Otherwise, a proxy task model will always be returned
+    # @option options [String] name if given, it is used to name the returned
+    #   model. See {Component#create_proxy_task_model) for more details
+    def self.proxy_task_model_for(models)
+        task_model, service_models, service = resolve_proxy_task_model_requirements(models)
 
         # If all that is required is a proper task model, just return it
-        task_model = task_models.first || Component
         task_model =
             if service_models.empty?
                 task_model

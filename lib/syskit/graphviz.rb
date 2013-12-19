@@ -681,7 +681,11 @@ module Syskit
                     if ![Syskit::Component, Syskit::TaskContext, Syskit::Composition].include?(task.model.superclass) &&
                         name = [task.model.superclass.short_name] + name
                     end
-                    label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name.join(","))}</TD></TR>"
+                    name = escape_dot(name.join(","))
+                    if task.model.respond_to?(:tag_name)
+                        name = "#{task.model.tag_name}_tag(#{name})"
+                    end
+                    label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
                 else
                     annotations = Array.new
                     if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?

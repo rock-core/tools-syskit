@@ -9,6 +9,16 @@ module Syskit
             end
             @profiles = Array.new
 
+            module Tag
+                include Syskit::PlaceholderTask
+
+                module ClassExtension
+                    attr_accessor :tag_name
+
+                    def basename; tag_name end
+                end
+            end
+
             # The call trace at the time of the profile definition
             attr_reader :definition_location
             # The profile name
@@ -17,6 +27,9 @@ module Syskit
             # The definitions
             # @return [Hash<String,InstanceRequirements>]
             attr_reader :definitions
+            # The tags
+            # @return [Hash<String,InstanceRequirements>]
+            attr_reader :tags
             # The set of profiles that have been used in this profile with
             # {use_profile}
             # @return [Array<Profile>]
@@ -29,11 +42,18 @@ module Syskit
             def initialize(name = nil)
                 @name = name
                 @definitions = Hash.new
+                @tags = Hash.new
                 @used_profiles = Array.new
                 @dependency_injection = DependencyInjection.new
                 @robot = Robot::RobotDefinition.new
                 @definition_location = call_stack
                 super()
+            end
+
+            def tag(name, *models)
+                tags[name] = Syskit.create_proxy_task_model_for(models, :extension => Tag)
+                tags[name].tag_name = name
+                tags[name]
             end
 
             # Add some dependency injections for the definitions in this profile
@@ -191,7 +211,15 @@ module Syskit
             end
 
             def method_missing(m, *args)
-                if m.to_s =~ /^(\w+)_def$/
+                if m.to_s =~ /^(\w+)_tag$/
+                    tag_name = $1
+                    if !tags[tag_name]
+                        raise NoMethodError.new(m), "#{name} has no tag called #{tag_name}"
+                    elsif !args.empty?
+                        raise ArgumentError, "expected zero arguments, got #{args.size}"
+                    end
+                    return tags[tag_name]
+                elsif m.to_s =~ /^(\w+)_def$/
                     defname = $1
                     if !definitions[defname]
                         raise NoMethodError, "#{name} has no definition called #{defname}"

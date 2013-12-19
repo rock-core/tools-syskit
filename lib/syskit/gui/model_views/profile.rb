@@ -72,10 +72,19 @@ module Syskit::GUI
             if !component_model.first # This is a service proxy
                 component_model.pop
             end
-            if req_component.model.respond_to?(:proxied_data_services)
-                component_model.concat(req.model.proxied_data_services.sort_by(&:name).compact)
+            if req.model.respond_to?(:tag_name)
+                tag_name = req.model.tag_name
+                formatted = ["<a href=\"#tag_definition_#{tag_name}\">#{tag_name}_tag</a>"]
+            else
+                if req_component.model.respond_to?(:proxied_data_services)
+                    component_model.concat(req.model.proxied_data_services.sort_by(&:name).compact)
+                end
+                formatted = [component_model.map { |m| page.link_to(m) }.join(",")]
             end
-            formatted = [component_model.map { |m| page.link_to(m) }.join(",")]
+            if !req.arguments.empty?
+                arguments = req.arguments.map { |key, value| "#{key} => #{value}" }
+                formatted[0] += ".with_arguments(#{MetaRuby::GUI::HTML.escape_html(arguments.join(", "))})"
+            end
 
             if options[:resolve_dependency_injection]
                 selections = req.resolved_dependency_injection
