@@ -678,7 +678,7 @@ module Syskit
                     name = task.proxied_data_services.map do |model|
                         model.short_name
                     end
-                    if task.model.superclass != Syskit::TaskContext
+                    if ![Syskit::Component, Syskit::TaskContext, Syskit::Composition].include?(task.model.superclass) &&
                         name = [task.model.superclass.short_name] + name
                     end
                     label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name.join(","))}</TD></TR>"
