@@ -161,7 +161,7 @@ module Syskit::GUI
                     definitions[name] = model.resolved_definition(name)
                 end
                 definitions = mapping_to_links(
-                    definitions, true, options[:interactive])
+                    definitions, false, options[:interactive])
 
                 devices = Hash.new
                 model.robot.each_device.sort_by(&:name).each do |dev|
