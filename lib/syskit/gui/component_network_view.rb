@@ -82,8 +82,7 @@ module Syskit
                             end
                         rescue Exception => e
                             if view_partial_plans? then
-                                Roby.app.register_exception(e)
-                                nil
+                                exception = e
                             else raise
                             end
                         end
@@ -97,6 +96,9 @@ module Syskit
 
                 render_plan(:hierarchy => hierarchy_options,
                             :dataflow => dataflow_options)
+                if exception
+                    raise exception
+                end
             end
 
             def process_options(kind, model, options)
