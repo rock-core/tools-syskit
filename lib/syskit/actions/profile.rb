@@ -77,7 +77,7 @@ module Syskit
             end
 
             def to_s
-                "Profile(#{name}, uses: #{used_profiles.map(&:name)}, di: #{dependency_injection}, defs: #{definitions.keys.sort.join(",")})"
+                name
             end
 
             # Adds the given profile DI information and registered definitions
