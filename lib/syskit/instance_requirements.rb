@@ -638,6 +638,13 @@ module Syskit
                 [task_model, tags, @arguments.dup]
             end
 
+            # Returns a plan pattern (main task and planning task) that will
+            # deploy self
+            #
+            # The main task is an instance of {model} and the planning task an
+            # instance of {InstanceRequirementsTask}.
+            #
+            # @return [Syskit::Component]
             def as_plan(arguments = Hash.new)
                 Syskit::InstanceRequirementsTask.subplan(self, arguments)
             end
