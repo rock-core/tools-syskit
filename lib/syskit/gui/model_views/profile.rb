@@ -195,6 +195,7 @@ module Syskit::GUI
                 render_links("Default selections", default_selections)
                 render_links("Definitions", definitions)
                 render_links("Devices", devices)
+                page.save
 
                 if !options[:interactive]
                     render_all_elements(explicit_selections + default_selections + definitions + devices, options.merge(push_options))
