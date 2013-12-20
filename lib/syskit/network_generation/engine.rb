@@ -460,7 +460,7 @@ module Syskit
                 end
                 add_timepoint 'compute_system_network', 'postprocessing'
 
-                if options[:validate_network]
+                if options[:validate_generated_network]
                     validate_generated_network(work_plan, options)
                     add_timepoint 'validate_generated_network'
                 end
@@ -671,7 +671,7 @@ module Syskit
                     merge_solver.merge(task, deployed_task)
                 end
 
-                if options[:validate_network]
+                if options[:validate_deployed_network]
                     validate_deployed_network
                     add_timepoint 'validate_deployed_network'
                 end
@@ -870,7 +870,9 @@ module Syskit
                     :garbage_collect => true,
                     :export_plan_on_error => nil,
                     :save_plans => false,
-                    :validate_network => true,
+                    :validate_generated_network => true,
+                    :validate_deployed_network => true,
+                    :validate_final_network => true,
                     :forced_removes => false,
                     :on_error => :save # internal flag
 
@@ -881,18 +883,6 @@ module Syskit
                         end
                 end
 
-                # It makes no sense to compute the policies if we are not
-                # computing the deployments, as policy computation needs
-                # deployment information
-                if !options[:compute_deployments]
-                    options[:compute_policies] = false
-                    options[:validate_network] = false
-                end
-                # If we don't garbage collect, the plan will always contain
-                # garbage and the validation will fail. Disable.
-                if !options[:garbage_collect]
-                    options[:validate_network] = false
-                end
                 options
             end
 
@@ -1100,7 +1090,7 @@ module Syskit
 
                 # Finally, we should now only have deployed tasks. Verify it
                 # and compute the connection policies
-                if options[:garbage_collect] && options[:validate_network]
+                if options[:garbage_collect] && options[:validate_final_network]
                     validate_final_network(work_plan, options)
                 end
 
