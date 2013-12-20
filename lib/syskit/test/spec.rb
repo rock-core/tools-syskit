@@ -18,7 +18,7 @@ module Syskit
                     begin
                         instance_eval(&block)
                     rescue Exception => e
-                        if e.class.name =~ /Syskit|Roby/
+                        if !e.kind_of?(Assertion) && e.class.name =~ /Syskit|Roby/
                             pp e
                         end
                         raise
