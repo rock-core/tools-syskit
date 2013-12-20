@@ -490,19 +490,25 @@ module Syskit
                 end
                 connections = Hash.new
 
-                all_tasks = plan.find_local_tasks(Deployment).to_value_set
-
+#                all_tasks = plan.find_local_tasks(Deployment).to_value_set
+                all_tasks = ValueSet.new
                 # Register all ports and all connections
                 #
                 # Note that a connection is not guaranteed to be from an output
                 # to an input: on compositions, exported ports are represented
                 # as connections between either two inputs or two outputs
 
-                (plan.find_local_tasks(Component).to_a | Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.stopped_tasks.to_a).each do |source_task|
-#                plan.find_local_tasks(Component).each do |source_task|
+#                (plan.find_local_tasks(Component).to_a | Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.stopped_tasks.to_a).each do |source_task|
+                plan.find_local_tasks(Component).each do |source_task|
+                    #@TODO: Matthias fix here connections, they should go to the model  and not to the removed task
+                    # if there is still a valid model within the plan, which means that this 
+                    # task only got replaced by another one. Hmh not really sure about this. becase there could be different instance for the same model
+                    # we need to figure out by which task a stopped one get's replaced. so far we don't have this information directly availble afaik
                     next if options[:remove_logger] && source_task.name =~ /Logger/
                     next if options[:remove_compositions] && source_task.kind_of?(Composition)
                     next if excluded_models.include?(source_task.concrete_model)
+                    #TODO @sylvain why do i have empty orocostasks here?
+                    #next if source_task.orocos_name.nil?
 
                     source_task.model.each_input_port do |port|
                         input_ports[source_task] << port.name
@@ -850,6 +856,9 @@ module Syskit
                     else
                         name = model.name || ""
                     end
+                    annotations << ["Model ID", model.object_id.to_s]
+                    annotations << ["Object ID", task.object_id.to_s]
+                    
 
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"

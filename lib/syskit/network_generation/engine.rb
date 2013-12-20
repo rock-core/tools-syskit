@@ -132,7 +132,7 @@ module Syskit
             def initialize(plan)
                 if Engine::last_valid_engine
                     if Engine::last_valid_engine.realtime
-                        self.realtime = Engine::last_valid_engine.realtime
+                        self.realtime = Engine::last_valid_engine.realtime.dup
 #                        binding.pry
                     else
                         self.realtime = RealtimeHandler.new 
@@ -142,7 +142,7 @@ module Syskit
                     self.realtime = RealtimeHandler.new 
  #                   binding.pry
                 end
-
+                STDOUT.puts "Creating new engine #{self.object_id}, last usage-count was: #{self.realtime.current_iteration}"
                 @real_plan = plan
                 @work_plan = plan
                 real_plan.extend PlanExtension
@@ -1111,6 +1111,7 @@ module Syskit
                     info "saved generated plan into #{output_path}"
                 end
 
+
 #                file = 0
 #                loop do
 #                    if !File.exists?("matthias_debug.#{file}.txt")
@@ -1132,6 +1133,7 @@ module Syskit
                 end
 
                 time = realtime.create_plan_iteration
+                STDOUT.puts "Creating plan iteration #{realtime.current_iteration} at plan #{self.object_id}"
                 new = Hash.new
 
                 work_plan.tasks_to_start.each do |task|
@@ -1240,24 +1242,26 @@ module Syskit
                 cached_engine = NetworkGeneration::NetworkCache.get_engine_for_missions(real_plan,options[:requirement_tasks])
 
                 if cached_engine
+                    Engine::last_valid_engine = cached_engine
                     work_plan = cached_engine.work_plan
                     #TODO copy engine or make this engince consistend
-                    STDOUT.puts "YEHA we got a match in out cache IN OUR ENGINE"
+                    #STDOUT.puts "YEHA we got a match in out cache IN OUR ENGINE"
                 else
                     #@timepoints = []
                     #work_plan = Roby::Transaction.new(real_plan)
                     #compute_adapted_network(work_plan, options)
-                    STDOUT.puts "No we don't get a match in out plan so far"
+                    #STDOUT.puts "No we don't get a match in out plan so far"
 #                    binding.pry
                     #self.options = options
                     work_plan = precompute(options)
+                    Engine::last_valid_engine = self 
                 end
                 if(!work_plan)
                     STDERR.puts "For whatever reason we don't have a stable plan here"
                     raise
                 end
 
-                Engine::last_valid_engine = self
+                STDOUT.puts "Doing resolve on #{self.object_id} last valid engine is: #{Engine::last_valid_engine.object_id}"
                 #STDOUT.puts "plan from work_plan: #{work_plan.plan}"
                 work_plan.commit_transaction
 #            rescue Exception => e

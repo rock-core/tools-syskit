@@ -3,32 +3,43 @@ module Syskit
     class RealtimeHandler
         #This is a counter for the plan-iteration
         #maping is idx -> Time
-        attr_reader :plan_iteration
+        attr_accessor :plan_iteration
 
         #This Map holds all started tasks
         #mapping is model -> [[iteration,task]]
-        attr_reader :start_points
+        attr_accessor :start_points
         
         #This Map holds all stopped tasks
         #mapping is model -> [[iteration,task]]
-        attr_reader :stop_points
+        attr_accessor :stop_points
         
         #This Map holds all reconfigurd tasks
         #mapping is model -> [[iteration,old-task,new-task]]
-        attr_reader :reconfigure_points
+        attr_accessor :reconfigure_points
         
         #This Map holds all created connections 
         #mapping is model -> [[iteration,from-task,to-task,options]]
-        attr_reader :created_connections
+        attr_accessor :created_connections
         
         #This Map holds all reconfigures connections
         #mapping is model -> [[iteration,from-task,to-task,options]]
-        attr_reader :reconfigured_connections
+        attr_accessor :reconfigured_connections
         
         #This Map holds all released connections 
         #mapping is source-task-model -> [[iteration,from-task,to-task,ports,options]]
-        attr_reader :released_connections
+        attr_accessor :released_connections
 
+        def dup
+            new = RealtimeHandler.new
+            new.plan_iteration = self.plan_iteration.dup
+            new.stop_points = self.start_points.dup
+            new.stop_points = self.stop_points.dup
+            new.reconfigure_points = self.reconfigure_points.dup
+            new.created_connections = self.created_connections.dup
+            new.reconfigured_connections = self.reconfigured_connections.dup
+            new.released_connections = self.released_connections.dup
+            new
+        end
 
         def initialize
             @plan_iteration = Array.new

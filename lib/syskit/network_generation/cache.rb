@@ -14,7 +14,7 @@ module Syskit
             attr_reader :known_transitions
 
             def initialize
-                @known_transitions = Array.new              
+                @known_transitions = Array.new
             end
 
             def add_followup_plan(engine,reqs)
@@ -50,7 +50,7 @@ module Syskit
                     else
                         b = false
                     end
-                    STDOUT.puts "Test: #{a} -- #{b}"
+                    #STDOUT.puts "Test: #{a} -- #{b}"
                     ###Debug
 #                    STDOUT.puts "############## CURRENT MISSIONS DEBUG #######################"
 #                    current_plan.missions.each {|m| STDOUT.puts m}

@@ -122,9 +122,15 @@ module Syskit
                     :dataflow => Hash.new, :hierarchy => Hash.new
 
                 hierarchy_options = options.merge(specific_options[:hierarchy])
+                if id = hierarchy_options[:id]
+                    hierarchy_options[:id] += "-hierarchy"
+                end
                 push_plan('hierarchy', plan, hierarchy_options)
                 dataflow_options = Hash[:annotations => all_annotations].
                     merge(options).merge(specific_options[:dataflow])
+                if id = dataflow_options[:id]
+                    dataflow_options[:id] += "-dataflow"
+                end
                 push_plan('dataflow', plan, dataflow_options)
                 emit updated
             end
