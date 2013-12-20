@@ -1,0 +1,16 @@
+Generates a new profile.
+
+The argument is the name of the profile, either in CamelCase or in snake_case
+form. It can be prefixed with namespace(s) in/this/form or In::This::Form. It is
+not necessary to add the bundle namespace in front (it gets added automatically)
+
+If a robot name is specified with the -r option, the files will be created in
+this robot's specific folders
+
+Example: running the following command in a rock_auv app
+  roby gen profile sensing/localization
+
+  will generate a RockAuv::Sensing::Localization profile in
+  models/profiles/sensing/localization.rb, and the associated
+  test template in test/profiles/sensing/test_localization.rb.
+
