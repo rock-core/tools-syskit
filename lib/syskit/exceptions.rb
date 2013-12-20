@@ -256,18 +256,29 @@ module Syskit
             #
             #    t => [model0, model1, ...]
             #
-            def initialize(tasks)
+            def initialize(engine, still_abstract)
                 @abstract_tasks = Hash.new
 
-                tasks.each do |abstract_task, candidates|
-                    parents = abstract_task.
+                still_abstract.each do |task|
+                    if task.respond_to?(:proxied_data_services)
+                        candidates = task.proxied_data_services.inject(nil) do |set, m|
+                            m_candidates = (engine.service_allocation_candidates[m] || ValueSet.new).to_value_set
+                            set ||= m_candidates
+                            set & m_candidates
+                        end
+                        candidates ||= ValueSet.new
+                    else
+                        candidates = engine.work_plan.find_local_tasks(task.concrete_model).to_value_set
+                    end
+
+                    parents = task.
                         enum_for(:each_parent_object, Roby::TaskStructure::Dependency).
                         map do |parent_task|
-                            options = parent_task[abstract_task,
+                            options = parent_task[task,
                                 Roby::TaskStructure::Dependency]
                             [options[:roles], parent_task]
                         end
-                    abstract_tasks[abstract_task] = [parents, candidates]
+                    abstract_tasks[task] = [parents, candidates]
                 end
             end
 
@@ -319,25 +330,24 @@ module Syskit
             # Existing candidates for this device
             attr_reader :candidates
 
-            def initialize(engine, tasks)
+            def initialize(plan, tasks)
                 @failed_tasks = tasks.dup
                 @candidates = Hash.new
                 @task_parents = Hash.new
 
-
                 tasks.each do |abstract_task|
-                    resolve_device_task(engine, abstract_task)
+                    resolve_device_task(plan, abstract_task)
                 end
             end
 
-            def resolve_device_task(engine, abstract_task)
+            def resolve_device_task(plan, abstract_task)
                 all_tasks = [abstract_task].to_value_set
 
                 # List the possible candidates for the missing devices
                 candidates = Hash.new
                 abstract_task.model.each_master_driver_service do |srv|
                     if !abstract_task.arguments["#{srv.name}_dev"]
-                        candidates[srv] = engine.work_plan.find_local_tasks(srv.model).to_value_set
+                        candidates[srv] = plan.find_local_tasks(srv.model).to_value_set
                         candidates[srv].delete(abstract_task)
                         all_tasks |= candidates[srv]
                     end
