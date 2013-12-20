@@ -4,6 +4,9 @@ module Syskit
             extend Logger::Hierarchy
             include Logger::Hierarchy
 
+            # This requirement's name, mostly for debugging / display reasons
+            # @return [String,nil]
+            attr_accessor :name
             # The component model narrowed down from {base_model} using
             # {using_spec}
             attr_reader :model

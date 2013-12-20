@@ -109,7 +109,9 @@ module Syskit
             def define(name, requirements)
                 resolved = resolved_dependency_injection.
                     direct_selection_for(requirements) || requirements
-                definitions[name] = resolved.to_instance_requirements
+                req = resolved.to_instance_requirements.dup
+                req.name = name
+                definitions[name] = req
             end
 
             # Returns the instance requirement object that represents the given
@@ -125,7 +127,9 @@ module Syskit
                 if !req
                     raise ArgumentError, "profile #{self.name} has no definition called #{name}"
                 end
-                req.dup
+                req = req.dup
+                req.name = name
+                req
             end
 
             # Returns the instance requirement object that represents the given
