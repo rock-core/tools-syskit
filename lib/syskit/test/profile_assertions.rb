@@ -1,37 +1,12 @@
 module Syskit
     module Test
-        # Definition of the assertions common to all action-oriented tests
-        module ActionAssertions
-            def self.try_instanciate(name, plan, actions, options = Hash.new)
-                requirement_tasks = actions.map do |act|
-                    task = act.instanciate(plan)
-                    if (planner = task.planning_task) && planner.respond_to?(:requirements)
-                        plan.add_mission(task)
-                        task
-                    end
-                end.compact
-                requirement_tasks = requirement_tasks.map(&:planning_task)
-
-                engine = Syskit::NetworkGeneration::Engine.new(plan)
-                resolve_options = Hash[:requirement_tasks => requirement_tasks,
-                                       :on_error => :commit].merge(options)
-                begin
-                    engine.resolve(resolve_options)
-                    dataflow, hierarchy = name + "-dataflow.svg", name + "-hierarchy.svg"
-                    puts "outputting network into #{dataflow} and #{hierarchy}"
-                    Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
-                    Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
-
-                rescue Exception
-                    dataflow, hierarchy = name + "-partial-dataflow.svg", name + "-partial-hierarchy.svg"
-                    puts "outputting network into #{dataflow} and #{hierarchy}"
-                    Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
-                    Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
-                    plan.clear
-                    raise
-                end
-            end
-
+        # Defines assertions for definitions (Syskit::Actions::Profile) or
+        # actions that are created from these definitions
+        # (Roby::Actions::Interface)
+        #
+        # It assumes that the test class was extended using
+        # {ProfileModelAssertions}
+        module ProfileAssertions
             # Tests that the given syskit-generated actions can be instanciated
             # together
             #
@@ -39,10 +14,9 @@ module Syskit
             # deployed (e.g. if some components do not have a corresponding
             # deployment)
             def assert_can_instanciate_together(*actions)
-                ActionAssertions.try_instanciate(__name__, plan, actions,
+                self.class.try_instanciate(__full_name__, plan, actions,
                                  :compute_policies => false,
-                                 :compute_deployments => false,
-                                 :validate_network => false)
+                                 :compute_deployments => false)
             end
 
             # Tests that the given syskit-generated actions can be deployed together
@@ -50,10 +24,9 @@ module Syskit
             # It is stronger (and therefore includes)
             # {assert_can_instanciate_together}
             def assert_can_deploy_together(*actions)
-                ActionAssertions.try_instanciate(__name__, plan, actions,
+                self.class.try_instanciate(__full_name__, plan, actions,
                                  :compute_policies => true,
-                                 :compute_deployments => true,
-                                 :validate_network => true)
+                                 :compute_deployments => true)
             end
 
             # Tests that the given syskit-generated actions can be deployed together

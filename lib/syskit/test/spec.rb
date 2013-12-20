@@ -2,12 +2,15 @@ module Syskit
     module Test
         class Spec < Roby::Test::Spec
             include Test
-            include Test::ActionAssertions
             include Test::NetworkManipulation
 
             def setup
                 super
                 Syskit.conf.disable_logging
+            end
+
+            def __full_name__
+                "#{self.class}##{__name__}"
             end
 
             def self.it(*args, &block)

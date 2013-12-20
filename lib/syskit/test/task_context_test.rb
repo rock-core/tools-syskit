@@ -35,12 +35,12 @@ module Syskit
                             "spec#{object_id}", :model => subject_syskit_model.orogen_model)
                         ruby_task.dispose
                     rescue ::Exception => e
-                        test.skip("#{test.__name__} cannot run: #{e.message}")
+                        test.skip("#{test.__full_name__} cannot run: #{e.message}")
                     end
                 else
                     project_name = subject_syskit_model.orogen_model.project.name
                     if !Orocos.default_pkgconfig_loader.has_project?(project_name)
-                        test.skip("#{test.__name__} cannot run: the task is not available")
+                        test.skip("#{test.__full_name__} cannot run: the task is not available")
                     end
                 end
             end

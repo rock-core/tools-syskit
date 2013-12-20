@@ -3,7 +3,7 @@ module Syskit
         # Base class for tests whose subject is an action
         class ActionTest < Spec
             include Syskit::Test
-            include Syskit::Test::ActionAssertions
+            include Syskit::Test::ProfileAssertions
 
             # Tests that the tested syskit-generated actions can be instanciated
             # together

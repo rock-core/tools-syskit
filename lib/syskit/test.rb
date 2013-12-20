@@ -174,10 +174,12 @@ module Syskit
     require 'syskit/self_test'
 
     require 'roby/test/spec'
-    require 'syskit/test/action_assertions'
+    require 'syskit/test/profile_assertions'
+    require 'syskit/test/profile_model_assertions'
     require 'syskit/test/spec'
     require 'syskit/test/action_interface_test'
     require 'syskit/test/action_test'
+    require 'syskit/test/profile_test'
     require 'syskit/test/component_test'
     require 'syskit/test/task_context_test'
     MiniTest::Spec.register_spec_type Syskit::Test::Spec do |desc|
@@ -191,6 +193,9 @@ module Syskit
     end
     MiniTest::Spec.register_spec_type Syskit::Test::ComponentTest do |desc|
         (desc.kind_of?(Class) && desc <= Syskit::Component && !(desc <= Syskit::TaskContext))
+    end
+    MiniTest::Spec.register_spec_type Syskit::Test::ProfileTest do |desc|
+        desc.kind_of?(Syskit::Actions::Profile)
     end
     MiniTest::Spec.register_spec_type Syskit::Test::ActionInterfaceTest do |desc|
         (desc.kind_of?(Class) && desc <= Roby::Actions::Interface)
