@@ -77,7 +77,7 @@ module Syskit::GUI
                 formatted = ["<a href=\"#tag_definition_#{tag_name}\">#{tag_name}_tag</a>"]
             else
                 if req_component.model.respond_to?(:proxied_data_services)
-                    component_model.concat(req.model.proxied_data_services.sort_by(&:name).compact)
+                    component_model.concat(req_component.model.proxied_data_services.sort_by(&:name).compact)
                 end
                 formatted = [component_model.map { |m| page.link_to(m) }.join(",")]
             end
