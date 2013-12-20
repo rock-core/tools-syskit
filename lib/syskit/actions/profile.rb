@@ -142,7 +142,7 @@ module Syskit
             # @raise [ArgumentError] if the definition does not exist
             # @see definition
             def resolved_definition(name)
-                req = definition(name).dup
+                req = definition(name)
                 inject_di_context(req)
                 req
             end
