@@ -33,6 +33,12 @@ module Syskit
                 new.to_instance_requirements
             end
 
+            # Instanciate this action on the given plan
+            def instanciate(plan, arguments = Hash.new)
+                plan.add(task = plan_pattern(arguments))
+                task
+            end
+
             # Injects the tasks necessary to deploy #requirements on the plan
             # associated with the given action interface
             #
@@ -40,8 +46,7 @@ module Syskit
             # @param [Hash] arguments the arguments (unused)
             # @return [Roby::Task] the action task
             def run(action_interface, arguments = Hash.new)
-                action_interface.plan.add(task = plan_pattern(arguments))
-                task
+                instanciate(action_interface.plan, arguments)
             end
 
             # Called by Roby::Actions::Models::Action to modify self so that it is
