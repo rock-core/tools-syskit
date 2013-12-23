@@ -324,7 +324,7 @@ describe Syskit::InstanceRequirements do
             cmp_m.add task_m, :as => 'test'
             ir = cmp_m.use('test' => task)
             cmp = ir.instanciate(plan)
-            assert_equal Syskit::InstanceRequirements.new([task_m]), cmp.requirements.selections.explicit['test']
+            assert_equal Syskit::InstanceRequirements.new([task_m]), cmp.requirements.resolved_dependency_injection.explicit['test']
             assert_same task, cmp.test_child
         end
 
@@ -335,7 +335,7 @@ describe Syskit::InstanceRequirements do
             cmp_m.add task_m, :as => 'test'
             ir = cmp_m.use('test' => task_m)
             cmp = ir.instanciate(plan)
-            assert_equal task_m, cmp.requirements.selections.explicit['test']
+            assert_equal task_m, cmp.requirements.resolved_dependency_injection.explicit['test']
         end
 
         it "adds a barrier to make sure that the models' direct dependencies can only be picked by the direct use() flags" do

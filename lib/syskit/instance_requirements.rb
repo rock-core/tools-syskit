@@ -17,12 +17,15 @@ module Syskit
             # The model selection that can be used to instanciate this task, as
             # a DependencyInjection object
             attr_reader :selections
+            protected :selections
             # A DI context that should be used to instanciate this task
             attr_reader :dependency_injection_context
+            protected :dependency_injection_context
             # The set of pushed selections
             #
             # @see push_selections
             attr_reader :pushed_selections
+            protected :pushed_selections
 
             # A set of hints for deployment disambiguation
             #
@@ -101,6 +104,7 @@ module Syskit
                 pushed_selections.map! do |value|
                     yield(value)
                 end
+                @di = nil
                 self
             end
 
@@ -572,6 +576,15 @@ module Syskit
             # @return [Model<Roby::Task>]
             def proxy_task_model
                 model.to_component_model
+            end
+
+            # Adds a DI object to the resolution stack
+            #
+            # @param [DependencyInjection] di the new DI information
+            # @return [void]
+            def push_dependency_injection(di)
+                dependency_injection_context.push(di)
+                @di = nil
             end
 
             # Returns the DI context used by this instance requirements task

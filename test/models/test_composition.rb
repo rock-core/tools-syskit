@@ -356,7 +356,7 @@ describe Syskit::Models::Composition do
                     use(srv => first_child)
             end
             root = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new('first.first_test' => task))
-            assert_equal cmp.first_child, root.child_selection['second'].selected.selections.explicit[srv]
+            assert_equal cmp.first_child, root.child_selection['second'].selected.resolved_dependency_injection.explicit[srv]
         end
 
         it "allows to use grandchildren as use flags for other children" do
