@@ -184,6 +184,27 @@ describe Syskit::Models::BoundDataService do
             assert_equal [srv_m], task_m.test_srv.fullfilled_model
         end
     end
+
+    describe "#attach" do
+        attr_reader :srv, :task_m
+        before do
+            srv_m = Syskit::DataService.new_submodel
+            @task_m = Syskit::TaskContext.new_submodel
+            @srv = task_m.provides srv_m, :as => 'test'
+        end
+        it "should return itself if given itself" do
+            assert_equal srv, srv.attach(srv)
+        end
+        it "should raise ArgumentError if the new component model is not a submodel of the current component model" do
+            assert_raises(ArgumentError) do
+                srv.attach(Syskit::TaskContext.new_submodel)
+            end
+        end
+        it "should return the service with the same name on the new component model" do
+            subtask_m = task_m.new_submodel
+            assert_equal subtask_m.test_srv, srv.attach(subtask_m)
+        end
+    end
 end
 
 class TC_Models_BoundDataService < Test::Unit::TestCase
