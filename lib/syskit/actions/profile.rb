@@ -214,6 +214,41 @@ module Syskit
                 profiles.clear
             end
 
+            def each_action
+                return enum_for(__method__) if !block_given?
+
+                robot.devices.each_value do |dev|
+                    req = dev.to_instance_requirements
+                    inject_di_context(req)
+                    action_model = Models::Action.new(self, req, "device from profile #{name}")
+                    action_model.name = "#{dev.name}_dev"
+                    yield(action_model)
+                end
+
+                definitions.each do |name, req|
+                    action_name = "#{name}_def"
+
+                    req = resolved_definition(name)
+                    action_model = Models::Action.new(self, req, "definition from profile #{name}")
+                    action_model.name = action_name
+
+                    task_model = req.component_model
+                    root_model = [Syskit::TaskContext, Syskit::Composition, Syskit::Component].find { |m| task_model <= m }
+                    task_arguments = task_model.arguments.to_a - root_model.arguments.to_a
+
+                    has_required_arguments = false
+                    task_arguments.each do |arg_name|
+                        if task_model.default_argument(arg_name) || req.arguments.has_key?(arg_name.to_s)
+                            action_model.optional_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
+                        else
+                            has_required_arguments = true
+                            action_model.required_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
+                        end
+                    end
+                    yield(action_model)
+                end
+            end
+
             def method_missing(m, *args)
                 if m.to_s =~ /^(\w+)_tag$/
                     tag_name = $1
