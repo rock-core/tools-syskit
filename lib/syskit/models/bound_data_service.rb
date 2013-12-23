@@ -100,6 +100,9 @@ module Syskit
                     raise ArgumentError, "cannot attach #{self} on #{new_component_model}: does not fullfill #{component_model}"
                 end
 
+                # NOTE: do NOT use #find_data_service here ! find_data_service
+                # NOTE: might require some promotion from parent models, which
+                # NOTE: is done using #attach !
                 result = dup
                 result.instance_variable_set :@component_model, new_component_model
                 result
