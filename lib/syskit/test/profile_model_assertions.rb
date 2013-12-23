@@ -29,7 +29,6 @@ module Syskit
                 begin
                     engine.resolve(resolve_options)
                     dataflow, hierarchy = name + "-dataflow.svg", name + "-hierarchy.svg"
-                    puts "outputting network into #{dataflow} and #{hierarchy}"
                     Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
                     Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
                     placeholder_tasks.each do |task|
@@ -39,7 +38,6 @@ module Syskit
 
                 rescue Exception
                     dataflow, hierarchy = name + "-partial-dataflow.svg", name + "-partial-hierarchy.svg"
-                    puts "outputting network into #{dataflow} and #{hierarchy}"
                     Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
                     Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
                     plan.clear
