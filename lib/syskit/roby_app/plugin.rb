@@ -418,6 +418,20 @@ module Syskit
                 end
                 Syskit.conf.deployments.clear
                 Syskit::Actions::Profile.clear_model
+                # We need to explicitly call Orocos.clear even though it looks
+                # like clearing the process servers would be sufficient
+                #
+                # The reason is that #cleanup only disconnects from the process
+                # servers, and is called before #clear_models. However, for
+                # "fake" process servers, syskit also assumes that reconnecting
+                # to a "new" local process server will have cleared all cached
+                # values. This won't work as the process server will not be
+                # cleared in addition of being disconnected
+                #
+                # I (sylvain) chose to not clear on disconnection as it sounds
+                # too much like a very bad side-effect to me. Simply explicitly
+                # clear the local registries here
+                Orocos.clear
 
                 # This needs to be cleared here and not in
                 # Component.clear_model. The main reason is that we need to
