@@ -145,7 +145,7 @@ module Syskit
             # @param [InstanceRequirements] req the instance requirement object
             # @return [void]
             def inject_di_context(req)
-                req.dependency_injection_context.push(resolved_dependency_injection)
+                req.push_dependency_injection(resolved_dependency_injection)
                 super if defined? super
                 nil
             end
