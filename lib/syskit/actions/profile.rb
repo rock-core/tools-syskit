@@ -92,14 +92,20 @@ module Syskit
             #
             # @param [Profile] profile
             # @return [void]
-            def use_profile(profile)
+            def use_profile(profile, tags = Hash.new)
                 @di = nil
                 used_profiles.push(profile)
+                tags = tags.map_key do |key, _|
+                    profile.send("#{key.gsub(/_tag$/, '')}_tag")
+                end
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
                 new_definitions = profile.definitions.map_value do |_, req|
                     req = req.dup
-                    req.push_selections
+                    if req.composition_model?
+                        req.push_selections
+                        req.use(tags)
+                    end
                     req
                 end
                 @definitions = new_definitions.merge(definitions)

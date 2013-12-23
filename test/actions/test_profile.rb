@@ -4,6 +4,14 @@ describe Syskit::Actions::Profile do
     include Syskit::SelfTest
 
     describe "#use_profile" do
+        attr_reader :definition_mock
+        before do
+            @definition_mock = flexmock
+            definition_mock.should_receive(:push_selections).by_default
+            definition_mock.should_receive(:composition_model?).by_default
+            definition_mock.should_receive(:use).by_default
+        end
+
         it "copies the original definitions in the new profile" do
             task_m = Syskit::TaskContext.new_submodel
             src = Syskit::Actions::Profile.new
@@ -11,7 +19,7 @@ describe Syskit::Actions::Profile do
 
             define = flexmock(src.definitions['test'])
             define.should_receive(:dup).
-                and_return(duped = flexmock(:push_selections => nil))
+                and_return(duped = definition_mock)
             dst = Syskit::Actions::Profile.new
             dst.use_profile src
             assert_same duped, dst.definitions['test'] 
@@ -24,7 +32,8 @@ describe Syskit::Actions::Profile do
 
             define = flexmock(src.definitions['test'])
             define.should_receive(:dup).once.
-                and_return(duped = flexmock)
+                and_return(duped = definition_mock)
+            duped.should_receive(:composition_model?).and_return(true)
             duped.should_receive(:push_selections).once
             dst = Syskit::Actions::Profile.new
             dst.use_profile src
