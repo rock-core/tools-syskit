@@ -13,6 +13,7 @@ module Syskit
                 include Syskit::PlaceholderTask
 
                 module ClassExtension
+                    # The name of this tag
                     attr_accessor :tag_name
 
                     def basename; tag_name end

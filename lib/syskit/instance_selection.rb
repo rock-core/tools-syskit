@@ -10,6 +10,8 @@ module Syskit
             # [InstanceRequirements] the selected instance. It can only refer to
             # a single component model. This model is available with
             # {#component_model}
+            #
+            # @see selected_model
             attr_reader :selected
             # [{Model<DataService> => Models::BoundDataService}] a mapping from
             # the services in {#required} to the services of {#component_model}.

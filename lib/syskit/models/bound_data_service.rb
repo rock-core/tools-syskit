@@ -91,6 +91,8 @@ module Syskit
                 end
             end
 
+            # Returns the bound data service object that represents self being
+            # attached to a new component model
             def attach(new_component_model)
                 if new_component_model == self
                     return self
@@ -123,6 +125,11 @@ module Syskit
             #
             # It allows to transparently apply port mappings as if +self+ was a
             # service of type +service_model+
+            #
+            # The original state of self (before as was called) can be retrieved
+            # by calling {as_real_model} on the returned value
+            #
+            # @return [BoundDataService]
             def as(service_model)
                 result = dup
                 result.instance_variable_set(:@model, service_model)
@@ -136,6 +143,10 @@ module Syskit
                 result
             end
 
+            # Returns the actual bound data service when the receiver is the
+            # return value of {as}
+            #
+            # @return [BoundDataService]
             def as_real_model
                 component_model.find_data_service(full_name)
             end
@@ -144,6 +155,7 @@ module Syskit
                 [model]
             end
 
+            # Returns true if self provides all models in models
             def fullfills?(models)
                 if !models.respond_to?(:each)
                     models = [models]
@@ -201,8 +213,13 @@ module Syskit
 
             # Returns the BoundDataService object that binds this provided
             # service to an actual task
+            #
+            # @param [Component,Syskit::BoundDataService] task the component
+            #   that we should bind to. It can itself be a data service
+            # @return [Syskit::BoundDataService]
             def bind(task)
                 if task.model == self
+                    # !!! task is a BoundDataService
                     return task
                 elsif !task.fullfills?(component_model)
                     raise ArgumentError, "cannot bind #{self} on #{task}: does not fullfill #{component_model}"
@@ -212,12 +229,16 @@ module Syskit
 
             # Creates, in the given plan, a new task matching this service in
             # the given context, and returns the instanciated data service
+            #
+            # @return [Syskit::BoundDataService]
             def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new)
                 bind(component_model.instanciate(plan, context, options))
             end
 
             # Returns the BoundDataService object that binds this provided
             # service to an actual task
+            #
+            # @return [Syskit::BoundDataService]
             def resolve(task)
                 bind(component_model.resolve(task))
             end
@@ -264,6 +285,12 @@ module Syskit
                 super
             end
 
+            # The selection object that represents self being selected for
+            # requirements
+            #
+            # @param [#to_instance_requirements] requirements the requirements
+            #   for which self is being selected
+            # @return [InstanceSelection]
             def selected_for(requirements)
                 InstanceSelection.new(nil, self.to_instance_requirements, requirements.to_instance_requirements)
             end

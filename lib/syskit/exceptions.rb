@@ -99,10 +99,15 @@ module Syskit
             end
         end
 
-        # Exception raised when a service is required but none can be found on a
-        # particular task context
+        # Exception raised when a service of a given type is required but none
+        # can be found on a particular task context model
+        #
+        # @see UnknownServiceName, AmbiguousServiceSelection
         class NoMatchingService < Ambiguous
+            # @return [Model<Component>] the component on which we were looking
+            #   for a given service
             attr_reader :task_model
+            # @return [Model<DataService>] the model of data service we were looking for
             attr_reader :required_service
 
             def initialize(task_model, required_service)
@@ -126,8 +131,15 @@ module Syskit
             end
         end
 
+        # Exception raised when a service of a given name is required but none
+        # can be found on a particular task context model
+        #
+        # @see NoMatchingService, AmbiguousServiceSelection
         class UnknownServiceName < SpecError
+            # @return [Model<Component>] the component on which we were looking
+            #   for a given service
             attr_reader :component_model
+            # @return [String] the service name
             attr_reader :service_name
 
             def initialize(component_model, service_name)
@@ -146,7 +158,6 @@ module Syskit
                 end
             end
         end
-
 
         # Refinement of NoMatchingService for a composition child. It adds the
         # information of the composition / child name
@@ -168,10 +179,17 @@ module Syskit
 
         # Exception raised when a service is being selected by type, but
         # multiple services are available within the component that match the
-        # constraints
+        # requested type
+        #
+        # @see NoMatchingService, UnknownServiceName
         class AmbiguousServiceSelection < Ambiguous
+            # @return [Model<Component>] the component on which we were looking
+            #   for a given service
             attr_reader :task_model
+            # @return [Model<DataService>] the model of data service we were looking for
             attr_reader :required_service
+            # @return [Array<Models::BoundDataService>] the set of data services
+            #   that matched the requested type
             attr_reader :candidates
 
             def initialize(task_model, required_service, candidates)
