@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 class TC_Models_Deployment < Test::Unit::TestCase
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     module DefinitionModule
         # Module used when we want to do some "public" models

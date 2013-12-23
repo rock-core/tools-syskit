@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::Coordination::DataMonitoringTable do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     attr_reader :component_m, :table_m
     before do

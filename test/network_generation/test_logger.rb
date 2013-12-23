@@ -1,8 +1,8 @@
-require 'syskit/test'
+require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     attr_reader :task, :task_m, :deployment_m, :deployment, :dataflow_dynamics
     before do

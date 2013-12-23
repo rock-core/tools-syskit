@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::Deployment do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     attr_reader :deployment_task, :task_m, :orogen_deployed_task, :deployment_m
     before do

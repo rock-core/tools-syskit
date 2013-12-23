@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::Component do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     describe "#specialize" do
         attr_reader :task, :task_m
@@ -385,7 +385,7 @@ describe Syskit::Component do
 end
 
 class TC_Component < Test::Unit::TestCase
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     DataService = Syskit::DataService
     TaskContext = Syskit::TaskContext

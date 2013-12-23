@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::Robot::MasterDeviceInstance do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     attr_reader :task_m, :device_m
     attr_reader :device
@@ -96,7 +96,7 @@ describe Syskit::Robot::MasterDeviceInstance do
 end
 
 describe Syskit::Robot::SlaveDeviceInstance do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     attr_reader :task_m, :device_m, :slave_m
     attr_reader :device, :slave_device

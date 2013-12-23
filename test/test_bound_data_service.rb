@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::BoundDataService do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     describe "#to_s" do
         it "should return a string" do
@@ -58,7 +58,7 @@ describe Syskit::BoundDataService do
 end
 
 class TC_BoundDataService < Test::Unit::TestCase
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     DataService = Syskit::DataService
 

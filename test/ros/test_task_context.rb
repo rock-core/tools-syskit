@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::ROS::Node do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
     @pid = nil 
     @ros_projects = Hash.new
 

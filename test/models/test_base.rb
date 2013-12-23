@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::Models do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     describe "is_model?" do
         it "should return false for any object" do

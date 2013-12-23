@@ -1,7 +1,7 @@
 if !ENV['SYSKIT_ENABLE_COVERAGE']
     ENV['SYSKIT_ENABLE_COVERAGE'] = '1'
 end
-require 'syskit/test'
+require 'syskit/test/self'
 
 require './test/roby_app/test_plugin'
 require './test/roby_app/test_configuration'

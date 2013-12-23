@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 class TC_AbstractPlaceholders < Test::Unit::TestCase
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     def test_proxy_simple_task_context
 	task_model = TaskContext.new_submodel

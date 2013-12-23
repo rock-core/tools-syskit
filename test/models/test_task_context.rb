@@ -1,4 +1,4 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 module DefinitionModule
     # Module used when we want to do some "public" models
@@ -6,7 +6,7 @@ end
 
 
 describe Syskit::Models::TaskContext do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     after do
         begin DefinitionModule.send(:remove_const, :Task)

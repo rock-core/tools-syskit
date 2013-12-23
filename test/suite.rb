@@ -2,7 +2,7 @@ ENV['SYSKIT_ENABLE_COVERAGE'] = '0'
 if !ENV['SYSKIT_ENABLE_COVERAGE']
     ENV['SYSKIT_ENABLE_COVERAGE'] = '2'
 end
-require 'syskit/test'
+require 'syskit/test/self'
 
 require './test/suite_models'
 require './test/suite_robot'

@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::Runtime::ConnectionManagement do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
     describe "#update_required_dataflow_graph" do
         it "registers all concrete input and output connections of the given tasks" do
             source_task, task, target_task = flexmock('source'), flexmock('task'), flexmock('target')

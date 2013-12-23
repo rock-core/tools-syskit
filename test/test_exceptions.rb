@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::InvalidAutoConnection do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     describe "#pretty_print" do
         it "should not raise" do

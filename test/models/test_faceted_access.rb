@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::Models::FacetedAccess do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     attr_reader :srv_m, :task_m, :sub_task_m, :facet
     before do

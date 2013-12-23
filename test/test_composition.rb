@@ -1,8 +1,8 @@
-require 'syskit/test'
+require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::Composition do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
     
     describe "#find_required_composition_child_from_role" do

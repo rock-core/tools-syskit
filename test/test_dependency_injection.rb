@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::DependencyInjection do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
     describe "#selection_for" do
         it "returns an existing instance if one is selected" do
             task = Syskit::Component.new_submodel.new
@@ -114,7 +114,7 @@ describe Syskit::DependencyInjection do
 end
 
 class TC_DependencyInjection < Test::Unit::TestCase
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     def test_to_s
         # Just checking that it does not raise and returns a string

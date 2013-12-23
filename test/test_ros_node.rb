@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::TaskContext do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     describe "#initialize" do
         it "sets up the task object to be non-executable" do

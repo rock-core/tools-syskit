@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::Coordination::Models::FaultResponseTableExtension do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     it "should attach the associated data monitoring tables to the plan it is attached to" do
         component_m = Syskit::TaskContext.new_submodel

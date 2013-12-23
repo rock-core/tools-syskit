@@ -1,8 +1,8 @@
-require 'syskit/test'
+require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::InstanceRequirementsTask do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     before do

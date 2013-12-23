@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::Actions::Profile do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     describe "#use_profile" do
         attr_reader :definition_mock

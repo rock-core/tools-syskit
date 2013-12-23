@@ -1,4 +1,4 @@
-require 'syskit/test'
+require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 # Module used when we want to do some "public" models
@@ -6,7 +6,7 @@ module DefinitionModule
 end
 
 describe Syskit::Models::Composition do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     def models

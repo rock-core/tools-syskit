@@ -2,7 +2,7 @@ if !ENV['SYSKIT_ENABLE_COVERAGE']
     ENV['SYSKIT_ENABLE_COVERAGE'] = '1'
 end
 
-require 'syskit/test'
+require 'syskit/test/self'
 require './test/actions/test_interface_model_extension'
 require './test/actions/test_profile'
 require './test/actions/test_action_model'

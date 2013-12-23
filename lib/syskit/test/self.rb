@@ -1,14 +1,16 @@
-require 'syskit/test'
+require 'syskit/test/base'
+require 'roby/test/self'
+require 'syskit/test/network_manipulation'
 
 module Syskit
+    module Test
     # Module used in syskit's own test suite
-    module SelfTest
+    module Self
         include Syskit
         include Roby::Test
         include Roby::Test::Assertions
-        include Test
-        include Roby::SelfTest
-
+        include Roby::Test::Self
+        include Test::Base
         include Test::NetworkManipulation
 
         # The syskit engine
@@ -22,10 +24,11 @@ module Syskit
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
             Roby.app.app_dir = nil
             Roby.app.search_path.clear
-            ENV['ROBY_PLUGIN_PATH'] = File.expand_path(File.join(File.dirname(__FILE__), 'roby_app', 'register_plugin.rb'))
+            ENV['ROBY_PLUGIN_PATH'] = File.expand_path(File.join(File.dirname(__FILE__), '..', 'roby_app', 'register_plugin.rb'))
             Roby.app.using 'syskit'
             Orocos.export_types = false
             Syskit.conf.disables_local_process_server = true
+            Syskit.conf.only_load_models = true
 
             super
 
@@ -101,6 +104,7 @@ module Syskit
             else super
             end
         end
+    end
     end
 end
 

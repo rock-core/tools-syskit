@@ -1,9 +1,9 @@
-require 'syskit/test'
+require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 require 'minitest/spec'
 
 describe Syskit::Models::CompositionSpecialization do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     before do

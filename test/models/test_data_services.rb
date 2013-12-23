@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 module Test_DataServiceModel
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     attr_reader :service_type
     attr_reader :dsl_service_type_name
@@ -410,7 +410,7 @@ class TC_Models_ComBus < Test::Unit::TestCase
 end
 
 describe Syskit::DataService do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     describe "#try_resolve" do
         it "returns a non-ambiguous bound service if there is one" do

@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     describe ".resolve_connections" do
         it "should match ports by name" do

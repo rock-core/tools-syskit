@@ -1,7 +1,7 @@
-require 'syskit/test'
+require 'syskit/test/self'
 
 describe Syskit::RobyApp::Plugin do
-    include Syskit::SelfTest
+    include Syskit::Test::Self
 
     describe "#enable" do
         it "makes Roby.syskit_engine return app.plan.syskit_engine" do
