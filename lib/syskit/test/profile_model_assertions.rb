@@ -29,19 +29,28 @@ module Syskit
                 begin
                     engine.resolve(resolve_options)
                     dataflow, hierarchy = name + "-dataflow.svg", name + "-hierarchy.svg"
-                    Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
-                    Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
+                    if Roby.app.testing_keep_logs?
+                        Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
+                        Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
+                    end
                     placeholder_tasks.each do |task|
                         plan.remove_object(task)
                     end
                     return engine, root_tasks.map(&:task)
 
-                rescue Exception
-                    dataflow, hierarchy = name + "-partial-dataflow.svg", name + "-partial-hierarchy.svg"
-                    Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
-                    Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
-                    plan.clear
-                    raise
+                rescue Exception => e
+                    begin
+                        if Roby.app.testing_keep_logs?
+                            dataflow, hierarchy = name + "-partial-dataflow.svg", name + "-partial-hierarchy.svg"
+                            Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
+                            Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
+                            raise Assertion.new(e), "#{e.message}, networks saved in #{dataflow} and #{hierarchy}", e.backtrace
+                        else
+                            raise Assertion.new(e), e.message, e.backtrace
+                        end
+                    ensure
+                        plan.clear
+                    end
                 end
             end
 
