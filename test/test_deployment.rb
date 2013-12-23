@@ -6,7 +6,7 @@ describe Syskit::Deployment do
     attr_reader :deployment_task, :task_m, :orogen_deployed_task, :deployment_m
     before do
         @task_m = Syskit::TaskContext.new_submodel
-        orogen_model = Orocos::Spec::Deployment.new(Orocos.master_project, 'deployment')
+        orogen_model = Orocos::Spec::Deployment.new(Orocos.default_loader, 'deployment')
         @orogen_deployed_task = orogen_model.task 'task', task_m.orogen_model
         @deployment_m = Syskit::Deployment.new_submodel(:orogen_model => orogen_model)
         plan.add(@deployment_task = deployment_m.new)
