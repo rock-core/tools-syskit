@@ -159,13 +159,31 @@ class TC_DependencyInjection < Test::Unit::TestCase
         PP.pp(dep, "")
     end
 
-    def test_resolve_recursive_selection_mapping
+    def test_resolve_recursive_selection_mapping_resolves_models_recursively
         srv0 = DataService.new_submodel
         srv1 = DataService.new_submodel
         srv1.provides srv0
-        mapping = { 'name' => 'value', 'value' => srv0, srv0 => srv1 }
-        assert_equal({ 'name' => 'value', 'value' => srv1, srv0 => srv1 },
+        mapping = { 'value' => srv0, srv0 => srv1 }
+        assert_equal({ 'value' => srv1, srv0 => srv1 },
             DependencyInjection.resolve_recursive_selection_mapping(mapping))
+    end
+
+    def test_resolve_recursive_selection_mapping_does_not_resolve_names
+        mapping = { 'name' => 'value', 'value' => 'bla' }
+        assert_equal(mapping,
+            DependencyInjection.resolve_recursive_selection_mapping(mapping))
+    end
+
+    def test_resolve_recursive_selection_mapping_resolves_the_component_model_of_bound_data_services
+        srv_m = DataService.new_submodel
+        proxy_m = Syskit.proxy_task_model_for([srv_m])
+        proxy2_m = Syskit.proxy_task_model_for([srv_m])
+        task_m = Syskit::TaskContext.new_submodel
+        task_m.provides srv_m, :as => 'test'
+
+        mapping = { srv_m => proxy_m.m0_srv, proxy_m => proxy2_m, proxy2_m => task_m }
+        assert_equal(task_m.test_srv, 
+            DependencyInjection.resolve_recursive_selection_mapping(mapping)[srv_m])
     end
 
     def test_normalize_selection_raises_on_invalid_keys

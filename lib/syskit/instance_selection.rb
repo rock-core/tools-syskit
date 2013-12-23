@@ -37,6 +37,16 @@ module Syskit
                 @service_selection = service_selection.dup
             end
 
+            # Returns the simplest model representation for {selected}
+            #
+            # It mostly either returns {selected} or {selected}.model if
+            # {InstanceRequirements#plain?} returns resp. false or true
+            #
+            # @return [BoundDataService,Model<Component>,InstanceRequirements]
+            def selected_model
+                selected.simplest_model_representation
+            end
+
             def autoselect_service_if_needed(selected, required, mappings)
                 return selected if selected.service
 

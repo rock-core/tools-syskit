@@ -443,6 +443,17 @@ module Syskit
                 self
             end
 
+            # Returns the simplest model representation for self
+            #
+            # It basically checks if {plain?} returns true or false. If self is
+            # indeed plain, it returns the actual model class
+            def simplest_model_representation
+                if plain?
+                    return model
+                else return self
+                end
+            end
+
             def push_selections
                 @di = nil
                 merger = DependencyInjectionContext.new
