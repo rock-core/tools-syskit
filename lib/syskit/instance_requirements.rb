@@ -598,9 +598,9 @@ module Syskit
                 @di = nil
             end
 
-            # Returns the DI context used by this instance requirements task
+            # Returns the DI object used by this instance requirements task
             #
-            # @return [DependencyInjectionContext]
+            # @return [DependencyInjection]
             def resolved_dependency_injection
                 if !@di
                     context = DependencyInjectionContext.new
