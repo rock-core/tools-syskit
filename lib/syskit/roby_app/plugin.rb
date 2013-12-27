@@ -350,7 +350,6 @@ module Syskit
                     @server_pid = nil
                 rescue Errno::ESRCH
                 end
-                Syskit.conf.remove_process_server 'localhost'
             end
 
             ##
