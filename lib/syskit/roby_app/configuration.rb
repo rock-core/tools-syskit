@@ -324,21 +324,31 @@ module Syskit
                 end
 
                 # We allow the user to specify a task model as a Roby task. Map that
+                #
+                # This should obviously be done in orocos.rb (stop using names
+                # to resolve deployments), but I would like to keep that for
+                # later
+                deployments_by_name = Hash.new
                 names = names.map do |n|
                     if n.respond_to?(:to_hash)
                         n.map_key do |k|
                             if k.respond_to?(:orogen_model)
+                                deployments_by_name[k.orogen_model.name] = k
                                 k.orogen_model
                             else k
                             end
                         end
+                    elsif n.respond_to?(:orogen_model)
+                        deployments_by_name[n.orogen_model.name] = n
+                        n.orogen_model
                     else n
                     end
                 end
 
                 new_deployments, _ = Orocos::Process.parse_run_options(*names)
                 new_deployments.each do |deployment_name, mappings, name, spawn_options|
-                    model = app.using_deployment(deployment_name, options)
+                    model = deployments_by_name[deployment_name] ||
+                        app.using_deployment(deployment_name, options)
                     model.default_run_options.merge!(default_run_options(model))
 
                     configured_deployment = Models::ConfiguredDeployment.new(process_server_name, model, mappings, name, spawn_options)

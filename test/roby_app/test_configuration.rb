@@ -12,44 +12,38 @@ describe Syskit::RobyApp::Configuration do
 
         def stub_deployment(name)
             task_m = @task_m
-            deployment_m = Syskit::Deployment.new_submodel do
-                task 'task', task_m.orogen_model
+            Syskit::Deployment.new_submodel(:name => name) do
+                task('task', task_m.orogen_model)
             end
-            flexmock(Syskit::Deployment).should_receive(:find_model_from_orogen_name).
-                with(name).and_return(deployment_m)
-            Orocos.available_deployments[name] = true
-            flexmock(Orocos).should_receive(:deployment_model_from_name).
-                with(name).and_return(deployment_m.orogen_model)
-            deployment_m
         end
 
         it "should raise TaskNameAlreadyInUse if there is a different deployment that provides the same orocos task name" do
             deployment1_m = stub_deployment 'deployment1'
             deployment2_m = stub_deployment 'deployment2'
-            conf.use_deployment 'deployment1'
+            conf.use_deployment deployment1_m
             assert_raises(Syskit::TaskNameAlreadyInUse) do
-                conf.use_deployment 'deployment2'
+                conf.use_deployment deployment2_m
             end
         end
         it "should not raise if the same deployment is configured with a different mapping" do
             deployment1_m = stub_deployment 'deployment1'
-            conf.use_deployment 'deployment1'
-            conf.use_deployment 'deployment1' => 'prefix_'
+            conf.use_deployment deployment1_m
+            conf.use_deployment deployment1_m => 'prefix_'
         end
         it "should not raise if the same deployment is registered again" do
             deployment1_m = stub_deployment 'deployment1'
-            conf.use_deployment 'deployment1'
-            conf.use_deployment 'deployment1'
+            conf.use_deployment deployment1_m
+            conf.use_deployment deployment1_m
         end
         it "should register the same deployment only once" do
             deployment1_m = stub_deployment 'deployment1'
-            conf.use_deployment 'deployment1'
-            conf.use_deployment 'deployment1'
+            conf.use_deployment deployment1_m
+            conf.use_deployment deployment1_m
             assert_equal 1, conf.deployments['localhost'].size
         end
         it "should allow registering on another process server" do
             deployment1_m = stub_deployment 'deployment1'
-            conf.use_deployment 'deployment1', :on => 'test'
+            conf.use_deployment deployment1_m, :on => 'test'
             assert_equal 1, conf.deployments['test'].size
         end
     end
