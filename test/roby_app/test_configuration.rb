@@ -7,7 +7,7 @@ describe Syskit::RobyApp::Configuration do
         attr_reader :task_m, :conf
         before do
             @task_m = Syskit::TaskContext.new_submodel
-            @conf = Syskit::RobyApp::Configuration.new
+            @conf = Syskit::RobyApp::Configuration.new(Roby.app)
         end
 
         def stub_deployment(name)

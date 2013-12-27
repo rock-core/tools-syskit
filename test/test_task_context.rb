@@ -482,17 +482,17 @@ describe Syskit::TaskContext do
         end
         it "cleans up if the state is STOPPED and the task is marked as requiring reconfiguration" do
             flexmock(task).should_receive(:needs_reconfiguration?).and_return(true)
-            orocos_task.should_receive(:cleanup).once.pass_thru
+            orocos_task.should_receive(:cleanup).once
             assert task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task has never been configured" do
             Syskit::TaskContext.configured['task'] = nil
-            orocos_task.should_receive(:cleanup).once.pass_thru
+            orocos_task.should_receive(:cleanup).once
             assert task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task's configuration changed" do
             Syskit::TaskContext.configured['task'] = [nil, ['default']]
-            orocos_task.should_receive(:cleanup).once.pass_thru
+            orocos_task.should_receive(:cleanup).once
             assert task.prepare_for_setup(:STOPPED)
         end
     end
@@ -675,17 +675,12 @@ describe Syskit::TaskContext do
         dev_driver = syskit_run_deployer(dev)
         bus_driver = plan.find_tasks(combus_driver_m).first
 
-        engine.scheduler = nil
-        process_events
-        dev_driver.execution_agent.start!
-        bus_driver.execution_agent.start!
-
+        engine.scheduler.enabled = false
         bus_driver.orocos_task.create_output_port 'dev', '/int'
         flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:setup).pass_thru
         flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered(:setup).pass_thru
         flexmock(dev_driver.orocos_task, "dev").should_receive(:start).once.globally.ordered.pass_thru
-
-        plan.engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
+        plan.engine.scheduler.enabled = true
         process_events
         process_events
     end
