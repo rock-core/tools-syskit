@@ -32,6 +32,9 @@ module Syskit
 
             super
 
+            if !Orocos.initialized?
+                Orocos.initialize
+            end
             engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
             Syskit::NetworkGeneration::Engine.keep_internal_data_structures = true
