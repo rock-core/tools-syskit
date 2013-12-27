@@ -456,7 +456,6 @@ module Syskit
                     @handler_ids = nil
                 end
 
-                Syskit.conf.deployments.clear
                 stop_process_servers
                 stop_local_process_server
             end
