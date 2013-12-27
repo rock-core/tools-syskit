@@ -106,13 +106,14 @@ describe Syskit::Deployment do
         attr_reader :process_server, :process, :log_dir
         before do
             @process_server = flexmock('process_server', :wait_termination => [])
+            process_server.should_receive(:loader).and_return(FlexMock.undefined).by_default
             process_server.should_receive(:disconnect).by_default
             @process = flexmock('process')
             process.should_receive(:kill).by_default
             process.should_receive(:wait_running).by_default
             process.should_receive(:get_mapped_name).with('task').and_return('mapped_task_name').by_default
             @log_dir = flexmock('log_dir')
-            Syskit.register_process_server('bla', process_server, log_dir)
+            Syskit.conf.register_process_server('bla', process_server, log_dir)
             plan.add(@deployment_task = deployment_m.new(:on => 'bla', :name_mappings => Hash['task' => 'mapped_task_name']))
         end
         after do
@@ -123,7 +124,6 @@ describe Syskit::Deployment do
                 end
                 deployment_task.dead!(nil)
             end
-            Syskit.process_servers.delete 'bla'
         end
 
         describe "start_event" do
@@ -288,7 +288,7 @@ describe Syskit::Deployment do
     describe "using the ruby process server" do
         attr_reader :task_m, :deployment_m
         before do
-            Syskit.process_servers['test'] = [Orocos::RubyProcessServer.new, ""]
+            Syskit.conf.register_process_server('test', Orocos::RubyProcessServer.new, "")
             task_m = @task_m = Syskit::TaskContext.new_submodel do
                 input_port 'in', '/double'
                 output_port 'out', '/double'
@@ -296,7 +296,7 @@ describe Syskit::Deployment do
             @deployment_m = Syskit::Deployment.new_submodel(:name => 'deployment') do
                 task 'task', task_m.orogen_model
             end
-            Syskit.process_servers['test'].first.
+            Syskit.conf.process_server_for('test').
                 register_deployment_model(deployment_m.orogen_model)
         end
         it "can start tasks defined on a ruby process server" do
