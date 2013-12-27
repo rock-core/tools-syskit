@@ -416,6 +416,7 @@ module Syskit
                     ps.loader.clear
                 end
                 Syskit.conf.deployments.clear
+                Syskit.conf.deployed_tasks.clear
                 Syskit::Actions::Profile.clear_model
                 # We need to explicitly call Orocos.clear even though it looks
                 # like clearing the process servers would be sufficient
