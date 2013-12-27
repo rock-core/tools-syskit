@@ -462,11 +462,11 @@ module Syskit
             end
 
             def self.stop_process_servers
-                # Stop the local process server if we started it ourselves
-                Syskit.conf.each_process_server do |client, options|
-                    client.disconnect
+                process_servers = Syskit.conf.each_process_server_config.map(&:name)
+                process_servers.each do |name|
+                    ps = Syskit.conf.remove_process_server(name)
+                    ps.client.disconnect
                 end
-                Syskit.conf.process_servers.clear
             end
 
             module LoadToplevelMethods

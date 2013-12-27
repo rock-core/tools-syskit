@@ -24,7 +24,7 @@ module Syskit
             # errors
             attr_predicate :ignore_load_errors, true
             # The set of process servers registered so far
-            # @return [Hash<String,Object>]
+            # @return [Hash<String,ProcessServerConfig>]
             attr_reader :process_servers
             # Controls whether models from the installed components should be
             # used or not
@@ -289,13 +289,14 @@ module Syskit
             # contexts
             #
             # @param [String] name the name of the original process server
+            # @return [ProcessServerConfig] the registered process server
             def sim_process_server(name)
                 sim_name = "#{name}-sim"
                 if !process_servers[sim_name]
                     mng = Orocos::RubyTasks::ProcessManager.new(process_server_for(name).loader)
                     register_process_server(sim_name, mng, "")
                 end
-                process_servers[sim_name]
+                process_server_config_for(name)
             end
 
             # Declare deployed versions of some Ruby tasks
@@ -432,12 +433,23 @@ module Syskit
             #
             # @param [String] name the process server name
             # @raise [ArgumentError] if no such process server exists
-            def process_server_for(name)
-                server = process_servers[name]
-                if server then return server.first
+            # @return [ProcessServerConfig]
+            def process_server_config_for(name)
+                config = process_servers[name]
+                if config then config
                 else
                     raise ArgumentError, "there is no registered process server called #{name}"
                 end
+            end
+
+            # Returns the process server object named +name+
+            #
+            # @param (see #process_server_config_for)
+            # @raise (see #process_server_config_for)
+            # @return [Object] an object that conforms to orocos.rb's process
+            #   server API
+            def process_server_for(name)
+                process_server_config_for(name).client
             end
 
             # Returns the log dir for the given process server
@@ -445,21 +457,32 @@ module Syskit
             # @param [String] name the process server name
             # @raise [ArgumentError] if no such process server exists
             def log_dir_for(name)
-                server = process_servers[name]
-                if server then return server.last
-                else
-                    raise ArgumentError, "there is no registered process server called #{name}"
-                end
+                process_server_config_for(name).log_dir
             end
 
             # True if this application should not try to contact other
             # machines/servers
             attr_predicate :local_only?, true
 
+            # Enumerates all available process servers
+            #
+            # @yieldparam [Object] process_server the registered process server,
+            #   as an object that conforms to orocos.rb's process server API
+            # @return [void]
             def each_process_server
-                process_servers.each_value do |client, _|
-                    yield(client)
+                return enum_for(__method__) if !block_given?
+                process_servers.each_value do |config|
+                    yield(config.client)
                 end
+            end
+
+            # Enumerates the registration information for all known process servers
+            #
+            # @yieldparam [ProcessServerConfig] process_server the registered process server,
+            #   as an object that conforms to orocos.rb's process server API
+            # @return [void]
+            def each_process_server_config(&block)
+                process_servers.each_value(&block)
             end
 
             # @deprecated use {#connect_to_orocos_process_server} instead
@@ -527,15 +550,32 @@ module Syskit
                 client
             end
 
+            ProcessServerConfig = Struct.new :name, :client, :log_dir, :callback
+
+            # Make a process server available to syskit
+            #
+            # @param [String] name the process server name
+            # @param [Object] client the process server client object, which has
+            #   to conform to the API of {Orocos::Remotes::Client}
+            # @param [String] log_dir the path to the server's log directory
+            # @return [ProcessServerConfig]
             def register_process_server(name, client, log_dir)
-                client.loader.on_project_load do |project|
+                ps = ProcessServerConfig.new(name, client, log_dir)
+                ps.callback = client.loader.on_project_load do |project|
                     app.project_define_from_orogen(project)
                 end
-                process_servers[name] = [client, log_dir]
+                process_servers[name] = ps
             end
 
+            # Deregisters a process server
+            #
+            # @param [String] name the process server name, as given to
+            #   {register_process_server}
             def remove_process_server(name)
                 ps = process_servers.delete(name)
+                client = ps.client
+
+                client.loader.remove_project_load_callback(ps.callback)
                 if registered_deployments = deployments.delete(name)
                     deployed_tasks.delete_if do |_, d|
                         registered_deployments.include?(d)

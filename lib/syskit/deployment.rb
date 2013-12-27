@@ -4,8 +4,7 @@ end
 
 module Syskit
         class << self
-            # Registers the given process server to the set of usable process
-            # servers
+            # (see RobyApp::Configuration#register_process_server)
             def register_process_server(name, client, log_dir)
                 Syskit.conf.register_process_server(name, client, log_dir)
             end
@@ -25,6 +24,11 @@ module Syskit
             argument :name_mappings, :default => nil
 
             attr_accessor :spawn_options
+
+            # An object describing the underlying pocess server
+            #
+            # @return [RobyApp::Configuration::ProcessServerConfig]
+            attr_reader :process_server_config
 
             def initialize(options = Hash.new)
                 super
@@ -139,8 +143,7 @@ module Syskit
                 if !process_name
                     raise ArgumentError, "must set process_name"
                 end
-                process_server = Syskit.conf.process_server_for(host)
-                log_dir = Syskit.conf.log_dir_for(host)
+                @process_server_config = Syskit.conf.process_server_config_for(host)
 
                 spawn_options = self.spawn_options
                 options = (spawn_options[:cmdline_args] || Hash.new).dup
@@ -156,7 +159,7 @@ module Syskit
 
                 Deployment.info { "starting deployment #{process_name} using #{model.deployment_name} on #{host} with #{spawn_options} and mappings #{name_mappings}" }
 
-                @orocos_process = process_server.start(
+                @orocos_process = process_server_config.client.start(
                     process_name, model.deployment_name, name_mappings, spawn_options)
 
                 Deployment.all_deployments[@orocos_process] = self
@@ -164,8 +167,7 @@ module Syskit
             end
 
             def log_dir
-                _, log_dir = Syskit.conf.process_server_for(host)
-                log_dir
+                process_server_config.log_dir
             end
 
             # The name of the host this deployment is running on, i.e. the

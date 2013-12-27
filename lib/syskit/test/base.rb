@@ -60,7 +60,6 @@ module Syskit
                 teardown_failure = e
             end
 
-            Syskit.conf.remove_process_server('stubs')
             @task_stubs.each do |t|
                 t.dispose
             end
