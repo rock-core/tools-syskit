@@ -241,14 +241,11 @@ describe Syskit::NetworkGeneration::Engine do
             ]
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments).by_default
-            syskit_engine.prepare(:validate_network => false)
-            flexmock(syskit_engine.work_plan).should_receive(:find_local_tasks).
-                with(Syskit::Deployment).and_return([])
+            syskit_engine.prepare(:validate_deployed_network => false, :validate_final_network => false)
         end
 
         it "creates the necessary deployment task and uses #task to get the deployed task context" do
-            task = task_models[0].new
-            flexmock(syskit_engine.work_plan).should_receive(:find_local_tasks).and_return([task])
+            syskit_engine.work_plan.add(task = task_models[0].new)
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
                 with(:on => 'machine').
@@ -263,6 +260,9 @@ describe Syskit::NetworkGeneration::Engine do
             syskit_engine.deploy_system_network
         end
         it "instanciates the same deployment only once on the same machine" do
+            syskit_engine.work_plan.add(task0 = task_models[0].new(:orocos_name => 'task'))
+            syskit_engine.work_plan.add(task1 = task_models[0].new(:orocos_name => 'other_task'))
+
             deployments = Hash[
                 task_models[0] => [['machine', deployment_models[0], 'task'], ['machine', deployment_models[0], 'other_task']]
             ]
@@ -271,10 +271,6 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine.work_plan).should_receive(:add)
             flexmock(syskit_engine.merge_solver).should_receive(:merge)
 
-            task0 = task_models[0].new(:orocos_name => 'task')
-            task1 = task_models[0].new(:orocos_name => 'other_task')
-
-            flexmock(syskit_engine.work_plan).should_receive(:find_local_tasks).and_return([task0, task1])
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
                 with(:on => 'machine').
@@ -286,6 +282,9 @@ describe Syskit::NetworkGeneration::Engine do
             assert_equal [], syskit_engine.deploy_system_network
         end
         it "instanciates the same deployment twice if on two different machines" do
+            syskit_engine.work_plan.add(task0 = task_models[0].new(:orocos_name => 'task'))
+            syskit_engine.work_plan.add(task1 = task_models[0].new(:orocos_name => 'other_task'))
+
             deployments = Hash[
                 task_models[0] => [
                     ['machine', deployment_models[0], 'task'],
@@ -297,11 +296,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine.work_plan).should_receive(:add)
             flexmock(syskit_engine.merge_solver).should_receive(:merge)
 
-            task0 = task_models[0].new(:orocos_name => 'task')
-            task1 = task_models[0].new(:orocos_name => 'other_task')
-
-            flexmock(syskit_engine.work_plan).should_receive(:find_local_tasks).
-                with(Syskit::TaskContext).and_return([task0, task1])
+            flexmock(Roby::Queries::Query).new_instances.should_receive(:to_a).and_return([task0, task1])
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
                 with(:on => 'machine').
@@ -316,6 +311,9 @@ describe Syskit::NetworkGeneration::Engine do
             assert_equal [], syskit_engine.deploy_system_network
         end
         it "does not allocate the same task twice" do
+            syskit_engine.work_plan.add(task0 = task_models[0].new)
+            syskit_engine.work_plan.add(task1 = task_models[0].new)
+
             deployments = Hash[
                 task_models[0] => [['machine', deployment_models[0], 'task']]
             ]
@@ -324,9 +322,6 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine.work_plan).should_receive(:add)
             flexmock(syskit_engine.merge_solver).should_receive(:merge)
 
-            task0, task1 = task_models[0].new, task_models[0].new
-            flexmock(syskit_engine.work_plan).should_receive(:find_local_tasks).
-                with(Syskit::TaskContext).and_return([task0, task1])
             flexmock(deployment_models[0]).should_receive(:new).once.
                 and_return(deployment_task0 = flexmock)
             deployment_task0.should_receive(:task).with('task').once
@@ -334,6 +329,9 @@ describe Syskit::NetworkGeneration::Engine do
             assert_equal [task1], syskit_engine.deploy_system_network.to_a
         end
         it "does not resolve ambiguities by considering already allocated tasks" do
+            syskit_engine.work_plan.add(task0 = task_models[0].new(:orocos_name => 'task'))
+            syskit_engine.work_plan.add(task1 = task_models[0].new)
+
             deployments = Hash[
                 task_models[0] => [['machine', deployment_models[0], 'task'], ['machine', deployment_models[0], 'other_task']]
             ]
@@ -342,9 +340,6 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine.work_plan).should_receive(:add)
             flexmock(syskit_engine.merge_solver).should_receive(:merge)
 
-            task0, task1 = task_models[0].new(:orocos_name => 'task'), task_models[0].new
-            flexmock(syskit_engine.work_plan).should_receive(:find_local_tasks).
-                with(Syskit::TaskContext).and_return([task0, task1])
             flexmock(deployment_models[0]).should_receive(:new).once.
                 and_return(deployment_task0 = flexmock)
             deployment_task0.should_receive(:task).with('task').once
@@ -352,16 +347,15 @@ describe Syskit::NetworkGeneration::Engine do
             assert_equal [task1], syskit_engine.deploy_system_network.to_a
         end
         it "does not consider already deployed tasks" do
+            syskit_engine.work_plan.add(task0 = task_models[0].new)
+
             deployments = Hash[task_models[0] => [['machine', deployment_models[0], 'task']]]
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments)
             flexmock(syskit_engine.work_plan).should_receive(:add).never
             flexmock(syskit_engine.merge_solver).should_receive(:merge).never
 
-            task0 = task_models[0].new
             flexmock(task0).should_receive(:execution_agent).and_return(true)
-            flexmock(syskit_engine.work_plan).should_receive(:find_local_tasks).
-                with(Syskit::TaskContext).and_return([task0])
             flexmock(deployment_models[0]).should_receive(:new).never
             syskit_engine.update_deployed_models
             assert_equal [], syskit_engine.deploy_system_network
@@ -556,7 +550,7 @@ describe Syskit::NetworkGeneration::Engine do
         end
         it "sets missing devices from its selections" do
             engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)
-            task.requirements.selections.add(dev_m => device)
+            task.requirements.push_dependency_injection(Syskit::DependencyInjection.new(dev_m => device))
             engine.allocate_devices(task)
             assert_equal device, task.find_device_attached_to(task.driver_srv)
         end
