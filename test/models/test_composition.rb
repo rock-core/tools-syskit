@@ -619,7 +619,7 @@ describe Syskit::Models::Composition do
                 assert_is_proxy_model_for [service], child.overload_info.required.base_model
                 assert_is_proxy_model_for [service1], child.overload_info.selected.base_model
                 assert_equal Hash['srv_in' => 'specialized_in', 'srv_out' => 'specialized_out'],
-                    child.port_mappings
+                    child.port_mappings.slice('srv_in', 'srv_out')
 
                 c1 = c0.new_submodel(:name => "C1")
                 c1.overload('srv', component)

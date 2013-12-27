@@ -41,6 +41,19 @@ describe Syskit::InstanceSelection do
             assert_equal component_m.test_srv,
                 sel.service_selection[srv_m]
         end
+
+        it "should use the information present in selected and required to resolve ambiguities" do
+            srv_m = Syskit::DataService.new_submodel
+            component_m = Syskit::Component.new_submodel do
+                provides srv_m, :as => 'test'
+                provides srv_m, :as => 'ambiguous'
+            end
+            sel = Syskit::InstanceSelection.new(nil,
+                component_m.test_srv.to_instance_requirements,
+                srv_m.to_instance_requirements)
+            assert_equal component_m.test_srv,
+                sel.service_selection[srv_m]
+        end
     end
 
     describe "instanciate" do

@@ -100,9 +100,9 @@ module Syskit
             # @raise (see Models::Component#find_data_service_from_type)
             def self.compute_service_selection(selected, required, mappings)
                 mappings = mappings.dup
-                if selected.kind_of?(Models::BoundDataService)
+                if selected.service
                     # Save this selection explicitly
-                    mappings[selected.model] = selected
+                    mappings[selected.service.model] = selected.service
                 end
 
                 selected_component_model = selected.model.to_component_model
