@@ -64,9 +64,10 @@ describe Syskit::InstanceSelection do
                 assert_same trsc[task], sel.instanciate(trsc)
             end
         end
-        it "should return the component if one is selected" do
+        it "should return explicitly selected components represented in the instanciation plan" do
             sel = Syskit::InstanceSelection.new(c = flexmock(:fullfills? => true))
-            assert_same c, sel.instanciate(plan)
+            flexmock(plan).should_receive(:[]).with(c).and_return(mapped_task = flexmock)
+            assert_same mapped_task, sel.instanciate(plan)
         end
         it "should instanciate the selected requirements if no component is selected" do
             req = Syskit::InstanceRequirements.new
