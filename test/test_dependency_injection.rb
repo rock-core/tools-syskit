@@ -111,6 +111,26 @@ describe Syskit::DependencyInjection do
             end
         end
     end
+
+    describe "#use" do
+        attr_reader :srv_m, :cmp_m, :task_m
+        before do
+            @srv_m = Syskit::DataService.new_submodel
+            @cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, :as => 'test'
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, :as => 'test'
+        end
+        it "should raise if a child selection is ambiguous" do
+            task_m.provides srv_m, :as => 'ambiguous'
+            cmp_m.use('test' => task_m)
+        end
+        it "should allow selecting a service explicitly" do
+            task_m.provides srv_m, :as => 'ambiguous'
+            req = cmp_m.use('test' => task_m.test_srv)
+            assert_equal task_m.test_srv, req.resolved_dependency_injection.explicit['test']
+        end
+    end
 end
 
 class TC_DependencyInjection < Test::Unit::TestCase
