@@ -147,9 +147,9 @@ module Syskit
                     m.subclasses self.orogen_model
                 end
                 submodel.orogen_model = m
-                submodel.make_state_events
 
                 super
+                submodel.make_state_events
             end
 
             def worstcase_processing_time(value)

@@ -36,6 +36,21 @@ describe Syskit::Models::TaskContext do
             assert model.find_data_service('srv')
         end
 
+        it "allows to set up custom states in the setup block" do
+            model = Syskit::TaskContext.new_submodel do
+                runtime_states :CUSTOM
+            end
+            assert_equal :custom, model.find_state_event(:CUSTOM)
+        end
+
+        it "gives access to state events from parent models" do
+            parent_m = Syskit::TaskContext.new_submodel do
+                runtime_states :CUSTOM
+            end
+            child_m = parent_m.new_submodel
+            assert_equal :custom, child_m.find_state_event(:CUSTOM)
+        end
+
         it "registers the created model on parent classes" do
             submodel = Syskit::TaskContext.new_submodel
             subsubmodel = submodel.new_submodel
