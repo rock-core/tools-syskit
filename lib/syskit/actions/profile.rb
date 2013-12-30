@@ -130,6 +130,7 @@ module Syskit
                     end
                 end
                 robot.use_robot(profile.robot)
+                super if defined? super
                 nil
             end
 
