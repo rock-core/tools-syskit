@@ -26,21 +26,16 @@ module Syskit
                 engine = Syskit::NetworkGeneration::Engine.new(plan)
                 resolve_options = Hash[:requirement_tasks => requirement_tasks,
                                        :on_error => :commit].merge(options)
-                begin
-                    engine.resolve(resolve_options)
-                    dataflow, hierarchy = name + "-dataflow.svg", name + "-hierarchy.svg"
-                    if Roby.app.testing_keep_logs?
-                        Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
-                        Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
-                    end
-                    placeholder_tasks.each do |task|
-                        plan.remove_object(task)
-                    end
-                    return engine, root_tasks.map(&:task)
-
-                rescue Exception => e
-                    raise Assertion.new(e), e.message, e.backtrace
+                engine.resolve(resolve_options)
+                dataflow, hierarchy = name + "-dataflow.svg", name + "-hierarchy.svg"
+                if Roby.app.testing_keep_logs?
+                    Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
+                    Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                 end
+                placeholder_tasks.each do |task|
+                    plan.remove_object(task)
+                end
+                return engine, root_tasks.map(&:task)
             end
 
             # Tests that the given syskit-generated actions can be instanciated
