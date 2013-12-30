@@ -99,8 +99,7 @@ module Syskit
                     merge(specific_options[:dataflow])
                 dataflow_options = process_options('dataflow', model, dataflow_options)
 
-                render_plan(:hierarchy => hierarchy_options,
-                            :dataflow => dataflow_options)
+                render_plan
                 if exception
                     raise exception
                 end
@@ -126,10 +125,10 @@ module Syskit
                 specific_options, options = Kernel.filter_options options,
                     :dataflow => Hash.new, :hierarchy => Hash.new
 
-                hierarchy_options = options.merge(specific_options[:hierarchy])
+                hierarchy_options = options.merge(self.hierarchy_options).merge(specific_options[:hierarchy])
                 push_plan('hierarchy', plan, hierarchy_options)
                 dataflow_options = Hash[:annotations => all_annotations].
-                    merge(options).merge(specific_options[:dataflow])
+                    merge(self.dataflow_options).merge(options).merge(specific_options[:dataflow])
                 push_plan('dataflow', plan, dataflow_options)
                 emit updated
             end
