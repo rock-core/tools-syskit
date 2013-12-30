@@ -633,7 +633,7 @@ module Syskit
                 task = task_model.instanciate(plan, context, arguments)
                 task_requirements = to_component_model
                 task_requirements.map_use_selections! do |sel|
-                    if !Models.is_model?(sel)
+                    if sel && !Models.is_model?(sel)
                         sel.to_instance_requirements
                     else sel
                     end
