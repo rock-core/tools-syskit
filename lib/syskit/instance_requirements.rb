@@ -808,6 +808,31 @@ module Syskit
             def selected_for(requirements)
                 Syskit::InstanceSelection.new(nil, self, requirements.to_instance_requirements)
             end
+
+            def to_action_model(profile = nil, doc = "")
+                action_model = Actions::Models::Action.new(profile, self, doc)
+
+                task_model = component_model
+                root_model = [TaskContext,
+                              Composition,
+                              Component].find { |m| task_model <= m }
+                task_arguments = task_model.arguments.to_a - root_model.arguments.to_a
+
+                has_required_arguments = false
+                task_arguments.each do |arg_name|
+                    if task_model.default_argument(arg_name) || arguments.has_key?(arg_name.to_s)
+                        action_model.optional_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
+                    else
+                        has_required_arguments = true
+                        action_model.required_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
+                    end
+                end
+                action_model
+            end
+
+            def to_action
+                to_action_model.new
+            end
         end
 end
 

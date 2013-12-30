@@ -9,6 +9,25 @@ module Syskit
             end
             @profiles = Array.new
 
+            class Definition < InstanceRequirements
+                attr_accessor :profile
+                def initialize(profile, name)
+                    super()
+                    self.profile = profile
+                    self.name = name
+                end
+
+                def initialize_copy(new)
+                    super
+                    new.profile = profile
+                    new.name = name
+                end
+
+                def to_action_model
+                    profile.resolved_definition(name).to_action_model(profile, "defined in #{profile}")
+                end
+            end
+
             module Tag
                 include Syskit::PlaceholderTask
 
@@ -119,9 +138,11 @@ module Syskit
             def define(name, requirements)
                 resolved = resolved_dependency_injection.
                     direct_selection_for(requirements) || requirements
-                req = resolved.to_instance_requirements.dup
-                req.name = name
-                definitions[name] = req
+                req = resolved.to_instance_requirements
+                
+                definition = Definition.new(self, name)
+                definition.merge(req)
+                definitions[name] = definition
             end
 
             # Returns the instance requirement object that represents the given
@@ -153,8 +174,11 @@ module Syskit
             # @see definition
             def resolved_definition(name)
                 req = definition(name)
-                inject_di_context(req)
-                req
+
+                result = InstanceRequirements.new
+                result.merge(req)
+                inject_di_context(result)
+                result
             end
 
             def all_used_profiles
@@ -239,22 +263,8 @@ module Syskit
                     action_name = "#{name}_def"
 
                     req = resolved_definition(name)
-                    action_model = Models::Action.new(self, req, "definition from profile #{name}")
+                    action_model = req.to_action_model(self, "defined in profile #{self}")
                     action_model.name = action_name
-
-                    task_model = req.component_model
-                    root_model = [Syskit::TaskContext, Syskit::Composition, Syskit::Component].find { |m| task_model <= m }
-                    task_arguments = task_model.arguments.to_a - root_model.arguments.to_a
-
-                    has_required_arguments = false
-                    task_arguments.each do |arg_name|
-                        if task_model.default_argument(arg_name) || req.arguments.has_key?(arg_name.to_s)
-                            action_model.optional_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
-                        else
-                            has_required_arguments = true
-                            action_model.required_arg(arg_name, "#{arg_name} argument of #{task_model.name}")
-                        end
-                    end
                     yield(action_model)
                 end
             end
