@@ -152,6 +152,7 @@ module Syskit
                                     raise AmbiguousPortMappings.new(other_m, req_m, req_name)
                                 end
                             end
+                        else sel_name1
                         end
                     end
                 end

@@ -87,6 +87,47 @@ describe Syskit::InstanceSelection do
             assert_equal component.test_srv, sel.instanciate(plan)
         end
     end
+
+    describe "#port_mappings" do
+        it "merges the port mappings from all selected services" do
+            srv1_m = Syskit::DataService.new_submodel { output_port 'out1', '/double' }
+            srv2_m = Syskit::DataService.new_submodel { output_port 'out2', '/int' }
+            proxy_task_m = Syskit::Component.proxy_task_model([srv1_m, srv2_m])
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'task_out1', '/double'
+                output_port 'task_out2', '/int'
+            end
+            task_m.provides srv1_m, :as => 'test1'
+            task_m.provides srv2_m, :as => 'test2'
+            mappings = task_m.selected_for(proxy_task_m).port_mappings
+            assert_equal Hash['out1' => 'task_out1', 'out2' => 'task_out2'], mappings
+        end
+        it "detects colliding mappings and raises AmbiguousPortMappings" do
+            srv1_m = Syskit::DataService.new_submodel { output_port 'out', '/double' }
+            srv2_m = Syskit::DataService.new_submodel { output_port 'out', '/int' }
+            proxy_task_m = Syskit::Component.proxy_task_model([srv1_m, srv2_m])
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'task_out1', '/double'
+                output_port 'task_out2', '/int'
+            end
+            task_m.provides srv1_m, :as => 'test1'
+            task_m.provides srv2_m, :as => 'test2'
+            assert_raises(Syskit::AmbiguousPortMappings) do
+                task_m.selected_for(proxy_task_m).port_mappings
+            end
+        end
+        it "ignores colliding but identical mappings" do
+            srv1_m = Syskit::DataService.new_submodel { output_port 'out', '/double' }
+            srv2_m = Syskit::DataService.new_submodel { output_port 'out', '/double' }
+            proxy_task_m = Syskit::Component.proxy_task_model([srv1_m, srv2_m])
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'task_out', '/double'
+            end
+            task_m.provides srv1_m, :as => 'test1'
+            task_m.provides srv2_m, :as => 'test2'
+            assert_equal Hash['out' => 'task_out'], task_m.selected_for(proxy_task_m).port_mappings
+        end
+    end
 end
 
 
