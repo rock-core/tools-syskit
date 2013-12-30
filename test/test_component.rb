@@ -14,6 +14,14 @@ describe Syskit::Component do
             task.specialize
             refute_same task_m, task.model
         end
+        it "should ensure that the task's concrete model is still the original model" do
+            task.specialize
+            assert_same task_m, task.concrete_model
+        end
+        it "should ensure that the task's model's concrete model is still the original model" do
+            task.specialize
+            assert_same task_m, task.model.concrete_model
+        end
         it "should be possible to declare that the specialized model provides a service without touching the source model" do
             task.specialize
             srv_m = Syskit::DataService.new_submodel
