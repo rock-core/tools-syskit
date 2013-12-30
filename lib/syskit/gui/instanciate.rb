@@ -106,7 +106,11 @@ module Syskit
                 passes.each do |actions|
                     requirement_tasks = actions.map do |action_name|
                         action_name = action_name.gsub(/!$/, '')
-                        _, act = ::Robot.action_from_name(action_name)
+                        begin
+                            _, act = ::Robot.action_from_name(action_name)
+                        rescue ArgumentError
+                            act = eval(action_name).to_action
+                        end
 
                         # Instanciate the action, and find out if it is actually
                         # a syskit-centric action or not
