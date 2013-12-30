@@ -17,8 +17,6 @@ module Syskit
                     attr_accessor :tag_name
                     # The profile this tag has been defined on
                     attr_accessor :profile
-
-                    def basename; tag_name end
                 end
             end
 
@@ -54,7 +52,9 @@ module Syskit
             end
 
             def tag(name, *models)
-                tags[name] = Syskit.create_proxy_task_model_for(models, :extension => Tag)
+                tags[name] = Syskit.create_proxy_task_model_for(models,
+                                                                :extension => Tag,
+                                                                :as => "#{self}.#{name}_tag")
                 tags[name].tag_name = name
                 tags[name].profile = self
                 tags[name]

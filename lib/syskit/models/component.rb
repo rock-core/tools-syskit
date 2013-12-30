@@ -748,19 +748,23 @@ module Syskit
             # You usually want to use {proxy_task_model}
             #
             # @option options [String] :extension (Syskit::PlaceholderTask) the
-            #   name of the module that is used to make the new task a
-            #   placeholder task
+            #   module that is used to make the new task a placeholder task
+            # @option options [String,nil] :as (nil) the
+            #   name of the newly created model. By default, uses the name
+            #   of the extension module with the list of service models in
+            #   brackets (i.e. PlaceholderTask<Component,Srv>)
             #
             # @return [Model<Component>]
             def create_proxy_task_model(service_models, options = Hash.new)
                 options = Kernel.validate_options options,
+                    :as => nil,
                     :extension => PlaceholderTask
 
                 name_models = service_models.map(&:to_s).sort.join(",")
                 if self != Syskit::Component
                     name_models = "#{self},#{name_models}"
                 end
-                model = specialize("#{options[:extension]}<%s>" % [name_models])
+                model = specialize(options[:as] || ("#{options[:extension]}<%s>" % [name_models]))
                 model.abstract
                 model.concrete_model = nil
                 model.include options[:extension]
@@ -788,7 +792,14 @@ module Syskit
                 if task_model = proxy_task_models[service_models]
                     return task_model
                 end
-                model = create_proxy_task_model(service_models)
+                name = service_models.map(&:to_s).sort.join(",")
+                if self != Syskit::Component
+                    name = "#{self}<#{name}>"
+                elsif service_models.size > 1
+                    name = "<#{name}>"
+                end
+
+                model = create_proxy_task_model(service_models, :as => name)
                 proxy_task_models[service_models] = model
                 model
             end
@@ -938,10 +949,6 @@ module Syskit
 
             attr_accessor :proxied_task_context_model
 
-            def basename
-                "ProxyTask"
-            end
-
             def to_instance_requirements
                 Syskit::InstanceRequirements.new([self])
             end
@@ -1046,10 +1053,6 @@ module Syskit
 
             def find_port(name)
                 find_output_port(name) || find_input_port(name)
-            end
-
-            def to_s
-                name
             end
         end
 

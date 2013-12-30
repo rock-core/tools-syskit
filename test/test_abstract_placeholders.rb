@@ -17,7 +17,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	]
 	proxy = Syskit.proxy_task_model_for(services)
 	assert(proxy.abstract?)
-	assert_equal('Syskit::PlaceholderTask<A,B,C>', proxy.name)
+	assert_equal('<A,B,C>', proxy.name)
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
 	assert_equal(([Syskit::DataService] + services).to_set, proxy.fullfilled_model.to_set)
 	services.each do |srv|
@@ -37,7 +37,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	assert(proxy.abstract?)
 	assert(proxy < task_model)
         assert_not_same(proxy, task_model)
-	assert_equal("Syskit::PlaceholderTask<#{task_model.name},A,B,C>", proxy.name)
+	assert_equal("#{task_model.name}<A,B,C>", proxy.name)
 
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
 	assert_equal(([task_model, Syskit::Component, Roby::Task, Syskit::DataService] + services).to_set, proxy.fullfilled_model.to_set)
@@ -120,7 +120,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	assert(proxy.abstract?)
 	assert(proxy < task_model)
         assert_not_same(proxy, task_model)
-	assert_equal("Syskit::PlaceholderTask<A,S>", proxy.name)
+	assert_equal("A<S>", proxy.name)
     end
 
     def test_cannot_proxy_multiple_component_models_at_the_same_time
