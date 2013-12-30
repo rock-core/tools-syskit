@@ -844,12 +844,8 @@ module Syskit
             end
 
             def can_merge?(target_model)
-                self_real_model = if private_specialization? then superclass
-                                  else self
-                                  end
-                target_real_model = if target_model.private_specialization? then target_model.superclass
-                                    else target_model
-                                    end
+                self_real_model = concrete_model
+                target_real_model = target_model.concrete_model
 
                 if self_real_model != self || target_real_model != target_model
                     if !self_real_model.can_merge?(target_real_model)
