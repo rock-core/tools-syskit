@@ -4,6 +4,9 @@ describe Syskit::Models do
     include Syskit::Test::Self
 
     describe "is_model?" do
+        it "should return false for nil" do
+            assert !Syskit::Models.is_model?(nil)
+        end
         it "should return false for any object" do
             assert !Syskit::Models.is_model?(flexmock)
         end
