@@ -85,7 +85,7 @@ module Syskit::GUI
                     formatted.concat formatted_selections
                 end
             else
-                pushed_selections = req.pushed_selections
+                pushed_selections = req.send(:pushed_selections)
                 if !pushed_selections.empty?
                     formatted_selections = render_instance_requirements_selections(page, pushed_selections, "use<0>")
                     formatted[-1] += "."
@@ -93,7 +93,7 @@ module Syskit::GUI
                     use_suffix = "<1>"
                 end
 
-                selections = req.selections
+                selections = req.send(:selections)
                 if !selections.empty?
                     formatted_selections = render_instance_requirements_selections(page, selections, "use#{use_suffix}")
                     formatted[-1] += "."
