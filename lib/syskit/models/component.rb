@@ -507,9 +507,6 @@ module Syskit
             #      component_port_name => service_port_name
             #   I.e. they specify that service_port_name on the service should
             #   be mapped to component_port_name on the component
-            # @option arguments [String] :as the name of the service. If it is
-            #   not given, the basename of the model name converted to snake case
-            #   is used, e.g. ImageProvider becomes image_provider.
             # @option arguments [String] :slave_of the name of another data
             #   service, of which this service should be a slave.
             #
