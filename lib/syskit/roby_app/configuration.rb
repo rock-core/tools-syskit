@@ -581,8 +581,12 @@ module Syskit
             #
             # @param [String] name the process server name, as given to
             #   {register_process_server}
+            # @raise ArgumentError if there is no process server with that name
             def remove_process_server(name)
                 ps = process_servers.delete(name)
+                if !ps
+                    raise ArgumentError, "there is no registered process server called #{name}"
+                end
                 client = ps.client
 
                 client.loader.remove_project_load_callback(ps.callback)

@@ -463,6 +463,7 @@ module Syskit
             def self.stop_process_servers
                 process_servers = Syskit.conf.each_process_server_config.map(&:name)
                 process_servers.each do |name|
+                    next if name =~ /-sim$/
                     ps = Syskit.conf.remove_process_server(name)
                     ps.client.disconnect
                 end
