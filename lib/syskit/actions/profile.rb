@@ -119,15 +119,16 @@ module Syskit
                 end
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
-                new_definitions = profile.definitions.map_value do |_, req|
-                    req = req.dup
-                    if req.composition_model?
-                        req.push_selections
-                        req.use(tags)
+                profile.definitions.each do |name, req|
+                    if !definitions[name]
+                        req = req.dup
+                        if req.composition_model?
+                            req.push_selections
+                            req.use(tags)
+                        end
+                        define name, req
                     end
-                    req
                 end
-                @definitions = new_definitions.merge(definitions)
                 robot.use_robot(profile.robot)
                 nil
             end
