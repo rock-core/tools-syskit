@@ -39,18 +39,7 @@ module Syskit
                     return engine, root_tasks.map(&:task)
 
                 rescue Exception => e
-                    begin
-                        if Roby.app.testing_keep_logs?
-                            dataflow, hierarchy = name + "-partial-dataflow.svg", name + "-partial-hierarchy.svg"
-                            Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
-                            Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
-                            raise Assertion.new(e), "#{e.message}, networks saved in #{dataflow} and #{hierarchy}", e.backtrace
-                        else
-                            raise Assertion.new(e), e.message, e.backtrace
-                        end
-                    ensure
-                        plan.clear
-                    end
+                    raise Assertion.new(e), e.message, e.backtrace
                 end
             end
 
