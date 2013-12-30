@@ -16,7 +16,7 @@ module Syskit
                 tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }
                 tags_from_other = tags.find_all { |task| task.class.profile != self.class.desc }
                 if !other.empty?
-                    raise Assertion.new(TaskAllocationFailed.new(engine, still_abstract)), message
+                    raise Assertion.new(TaskAllocationFailed.new(engine, other)), message
                 elsif !tags_from_other.empty?
                     other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
                     raise Assertion.new(TaskAllocationFailed.new(engine, tags)), "#{definition.name} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{self.class.desc})"
