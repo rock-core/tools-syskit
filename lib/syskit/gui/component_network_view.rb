@@ -28,6 +28,7 @@ module Syskit
                     :title => 'Dataflow',
                     :id => 'dataflow',
                     :remove_compositions => false,
+                    :show_all_ports => false,
                     :annotations => ['task_info'].to_set,
                     :excluded_models => Set.new,
                     :zoom => 1
@@ -89,9 +90,13 @@ module Syskit
 
                 specific_options, render_options = Kernel.filter_options render_options,
                     :dataflow => Hash.new, :hierarchy => Hash.new
-                hierarchy_options = render_options.merge(specific_options[:hierarchy])
+                hierarchy_options = self.hierarchy_options.
+                    merge(render_options).
+                    merge(specific_options[:hierarchy])
                 hierarchy_options = process_options('hierarchy', model, hierarchy_options)
-                dataflow_options = render_options.merge(specific_options[:dataflow])
+                dataflow_options = self.dataflow_options.
+                    merge(render_options).
+                    merge(specific_options[:dataflow])
                 dataflow_options = process_options('dataflow', model, dataflow_options)
 
                 render_plan(:hierarchy => hierarchy_options,

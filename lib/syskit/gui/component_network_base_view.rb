@@ -189,7 +189,7 @@ module Syskit
                 when /\/show_compositions/
                     config[:remove_compositions] = !new_state
                 when /\/show_all_ports/
-                    config[:show_all_ports] = !new_state
+                    config[:show_all_ports] = new_state
                 when /\/show_logger/
                     if new_state
                         config[:excluded_models].delete(Logger::Logger)
@@ -219,12 +219,12 @@ module Syskit
 
             def push_plan(id, plan, options = Hash.new)
                 options, push_options = Kernel.filter_options options, :interactive => true
-                config = send("#{id}_options").dup
+                config = send("#{id}_options").merge(push_options)
                 if !options[:interactive]
                     config.delete(:buttons)
                 end
                 title = config.delete(:title)
-                page.push_plan(title, id, plan, config.merge(push_options))
+                page.push_plan(title, id, plan, config)
             end
         end
     end
