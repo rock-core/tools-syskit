@@ -78,20 +78,21 @@ if remaining.empty?
     STDERR.puts parser
     exit(1)
 end
+direct_files, required_actions = remaining.partition do |arg|
+    File.file?(arg)
+end
 
 if annotations.empty?
     annotations = default_annotations
 end
 
 Roby.app.using_plugins 'syskit'
-Roby.app.ignore_all_load_errors = true
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true
-
-direct_files, required_actions = remaining.partition do |arg|
-    File.file?(arg)
-end
+Roby.app.ignore_all_load_errors = true
+Roby.app.auto_load_models = direct_files.empty?
 Roby.app.additional_model_files.concat(direct_files)
+
 begin
     app = Qt::Application.new([])
 
