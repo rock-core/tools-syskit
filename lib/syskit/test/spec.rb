@@ -13,21 +13,28 @@ module Syskit
                 "#{self.class}##{__name__}"
             end
 
+            def raise_error(e, additional_message = nil)
+                case e
+                when Interrupt then raise
+                when Assertion, Error
+                    raise e, "#{e.message}#{", #{additional_message}" if additional_message}", e.backtrace
+                else
+                    raise Error.new(e), additional_message || "", e.backtrace
+                end
+            end
+
             def self.it(*args, &block)
                 super(*args) do
                     begin
                         instance_eval(&block)
                     rescue Exception => e
-                        if !e.kind_of?(Assertion) && e.class.name =~ /Syskit|Roby/
-                            pp e
-                        end
-
                         if Roby.app.testing_keep_logs?
                             dataflow, hierarchy = name + "-partial-dataflow.svg", name + "-partial-hierarchy.svg"
                             Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
                             Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
-                            raise e, "#{e.message}, current state of the network saved in #{dataflow} and #{hierarchy}", e.backtrace
-                        else raise
+                            raise_error(e,  "current state of the network saved in #{dataflow} and #{hierarchy}")
+                        else
+                            raise_error(e)
                         end
                     end
                 end
