@@ -90,7 +90,7 @@ module Syskit
                 if !@di
                     di = DependencyInjectionContext.new
                     di.push(robot.to_dependency_injection)
-                    all_used_profiles.each do |prof|
+                    all_used_profiles.each do |prof, _|
                         di.push(prof.dependency_injection)
                     end
                     di.push(dependency_injection)
@@ -103,6 +103,36 @@ module Syskit
                 name
             end
 
+            # Promote requirements taken from another profile to this profile
+            #
+            # @param [Profile] profile the profile the requirements are
+            #   originating from
+            # @param [InstanceRequirements] req the instance requirement object
+            # @param [{String=>Object}] tags selections for tags in profile,
+            #   from the tag name to the selected object
+            # @return [InstanceRequirements] the promoted requirement object. It
+            #   might be the same than the req parameter (i.e. it is not
+            #   guaranteed to be a copy)
+            def promote_requirements(profile, req, tags = Hash.new)
+                if req.composition_model?
+                    tags = resolve_tag_selection(profile, tags)
+                    req = req.dup
+                    req.push_selections
+                    req.use(tags)
+                end
+                req
+            end
+
+            # Resolves the names in the tags argument given to {#use_profile}
+            def resolve_tag_selection(profile, tags)
+                tags.map_key do |key, _|
+                    if key.respond_to?(:to_str)
+                        profile.send("#{key.gsub(/_tag$/, '')}_tag")
+                    else key
+                    end
+                end
+            end
+
             # Adds the given profile DI information and registered definitions
             # to this one.
             #
@@ -113,10 +143,9 @@ module Syskit
             # @return [void]
             def use_profile(profile, tags = Hash.new)
                 @di = nil
-                used_profiles.push(profile)
-                tags = tags.map_key do |key, _|
-                    profile.send("#{key.gsub(/_tag$/, '')}_tag")
-                end
+                tags = resolve_tag_selection(profile, tags)
+                used_profiles.push([profile, tags])
+
                 # Register the definitions, but let the user override
                 # definitions of the given profile locally
                 profile.definitions.each do |name, req|
@@ -188,12 +217,12 @@ module Syskit
             end
 
             def resolve_used_profiles(list, set)
-                new_profiles = used_profiles.find_all do |p|
+                new_profiles = used_profiles.find_all do |p, _|
                     !set.include?(p)
                 end
                 list.concat(new_profiles)
-                set |= new_profiles.to_set
-                new_profiles.each do |p|
+                set |= new_profiles.map(&:first).to_set
+                new_profiles.each do |p, _|
                     p.resolve_used_profiles(list, set)
                 end
                 list
