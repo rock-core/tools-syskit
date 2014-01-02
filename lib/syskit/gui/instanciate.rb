@@ -73,6 +73,9 @@ module Syskit
                 begin
                     Instanciate.compute(plan, passes, true, true, true, false, permanent)
                 rescue Exception => e
+                    Roby.app.registered_exceptions.each do |loading_error, reason|
+                        exception_view.push(loading_error, reason)
+                    end
                     exception_view.push(e)
                 end
                 rendering.render_plan
