@@ -51,8 +51,6 @@ module Syskit
                 @ignore_missing_orogen_projects_during_load = false
                 @ignore_load_errors = false
                 @buffer_size_margin = 0.1
-                @deployments = Hash.new { |h, k| h[k] = Set.new }
-                @deployed_tasks = Hash.new
                 @use_only_model_pack = false
 
                 @log_groups = { nil => LogGroup.new(false) }
@@ -68,6 +66,15 @@ module Syskit
 
             def create_subfield(name)
                 Roby::OpenStruct.new(model, self, name)
+            end
+
+            # Resets this Syskit configuration object
+            #
+            # Note that it is called by {#initialize}
+            def clear
+                super
+                @deployments = Hash.new { |h, k| h[k] = Set.new }
+                @deployed_tasks = Hash.new
             end
 
             # The default buffer size that should be used when setting up a
@@ -262,7 +269,9 @@ module Syskit
             # @return [Array<String,Regexp>]
             attr_reader :sd_publish_list
 
-            # The set of known deployments
+            # The set of known deployments on a per-process-server basis
+            #
+            # @return [Hash<String,[ConfiguredDeployment]>]
             attr_reader :deployments
 
             # A mapping from a task name to the deployment that provides it
@@ -351,20 +360,24 @@ module Syskit
                         app.using_deployment(deployment_name, options)
                     model.default_run_options.merge!(default_run_options(model))
 
-                    configured_deployment = Models::ConfiguredDeployment.new(process_server_name, model, mappings, name, spawn_options)
-                    configured_deployment.each_orogen_deployed_task_context_model do |task|
-                        orocos_name = task.name
-                        if deployed_tasks[orocos_name] && deployed_tasks[orocos_name] != configured_deployment
-                            raise TaskNameAlreadyInUse.new(orocos_name, deployed_tasks[orocos_name], configured_deployment), "there is already a deployment that provides #{orocos_name}"
-                        end
-                    end
-                    configured_deployment.each_orogen_deployed_task_context_model do |task|
-                        deployed_tasks[task.name] = configured_deployment
-                    end
-                    deployments[process_server_name] << configured_deployment
-                    configured_deployment
+                    configured_deployment = Models::ConfiguredDeployment.
+                        new(process_server_name, model, mappings, name, spawn_options)
+                    register_configured_deployment(configured_deployment)
                 end
                 model
+            end
+
+            def register_configured_deployment(configured_deployment)
+                configured_deployment.each_orogen_deployed_task_context_model do |task|
+                    orocos_name = task.name
+                    if deployed_tasks[orocos_name] && deployed_tasks[orocos_name] != configured_deployment
+                        raise TaskNameAlreadyInUse.new(orocos_name, deployed_tasks[orocos_name], configured_deployment), "there is already a deployment that provides #{orocos_name}"
+                    end
+                end
+                configured_deployment.each_orogen_deployed_task_context_model do |task|
+                    deployed_tasks[task.name] = configured_deployment
+                end
+                deployments[configured_deployment.process_server_name] << configured_deployment
             end
 
             # Add all the deployments defined in the given oroGen project to the
@@ -575,6 +588,50 @@ module Syskit
                     app.project_define_from_orogen(project)
                 end
                 process_servers[name] = ps
+                reload_deployments_for(name)
+                ps
+            end
+
+            # Reloads all deployment models
+            def reload_deployments
+                names = deployments.keys
+                names.each do |process_server_name|
+                    reload_deployments_for(process_server_name)
+                end
+            end
+
+            # Reloads the deployments that have been declared for the given
+            # process server
+            def reload_deployments_for(process_server_name)
+                pending_deployments = clear_deployments_for(process_server_name)
+                pending_deployments.each do |d|
+                    app.using_task_library(d.model.orogen_model.project.name, :on => process_server_name)
+                    model = app.using_deployment(d.model.orogen_model.name, :on => process_server_name)
+                    d = Models::ConfiguredDeployment.new(
+                        process_server_name, model,
+                        d.name_mappings, d.process_name, d.spawn_options)
+                    register_configured_deployment(d)
+                end
+            end
+
+            # Deregisters deployments that are coming from a given process
+            # server
+            #
+            # @param [String] process_server_name the name of the process server
+            # @return [Array<Models::ConfiguredDeployment>] the set of
+            #   configured deployments that were registered
+            def clear_deployments_for(process_server_name)
+                registered_deployments = deployments.delete(process_server_name) ||
+                    Array.new
+
+                registered_deployments.each do |d|
+                    d.each_orogen_deployed_task_context_model do |task|
+                        if deployed_tasks[task.name] == d
+                            deployed_tasks.delete(task.name)
+                        end
+                    end
+                end
+                registered_deployments
             end
 
             # Deregisters a process server
@@ -590,11 +647,7 @@ module Syskit
                 client = ps.client
 
                 client.loader.remove_project_load_callback(ps.callback)
-                if registered_deployments = deployments.delete(name)
-                    deployed_tasks.delete_if do |_, d|
-                        registered_deployments.include?(d)
-                    end
-                end
+                clear_deployments_for(name)
                 if app.simulation? && process_servers["#{name}-sim"]
                     remove_process_server("#{name}-sim")
                 end

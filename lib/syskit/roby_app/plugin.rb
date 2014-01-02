@@ -188,8 +188,9 @@ module Syskit
 
             # Called by the main Roby application to clear all before redoing a
             # setup
-            def self.reload_config(app)
+            def self.clear_config(app)
                 Syskit.conf.clear
+                Syskit.conf.deployments.clear
             end
 
             def self.require_models(app)
@@ -212,6 +213,9 @@ module Syskit
                 end
                 if app.auto_load_all? || app.auto_load_all_task_libraries?
                     app.auto_load_all_task_libraries
+                end
+                app.isolate_load_errors("while reloading deployment definitions") do
+                    Syskit.conf.reload_deployments
                 end
             end
 
@@ -415,9 +419,8 @@ module Syskit
                 Syskit.conf.each_process_server do |ps|
                     ps.loader.clear
                 end
-                Syskit.conf.deployments.clear
-                Syskit.conf.deployed_tasks.clear
                 Syskit::Actions::Profile.clear_model
+
                 # We need to explicitly call Orocos.clear even though it looks
                 # like clearing the process servers would be sufficient
                 #
@@ -456,11 +459,12 @@ module Syskit
                     @handler_ids = nil
                 end
 
-                stop_process_servers
+                disconnect_all_process_servers
                 stop_local_process_server
             end
 
-            def self.stop_process_servers
+            # Disconnects from all process servers
+            def self.disconnect_all_process_servers
                 process_servers = Syskit.conf.each_process_server_config.map(&:name)
                 process_servers.each do |name|
                     next if name =~ /-sim$/
