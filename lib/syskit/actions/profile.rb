@@ -150,11 +150,7 @@ module Syskit
                 # definitions of the given profile locally
                 profile.definitions.each do |name, req|
                     if !definitions[name]
-                        if req.composition_model?
-                            req = req.dup
-                            req.push_selections
-                            req.use(tags)
-                        end
+                        req = promote_requirements(profile, req, tags)
                         define name, req
                     end
                 end
