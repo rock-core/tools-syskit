@@ -1,5 +1,10 @@
 require 'syskit/test/self'
 
+module SyskitProfileTest
+    profile 'Test' do
+    end
+end
+
 describe Syskit::Actions::Profile do
     include Syskit::Test::Self
 
@@ -174,6 +179,10 @@ describe Syskit::Actions::Profile do
                 profile.test_dev('bla')
             end
         end
+    end
+
+    it "should be usable through droby" do
+        verify_is_droby_marshallable_object(SyskitProfileTest::Test)
     end
 end
 
