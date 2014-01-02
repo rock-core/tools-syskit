@@ -28,7 +28,7 @@ module Syskit
                     begin
                         instance_eval(&block)
                     rescue Exception => e
-                        if Roby.app.testing_keep_logs?
+                        if Roby.app.public_logs?
                             dataflow, hierarchy = name + "-partial-dataflow.svg", name + "-partial-hierarchy.svg"
                             Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
                             Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))

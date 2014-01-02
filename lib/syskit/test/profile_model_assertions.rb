@@ -28,7 +28,7 @@ module Syskit
                                        :on_error => :commit].merge(options)
                 engine.resolve(resolve_options)
                 dataflow, hierarchy = name + "-dataflow.svg", name + "-hierarchy.svg"
-                if Roby.app.testing_keep_logs?
+                if Roby.app.public_logs?
                     Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
                     Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                 end
