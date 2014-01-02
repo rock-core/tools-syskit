@@ -29,7 +29,7 @@ module Syskit
                         instance_eval(&block)
                     rescue Exception => e
                         if Roby.app.public_logs?
-                            dataflow, hierarchy = name + "-partial-dataflow.svg", name + "-partial-hierarchy.svg"
+                            dataflow, hierarchy = __full_name__ + "-partial-dataflow.svg", __full_name__ + "-partial-hierarchy.svg"
                             Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
                             Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                             raise_error(e,  "current state of the network saved in #{dataflow} and #{hierarchy}")
