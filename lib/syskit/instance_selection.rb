@@ -20,12 +20,8 @@ module Syskit
             def initialize(component = nil, selected = InstanceRequirements.new([Component]), required = InstanceRequirements.new, mappings = Hash.new)
                 @component = component
 
-                selected = selected.dup
-                required = required.dup
-                selected = autoselect_service_if_needed(selected, required, mappings)
-
-                @selected = selected
-                @required = required
+                selected = @selected = autoselect_service_if_needed(selected, required, mappings)
+                required = @required = required.dup
                 @service_selection =
                     InstanceSelection.compute_service_selection(selected, required, mappings)
             end
@@ -48,12 +44,13 @@ module Syskit
             end
 
             def autoselect_service_if_needed(selected, required, mappings)
-                return selected if selected.service
+                return selected.dup if selected.service
 
                 if required_srv = required.service
                     if srv = selected.find_data_service(required_srv.name)
                         srv
                     elsif m = mappings[required.service.model]
+                        selected = selected.dup
                         selected.select_service(m)
                     else
                         selected.find_data_service_from_type(required_srv.model)
@@ -64,14 +61,15 @@ module Syskit
                     if required_services.size == 1
                         required_srv = required_services.first
                         if m = mappings[required_srv]
+                            selected = selected.dup
                             selected.select_service(m)
                         else
                             selected.find_data_service_from_type(required_srv)
                         end
-                    else selected
+                    else selected.dup
                     end
 
-                else selected
+                else selected.dup
                 end
             end
 
