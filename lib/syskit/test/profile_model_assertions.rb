@@ -2,12 +2,11 @@ module Syskit
     module Test
         # Module that defines model-level assertions on profile definitions
         # and/or the actions created from these profile definitions
-        #
-        # @return [NetworkGeneration::Engine,Array<Component>] the engine used
-        #   for generation and the toplevel tasks that are the
-        #   result of the instanciation, in the same order than the actions that
-        #   have been given
         module ProfileModelAssertions
+            # @return [NetworkGeneration::Engine,Array<Component>] the engine used
+            #   for generation and the toplevel tasks that are the
+            #   result of the instanciation, in the same order than the actions that
+            #   have been given
             def try_instanciate(name, plan, actions, options = Hash.new)
                 placeholder_tasks = actions.map do |act|
                     task =
