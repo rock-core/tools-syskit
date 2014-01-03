@@ -30,34 +30,9 @@ module Syskit
             attr_reader :resolved
 
             def initialize_copy(from)
-                mappings = Hash.new
-                @explicit = from.explicit.map_value do |key, obj|
-                    new_obj =
-                        case obj
-                        when InstanceRequirements
-                            obj.dup
-                        else obj
-                        end
-                    mappings[obj] = new_obj
-                end
-                @defaults = Set.new
-                from.defaults.each do |obj|
-                    new_obj =
-                        case obj
-                        when InstanceRequirements
-                            obj.dup
-                        else obj
-                        end
-                    mappings[obj] = new_obj
-                    @defaults << new_obj
-                end
-
-                @resolved = nil
-                if from.resolved
-                    @resolved = from.resolved.map_value do |key, obj|
-                        mappings[obj]
-                    end
-                end
+                super
+                @explicit = from.explicit.dup
+                @defaults = from.defaults.dup
             end
 
             # True if this object contains no selection at all
@@ -142,6 +117,10 @@ module Syskit
                 if !defaults.empty?
                     @resolved = nil
                 end
+                mappings.each_value do |v|
+                    v.freeze if v.kind_of?(InstanceRequirements)
+                end
+
                 explicit.merge!(mappings) do |k, v1, v2|
                     # There is a pathological case here. If v2 == k, then we
                     # should keep the k => v1 mapping (because of recursive
@@ -229,6 +208,7 @@ module Syskit
             def add_defaults(list)
                 # Invalidate the @resolved cached
                 @resolved = nil
+                list.each { |v| v.freeze if v.kind_of?(InstanceRequirements) }
                 @defaults |= list
             end
 

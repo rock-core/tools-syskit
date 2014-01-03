@@ -501,6 +501,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
 
     def test_resolve_names_recursively_applies_on_instance_requirements
         requirements = flexmock(Syskit::InstanceRequirements.new)
+        requirements.should_receive(:freeze)
         requirements.should_receive(:resolve_names).and_return(Set.new).once
         obj = DependencyInjection.new('name' => requirements)
         obj.resolve_names
@@ -509,6 +510,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
     def test_resolve_names_recursively_applies_on_instance_requirements_using_the_same_mappings
         mappings = Hash.new
         requirements = flexmock(Syskit::InstanceRequirements.new)
+        requirements.should_receive(:freeze)
         requirements.should_receive(:resolve_names).and_return(Set.new).with(mappings).once
         obj = DependencyInjection.new('name' => requirements)
         obj.resolve_names(mappings)
@@ -516,6 +518,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
 
     def test_resolve_names_returns_unresolved_names_from_recursive_instance_requirements
         requirements = flexmock(Syskit::InstanceRequirements.new)
+        requirements.should_receive(:freeze)
         requirements.should_receive(:resolve_names).and_return(['unresolved_name'])
         obj = DependencyInjection.new('name' => requirements, 'another_name' => 'bla')
         assert_equal %w{unresolved_name bla}.to_set, obj.resolve_names
