@@ -492,8 +492,11 @@ module Syskit
             def self.resolve_selection_recursively(value, spec)
                 while !value.respond_to?(:to_str)
                     if value.respond_to?(:component_model) # This is a bound service
-                        if (new_value = spec[value.to_component_model]) && !new_value.respond_to?(:to_str)
-                            new_value = new_value.selected_for(value).selected_model
+                        component_model = value.to_component_model
+                        if (selected = spec[component_model]) && !selected.respond_to?(:to_str)
+                            if selected != component_model
+                                new_value = selected.selected_for(value).selected_model
+                            end
                         end
                     else
                         new_value = spec[value]
