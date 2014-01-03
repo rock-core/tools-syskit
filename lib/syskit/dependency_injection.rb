@@ -341,11 +341,22 @@ module Syskit
                 return selected_instance, selected_requirements, selected_services, used_keys
             end
 
+            def resolve_default_selections
+                @explicit = DependencyInjection.resolve_default_selections(explicit, defaults)
+                defaults.clear
+            end
+
+            def resolve!
+                resolve_default_selections
+                @explicit = DependencyInjection.resolve_recursive_selection_mapping(explicit)
+            end
+
             # Resolves the selections by generating a direct mapping (as a hash)
             # representing the required selection
             def resolve
-                result = DependencyInjection.resolve_default_selections(explicit, self.defaults)
-                DependencyInjection.new(DependencyInjection.resolve_recursive_selection_mapping(result))
+                result = dup
+                result.resolve!
+                result
             end
 
             # Resolves a name into a component object

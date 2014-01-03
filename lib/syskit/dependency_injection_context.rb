@@ -173,10 +173,10 @@ module Syskit
                     raise NameResolutionError.new(unresolved), "could not resolve names while pushing #{spec} on #{self}"
                 end
                 # Resolve recursive selection, and default selections
-                spec = spec.resolve
+                spec.resolve_default_selections
                 # Finally, add it to the new state
                 new_state.add(spec)
-                new_state = new_state.resolve
+                new_state.resolve!
                 # ... and to the stack
                 stack << StackLevel.new(new_state, spec)
             end
