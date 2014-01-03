@@ -16,10 +16,6 @@ module Syskit
 
             include Utilrb::Timepoints
 
-            def format_timepoints
-                super + merge_solver.format_timepoints
-            end
-
             # The actual plan we are modifying
             attr_reader :real_plan
             # The plan we are modifying. It is usually a transaction on top of
@@ -265,6 +261,12 @@ module Syskit
                     end
                     @work_plan = real_plan
                 end
+                # Merge the timings into our own
+                #
+                # This is required so that we don't lose the information if
+                # keep_internal_data_structures is false
+                merge_timepoints(merge_solver)
+
                 if !Engine.keep_internal_data_structures?
                     merge_solver.task_replacement_graph.clear
                     @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
