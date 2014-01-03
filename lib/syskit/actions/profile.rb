@@ -17,12 +17,6 @@ module Syskit
                     self.name = name
                 end
 
-                def initialize_copy(new)
-                    super
-                    new.profile = profile
-                    new.name = name
-                end
-
                 def to_action_model
                     profile.resolved_definition(name).to_action_model(profile, "defined in #{profile}")
                 end
