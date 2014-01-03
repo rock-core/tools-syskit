@@ -94,6 +94,9 @@ module Syskit
             if planning_task
                 planning_task.emit :success
             end
+            if Roby.app.test_show_timings?
+                merge_timepoints(syskit_engine)
+            end
             if base_task
                 base_task.task
             end

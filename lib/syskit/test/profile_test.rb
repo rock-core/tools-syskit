@@ -7,7 +7,7 @@ module Syskit
             extend ProfileModelAssertions
 
             def assert_is_self_contained(definition, message = "#{definition.name}_def is not self contained")
-                engine, _ = self.class.try_instanciate(__full_name__, plan, [definition],
+                engine, _ = try_instanciate([definition],
                                            :compute_policies => false,
                                            :compute_deployments => false,
                                            :validate_generated_network => false)
