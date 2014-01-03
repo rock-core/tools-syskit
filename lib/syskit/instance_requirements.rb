@@ -66,6 +66,7 @@ module Syskit
             end
 
             def initialize_copy(old)
+                super
                 @model = old.model
                 @base_model = old.base_model
                 @arguments = old.arguments.dup
