@@ -2,8 +2,6 @@ require 'syskit/test/base'
 
 require 'roby/test/spec'
 require 'syskit/test/flexmock_extension'
-require 'syskit/test/assertion'
-require 'syskit/test/error'
 require 'syskit/test/profile_assertions'
 require 'syskit/test/profile_model_assertions'
 require 'syskit/test/network_manipulation'

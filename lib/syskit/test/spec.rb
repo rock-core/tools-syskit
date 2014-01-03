@@ -9,35 +9,13 @@ module Syskit
                 Syskit.conf.disable_logging
             end
 
-            def __full_name__
-                "#{self.class}##{__name__}"
-            end
-
-            def raise_error(e, additional_message = nil)
-                case e
-                when Interrupt then raise
-                when Assertion, Error
-                    raise e, "#{e.message}#{", #{additional_message}" if additional_message}", e.backtrace
-                else
-                    raise Error.new(e), additional_message || "", e.backtrace
+            def teardown
+                if !passed? && Roby.app.public_logs?
+                    dataflow, hierarchy = __full_name__ + "-partial-dataflow.svg", __full_name__ + "-partial-hierarchy.svg"
+                    Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
+                    Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                 end
-            end
-
-            def self.it(*args, &block)
-                super(*args) do
-                    begin
-                        instance_eval(&block)
-                    rescue Exception => e
-                        if Roby.app.public_logs?
-                            dataflow, hierarchy = __full_name__ + "-partial-dataflow.svg", __full_name__ + "-partial-hierarchy.svg"
-                            Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
-                            Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
-                            raise_error(e,  "current state of the network saved in #{dataflow} and #{hierarchy}")
-                        else
-                            raise_error(e)
-                        end
-                    end
-                end
+                super
             end
 
             # Create a stub device
