@@ -350,6 +350,7 @@ module Syskit
             # @return [void]
             def instanciate(req_tasks = nil)
                 main_selection = compute_main_dependency_injection
+                add_timepoint 'compute_system_network', 'instanciate', "compute_main_dependency_injection"
 
                 if !req_tasks
                     req_tasks = real_plan.find_local_tasks(InstanceRequirementsTask).
@@ -363,6 +364,7 @@ module Syskit
                     end
                 end
 
+                add_timepoint 'compute_system_network', 'instanciate', "instanciate_requirements"
                 req_tasks.each do |req_task|
                     req = req_task.requirements
                     task = req.instanciate(work_plan, main_selection).
@@ -375,6 +377,7 @@ module Syskit
                     task.fullfilled_model = req.fullfilled_model
                     required_instances[req_task] = task
                     add_toplevel_task(task, real_plan.mission?(real_plan_task), real_plan.permanent?(real_plan_task))
+                    add_timepoint 'compute_system_network', 'instanciate', req.to_s
                 end
                 work_plan.each_task do |task|
                     if task.respond_to?(:each_master_driver_service)
