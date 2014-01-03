@@ -741,7 +741,7 @@ module Syskit
                 pass_idx = 0
                 while !candidates.empty?
                     pass_idx += 1
-                    add_timepoint 'merge', 'pass', pass_idx, "start"
+                    add_timepoint 'merge', 'pass', "start", pass_idx
                     merged_tasks.clear
                     possible_cycles.clear
 
@@ -801,7 +801,7 @@ module Syskit
                         parents = t.each_parent_task.to_value_set
                         candidates.merge(parents) if parents.size > 1
                     end
-                    add_timepoint 'merge', 'pass', pass_idx, "done"
+                    add_timepoint 'merge', 'pass', "done", pass_idx
                 end
 
                 debug do
