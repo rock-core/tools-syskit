@@ -115,6 +115,7 @@ module Syskit
             # Add default and explicit selections in one call
             def add(*mappings)
                 explicit, defaults = DependencyInjection.partition_use_arguments(*mappings)
+                explicit = DependencyInjection.normalize_selection(explicit)
 
                 filtered_defaults = Set.new
                 defaults.each do |obj|
@@ -154,9 +155,7 @@ module Syskit
                     end
                 end
 
-                @explicit = 
-                    DependencyInjection.normalize_selection(
-                        DependencyInjection.resolve_recursive_selection_mapping(explicit))
+                @explicit = DependencyInjection.resolve_recursive_selection_mapping(explicit)
             end
 
             # True if there is an explicit selection for the given name
