@@ -326,7 +326,11 @@ describe Syskit::NetworkGeneration::Engine do
                 and_return(deployment_task0 = flexmock)
             deployment_task0.should_receive(:task).with('task').once
             syskit_engine.update_deployed_models
-            assert_equal [task1], syskit_engine.deploy_system_network.to_a
+
+            missing = syskit_engine.deploy_system_network.to_a
+            # We don't control which of the two tasks got deployed
+            assert_equal 1, missing.size
+            assert [task0, task1].include?(missing.first)
         end
         it "does not resolve ambiguities by considering already allocated tasks" do
             syskit_engine.work_plan.add(task0 = task_models[0].new(:orocos_name => 'task'))
