@@ -225,6 +225,14 @@ describe Syskit::InstanceRequirements do
     end
 
     describe "#use" do
+        attr_reader :srv_m, :cmp_m, :task_m
+        before do
+            @srv_m = Syskit::DataService.new_submodel
+            @cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, :as => 'test'
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, :as => 'test'
+        end
         it "should not try to verify a name to value mapping for a known child if the value is a string" do
             simple_composition_model.overload('srv', simple_component_model)
             simple_composition_model.use('srv' => 'device')
@@ -250,6 +258,16 @@ describe Syskit::InstanceRequirements do
             end
             ir = Syskit::InstanceRequirements.new([cmp_m])
             ir.use('test' => subsrv_m)
+        end
+
+        it "should raise if a child selection is ambiguous" do
+            task_m.provides srv_m, :as => 'ambiguous'
+            cmp_m.use('test' => task_m)
+        end
+        it "should allow selecting a service explicitly" do
+            task_m.provides srv_m, :as => 'ambiguous'
+            req = cmp_m.use('test' => task_m.test_srv)
+            assert_equal task_m.test_srv, req.resolved_dependency_injection.explicit['test']
         end
     end
 

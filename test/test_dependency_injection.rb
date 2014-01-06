@@ -61,6 +61,43 @@ describe Syskit::DependencyInjection do
         end
     end
 
+    describe "#add" do
+        attr_reader :di, :explicit_m, :default_m
+        before do
+            @di = flexmock(Syskit::DependencyInjection.new)
+            @explicit_m = Syskit::TaskContext.new_submodel
+            @default_m = Syskit::TaskContext.new_submodel
+        end
+
+        it "normalizes the explicit arguments" do
+            flexmock(Syskit::DependencyInjection).should_receive(:normalize_selection).with('test' => explicit_m).once.pass_thru
+            di.add('test' => explicit_m)
+        end
+        it "normalizes the default arguments" do
+            flexmock(Syskit::DependencyInjection).should_receive(:normalize_selected_object).with(m = flexmock).once.and_return(default_m)
+            di.should_receive(:add_defaults).with([default_m].to_set).once
+            di.add(m)
+        end
+        it "merges new default arguments with the existing ones" do
+            a_m = Syskit::TaskContext.new_submodel
+            b_m = Syskit::TaskContext.new_submodel
+            di = Syskit::DependencyInjection.new
+            flexmock(di).should_receive(:add_defaults).with([a_m, b_m].to_set).once
+            flexmock(di).should_receive(:add_explicit).with(Hash.new).once
+            di.add(a_m, b_m)
+        end
+        it "adds both explicit selections and defaults from given DI objects" do
+            a_m = Syskit::TaskContext.new_submodel
+            b_m = Syskit::TaskContext.new_submodel
+            added = Syskit::DependencyInjection.new
+            added.add(a_m, 'test' => b_m)
+            di = Syskit::DependencyInjection.new
+            flexmock(di).should_receive(:add_defaults).with([a_m].to_set).once
+            flexmock(di).should_receive(:add_explicit).with('test' => b_m).once
+            di.add(added)
+        end
+    end
+
     describe "#add_explicit" do
         it "does not modify the selections if given an identity mapping" do
             a = Syskit::DataService.new_submodel(:name => 'A')
@@ -149,26 +186,6 @@ describe Syskit::DependencyInjection do
             assert_raises(ArgumentError) do
                 di0.merge(di1)
             end
-        end
-    end
-
-    describe "#use" do
-        attr_reader :srv_m, :cmp_m, :task_m
-        before do
-            @srv_m = Syskit::DataService.new_submodel
-            @cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add srv_m, :as => 'test'
-            @task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, :as => 'test'
-        end
-        it "should raise if a child selection is ambiguous" do
-            task_m.provides srv_m, :as => 'ambiguous'
-            cmp_m.use('test' => task_m)
-        end
-        it "should allow selecting a service explicitly" do
-            task_m.provides srv_m, :as => 'ambiguous'
-            req = cmp_m.use('test' => task_m.test_srv)
-            assert_equal task_m.test_srv, req.resolved_dependency_injection.explicit['test']
         end
     end
 end

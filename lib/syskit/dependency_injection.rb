@@ -100,7 +100,7 @@ module Syskit
                         explicit = obj.explicit.merge!(explicit)
                         filtered_defaults |= obj.defaults
                     else
-                        filtered_defaults << obj
+                        filtered_defaults << DependencyInjection.normalize_selected_object(obj)
                     end
                 end
 
@@ -544,7 +544,6 @@ module Syskit
                 resolved_default_selections = Hash.new
 
                 default_selections.each do |selection|
-                    selection = normalize_selected_object(selection)
                     selection = resolve_selection_recursively(selection, using_spec)
                     selection.each_fullfilled_model do |m|
                         next if IGNORED_MODELS.include?(m)

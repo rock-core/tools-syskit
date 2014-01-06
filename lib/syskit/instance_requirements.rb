@@ -409,9 +409,11 @@ module Syskit
 
                 # Validate the new mappings first
                 new_mappings = selections.dup
-                new_mappings.add_explicit(explicit)
+                # !!! #add_explicit does not do any normalization. User-provided
+                # !!! selections should always be added with #add
+                new_mappings.add(explicit)
                 explicit.each_key do |child_name|
-                    req = new_mappings.explicit[child_name] # Benefit from the requirement normalization done by #add_explicit
+                    req = new_mappings.explicit[child_name]
                     next if !req.respond_to?(:fullfills?)
                     if child = model.find_child(child_name)
                         _, selected_m, _ = new_mappings.selection_for(child_name, child)
@@ -421,8 +423,9 @@ module Syskit
                     end
                 end
 
-                selections.add_explicit(explicit)
-                selections.add_defaults(defaults)
+                # See comment about #add_explicit vs. #add above
+                selections.add(explicit)
+                selections.add(*defaults)
                 composition_model = narrow_model || composition_model
 
                 selections.each_selection_key do |obj|
