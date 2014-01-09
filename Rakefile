@@ -32,6 +32,7 @@ rescue Exception => e
 end
 
 task :default => ["setup:uic"]
+task :test => 'dist:test'
 
 namespace :setup do
     UIFILES = %w{}
