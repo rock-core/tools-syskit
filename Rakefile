@@ -48,6 +48,10 @@ task :setup => "setup:ext"
 desc "remove by-products of setup"
 task :clean
 
+Rake::TestTask.new do |t|
+    t.test_files = FileList['test/suite.rb']
+end
+
 if Utilrb.doc?
     namespace 'doc' do
         Utilrb.doc 'api', :include => ['lib/**/*.rb'],
