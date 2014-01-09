@@ -1,4 +1,5 @@
 require 'syskit/test'
+require 'roby/test/self'
 
 module Syskit
     # Module used in syskit's own test suite
@@ -7,7 +8,7 @@ module Syskit
         include Roby::Test
         include Roby::Test::Assertions
         include Test
-        include Roby::SelfTest
+        include Roby::Test::Self
 
         include Test::NetworkManipulation
 
