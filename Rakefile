@@ -4,6 +4,7 @@ require 'utilrb/doc/rake'
 
 begin
     require 'hoe'
+    Hoe::RUBY_FLAGS.gsub! /-w/, ''
     namespace 'dist' do
         config = Hoe.spec('syskit') do |p|
             self.readme_file = 'README.rd'
@@ -13,8 +14,13 @@ begin
             self.extra_deps <<
                 ['utilrb', ">= 1.1"] <<
                 ['rake', ">= 0.8"]
+
+            self.test_globs = ['test/suite.rb']
         end
     end
+
+    Rake.clear_tasks(/^default$/)
+    Rake.clear_tasks(/^doc$/)
 
 rescue LoadError
     STDERR.puts "cannot load the Hoe gem. Distribution is disabled"
@@ -47,10 +53,6 @@ end
 task :setup => "setup:ext"
 desc "remove by-products of setup"
 task :clean
-
-Rake::TestTask.new do |t|
-    t.test_files = FileList['test/suite.rb']
-end
 
 if Utilrb.doc?
     namespace 'doc' do
