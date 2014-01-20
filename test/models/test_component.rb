@@ -383,6 +383,83 @@ describe Syskit::Models::Component do
         end
     end
 
+    describe "#each_dynamic_service" do
+        it "should yield nothing for plain models" do
+            task_m = Syskit::TaskContext.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            task_m.provides srv_m, :as => 'test'
+            task_m.each_required_dynamic_service.empty?
+        end
+
+        it "should yield services instanciated through the dynamic service mechanism" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            dyn_srv_m = task_m.dynamic_service srv_m, :as => 'dyn' do
+                provides srv_m, :as => name
+            end
+            task_m.each_required_dynamic_service.empty?
+            
+            model_m = task_m.new_submodel
+            dyn_srv = model_m.require_dynamic_service 'dyn', :as => 'test'
+            assert_equal [dyn_srv], model_m.each_required_dynamic_service.to_a
+        end
+    end
+
+    describe "#merge" do
+        it "should return the most-derived model" do
+            m0 = Syskit::Component.new_submodel
+            m1 = m0.new_submodel
+            assert_equal m1, m0.merge(m1)
+            assert_equal m1, m1.merge(m0)
+        end
+
+        it "should raise IncompatibleComponentModels if the two models are incompatible" do
+            m0 = Syskit::Component.new_submodel
+            m1 = Syskit::Component.new_submodel
+            assert_raises(Syskit::IncompatibleComponentModels) { m0.merge(m1) }
+        end
+
+        describe "in presence of specialized models and dynamic services" do
+            attr_reader :base_m, :srv_m, :m0, :m1
+
+            before do
+                @base_m = Syskit::TaskContext.new_submodel
+                @srv_m = srv_m = Syskit::DataService.new_submodel
+                base_m.dynamic_service srv_m, :as => 'test' do
+                    provides srv_m, 'out' => name
+                end
+                @m0 = base_m.specialize
+                m0.require_dynamic_service 'test', :as => 'm0'
+                @m1 = base_m.specialize
+                m1.require_dynamic_service 'test', :as => 'm1'
+            end
+
+            it "should return a new specialization" do
+                result = m0.merge(m1)
+                assert result.private_specialization?
+                refute_equal result, m0
+                refute_equal result, m1
+            end
+
+            it "should instanciate the dynamic services of both sides" do
+                result = m0.merge(m1)
+                assert result.m0_srv
+                assert result.m1_srv
+            end
+
+            it "should specialize the base model only once" do
+                result = m0.merge(m1)
+                assert_equal base_m, result.superclass
+            end
+
+            it "should be a specialization of the most-specific model" do
+                m1_base_m = base_m.new_submodel
+                m1 = m1_base_m.specialize
+                result = m0.merge(m1)
+                assert_equal m1_base_m, result.superclass
+            end
+        end
+    end
 end
 
 class TC_Models_Component < Test::Unit::TestCase

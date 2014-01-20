@@ -95,6 +95,31 @@ describe Syskit::Models::CompositionChild do
             assert_equal expected, cmp_m.connections
         end
     end
+
+    describe "#bind" do
+        it "should resolve services based on the initial selection" do
+            srv_m = Syskit::DataService.new_submodel
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, :as => 'test'
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, :as => 'test0'
+            task_m.provides srv_m, :as => 'test1'
+            cmp = cmp_m.use('test' => task_m.test0_srv).instanciate(plan)
+            assert_equal cmp.test_child.test0_srv, cmp_m.test_child.bind(cmp.test_child)
+        end
+        it "should be able to resolve child-of-child" do
+            srv_m = Syskit::DataService.new_submodel
+            cmp_m = Syskit::Composition.new_submodel
+            child_cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add child_cmp_m, :as => 'test'
+            child_cmp_m.add srv_m, :as => 'test'
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, :as => 'test0'
+            task_m.provides srv_m, :as => 'test1'
+            cmp = cmp_m.use('test' => child_cmp_m.use('test' => task_m.test0_srv)).instanciate(plan)
+            assert_equal cmp.test_child.test_child.test0_srv, cmp_m.test_child.test_child.bind(cmp.test_child.test_child)
+        end
+    end
 end
 
 describe Syskit::Models::InvalidCompositionChildPort do

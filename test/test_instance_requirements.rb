@@ -337,6 +337,27 @@ describe Syskit::InstanceRequirements do
             cmp = ir.instanciate(plan)
             assert_equal task_m, cmp.requirements.selections.explicit['test']
         end
+
+        it "adds a barrier to make sure that the models' direct dependencies can only be picked by the direct use() flags" do
+            model_m = Syskit::Composition.new_submodel
+            flexmock(model_m).should_receive(:dependency_injection_names).and_return(%w{child})
+            context = Syskit::DependencyInjectionContext.new(Syskit::DependencyInjection.new('child' => model_m))
+            flexmock(model_m).should_receive(:instanciate).
+                with(any, lambda { |c| !c.current_state.direct_selection_for('child') }, any).
+                once.pass_thru
+            model_m.to_instance_requirements.instanciate(plan, context)
+        end
+
+        it "adds a barrier to make sure that the models' direct dependencies can only be picked by the direct use() flags even if a service is selected" do
+            model_m = Syskit::Composition.new_submodel
+            model_m.provides Syskit::DataService, :as => 'test'
+            flexmock(model_m).should_receive(:dependency_injection_names).and_return(%w{child})
+            context = Syskit::DependencyInjectionContext.new(Syskit::DependencyInjection.new('child' => model_m))
+            flexmock(model_m).should_receive(:instanciate).
+                with(any, lambda { |c| !c.current_state.direct_selection_for('child') }, any).
+                once.pass_thru
+            model_m.test_srv.to_instance_requirements.instanciate(plan, context)
+        end
     end
 
     describe "#unselect_service" do
@@ -375,7 +396,7 @@ describe Syskit::InstanceRequirements do
 
         it "applies the complete context to compute the narrowed model" do
             di = Syskit::InstanceRequirements.new([cmp_m])
-            di.dependency_injection_context.push(Syskit::DependencyInjection.new('test0' => task_m))
+            di.use('test0' => task_m)
             model = di.narrow_model
             assert model.is_specialization?
         end

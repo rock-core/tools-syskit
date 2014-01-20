@@ -18,11 +18,18 @@ module Syskit
                 # This is formatted as
                 # root_model/child_name.is_a?(specialized_list),other_child.is_a?(...)
                 def name
+                    return super if root_model == self
+
                     specializations = self.specialized_children.map do |child_name, child_models|
                         "#{child_name}.is_a?(#{child_models.map(&:short_name).join(",")})"
                     end
 
                     "#{root_model.short_name}/#{specializations}"
+                end
+
+                def setup_submodel(submodel, options = Hash.new)
+                    submodel.root_model = submodel
+                    super
                 end
 
                 # Applies the specialization block +block+ on +self+. If +recursive+
@@ -44,6 +51,8 @@ module Syskit
                 # +self+. The generated model is registered on the root model (not
                 # this one)
                 def instanciate_specialization(merged, list)
+                    return super if root_model == self
+
                     applied_specializations.each do |s|
                         merged.merge(s)
                     end
@@ -149,6 +158,18 @@ module Syskit
                 elsif new_blocks
                     specialization_blocks << new_blocks
                 end
+            end
+
+            # Create a new composition specialization object which is the merge
+            # of all the given specs
+            #
+            # @return [CompositionSpecialization]
+            def self.merge(*specs)
+                composite_spec = CompositionSpecialization.new
+                specs.each do |spec|
+                    composite_spec.merge(spec)
+                end
+                composite_spec
             end
 
             # Merge the specialization specification of +other_spec+ into

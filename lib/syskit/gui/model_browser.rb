@@ -22,6 +22,7 @@ module Syskit
                 AVAILABLE_VIEWS.each do |view|
                     register_type(view.root_model, view.renderer, view.name, view.priority)
                 end
+                update_model_selector
 
                 btn_reload_models.connect(SIGNAL('clicked()')) do
                     registered_exceptions.clear

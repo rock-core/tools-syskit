@@ -187,12 +187,16 @@ module Syskit
 
             # Returns a dependency injection object that maps names to devices
             def to_dependency_injection
-                result = DependencyInjection.new
-                # Register name-to-device mappings
-                result.add(devices)
-                # Also compute a default selection based on the device models
-                result.add(*devices.values)
-                result
+                if !@di
+                    result = DependencyInjection.new
+                    # Register name-to-device mappings
+                    result.add(devices)
+                    # Also compute a default selection based on the device models
+                    result.add(*devices.values)
+                    result.resolve
+                    @di = result
+                end
+                return @di.dup
             end
 
             def method_missing(m, *args, &block)

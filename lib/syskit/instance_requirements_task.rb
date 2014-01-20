@@ -4,6 +4,16 @@ module Syskit
     class InstanceRequirementsTask < Roby::Task
         terminates
 
+        provides Roby::Interface::Job
+
+        # If this planning task has been created through an action object, this
+        # is it
+        argument :action_model, :default => nil
+
+        # If this planning task has been created through an action object, this
+        # contains the arguments that were passed to it
+        argument :action_arguments, :default => nil
+
         # The instance that should be added to the network
         #
         # @return [InstanceRequirements]
@@ -24,12 +34,12 @@ module Syskit
         #
         # @see InstanceRequirements#as_plan, Component#as_plan,
         #   DataService#as_plan
-        def self.subplan(new_spec, *args)
+        def self.subplan(new_spec, arguments = Hash.new)
             if !new_spec.kind_of?(InstanceRequirements)
                 new_spec = InstanceRequirements.new([new_spec])
             end
             root = new_spec.create_proxy_task
-            planner = self.new
+            planner = self.new(arguments)
             planner.requirements = new_spec
             root.should_start_after(planner)
             planner.schedule_as(root)

@@ -7,7 +7,7 @@ describe Syskit::DependencyInjection do
             task = Syskit::Component.new_submodel.new
             di = Syskit::DependencyInjection.new('child' => task)
             result = di.selection_for('child', Syskit::InstanceRequirements.new)
-            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new], result
+            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new, ['child'].to_set], result
         end
         it "validates the instance with the provided requirements and pass if it fullfills" do
             task = Syskit::Component.new_submodel.new
@@ -16,7 +16,7 @@ describe Syskit::DependencyInjection do
             requirements = task.model.to_instance_requirements
             flexmock(task).should_receive(:fullfills?).with(requirements, Hash.new).and_return(true)
             result = di.selection_for('child', requirements)
-            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new], result
+            assert_equal [task, Syskit::InstanceRequirements.new([task.model]), Hash.new, ['child'].to_set], result
         end
         it "validates the instance with the provided requirements and raises if it does not match" do
             task = Syskit::Component.new_submodel.new
@@ -489,7 +489,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
         c0 = Component.new_submodel
         c1 = c0.new_submodel
         di = DependencyInjection.new(c0 => c1)
-        assert_equal [nil, InstanceRequirements.new([c1]), Hash.new],
+        assert_equal [nil, InstanceRequirements.new([c1]), Hash.new, [c0].to_set],
             di.selection_for(nil, InstanceRequirements.new([c0]))
     end
 
@@ -497,7 +497,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
         srv = DataService.new_submodel
         c0 = Component.new_submodel { provides srv, :as => 'srv' }
         di = DependencyInjection.new(srv => c0)
-        assert_equal [nil, InstanceRequirements.new([c0]), {srv => c0.srv_srv}],
+        assert_equal [nil, InstanceRequirements.new([c0]), {srv => c0.srv_srv}, [srv].to_set],
             di.selection_for(nil, InstanceRequirements.new([srv]))
     end
 
@@ -506,7 +506,7 @@ class TC_DependencyInjection < Test::Unit::TestCase
         c0 = Component.new_submodel(:name => 'C0') { provides srv, :as => 'srv' }
         c1 = c0.new_submodel(:name => 'C1')
         di = DependencyInjection.new(c0 => c1, srv => c0)
-        assert_equal [nil, InstanceRequirements.new([c1]), {srv => c1.srv_srv}],
+        assert_equal [nil, InstanceRequirements.new([c1]), {srv => c1.srv_srv}, [srv].to_set],
             di.selection_for(nil, InstanceRequirements.new([srv]))
     end
 

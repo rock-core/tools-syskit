@@ -188,6 +188,8 @@ module Syskit
                 case button_id
                 when /\/show_compositions/
                     config[:remove_compositions] = !new_state
+                when /\/show_all_ports/
+                    config[:show_all_ports] = !new_state
                 when /\/show_logger/
                     if new_state
                         config[:excluded_models].delete(Logger::Logger)

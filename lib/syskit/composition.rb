@@ -77,12 +77,13 @@ module Syskit
                 end
             end
 
-            # Maps a port exported on this composition to the actual orocos port
-            # that it represents
+            # Maps a port exported on this composition to the port
+            # that it represents on the actual task context
             #
             # @param [Syskit::Port] exported_port the port to be mapped
-            # @return [Orocos::Port] the actual port
-            def self_port_to_orocos_port(exported_port)
+            # @return [Syskit::Port] the actual port. Its {Port#component}
+	    #   attribute is guaranteed to be an instance of TaskContext
+            def self_port_to_actual_port(exported_port)
                 port_name = exported_port.name
 
                 export = model.find_exported_input(port_name) ||
@@ -91,7 +92,16 @@ module Syskit
                 child_name = export.component_model.child_name
                 child = child_from_role(child_name)
                 actual_port_name = child_selection[child_name].port_mappings[export.name]
-                child.find_port(actual_port_name).to_orocos_port
+                child.find_port(actual_port_name).to_actual_port
+            end
+
+            # Maps a port exported on this composition to the actual orocos port
+            # that it represents
+            #
+            # @param [Syskit::Port] exported_port the port to be mapped
+            # @return [Orocos::Port] the actual port
+            def self_port_to_orocos_port(exported_port)
+		self_port_to_actual_port(exported_port).to_orocos_port
             end
             
 

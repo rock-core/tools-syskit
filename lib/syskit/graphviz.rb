@@ -84,6 +84,13 @@ module Syskit
                 @additional_edges    = Array.new
             end
 
+            def escape_dot(string)
+                string.
+                    gsub(/</, "&lt;").
+                    gsub(/>/, "&gt;").
+                    gsub(/[^\[\]&;:\w]/, "_")
+            end
+
             def annotate_tasks(annotations)
                 task_annotations.merge!(annotations) do |_, old, new|
                     old.merge!(new) do |_, old_array, new_array|
@@ -112,7 +119,7 @@ module Syskit
                 end
 
                 task_annotations[task].merge!(name => ann) do |_, old, new|
-                    old.concat(new)
+                    old + new
                 end
             end
 
@@ -140,7 +147,7 @@ module Syskit
             # @return [void]
             def add_port_annotation(task, port_name, name, ann)
                 port_annotations[[task, port_name]].merge!(name => ann) do |_, old, new|
-                    old.concat(new)
+                    old + new
                 end
             end
 
@@ -196,17 +203,10 @@ module Syskit
                 end
 
                 if !$?.exited?
-                    system("#{file_options[:graphviz_tool]} -Tpng #{io.path} -o debug.png")
-                    f = File.new("Debug.grapth.dot",File::CREAT|File::TRUNC|File::RDWR) 
-                    f.write dot_graph
-                    f.flush
-                    f.close
-                    raise DotCrashError, "dot crashed while trying to generate the graph \
-the command was \"#{file_options[:graphviz_tool]} -T#{format} #{io.path}\". \
-Instead created an png version with name debug.png in #{Dir.pwd}/debug.png \
-For debuggin the input file (Debug.grapth.dot) for dot was created too"
+                    graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -Tpng %s") do
+                        send(kind, display_options)
+                    end
                 elsif !$?.success?
-                    raise DotFailedError, "dot reported an error generating the graph"
                     Syskit.debug do
                         i = 0
                         pattern = "syskit_graphviz_%i.dot"
@@ -214,9 +214,10 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                             i += 1
                         end
                         path = pattern % [i]
-                        File.open(path, 'w') { |io| io.write dot_graph }
+                        File.open(path, 'w') { |io| io.write send(kind, display_options) }
                         "saved graphviz input in #{path}"
                     end
+                    raise DotFailedError, "dot reported an error generating the graph"
                 end
 
                 if output_io.respond_to?(:to_str)
@@ -259,6 +260,9 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 if !options[:accessor]
                     raise ArgumentError, "no :accessor option given"
                 end
+
+                port_annotations.clear
+                task_annotations.clear
 
                 options[:annotations].each do |ann_name|
                     send("add_#{ann_name}_annotations")
@@ -391,7 +395,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     end
                 end
             end
-            available_graph_annotations << 'connection_policy'
+            available_graph_annotations << 'trigger'
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
@@ -406,9 +410,13 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     :remove_compositions => false,
                     :excluded_models => ValueSet.new,
                     :annotations => Set.new,
-                    :highlights => Set.new
+                    :highlights => Set.new,
+                    :show_all_ports => true
                 excluded_models = options[:excluded_models]
                     
+                port_annotations.clear
+                task_annotations.clear
+
                 annotations = options[:annotations].to_set
                 annotations.each do |ann|
                     send("add_#{ann}_annotations")
@@ -422,6 +430,16 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
 
                 output_ports = Hash.new { |h, k| h[k] = Set.new }
                 input_ports  = Hash.new { |h, k| h[k] = Set.new }
+                connected_ports  = Hash.new { |h, k| h[k] = Set.new }
+                port_annotations.each do |task, p|
+                    connected_ports[task] << p
+                end
+                additional_edges.each do |(from_id, from_task), (to_id, to_task), _|
+                    from_id = from_id.name if from_id.respond_to?(:name)
+                    connected_ports[from_task] << from_id
+                    to_id = to_id.name if to_id.respond_to?(:name)
+                    connected_ports[to_task] << to_id
+                end
                 connections = Hash.new
 
                 all_tasks = plan.find_local_tasks(Deployment).to_value_set
@@ -461,6 +479,8 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 # Register ports that are part of connections, but are not
                 # defined on the task's interface. They are dynamic ports.
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
+                    connected_ports[source_task] << source_port
+                    connected_ports[sink_task]   << sink_port
                     if !input_ports[source_task].include?(source_port)
                         output_ports[source_task] << source_port
                     end
@@ -488,8 +508,8 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         style = "style=dashed,"
                     end
 
-                    source_port_id = source_port.gsub(/[^\w]/, '_')
-                    sink_port_id   = sink_port.gsub(/[^\w]/, '_')
+                    source_port_id = escape_dot(source_port)
+                    sink_port_id   = escape_dot(sink_port)
 
                     label = conn_annotations[[source_task, source_port, sink_task, sink_port]].join(",")
                     result << "  #{source_type}#{source_task.dot_id}:#{source_port_id} -> #{sink_type}#{sink_task.dot_id}:#{sink_port_id} [#{style}label=\"#{label}\"];"
@@ -529,7 +549,13 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                         if options[:highlights].include?(task)
                             style = "penwidth=3;"
                         end
-                        result << render_task(task, input_ports[task].to_a.sort, output_ports[task].to_a.sort, style)
+                        inputs  = input_ports[task]
+                        outputs = output_ports[task]
+                        if !options[:show_all_ports]
+                            inputs  = (inputs & connected_ports[task]).to_a.sort
+                            outputs = (outputs & connected_ports[task]).to_a.sort
+                        end
+                        result << render_task(task, inputs, outputs, style)
                     end
 
                     if deployment
@@ -589,7 +615,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 if !input_ports.empty?
                     input_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     input_ports.each do |p|
-                        port_id = p.gsub(/[^\w]/, '_')
+                        port_id = escape_dot(p)
                         ann = format_annotations(port_annotations, [task, p])
                         input_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
@@ -601,7 +627,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                 if !output_ports.empty?
                     output_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     output_ports.each do |p|
-                        port_id = p.gsub(/[^\w]/, '_')
+                        port_id = escape_dot(p)
                         ann = format_annotations(port_annotations, [task, p])
                         output_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
@@ -655,7 +681,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     if task.model.superclass != Syskit::TaskContext
                         name = [task.model.superclass.short_name] + name
                     end
-                    label << "<TR><TD COLSPAN=\"2\">#{name.join(",")}</TD></TR>"
+                    label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name.join(","))}</TD></TR>"
                 else
                     annotations = Array.new
                     if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
@@ -676,7 +702,7 @@ For debuggin the input file (Debug.grapth.dot) for dot was created too"
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"
                     end
-                    label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
+                    label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name)}</TD></TR>"
                     ann = format_annotations(annotations)
                     label << ann
                 end

@@ -99,6 +99,12 @@ module Syskit
             # model graph up to this model
             attribute(:applied_specializations) { Set.new }
 
+            # Called by {Component.specialize} to create the composition model
+            # that will be used for a private specialization
+            def create_private_specialization
+                new_submodel(:register_specializations => false)
+            end
+
             # (see SpecializationManager#specialize)
             def specialize(options = Hash.new, &block)
                 if options.respond_to?(:to_str) || options.empty?
@@ -160,7 +166,7 @@ module Syskit
                 # valid overloading of the previous one.
                 
                 child_model = find_child(name) || CompositionChild.new(self, name)
-                child_model.merge(InstanceRequirements.new(Array(child_models)))
+                child_model.merge(child_models)
                 dependency_options = Roby::TaskStructure::DependencyGraphClass.
                     merge_dependency_options(child_model.dependency_options, dependency_options)
                 child_model.dependency_options.clear
@@ -257,16 +263,10 @@ module Syskit
             #   end
             #
             def add(models, options = Hash.new)
-                if !models.respond_to?(:each)
-                    models = [models]
-                end
-                models = models.to_value_set
-
-                wrong_type = models.find do |m|
-                    !m.kind_of?(Roby::Models::TaskServiceModel) && !(m.kind_of?(Class) && m < Syskit::Component)
-                end
-                if wrong_type
-                    raise ArgumentError, "wrong model type #{wrong_type.class} for #{wrong_type}"
+                if models.respond_to?(:to_instance_requirements)
+                    models = models.to_instance_requirements
+                else
+                    models = InstanceRequirements.new(Array(models))
                 end
 
                 options, dependency_options = Kernel.filter_options options,
@@ -554,12 +554,15 @@ module Syskit
             # Given a dependency injection context, it computes the models and
             # task instances for each of the composition's children
             #
-            # @return [(Hash<String,InstanceSelection>,Hash<String,InstanceSelection>)] the resolved selections.
+            # @return [(Hash<String,InstanceSelection>,Hash<String,InstanceSelection>,Hash<String,Set>)] the resolved selections.
             #   The first hash is the set of explicitly selected children (i.e.
-            #   selected by name) and the second is all the selections
+            #   selected by name) and the second is all the selections. The last
+            #   returned value is the set keys in context that have been used to
+            #   perform the resolution
             def find_children_models_and_tasks(context)
                 explicit = Hash.new
                 result   = Hash.new
+                used_keys = Hash.new
                 each_child do |child_name, child_requirements|
                     Models.debug do
                         Models.debug "selecting #{child_name}:"
@@ -571,7 +574,8 @@ module Syskit
                         end
                         break
                     end
-                    selected_child = context.instance_selection_for(child_name, child_requirements)
+                    selected_child, used_keys[child_name] =
+                        context.instance_selection_for(child_name, child_requirements)
                     Models.debug do
                         Models.debug "selected"
                         Models.log_nest(2) do
@@ -586,7 +590,7 @@ module Syskit
                     result[child_name] = selected_child
                 end
 
-                return explicit, result
+                return explicit, result, used_keys
             end
 
             # Returns the set of specializations that match the given dependency
@@ -596,7 +600,7 @@ module Syskit
             #   object that is used to determine the selected model
             # @return [Model<Composition>]
             def narrow(context, options = Hash.new)
-                explicit_selections, selected_models =
+                explicit_selections, selected_models, _ =
                     find_children_models_and_tasks(context)
                 find_applicable_specialization_from_selection(explicit_selections, selected_models, options)
             end
@@ -696,6 +700,82 @@ module Syskit
                 end
                 return specializations.matching_specialized_model(selections, options)
             end
+            
+
+            # Resolves references to other children in a child's use flags
+            #
+            # This updates the selected_child requirements to replace
+            # CompositionChild object by the actual task instance.
+            #
+            # @param [Composition] self_task the task that represents the
+            #   composition itself
+            # @param [InstanceSelection] selected_child the requirements that
+            #   are meant to be updated
+            #
+            # @return [Boolean] if all references could be updated, false
+            # otherwise
+            def try_resolve_child_references_in_use_flags(self_task, selected_child)
+                # Check if selected_child points to another child of
+                # self, and if it is the case, make sure it is available
+                selected_child.map_use_selections! do |sel|
+                    if sel.kind_of?(CompositionChild)
+                        if task = sel.try_resolve(self_task)
+                            task
+                        else return
+                        end
+                    else sel
+                    end
+                end
+                true
+            end
+            
+            # Extracts the selections for grandchildren out of a selection for
+            # this 
+            #
+            # It matches the child_name.granchild_name pattern and returns a
+            # hash with the matching selections
+            #
+            # @param [String] child_name the child name
+            # @param [Hash] selections the selection hash
+            def extract_grandchild_selections_by_child_name(child_name, selections)
+                child_user_selection = Hash.new
+                match = /^#{child_name}\.(.*)$/
+                selections.each do |name, sel|
+                    if name =~ match
+                        child_user_selection[$1] = sel
+                    end
+                end
+                child_user_selection
+            end
+
+            # Computes the options for depends_on needed to add child_task as
+            # the child_name's composition child
+            #
+            # @param [String] child_name
+            # @param [Component] child_task
+            # @return [Hash]
+            def compute_child_dependency_options(child_name, child_task)
+                child_m = find_child(child_name)
+                dependent_models    = child_m.each_required_model.to_a
+                dependent_arguments = dependent_models.inject(Hash.new) do |result, m|
+                    result.merge(m.meaningful_arguments(child_task.arguments))
+                end
+                if child_task.has_argument?(:conf)
+                    dependent_arguments[:conf] = child_task.arguments[:conf]
+                end
+
+                dependency_options = Roby::TaskStructure::DependencyGraphClass.
+                    validate_options(child_m.dependency_options)
+                default_options = Roby::TaskStructure::DependencyGraphClass.
+                    validate_options(:model => [dependent_models, dependent_arguments], :roles => [child_name].to_set)
+                dependency_options = Roby::TaskStructure::DependencyGraphClass.merge_dependency_options(
+                    dependency_options, default_options)
+                if !dependency_options[:success]
+                    dependency_options = { :success => [], :failure => [:stop] }.
+                        merge(dependency_options)
+                end
+                dependency_options
+            end
 
             # Creates the required task and children for this composition model.
             #
@@ -734,7 +814,7 @@ module Syskit
                 # Find what we should use for our children. +explicit_selection+
                 # is the set of children for which a selection existed and
                 # +selected_models+ all the models we should use
-                explicit_selections, selected_models =
+                explicit_selections, selected_models, used_keys =
                     find_children_models_and_tasks(context.current_state)
 
                 if arguments[:specialize]
@@ -754,13 +834,15 @@ module Syskit
                        else Hash.new
                        end
 
+                # This stores the names of the optional children that have not
+                # been set 
                 removed_optional_children = Set.new
 
-                # We need the context without the child selections for the
-                # composition itself. Dup the current context and pop the
-                # composition use flags
-                child_selection_context = context.dup
-                composition_use_flags = child_selection_context.pop
+                # This is the part of the context that is directly associated
+                # with the composition. We use it later to extract by-name
+                # selections for the children of the form
+                # child_name.child_of_child_name
+                composition_use_flags = context.top
 
                 # Finally, instanciate the missing tasks and add them to our
                 # children
@@ -771,39 +853,25 @@ module Syskit
                     remaining_children_models.delete_if do |child_name, selected_child|
                         selected_child = selected_child.dup
 
+                        resolved_selected_child = selected_child
                         if selected_child.selected.fullfills?(Syskit::Composition)
-                            # Check if selected_child points to another child of
-                            # self, and if it is the case, make sure it is available
                             resolved_selected_child = selected_child.dup
-                            all_done = resolved_selected_child.selected.map_use_selections! do |sel|
-                                if sel.kind_of?(CompositionChild)
-                                    if task = sel.try_resolve(self_task)
-                                        task
-                                    else break
-                                    end
-                                else sel
-                                end
+                            if !try_resolve_child_references_in_use_flags(self_task, resolved_selected_child.selected)
+                                next
                             end
-                            next if !all_done
 
-                            # Get out of the selections the parts that are
-                            # relevant for our child. We only pass on the
-                            # <child_name>.blablabla form, everything else is
-                            # removed
-                            child_user_selection = Hash.new
-                            composition_use_flags.added_info.explicit.each do |name, sel|
-                                if name =~ /^#{child_name}\.(.*)$/
-                                    child_user_selection[$1] = sel
-                                end
-                            end
+                            child_user_selection = extract_grandchild_selections_by_child_name(child_name, composition_use_flags.added_info.explicit)
                             resolved_selected_child.selected.use(child_user_selection)
-                            selected_child.selected.use(child_user_selection)
-                        else resolved_selected_child = selected_child
                         end
 
-                        child_task = instanciate_child(plan, child_selection_context,
-                                                       self_task, child_name, resolved_selected_child)
-
+                        child_task = context.save do
+                            # Push a mask for the keys that have been used to
+                            # resolve the child, to avoid infinite recursions
+                            mask = Hash.new
+                            used_keys[child_name].each { |key| mask[key] = nil }
+                            context.push(DependencyInjection.new(mask))
+                            instanciate_child(plan, context, self_task, child_name, resolved_selected_child)
+                        end
                         child_task = child_task.to_task
                         if !arguments[:keep_optional_children] && child_task.abstract? && find_child(child_name).optional?
                             Models.debug "not adding optional child #{child_name}"
@@ -815,28 +883,9 @@ module Syskit
                             child_task.arguments[:conf] ||= child_conf
                         end
 
-                        role = [child_name].to_set
                         children_tasks[child_name] = child_task
 
-                        dependent_models    = find_child(child_name).each_required_model.to_a
-                        dependent_arguments = dependent_models.inject(Hash.new) do |result, m|
-                            result.merge(m.meaningful_arguments(child_task.arguments))
-                        end
-                        if child_task.has_argument?(:conf)
-                            dependent_arguments[:conf] = child_task.arguments[:conf]
-                        end
-
-                        dependency_options = Roby::TaskStructure::DependencyGraphClass.
-                            validate_options(find_child(child_name).dependency_options)
-                        default_options = Roby::TaskStructure::DependencyGraphClass.
-                            validate_options(:model => [dependent_models, dependent_arguments], :roles => role)
-                        dependency_options = Roby::TaskStructure::DependencyGraphClass.merge_dependency_options(
-                            dependency_options, default_options)
-                        if !dependency_options[:success]
-                            dependency_options = { :success => [], :failure => [:stop] }.
-                                merge(dependency_options)
-                        end
-
+                        dependency_options = compute_child_dependency_options(child_name, child_task)
                         Models.info do
                             Models.info "adding dependency #{self_task}"
                             Models.info "    => #{child_task}"
@@ -963,14 +1012,16 @@ module Syskit
 
                 if options[:register_specializations]
                     specializations.each_specialization do |spec|
-                        spec.specialization_blocks.each do |block|
+                        next if applied_specializations.include?(spec)
+                        spec.specialization_blocks.each do |spec_block|
                             specialized_children = spec.specialized_children.map_key do |child_name, child_model|
                                 submodel.find_child(child_name)
                             end
-                            submodel.specialize(specialized_children, &block)
+                            submodel.specialize(specialized_children, &spec_block)
                         end
                     end
                 end
+                submodel.applied_specializations |= applied_specializations.to_set
                 submodel
             end
 
@@ -993,10 +1044,7 @@ module Syskit
             def promote_exported_port(export_name, port)
                 if new_child = children[port.component_model.child_name]
                     if new_port_name = new_child.port_mappings[port.actual_name]
-                        result = find_child(port.component_model.child_name).find_port(new_port_name)
-                        result = result.dup
-                        result.name = export_name
-                        result
+                        find_child(port.component_model.child_name).find_port(new_port_name).dup
                     else
                         port
                     end
@@ -1070,6 +1118,38 @@ module Syskit
                     end
                 end
                 configurations[name] = mappings
+            end
+
+            # Merge two models, making sure that specializations are properly
+            # applied on the result
+            def merge(other_model)
+                needed_specializations = self.applied_specializations
+                if other_model.respond_to?(:root_model)
+                    needed_specializations |= other_model.applied_specializations
+                    other_model = other_model.root_model
+                end
+
+                if needed_specializations.empty?
+                    super(other_model)
+                else
+                    base_model = root_model.merge(other_model)
+                    # If base_model is a proxy task model, we apply the
+                    # specialization on the proper composition model and then
+                    # re-proxy it
+                    base_model, services = base_model, []
+                    if base_model.respond_to?(:proxied_data_services)
+                        base_model, services = base_model.proxied_task_context_model, base_model.proxied_data_services
+                    end
+
+                    composite_spec = CompositionSpecialization.
+                        merge(*needed_specializations)
+                    result = base_model.specializations.specialized_model(
+                        composite_spec, needed_specializations)
+                    # The specializations might have added some services to the
+                    # task model. Remote those first
+                    services.delete_if { |s| result.fullfills?(s) }
+                    Syskit.proxy_task_model_for([result] + services.to_a)
+                end
             end
 
             # Reimplemented from Roby::Task to take into account the multiple

@@ -42,7 +42,22 @@ describe Syskit do
             assert_equal [[out_ports[0], in_ports[0]], [out_ports[1], in_ports[1]]].to_set,
                 Syskit.resolve_connections(out_ports, in_ports).to_set
         end
+        it "should raise AmbiguousAutoConnection if more than one output gets connected to a non-multiplexing input" do
+            out_ports = [['port1', '/type2'], ['port1', '/type2']].
+                map { |n, t| flexmock(:name => n, :type => t) }
+            in_ports = [flexmock(:name => 'port', :type => '/type2', :multiplexes? => false)]
 
+            assert_raises(Syskit::AmbiguousAutoConnection) do
+                Syskit.resolve_connections(out_ports, in_ports)
+            end
+        end
+        it "should not raise AmbiguousAutoConnection if more than one output gets connected to a multiplexing input" do
+            out_ports = [['port1', '/type2'], ['port2', '/type2']].
+                map { |n, t| flexmock(:name => n, :type => t) }
+            in_ports = [flexmock(:name => 'port', :type => '/type2', :multiplexes? => true)]
+
+            Syskit.resolve_connections(out_ports, in_ports)
+        end
     end
     describe ".connect" do
         it "should apply the connections as returned by resolve_connections" do

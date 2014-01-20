@@ -147,17 +147,35 @@ module Syskit
                 end
             end
 
-            # Enumerates all the devices that are attached to this communication bus
+            # Enumerates all the devices that are attached to the underlying
+            # communication busses, regardless of whether a corresponding
+            # {Syskit::Component} instance has been associated with self using
+            # {attach}
             #
             # @yieldparam device [DeviceInstance] a device that is using self as
             #   a communication bus
-            def each_attached_device
-                return enum_for(:each_attached_device) if !block_given?
+            # @see each_attached_device
+            def each_declared_attached_device
+                return enum_for(:each_declared_attached_device) if !block_given?
                 each_com_bus_device do |combus|
                     combus.each_attached_device do |dev|
-                        if find_data_service(dev.name)
-                            yield(dev)
-                        end
+                        yield(dev)
+                    end
+                end
+            end
+
+            # Enumerates all the devices that are attached to this communication
+            # bus for which a corresponding {Syskit::Component} instance has
+            # been attached to self using {attach}
+            #
+            # @yieldparam device [DeviceInstance] a device that is using self as
+            #   a communication bus
+            # @see each_declared_attached_device
+            def each_attached_device
+                return enum_for(:each_attached_device) if !block_given?
+                each_declared_attached_device do |dev|
+                    if find_data_service(dev.name)
+                        yield(dev)
                     end
                 end
             end

@@ -16,6 +16,10 @@ module Syskit
             attr_reader :selections
             # A DI context that should be used to instanciate this task
             attr_reader :dependency_injection_context
+            # The set of pushed selections
+            #
+            # @see push_selections
+            attr_reader :pushed_selections
 
             # A set of hints for deployment disambiguation
             #
@@ -40,7 +44,7 @@ module Syskit
             end
 
             def plain?
-                arguments.empty? && selections.empty?
+                arguments.empty? && selections.empty? && pushed_selections.empty?
             end
 
             def initialize(models = [])
@@ -48,6 +52,7 @@ module Syskit
                 @model = base_model
                 @arguments = Hash.new
                 @selections = DependencyInjection.new
+                @pushed_selections = DependencyInjection.new
                 @dependency_injection_context = DependencyInjectionContext.new
                 @deployment_hints = Set.new
                 @specialization_hints = Set.new
@@ -59,6 +64,7 @@ module Syskit
                 @base_model = old.base_model
                 @arguments = old.arguments.dup
                 @selections = old.selections.dup
+                @pushed_selections = old.pushed_selections.dup
                 @deployment_hints = old.deployment_hints.dup
                 @specialization_hints = old.specialization_hints.dup
                 @dependency_injection_context = old.dependency_injection_context.dup
@@ -87,6 +93,9 @@ module Syskit
             # @return [self]
             def map_use_selections!
                 selections.map! do |value|
+                    yield(value)
+                end
+                pushed_selections.map! do |value|
                     yield(value)
                 end
                 self
@@ -203,21 +212,32 @@ module Syskit
             # @raise [AmbiguousServiceSelection] if more than one service
             #   matches
             def find_data_service_from_type(service_type)
-                if model.respond_to?(:component_model) 
-                    if model.fullfills?(service_type)
-                        self
-                    else nil
+                if model.respond_to?(:find_data_service_from_type)
+                    if service = model.find_data_service_from_type(service_type)
+                        result = dup
+                        result.select_service(service)
+                        result
                     end
-                elsif service = model.find_data_service_from_type(service_type)
-                    result = dup
-                    result.select_service(service)
-                    result
+                elsif model.fullfills?(service_type)
+                    self
                 end
             end
 
             def as(models)
                 models = Array(models) if !models.respond_to?(:each)
                 Models::FacetedAccess.new(self, Syskit.proxy_task_model_for(models))
+            end
+
+            def as_real_model
+                result = dup
+                result.as_real_model!
+                result
+            end
+
+            def as_real_model!
+                @base_model = base_model.as_real_model
+                @model = model.as_real_model
+                self
             end
 
             # Finds the composition's child by name
@@ -295,10 +315,12 @@ module Syskit
                     v1
                 end
                 @selections.merge(other_spec.selections)
+                @pushed_selections.merge(other_spec.pushed_selections)
 
                 @deployment_hints |= other_spec.deployment_hints
                 @specialization_hints |= other_spec.specialization_hints
                 @dependency_injection_context.concat(other_spec.dependency_injection_context)
+                @di = nil
                 # Call modules that could have been included in the class to
                 # extend it
                 super if defined? super
@@ -313,6 +335,7 @@ module Syskit
                 obj.kind_of?(InstanceRequirements) &&
                     obj.base_model == base_model &&
                     obj.selections == selections &&
+                    obj.pushed_selections == pushed_selections &&
                     obj.arguments == arguments
             end
             def ==(obj)
@@ -349,6 +372,8 @@ module Syskit
             #
             # See also Composition#instanciate
             def use(*mappings)
+                @di = nil
+
                 if !(model <= Syskit::Composition)
                     raise ArgumentError, "#use is available only for compositions, got #{base_model.short_name}"
                 end
@@ -409,6 +434,16 @@ module Syskit
                 end
 
                 self
+            end
+
+            def push_selections
+                @di = nil
+                merger = DependencyInjectionContext.new
+                merger.push pushed_selections
+                merger.push selections
+                @pushed_selections = merger.current_state
+                @selections = DependencyInjection.new
+                nil
             end
 
             # Specifies new arguments that must be set to the instanciated task
@@ -484,7 +519,7 @@ module Syskit
                     end
 
                     context = log_nest(4) do
-                        selection = self.resolved_dependency_injection.current_state.dup
+                        selection = self.resolved_dependency_injection.dup
                         selection.remove_unresolved
                         DependencyInjectionContext.new(selection)
                     end
@@ -502,7 +537,10 @@ module Syskit
                     model = base_model.attach(model)
                 end
 
-                @model = model
+                if @model != model
+                    @di = nil
+                    @model = model
+                end
                 return model
             end
 
@@ -534,11 +572,25 @@ module Syskit
             end
 
             # Returns the DI context used by this instance requirements task
+            #
+            # @return [DependencyInjectionContext]
             def resolved_dependency_injection
-                context = DependencyInjectionContext.new
-                context.concat(dependency_injection_context)
-                context.push(selections)
-                context
+                if !@di
+                    context = DependencyInjectionContext.new
+                    context.concat(dependency_injection_context)
+                    # Add a barrier for the names that our models expect. This is
+                    # required to avoid recursively reusing names (which was once
+                    # upon a time, and is a very confusing feature)
+                    barrier = Hash.new
+                    self.proxy_task_model.dependency_injection_names.each do |n|
+                        barrier[n] = nil
+                    end
+                    context.push(Syskit::DependencyInjection.new(barrier))
+                    context.push(pushed_selections)
+                    context.push(selections)
+                    @di = context.current_state
+                end
+                @di
             end
 
             # Create a concrete task for this requirement
@@ -546,23 +598,7 @@ module Syskit
                 task_model = self.proxy_task_model
 
                 context.save
-
-                # Add a barrier for the names that our models expect. This is
-                # required to avoid recursively reusing names (which was once
-                # upon a time, and is a very confusing feature)
-                barrier = Hash.new
-                model.dependency_injection_names.each do |n|
-                    if !selections.has_selection_for?(n)
-                        barrier[n] = nil
-                    end
-                end
-                selections = self.selections
-                if !barrier.empty?
-                    selections = selections.dup
-                    selections.add_explicit(barrier)
-                end
-                context.concat(dependency_injection_context)
-                context.push(selections)
+                context.push(resolved_dependency_injection)
 
                 arguments = Kernel.normalize_options arguments
                 arguments[:task_arguments] = self.arguments.merge(arguments[:task_arguments] || Hash.new)
@@ -599,8 +635,8 @@ module Syskit
                 [task_model, tags, @arguments.dup]
             end
 
-            def as_plan
-                Syskit::InstanceRequirementsTask.subplan(self)
+            def as_plan(arguments = Hash.new)
+                Syskit::InstanceRequirementsTask.subplan(self, arguments)
             end
 
             def to_s
@@ -608,8 +644,12 @@ module Syskit
                 if model != base_model
                     result << "[narrowed to #{model.short_name}]"
                 end
+                if !pushed_selections.empty?
+                    result << ".use<0>(#{pushed_selections})"
+                    use_suffix = "<1>"
+                end
                 if !selections.empty?
-                    result << ".use(#{selections})"
+                    result << ".use#{use_suffix}(#{selections})"
                 end
                 if !arguments.empty?
                     result << ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }})"
@@ -624,13 +664,18 @@ module Syskit
                     pp.text "#{model}"
                 end
                 pp.nest(2) do
+                    if !pushed_selections.empty?
+                        pp.breakable
+                        pp.text ".use<0>(#{pushed_selections})"
+                        use_suffix = "<1>"
+                    end
                     if !selections.empty?
                         pp.breakable
-                        pp.text ".use(#{selections})"
+                        pp.text ".use#{use_suffix}(#{selections})"
                     end
                     if !arguments.empty?
                         pp.breakable
-                        pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }})"
+                        pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }.join(", ")})"
                     end
                 end
             end
@@ -712,7 +757,7 @@ module Syskit
             #
             # The object must define #to_instance_requirements
             module Auto
-                METHODS = [:with_arguments, :use_conf, :use_deployments, :period]
+                METHODS = [:with_arguments, :with_conf, :prefer_deployed_tasks, :use_conf, :use_deployments, :period]
                 METHODS.each do |m|
                     class_eval <<-EOD
                     def #{m}(*args, &block)

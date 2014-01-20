@@ -100,25 +100,25 @@ module Syskit
                     raise ArgumentError, "#{self} is either finishing or already finished, you cannot call #task"
                 end
 
-                activity = each_orogen_deployed_task_context_model.
+                orogen_task_deployment = each_orogen_deployed_task_context_model.
                     find { |act| name == name_mappings[act.name] }
-                if !activity
+                if !orogen_task_deployment
                     available = each_orogen_deployed_task_context_model.map { |act| name_mappings[act.name] }.sort.join(", ")
                     mappings  = name_mappings.map { |k,v| "#{k} => #{v}" }.join(", ")
                     raise ArgumentError, "no task called #{name} in #{self.class.deployment_name}, available tasks are #{available} using name mappings #{name_mappings}"
                 end
 
-                activity_model = TaskContext.model_for(activity.context)
+                orogen_task_model = TaskContext.model_for(orogen_task_deployment.task_model)
                 if model
-                    if !(model <= activity_model)
+                    if !(model <= orogen_task_model)
                         raise ArgumentError, "incompatible explicit selection #{model} for the model of #{name} in #{self}"
                     end
                 else
-                    model = activity_model
+                    model = orogen_task_model
                 end
-                plan.add(task = model.new(:orocos_name => name_mappings[activity.name]))
+                plan.add(task = model.new(:orocos_name => name_mappings[orogen_task_deployment.name]))
                 task.executed_by self
-                task.orogen_model = activity
+                task.orogen_model = orogen_task_deployment
                 if ready?
                     initialize_running_task(task, task_handles[name])
                 end
