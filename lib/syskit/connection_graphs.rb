@@ -104,15 +104,19 @@ module Syskit
             # +mappings+ is an array of port name pairs [output_port_name,
             # input_port_name]
             def remove_connections(source_task, sink_task, mappings) # :nodoc:
-                current_mappings = source_task[sink_task, self]
-                mappings.each do |source_port, sink_port|
-                    current_mappings.delete([source_port, sink_port])
-                end
-                if current_mappings.empty?
-                    unlink(source_task, sink_task)
+                if (!sink_task.reachable?) or (!source_task.reachable?)
+                    Syskit.warn "Task seems to be chrashed or anyhow lost. Assuming connection is already released"
                 else
-                    # To make the relation system call #update_info
-                    source_task[sink_task, self] = current_mappings
+                    current_mappings = source_task[sink_task, self]
+                    mappings.each do |source_port, sink_port|
+                        current_mappings.delete([source_port, sink_port])
+                    end
+                    if current_mappings.empty?
+                        unlink(source_task, sink_task)
+                    else
+                        # To make the relation system call #update_info
+                        source_task[sink_task, self] = current_mappings
+                    end
                 end
             end
         end
