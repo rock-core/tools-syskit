@@ -2,13 +2,34 @@ module Syskit
     module Coordination
         module TaskScriptExtension
 	    # Waits until this data writer is {InputWriter#ready?}
-	    def wait_until_ready(writer)
-		poll do
-		    if writer.ready?
-			transition!
-		    end
-		end
-	    end
+        def wait_until_ready(writer)
+            poll do
+                if writer.ready?
+                    transition!
+                end
+            end
+        end
+	    
+	            #Adds a delay
+        def delay(how_long)
+            if(how_long == nil or how_long==0)
+                return
+            end
+                
+            start_time = nil
+            poll do
+                start_time = Types::Base::Time.now
+                transition!
+            end
+           
+            poll do
+                current_time = Types::Base::Time.now
+                if(current_time - start_time >= delay)
+                    transition!
+                end
+            end
+        end
+           
 
             def method_missing(m, *args, &block)
                 if m.to_s =~ /_port$/
