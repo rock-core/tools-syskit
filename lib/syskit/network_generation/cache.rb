@@ -25,6 +25,9 @@ module Syskit
             end
 
             def get_engine_for_missions(current_plan,missions)
+                #Checking if anything is already running
+                return nil if !missions
+
                 erg = @known_transitions.find_all do |cached|
                     a = true
                     if current_plan.missions.size == cached.real_plan.missions.size
@@ -79,6 +82,12 @@ module Syskit
                 end
                 STDOUT.puts "We got a match"
                 erg[0].engine
+            end
+        
+            def cleanup
+                known_transitions.each do |t|
+                    t.engine.finalize
+                end
             end
         end
 

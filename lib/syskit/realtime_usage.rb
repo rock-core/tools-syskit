@@ -175,6 +175,10 @@ module Syskit
             runtime_change_indexes(@reconfigure_points,task)
         end
 
+        def cleanup
+
+        end
+
 
         ############## Helper functions not called from outside ####################
         
