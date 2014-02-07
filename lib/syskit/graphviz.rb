@@ -498,8 +498,8 @@ module Syskit
                 # to an input: on compositions, exported ports are represented
                 # as connections between either two inputs or two outputs
 
-#                (plan.find_local_tasks(Component).to_a | Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.stopped_tasks.to_a).each do |source_task|
-                plan.find_local_tasks(Component).each do |source_task|
+                (plan.find_local_tasks(Component).to_a | Syskit::NetworkGeneration::Engine::last_valid_engine.realtime.stopped_tasks.to_a).each do |source_task|
+#                plan.find_local_tasks(Component).each do |source_task|
                     #@TODO: Matthias fix here connections, they should go to the model  and not to the removed task
                     # if there is still a valid model within the plan, which means that this 
                     # task only got replaced by another one. Hmh not really sure about this. becase there could be different instance for the same model
