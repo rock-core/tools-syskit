@@ -1,5 +1,24 @@
 require "syskit/network_generation/cache.rb"
 
+module Roby
+    class Plan
+            #TODO This is really ugly here
+            def prepare_switch(requirements)
+                requirement_tasks = requirements.map do |req|
+                    add_mission(task = req.as_plan)
+                    task.planning_task
+                end
+                #letting do the engine the caluclation
+                engine = Syskit::NetworkGeneration::Engine.new(self)
+                engine.precompute(:requirement_tasks => requirement_tasks)
+                #releaseing it to make sure it does not incluenve the real-plan
+                requirement_tasks.each do |t|
+                    unmark_mission t.planned_task
+                end
+            end
+    end
+end
+
 module Syskit
 
     module NetworkGeneration
@@ -1248,6 +1267,8 @@ module Syskit
             #   drop the currently generated plan)
             def resolve(options = Hash.new)
 	        return if disabled?
+
+                #binding.pry
 
                 cached_engine = NetworkGeneration::NetworkCache.get_engine_for_missions(real_plan,options[:requirement_tasks])
 
