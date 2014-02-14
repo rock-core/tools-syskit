@@ -43,6 +43,8 @@ module Syskit
                     end
                     
                     b = true
+                    STDOUT.puts "################   missions: #{missions}, #{cached.target_missions} #################################"
+
                     if missions.size == cached.target_missions.size
                         b = missions.all? do |o|
                             cached.target_missions.find do |j|

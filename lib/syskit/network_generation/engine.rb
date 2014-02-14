@@ -3,18 +3,35 @@ require "syskit/network_generation/cache.rb"
 module Roby
     class Plan
             #TODO This is really ugly here
-            def prepare_switch(requirements)
-                requirement_tasks = requirements.map do |req|
-                    add_mission(task = req.as_plan)
-                    task.planning_task
-                end
+            def prepare_switch(requirements,missions)
                 #letting do the engine the caluclation
                 engine = Syskit::NetworkGeneration::Engine.new(self)
+                requirement_tasks = requirements.map do |req|
+                    task = req.as_plan
+                    erg = nil
+                    if(task.respond_to?(:requirements))
+                        add_mission(task)
+                        erg = task.planning_task
+                    end 
+                    erg
+                end
+#                engine.current_plan.missions = missions
+                #binding.pry
+                #engine.work_plan.missions = missions
+#                missions.each do |m|
+#                    engine.work_plan.add_mission(m)
+#                end
+                #STDOUT.puts "Dowing precalculation for #{requirement_tasks}"
+                requirement_tasks.reject! { |c| c.nil? }
+
                 engine.precompute(:requirement_tasks => requirement_tasks)
                 #releaseing it to make sure it does not incluenve the real-plan
                 requirement_tasks.each do |t|
                     unmark_mission t.planned_task
                 end
+#                missions.each do |m|
+#                    engine.work_plan.unmark_mission(m)
+#                end
             end
     end
 end
@@ -404,6 +421,10 @@ module Syskit
                 end
 
                 req_tasks.each do |req_task|
+                    if !req_task.respond_to?(:requirements)
+                        next
+                        #binding.pry
+                    end
                     req = req_task.requirements
                     task = req.instanciate(work_plan, main_selection).
                         to_task
@@ -1230,7 +1251,11 @@ module Syskit
                 #Let roby do the work
                 compute_adapted_network(work_plan, options)
 
-                NetworkGeneration::NetworkCache.add_followup_plan(self,options[:requirement_tasks])
+                if options[:requirement_tasks]
+                    NetworkGeneration::NetworkCache.add_followup_plan(self,options[:requirement_tasks]) 
+                else
+                    STDERR.puts "Warning: got here a empty mission plan"
+                end
                 #returning the work_plan (aka new_plan) for the given network
                 if !work_plan
                     STDERR.puts "Error we could not get (whyever) a complete plan"
@@ -1267,8 +1292,6 @@ module Syskit
             #   drop the currently generated plan)
             def resolve(options = Hash.new)
 	        return if disabled?
-
-                #binding.pry
 
                 cached_engine = NetworkGeneration::NetworkCache.get_engine_for_missions(real_plan,options[:requirement_tasks])
 
