@@ -523,6 +523,7 @@ module Syskit
 			    if !old_task.can_merge?(task)
 				raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}, and the tasks refuse to be merged"
 			    else
+			        #resolve_single_merge(task, old_task) with debug loggon on will maybe help
 				raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}, but the tasks have mismatching inputs"
 			    end
                         else

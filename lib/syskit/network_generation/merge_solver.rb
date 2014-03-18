@@ -789,7 +789,7 @@ module Syskit
                             candidates.each { |t| debug "    #{t}" }
                             break
                         end
-
+                        
                         # This is just to make the job of the Ruby GC easier
                         merge_graph.clear
                         applied_merges.clear
@@ -817,7 +817,7 @@ module Syskit
                 debug do
                     merge_graph.each_vertex do |vertex|
                         vertex.each_child_vertex(merge_graph) do |child|
-                            debug "    #{vertex}.merge(#{child})"
+                            puts "    #{vertex}.merge(#{child})"
                         end
                     end
                     break

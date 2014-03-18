@@ -20,14 +20,14 @@ module Syskit
                 @hierarchy_options = Hash[
                     :title => 'Task Dependency Hierarchy',
                     :id => 'hierarchy',
-                    :remove_compositions => false,
+                    :remove_compositions => true,
                     :annotations => ['task_info', 'port_details'].to_set,
                     :zoom => 1
                 ]
                 @dataflow_options = Hash[
                     :title => 'Dataflow',
                     :id => 'dataflow',
-                    :remove_compositions => false,
+                    :remove_compositions => true,
                     :annotations => ['task_info'].to_set,
                     :excluded_models => Set.new,
                     :zoom => 1

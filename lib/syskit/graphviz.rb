@@ -198,12 +198,12 @@ module Syskit
                 file_options, display_options = Kernel.filter_options options,
                     :graphviz_tool => "dot"
 
-                graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -T#{format} %s") do
+                graph = run_dot_with_retries(1, "#{file_options[:graphviz_tool]} -T#{format} %s") do
                     send(kind, display_options)
                 end
 
                 if !$?.exited?
-                    graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -Tpng %s") do
+                    graph = run_dot_with_retries(1, "#{file_options[:graphviz_tool]} -Tpng %s") do
                         send(kind, display_options)
                     end
                 elsif !$?.success?

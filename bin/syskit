@@ -1,5 +1,4 @@
 #! /usr/bin/env ruby
-
 require 'rock/bundle'
 # The logs are public by default in bundles, but are private by default in Roby
 # (the Roby-oriented scripts must set it to true when needed)
