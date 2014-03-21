@@ -33,7 +33,17 @@ module Syskit
 
         class Timeout < RuntimeError
         end
-                
+
+        # When using timeout_poll, prefix all variables you want to access
+        # in your block with root_task.
+        # So, a variable 'var' becomse 'root_task.var'.
+        # To emit a signal use for exampke 'root_task.emit :success'
+        #
+        # Question:
+        # --------
+        # WTF ist it like that? in a 'normal' poll block, you can have access to
+        # your variables via 'root_object.var' as well as via 'var'. Where do
+        # these root* thingys come from?
         def timeout_poll(timeout, &block)
             if not timeout
                 puts "Will wait forever..."
