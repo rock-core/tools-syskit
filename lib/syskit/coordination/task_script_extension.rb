@@ -5,8 +5,16 @@ module Syskit
 	    # Waits until this data writer is {InputWriter#ready?}
         def wait_until_ready(writer)
             poll do
-                if writer.ready?
-                    transition!
+                #Orocos writer?
+                if writer.class == Orocos::InputWriter
+                    if writer.connected?
+                        transition!
+                    end
+                #Syskit writer model?
+                else
+                    if writer.ready?
+                        transition!
+                    end
                 end
             end
         end
