@@ -190,7 +190,7 @@ describe Syskit::DependencyInjection do
     end
 end
 
-class TC_DependencyInjection < Test::Unit::TestCase
+class TC_DependencyInjection < Minitest::Test
     include Syskit::Test::Self
 
     def test_to_s

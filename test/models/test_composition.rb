@@ -480,13 +480,13 @@ describe Syskit::Models::Composition do
                 assert_dependency_contains :roles => ['a_new_role', 'srv'].to_set
             end
             it "overrides remove_when_done" do
-                raise NotImplementedError
+                skip "feature not implemented"
                 composition_model :remove_when_done => true
                 task = instanciate
                 assert_dependency_contains :remove_when_done => true
             end
             it "overrides consider_in_pending" do
-                raise NotImplementedError
+                skip "feature not implemented"
                 composition_model :consider_in_pending => true
                 task = instanciate
                 assert_dependency_contains :consider_in_pending => true

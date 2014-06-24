@@ -615,7 +615,7 @@ module Syskit
                 end
                 if resolved.size != 1
                     debug do
-                        debug "ambiguous deployment for #{task} (#{task.model.name})"
+                        debug "ambiguous deployment for #{task} (#{task.model})"
                         candidates.each do |machine, deployment_model, task_name|
                             debug "  #{task_name} of #{deployment_model.short_name} on #{machine}"
                         end

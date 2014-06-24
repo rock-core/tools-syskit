@@ -207,7 +207,7 @@ describe Syskit::Models::BoundDataService do
     end
 end
 
-class TC_Models_BoundDataService < Test::Unit::TestCase
+class TC_Models_BoundDataService < Minitest::Test
     include Syskit::Test::Self
 
     DataService = Syskit::DataService

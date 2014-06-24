@@ -371,7 +371,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
         attr_reader :task, :target_task, :merge_graph
         before do
             @merge_graph = BGL::Graph.new
-            @task, @target_task = flexmock(Object.new), flexmock(Object.new)
+            @task, @target_task = flexmock(Object.new, :model => nil), flexmock(Object.new, :model => nil)
             task.extend BGL::Vertex
             target_task.extend BGL::Vertex
             merge_graph.link(target_task, task, nil)

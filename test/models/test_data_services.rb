@@ -250,7 +250,7 @@ module Test_DataServiceModel
     end
 end
 
-class TC_Models_DataService < Test::Unit::TestCase
+class TC_Models_DataService < Minitest::Test
     include Test_DataServiceModel
 
     def setup
@@ -292,7 +292,7 @@ class TC_Models_DataService < Test::Unit::TestCase
     end
 end
 
-class TC_Models_Device < Test::Unit::TestCase
+class TC_Models_Device < Minitest::Test
     include Test_DataServiceModel
 
     def setup
@@ -328,7 +328,7 @@ class TC_Models_Device < Test::Unit::TestCase
     end
 end
 
-class TC_Models_ComBus < Test::Unit::TestCase
+class TC_Models_ComBus < Minitest::Test
     include Test_DataServiceModel
 
     def setup

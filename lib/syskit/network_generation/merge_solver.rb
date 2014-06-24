@@ -395,7 +395,7 @@ module Syskit
                     candidates = candidates.dup
                     candidates.delete(task)
                     if candidates.empty?
-                        debug { "no candidates to replace #{task}, using model #{task.model.fullfilled_model.map(&:short_name).join(",")}" }
+                        debug { "no candidates to replace #{task}, using #{task.model}" }
                         next
                     end
 

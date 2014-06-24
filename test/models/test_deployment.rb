@@ -1,6 +1,6 @@
 require 'syskit/test/self'
 
-class TC_Models_Deployment < Test::Unit::TestCase
+class TC_Models_Deployment < Minitest::Test
     include Syskit::Test::Self
 
     module DefinitionModule

@@ -1,6 +1,6 @@
 require 'syskit/test/self'
 
-class TC_AbstractPlaceholders < Test::Unit::TestCase
+class TC_AbstractPlaceholders < Minitest::Test
     include Syskit::Test::Self
 
     def test_proxy_simple_task_context
@@ -36,7 +36,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	proxy = Syskit.proxy_task_model_for(services + [task_model])
 	assert(proxy.abstract?)
 	assert(proxy < task_model)
-        assert_not_same(proxy, task_model)
+        refute_same(proxy, task_model)
 	assert_equal("#{task_model.name}<A,B,C>", proxy.name)
 
 	assert_equal(services.to_set, proxy.proxied_data_services.to_set)
@@ -86,7 +86,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	]
 	proxy = Syskit.proxy_task_model_for(services + [task_model])
         task_model.clear_submodels
-        assert_not_same proxy, Syskit.proxy_task_model_for(services.reverse + [task_model])
+        refute_same proxy, Syskit.proxy_task_model_for(services.reverse + [task_model])
     end
 
     def test_new_proxy_is_created_if_service_list_differs
@@ -96,7 +96,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 
 	services = [ data_service_type('B'), data_service_type('C') ]
         proxy1 = Syskit.proxy_task_model_for(services + [task_model])
-        assert_not_same proxy0, proxy1
+        refute_same proxy0, proxy1
     end
 
     def test_clear_submodels_removes_cached_values
@@ -109,7 +109,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	proxy1 = Syskit.proxy_task_model_for(services1 + [task_model1])
 
         task_model0.clear_submodels
-        assert_not_same proxy0, Syskit.proxy_task_model_for(services0 + [task_model0])
+        refute_same proxy0, Syskit.proxy_task_model_for(services0 + [task_model0])
 	assert_same proxy1, Syskit.proxy_task_model_for(services1 + [task_model1])
     end
 
@@ -119,7 +119,7 @@ class TC_AbstractPlaceholders < Test::Unit::TestCase
 	proxy = Syskit.proxy_task_model_for(services + [task_model])
 	assert(proxy.abstract?)
 	assert(proxy < task_model)
-        assert_not_same(proxy, task_model)
+        refute_same(proxy, task_model)
 	assert_equal("A<S>", proxy.name)
     end
 

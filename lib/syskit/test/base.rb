@@ -1,3 +1,6 @@
+require 'minitest/spec'
+require 'flexmock/test_unit'
+
 # simplecov must be loaded FIRST. Only the files required after it gets loaded
 # will be profiled !!!
 if ENV['SYSKIT_ENABLE_COVERAGE'] == '1' || ENV['SYSKIT_ENABLE_COVERAGE'] == '2'
@@ -24,9 +27,6 @@ require 'roby'
 require 'roby/test/common'
 require 'roby/schedulers/temporal'
 require 'orocos/ruby_process_server'
-
-require 'minitest/spec'
-require 'flexmock/test_unit'
 
 if ENV['SYSKIT_ENABLE_PRY'] != '0'
     begin

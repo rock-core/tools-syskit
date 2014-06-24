@@ -392,7 +392,7 @@ describe Syskit::Component do
     end
 end
 
-class TC_Component < Test::Unit::TestCase
+class TC_Component < Minitest::Test
     include Syskit::Test::Self
 
     DataService = Syskit::DataService

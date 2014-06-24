@@ -220,12 +220,12 @@ describe Syskit::NetworkGeneration::Engine do
         end
         it "returns nil if there are neither an orocos name nor hints" do
             candidates = [['localhost', Object.new, 'task'], ['other_machine', Object.new, 'other_task']]
-            task = flexmock(:orocos_name => nil, :deployment_hints => [])
+            task = flexmock(:orocos_name => nil, :deployment_hints => [], :model => nil)
             assert !syskit_engine.resolve_deployment_ambiguity(candidates, task)
         end
         it "returns nil if the hints don't allow to resolve the ambiguity" do
             candidates = [['localhost', Object.new, 'task'], ['other_machine', Object.new, 'other_task']]
-            task = flexmock(:orocos_name => nil, :deployment_hints => [/^other/, /^task/])
+            task = flexmock(:orocos_name => nil, :deployment_hints => [/^other/, /^task/], :model => nil)
             assert !syskit_engine.resolve_deployment_ambiguity(candidates, task)
         end
     end

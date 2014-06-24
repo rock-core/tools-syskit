@@ -1,3 +1,4 @@
+require 'minitest/autorun'
 require 'syskit/test/base'
 require 'roby/test/self'
 require 'syskit/test/network_manipulation'
@@ -110,4 +111,17 @@ module Syskit
     end
     end
 end
+
+module Minitest
+    class Spec
+        include Syskit::Test::Self
+    end
+    class Test
+        include Syskit::Test::Self
+    end
+end
+
+
+
+
 
