@@ -36,6 +36,17 @@ if ENV['SYSKIT_ENABLE_PRY'] != '0'
     end
 end
 
+if ENV['SYSKIT_ENABLE_PROFILING'] && ENV['SYSKIT_ENABLE_PROFILING'] != '1'
+    require 'stackprof'
+    StackProf.start
+    Minitest.after_run do
+        Syskit.info "dumping profiling results in syskit-tests.dump"
+        StackProf.stop
+        StackProf.results('syskit-tests.dump')
+    end
+end
+
+
 module Syskit
     module Test
     # Base functionality for all testing cases
