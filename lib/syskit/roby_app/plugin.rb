@@ -147,9 +147,11 @@ module Syskit
                 # Engine registers itself as plan.syskit_engine
                 NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
 
-                Syskit.conf.register_process_server('ruby_tasks', Orocos::RubyTasks::ProcessManager.new(Orocos.default_loader), app.log_dir)
+                Syskit.conf.register_process_server(
+                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(Orocos.default_loader), app.log_dir)
 
-                Syskit.conf.register_process_server('ros', Orocos::ROS::ProcessManager.new, app.log_dir)
+                Syskit.conf.register_process_server(
+                    'ros', Orocos::ROS::ProcessManager.new, app.log_dir)
 
                 ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
                 if Syskit.conf.only_load_models?
@@ -179,7 +181,8 @@ module Syskit
                 fake_client = Configuration::ModelOnlyServer.new(Orocos.default_loader)
                 Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
 
-                Syskit::TaskContext.define_from_orogen(app.orogen_loader.task_model_from_name("RTT::TaskContext"), :register => true)
+                rtt_core_model = app.orogen_loader.task_model_from_name("RTT::TaskContext")
+                Syskit::TaskContext.define_from_orogen(rtt_core_model, :register => true)
 
                 if !app.additional_model_files.empty?
                     toplevel_object.extend SingleFileDSL
