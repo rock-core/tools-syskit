@@ -537,7 +537,7 @@ module Syskit
                     client = ModelOnlyServer.new(Orocos.default_loader)
                     register_process_server(name, client, app.log_dir)
                     return client
-                elsif single?
+                elsif app.single?
                     client = Orocos::ProcessClient.new('localhost')
                     register_process_server(name, client, app.log_dir)
                     return client
