@@ -177,9 +177,10 @@ module Syskit
 
                 if start_local_process_server
                     start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
+                else
+                    fake_client = Configuration::ModelOnlyServer.new(Orocos.default_loader)
+                    Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
                 end
-                fake_client = Configuration::ModelOnlyServer.new(Orocos.default_loader)
-                Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
 
                 rtt_core_model = app.orogen_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, :register => true)
