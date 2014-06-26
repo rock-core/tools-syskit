@@ -533,7 +533,7 @@ module Syskit
             # @raise [ArgumentError] if there is already a process server
             #   registered with that name
             def connect_to_orocos_process_server(name, host, options = Hash.new)
-                if only_load_models?
+                if only_load_models? || (app.simulation? && app.single?)
                     client = ModelOnlyServer.new(Orocos.default_loader)
                     register_process_server(name, client, app.log_dir)
                     return client
