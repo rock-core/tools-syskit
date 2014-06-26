@@ -302,7 +302,8 @@ module Syskit
             def sim_process_server(name)
                 sim_name = "#{name}-sim"
                 if !process_servers[sim_name]
-                    mng = Orocos::RubyTasks::ProcessManager.new(process_server_for(name).loader)
+                    loader = process_server_config_for(name).loader
+                    mng = Orocos::RubyTasks::ProcessManager.new(loader)
                     register_process_server(sim_name, mng, "")
                 end
                 process_server_config_for(name)
@@ -573,7 +574,13 @@ module Syskit
                 client
             end
 
-            ProcessServerConfig = Struct.new :name, :client, :log_dir, :callback
+            ProcessServerConfig = Struct.new :name, :client, :log_dir, :callback do
+                def loader
+                    if client
+                        client.loader
+                    end
+                end
+            end
 
             # Make a process server available to syskit
             #
@@ -588,7 +595,7 @@ module Syskit
                 end
 
                 ps = ProcessServerConfig.new(name, client, log_dir)
-                ps.callback = client.loader.on_project_load do |project|
+                ps.callback = ps.loader.on_project_load do |project|
                     app.project_define_from_orogen(project)
                 end
                 process_servers[name] = ps
@@ -648,9 +655,8 @@ module Syskit
                 if !ps
                     raise ArgumentError, "there is no registered process server called #{name}"
                 end
-                client = ps.client
 
-                client.loader.remove_project_load_callback(ps.callback)
+                ps.loader.remove_project_load_callback(ps.callback)
                 clear_deployments_for(name)
                 if app.simulation? && process_servers["#{name}-sim"]
                     remove_process_server("#{name}-sim")
