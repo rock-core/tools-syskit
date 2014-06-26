@@ -583,6 +583,10 @@ module Syskit
             # @param [String] log_dir the path to the server's log directory
             # @return [ProcessServerConfig]
             def register_process_server(name, client, log_dir)
+                if process_servers[name]
+                    raise ArgumentError, "there is already a process server registered as #{name}, call #remove_process_server first"
+                end
+
                 ps = ProcessServerConfig.new(name, client, log_dir)
                 ps.callback = client.loader.on_project_load do |project|
                     app.project_define_from_orogen(project)
