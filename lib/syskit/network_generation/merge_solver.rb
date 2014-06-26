@@ -317,50 +317,38 @@ module Syskit
             #   merge is so far not possible only for input mismatching reasons.
             #   These are therefore candidates for dataflow loop resolution.
             def direct_merge_mappings(task_set)
+                applied_merges = BGL::Graph.new
                 cycle_candidates = []
+                task_set  = task_set.to_set
+                processing_queue = task_set.dup
 
-                queries = Hash.new
+                while !processing_queue.empty?
+                    task = processing_queue.first
+                    processing_queue.delete(task)
+                    next if !plan.include?(task)
 
-                # In the loop, we list the possible merge candidates for that
-                # task. What we are looking for are tasks that can be used to
-                # replace +task+
-                merge_graph = BGL::Graph.new
-                merge_graph.name = "#{self}.merge_graph"
-                for task in task_set
                     # Get the set of candidates. We are checking if the tasks in
                     # this set can be replaced by +task+
-                    candidates = queries[task.model]
-                    if !candidates
-                        candidates = (plan.find_local_tasks(task.model.fullfilled_model).to_value_set & task_set)
-                        candidates.delete_if { |t| t.respond_to?(:proxied_data_services) }
-                        queries[task.model] = candidates
-                    end
+                    candidates = plan.find_local_tasks(task.model.fullfilled_model)
+                    debug { "#{candidates.to_a.size} candidates for #{task}" }
+                    candidates.each do |target_task|
+                        next if task == target_task ||
+                            target_task.respond_to?(:proxied_data_services) ||
+                            !task_set.include?(target_task)
 
-                    candidates = candidates.dup
-                    candidates.delete(task)
-                    if candidates.empty?
-                        debug { "no candidates to replace #{task}, using #{task.model}" }
-                        next
-                    end
-
-                    debug do
-                        candidates.each do |t|
-                            debug "RAW #{t}.merge(#{task})"
-                        end
-                        break
-                    end
-
-                    for target_task in candidates
+                        debug { "RAW #{target_task}.merge(#{task})" }
                         if result = resolve_single_merge(task, target_task)
                             debug { "#{target_task}.merge(#{task})" }
-                            merge_graph.link(target_task, task, nil)
+                            applied_merges.link(task, target_task, nil)
+                            merge(task, target_task)
+                            break
                         elsif result.nil?
                             debug { "adding #{task} #{target_task} to cycle candidates" }
                             cycle_candidates << [task, target_task]
                         end
                     end
                 end
-                return merge_graph, cycle_candidates
+                return applied_merges, cycle_candidates
             end
 
             # Returns the merge graph for all tasks in {#plan}
@@ -370,49 +358,15 @@ module Syskit
                 direct_merge_mappings(all_tasks)
             end
 
-            # Apply merges computed by direct_merge_mappings
-            #
-            # @return [BGL::Graph] the merges that have been performed by
-            #   this call. An edge a>b exists in the graph if a has been merged
-            #   into b
-            def apply_merge_mappings(merge_graph)
-                applied_merges = BGL::Graph.new
-                vertices = merge_graph.vertices.dup
-                while !vertices.empty?
-                    target_task = vertices.shift
-                    # task could have been removed in a previous merge
-                    next if !merge_graph.include?(target_task)
-                    # there are no guarantees that the tasks in +tasks+ have
-                    # only one parent anymore, as we have applied merges
-                    # since one_parent was computed
-                    tasks = target_task.enum_for(:each_child_vertex, merge_graph).to_a
-                    task = tasks.find do |t|
-                        if resolve_single_merge(t, target_task)
-                            true
-                        else
-                            merge_graph.unlink(target_task, t)
-                        end
-                    end
-                    if task
-                        merge(task, target_task)
-                        merge_graph.replace_vertex(task, target_task)
-                        merge_graph.remove(task)
-                        applied_merges.link(task, target_task, nil)
-                        # Make sure we re-evaluate target_task
-                        vertices << target_task
-                    end
-                end
-                applied_merges
-            end
-
             # Propagation step in the BFS of merge_identical_tasks
             def merge_tasks_next_step(task_set) # :nodoc:
                 result = ValueSet.new
                 return result if task_set.nil?
                 for t in task_set
-                    children = t.each_sink(false).to_value_set
-                    result.merge(children) if children.size > 1
-                    result.merge(t.each_parent_task.to_value_set.delete_if { |parent_task| !parent_task.kind_of?(Composition) })
+                    sinks = t.each_concrete_output_connection.map do |_, _, sink_task, _|
+                        sink_task
+                    end
+                    result.merge(sinks.to_value_set) if sinks.size > 1
                 end
                 result
             end
@@ -422,10 +376,9 @@ module Syskit
             # It stops as soon as one cycle got resolved. The corresponding cycle seeds
             # get added to the merge graph.
             #
-            # @param [BGL::Graph] merge_graph the merge graph
             # @param [Set<(Component,Component)>] possible_cycles possible cycle seeds
             # @return [Set<(Component,Component)>] cycle seeds that have not been processed
-            def process_possible_cycles(merge_graph, possible_cycles)
+            def process_possible_cycles(possible_cycles)
                 debug "  -- Looking for merges in dataflow cycles"
 
                 # possible_cycles actually stores all the known
@@ -436,22 +389,16 @@ module Syskit
                 possible_cycles = possible_cycles.map do |task, target_task|
                     task, target_task = replacement_for(task), replacement_for(target_task)
                     next if task == target_task
-		    next if merge_graph.linked?(task, target_task)
 
                     result = resolve_single_merge(task, target_task)
                     if result.nil?
                         [task, target_task]
-                    elsif task != target_task && result
-                        merge_graph.link(task, target_task, nil)
-                        nil
+                    else
+                        raise "#{target_task}.merge(#{task}) can be done as-is, it should not be possible at this stage"
                     end
                 end
-                possible_cycles = possible_cycles.compact.to_set
-                if !merge_graph.empty?
-                    return possible_cycles
-                end
-
-                possible_cycles = possible_cycles.to_a
+                possible_cycles = possible_cycles.compact
+                applied_merges = BGL::Graph.new
 
                 # Find one cycle to solve. Once we found one, we
                 # give the hand to the normal merge processing
@@ -460,25 +407,23 @@ module Syskit
                     # as they are used to filter out impossible
                     # merges (and therefore will speed up the calls
                     # to #resolve_cycle_candidate)
-                    cycle = possible_cycles.shift
-                    debug { "    checking cycle #{cycle[0]}.merge(#{cycle[1]})" }
+                    target_task, task = possible_cycles.shift
+                    debug { "    checking cycle #{target_task}.merge(#{task})" }
 
                     can_merge = log_nest(4) do
-                        resolve_cycle_candidate(possible_cycles, *cycle)
+                        resolve_cycle_candidate(possible_cycles, target_task, task)
                     end
 
                     if can_merge
-                        debug { "found cycle merge for #{cycle[1]}.merge(#{cycle[1]})" }
-                        merge_graph.link(cycle[0], cycle[1], nil)
-                        if possible_cycles.include?([cycle[1], cycle[0]])
-                            merge_graph.link(cycle[1], cycle[0], nil)
-                        end
+                        debug { "found cycle merge for #{target_task}.merge(#{task})" }
+                        merge(task, target_task)
+                        applied_merges.link(task, target_task, nil)
                         break
                     else
-                        debug { "cannot merge cycle #{cycle[0]}.merge(#{cycle[1]})" }
+                        debug { "cannot merge cycle candidate #{target_task}.merge(#{task})" }
                     end
                 end
-                return possible_cycles.to_set
+                return applied_merges, possible_cycles.to_set
             end
 
             # Merges tasks that are equivalent in the current plan
@@ -525,7 +470,6 @@ module Syskit
                     pass_idx += 1
                     add_timepoint 'merge', 'pass', "start", pass_idx
                     merged_tasks.clear
-                    possible_cycles.clear
 
                     while !candidates.empty? || !possible_cycles.empty?
                         candidates.delete_if do |task|
@@ -543,28 +487,37 @@ module Syskit
                             end
                         end
 
+                        debug do
+                            debug "-- #{candidates.size} merge candidates"
+                            candidates.each do |t|
+                                debug "    #{t}"
+                            end
+                            break
+                        end
                         debug "  -- Raw merge candidates"
-                        merge_graph, cycle_candidates = log_nest(4) do
+                        applied_merges, cycle_candidates = log_nest(4) do
                             direct_merge_mappings(candidates)
                         end
                         candidates.clear
                         possible_cycles |= cycle_candidates.to_set
-                        debug "    #{merge_graph.size} vertices in merge graph"
+                        debug "    the applied merges graph has #{applied_merges.size} vertices"
                         debug "    #{cycle_candidates.size} new possible cycles"
                         debug "    #{possible_cycles.size} known possible cycles"
 
-                        if merge_graph.empty?
+                        if applied_merges.empty?
                             # No merge found so far, try resolving some cycles
-                            possible_cycles = process_possible_cycles(merge_graph, possible_cycles)
+                            applied_merges, possible_cycles =
+                                process_possible_cycles(possible_cycles)
+                            debug "    the applied merges graph has #{applied_merges.size} vertices"
                         end
 
-                        applied_merges = apply_merge_mappings(merge_graph)
                         next_step_seeds = applied_merges.vertices.
                             find_all { |task| task.leaf?(applied_merges) }.
                             to_value_set                         
                         candidates = merge_tasks_next_step(next_step_seeds)
-                        merged_tasks.merge(candidates)
+                        merged_tasks.merge(next_step_seeds)
                         debug do
+                            debug "  #{merged_tasks.size} merged tasks so far in this pass"
                             debug "  -- Merged tasks during this pass"
                             next_step_seeds.each { |t| debug "    #{t}" }
                             debug "  -- Candidates for next pass"
@@ -573,15 +526,18 @@ module Syskit
                         end
 
                         # This is just to make the job of the Ruby GC easier
-                        merge_graph.clear
                         applied_merges.clear
                         cycle_candidates.clear
                     end
 
                     debug "  -- Parents"
+                    debug "  #{merged_tasks.size} tasks have been merged"
                     for t in merged_tasks
                         parents = t.each_parent_task.to_value_set
-                        candidates.merge(parents) if parents.size > 1
+                        debug { "  #{t}: #{parents.size} parents" }
+                        if parents.size > 1
+                            candidates.merge(parents) 
+                        end
                     end
                     add_timepoint 'merge', 'pass', "done", pass_idx
                 end
