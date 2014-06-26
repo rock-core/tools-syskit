@@ -112,67 +112,11 @@ module Syskit
                 end
             end
 
-            # Updates the neighborhood of the given task in the merge graph
-            #
-            # This is called after having merged another task in target_task, as
-            # some merges that were OK before might not be anymore
-            def update_merge_graph_neighborhood(merge_graph, target_task)
-                # Since we modified +task+, we now have to update the graph.
-                # I.e. it is possible that some of +task+'s children cannot be
-                # merged into +task+ anymore
-                children = target_task.enum_for(:each_child_vertex, merge_graph).to_a
-                children.each do |child|
-                    if !resolve_single_merge(target_task, child)
-                        debug { "      #{target_task}.merge(#{child}) is not a valid merge anymore, updating merge graph" }
-                        merge_graph.unlink(target_task, child)
-                    end
-                end
-
-                parents = target_task.enum_for(:each_parent_vertex, merge_graph).to_a
-                parents.each do |parent|
-                    if !resolve_single_merge(parent, target_task)
-                        debug { "      #{parent}.merge(#{target_task}) is not a valid merge anymore, updating merge graph" }
-                        merge_graph.unlink(parent, target_task)
-                    end
-                end
-            end
-
             # Create a new solver on the given plan and perform
             # {#merge_identical_tasks}
             def self.merge_identical_tasks(plan, &block)
                 solver = MergeSolver.new(plan, &block)
                 solver.merge_identical_tasks
-            end
-
-            # Result table used internally by merge_sort_order
-            MERGE_SORT_TRUTH_TABLE = {
-                [true, true] => nil,
-                [true, false] => -1,
-                [false, true] => 1,
-                [false, false] => nil }
-
-            # Will return -1 if +t1+ is a better merge target than +t2+
-            #
-            # When both t1.merge(task) and t2.merge(task) are possible, this is used
-            # to know which of the two operations is best
-            #
-            # @return [-1,nil,1] -1 if t1.merge(task) is better, 1 if t2.merge(task)
-            #   is better and nil if there are no criteria to order them
-            def merge_sort_order(t1, t2)
-                if t1.fullfills?(t2.model)
-                    if !t2.fullfills?(t1.model)
-                        return 1
-                    end
-                elsif t2.fullfills?(t1.model)
-                    return -1
-                end
-
-                MERGE_SORT_TRUTH_TABLE[ [!t1.finished?, !t2.finished?] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [!!t1.running?, !!t2.running?] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [!!t1.execution_agent, !!t2.execution_agent] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [!t1.respond_to?(:proxied_data_services), !t2.respond_to?(:proxied_data_services)] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [!!t1.fully_instanciated?, !!t2.fully_instanciated?] ] ||
-                    MERGE_SORT_TRUTH_TABLE[ [!!t1.transaction_proxy?, !!t2.transaction_proxy?] ]
             end
 
             # Tests whether task.merge(target_task) is a valid operation
@@ -426,169 +370,6 @@ module Syskit
                 direct_merge_mappings(all_tasks)
             end
 
-            # Looks for parents in merge_graph for task. If task is both the
-            # child and the parent of one of its parents, checks whether we
-            # could resolve it per the merge_sort_order order. If we can, update
-            # the merge_graph
-            #
-            # @returns [Array<Roby::Task>] the remaining parents of task in
-            #   merge_graph
-            def break_parent_child_cycles(merge_graph, task)
-                target_tasks = task.enum_for(:each_parent_vertex, merge_graph).to_a
-                if target_tasks.empty?
-                    return []
-                end
-                target_tasks.delete_if do |target_task|
-                    if task.child_vertex?(target_task, merge_graph)
-                        order = merge_sort_order(target_task, task)
-                        if order == 1
-                            debug do
-                                "     picking up #{task}.merge(#{target_task}) for local cycle"
-                            end
-                            merge_graph.unlink(target_task, task)
-                            true
-
-                        elsif order == -1
-                            debug do
-                                "     picking up #{target_task}.merge(#{task}) for local cycle"
-                            end
-                            merge_graph.unlink(task, target_task)
-                            false
-                        end
-                    end
-                end
-                target_tasks
-            end
-
-            # When there are multiple merge possibilities for a given task, this
-            # method can be called to isolate the "best" ones using
-            # {#merge_sort_order}
-            def resolve_ambiguities_using_sort_order(merge_graph, task, target_tasks)
-                # Check whether some parents are better than other
-                # w.r.t. the merge_sort_order relation
-                filtered = []
-                target_tasks.each do |target_task|
-                    do_insert = true
-                    filtered.delete_if do |filtered_task|
-                        sort = merge_sort_order(filtered_task, target_task)
-                        if sort == 1
-                            merge_graph.unlink(filtered_task, task)
-                            true
-                        elsif sort == -1
-                            do_insert = false
-                        end
-                    end
-
-                    if do_insert
-                        filtered << target_task
-                    else
-                        merge_graph.unlink(target_task, task)
-                    end
-                end
-                filtered
-            end
-
-            # Preprocess the merge graph created by #direct_merge_mappings,
-            # partitioning the registered merges into three categories: 'single
-            # parent', 'ambiguous' and 'with cycles'
-            #
-            # The last returned set, cycle, is the set of tasks for which there
-            # exists cycles in the merge graph
-            #
-            # The first returned set, one_parent, is the set of non-cycle tasks
-            # for which there is one and only one target_task such as
-            # target_task.merge(task) is possible. For these tasks, the merge
-            # resolution is trivial as it consists only of applying the merge.
-            #
-            # The second set, ambiguous, is the set of non-cycle tasks for which
-            # there is more than one parent.
-            #
-            # @param [BGL::Graph] merge_graph the merge graph created by
-            #   {#direct_merge_mappings}
-            # @return [(ValueSet<Roby::Task>,ValueSet<Roby::Task>,ValueSet<Roby::Task>)]
-            #   the one_parent, ambiguous, with_cycles tuple
-            def merge_prepare(merge_graph)
-                one_parent, ambiguous, cycles = ValueSet.new, ValueSet.new, ValueSet.new
-
-                parents = Hash.new
-                candidates = merge_graph.vertices
-                candidates.each do |task|
-                    parents[task] = break_parent_child_cycles(merge_graph, task)
-                    if parents[task].size > 1
-                        parents[task] = resolve_ambiguities_using_sort_order(merge_graph, task, parents[task])
-                    end
-                end
-
-                parents.each do |task, target_tasks|
-                    in_cycle = target_tasks.any? do |target_task|
-                        merge_graph.reachable?(task, target_task)
-                    end
-
-                    if in_cycle
-                        cycles << task
-                    elsif target_tasks.size == 1
-                        one_parent << task
-                    elsif target_tasks.size > 1
-                        ambiguous << task
-                    end
-                end
-
-                return one_parent, ambiguous, cycles
-            end
-
-            # Break cycles in the merge graph
-            #
-            # This is a pretty crude method, that computes some spanning trees
-            # issued from each of the elements in +cycles+, and then transforms
-            # the merge graph into these trees greedily by starting with the
-            # biggest spanning tree.
-            def break_simple_merge_cycles(merge_graph, cycles)
-                cycles = cycles.map do |task|
-                    reachable = ValueSet.new
-                    reachable << task
-                    to_remove = Array.new
-                    debug { "from #{task}" }
-
-                    merge_graph.each_dfs(task, BGL::Graph::ALL) do |edge_from, edge_to, _|
-                        if reachable.include?(edge_to)
-                            debug { "  remove #{edge_from}.merge(#{edge_to})" }
-                            to_remove << [edge_from, edge_to]
-                        else
-                            debug { "  keep #{edge_from}.merge(#{edge_to})" }
-                            reachable << edge_to
-                        end
-                    end
-
-                    debug do
-                        debug "  #{reachable.size} reachable tasks:"
-                        reachable.each do |t|
-                            debug "    #{t}"
-                        end
-                        break
-                    end
-
-                    [task, reachable, to_remove]
-                end
-                cycles = cycles.sort_by { |_, reachable, _| -reachable.size }
-
-                ignored = ValueSet.new
-                while !cycles.empty?
-                    task, reachable, to_remove = cycles.shift
-                    debug { "applying tree from #{task}" }
-                    to_remove.each do |edge_from, edge_to|
-                        debug { "  removing #{edge_from}.merge(#{edge_to})" }
-                        merge_graph.unlink(edge_from, edge_to)
-                    end
-                    ignored = ignored.merge(reachable)
-                    cycles.delete_if do |task, reachable, _|
-                        if ignored.include?(task)
-                            ignored = ignored.merge(reachable)
-                            true
-                        end
-                    end
-                end
-            end
-
             # Apply merges computed by direct_merge_mappings
             #
             # @return [BGL::Graph] the merges that have been performed by
@@ -596,28 +377,29 @@ module Syskit
             #   into b
             def apply_merge_mappings(merge_graph)
                 applied_merges = BGL::Graph.new
-                while true
-                    one_parent, ambiguous, cycles = merge_prepare(merge_graph)
-                    if one_parent.empty? && cycles.empty?
-                        break
-                    elsif one_parent.empty?
-                        debug "  -- Breaking simple cycles in the merge graph"
-                        break_simple_merge_cycles(merge_graph, cycles)
-                    else
-                        debug "  -- Applying simple merges"
-                        for task in one_parent
-                            # there are no guarantees that the tasks in +tasks+ have
-                            # only one parent anymore, as we have applied merges
-                            # since one_parent was computed
-                            target_tasks = task.enum_for(:each_parent_vertex, merge_graph).to_a
-                            next if target_tasks.size != 1
-                            target_task = target_tasks.first
-                            merge(task, target_task)
-                            merge_graph.replace_vertex(task, target_task)
-                            merge_graph.remove(task)
-                            update_merge_graph_neighborhood(merge_graph, target_task)
-                            applied_merges.link(task, target_task, nil)
+                vertices = merge_graph.vertices.dup
+                while !vertices.empty?
+                    target_task = vertices.shift
+                    # task could have been removed in a previous merge
+                    next if !merge_graph.include?(target_task)
+                    # there are no guarantees that the tasks in +tasks+ have
+                    # only one parent anymore, as we have applied merges
+                    # since one_parent was computed
+                    tasks = target_task.enum_for(:each_child_vertex, merge_graph).to_a
+                    task = tasks.find do |t|
+                        if resolve_single_merge(t, target_task)
+                            true
+                        else
+                            merge_graph.unlink(target_task, t)
                         end
+                    end
+                    if task
+                        merge(task, target_task)
+                        merge_graph.replace_vertex(task, target_task)
+                        merge_graph.remove(task)
+                        applied_merges.link(task, target_task, nil)
+                        # Make sure we re-evaluate target_task
+                        vertices << target_task
                     end
                 end
                 applied_merges
