@@ -48,6 +48,12 @@ describe Syskit::Component do
             assert !task.specialize
             assert_same current_model, task.model
         end
+        it "should not include the specialized model in the list of fullfilled models" do
+            task_m = Syskit::TaskContext.new_submodel
+            plan.add(task = task_m.new)
+            task.specialize
+            assert_equal [task_m], task.fullfilled_model.first
+        end
     end
 
     describe "#require_dynamic_service" do
@@ -235,7 +241,8 @@ describe Syskit::Component do
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :argument => 10
             task.specialize
             flexmock(task.model).should_receive(:require_dynamic_service).once.
-                with('dyn', :as => 'srv', :argument => 10)
+                with('dyn', :as => 'srv', :argument => 10).
+                pass_thru
             task.merge(merged_task)
         end
     end

@@ -122,6 +122,22 @@ describe Syskit::Actions::Profile do
         end
     end
 
+    describe "#use" do
+        it "should allow to globally inject dependencies in all definitions" do
+            srv_m = Syskit::DataService.new_submodel :name => "Srv"
+            task_m = Syskit::TaskContext.new_submodel :name => "Task"
+            task_m.provides srv_m, :as => 'test'
+            cmp = Syskit::Composition.new_submodel
+            cmp.add srv_m, :as => 'test'
+            profile = Syskit::Actions::Profile.new
+            profile.use srv_m => task_m
+            profile.define 'test', cmp
+            di = profile.resolved_definition('test').resolved_dependency_injection
+            _, sel = di.selection_for(nil, srv_m)
+            assert_equal task_m, sel.model, "expected #{task_m}, got #{sel.model}"
+        end
+    end
+
     describe "#method_missing" do
         attr_reader :profile, :dev_m
         before do
