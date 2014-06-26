@@ -31,7 +31,13 @@ module Syskit
             # profile tags
             def self.it_should_be_self_contained(*definitions)
                 if definitions.empty?
-                    definitions = desc.definitions.values
+                    definitions = desc.definitions.keys
+                end
+                definitions = definitions.map do |d|
+                    if !d.respond_to?(:to_str)
+                        d = d.name
+                    end
+                    desc.resolved_definition(d)
                 end
                 definitions.each do |d|
                     it "#{d.name}_def should be self-contained" do
