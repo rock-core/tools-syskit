@@ -324,45 +324,41 @@ module Syskit
                 if !names.last.kind_of?(Hash)
                     names << Hash.new
                 end
-                options, run_options = Kernel.filter_options names.last,
+                options, run_options = Kernel.filter_options names.pop,
                     :on => 'localhost'
-                names[-1] = run_options
                 process_server_name = options[:on]
-                if app.simulation?
-                    sim_process_server(process_server_name)
-                    process_server_name += "-sim"
-                end
+                process_server_config =
+                    if app.simulation?
+                        sim_process_server(process_server_name)
+                    else
+                        process_server_config_for(process_server_name)
+                    end
+                options[:on] = process_server_config.name
 
-                # We allow the user to specify a task model as a Roby task. Map that
-                #
-                # This should obviously be done in orocos.rb (stop using names
-                # to resolve deployments), but I would like to keep that for
-                # later
                 deployments_by_name = Hash.new
                 names = names.map do |n|
-                    if n.respond_to?(:to_hash)
-                        n.map_key do |k|
-                            if k.respond_to?(:orogen_model)
-                                deployments_by_name[k.orogen_model.name] = k
-                                k.orogen_model
-                            else k
-                            end
-                        end
-                    elsif n.respond_to?(:orogen_model)
+                    if n.respond_to?(:orogen_model)
                         deployments_by_name[n.orogen_model.name] = n
                         n.orogen_model
                     else n
                     end
                 end
+                run_options = run_options.map_key do |k|
+                    if k.respond_to?(:orogen_model)
+                        deployments_by_name[k.orogen_model.name] = k
+                        k.orogen_model
+                    else k
+                    end
+                end
 
-                new_deployments, _ = Orocos::Process.parse_run_options(*names)
+                new_deployments, _ = Orocos::Process.parse_run_options(*names, run_options)
                 new_deployments.each do |deployment_name, mappings, name, spawn_options|
                     model = deployments_by_name[deployment_name] ||
                         app.using_deployment(deployment_name, options)
                     model.default_run_options.merge!(default_run_options(model))
 
                     configured_deployment = Models::ConfiguredDeployment.
-                        new(process_server_name, model, mappings, name, spawn_options)
+                        new(process_server_config.name, model, mappings, name, spawn_options)
                     register_configured_deployment(configured_deployment)
                 end
                 model
