@@ -201,12 +201,11 @@ module Syskit
                 graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -T#{format} %s") do
                     send(kind, display_options)
                 end
+                graph ||= run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -Tpng %s") do
+                    send(kind, display_options)
+                end
 
-                if !$?.exited?
-                    graph = run_dot_with_retries(20, "#{file_options[:graphviz_tool]} -Tpng %s") do
-                        send(kind, display_options)
-                    end
-                elsif !$?.success?
+                if !graph
                     Syskit.debug do
                         i = 0
                         pattern = "syskit_graphviz_%i.dot"
