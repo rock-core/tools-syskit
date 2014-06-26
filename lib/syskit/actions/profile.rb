@@ -199,6 +199,7 @@ module Syskit
                 result = InstanceRequirements.new
                 result.merge(req)
                 inject_di_context(result)
+                result.name = req.name
                 result
             end
 
