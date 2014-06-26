@@ -546,7 +546,7 @@ module Syskit
                 if local_only? && host != 'localhost'
                     raise ArgumentError, "in local only mode"
                 elsif process_servers[name]
-                    raise ArgumentError, "there is already a process server called #{name} running"
+                    raise ArgumentError, "we are already connected to a process server called #{name}"
                 end
 
                 options = Kernel.validate_options options,
