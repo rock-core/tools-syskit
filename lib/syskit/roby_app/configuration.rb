@@ -550,7 +550,7 @@ module Syskit
                 end
 
                 options = Kernel.validate_options options,
-                    :port => Orocos::ProcessServer::DEFAULT_PORT,
+                    :port => Orocos::RemoteProcesses::DEFAULT_PORT,
                     :log_dir => 'logs',
                     :result_dir => 'results'
 
