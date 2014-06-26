@@ -113,9 +113,6 @@ module Syskit
 end
 
 module Minitest
-    class Spec
-        include Syskit::Test::Self
-    end
     class Test
         include Syskit::Test::Self
     end
