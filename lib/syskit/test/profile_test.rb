@@ -6,11 +6,15 @@ module Syskit
             include ProfileAssertions
             extend ProfileModelAssertions
 
-            def assert_is_self_contained(definition, message = "#{definition.name}_def is not self contained")
+            def assert_is_self_contained(definition, options = Hash.new)
+                options, instanciate_options = Kernel.filter_options options,
+                    :message => "#{definition.name}_def is not self contained"
+                message = options[:message]
                 engine, _ = try_instanciate([definition],
-                                           :compute_policies => false,
-                                           :compute_deployments => false,
-                                           :validate_generated_network => false)
+                                            instanciate_options.merge(
+                                                compute_policies: false,
+                                                compute_deployments: false,
+                                                validate_generated_network: false))
                 still_abstract = plan.find_local_tasks(Syskit::Component).
                     abstract.to_a
                 tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }

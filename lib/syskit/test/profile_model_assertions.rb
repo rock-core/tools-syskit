@@ -8,17 +8,22 @@ module Syskit
             #   result of the instanciation, in the same order than the actions that
             #   have been given
             def try_instanciate(name, plan, actions, options = Hash.new)
+                try_options, options = Kernel.filter_options options, count: 1
+                count = try_options[:count]
                 placeholder_tasks = actions.map do |act|
-                    task =
+                    tasks = (1..count).map do
                         if act.kind_of?(InstanceRequirements)
                             act.as_plan
                         else act.instanciate(plan)
                         end
-                    if (planner = task.planning_task) && planner.respond_to?(:requirements)
-                        plan.add_mission(task)
-                        task
                     end
-                end.compact
+                    tasks.map do |t|
+                        if (planner = t.planning_task) && planner.respond_to?(:requirements)
+                            plan.add_mission(t)
+                            t
+                        end
+                    end
+                end.flatten.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
 
