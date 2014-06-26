@@ -306,7 +306,7 @@ module Syskit
                     mng = Orocos::RubyTasks::ProcessManager.new(loader)
                     register_process_server(sim_name, mng, "")
                 end
-                process_server_config_for(name)
+                process_server_config_for(sim_name)
             end
 
             # Declare deployed versions of some Ruby tasks
