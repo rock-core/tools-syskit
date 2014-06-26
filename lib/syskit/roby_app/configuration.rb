@@ -334,6 +334,7 @@ module Syskit
                         process_server_config_for(process_server_name)
                     end
                 options[:on] = process_server_config.name
+                run_options[:loader] = process_server_config.loader
 
                 deployments_by_name = Hash.new
                 names = names.map do |n|
