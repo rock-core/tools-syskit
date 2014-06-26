@@ -102,15 +102,9 @@ module Syskit
                 end
             end
 
-            # Called by the main Roby application on setup. This is the first
-            # configuration step.
-            def self.setup(app)
+            def self.setup_loaders(app)
                 if Syskit.conf.use_only_model_pack?
                     Orocos.default_loader.remove Orocos.default_pkgconfig_loader
-                end
-                # This is a HACK. We should be able to specify it differently
-                if app.testing? && app.auto_load_models?
-                    app.auto_load_all_task_libraries = true
                 end
 
                 all_files =
@@ -132,6 +126,17 @@ module Syskit
                     search_path.concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => app.auto_load_all?, :order => :specific_first))
                 Orocos::ROS.default_loader.
                     packs.concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
+            end
+
+            # Called by the main Roby application on setup. This is the first
+            # configuration step.
+            def self.setup(app)
+                # This is a HACK. We should be able to specify it differently
+                if app.testing? && app.auto_load_models?
+                    app.auto_load_all_task_libraries = true
+                end
+
+                setup_loaders(app)
 
                 if app.shell?
                     return
