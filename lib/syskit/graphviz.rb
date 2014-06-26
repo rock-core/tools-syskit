@@ -268,10 +268,6 @@ module Syskit
                 end
 
                 result = []
-                result << "#{options[:dot_graph_type]} {"
-                result << "  mindist=0"
-                result << "  rankdir=TB"
-                result << "  node [shape=record,height=.1,fontname=\"Arial\"];"
 
                 all_tasks = ValueSet.new
 
@@ -312,8 +308,19 @@ module Syskit
                     result << "  #{task.dot_id} [#{attributes.join(" ")}];"
                 end
 
-                result << "};"
-                result.join("\n")
+                if result.empty?
+                    # This workarounds a dot bug in which some degenerate graphs
+                    # (only one node) crash it
+                    return "#{options[:dot_graph_type]} { }"
+                else
+                    ["#{options[:dot_graph_type]} {",
+                     "  mindist=0",
+                     "  rankdir=TB",
+                     "  node [shape=record,height=.1,fontname=\"Arial\"];"].
+                    concat(result).
+                    concat(["}"]).
+                    join("\n")
+                end
             end
 
             # Generates a dot graph that represents the task hierarchy in this
@@ -421,12 +428,6 @@ module Syskit
                     send("add_#{ann}_annotations")
                 end
 
-                result = []
-                result << "digraph {"
-                result << "  splines=ortho;"
-                result << "  rankdir=LR;"
-                result << "  node [shape=none,margin=0,height=.1,fontname=\"Arial\"];"
-
                 output_ports = Hash.new { |h, k| h[k] = Set.new }
                 input_ports  = Hash.new { |h, k| h[k] = Set.new }
                 connected_ports  = Hash.new { |h, k| h[k] = Set.new }
@@ -487,6 +488,8 @@ module Syskit
                         input_ports[sink_task] << sink_port
                     end
                 end
+
+                result = []
 
                 # Finally, emit the dot code for connections
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
@@ -568,8 +571,19 @@ module Syskit
                     result << "  #{from_id} -> #{to_id} [#{label}];"
                 end
 
-                result << "};"
-                result.join("\n")
+                if result.empty?
+                    # This workarounds a dot bug in which some degenerate graphs
+                    # (only one node) crash it
+                    return "digraph { }"
+                else
+                    ["digraph {",
+                     "  splines=ortho;",
+                     "  rankdir=LR;",
+                     "  node [shape=none,margin=0,height=.1,fontname=\"Arial\"];"].
+                    concat(result).
+                    concat(["}"]).
+                    join("\n")
+                end
             end
 
             def dot_id(object, context = nil)
