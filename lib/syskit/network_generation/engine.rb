@@ -696,7 +696,7 @@ module Syskit
                     used_deployments << selected
                     deployment_task =
                         (deployment_tasks[[machine, configured_deployment]] ||= configured_deployment.new(:on => machine))
-                    work_plan.add(deployment_task)
+                    work_plan.add_task(deployment_task)
                     deployed_task = deployment_task.task(task_name)
                     debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
                     merge_solver.merge(task, deployed_task)
@@ -849,9 +849,8 @@ module Syskit
             # #static_garbage_collect to cleanup the transaction
             def add_toplevel_task(task, mission, permanent)
                 toplevel_tasks[task] = [mission, permanent]
-                work_plan.add(task)
                 work_plan.unmark_mission(task)
-                work_plan.add_permanent(task)
+                work_plan.add_permanent_task(task)
             end
 
             # Replaces the toplevel tasks (i.e. tasks planned by the
@@ -870,10 +869,10 @@ module Syskit
                     # if needed.
                     task = work_plan.may_wrap(task)
                     if mission
-                        work_plan.add_mission(task)
+                        work_plan.add_mission_task(task)
                     end
                     if permanent
-                        work_plan.add_permanent(task)
+                        work_plan.add_permanent_task(task)
                     end
                 end
 

@@ -137,7 +137,7 @@ module Syskit
             def instanciate(plan, context = DependencyInjectionContext.new, arguments = Hash.new)
                 task_arguments, _ = Kernel.
                     filter_options arguments, :task_arguments => Hash.new
-                plan.add(task = new(task_arguments[:task_arguments]))
+                plan.add_task(task = new(task_arguments[:task_arguments]))
                 task
             end
 
