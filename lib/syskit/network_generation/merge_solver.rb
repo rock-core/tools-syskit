@@ -443,7 +443,7 @@ module Syskit
 
                 # Get all the tasks we need to consider. That's easy,
                 # they all implement the Syskit::Component model
-                all_tasks = plan.find_local_tasks(Syskit::Component).
+                all_tasks = plan.find_local_tasks(Syskit::TaskContext).
                     to_value_set
 
                 debug do
