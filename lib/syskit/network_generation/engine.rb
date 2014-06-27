@@ -503,9 +503,10 @@ module Syskit
                         if (port_model = task.model.find_input_port(sink_port)) && port_model.multiplexes?
                             next
                         elsif seen[sink_port]
-                            raise SpecError, "#{task}.#{sink_port} is connected multiple times"
+                            seen_task, seen_port = seen[sink_port]
+                            raise SpecError, "#{task}.#{sink_port} is connected multiple times, at least to #{source_task}.#{source_port} and #{seen_task}.#{seen_port}"
                         end
-                        seen[sink_port] = true
+                        seen[sink_port] = [source_task, source_port]
                     end
                 end
             end
