@@ -865,11 +865,7 @@ module Syskit
                         end
 
                         child_task = context.save do
-                            # Push a mask for the keys that have been used to
-                            # resolve the child, to avoid infinite recursions
-                            mask = Hash.new
-                            used_keys[child_name].each { |key| mask[key] = nil }
-                            context.push(DependencyInjection.new(mask))
+                            context.push_mask(used_keys[child_name])
                             instanciate_child(plan, context, self_task, child_name, resolved_selected_child)
                         end
                         child_task = child_task.to_task

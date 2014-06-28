@@ -157,6 +157,18 @@ module Syskit
                 current_state.instance_selection_for(name, requirements)
             end
 
+            def push_mask(mask)
+                if mask.empty?
+                    stack << StackLevel.new(stack.last.resolver, DependencyInjection.new)
+                    return
+                end
+                spec = DependencyInjection.new
+                spec.add_mask(mask)
+                new_state = stack.last.resolver.dup
+                new_state.add_mask(mask)
+                stack << StackLevel.new(new_state, spec)
+            end
+
             # Adds a new dependency injection context on the stack
             def push(spec)
                 if spec.empty?

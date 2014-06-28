@@ -137,6 +137,12 @@ module Syskit
                 @explicit = DependencyInjection.resolve_recursive_selection_mapping(explicit)
             end
 
+            def add_mask(mask)
+                mask.each do |key|
+                    explicit[key] = nil
+                end
+            end
+
             # True if there is an explicit selection for the given name
             def has_selection_for?(name)
                 !!explicit[name]
