@@ -477,15 +477,18 @@ module Syskit
             # Helper method that resolves one single object recursively
             def self.resolve_selection_recursively(value, spec)
                 while !value.respond_to?(:to_str)
-                    if value.respond_to?(:component_model) # This is a bound service
-                        component_model = value.to_component_model
+                    case value
+                    when Models::BoundDataService
+                        return value if value.component_model.kind_of?(Class)
+                        component_model = value.component_model
                         if (selected = spec[component_model]) && !selected.respond_to?(:to_str)
                             if selected != component_model
                                 new_value = selected.selected_for(value).selected_model
                             end
                         end
-                    else
+                    when Class
                         new_value = spec[value]
+                    else return value
                     end
                     return value if !new_value
                     return value if value == new_value
