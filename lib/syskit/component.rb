@@ -391,8 +391,8 @@ module Syskit
             # to the given port or to the input ports of the given component
             #
             # (see Syskit.connect)
-            def connect_to(port_or_component)
-                Syskit.connect(self, port_or_component)
+            def connect_to(port_or_component, policy = Hash.new)
+                Syskit.connect(self, port_or_component, policy)
             end
 
             def bind(task)
