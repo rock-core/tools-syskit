@@ -57,6 +57,14 @@ module Syskit
                 end
                 selected.pretty_print(pp)
                 pp.breakable
+                pp.text "which provides"
+                pp.nest(2) do
+                    selected.each_fullfilled_model do |m|
+                        pp.breakable
+                        m.pretty_print(pp)
+                    end
+                end
+                pp.breakable
                 pp.text "expected something that provides "
                 expected.pretty_print(pp)
             end
