@@ -249,9 +249,9 @@ describe Syskit::NetworkGeneration::Engine do
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
                 with(:on => 'machine').
-                and_return(deployment_task = flexmock)
+                and_return(deployment_task = flexmock(Roby::Task.new))
             # Add it to the work plan
-            flexmock(syskit_engine.work_plan).should_receive(:add).once.with(deployment_task).ordered
+            flexmock(syskit_engine.work_plan).should_receive(:add_task).once.with(deployment_task).ordered
             # Create the task
             deployment_task.should_receive(:task).with('task').and_return(deployed_task = flexmock).ordered
             # And finally replace the task with the deployed task
@@ -274,7 +274,7 @@ describe Syskit::NetworkGeneration::Engine do
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
                 with(:on => 'machine').
-                and_return(deployment_task = flexmock)
+                and_return(deployment_task = flexmock(Roby::Task.new))
             deployment_task.should_receive(:task).with('task').once
             deployment_task.should_receive(:task).with('other_task').once
             # And finally replace the task with the deployed task
@@ -300,10 +300,10 @@ describe Syskit::NetworkGeneration::Engine do
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
                 with(:on => 'machine').
-                and_return(deployment_task0 = flexmock)
+                and_return(deployment_task0 = flexmock(Roby::Task.new))
             flexmock(deployment_models[0]).should_receive(:new).once.
                 with(:on => 'other_machine').
-                and_return(deployment_task1 = flexmock)
+                and_return(deployment_task1 = flexmock(Roby::Task.new))
             deployment_task0.should_receive(:task).with('task').once
             deployment_task1.should_receive(:task).with('other_task').once
             # And finally replace the task with the deployed task
@@ -323,7 +323,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine.merge_solver).should_receive(:merge)
 
             flexmock(deployment_models[0]).should_receive(:new).once.
-                and_return(deployment_task0 = flexmock)
+                and_return(deployment_task0 = flexmock(Roby::Task.new))
             deployment_task0.should_receive(:task).with('task').once
             syskit_engine.update_deployed_models
 
@@ -345,7 +345,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine.merge_solver).should_receive(:merge)
 
             flexmock(deployment_models[0]).should_receive(:new).once.
-                and_return(deployment_task0 = flexmock)
+                and_return(deployment_task0 = flexmock(Roby::Task.new))
             deployment_task0.should_receive(:task).with('task').once
             syskit_engine.update_deployed_models
             assert_equal [task1], syskit_engine.deploy_system_network.to_a

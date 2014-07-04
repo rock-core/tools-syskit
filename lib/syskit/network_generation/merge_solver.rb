@@ -396,7 +396,7 @@ module Syskit
                     if result.nil?
                         [task, target_task]
                     else
-                        raise "#{target_task}.merge(#{task}) can be done as-is, it should not be possible at this stage"
+                        raise InternalError, "#{target_task}.merge(#{task}) can be done as-is, it should not be possible at this stage"
                     end
                 end
                 possible_cycles = possible_cycles.compact

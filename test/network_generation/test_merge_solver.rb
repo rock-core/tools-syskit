@@ -217,8 +217,8 @@ describe Syskit::NetworkGeneration::MergeSolver do
         attr_reader :merge_solver, :task, :merged_task
         before do
             @merge_solver = flexmock(Syskit::NetworkGeneration::MergeSolver.new(plan))
-            @task        = Object.new
-            @merged_task = Object.new
+            plan.add(@task        = Syskit::Component.new)
+            plan.add(@merged_task = Syskit::Component.new)
             merge_solver.should_receive(:replacement_for).and_return { |arg| arg }.by_default
         end
         it "should apply known replacements on the tasks" do
@@ -231,31 +231,29 @@ describe Syskit::NetworkGeneration::MergeSolver do
             merge_solver.should_receive(:resolve_cycle_candidate).
                 with(any, new_task, new_merged_task).
                 once.and_return(false)
-            merge_solver.process_possible_cycles(BGL::Graph.new, [[task, merged_task]])
+            merge_solver.process_possible_cycles([[task, merged_task]])
         end
         it "should not process cycles for which the base tasks can not merge" do
             merge_solver.should_receive(:resolve_single_merge).
                 once.and_return(false)
             merge_solver.should_receive(:resolve_cycle_candidate).
                 never
-            merge_solver.process_possible_cycles(BGL::Graph.new, [[task, merged_task]])
+            merge_solver.process_possible_cycles([[task, merged_task]])
         end
-        it "stops if new direct merges are found when preprocessing the possible_cycles graph" do
-            task2, merged_task2 = Object.new, Object.new
-            merge_solver.should_receive(:resolve_single_merge)
-            merge_solver.should_receive(:resolve_cycle_candidate).never
-            merge_solver.process_possible_cycles(flexmock(:link => nil, :linked? => false, :empty? => false),
-                            [[task, merged_task], [task2, merged_task2]])
+        it "raises with if new direct merges are found when preprocessing the possible_cycles graph" do
+            task2, merged_task = Object.new, Object.new
+            merge_solver.should_receive(:resolve_single_merge).and_return(true)
+            assert_raises(Syskit::InternalError) { merge_solver.process_possible_cycles([[task, merged_task]]) }
         end
         it "stops at the first merged cycle and returns the unprocessed ones" do
-            task2, merged_task2 = Object.new, Object.new
+            plan.add(task2 = Syskit::Component.new)
+            plan.add(merged_task2 = Syskit::Component.new)
             merge_solver.should_receive(:resolve_single_merge).
                 and_return(nil)
             merge_solver.should_receive(:resolve_cycle_candidate).
                 once.and_return(true)
-            result = merge_solver.process_possible_cycles(flexmock(:link => nil, :linked? => false, :empty? => true),
-                            [[task, merged_task], [task2, merged_task2]])
-            assert_equal [[task2, merged_task2]].to_set, result.to_set
+            _, remaining = merge_solver.process_possible_cycles([[task, merged_task], [task2, merged_task2]])
+            assert_equal [[task2, merged_task2]].to_set, remaining.to_set
         end
     end
 
@@ -323,8 +321,9 @@ describe Syskit::NetworkGeneration::MergeSolver do
     describe "#direct_merge_mappings" do
         attr_reader :task_model, :task, :target_task
         before do
-            @task_model = flexmock(:fullfilled_model => flexmock)
-            @task, @target_task = flexmock('task', :model => task_model), flexmock('target_task', :model => task_model)
+            @task_model = Syskit::Component.new_submodel
+            plan.add(@task = task_model.new)
+            plan.add(@target_task = task_model.new)
         end
 
         it "returns an empty graph if given an empty set" do
@@ -341,12 +340,12 @@ describe Syskit::NetworkGeneration::MergeSolver do
             flexmock(specialized).should_receive(:can_merge?).with(non_specialized).once
             solver.direct_merge_mappings([non_specialized, specialized].to_value_set)
         end
-        it "adds an edge for every merge candidate for which resolve_single_merge return true" do
+        it "merges every merge candidate for which resolve_single_merge return true" do
             flexmock(plan).should_receive(:find_local_tasks).with(task_model.fullfilled_model).
                 and_return([target_task])
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(true)
             graph, cycles = solver.direct_merge_mappings([task, target_task].to_value_set)
-            assert graph.linked?(target_task, task)
+            assert graph.linked?(task, target_task)
             assert cycles.empty?
         end
         it "adds the merge candidates for which resolve_single_merge return nil to the cycle candidates" do
@@ -364,162 +363,6 @@ describe Syskit::NetworkGeneration::MergeSolver do
             graph, cycles = solver.direct_merge_mappings([task].to_value_set)
             assert graph.empty?
             assert cycles.empty?
-        end
-    end
-
-    describe "#break_parent_child_cycles" do
-        attr_reader :task, :target_task, :merge_graph
-        before do
-            @merge_graph = BGL::Graph.new
-            @task, @target_task = flexmock(Object.new, :model => nil), flexmock(Object.new, :model => nil)
-            task.extend BGL::Vertex
-            target_task.extend BGL::Vertex
-            merge_graph.link(target_task, task, nil)
-        end
-
-        it "removes the parent>child edge if the child is a better merge candidate" do
-            merge_graph.link(task, target_task, nil)
-            flexmock(solver).should_receive(:merge_sort_order).with(target_task, task).and_return(1)
-            assert_equal [], solver.break_parent_child_cycles(merge_graph, task)
-            assert !merge_graph.linked?(target_task, task)
-            assert merge_graph.linked?(task, target_task)
-        end
-        it "removes the child>parent edge if the parent is a better merge candidate" do
-            merge_graph.link(task, target_task, nil)
-            flexmock(solver).should_receive(:merge_sort_order).with(target_task, task).and_return(-1)
-            assert_equal [target_task], solver.break_parent_child_cycles(merge_graph, task)
-            assert merge_graph.linked?(target_task, task)
-            assert !merge_graph.linked?(task, target_task)
-        end
-        it "does nothing if the merge sort order is undecided" do
-            merge_graph.link(task, target_task, nil)
-            flexmock(solver).should_receive(:merge_sort_order).with(target_task, task).and_return(nil)
-            assert_equal [target_task], solver.break_parent_child_cycles(merge_graph, task)
-            assert merge_graph.linked?(target_task, task)
-            assert merge_graph.linked?(task, target_task)
-        end
-        it "does nothing if there is no direct cycle" do
-            assert_equal [target_task], solver.break_parent_child_cycles(merge_graph, task)
-            assert merge_graph.linked?(target_task, task)
-            assert !merge_graph.linked?(task, target_task)
-        end
-    end
-
-    describe "#resolve_ambiguities_using_sort_order" do
-        attr_reader :task, :targets, :merge_graph
-        before do
-            @merge_graph = BGL::Graph.new
-            @task = flexmock(Object.new)
-            task.extend BGL::Vertex
-            @targets = (1..4).map { flexmock(Object.new) }
-            targets.each do |t|
-                t.extend BGL::Vertex
-                merge_graph.link(t, task, nil)
-            end
-        end
-
-        it "should not change anything if only one parent is given" do
-            flexmock(merge_graph).should_receive(:unlink).never
-            solver.resolve_ambiguities_using_sort_order(merge_graph, task, targets[0, 1])
-        end
-        it "should remove a task that is better w.r.t. merge_sort_order with the best task last" do
-            flexmock(solver).should_receive(:merge_sort_order).with(targets[0], targets[1]).and_return(1)
-            flexmock(solver).should_receive(:merge_sort_order).with(targets[1], targets[0]).and_return(-1)
-            flexmock(solver).should_receive(:merge_sort_order)
-            flexmock(merge_graph).should_receive(:unlink).with(targets[0], task).once
-            assert_equal targets[1, 3], solver.resolve_ambiguities_using_sort_order(merge_graph, task, targets)
-        end
-        it "should remove a task that is better w.r.t. merge_sort_order with the best task first" do
-            flexmock(solver).should_receive(:merge_sort_order).with(targets[0], targets[1]).and_return(1)
-            flexmock(solver).should_receive(:merge_sort_order).with(targets[1], targets[0]).and_return(-1)
-            flexmock(solver).should_receive(:merge_sort_order)
-            flexmock(merge_graph).should_receive(:unlink).with(targets[0], task).once
-            assert_equal targets[1, 3].reverse, solver.resolve_ambiguities_using_sort_order(merge_graph, task, targets.reverse)
-        end
-    end
-
-    describe "#merge_prepare" do
-        attr_reader :task, :targets, :merge_graph
-        before do
-            @merge_graph = BGL::Graph.new
-            @task = flexmock(Object.new)
-            task.extend BGL::Vertex
-            @targets = (1..4).map { flexmock(Object.new) }
-            targets.each do |t|
-                t.extend BGL::Vertex
-                merge_graph.link(t, task, nil)
-            end
-        end
-
-        it "resolves simple ambiguous structures" do
-            ([task] + targets).each do |t|
-                flexmock(solver).should_receive(:break_parent_child_cycles).once.
-                    with(merge_graph, t).and_return(t_parents = flexmock(:size => 5))
-                flexmock(solver).should_receive(:resolve_ambiguities_using_sort_order).once.
-                    with(merge_graph, t, t_parents).and_return([])
-            end
-            solver.merge_prepare(merge_graph)
-        end
-
-        it "does not return the vertices without parents" do
-            flexmock(solver).should_receive(:break_parent_child_cycles).and_return([])
-            one, ambiguous, cycles = solver.merge_prepare(merge_graph)
-            assert (one | ambiguous | cycles).empty?
-        end
-
-        it "returns the vertices with a single parent in the one_parent set" do
-            flexmock(solver).should_receive(:break_parent_child_cycles).once.
-                with(merge_graph, task).and_return([1])
-            flexmock(solver).should_receive(:break_parent_child_cycles).and_return([])
-            one, ambiguous, cycles = solver.merge_prepare(merge_graph)
-            assert (ambiguous|cycles).empty?
-            assert_equal [task], one.to_a
-        end
-
-        it "returns the vertices that have a cycle with their parent in the cycle set, regardless of ambiguity" do
-            flexmock(solver).should_receive(:break_parent_child_cycles).once.
-                with(merge_graph, task).and_return([1, 2])
-            flexmock(solver).should_receive(:break_parent_child_cycles).and_return([])
-            flexmock(solver).should_receive(:resolve_ambiguities_using_sort_order).once.
-                and_return([1, 2])
-            flexmock(merge_graph).should_receive(:reachable?).with(task, 1).and_return(true)
-            flexmock(merge_graph).should_receive(:reachable?).with(task, 2).and_return(false)
-            one, ambiguous, cycles = solver.merge_prepare(merge_graph)
-            assert (one|ambiguous).empty?
-            assert_equal [task], cycles.to_a
-        end
-
-        it "returns the vertices with multiple parents in the ambiguous set" do
-            flexmock(solver).should_receive(:break_parent_child_cycles).once.
-                with(merge_graph, task).and_return([1, 2, 3])
-            flexmock(solver).should_receive(:break_parent_child_cycles).and_return([])
-            flexmock(solver).should_receive(:resolve_ambiguities_using_sort_order).once.
-                with(merge_graph, task, [1, 2, 3]).and_return([1, 2, 3])
-            one, ambiguous, cycles = solver.merge_prepare(merge_graph)
-            assert (one|cycles).empty?
-            assert_equal [task], ambiguous.to_a
-        end
-    end
-
-    describe "#update_merge_graph_neighborhood" do
-        attr_reader :merge_graph, :parent, :child, :merge_solver
-        before do
-            @merge_solver = flexmock(Syskit::NetworkGeneration::MergeSolver.new(plan))
-            vertex_t = Class.new { include BGL::Vertex }
-            @merge_graph = BGL::Graph.new
-            @parent = vertex_t.new
-            @child  = vertex_t.new
-            merge_graph.link(parent, child, nil)
-        end
-        it "removes links from the merge graph for target's children that are not valid anymore" do
-            merge_solver.should_receive(:resolve_single_merge).with(parent, child).and_return(false)
-            merge_solver.update_merge_graph_neighborhood(merge_graph, parent)
-            assert !merge_graph.linked?(parent, child)
-        end
-        it "removes links from the merge graph for parent's children that are not valid anymore" do
-            merge_solver.should_receive(:resolve_single_merge).with(parent, child).and_return(false)
-            merge_solver.update_merge_graph_neighborhood(merge_graph, child)
-            assert !merge_graph.linked?(parent, child)
         end
     end
 end
