@@ -577,8 +577,13 @@ class TC_DependencyInjection < Minitest::Test
         c0 = Component.new_submodel(:name => 'C0') { provides srv, :as => 'srv' }
         c1 = c0.new_submodel(:name => 'C1')
         di = DependencyInjection.new(c0 => c1, srv => c0)
-        assert_equal [nil, InstanceRequirements.new([c1]), {srv => c1.srv_srv}, [srv].to_set],
+
+        task, requirements, service_mappings, used_keys =
             di.selection_for(nil, InstanceRequirements.new([srv]))
+        assert !task
+        assert_equal c1, requirements.model
+        assert_equal Hash[srv => c1.srv_srv], service_mappings
+        assert_equal [srv].to_set, used_keys
     end
 
     def test_selection_for_data_services_to_composite_model_with_proxy
