@@ -98,7 +98,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
 
     describe "#configure" do
         it "should setup the underlying logging task for each input connection" do
-            logger = deployment.task 'deployment_Logger'
+            plan.add_permanent(logger = deployment.task('deployment_Logger'))
             flexmock(task).should_receive(:connect_ports).pass_thru
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
@@ -108,6 +108,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             flexmock(logger).should_receive(:createLoggingPort).
                 with('task.out2', task, task.out2_port).once
             flexmock(Orocos.conf).should_receive(:apply)
+            deployment.start!
             logger.configure
         end
     end
