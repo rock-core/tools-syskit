@@ -395,7 +395,7 @@ module Syskit
                     result = resolve_single_merge(task, target_task)
                     if result.nil?
                         [task, target_task]
-                    else
+                    elsif result
                         raise InternalError, "#{target_task}.merge(#{task}) can be done as-is, it should not be possible at this stage"
                     end
                 end
