@@ -128,7 +128,7 @@ describe Syskit::Deployment do
 
         describe "start_event" do
             it "finds the process server from Syskit.process_servers and its 'on' option" do
-                process_server.should_receive(:start).once.with('deployment', 'deployment', any, any).and_return(process)
+                process_server.should_receive(:start).once.with('deployment', deployment_m.orogen_model, any, any).and_return(process)
                 deployment_task.start!
             end
             it "passes the process server's log dir as working directory" do

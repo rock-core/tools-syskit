@@ -162,7 +162,7 @@ module Syskit
                 Deployment.info { "starting deployment #{process_name} using #{model.deployment_name} on #{host} with #{spawn_options} and mappings #{name_mappings}" }
 
                 @orocos_process = process_server_config.client.start(
-                    process_name, model.deployment_name, name_mappings, spawn_options)
+                    process_name, model.orogen_model, name_mappings, spawn_options)
 
                 Deployment.all_deployments[@orocos_process] = self
                 emit :start
