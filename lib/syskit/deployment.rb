@@ -27,7 +27,9 @@ module Syskit
             # An object describing the underlying pocess server
             #
             # @return [RobyApp::Configuration::ProcessServerConfig]
-            attr_reader :process_server_config
+            def process_server_config
+                @process_server_config ||= Syskit.conf.process_server_config_for(host)
+            end
 
             def initialize(options = Hash.new)
                 super
@@ -144,7 +146,6 @@ module Syskit
                 if !process_name
                     raise ArgumentError, "must set process_name"
                 end
-                @process_server_config = Syskit.conf.process_server_config_for(host)
 
                 spawn_options = self.spawn_options
                 options = (spawn_options[:cmdline_args] || Hash.new).dup
