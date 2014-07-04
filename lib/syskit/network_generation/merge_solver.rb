@@ -320,17 +320,19 @@ module Syskit
                 applied_merges = BGL::Graph.new
                 cycle_candidates = []
                 task_set  = task_set.to_set
-                processing_queue = task_set.dup
+                processing_queue = task_set.sort_by { |t| Flows::DataFlow.in_degree(t) }
 
                 while !processing_queue.empty?
-                    task = processing_queue.first
-                    processing_queue.delete(task)
+                    task = processing_queue.shift
+                    # 'task' could have been merged already, ignore it
                     next if !plan.include?(task)
 
                     # Get the set of candidates. We are checking if the tasks in
                     # this set can be replaced by +task+
                     candidates = plan.find_local_tasks(task.model.fullfilled_model)
                     debug { "#{candidates.to_a.size} candidates for #{task}" }
+                    candidates = candidates.sort_by { |t| Flows::DataFlow.in_degree(t) }
+                        
                     candidates.each do |target_task|
                         next if task == target_task ||
                             target_task.respond_to?(:proxied_data_services) ||
