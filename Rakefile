@@ -4,25 +4,23 @@ require 'utilrb/doc/rake'
 
 begin
     require 'hoe'
+    Hoe::RUBY_FLAGS.gsub! /-w/, ''
     namespace 'dist' do
-        config = Hoe.spec('orocos.rb') do |p|
+        config = Hoe.spec('syskit') do |p|
+            self.readme_file = 'README.rd'
             self.developer("Sylvain Joyeux", "sylvain.joyeux@dfki.de")
-
-            self.summary = 'Controlling Orocos modules from Ruby'
-            self.description = ""
-            self.url = ["http://doudou.github.com/orocos-rb", "http://github.com/doudou/orocos.rb.git"]
-            self.changes = ""
+            self.license 'LGPLv2+'
 
             self.extra_deps <<
                 ['utilrb', ">= 1.1"] <<
                 ['rake', ">= 0.8"]
 
-            #self.spec.extra_rdoc_files.reject! { |file| file =~ /Make/ }
-            #self.spec.extensions << 'ext/extconf.rb'
+            self.test_globs = ['test/suite.rb']
         end
-
-        Rake.clear_tasks(/dist:(re|clobber_|)docs/)
     end
+
+    Rake.clear_tasks(/^default$/)
+    Rake.clear_tasks(/^doc$/)
 
 rescue LoadError
     STDERR.puts "cannot load the Hoe gem. Distribution is disabled"
@@ -34,9 +32,10 @@ rescue Exception => e
 end
 
 task :default => ["setup:uic"]
+task :test => 'dist:test'
 
 namespace :setup do
-    UIFILES = %w{orocos_composer.ui orocos_system_builder.ui}
+    UIFILES = %w{}
     desc 'generate all Qt UI files using rbuic4'
     task :uic do
         rbuic = 'rbuic4'

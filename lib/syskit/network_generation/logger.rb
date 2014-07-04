@@ -62,15 +62,10 @@ module Syskit
 
                 if default_logger?
                     deployment = execution_agent
-                    if !deployment.arguments[:log] ||
-                        Syskit.conf.deployment_excluded_from_log?(deployment)
-                        Syskit.info "not automatically logging any port in deployment #{name}"
-                    else
-                        # Only setup the logger
-                        deployment.orocos_process.setup_default_logger(
-                            :log_dir => deployment.log_dir,
-                            :remote => (deployment.host != 'localhost'))
-                    end
+                    # Only setup the logger
+                    deployment.orocos_process.setup_default_logger(
+                        :log_dir => deployment.log_dir,
+                        :remote => (deployment.host != 'localhost'))
                 end
 
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|

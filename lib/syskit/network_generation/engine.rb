@@ -945,9 +945,14 @@ module Syskit
                     t.remove_relations(Syskit::Flows::DataFlow)
                 end
 
-                existing_deployments = work_plan.find_tasks(Syskit::Deployment).
-                    not_finishing.not_finished.to_value_set
-                existing_deployments = existing_deployments - used_deployments
+                finishing_deployments, existing_deployments =
+                    work_plan.find_tasks(Syskit::Deployment).not_finished.
+                    partition { |t| t.finishing? }
+                existing_deployments = existing_deployments.to_value_set - used_deployments
+                finishing_deployments = finishing_deployments.inject(Hash.new) do |h, task|
+                    h[task.process_name] = task
+                    h
+                end
 
                 debug do
                     debug "  Mapping deployments in the network to the existing ones"
@@ -977,16 +982,21 @@ module Syskit
                             t.process_name == deployment_task.process_name
                         end
 
+                    selected_deployment = nil
                     if existing_deployment_tasks.empty?
                         debug { "  deployment #{deployment_task.process_name} is not yet represented in the plan" }
                         # Nothing to do, we leave the plan as it is
-                        result << deployment_task
+                        selected_deployment = deployment_task
                     elsif existing_deployment_tasks.size != 1
                         raise InternalError, "more than one task for #{deploment_task.process_name} present in the plan: #{existing_deployment_tasks}"
                     else
                         adapt_existing_deployment(deployment_task, existing_deployment_tasks.first)
-                        result << existing_deployment_tasks.first
+                        selected_deployment = existing_deployment_tasks.first
                     end
+                    if finishing = finishing_deployments[selected_deployment.process_name]
+                        selected_deployment.should_start_after finishing.stop_event
+                    end
+                    result << selected_deployment
                 end
 
                 # This is required to merge the already existing compositions

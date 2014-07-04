@@ -22,8 +22,7 @@ module Syskit
             argument :log, :default => true
             argument :on, :default => 'localhost'
             argument :name_mappings, :default => nil
-
-            attr_accessor :spawn_options
+            argument :spawn_options, :default=> nil
 
             # An object describing the underlying pocess server
             #
@@ -32,7 +31,9 @@ module Syskit
 
             def initialize(options = Hash.new)
                 super
-                @spawn_options = Hash.new
+                if !self.spawn_options
+                    self.spawn_options = Hash.new
+                end
                 if !self.name_mappings
                     self.name_mappings = Hash.new
                 end

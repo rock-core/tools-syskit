@@ -1,7 +1,7 @@
 <package>
     <description brief="model-based coordination of component-based layers">
     </description>
-    <author>Sylvain Joyeux/sylvain.joyeux@m4x.org</author>
+    <maintainer>Sylvain Joyeux/sylvain.joyeux@m4x.org</maintainer>
     <copyright>
         DFKI/robotik@dfki.de
         Sylvain Joyeux/sylvain.joyeux@m4x.org

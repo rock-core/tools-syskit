@@ -126,6 +126,12 @@ describe Syskit::ComBus do
             assert !device.attached_to?(other_bus)
         end
     end
+    describe "#each_declared_attached_device" do
+        it "lists all devices that are declared as attached to the combus regardless of whether they are instanciated in the plan" do
+            plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
+            assert_equal [device], combus_task.each_declared_attached_device.to_a
+        end
+    end
     describe "#each_attached_device" do
         it "can list the devices attached to the combus" do
             plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
