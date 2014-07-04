@@ -203,6 +203,10 @@ module Syskit
             end
 
             def self.require_models(app)
+                if has_local_process_server?
+                    connect_to_local_process_server(app)
+                end
+
                 # Load the data services and task models
                 search_path = app.auto_load_search_path
                 if app.auto_load_models?
@@ -414,10 +418,6 @@ module Syskit
             end
 
             def self.prepare(app)
-                if has_local_process_server?
-                    connect_to_local_process_server(app)
-                end
-
                 @handler_ids = plug_engine_in_roby(Roby.engine)
             end
 
