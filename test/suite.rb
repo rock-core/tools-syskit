@@ -30,8 +30,6 @@ require './test/test_typelib_marshalling'
 
 require './test/test_exceptions'
 
-MiniTest::Unit.autorun
-
 Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
 Syskit.logger.level = Logger::DEBUG
 
