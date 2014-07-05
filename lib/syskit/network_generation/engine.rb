@@ -963,6 +963,7 @@ module Syskit
                     break
                 end
 
+                merged_tasks = ValueSet.new
                 result = ValueSet.new
                 used_deployments.each do |deployment_task|
                     existing_candidates = work_plan.find_local_tasks(deployment_task.model).
@@ -990,7 +991,10 @@ module Syskit
                     elsif existing_deployment_tasks.size != 1
                         raise InternalError, "more than one task for #{deploment_task.process_name} present in the plan: #{existing_deployment_tasks}"
                     else
-                        adapt_existing_deployment(deployment_task, existing_deployment_tasks.first)
+                        new_merged_tasks = adapt_existing_deployment(
+                            deployment_task,
+                            existing_deployment_tasks.first)
+                        merged_tasks.merge(new_merged_tasks)
                         selected_deployment = existing_deployment_tasks.first
                     end
                     if finishing = finishing_deployments[selected_deployment.process_name]
@@ -1001,13 +1005,20 @@ module Syskit
 
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
-                merge_solver.merge_identical_tasks
+                merge_seeds = merge_solver.merge_tasks_next_step_hierarchy(merged_tasks)
+                merge_solver.merge_identical_tasks(merge_seeds)
                 result
             end
 
             # Given a required deployment task in {#work_plan} and a proxy
             # representing an existing deployment task in {#real_plan}, modify
             # the plan to reuse the existing deployment
+            #
+            # @return [Array<Syskit::TaskContext>] the set of TaskContext
+            #   instances that have been used to replace the task contexts
+            #   generated during network generation. They are all deployed by
+            #   existing_deployment_task, and some of them might be transaction
+            #   proxies.
             def adapt_existing_deployment(deployment_task, existing_deployment_task)
                 existing_tasks = Hash.new
                 existing_deployment_task.each_executed_task do |t|
@@ -1019,6 +1030,7 @@ module Syskit
                     end
                 end
 
+                applied_merges = ValueSet.new
                 deployed_tasks = deployment_task.each_executed_task.to_a
                 deployed_tasks.each do |task|
                     existing_task = existing_tasks[task.orocos_name]
@@ -1041,9 +1053,11 @@ module Syskit
                     end
 
                     merge_solver.merge(task, existing_task)
+                    applied_merges << existing_task
                     debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
                 end
                 work_plan.remove_object(deployment_task)
+                applied_merges
             end
 
             # Generate the deployment according to the current requirements, and

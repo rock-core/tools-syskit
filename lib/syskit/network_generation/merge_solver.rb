@@ -360,15 +360,33 @@ module Syskit
                 direct_merge_mappings(all_tasks)
             end
 
-            # Propagation step in the BFS of merge_identical_tasks
-            def merge_tasks_next_step(task_set) # :nodoc:
+            # Given a set of tasks that got merged, return the next set of
+            # candidates that should be examined, following only dataflow
+            # relations
+            def merge_tasks_next_step_dataflow(task_set) # :nodoc:
                 result = ValueSet.new
-                return result if task_set.nil?
                 for t in task_set
                     sinks = t.each_concrete_output_connection.map do |_, _, sink_task, _|
                         sink_task
                     end
                     result.merge(sinks.to_value_set) if sinks.size > 1
+                end
+                result
+            end
+
+            # Given a set of tasks that got merged, return the next set of
+            # candidates that should be examined, following only dataflow
+            # relations
+            def merge_tasks_next_step_hierarchy(task_set) # :nodoc:
+                result = ValueSet.new
+                for t in task_set
+                    parents = t.each_parent_task.to_a
+                    debug { "#{t}: #{parents.size} parents" }
+                    if parents.size > 1
+                        for p in parents
+                            result << p
+                        end
+                    end
                 end
                 result
             end
@@ -435,7 +453,7 @@ module Syskit
             # these tasks and so on and so forth.
             #
             # The step is given by #merge_tasks_next_step
-            def merge_identical_tasks
+            def merge_identical_tasks(candidates = plan.find_local_tasks(Syskit::TaskContext))
                 debug do
                     debug ""
                     debug "----------------------------------------------------"
@@ -443,14 +461,11 @@ module Syskit
                     break
                 end
 
-                # Get all the tasks we need to consider. That's easy,
-                # they all implement the Syskit::Component model
-                all_tasks = plan.find_local_tasks(Syskit::TaskContext).
-                    to_value_set
+                candidates = candidates.to_value_set
 
                 debug do
-                    debug "-- Tasks in plan"
-                    all_tasks.each do |t|
+                    debug "-- Initial candidates"
+                    candidates.each do |t|
                         debug "    #{t}"
                     end
                     break
@@ -463,7 +478,6 @@ module Syskit
                 # The algorithm is seeded by the tasks that already have the
                 # same inputs and the ones that have no inputs. It then
                 # propagates to the children of the merged tasks and so on.
-                candidates = all_tasks.dup
 
                 possible_cycles = Set.new
                 merged_tasks = ValueSet.new
@@ -516,7 +530,7 @@ module Syskit
                         next_step_seeds = applied_merges.vertices.
                             find_all { |task| task.leaf?(applied_merges) }.
                             to_value_set                         
-                        candidates = merge_tasks_next_step(next_step_seeds)
+                        candidates = merge_tasks_next_step_dataflow(next_step_seeds)
                         merged_tasks.merge(next_step_seeds)
                         debug do
                             debug "  #{merged_tasks.size} merged tasks so far in this pass"
@@ -534,13 +548,7 @@ module Syskit
 
                     debug "  -- Parents"
                     debug "  #{merged_tasks.size} tasks have been merged"
-                    for t in merged_tasks
-                        parents = t.each_parent_task.to_value_set
-                        debug { "  #{t}: #{parents.size} parents" }
-                        if parents.size > 1
-                            candidates.merge(parents) 
-                        end
-                    end
+                    candidates = merge_tasks_next_step_hierarchy(merged_tasks)
                     add_timepoint 'merge', 'pass', "done", pass_idx
                 end
 
