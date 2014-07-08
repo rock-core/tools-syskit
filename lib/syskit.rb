@@ -53,6 +53,7 @@ require 'syskit/models/faceted_access'
 require 'syskit/models/specialization_manager'
 
 # Actions
+require 'syskit/robot'
 require 'syskit/actions'
 
 # Coordination models
@@ -64,7 +65,6 @@ require 'syskit/models/composition_child'
 # Algorithms
 require 'syskit/connection_graphs'
 require 'syskit/exceptions'
-require 'syskit/robot'
 require 'syskit/network_generation'
 require 'syskit/runtime'
 

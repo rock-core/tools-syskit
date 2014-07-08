@@ -52,6 +52,26 @@ module Syskit
             # profile
             # @return [DependencyInjection]
             attr_reader :dependency_injection
+
+            # Robot definition class inside a profile
+            #
+            # It is subclassed so that we can invalidate the cached dependency
+            # injection object whenever the robot gets modified
+            class RobotDefinition < Syskit::Robot::RobotDefinition
+                # @return [Profile] the profile object this robot definition is
+                #   part of
+                attr_reader :profile
+
+                def initialize(profile, *args, &block)
+                    @profile = profile
+                    super(*args, &block)
+                end
+
+                def invalidate_dependency_injection
+                    super
+                    profile.invalidate_dependency_injection
+                end
+            end
             
             def initialize(name = nil)
                 @name = name
@@ -59,7 +79,7 @@ module Syskit
                 @tags = Hash.new
                 @used_profiles = Array.new
                 @dependency_injection = DependencyInjection.new
-                @robot = Robot::RobotDefinition.new
+                @robot = RobotDefinition.new(self)
                 @definition_location = call_stack
                 super()
             end
@@ -75,9 +95,13 @@ module Syskit
 
             # Add some dependency injections for the definitions in this profile
             def use(*args)
-                @di = nil
+                invalidate_dependency_injection
                 dependency_injection.add(*args)
                 self
+            end
+
+            def invalidate_dependency_injection
+                @di = nil
             end
 
             def resolved_dependency_injection
@@ -136,7 +160,7 @@ module Syskit
             # @param [Profile] profile
             # @return [void]
             def use_profile(profile, tags = Hash.new)
-                @di = nil
+                invalidate_dependency_injection
                 tags = resolve_tag_selection(profile, tags)
                 used_profiles.push([profile, tags])
 

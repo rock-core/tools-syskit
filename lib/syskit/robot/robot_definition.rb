@@ -11,6 +11,7 @@ module Syskit
             attr_reader :devices
 
             def clear
+                invalidate_dependency_injection
                 devices.clear
             end
 
@@ -20,6 +21,7 @@ module Syskit
             # If robot and self have devices with the same names, the ones in
             # self take precedence
             def use_robot(robot)
+                invalidate_dependency_injection
                 @devices = robot.devices.merge(devices)
                 nil
             end
@@ -159,6 +161,7 @@ module Syskit
                 device_instance = options[:class].new(
                     self, name, device_model, device_options,
                     driver_model, root_task_arguments)
+                invalidate_dependency_injection
                 devices[name] = device_instance
                 device_model.apply_device_configuration_extensions(devices[name])
 
@@ -186,6 +189,10 @@ module Syskit
             def each_slave_device
                 devices.find_all { |name, instance| instance.kind_of?(SlaveDeviceInstance) }.
                     each { |_, instance| yield(instance) }
+            end
+
+            def invalidate_dependency_injection
+                @di = nil
             end
 
             # Returns a dependency injection object that maps names to devices

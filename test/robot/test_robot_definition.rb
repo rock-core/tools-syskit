@@ -71,6 +71,13 @@ describe Syskit::Robot::RobotDefinition do
             assert(slave = robot.devices["dev.slave"])
             assert_same master, slave.master_device
         end
+
+        it "invalidates the dependency injection cache" do
+            driver_m = Syskit::TaskContext.new_submodel
+            driver_m.driver_for device_m, :as => 'test'
+            flexmock(robot).should_receive(:invalidate_dependency_injection).at_least.once
+            robot.device device_m, :as => 'test'
+        end
     end
 end
 

@@ -200,5 +200,11 @@ describe Syskit::Actions::Profile do
     it "should be usable through droby" do
         verify_is_droby_marshallable_object(SyskitProfileTest::Test)
     end
+
+    it "gets its cached dependency injection object invalidated when the robot is modified" do
+        profile = Syskit::Actions::Profile.new
+        flexmock(profile).should_receive(:invalidate_dependency_injection).at_least.once
+        profile.robot.invalidate_dependency_injection
+    end
 end
 
