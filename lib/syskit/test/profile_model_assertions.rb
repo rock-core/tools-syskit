@@ -11,6 +11,9 @@ module Syskit
                 try_options, options = Kernel.filter_options options, count: 1
                 count = try_options[:count]
                 placeholder_tasks = actions.map do |act|
+                    if act.respond_to?(:to_action)
+                        act = act.to_action
+                    end
                     tasks = (1..count).map do
                         if act.kind_of?(InstanceRequirements)
                             act.as_plan

@@ -47,10 +47,13 @@ module Syskit
             # to compute buffer sizes
             dsl_attribute(:burst)   { |v| Integer(v) }
 
+            def to_action
+                to_instance_requirements.to_action
+            end
+
             def instanciate(plan, context = DependencyInjectionContext.new, options = Hash.new)
                 to_instance_requirements.instanciate(plan, context, options)
             end
-
         end
     end
 end

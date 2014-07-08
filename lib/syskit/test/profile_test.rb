@@ -46,8 +46,21 @@ module Syskit
                 end
             end
 
+            def self.find_definition(name)
+                desc.resolved_definition(name)
+            end
+
+            def self.find_device(name)
+                desc.robot.devices[name]
+            end
+
+            def method_missing(m, *args)
+                MetaRuby::DSLs.find_through_method_missing(self.class, m, args, 'def' => 'find_definition', 'dev' => 'find_device') ||
+                    super
+            end
+
             def self.method_missing(m, *args)
-                MetaRuby::DSLs.find_through_method_missing(desc, m, args, 'def' => 'definition') ||
+                MetaRuby::DSLs.find_through_method_missing(self, m, args, 'def' => 'find_definition', 'dev' => 'find_device') ||
                     super
             end
         end
