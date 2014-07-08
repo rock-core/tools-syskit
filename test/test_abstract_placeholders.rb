@@ -167,5 +167,12 @@ class TC_AbstractPlaceholders < Minitest::Test
         result = proxyA.merge(proxyB)
         assert_equal merged_m, result
     end
+    
+    def test_it_ignores_redundant_services
+        srv  = Syskit::DataService.new_submodel :name => 'Srv'
+        task = Syskit::TaskContext.new_submodel :name => 'Task'
+        task.provides srv, :as => 'test'
+        assert_same task, Syskit.proxy_task_model_for([task,srv])
+    end
 end
 
