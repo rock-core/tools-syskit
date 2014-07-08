@@ -31,8 +31,10 @@ module Syskit
                 resolve_options = Hash[:requirement_tasks => requirement_tasks,
                                        :on_error => :commit].merge(options)
                 engine.resolve(resolve_options)
-                dataflow, hierarchy = name + "-dataflow.svg", name + "-hierarchy.svg"
+
                 if Roby.app.public_logs?
+                    filename = name.gsub("/", "_")
+                    dataflow, hierarchy = filename + "-dataflow.svg", filename + "-hierarchy.svg"
                     Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
                     Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                 end

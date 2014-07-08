@@ -9,6 +9,9 @@ module Syskit
             def teardown
                 if !passed? && Roby.app.public_logs?
                     dataflow, hierarchy = __full_name__ + "-partial-dataflow.svg", __full_name__ + "-partial-hierarchy.svg"
+                    dataflow, hierarchy = [dataflow, hierarchy].map do |filename|
+                        filename.gsub("/", "_")
+                    end
                     Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
                     Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                 end
