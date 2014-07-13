@@ -320,6 +320,8 @@ module Syskit
             #
             # @option options [String] :on (localhost) the name of the process
             #   server on which this deployment should be started
+            #
+            # @return [Array<Deployment>]
             def use_deployment(*names)
                 if !names.last.kind_of?(Hash)
                     names << Hash.new
@@ -353,7 +355,7 @@ module Syskit
                 end
 
                 new_deployments, _ = Orocos::Process.parse_run_options(*names, run_options)
-                new_deployments.each do |deployment_name, mappings, name, spawn_options|
+                new_deployments.map do |deployment_name, mappings, name, spawn_options|
                     model = deployments_by_name[deployment_name] ||
                         app.using_deployment(deployment_name, options)
                     model.default_run_options.merge!(default_run_options(model))
@@ -361,8 +363,8 @@ module Syskit
                     configured_deployment = Models::ConfiguredDeployment.
                         new(process_server_config.name, model, mappings, name, spawn_options)
                     register_configured_deployment(configured_deployment)
+                    model
                 end
-                model
             end
 
             def register_configured_deployment(configured_deployment)
