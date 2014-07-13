@@ -29,6 +29,17 @@ module Syskit
             # Controls whether models from the installed components should be
             # used or not
             attr_predicate :use_only_model_pack?, true
+            # Controls whether the orogen types should be exported as Ruby
+            # constants
+            attr_predicate :export_types?
+
+            # Controls whether the orogen types should be exported as Ruby
+            # constants
+            #
+            # @param [Boolean] flag
+            def export_types=(flag)
+                app.default_loader.export_types = flag
+            end
 
             def initialize(app)
                 super()
@@ -54,6 +65,8 @@ module Syskit
                 @use_only_model_pack = false
 
                 @log_groups = { nil => LogGroup.new(false) }
+
+                self.export_types = true
 
                 registry = Typelib::Registry.new
                 Typelib::Registry.add_standard_cxx_types(registry)
@@ -302,8 +315,7 @@ module Syskit
             def sim_process_server(name)
                 sim_name = "#{name}-sim"
                 if !process_servers[sim_name]
-                    loader = process_server_config_for(name).loader
-                    mng = Orocos::RubyTasks::ProcessManager.new(loader)
+                    mng = Orocos::RubyTasks::ProcessManager.new(app.default_loader)
                     register_process_server(sim_name, mng, "")
                 end
                 process_server_config_for(sim_name)
@@ -335,8 +347,7 @@ module Syskit
                     else
                         process_server_config_for(process_server_name)
                     end
-                options[:on] = process_server_config.name
-                run_options[:loader] = process_server_config.loader
+                run_options[:loader] = app.default_loader
 
                 deployments_by_name = Hash.new
                 names = names.map do |n|
@@ -357,7 +368,7 @@ module Syskit
                 new_deployments, _ = Orocos::Process.parse_run_options(*names, run_options)
                 new_deployments.map do |deployment_name, mappings, name, spawn_options|
                     model = deployments_by_name[deployment_name] ||
-                        app.using_deployment(deployment_name, options)
+                        app.using_deployment(deployment_name)
                     model.default_run_options.merge!(default_run_options(model))
 
                     configured_deployment = Models::ConfiguredDeployment.
@@ -535,12 +546,18 @@ module Syskit
             # @raise [ArgumentError] if there is already a process server
             #   registered with that name
             def connect_to_orocos_process_server(name, host, options = Hash.new)
+                options = Kernel.validate_options options,
+                    :port => Orocos::RemoteProcesses::DEFAULT_PORT,
+                    :log_dir => 'logs',
+                    :result_dir => 'results'
+
                 if only_load_models? || (app.simulation? && app.single?)
-                    client = ModelOnlyServer.new(Orocos.default_loader)
+                    client = ModelOnlyServer.new(app.default_loader)
                     register_process_server(name, client, app.log_dir)
                     return client
                 elsif app.single?
-                    client = Orocos::ProcessClient.new('localhost')
+                    client = Orocos::RemoteProcesses::Client.new(
+                        'localhost', options[:port], :root_loader => app.default_loader)
                     register_process_server(name, client, app.log_dir)
                     return client
                 end
@@ -550,11 +567,6 @@ module Syskit
                 elsif process_servers[name]
                     raise ArgumentError, "we are already connected to a process server called #{name}"
                 end
-
-                options = Kernel.validate_options options,
-                    :port => Orocos::RemoteProcesses::DEFAULT_PORT,
-                    :log_dir => 'logs',
-                    :result_dir => 'results'
 
                 port = options[:port]
                 if host =~ /^(.*):(\d+)$/
@@ -566,20 +578,15 @@ module Syskit
                     self.disables_local_process_server = true
                 end
 
-                client = Orocos::ProcessClient.new(host, port)
+                client = Orocos::RemoteProcesses::Client.new(
+                    host, port, :root_loader => app.default_loader)
                 client.save_log_dir(options[:log_dir], options[:result_dir])
                 client.create_log_dir(options[:log_dir], Roby.app.time_tag)
                 register_process_server(name, client, options[:log_dir])
                 client
             end
 
-            ProcessServerConfig = Struct.new :name, :client, :log_dir, :callback do
-                def loader
-                    if client
-                        client.loader
-                    end
-                end
-            end
+            ProcessServerConfig = Struct.new :name, :client, :log_dir
 
             # Make a process server available to syskit
             #
@@ -594,9 +601,6 @@ module Syskit
                 end
 
                 ps = ProcessServerConfig.new(name, client, log_dir)
-                ps.callback = ps.loader.on_project_load do |project|
-                    app.project_define_from_orogen(project)
-                end
                 process_servers[name] = ps
                 reload_deployments_for(name)
                 ps
@@ -615,8 +619,8 @@ module Syskit
             def reload_deployments_for(process_server_name)
                 pending_deployments = clear_deployments_for(process_server_name)
                 pending_deployments.each do |d|
-                    app.using_task_library(d.model.orogen_model.project.name, :on => process_server_name)
-                    model = app.using_deployment(d.model.orogen_model.name, :on => process_server_name)
+                    app.using_task_library(d.model.orogen_model.project.name)
+                    model = app.using_deployment(d.model.orogen_model.name)
                     d = Models::ConfiguredDeployment.new(
                         process_server_name, model,
                         d.name_mappings, d.process_name, d.spawn_options)
@@ -655,7 +659,7 @@ module Syskit
                     raise ArgumentError, "there is no registered process server called #{name}"
                 end
 
-                ps.loader.remove_project_load_callback(ps.callback)
+                app.default_loader.remove ps.client.loader
                 clear_deployments_for(name)
                 if app.simulation? && process_servers["#{name}-sim"]
                     remove_process_server("#{name}-sim")

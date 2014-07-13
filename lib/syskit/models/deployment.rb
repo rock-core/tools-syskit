@@ -53,7 +53,7 @@ module Syskit
 
                 klass = super(options) do
                     self.orogen_model = model[:orogen_model] ||
-                        OroGen::Spec::Deployment.new(Orocos.default_project, options[:name])
+                        Models.create_orogen_deployment_model(options[:name])
                     if block
                         self.orogen_model.instance_eval(&block)
                     end

@@ -4,8 +4,28 @@ module Syskit
         # It adds the configuration facilities needed to plug-in orogen projects
         # in Roby.
         module Plugin
-            def orogen_loader
-                Orocos.default_loader
+            def default_loader
+                if !@default_loader
+                    @default_loader = Orocos.default_loader
+                    default_loader.on_project_load do |project|
+                        project_define_from_orogen(project)
+                    end
+                    orogen_pack_loader
+                    ros_loader
+                end
+                @default_loader
+            end
+
+            def orogen_pack_loader
+                @orogen_pack_loader ||= OroGen::Loaders::Files.new(default_loader)
+            end
+
+            def ros_loader
+                @ros_loader ||= OroGen::ROS::Loader.new(default_loader)
+            end
+
+            def default_orogen_project
+                @default_orogen_project ||= OroGen::Spec::Project.new(default_loader)
             end
 
             def syskit_engine
@@ -97,21 +117,17 @@ module Syskit
             # Loads all available oroGen projects
             def auto_load_all_task_libraries
                 self.auto_load_all_task_libraries = true
-                Orocos.default_loader.each_available_project_name do |name|
+                default_loader.each_available_project_name do |name|
                     using_task_library(name)
                 end
             end
 
             def self.setup_loaders(app)
-                if Syskit.conf.use_only_model_pack?
-                    Orocos.default_loader.remove Orocos.default_pkgconfig_loader
-                end
-
                 all_files =
                     app.find_files_in_dirs("models", "ROBOT", "pack", "orogen", :all => app.auto_load_all?, :order => :specific_first, :pattern => /\.orogen$/)
                 all_files.reverse.each do |path|
                     name = File.basename(path, ".orogen")
-                    Orocos.default_file_loader.register_orogen_file path, name
+                    app.orogen_pack_loader.register_orogen_file path, name
                 end
 
                 all_files =
@@ -119,18 +135,25 @@ module Syskit
                 all_files.reverse.each do |path|
                     name = File.basename(path, ".typelist")
                     dir  = File.dirname(path)
-                    Orocos.default_file_loader.register_typekit dir, name
+                    app.orogen_pack_loader.register_typekit dir, name
                 end
 
-                Orocos::ROS.default_loader.
-                    search_path.concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => app.auto_load_all?, :order => :specific_first))
-                Orocos::ROS.default_loader.
-                    packs.concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
+                app.ros_loader.search_path.
+                    concat(Roby.app.find_dirs('models', 'ROBOT', 'orogen', 'ros', :all => app.auto_load_all?, :order => :specific_first))
+                app.ros_loader.packs.
+                    concat(Roby.app.find_dirs('models', 'ROBOT', 'pack', 'ros', :all => true, :order => :specific_last))
             end
 
             # Called by the main Roby application on setup. This is the first
             # configuration step.
             def self.setup(app)
+                # We have our own loader, avoid clashing
+                Orocos.default_loader.export_types = false
+                # But, for the time being, default_loader might be equal to
+                # Orocos.default_loader, so reset the export_types flag to the
+                # desired value
+                app.default_loader.export_types = Syskit.conf.export_types?
+
                 # This is a HACK. We should be able to specify it differently
                 if app.testing? && app.auto_load_models?
                     app.auto_load_all_task_libraries = true
@@ -148,10 +171,10 @@ module Syskit
                 NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
 
                 Syskit.conf.register_process_server(
-                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(Orocos.default_loader), app.log_dir)
+                    'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(app.default_loader), app.log_dir)
 
                 Syskit.conf.register_process_server(
-                    'ros', Orocos::ROS::ProcessManager.new, app.log_dir)
+                   'ros', Orocos::ROS::ProcessManager.new(app.ros_loader), app.log_dir)
 
                 ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
                 if Syskit.conf.only_load_models?
@@ -178,11 +201,11 @@ module Syskit
                 if start_local_process_server
                     start_local_process_server(:redirect => Syskit.conf.redirect_local_process_server?)
                 else
-                    fake_client = Configuration::ModelOnlyServer.new(Orocos.default_loader)
+                    fake_client = Configuration::ModelOnlyServer.new(app.default_loader)
                     Syskit.conf.register_process_server('localhost', fake_client, app.log_dir)
                 end
 
-                rtt_core_model = app.orogen_loader.task_model_from_name("RTT::TaskContext")
+                rtt_core_model = app.default_loader.task_model_from_name("RTT::TaskContext")
                 Syskit::TaskContext.define_from_orogen(rtt_core_model, :register => true)
 
                 if !app.additional_model_files.empty?
@@ -234,7 +257,7 @@ module Syskit
 
             # Loads the required typekit model by its name
             def import_types_from(typekit_name)
-                orogen_loader.typekit_model_from_name(typekit_name)
+                default_loader.typekit_model_from_name(typekit_name)
             end
 
             # Load the specified oroGen project and register the task contexts
@@ -242,15 +265,13 @@ module Syskit
             #
             # @return [OroGen::Spec::Project]
             def using_task_library(name, options = Hash.new)
-                options = Kernel.validate_options options, :on => 'localhost'
-                server = Syskit.conf.process_server_for(options[:on])
-                # The loader hooks will make sure that the models get defined
-                server.loader.project_model_from_name(name)
+                options = Kernel.validate_options options, :loader => default_loader
+                options[:loader].project_model_from_name(name)
             end
 
             # Loads the required ROS package
             def using_ros_package(name, options = Hash.new)
-                options = Kernel.validate_options options, :on => 'ros'
+                options = Kernel.validate_options options, :loader => ros_loader
                 using_task_library(name, options)
             end
 
@@ -329,15 +350,14 @@ module Syskit
             #   the model for the deployment will be loaded from that process
             #   server
             def using_deployment(name, options = Hash.new)
-                options = Kernel.validate_options options, :on => 'localhost'
-                server   = Syskit.conf.process_server_for(options[:on])
-                deployer = server.loader.deployment_model_from_name(name)
+                options = Kernel.validate_options options, :loader => default_loader
+                deployer = options[:loader].deployment_model_from_name(name)
                 deployment_define_from_orogen(deployer)
             end
 
             # Loads the oroGen deployment model based on a ROS launcher file
             def using_ros_launcher(name, options = Hash.new)
-                options = Kernel.validate_options options, :on => 'ros'
+                options = Kernel.validate_options options, :loader => ros_loader
                 using_deployment(name, options)
             end
 
@@ -425,9 +445,7 @@ module Syskit
             def self.clear_models(app)
                 app.loaded_orogen_projects.clear
 
-                Syskit.conf.each_process_server do |ps|
-                    ps.loader.clear
-                end
+                app.default_loader.clear
                 Syskit::Actions::Profile.clear_model
 
                 # We need to explicitly call Orocos.clear even though it looks
@@ -521,4 +539,5 @@ module Syskit
         end
     end
 end
+Roby::Application.include Syskit::RobyApp::Plugin
 Syskit::RobyApp::Plugin.toplevel_object = self

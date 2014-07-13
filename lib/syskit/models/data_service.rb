@@ -19,13 +19,13 @@ module Syskit
             end
 
             def initialize
-                @orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project)
+                @orogen_model = Models.create_orogen_task_context_model
                 super
             end
 
             def clear_model
                 super
-                @orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project)
+                @orogen_model = Models.create_orogen_task_context_model
                 port_mappings.clear
             end
 

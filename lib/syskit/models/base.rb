@@ -143,6 +143,14 @@ module Syskit
         def self.is_model?(m)
             m.kind_of?(Syskit::Models::Base)
         end
+
+        def self.create_orogen_task_context_model(*args)
+            OroGen::Spec::TaskContext.new(Roby.app.default_orogen_project, *args)
+        end
+
+        def self.create_orogen_deployment_model(*args)
+            OroGen::Spec::Deployment.new(Roby.app.default_orogen_project, *args)
+        end
     end
 end
 

@@ -8,8 +8,8 @@ describe Syskit::RobyApp::Configuration do
         before do
             @task_m = Syskit::TaskContext.new_submodel
             @conf = Syskit::RobyApp::Configuration.new(Roby.app)
-            conf.register_process_server('localhost', Orocos::RubyProcessServer.new, "")
-            conf.register_process_server('test', Orocos::RubyProcessServer.new, "")
+            conf.register_process_server('localhost', Orocos::RubyProcessServer.new(Roby.app.default_loader), "")
+            conf.register_process_server('test', Orocos::RubyProcessServer.new(Roby.app.default_loader), "")
         end
 
         def stub_deployment(name)

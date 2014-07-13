@@ -21,13 +21,17 @@ module Syskit
         attr_reader :robot
 
 
+        def data_dir
+            File.join(SYSKIT_ROOT_DIR, "test", "data")
+        end
+
         def setup
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
             Roby.app.app_dir = nil
             Roby.app.search_path.clear
             ENV['ROBY_PLUGIN_PATH'] = File.expand_path(File.join(File.dirname(__FILE__), '..', 'roby_app', 'register_plugin.rb'))
             Roby.app.using 'syskit'
-            Orocos.export_types = false
+            Roby.app.default_loader.export_types = false
             Syskit.conf.disables_local_process_server = true
             Syskit.conf.only_load_models = true
 
