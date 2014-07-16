@@ -31,13 +31,14 @@ module Syskit
             attr_predicate :use_only_model_pack?, true
             # Controls whether the orogen types should be exported as Ruby
             # constants
-            attr_predicate :export_types?
+            attr_predicate :export_types?, true
 
             # Controls whether the orogen types should be exported as Ruby
             # constants
             #
             # @param [Boolean] flag
             def export_types=(flag)
+                @export_types = flag
                 app.default_loader.export_types = flag
             end
 
