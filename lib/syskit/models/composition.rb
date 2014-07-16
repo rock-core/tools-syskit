@@ -681,14 +681,14 @@ module Syskit
                     child_name = port.component_model.child_name
                     if child_task = children_tasks[child_name]
                         child = selected_children[child_name]
-                        self_task.forward_ports(child_task, [export_name, child.port_mappings[port.actual_name]] => Hash.new)
+                        self_task.forward_ports(child_task, [export_name, child.port_mappings[port.name]] => Hash.new)
                     end
                 end
                 each_exported_output do |export_name, port|
                     child_name = port.component_model.child_name
                     if child_task = children_tasks[child_name]
                         child = selected_children[child_name]
-                        child_task.forward_ports(self_task, [child.port_mappings[port.actual_name], export_name] => Hash.new)
+                        child_task.forward_ports(self_task, [child.port_mappings[port.name], export_name] => Hash.new)
                     end
                 end
             end
@@ -1043,7 +1043,7 @@ module Syskit
             # {#promote_exported_input}
             def promote_exported_port(export_name, port)
                 if new_child = children[port.component_model.child_name]
-                    if new_port_name = new_child.port_mappings[port.actual_name]
+                    if new_port_name = new_child.port_mappings[port.name]
                         find_child(port.component_model.child_name).find_port(new_port_name).dup
                     else
                         port
