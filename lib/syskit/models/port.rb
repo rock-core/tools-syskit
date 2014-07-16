@@ -89,10 +89,6 @@ module Syskit
                 end
             end
 
-            def actual_name
-                orogen_model.name
-            end
-
             def respond_to?(m, *args)
                 super || orogen_model.respond_to?(m, *args)
             end
