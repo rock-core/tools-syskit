@@ -211,7 +211,7 @@ module Syskit
                     if self <= model
                         mappings = Hash.new
                         model.each_port do |port|
-                            mappings[port.name] = port.name
+                            mappings[port.actual_name] = port.name
                         end
                         mappings
                     else
