@@ -238,6 +238,49 @@ describe Syskit::Models::Composition do
                 assert !simple_composition_model.exported_port?(simple_composition_model.srv2_child.srv_in_port)
             end
         end
+
+        it "allows to export the port from a composition child" do
+            srv = Syskit::DataService.new_submodel do
+                output_port 'test', 'double'
+            end
+            
+            child_cmp = Syskit::Composition.new_submodel
+            child_cmp.add srv, :as => 'child_cmp'
+            child_cmp.export child_cmp.child_cmp_child.test_port, :as => 'child_cmp'
+
+            cmp = Syskit::Composition.new_submodel
+            cmp.add child_cmp, :as => 'cmp'
+            cmp.export cmp.cmp_child.child_cmp_port, :as => 'cmp'
+
+            cmp_task       = cmp.instanciate(plan)
+            child_cmp_task = cmp_task.cmp_child
+            test_srv_task  = child_cmp_task.child_cmp_child
+
+            assert_equal Hash[['test','child_cmp'] => Hash.new], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['child_cmp','cmp'] => Hash.new], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
+        end
+
+        it "allows to export the port from a composition child's service" do
+            srv = Syskit::DataService.new_submodel do
+                output_port 'test', 'double'
+            end
+            
+            child_cmp = Syskit::Composition.new_submodel
+            child_cmp.add srv, :as => 'child_cmp'
+            child_cmp.export child_cmp.child_cmp_child.test_port, :as => 'child_cmp'
+            child_cmp.provides srv, :as => 'test'
+
+            cmp = Syskit::Composition.new_submodel
+            cmp.add child_cmp, :as => 'cmp'
+            cmp.export cmp.cmp_child.test_srv.test_port, :as => 'cmp'
+
+            cmp_task       = cmp.instanciate(plan)
+            child_cmp_task = cmp_task.cmp_child
+            test_srv_task  = child_cmp_task.child_cmp_child
+
+            assert_equal Hash[['test','child_cmp'] => Hash.new], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
+            assert_equal Hash[['child_cmp','cmp'] => Hash.new], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
+        end
     end
 
     describe "#find_children_models_and_tasks" do
