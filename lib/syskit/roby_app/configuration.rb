@@ -324,7 +324,12 @@ module Syskit
 
             # Declare deployed versions of some Ruby tasks
             def use_ruby_tasks(mappings)
-                use_deployments(mappings.merge(:on => 'ruby_tasks'))
+                mappings.each do |task_model, name|
+                    deployment_model = task_model.deployment_model(name)
+                    configured_deployment = Models::ConfiguredDeployment.
+                        new('ruby_tasks', deployment_model, Hash[name => name], name, Hash.new)
+                    register_configured_deployment(configured_deployment)
+                end
             end
 
             # Add the given deployment (referred to by its process name, that is
