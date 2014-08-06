@@ -2,6 +2,8 @@ require 'orocos'
 require 'metaruby'
 require 'metaruby/dsls/find_through_method_missing'
 require 'orocos/process_server'
+require 'orocos/remote_processes/protocol'
+require 'orocos/ruby_tasks/process_manager'
 require 'roby'
 require 'orogen'
 
