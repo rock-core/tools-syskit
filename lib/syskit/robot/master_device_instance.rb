@@ -24,6 +24,11 @@ module Syskit
                 "#{name}[#{model.short_name}]"
             end
 
+            def pretty_print(pp)
+                pp.text = "MasterDeviceInstance(#{sort_name}_dev)"
+            end
+
+
             # The driver for this device
             # @return [BoundDataService]
             attr_reader :driver_model
