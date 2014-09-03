@@ -25,7 +25,7 @@ module Syskit
             end
 
             def pretty_print(pp)
-                pp.text = "MasterDeviceInstance(#{sort_name}_dev)"
+                pp.text "MasterDeviceInstance(#{short_name}_dev)"
             end
 
 
