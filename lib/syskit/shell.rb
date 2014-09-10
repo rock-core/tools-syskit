@@ -42,7 +42,7 @@ module Syskit
                 TaskContext.configured.each do |task_name, (orogen_model, current_conf)|
                     changed_conf = changed[orogen_model.name]
                 if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
-                    Robot.info "task #{task_name} needs reconfiguration"
+                    ::Robot.info "task #{task_name} needs reconfiguration"
                     TaskContext.needs_reconfiguration << task_name
                 end
                 end
