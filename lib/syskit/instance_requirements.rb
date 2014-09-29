@@ -14,15 +14,15 @@ module Syskit
             # The model selection that can be used to instanciate this task, as
             # a DependencyInjection object
             attr_reader :selections
-            protected :selections
+            #protected :selections
             # A DI context that should be used to instanciate this task
             attr_reader :dependency_injection_context
-            protected :dependency_injection_context
+            #protected :dependency_injection_context
             # The set of pushed selections
             #
             # @see push_selections
             attr_reader :pushed_selections
-            protected :pushed_selections
+            #protected :pushed_selections
 
             # A set of hints for deployment disambiguation
             #
