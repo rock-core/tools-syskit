@@ -73,7 +73,7 @@ module Syskit
             def to_s # :nodoc:
                 explicit = self.explicit.map { |k, v| [k.to_s, v.to_s] }.sort_by(&:first).map { |k, v| "#{k} => #{v}" }
                 defaults = self.defaults.map(&:to_s)
-                "#{defaults.concat(explicit).join(", ")}"
+                "#{defaults.concat(explicit).join(",\n")}"
             end
 
             def pretty_print(pp)
