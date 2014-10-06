@@ -57,7 +57,7 @@ module Syskit
             end
 
             def to_s
-                "Profile(#{name}, uses: #{used_profiles.map(&:name)}, di: #{dependency_injection}, defs: #{definitions.keys.sort.join(",")})"
+                "\n\nProfile(#{name}, \n\nuses:\n#{used_profiles.map(&:name)}, \n\ndi:\n#{dependency_injection}, \n\ndefs:\n#{definitions.keys.sort.join(",")})"
             end
 
             # Adds the given profile DI information and registered definitions
@@ -103,7 +103,7 @@ module Syskit
             def definition(name)
                 req = definitions[name]
                 if !req
-                    raise ArgumentError, "#{self} has no definition called #{name}"
+                    raise ArgumentError, "#{self}\n\n\e[31m has no definition called:\e[0m #{name}"
                 end
                 req.dup
             end
