@@ -507,7 +507,7 @@ module Syskit
                 # Check that all devices are properly assigned
                 missing_devices = all_tasks.find_all do |t|
                     t.model < Device &&
-                        t.model.each_master_driver_service.any? { |srv| !t.find_device_attached_to(srv) }
+                        t.model.each_master_driver_service.all? { |srv| !t.find_device_attached_to(srv) }
                 end
                 if !missing_devices.empty?
                     raise DeviceAllocationFailed.new(self, missing_devices),
