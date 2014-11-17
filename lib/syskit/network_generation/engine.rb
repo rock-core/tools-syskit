@@ -311,16 +311,6 @@ module Syskit
                 _, model, _ = leaf_task.requirements.resolved_dependency_injection.selection_for(nil, requirements)
                 if model && dev = model.arguments[argument_name]
                     return dev
-                else
-                    devices = Set.new
-                    leaf_task.each_parent_task do |parent|
-                        if sel = find_selected_device_in_hierarchy(argument_name, parent, requirements)
-                            devices << sel
-                        end
-                    end
-                    if devices.size == 1
-                        return devices.first
-                    end
                 end
             end
 
