@@ -274,6 +274,10 @@ module Syskit
                 device_model.each_fullfilled_model(&block)
             end
 
+            def fullfills?(ds)
+                device_model.fullfills?(ds)
+            end
+
             DRoby = Struct.new :name, :device_model, :driver_model do
                 def proxy(peer)
                     MasterDeviceInstance.new(nil, name, peer.local_object(device_model), Hash.new, peer.local_object(driver_model), Hash.new)
