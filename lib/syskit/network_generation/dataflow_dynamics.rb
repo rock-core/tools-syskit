@@ -246,6 +246,10 @@ module Syskit
             def initial_device_information_common(task, triggering_devices)
                 triggering_devices.each do |service, device|
                     DataFlowDynamics.debug { "  #{device.name}: #{device.period} #{device.burst}" }
+                    if not device
+                        DataFlowDynamics.warn { "  No device, skipping" }
+                        next
+                    end
                     device_dynamics = PortDynamics.new(device.name, 1)
                     if device.period
                         device_dynamics.add_trigger(device.name, device.period, 1)
