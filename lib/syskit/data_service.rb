@@ -90,10 +90,13 @@ module Syskit
                     elsif driver_services.size > 1
                         raise ArgumentError, "#{self} handles more than one device, you must specify one of #{driver_services.map(&:name).sort.join(", ")} explicitely"
                     end
-                    service = driver_services.first
+                    service = driver_services.find do |driver_service|
+                        service == driver_service
+                    end
+                    
                 end
 
-                arguments["#{service.name}_dev"]
+                arguments["dev"]
             end
 
             # Alias for #find_device_attached_to for user code

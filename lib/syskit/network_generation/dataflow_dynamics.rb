@@ -220,7 +220,9 @@ module Syskit
             # Adds triggering information from the attached devices to +task+'s ports
             def initial_device_information(task)
                 triggering_devices = task.model.each_master_driver_service.map do |srv|
-                    [srv, task.find_device_attached_to(srv)]
+                    if(task.find_device_attached_to(srv))
+                        [srv, task.find_device_attached_to(srv)]
+                    end
                 end
                 DataFlowDynamics.debug do
                     DataFlowDynamics.debug "initial port dynamics on #{task} (device)"
