@@ -8,7 +8,7 @@ module Syskit::GUI
             def initialize(page)
                 super()
                 @page = page
-                @type_rendering = Orocos::HTML::Type.new(page)
+                @type_rendering = OroGen::HTML::Type.new(page)
             end
 
             def enable
