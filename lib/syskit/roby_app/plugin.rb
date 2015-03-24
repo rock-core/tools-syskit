@@ -255,6 +255,14 @@ module Syskit
                 end
             end
 
+            def self.load_default_models(app)
+                ['services.rb', 'devices.rb', 'compositions.rb', 'profiles.rb'].each do |root_file|
+                    if path = app.find_file('models', root_file, order: :specific_first)
+                        require path
+                    end
+                end
+            end
+
             # Loads the required typekit model by its name
             def import_types_from(typekit_name)
                 default_loader.typekit_model_from_name(typekit_name)
