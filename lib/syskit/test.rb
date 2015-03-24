@@ -14,22 +14,22 @@ require 'syskit/test/component_test'
 require 'syskit/test/task_context_test'
 
 module Syskit
-    MiniTest::Spec.register_spec_type Syskit::Test::Spec do |desc|
+    Minitest::Spec.register_spec_type Syskit::Test::Spec do |desc|
         desc.kind_of?(Syskit::Models::DataServiceModel)
     end
-    MiniTest::Spec.register_spec_type Syskit::Test::ActionTest do |desc|
+    Minitest::Spec.register_spec_type Syskit::Test::ActionTest do |desc|
         desc.kind_of?(Roby::Actions::Models::Action) || desc.kind_of?(Roby::Actions::Action)
     end
-    MiniTest::Spec.register_spec_type Syskit::Test::TaskContextTest do |desc|
+    Minitest::Spec.register_spec_type Syskit::Test::TaskContextTest do |desc|
         (desc.kind_of?(Class) && desc <= Syskit::TaskContext)
     end
-    MiniTest::Spec.register_spec_type Syskit::Test::ComponentTest do |desc|
+    Minitest::Spec.register_spec_type Syskit::Test::ComponentTest do |desc|
         (desc.kind_of?(Class) && desc <= Syskit::Component && !(desc <= Syskit::TaskContext))
     end
-    MiniTest::Spec.register_spec_type Syskit::Test::ProfileTest do |desc|
+    Minitest::Spec.register_spec_type Syskit::Test::ProfileTest do |desc|
         desc.kind_of?(Syskit::Actions::Profile)
     end
-    MiniTest::Spec.register_spec_type Syskit::Test::ActionInterfaceTest do |desc|
+    Minitest::Spec.register_spec_type Syskit::Test::ActionInterfaceTest do |desc|
         (desc.kind_of?(Class) && desc <= Roby::Actions::Interface)
     end
 end
