@@ -74,6 +74,7 @@ module Syskit
             @task_stubs.each do |t|
                 t.dispose
             end
+            Syskit.conf.remove_process_server('stubs')
 
         ensure
             Orocos.logger.level = @old_loglevel if @old_loglevel
