@@ -644,7 +644,7 @@ describe Syskit::TaskContext do
             device_m = Syskit::Device.new_submodel
             task_m.driver_for device_m, :as => 'test'
             dev = robot.device(device_m, :as => 'test').
-                use_deployments(device_hint)
+                prefer_deployed_tasks(device_hint)
 
             task = task_m.new("test_dev" => dev)
             task.requirements.deployment_hints << component_hint
