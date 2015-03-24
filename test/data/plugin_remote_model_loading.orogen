@@ -1,0 +1,8 @@
+name 'plugin_remote_model_loading'
+
+task_context 'Task' do
+end
+
+deployment 'plugin_remote_model_loading' do
+    task 'task', 'Task'
+end
