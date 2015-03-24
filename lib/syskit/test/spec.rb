@@ -1,6 +1,8 @@
 module Syskit
     module Test
         class Spec < Roby::Test::Spec
+            include Test::Base
+
             def setup
                 super
                 Syskit.conf.disable_logging
