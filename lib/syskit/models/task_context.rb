@@ -2,22 +2,6 @@
 module OroGen
 end
 
-class Object
-    def self.const_missing(name)
-        if OroGen.const_defined_here?(name)
-            Syskit.warn "accessing an OroGen task context model from the root namespace"
-            Syskit.warn "This is deprecated, access it from the OroGen namespace instead"
-            Syskit.warn "I.e. OroGen::#{name} instead of simply #{name}"
-            caller.each do |entry|
-                Syskit.warn "  #{entry}"
-            end
-            OroGen.const_get(name)
-        else
-            super
-        end
-    end
-end
-
 module Syskit
     module Models
         # This module contains the model-level API for the task context models
@@ -42,6 +26,23 @@ module Syskit
                     end
                 end
                 true
+            end
+
+            def clear_model
+                super
+
+                if name = self.name
+                    return if name !~ /^OroGen::/
+                    name = name.gsub(/^OroGen::/, '')
+                    begin
+                        if constant("::#{name}") == self
+                            spacename = self.spacename.gsub(/^OroGen::/, '')
+                            constant("::#{spacename}").send(:remove_const, basename)
+                        end
+                    rescue NameError
+                        false
+                    end
+                end
             end
 
             # Generates a hash of oroGen-level state names to Roby-level event
@@ -115,6 +116,7 @@ module Syskit
                 orogen_model = model.orogen_model
 
                 namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
+                register_syskit_model(Object, namespace, basename, model)
                 register_syskit_model(OroGen, namespace, basename, model)
             end
 

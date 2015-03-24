@@ -110,10 +110,10 @@ describe Syskit::Models::TaskContext do
         end
 
         it "deregisters models on its child classs" do
-            m1 = RTT::TaskContext.new_submodel
-            assert RTT::TaskContext.submodels.include?(m1)
+            m1 = OroGen::RTT::TaskContext.new_submodel
+            assert OroGen::RTT::TaskContext.submodels.include?(m1)
             m11 = m1.new_submodel
-            RTT::TaskContext.clear_submodels
+            OroGen::RTT::TaskContext.clear_submodels
             assert !m1.submodels.include?(m11)
             assert !Syskit::Component.submodels.include?(m1)
             assert !Syskit::TaskContext.submodels.include?(m1)
@@ -188,7 +188,7 @@ describe Syskit::Models::TaskContext do
         it "calls new_submodel to create the new model" do
             model = Syskit::TaskContext.new_submodel
             orogen = OroGen::Spec::TaskContext.new(Orocos.default_project)
-            flexmock(RTT::TaskContext).should_receive(:new_submodel).with(:orogen_model => orogen).once.and_return(model)
+            flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel).with(:orogen_model => orogen).once.and_return(model)
             assert_same model, Syskit::TaskContext.define_from_orogen(orogen)
         end
 
