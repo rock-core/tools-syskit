@@ -1,7 +1,7 @@
 require 'roby/app/gen'
-class SrvGenerator < Roby::App::GenModelClass
+class DevGenerator < Roby::App::GenModelClass
     def initialize(runtime_args, runtime_options = Hash.new)
-        @model_type = 'services'
+        @model_type = 'devices'
         super
     end
 

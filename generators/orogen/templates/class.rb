@@ -1,4 +1,4 @@
-<% classes.each do |class_name| %>class <%= class_name.join("::") %>
+<% classes.each do |class_name| %>class OroGen::<%= class_name.join("::") %>
     # Customizes the configuration step.
     #
     # The orocos task is available from orocos_task

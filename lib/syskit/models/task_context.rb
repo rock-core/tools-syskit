@@ -1,3 +1,23 @@
+# Module where all the OroGen task context models get registered
+module OroGen
+end
+
+class Object
+    def self.const_missing(name)
+        if OroGen.const_defined_here?(name)
+            Syskit.warn "accessing an OroGen task context model from the root namespace"
+            Syskit.warn "This is deprecated, access it from the OroGen namespace instead"
+            Syskit.warn "I.e. OroGen::#{name} instead of simply #{name}"
+            caller.each do |entry|
+                Syskit.warn "  #{entry}"
+            end
+            OroGen.const_get(name)
+        else
+            super
+        end
+    end
+end
+
 module Syskit
     module Models
         # This module contains the model-level API for the task context models
@@ -95,11 +115,16 @@ module Syskit
                 orogen_model = model.orogen_model
 
                 namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
+                register_syskit_model(OroGen, namespace, basename, model)
+            end
+
+            def register_syskit_model(mod, namespace, basename, model)
+                # For backward compatibility only
                 namespace =
-                    if Object.const_defined_here?(namespace)
-                        Object.const_get(namespace)
+                    if mod.const_defined_here?(namespace)
+                        mod.const_get(namespace)
                     else 
-                        Object.const_set(namespace, Module.new)
+                        mod.const_set(namespace, Module.new)
                     end
 
                 if namespace.const_defined_here?(basename)

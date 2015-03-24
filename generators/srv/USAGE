@@ -4,8 +4,11 @@ in/this/form or In::This::Form. It is not necessary to add the bundle namespace
 in front (it gets added automatically)
 
 Example: running the following command in a rock_auv app
-  roby gen srv sensors/depth_srv
+  roby gen srv sensors/depth
 
-  will generate a RockAuv::Sensors::DepthSrv data service in
-  models/blueprints/sensors/depth_srv.rb. No test file are generated as there is
+  will generate a RockAuv::Services::Sensors::Depth data service in
+  models/services/sensors/depth.rb. No test file are generated as there is
   nothing to test in a data service
+
+  The files up in the hierarchy (here models/services/sensors.rb) are updated to
+  require the new file(s)
