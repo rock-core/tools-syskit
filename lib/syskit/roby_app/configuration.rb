@@ -54,7 +54,7 @@ module Syskit
                 @default_logging_buffer_size = 25
                 @reject_ambiguous_deployments = true
                 @auto_configure = true
-                @only_load_models = false
+                @only_load_models = nil
                 @disables_local_process_server = false
                 @start_all_deployments = false
                 @local_only = false
@@ -230,7 +230,17 @@ module Syskit
             # which case we don't need to waste time initializing the layer.
             #
             # Set this value to true to avoid initializing the CORBA layer
-            attr_predicate :only_load_models?, true
+            def only_load_models=(flag)
+                @only_load_models = flag
+            end
+
+            def only_load_models?
+                if @only_load_models.nil?
+                    app.modelling_only?
+                else
+                    @only_load_models
+                end
+            end
 
             # In normal operations, a local proces server called 'localhost' is
             # automatically started on the local machine. If this predicate is
