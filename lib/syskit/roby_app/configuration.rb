@@ -1,4 +1,5 @@
 require 'orocos/ruby_process_server'
+require 'orocos/remote_processes/client'
 module Syskit
     module RobyApp
         # Syskit engine configuration interface
