@@ -234,6 +234,14 @@ module Syskit
 
             def to_component_model; self end
 
+            # Delegated call from {Port#connected?}
+            #
+            # Always returns false as "plain" data service ports cannot be
+            # connected
+            def connected?(out_port, in_port)
+                false
+            end
+
             # Create a task instance that can be used in a plan to represent
             # this service
             #

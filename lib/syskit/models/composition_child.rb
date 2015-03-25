@@ -83,6 +83,22 @@ module Syskit
                 Syskit.connect(self, sink, policy)
             end
 
+            # Tests whether the two ports are connected
+            #
+            # This is a delegated call from Port#connected_to?. Always use the
+            # former unless you know what you are doing
+            def connected?(in_port, out_port)
+                if !out_port.component_model.respond_to?(:composition_model)
+                    return false
+                elsif composition_model != out_port.component_model.composition_model
+                    return false
+                end
+
+                cmp_connections = composition_model.
+                    explicit_connections[[child_name, out_port.component_model.child_name]]
+                cmp_connections.has_key?([in_port.name,out_port.name])
+            end
+
             # (see Component#connect_ports)
             def connect_ports(other_component, connections)
                 if !other_component.respond_to?(:composition_model)

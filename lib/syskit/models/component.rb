@@ -735,6 +735,14 @@ module Syskit
                 end
             end
 
+            # Delegated call from {Port#connected?}
+            #
+            # Always returns false as "plain" component ports cannot be
+            # connected
+            def connected?(out_port, in_port)
+                false
+            end
+
             # [Hash{Array<DataService> => Models::Task}] a cache of models
             # creates in #proxy_task_model
             attribute(:proxy_task_models) { Hash.new }

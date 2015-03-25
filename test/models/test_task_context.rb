@@ -326,4 +326,16 @@ describe Syskit::Models::TaskContext do
             assert task_m.has_dynamic_output_port?('test', intermediate_t)
         end
     end
+
+    describe "Port#connected?" do
+        it "returns false" do
+            m0 = Syskit::TaskContext.new_submodel do
+                output_port 'out', 'int'
+            end
+            m1 = Syskit::TaskContext.new_submodel do
+                input_port 'in', 'int'
+            end
+            assert !m0.out_port.connected_to?(m1.in_port)
+        end
+    end
 end
