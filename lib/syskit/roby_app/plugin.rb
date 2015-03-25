@@ -1,3 +1,23 @@
+class Module
+    def backward_compatible_constant(old_name, new_constant, file)
+        msg = "  #{self.name}::#{old_name} has been renamed to #{new_constant} and is now in #{file}"
+        if Syskit.conf.backward_compatible_naming?
+            Syskit.warn msg
+            require file
+            const_set old_name, constant(new_constant)
+        else
+            Syskit.error msg 
+            Syskit.error "set Syskit.conf.backward_compatible_naming = true to reenable. This option will be removed in the future, so start using the new name and file"
+        end
+    end
+end
+
+module Syskit
+    def self.warn_about_new_naming_convention
+        Syskit.warn 'We have finally adopted a systematic naming convention in Syskit, this led to files and classes to be renamed'
+    end
+end
+
 module Syskit
     module RobyApp
         # This gets mixed in Roby::Application when the orocos plugin is loaded.

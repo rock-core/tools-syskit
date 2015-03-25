@@ -116,7 +116,9 @@ module Syskit
                 orogen_model = model.orogen_model
 
                 namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
-                register_syskit_model(Object, namespace, basename, model)
+                if Syskit.conf.backward_compatible_naming?
+                    register_syskit_model(Object, namespace, basename, model)
+                end
                 register_syskit_model(OroGen, namespace, basename, model)
             end
 
