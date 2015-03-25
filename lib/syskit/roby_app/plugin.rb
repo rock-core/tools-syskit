@@ -254,6 +254,9 @@ module Syskit
                 search_path = app.auto_load_search_path
                 if app.auto_load_models?
                     all_files =
+                        app.find_files_in_dirs("models", "services", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                        app.find_files_in_dirs("models", "devices", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                        app.find_files_in_dirs("models", "compositions", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
                         app.find_files_in_dirs("models", "blueprints", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
                         app.find_files_in_dirs("models", "profiles", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/)
                    all_files.each do |path|
