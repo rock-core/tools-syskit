@@ -55,6 +55,9 @@ module Syskit
             if !Syskit.conf.disables_local_process_server?
                 Syskit::RobyApp::Plugin.connect_to_local_process_server
             end
+
+            Syskit.conf.register_process_server('stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+
         end
 
         def teardown

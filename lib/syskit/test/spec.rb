@@ -4,6 +4,7 @@ module Syskit
             include Test::Base
 
             def setup
+                Syskit.conf.register_process_server('stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
                 super
                 Syskit.conf.disable_logging
             end
@@ -18,6 +19,7 @@ module Syskit
                     Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                 end
                 super
+                Syskit.conf.remove_process_server('stubs')
             end
 
             # Create a stub device
