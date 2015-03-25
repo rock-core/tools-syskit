@@ -442,11 +442,13 @@ module Syskit
             end
 
 
+            def root_models
+                super + [Syskit::Component, Syskit::Actions::Profile]
+            end
+
             def self.clear_models(app)
                 app.loaded_orogen_projects.clear
-
                 app.default_loader.clear
-                Syskit::Actions::Profile.clear_model
 
                 # We need to explicitly call Orocos.clear even though it looks
                 # like clearing the process servers would be sufficient
@@ -465,9 +467,8 @@ module Syskit
 
                 # This needs to be cleared here and not in
                 # Component.clear_model. The main reason is that we need to
-                # clear them on every component model class. Some of them are
-                # therefore not reloaded by the regular Roby model-clearing
-                # mechanism
+                # clear them on every component model class,
+                # including the models that are markes as permanent
                 Syskit::Component.proxy_task_models.clear
                 Syskit::Component.each_submodel do |sub|
                     sub.proxy_task_models.clear

@@ -33,6 +33,17 @@ module Syskit
                 end
             end
 
+            # Whether this profile should be kept across app setup/cleanup
+            # cycles and during model reloading
+            attr_predicate :permanent_model?, true
+
+            # Defined here to make profiles look like models w.r.t. Roby's
+            # clear_model implementation
+            #
+            # It does nothing
+            def each_submodel
+            end
+
             # The call trace at the time of the profile definition
             attr_reader :definition_location
             # The profile name
@@ -75,6 +86,7 @@ module Syskit
             
             def initialize(name = nil)
                 @name = name
+                @permanent_model = false
                 @definitions = Hash.new
                 @tags = Hash.new
                 @used_profiles = Array.new
@@ -284,14 +296,19 @@ module Syskit
                 @dependency_injection = DependencyInjection.new
                 used_profiles.clear
                 super if defined? super
+
+                Profiles.profiles.delete(self)
             end
 
-            # Clear all registered profiles
+            # Defined here to make profiles look like models w.r.t. Roby's
+            # clear_model implementation
+            #
+            # It enumerates the profiles created so far
+            def self.each_submodel(&block)
+                profiles.each(&block)
+            end
+
             def self.clear_model
-                profiles.each do |prof|
-                    prof.clear_model
-                end
-                profiles.clear
             end
 
             def each_action
