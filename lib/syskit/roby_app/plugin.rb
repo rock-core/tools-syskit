@@ -265,7 +265,7 @@ module Syskit
             #
             # @return [OroGen::Spec::Project]
             def using_task_library(name, options = Hash.new)
-                options = Kernel.validate_options options, :loader => default_loader
+                options = Kernel.validate_options options, :loader => default_loader, :on => 'localhost'
                 options[:loader].project_model_from_name(name)
             end
 
