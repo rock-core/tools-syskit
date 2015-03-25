@@ -180,6 +180,12 @@ module Syskit
             end
             flunk("expected to get one new sample out of #{reader}, but got none")
         end
+
+        # Creates a new null type and returns it
+        def stub_type(name)
+            Roby.app.default_loader.
+                resolve_type(name, define_dummy_type: true)
+        end
     end
     end
 end
