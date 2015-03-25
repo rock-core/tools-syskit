@@ -350,7 +350,7 @@ module Syskit
             #   the model for the deployment will be loaded from that process
             #   server
             def using_deployment(name, options = Hash.new)
-                options = Kernel.validate_options options, :loader => default_loader
+                options = Kernel.validate_options options, :loader => default_loader, :on => "localhost"
                 deployer = options[:loader].deployment_model_from_name(name)
                 deployment_define_from_orogen(deployer)
             end
