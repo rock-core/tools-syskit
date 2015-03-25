@@ -15,6 +15,9 @@ require 'syskit/test/task_context_test'
 
 module Syskit
     Minitest::Spec.register_spec_type Syskit::Test::Spec do |desc|
+        desc.class == Module
+    end
+    Minitest::Spec.register_spec_type Syskit::Test::Spec do |desc|
         desc.kind_of?(Syskit::Models::DataServiceModel)
     end
     Minitest::Spec.register_spec_type Syskit::Test::ActionTest do |desc|
