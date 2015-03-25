@@ -126,6 +126,13 @@ module Syskit
                 result
             end
 
+            # Tests whether self already provides another service
+            #
+            # @param [Model<DataService>]
+            def provides?(srv)
+                parent_models.include?(srv)
+            end
+
             # Declares that this data service model provides the given service
             # model
             #

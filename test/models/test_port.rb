@@ -71,6 +71,44 @@ describe Syskit::Models::Port do
             end
         end
     end
+    
+    describe "#can_connect_to?" do
+        attr_reader :srv_out, :srv_in
+        before do
+            @srv_out = Syskit::DataService.new_submodel do
+                output_port 'int', 'int'
+                output_port 'dbl', 'double'
+            end
+            @srv_in = Syskit::DataService.new_submodel do
+                input_port 'int', 'int'
+                input_port 'dbl', 'double'
+            end
+        end
+        it "returns true if the two ports are compatible" do
+            assert srv_out.int_port.can_connect_to?(srv_in.int_port)
+        end
+        it "returns false if it is not a output/input connection" do
+            assert !srv_out.int_port.can_connect_to?(srv_out.int_port)
+            assert !srv_in.int_port.can_connect_to?(srv_in.int_port)
+            assert !srv_in.int_port.can_connect_to?(srv_out.int_port)
+        end
+        it "returns false if it the types differ" do
+            assert !srv_out.int_port.can_connect_to?(srv_in.dbl_port)
+        end
+        it "returns true even if the types differ" do
+            assert !srv_out.int_port.can_connect_to?(srv_in.dbl_port)
+        end
+        it "tries to resolve the ports to component ports" do
+            component_in_port  = flexmock
+            component_out_port = flexmock
+            component_out_port.should_receive(:can_connect_to?).with(component_in_port).once.
+                and_return(true)
+            flexmock(srv_out.int_port).should_receive(:try_to_component_port).and_return(component_out_port)
+            flexmock(srv_in.int_port).should_receive(:try_to_component_port).and_return(component_in_port)
+
+            assert srv_out.int_port.can_connect_to?(srv_in.int_port)
+        end
+    end
 end
 
 
