@@ -265,7 +265,7 @@ module Syskit
             #
             # @return [OroGen::Spec::Project]
             def using_task_library(name, options = Hash.new)
-                options = Kernel.validate_options options, :loader => default_loader, :on => 'localhost'
+                options = Kernel.validate_options options, :loader => default_loader
                 options[:loader].project_model_from_name(name)
             end
 
@@ -344,13 +344,8 @@ module Syskit
 
             # Loads the oroGen deployment model for the given name and returns
             # the corresponding syskit model
-            #
-            # @option options [String] :on the name of the process server this
-            #   deployment should be on. It is used for loading as well, i.e.
-            #   the model for the deployment will be loaded from that process
-            #   server
             def using_deployment(name, options = Hash.new)
-                options = Kernel.validate_options options, :loader => default_loader, :on => "localhost"
+                options = Kernel.validate_options options, :loader => default_loader
                 deployer = options[:loader].deployment_model_from_name(name)
                 deployment_define_from_orogen(deployer)
             end
