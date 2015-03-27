@@ -51,9 +51,6 @@ module Syskit
     module Test
     # Base functionality for all testing cases
     module Base
-        include FlexMock::ArgumentTypes
-        include FlexMock::MockContainer
-
         def setup
             @task_stubs = Array.new
             @old_loglevel = Orocos.logger.level

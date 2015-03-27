@@ -13,6 +13,16 @@ require 'syskit/test/profile_test'
 require 'syskit/test/component_test'
 require 'syskit/test/task_context_test'
 
+class Minitest::Spec
+    include FlexMock::ArgumentTypes
+    include FlexMock::MockContainer
+
+    def teardown
+        super
+        flexmock_teardown
+    end
+end
+
 module Syskit
     Minitest::Spec.register_spec_type Syskit::Test::Spec do |desc|
         desc.class == Module
