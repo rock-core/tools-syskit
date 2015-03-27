@@ -9,8 +9,8 @@ module Syskit
             include Models::PortAccess
             include Models::Component
 
-            # [SpecializationManager] the object that manages all
-            # specializations defined on this composition model
+            # @return [SpecializationManager] the object that manages all
+            #   specializations defined on this composition model
             attribute(:specializations) { SpecializationManager.new(self) }
 
             def promote_child(child_name, child)
