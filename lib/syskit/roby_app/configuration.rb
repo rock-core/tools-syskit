@@ -407,7 +407,7 @@ module Syskit
             # @see #use_deployment
             def use_deployments_from(project_name, options = Hash.new)
                 Syskit.info "using deployments from #{project_name}"
-                orogen = app.using_task_library(project_name, options)
+                orogen = app.using_task_library(project_name, options[:loader])
 
                 result = []
                 orogen.deployers.each_value do |deployment_def|
