@@ -223,7 +223,8 @@ module Syskit
                     if(task.find_device_attached_to(srv))
                         [srv, task.find_device_attached_to(srv)]
                     end
-                end
+                end.compact
+
                 DataFlowDynamics.debug do
                     DataFlowDynamics.debug "initial port dynamics on #{task} (device)"
                     DataFlowDynamics.debug "  attached devices: #{triggering_devices.map { |srv, dev| "#{dev.name} on #{srv.name}" }.join(", ")}"
