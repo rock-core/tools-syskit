@@ -616,7 +616,7 @@ module Syskit
             # Component.data_service for the description of +arguments+
             def driver_for(model, arguments = Hash.new, &block)
                 dserv = provides(model, arguments)
-                argument "dev"
+                argument "#{dserv.name}_dev", :default => nil
                 dserv
             end
 

@@ -54,7 +54,7 @@ module Syskit
                 @com_busses = Array.new
                 @requirements = Syskit::InstanceRequirements.new
 
-                task_arguments["dev"] = self
+                task_arguments["#{driver_model.name}_dev"] = self
                 sample_size 1
                 burst   0
             end
