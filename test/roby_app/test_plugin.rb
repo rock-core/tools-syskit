@@ -57,7 +57,7 @@ describe Syskit::RobyApp::Plugin do
             m1 = Syskit.conf.use_deployment 'plugin_remote_model_loading' => 'm1', :on => 'server1'
             m1 = m1.first
             assert_same m0.orogen_model, m1.orogen_model
-            assert_same PluginRemoteModelLoading::Task.orogen_model, m1.orogen_model.find_task_by_name('task').task_model
+            assert_same OroGen::PluginRemoteModelLoading::Task.orogen_model, m1.orogen_model.find_task_by_name('task').task_model
         end
     end
 end

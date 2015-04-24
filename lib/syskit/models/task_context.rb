@@ -1,3 +1,7 @@
+# Module where all the OroGen task context models get registered
+module OroGen
+end
+
 module Syskit
     module Models
         # This module contains the model-level API for the task context models
@@ -22,6 +26,23 @@ module Syskit
                     end
                 end
                 true
+            end
+
+            def clear_model
+                super
+
+                if name = self.name
+                    return if name !~ /^OroGen::/
+                    name = name.gsub(/^OroGen::/, '')
+                    begin
+                        if constant("::#{name}") == self
+                            spacename = self.spacename.gsub(/^OroGen::/, '')
+                            constant("::#{spacename}").send(:remove_const, basename)
+                        end
+                    rescue NameError
+                        false
+                    end
+                end
             end
 
             # Generates a hash of oroGen-level state names to Roby-level event
@@ -95,11 +116,19 @@ module Syskit
                 orogen_model = model.orogen_model
 
                 namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
+                if Syskit.conf.backward_compatible_naming?
+                    register_syskit_model(Object, namespace, basename, model)
+                end
+                register_syskit_model(OroGen, namespace, basename, model)
+            end
+
+            def register_syskit_model(mod, namespace, basename, model)
+                # For backward compatibility only
                 namespace =
-                    if Object.const_defined_here?(namespace)
-                        Object.const_get(namespace)
+                    if mod.const_defined_here?(namespace)
+                        mod.const_get(namespace)
                     else 
-                        Object.const_set(namespace, Module.new)
+                        mod.const_set(namespace, Module.new)
                     end
 
                 if namespace.const_defined_here?(basename)

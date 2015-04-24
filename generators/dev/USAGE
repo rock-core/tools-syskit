@@ -1,0 +1,14 @@
+Generates a new device model. The argument is the name of the model, either in
+CamelCase or in snake_case form. It can be prefixed with namespace(s)
+in/this/form or In::This::Form. It is not necessary to add the bundle namespace
+in front (it gets added automatically)
+
+Example: running the following command in a rock_auv app
+  roby gen dev sonars/tritech/gemini720i
+
+  will generate a RockAuv::Devices::Sonars::Tritech::Gemini720i device type in
+  models/devices/tritech/gemini720i.rb. No test file are generated as there is
+  nothing to test in a data service
+
+  The files up in the hierarchy (here models/devices/tritech.rb) are updated to
+  require the new file(s)

@@ -4,13 +4,12 @@ CamelCase or in snake_case form. It can be prefixed with namespace(s)
 in/this/form or In::This::Form. It is not necessary to add the bundle namespace
 in front (it gets added automatically)
 
-If a robot name is specified with the -r option, the files will be created in
-this robot's specific folders
-
 Example: running the following command in a rock_auv app
   roby gen cmp sensing/localization
 
-  will generate a RockAuv::Sensing::Localization data service in
-  models/blueprints/sensing/localization.rb, and the associated
-  test template in test/blueprints/sensing/test_localization.rb.
+  will generate a RockAuv::Compositions::Sensing::Localization composition in
+  models/compositions/sensing/localization.rb, and the associated
+  test template in test/compositions/sensing/test_localization.rb. The
+  files up in the hierarchy (models/compositions/sensing.rb and
+  test/compositions/suite_sensing.rb) are updated to require the new file(s)
 

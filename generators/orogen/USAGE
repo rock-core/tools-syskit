@@ -1,9 +1,12 @@
 Generates a new extension file for an oroGen project. It must be given the name
-of the oroGen project as argument.
+of the oroGen project as argument. The generated file reopens the classes
+defining all the tasks of the project known at the time of generation.
 
 Example: running the following command in a rock_auv app
   roby gen orogen auv_control
 
   will create a template extension file in models/orogen/auv_control.rb, which
   already contains the definitions of the tasks found in the auv_control oroGen
-  project. It also generates an associated test file in test/orogen/test_auv_control.rb
+  project. It also generates an associated test file in
+  test/orogen/test_auv_control.rb and updates test/suite_orogen.rb to require the
+  new file.

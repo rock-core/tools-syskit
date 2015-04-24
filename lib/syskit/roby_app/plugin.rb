@@ -1,3 +1,23 @@
+class Module
+    def backward_compatible_constant(old_name, new_constant, file)
+        msg = "  #{self.name}::#{old_name} has been renamed to #{new_constant} and is now in #{file}"
+        if Syskit.conf.backward_compatible_naming?
+            Syskit.warn msg
+            require file
+            const_set old_name, constant(new_constant)
+        else
+            Syskit.error msg 
+            Syskit.error "set Syskit.conf.backward_compatible_naming = true to reenable. This option will be removed in the future, so start using the new name and file"
+        end
+    end
+end
+
+module Syskit
+    def self.warn_about_new_naming_convention
+        Syskit.warn 'We have finally adopted a systematic naming convention in Syskit, this led to files and classes to be renamed'
+    end
+end
+
 module Syskit
     module RobyApp
         # This gets mixed in Roby::Application when the orocos plugin is loaded.
@@ -234,6 +254,9 @@ module Syskit
                 search_path = app.auto_load_search_path
                 if app.auto_load_models?
                     all_files =
+                        app.find_files_in_dirs("models", "services", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                        app.find_files_in_dirs("models", "devices", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
+                        app.find_files_in_dirs("models", "compositions", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
                         app.find_files_in_dirs("models", "blueprints", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/) +
                         app.find_files_in_dirs("models", "profiles", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/)
                    all_files.each do |path|
@@ -252,6 +275,14 @@ module Syskit
                 end
                 app.isolate_load_errors("while reloading deployment definitions") do
                     Syskit.conf.reload_deployments
+                end
+            end
+
+            def self.load_default_models(app)
+                ['services.rb', 'devices.rb', 'compositions.rb', 'profiles.rb'].each do |root_file|
+                    if path = app.find_file('models', root_file, order: :specific_first)
+                        require path
+                    end
                 end
             end
 
