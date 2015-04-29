@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Models::Port do
-    include Syskit::Test::Self
-
     describe "#to_component_port" do
         attr_reader :component_model
         before do

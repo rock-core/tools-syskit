@@ -51,16 +51,11 @@ module Syskit
     module Test
     # Base functionality for all testing cases
     module Base
-        include FlexMock::ArgumentTypes
-        include FlexMock::MockContainer
-
         def setup
             @task_stubs = Array.new
             @old_loglevel = Orocos.logger.level
 
             Roby.app.filter_backtraces = false
-            Syskit.conf.register_process_server('stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
-
             super
         end
 
@@ -178,6 +173,12 @@ module Syskit
                 end
             end
             flunk("expected to get one new sample out of #{reader}, but got none")
+        end
+
+        # Creates a new null type and returns it
+        def stub_type(name)
+            Roby.app.default_loader.
+                resolve_type(name, define_dummy_type: true)
         end
     end
     end
