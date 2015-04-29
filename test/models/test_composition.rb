@@ -899,5 +899,38 @@ describe Syskit::Models::Composition do
             assert_equal spec0_m, result
         end
     end
+
+    describe "Port#connected_to?" do
+        attr_reader :out_srv, :cmp
+        before do
+            in_srv = Syskit::DataService.new_submodel do
+                input_port 'in', 'int'
+            end
+            @out_srv = Syskit::DataService.new_submodel do
+                output_port 'out', 'int'
+            end
+            @cmp = Syskit::Composition.new_submodel
+            cmp.add in_srv, as: 'in'
+            cmp.add out_srv, as: 'out'
+        end
+        it "returns true if the ports are connected" do
+            cmp.out_child.connect_to cmp.in_child
+            assert cmp.out_child.out_port.connected_to?(cmp.in_child.in_port)
+        end
+        it "returns false if the ports are not connected" do
+            assert !cmp.out_child.out_port.connected_to?(cmp.in_child.in_port)
+        end
+        it "handles service port mappings" do
+            sub_out_srv = Syskit::DataService.new_submodel do
+                output_port 'sub_out', 'int'
+            end
+            sub_out_srv.provides out_srv, 'out' => 'sub_out'
+            cmp.overload 'out', sub_out_srv
+            cmp.out_child.sub_out_port.connect_to cmp.in_child.in_port
+
+            out_child_as = cmp.out_child.as(out_srv)
+            assert out_child_as.out_port.connected_to?(cmp.in_child.in_port)
+        end
+    end
 end
 

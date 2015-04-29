@@ -288,7 +288,7 @@ describe Syskit::Deployment do
     describe "using the ruby process server" do
         attr_reader :task_m, :deployment_m
         before do
-            Syskit.conf.register_process_server('test', Orocos::RubyProcessServer.new, "")
+            Syskit.conf.register_process_server('test', Orocos::RubyTasks::ProcessManager.new, "")
             task_m = @task_m = Syskit::TaskContext.new_submodel do
                 input_port 'in', '/double'
                 output_port 'out', '/double'
@@ -309,7 +309,7 @@ describe Syskit::Deployment do
         it "sets the orocos_task attribute to a RubyTaskContext" do
             plan.add_permanent(deployment = deployment_m.new(:on => 'test'))
             deployment.start!
-            assert_kind_of Orocos::RubyTaskContext, deployment.task('task').orocos_task
+            assert_kind_of Orocos::RubyTasks::TaskContext, deployment.task('task').orocos_task
         end
         it "makes sure that the Ruby tasks are disposed when the deployment is stopped" do
             plan.add_permanent(deployment = deployment_m.new(:on => 'test'))

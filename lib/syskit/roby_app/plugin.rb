@@ -339,14 +339,14 @@ module Syskit
 
             def self.connect_to_local_process_server(app)
                 if !@server_pid
-                    raise Orocos::ProcessClient::StartupFailed, "#connect_to_local_process_server got called but no process server is being started"
+                    raise Orocos::RemoteProcesses::Client::StartupFailed, "#connect_to_local_process_server got called but no process server is being started"
                 end
 
                 # Wait for the server to be ready
                 client = nil
                 while !client
                     client =
-                        begin Orocos::ProcessClient.new('localhost', @server_port)
+                        begin Orocos::RemoteProcesses::Client.new('localhost', @server_port)
                         rescue Errno::ECONNREFUSED
                             sleep 0.1
                             is_running = 
@@ -357,7 +357,7 @@ module Syskit
                                 end
 
                             if !is_running
-                                raise Orocos::ProcessClient::StartupFailed, "the local process server failed to start"
+                                raise Orocos::RemoteProcesses::Client::StartupFailed, "the local process server failed to start"
                             end
                             nil
                         end

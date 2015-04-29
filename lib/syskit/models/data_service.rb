@@ -126,6 +126,13 @@ module Syskit
                 result
             end
 
+            # Tests whether self already provides another service
+            #
+            # @param [Model<DataService>]
+            def provides?(srv)
+                parent_models.include?(srv)
+            end
+
             # Declares that this data service model provides the given service
             # model
             #
@@ -226,6 +233,14 @@ module Syskit
             end
 
             def to_component_model; self end
+
+            # Delegated call from {Port#connected?}
+            #
+            # Always returns false as "plain" data service ports cannot be
+            # connected
+            def connected?(out_port, in_port)
+                false
+            end
 
             # Create a task instance that can be used in a plan to represent
             # this service

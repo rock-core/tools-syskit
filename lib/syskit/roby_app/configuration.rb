@@ -484,6 +484,11 @@ module Syskit
                 end
             end
 
+            # Tests whether there is a registered process server with that name
+            def has_process_server?(name)
+                process_servers[name.to_str]
+            end
+
             # Returns the process server object named +name+
             #
             # @param [String] name the process server name

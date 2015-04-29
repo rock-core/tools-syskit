@@ -51,6 +51,20 @@ module Syskit
                 new_model
             end
 
+            # Try to resolve, if possible, the Port object corresponding to
+            # self, in which {#component_model} is a "proper" component model
+            # (i.e. a subclass of Component and not a data service)
+            #
+            # If it is not possible, returns self
+            #
+            # @return [Port]
+            def try_to_component_port
+                if component_model.respond_to?(:self_port_to_component_port)
+                    component_model.self_port_to_component_port(self)
+                else self
+                end
+            end
+
             # Returns the Port object corresponding to self, in which
             # {#component_model} is a "proper" component model (i.e. a subclass
             # of Component and not a data service)
@@ -86,6 +100,30 @@ module Syskit
 
                 else
                     out_port.connect_to(in_port, policy)
+                end
+            end
+
+            # Tests whether self is connected to the provided port
+            def connected_to?(in_port)
+                out_port = self.try_to_component_port
+                if out_port == self
+                    in_port = in_port.try_to_component_port
+                    component_model.connected?(out_port, in_port)
+                else
+                    out_port.connected_to?(in_port)
+                end
+            end
+
+            # Tests whether this port can be connceted to the provided input
+            # port
+            def can_connect_to?(in_port)
+                out_port = try_to_component_port
+                in_port  = in_port.try_to_component_port
+
+                if out_port != self
+                    return out_port.can_connect_to?(in_port)
+                else
+                    output? && in_port.input? && type == in_port.type
                 end
             end
 

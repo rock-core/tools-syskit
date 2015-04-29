@@ -9,8 +9,8 @@ module Syskit
             include Models::PortAccess
             include Models::Component
 
-            # [SpecializationManager] the object that manages all
-            # specializations defined on this composition model
+            # @return [SpecializationManager] the object that manages all
+            #   specializations defined on this composition model
             attribute(:specializations) { SpecializationManager.new(self) }
 
             def promote_child(child_name, child)
@@ -408,7 +408,7 @@ module Syskit
                 options = Kernel.validate_options options, :as => port.name
                 name = options[:as].to_str
                 if existing = (self.find_exported_input(name) || self.find_exported_output(name))
-                    if port != existing
+                    if port.to_component_port != existing
                         raise ArgumentError, "#{port} is already exported as #{name} on #{short_name}, cannot override with #{port}."
                     end
                     return
