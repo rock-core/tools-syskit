@@ -97,35 +97,44 @@ module Syskit
                 return if loaded_orogen_projects.has_key?(orogen.name)
                 Syskit.info "loading oroGen project #{orogen.name}"
 
-                orogen.self_tasks.each_value do |task_def|
+                tasks = orogen.self_tasks.each_value.map do |task_def|
                     # Load configuration directories
-                    if conf_file = find_file('config', 'orogen', 'ROBOT', "#{task_def.name}.yml", :order => :specific_first, :all => true)
+                    if conf_file = find_file('config', 'orogen', 'ROBOT', "#{task_def.name}.yml", order: :specific_first, all: true)
                         isolate_load_errors("could not load oroGen configuration file #{conf_file}") do
                             Orocos.conf.load_file(conf_file, task_def)
                         end
                     end
                     if !TaskContext.has_model_for?(task_def)
-                        Syskit::TaskContext.define_from_orogen(task_def, :register => true)
+                        Syskit::TaskContext.define_from_orogen(task_def, register: true)
                     end
                 end
 
-                load_component_extension(orogen.name)
+                if file = load_component_extension(orogen.name)
+                    tasks.each { |t| t.extension_file = file }
+                end
 
                 orogen
             end
 
+            # Load the component extension file associated with this an oroGen
+            # project
+            #
+            # @param [String] name the orogen project name
+            # @return [String,nil] either a file that got required, or nil if
+            #   none was
             def load_component_extension(name)
                 # If we are loading under Roby, get the plugins for the orogen
                 # project
-                if Syskit.conf.load_component_extensions?
-                    file = find_file('models', 'orogen', "#{name}.rb", :order => :specific_first) ||
-                        find_file('tasks', 'orogen', "#{name}.rb", :order => :specific_first) ||
-                        find_file('tasks', 'components', "#{name}.rb", :order => :specific_first)
+                return if !Syskit.conf.load_component_extensions?
+                    
+                file = find_file('models', 'orogen', "#{name}.rb", order: :specific_first) ||
+                    find_file('tasks', 'orogen', "#{name}.rb", order: :specific_first) ||
+                    find_file('tasks', 'components', "#{name}.rb", order: :specific_first)
+                return if !file
 
-                    if file
-                        Roby::Application.info "loading task extension #{file}"
-                        require file
-                    end
+                Roby::Application.info "loading task extension #{file}"
+                if require(file)
+                    file
                 end
             end
 

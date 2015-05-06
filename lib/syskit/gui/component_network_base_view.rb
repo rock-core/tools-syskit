@@ -154,15 +154,17 @@ module Syskit
                 end
             end
 
-            def self.html_defined_in(page, model, with_require: true)
-                path, lineno = find_definition_place(model)
+            def self.html_defined_in(page, model, with_require: true, definition_location: nil, format: "<b>Defined in</b> %s")
+                path, lineno = *definition_location || find_definition_place(model)
                 if path
                     path = Pathname.new(path)
                     path_link = page.link_to(path, "#{path}:#{lineno}", lineno: lineno)
-                    page.push(nil, "<p><b>Defined in</b> #{path_link}</p>")
-                    if req_base = $LOAD_PATH.find { |p| path.fnmatch?(File.join(p, "*")) }
-                        req = path.relative_path_from(Pathname.new(req_base))
-                        page.push(nil, "<code>require '#{req.sub_ext("")}'</code>")
+                    page.push(nil, "<p>#{format % [path_link]}</p>")
+                    if with_require
+                        if req_base = $LOAD_PATH.find { |p| path.fnmatch?(File.join(p, "*")) }
+                            req = path.relative_path_from(Pathname.new(req_base))
+                            page.push(nil, "<code>require '#{req.sub_ext("")}'</code>")
+                        end
                     end
                 end
             end

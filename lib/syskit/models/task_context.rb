@@ -12,6 +12,10 @@ module Syskit
             include Models::PortAccess
             include Models::OrogenBase
 
+            # @return [String] path to the extension file that got loaded to
+            #   extend this model
+            attr_accessor :extension_file
+
             # Clears all registered submodels
             #
             # On TaskContext, it also clears all orogen-to-syskit model mappings
