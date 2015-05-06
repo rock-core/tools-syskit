@@ -12,16 +12,16 @@ module Syskit
             def self.make_annotation_buttons(namespace, annotations, defaults)
                 annotations.sort.map do |ann_name|
                     Button.new("#{namespace}/annotations/#{ann_name}",
-                               :on_text => "Show #{ann_name}",
-                               :off_text => "Hide #{ann_name}",
-                               :state => defaults.include?(ann_name))
+                               on_text: "Show #{ann_name}",
+                               off_text: "Hide #{ann_name}",
+                               state: defaults.include?(ann_name))
                 end
             end
 
             def self.common_graph_buttons(namespace)
-                [Button.new("#{namespace}/zoom", :text => "Zoom +"),
-                 Button.new("#{namespace}/unzoom", :text => "Zoom -"),
-                 Button.new("#{namespace}/save", :text => "Save SVG")]
+                [Button.new("#{namespace}/zoom", text: "Zoom +"),
+                 Button.new("#{namespace}/unzoom", text: "Zoom -"),
+                 Button.new("#{namespace}/save", text: "Save SVG")]
             end
 
             def self.task_annotation_buttons(namespace, defaults)
@@ -144,7 +144,7 @@ module Syskit
                     end
                 end
 
-                page.push("Provided Services", html, :id => 'provided_services')
+                page.push("Provided Services", html, id: 'provided_services')
             end
 
             def self.find_definition_place(model)
@@ -218,7 +218,7 @@ module Syskit
             signals 'updated()'
 
             def push_plan(id, plan, options = Hash.new)
-                options, push_options = Kernel.filter_options options, :interactive => true
+                options, push_options = Kernel.filter_options options, interactive: true
                 config = send("#{id}_options").merge(push_options)
                 if !options[:interactive]
                     config.delete(:buttons)
