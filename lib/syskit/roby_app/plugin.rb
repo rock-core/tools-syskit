@@ -468,8 +468,8 @@ module Syskit
             end
 
 
-            def root_models
-                super + [Syskit::Component, Syskit::Actions::Profile]
+            def self.root_models
+                [Syskit::Component, Syskit::Actions::Profile]
             end
 
             def self.clear_models(app)

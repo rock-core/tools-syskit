@@ -49,6 +49,10 @@ module Syskit
             # The profile name
             # @return [String]
             attr_reader :name
+            # The profile's basename
+            def basename; name.gsub(/.*::/, '') end
+            # The profile's namespace
+            def spacename; name.gsub(/::[^:]*$/, '') end
             # The definitions
             # @return [Hash<String,InstanceRequirements>]
             attr_reader :definitions
@@ -300,7 +304,11 @@ module Syskit
                 used_profiles.clear
                 super if defined? super
 
-                Profiles.profiles.delete(self)
+                if MetaRuby::Registration.accessible_by_name?(self)
+                    MetaRuby::Registration.deregister_constant(self)
+                end
+
+                Profile.profiles.delete(self)
             end
 
             # Defined here to make profiles look like models w.r.t. Roby's
@@ -383,8 +391,8 @@ module Syskit
                 else 
                     profile = Profile.new("#{self.name}::#{name}")
                     const_set(name, profile)
+                    Profile.profiles << profile
                 end
-                Profile.profiles << profile
                 profile.instance_eval(&block)
             end
         end
