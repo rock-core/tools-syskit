@@ -16,11 +16,8 @@ module Syskit::GUI
                     :zoom => 1]
             end
 
-            def render(model, options = Hash.new)
-                options, push_options = Kernel.filter_options options,
-                    :doc => true
-
-                if options[:doc] && model.doc
+            def render(model, doc: true, **push_options)
+                if doc && model.doc
                     page.push nil, page.main_doc(model.doc)
                 end
 
