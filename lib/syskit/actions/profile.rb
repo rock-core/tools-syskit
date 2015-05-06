@@ -181,7 +181,8 @@ module Syskit
                 profile.definitions.each do |name, req|
                     if !definitions[name]
                         req = promote_requirements(profile, req, tags)
-                        define name, req
+                        new_def = define name, req
+                        new_def.doc(req.doc)
                     end
                 end
                 robot.use_robot(profile.robot)
@@ -198,6 +199,7 @@ module Syskit
                 req = resolved.to_instance_requirements
                 
                 definition = Definition.new(self, name)
+                definition.doc MetaRuby::DSLs.parse_documentation_block(->(file) { Roby.app.app_file?(file) }, /^define$/)
                 definition.merge(req)
                 definitions[name] = definition
             end
@@ -236,6 +238,7 @@ module Syskit
                 result.merge(req)
                 inject_di_context(result)
                 result.name = req.name
+                result.doc(req.doc)
                 result
             end
 
