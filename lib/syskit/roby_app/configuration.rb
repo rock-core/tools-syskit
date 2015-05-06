@@ -33,9 +33,6 @@ module Syskit
             # Controls whether the orogen types should be exported as Ruby
             # constants
             attr_predicate :export_types?, true
-            # Controls whether we should provide backward compatible names (as
-            # per the change in syskit naming conventions)
-            attr_predicate :backward_compatible_naming?, true
 
             # Controls whether the orogen types should be exported as Ruby
             # constants
@@ -68,7 +65,6 @@ module Syskit
                 @ignore_load_errors = false
                 @buffer_size_margin = 0.1
                 @use_only_model_pack = false
-                @backward_compatible_naming = true
 
                 @log_groups = { nil => LogGroup.new(false) }
 

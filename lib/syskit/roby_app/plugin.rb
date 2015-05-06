@@ -1,13 +1,13 @@
 class Module
     def backward_compatible_constant(old_name, new_constant, file)
         msg = "  #{self.name}::#{old_name} has been renamed to #{new_constant} and is now in #{file}"
-        if Syskit.conf.backward_compatible_naming?
+        if Roby.app.backward_compatible_naming?
             Syskit.warn msg
             require file
             const_set old_name, constant(new_constant)
         else
             Syskit.error msg 
-            Syskit.error "set Syskit.conf.backward_compatible_naming = true to reenable. This option will be removed in the future, so start using the new name and file"
+            Syskit.error "set Roby.app.backward_compatible_naming = true to reenable. This option will be removed in the future, so start using the new name and file"
         end
     end
 end
