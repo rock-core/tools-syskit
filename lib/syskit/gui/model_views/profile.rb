@@ -112,6 +112,13 @@ module Syskit::GUI
             formatted
         end
 
+        class ProfileElementView < ComponentNetworkView
+            def render(model, *args, **options)
+                page.push "#{model.name || "<unnamed>"}(#{model.model.name})", page.main_doc(model.doc || ""), id: options[:id]
+                super
+            end
+        end
+
         # Visualization of a syskit profile
         class Profile < MetaRuby::GUI::HTML::Collection
             attr_accessor :instanciation_method
@@ -120,7 +127,8 @@ module Syskit::GUI
                 super(page)
                 @instanciation_method = :compute_system_network
 
-                register_type Syskit::InstanceRequirements, ComponentNetworkView.new(page), :method => :compute_system_network, :show_requirements => true
+                register_type Syskit::InstanceRequirements, ProfileElementView.new(page),
+                    method: :compute_system_network, show_requirements: true
             end
 
             def render_object_as_text(model)
@@ -177,6 +185,11 @@ module Syskit::GUI
                         el.object = el.object.to_instance_requirements
                         el.rendering_options[:method] = instanciation_method
                     end
+                end
+
+                definitions.each do |obj|
+                    doc = (obj.object.doc || "").split("\n")
+                    obj.format = "%s: #{doc.first}"
                 end
 
                 return explicit_selections, default_selections, definitions, devices
