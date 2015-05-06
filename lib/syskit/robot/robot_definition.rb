@@ -115,8 +115,8 @@ module Syskit
                     raise ArgumentError, "no name given, please provide the :as option"
                 end
                 name = options[:as]
-                if devices[name]
-                    raise ArgumentError, "device #{name} is already defined"
+                if existing = devices[name]
+                    raise ArgumentError, "device '#{name}' is already defined: #{existing}"
                 end
 
                 # Verify that the provided device model matches what we expect
