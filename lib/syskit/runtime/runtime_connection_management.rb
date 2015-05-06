@@ -9,6 +9,10 @@ module Syskit
 
             attr_predicate :dry_run?, true
 
+            def scheduler
+                plan.execution_engine.scheduler
+            end
+
             def initialize(plan)
                 @plan = plan
             end
@@ -343,6 +347,8 @@ module Syskit
                     if t.all_inputs_connected?
                         t.executable = nil
                         debug { "#{t} has all its inputs connected, set executable to nil and executable? = #{t.executable?}" }
+                    else
+                        scheduler.report_holdoff "some inputs are not yet connected, Syskit maintains its state to non-executable", t
                     end
                 end
 
