@@ -154,15 +154,22 @@ module Syskit
                 end
             end
 
+            def self.html_defined_in(page, model, with_require: true)
+                path, lineno = find_definition_place(model)
+                if path
+                    path = Pathname.new(path)
+                    path_link = page.link_to(path, "#{path}:#{lineno}", lineno: lineno)
+                    page.push(nil, "<p><b>Defined in</b> #{path_link}</p>")
+                    if req_base = $LOAD_PATH.find { |p| path.fnmatch?(File.join(p, "*")) }
+                        req = path.relative_path_from(Pathname.new(req_base))
+                        page.push(nil, "<code>require '#{req.sub_ext("")}'</code>")
+                    end
+                end
+            end
+
             def render(model, options = Hash.new)
                 if model.respond_to?(:definition_location)
-                    if file = ComponentNetworkBaseView.find_definition_place(model)
-                        page.push(nil, "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>")
-                        if req_base = $LOAD_PATH.find { |p| File.fnmatch?(File.join(p, "*") , file[0]) }
-                            req = Pathname.new(file[0]).relative_path_from(Pathname.new(req_base))
-                            page.push(nil, "<code>require '#{req.sub_ext("")}'</code>")
-                        end
-                    end
+                    ComponentNetworkBaseView.html_defined_in(page, model, with_require: true)
                 end
                 @current_model = model
             end
@@ -192,9 +199,9 @@ module Syskit
                     config[:show_all_ports] = new_state
                 when /\/show_logger/
                     if new_state
-                        config[:excluded_models].delete(Logger::Logger)
+                        config[:excluded_models].delete(OroGen::Logger::Logger)
                     else
-                        config[:excluded_models] << Logger::Logger
+                        config[:excluded_models] << OroGen::Logger::Logger
                     end
                 when /\/zoom/
                     config[:zoom] += 0.1

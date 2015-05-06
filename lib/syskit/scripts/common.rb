@@ -190,8 +190,8 @@ require 'syskit/roby_app'
 
             def self.generate_output(display_options = Hash.new)
                 default_exclude = []
-                if defined? Syskit::Logger::Logger
-                    default_exclude << Syskit::Logger::Logger
+                if defined? OroGen::Logger::Logger
+                    default_exclude << OroGen::Logger::Logger
                 end
                 display_options = Kernel.validate_options display_options,
                     :remove_compositions => false,

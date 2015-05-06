@@ -188,9 +188,7 @@ module Syskit::GUI
                 explicit_selections, default_selections, definitions, devices =
                     compute_toplevel_links(model, options)
 
-                if file = ComponentNetworkBaseView.find_definition_place(model)
-                    page.push(nil, "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>")
-                end
+                ComponentNetworkBaseView.html_defined_in(page, model, with_require: true)
                 render_links("Explicit Selection", explicit_selections)
                 render_links("Default selections", default_selections)
                 render_links("Definitions", definitions)
