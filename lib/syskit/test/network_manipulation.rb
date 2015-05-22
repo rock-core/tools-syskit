@@ -2,6 +2,18 @@ module Syskit
     module Test
         # Network manipulation functionality (stubs, ...) useful in tests
         module NetworkManipulation
+            def setup
+                @__test_created_deployments = Array.new
+                super
+            end
+
+            def teardown
+                super
+                @__test_created_deployments.each do |d|
+                    Syskit.conf.deregister_configured_deployment(d)
+                end
+            end
+
             # Create a new task context model with the given name
             #
             # @yield a block in which the task context interface can be
@@ -175,6 +187,19 @@ module Syskit
                 syskit_setup_component(root)
             end
 
+            def use_deployment(*args)
+                @__test_created_deployments.concat(Syskit.conf.use_deployment(*args).to_a)
+            end
+
+            def deploy(model, options = Hash.new)
+                syskit_run_deployer(model, compute_policies: true)
+            end
+
+            def deploy_and_configure(model, options = Hash.new)
+                root = deploy(model, options)
+                syskit_setup_component(root)
+            end
+
             def stub_and_deploy_composition(*args, **kw_args)
                 Syskit.warn "#stub_and_deploy_composition is deprecated in favor of #stub_and_deploy"
                 stub_and_deploy(*args, **kw_args)
@@ -237,9 +262,17 @@ module Syskit
                     if !agent.running?
                         agent.start!
                     end
+                    if !agent.ready?
+                        assert_event_emission agent.ready_event
+                    end
                 end
-                component.arguments[:conf] ||= []
-                component.setup
+
+                # Might already have been configured while waiting for the ready
+                # event
+                if !component.setup?
+                    component.setup
+                end
+                component
             end
 
             # Start this component
