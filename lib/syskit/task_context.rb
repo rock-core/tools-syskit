@@ -434,6 +434,10 @@ module Syskit
 
             # Called to configure the component
             def setup
+                if @setup
+                    raise ArgumentError, "already setup"
+                end
+
                 state = orocos_task.rtt_state
                 if !ready_for_setup?(state)
                     raise InternalError, "#setup called but we are not ready for setup"
