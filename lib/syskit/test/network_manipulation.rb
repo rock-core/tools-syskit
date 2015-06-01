@@ -191,6 +191,10 @@ module Syskit
                 @__test_created_deployments.concat(Syskit.conf.use_deployment(*args).to_a)
             end
 
+            def use_ruby_tasks(*args)
+                @__test_created_deployments.concat(Syskit.conf.use_ruby_tasks(*args).to_a)
+            end
+
             def deploy(model, options = Hash.new)
                 syskit_run_deployer(model, compute_policies: true)
             end
