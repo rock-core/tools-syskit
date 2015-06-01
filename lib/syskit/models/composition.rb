@@ -166,7 +166,12 @@ module Syskit
                 # valid overloading of the previous one.
                 
                 child_model = find_child(name) || CompositionChild.new(self, name)
-                child_model.merge(child_models)
+                # The user might have called e.g.
+                #
+                #   overload 'bla', bla_child.with_arguments(bla: 10)
+                if child_models.object_id != child_model.object_id
+                    child_model.merge(child_models)
+                end
                 dependency_options = Roby::TaskStructure::DependencyGraphClass.
                     merge_dependency_options(child_model.dependency_options, dependency_options)
                 child_model.dependency_options.clear

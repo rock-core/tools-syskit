@@ -932,5 +932,15 @@ describe Syskit::Models::Composition do
             assert out_child_as.out_port.connected_to?(cmp.in_child.in_port)
         end
     end
+
+    describe "#overload" do
+        it "allows to refine the current child definition" do
+            srv_m = Syskit::DataService.new_submodel
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, as: 'test'
+            cmp_m.overload 'test', cmp_m.test_child.with_arguments(bla: 10)
+            assert_equal Hash[bla: 10], cmp_m.test_child.arguments
+        end
+    end
 end
 
