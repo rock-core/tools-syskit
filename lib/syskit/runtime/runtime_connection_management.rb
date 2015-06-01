@@ -206,6 +206,11 @@ module Syskit
                                 debug "  sink.setup?:             #{sink.setup?}"
                                 break
                             end
+                            [source, sink].each do |task|
+                                if !task.setup?
+                                    scheduler.report_holdoff "not set up yet, Syskit cannot connect the component graph (ready_for_setup=#{task.ready_for_setup?}, fully_instanciated=#{task.fully_instanciated?})", task
+                                end
+                            end
                             throw :cancelled
                         end
                     end
