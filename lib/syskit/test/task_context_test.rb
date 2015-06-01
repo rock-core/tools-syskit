@@ -3,6 +3,10 @@ module Syskit
         class TaskContextTest < ComponentTest
             def setup
                 super
+                deploy_subject_syskit_model
+            end
+
+            def deploy_subject_syskit_model
                 use_deployment self.class.subject_syskit_model => 'task_under_test'
             end
 
