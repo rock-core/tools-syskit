@@ -922,7 +922,7 @@ module Syskit
 
             def each_required_model
                 return enum_for(:each_required_model) if !block_given?
-                yield(self)
+                yield(concrete_model)
             end
 
             def selected_for(requirements)
