@@ -371,7 +371,11 @@ module Syskit
                     # #static_garbage_collect to cleanup #work_plan. The
                     # actual mission / permanent marking is fixed at the end
                     # of resolution by calling #fix_toplevel_tasks
-                    task.fullfilled_model = req.fullfilled_model
+                    fullfilled_task_m, fullfilled_modules, fullfilled_args = req.fullfilled_model
+                    fullfilled_args = fullfilled_args.map_value do |arg_name, _|
+                        task.arguments[arg_name]
+                    end
+                    task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
                     required_instances[req_task] = task
                     add_toplevel_task(task, real_plan.mission?(real_plan_task), real_plan.permanent?(real_plan_task))
                     add_timepoint 'compute_system_network', 'instanciate', req.to_s

@@ -100,6 +100,35 @@ describe Syskit::NetworkGeneration::Engine do
             cmp = syskit_engine.required_instances[original_task.planning_task]
             assert_equal device, cmp.test_child.device_dev
         end
+        it "sets the task's fullfilled model to the instance requirement's" do
+            task_m = Syskit::TaskContext.new_submodel do
+                argument :arg
+            end
+            req = Syskit::InstanceRequirements.new([task_m]).
+                with_arguments(arg: 10)
+            plan.add_permanent(original = req.as_plan)
+            original.planning_task.start!
+            syskit_engine.instanciate
+            task = syskit_engine.required_instances[original.planning_task]
+            assert_equal [[task_m], Hash[arg: 10]], task.fullfilled_model
+        end
+        it "use the arguments as filtered by the task" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg
+            task_m.class_eval do
+                def arg=(value)
+                    self.arguments[:arg] = value / 2
+                end
+            end
+            req = Syskit::InstanceRequirements.new([task_m]).
+                with_arguments(arg: 10)
+            plan.add_permanent(original = req.as_plan)
+            original.planning_task.start!
+            syskit_engine.instanciate
+            task = syskit_engine.required_instances[original.planning_task]
+            assert_equal 5, task.arg
+            assert_equal [[task_m], Hash[arg: 5]], task.fullfilled_model
+        end
     end
 
     describe "#fix_toplevel_tasks" do
