@@ -460,6 +460,127 @@ describe Syskit::Models::Component do
             end
         end
     end
+
+    describe "#provides" do
+        it "raises if no service name is given" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            assert_raises(ArgumentError) { component.provides(service) }
+        end
+
+        it "registers the service under the specified name" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            bound_service = component.provides service, as: 'camera'
+            assert_equal bound_service, component.find_data_service('camera')
+        end
+
+        it "refuses to add a service with under a name already existing at this level of the component model hierarchy" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            component.provides service, as: 'srv'
+            assert_raises(ArgumentError) { component.provides(service, as: 'srv') }
+        end
+
+        it "allows to override a parent service" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            component.provides service, :as => 'srv'
+            submodel = component.new_submodel
+            submodel.provides service, :as => 'srv'
+        end
+
+        it "validates that an overriden service is extending the model of the parent service" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            component.provides service, :as => 'srv'
+
+            other_service = Syskit::DataService.new_submodel
+            submodel = component.new_submodel
+            assert_raises(ArgumentError) { submodel.provides other_service, :as => 'srv' }
+        end
+
+        it "defines slave services" do
+            service = Syskit::DataService.new_submodel
+            component = Syskit::TaskContext.new_submodel
+            root_srv = component.provides service, :as => 'root'
+            slave_srv = component.provides service, :as => 'srv', :slave_of => 'root'
+            assert_equal [slave_srv], root_srv.each_slave_data_service.to_a
+            assert_same slave_srv, component.find_data_service('root.srv')
+        end
+
+        describe "the port mapping computation" do
+            attr_reader :service
+            before do
+                @service = Syskit::DataService.new_submodel { output_port 'out', '/int' }
+            end
+
+            it "selects port mappings based on type first" do
+                component = Syskit::TaskContext.new_submodel do
+                    output_port 'out', '/double'
+                    output_port 'other', '/int'
+                end
+                bound_service = component.provides service, :as => 'srv'
+                assert_equal({'out' => 'other'}, bound_service.port_mappings_for_task)
+            end
+
+            it "raises if the component does not provide equivalents to the service's ports" do
+                # No matching port
+                component = Syskit::TaskContext.new_submodel
+                assert_raises(Syskit::InvalidProvides) { component.provides(service, :as => 'srv') }
+                assert(!component.find_data_service_from_type(service))
+            end
+
+            it "raises if the component has a port matching on name and type, but with the wrong direction" do
+                # Wrong port direction
+                component = Syskit::TaskContext.new_submodel do
+                    input_port 'out', '/int'
+                end
+                assert_raises(Syskit::InvalidProvides) { component.provides(service, :as => 'srv') }
+                assert(!component.find_data_service_from_type(service))
+            end
+
+            it "raises if there is an ambiguity on port types and no matching name exists" do
+                # Ambiguous type mapping, no exact match on the name
+                component = Syskit::TaskContext.new_submodel do
+                    output_port 'other1', '/int'
+                    output_port 'other2', '/int'
+                end
+                assert_raises(Syskit::InvalidProvides) { component.provides(service, :as => 'srv') }
+                assert(!component.find_data_service_from_type(service))
+            end
+
+            it "disambiguates on the port direction" do
+                # Ambiguous type mapping, one of the two possibilites has the wrong
+                # direction
+                component = Syskit::TaskContext.new_submodel do
+                    input_port 'other1', '/int'
+                    output_port 'other2', '/int'
+                end
+                bound_service = component.provides(service, :as => 'srv')
+                assert_equal({'out' => 'other2'}, bound_service.port_mappings_for_task)
+            end
+
+            it "disambiguates on the port name" do
+                # Ambiguous type mapping, exact match on the name
+                component = Syskit::TaskContext.new_submodel do
+                    output_port 'out', '/int'
+                    output_port 'other2', '/int'
+                end
+                bound_service = component.provides(service, :as => 'srv')
+                assert_equal({'out' => 'out'}, bound_service.port_mappings_for_task)
+            end
+
+            it "disambiguates on explicitely given port mappings" do
+                component = Syskit::TaskContext.new_submodel do
+                    output_port 'other1', '/int'
+                    output_port 'other2', '/int'
+                end
+                bound_service = component.provides(service, as: 'srv', 'out' => 'other1')
+                assert_equal({'out' => 'other1'}, bound_service.port_mappings_for_task)
+            end
+        end
+    end
 end
 
 class TC_Models_Component < Minitest::Test
@@ -525,62 +646,11 @@ class TC_Models_Component < Minitest::Test
         assert_equal 'my_name', m.short_name
     end
 
-    def test_provides_raises_if_no_name_is_given
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        assert_raises(ArgumentError) { component.provides(service) }
-    end
-
     def test_find_data_service_returns_nil_on_unknown_service
         component = TaskContext.new_submodel do
             output_port 'out', '/int'
         end
         assert(!component.find_data_service('does_not_exist'))
-    end
-
-    def test_provides_explicit_name
-        service = DataService.new_submodel do
-            output_port 'out', '/int'
-        end
-        component = TaskContext.new_submodel do
-            output_port 'out', '/int'
-        end
-        bound_service = component.provides service, :as => 'camera'
-        assert_equal(bound_service, component.find_data_service('camera'))
-    end
-
-    def test_provides_refuses_to_add_a_service_with_an_existing_name
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        component.provides service, :as => 'srv'
-        assert_raises(ArgumentError) { component.provides(service, :as => 'srv') }
-    end
-
-    def test_provides_allows_to_overload_parent_services
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        component.provides service, :as => 'srv'
-        submodel = component.new_submodel
-        submodel.provides service, :as => 'srv'
-    end
-
-    def test_provides_raises_if_a_service_overload_is_with_an_incompatible_type
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        component.provides service, :as => 'srv'
-
-        other_service = DataService.new_submodel
-        submodel = component.new_submodel
-        assert_raises(ArgumentError) { submodel.provides other_service, :as => 'srv' }
-    end
-
-    def test_provides_allows_to_setup_slave_services
-        service = DataService.new_submodel
-        component = TaskContext.new_submodel
-        root_srv = component.provides service, :as => 'root'
-        slave_srv = component.provides service, :as => 'srv', :slave_of => 'root'
-        assert_equal [slave_srv], root_srv.each_slave_data_service.to_a
-        assert_same slave_srv, component.find_data_service('root.srv')
     end
 
     def test_each_slave_data_service
@@ -642,73 +712,6 @@ class TC_Models_Component < Minitest::Test
 
         bound_service = component.provides service, :as => 'camera'
         assert_raises(Syskit::AmbiguousServiceSelection) { component.find_data_service_from_type(service) }
-    end
-
-    def test_provides_with_port_mappings
-        service = DataService.new_submodel do
-            output_port 'out', '/int'
-        end
-        component = TaskContext.new_submodel do
-            output_port 'out', '/int'
-            output_port 'other', '/int'
-        end
-        bound_service = component.provides service, 'out' => 'other', :as => 'camera'
-        assert_equal(bound_service, component.find_data_service('camera'))
-        assert_equal({'out' => 'other'}, bound_service.port_mappings_for_task)
-    end
-
-    def test_provides_automatic_mapping_on_type
-        service = DataService.new_submodel do
-            output_port 'out', '/int'
-        end
-        component = TaskContext.new_submodel do
-            output_port 'out', '/double'
-            output_port 'other', '/int'
-        end
-        bound_service = component.provides service, :as => 'srv'
-        assert_equal({'out' => 'other'}, bound_service.port_mappings_for_task)
-    end
-
-    def test_provides_validation
-        service = DataService.new_submodel do
-            output_port 'out', '/int'
-        end
-        # No matching port
-        component = TaskContext.new_submodel
-        assert_raises(Syskit::InvalidProvides) { component.provides(service, :as => 'srv') }
-        assert(!component.find_data_service_from_type(service))
-
-        # Wrong port direction
-        component = TaskContext.new_submodel do
-            input_port 'out', '/int'
-        end
-        assert_raises(Syskit::InvalidProvides) { component.provides(service, :as => 'srv') }
-        assert(!component.find_data_service_from_type(service))
-
-        # Ambiguous type mapping, no exact match on the name
-        component = TaskContext.new_submodel do
-            output_port 'other1', '/int'
-            output_port 'other2', '/int'
-        end
-        assert_raises(Syskit::InvalidProvides) { component.provides(service, :as => 'srv') }
-        assert(!component.find_data_service_from_type(service))
-
-        # Ambiguous type mapping, one of the two possibilites has the wrong
-        # direction
-        component = TaskContext.new_submodel do
-            input_port 'other1', '/int'
-            output_port 'other2', '/int'
-        end
-        bound_service = component.provides(service, :as => 'srv')
-        assert_equal({'out' => 'other2'}, bound_service.port_mappings_for_task)
-
-        # Ambiguous type mapping, exact match on the name
-        component = TaskContext.new_submodel do
-            output_port 'out', '/int'
-            output_port 'other2', '/int'
-        end
-        bound_service = component.provides(service, :as => 'srv')
-        assert_equal({'out' => 'out'}, bound_service.port_mappings_for_task)
     end
 
     def test_has_output_port_returns_false_if_find_returns_false
