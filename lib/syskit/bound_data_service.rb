@@ -98,6 +98,8 @@ module Syskit
                 "#<BoundDataService: #{component.name}.#{model.name}>"
             end
 
+            def inspect; to_s end
+
             # Generates the InstanceRequirements object that represents +self+
             # best
             #

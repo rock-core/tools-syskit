@@ -120,6 +120,8 @@ module Syskit
                 "#{component_model.short_name}.#{full_name}"
             end
 
+            def inspect; to_s end
+
             def short_name
                 "#{component_model.short_name}:#{full_name}"
             end
