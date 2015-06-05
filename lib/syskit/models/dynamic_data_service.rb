@@ -69,6 +69,9 @@ module Syskit
                     service.dynamic_service = dynamic_service
                     service.dynamic_service_options = self.options.dup
                     service
+
+                rescue InvalidPortMapping => e
+                    raise InvalidProvides.new(component_model, service_model, e), "while instanciating the dynamic service #{dynamic_service}: #{e}", e.backtrace
                 end
             end
 
@@ -114,14 +117,14 @@ module Syskit
                 else
                     expected_name = component_model.find_directional_port_mapping(direction, port, nil)
                     if !expected_name
-                        raise ArgumentError, "no explicit mapping has been given for the service port #{port.name} and no port on #{component_model.short_name} matches. You must give an explicit mapping of the form 'service_port_name' => 'task_port_name' if you expect the port to be dynamically created."
+                        raise InvalidPortMapping, "no explicit mapping has been given for the service port #{port.name} and no port on #{component_model.short_name} matches. You must give an explicit mapping of the form 'service_port_name' => 'task_port_name' if you expect the port to be dynamically created."
                     end
                     return expected_name
                 end
 
                 # Now verify that the rest can be instanciated
                 if !component_model.send("has_dynamic_#{direction}_port?", expected_name, port.type)
-                    raise ArgumentError, "there are no dynamic #{direction} ports declared in #{component_model.short_name} that match #{expected_name}:#{port.type_name}"
+                    raise InvalidPortMapping, "there are no dynamic #{direction} ports declared in #{component_model.short_name} that match #{expected_name}:#{port.type_name}"
                 end
                 return expected_name
             end

@@ -289,7 +289,7 @@ describe Syskit::Models::Component do
                 end
                 it "should raise if an implicit mapping is not an existing component port" do
                     flexmock(task_m).should_receive(:find_directional_port_mapping).with('bla', port, nil).and_return(nil)
-                    assert_raises(ArgumentError) { context.directional_port_mapping(task_m, 'bla', port, nil) }
+                    assert_raises(Syskit::InvalidPortMapping) { context.directional_port_mapping(task_m, 'bla', port, nil) }
                 end
                 it "should return the expected name if it validates as an existing dynamic port" do
                     flexmock(task_m).should_receive(:find_bla_port).and_return(nil)
@@ -299,7 +299,7 @@ describe Syskit::Models::Component do
                 it "should raise if the expected name is neither a static port nor a dynamic one" do
                     flexmock(task_m).should_receive(:find_bla_port).and_return(nil)
                     flexmock(task_m).should_receive(:has_dynamic_bla_port?).with('expected_name', port.type).and_return(false)
-                    assert_raises(ArgumentError) { context.directional_port_mapping(task_m, 'bla', port, 'expected_name') }
+                    assert_raises(Syskit::InvalidPortMapping) { context.directional_port_mapping(task_m, 'bla', port, 'expected_name') }
                 end
             end
         end
