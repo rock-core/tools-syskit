@@ -428,10 +428,12 @@ module Syskit
             # One needs to reimplement the model's #configure method to actually
             # configure the task properly.
             #
+            # @param (see Models::Component#require_dynamic_service)
             # @return [BoundDataService] the newly created service
-            def require_dynamic_service(dynamic_service_name, options = Hash.new)
+            def require_dynamic_service(dynamic_service_name, as: nil, **dyn_options)
                 specialize
-                bound_service = self.model.require_dynamic_service(dynamic_service_name, options)
+                bound_service = self.model.require_dynamic_service(
+                    dynamic_service_name, as: as, **dyn_options)
                 srv = bound_service.bind(self)
                 if plan && plan.executable? && setup?
                     added_dynamic_service(srv)

@@ -1,6 +1,15 @@
 module Syskit
     module Models
         # Representation of a data service as provided by a component model
+        #
+        # Instances of this class are usually created by
+        # {Models::Component#provides}. Note that bound dynamic services are
+        # instances of {BoundDynamicDataService} instead.
+        #
+        # At the component instance level, each {Models::BoundDataService} is
+        # represented by a corresponding {Syskit::BoundDataService}, whose
+        # {Syskit::BoundDataService#model} method returns this object. This
+        # instance-level object is created with {#bind}
         class BoundDataService
             include Models::Base
             include Models::PortAccess

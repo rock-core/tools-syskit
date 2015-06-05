@@ -2,17 +2,26 @@ module Syskit
         # Representation of a data service as provided by an actual component
         #
         # It is usually created from a Models::BoundDataService instance using
-        # Models::BoundDataService#bind(component)
+        # Models::BoundDataService#bind(component), or simply by calling the
+        # task's service access (i.e. the _srv helpers or {Component#find_data_service)
+        #
+        # The model-level bound data service corresponding to self is {#model}.
+        # The data service model is therefore {#model}.{#model}. The component
+        # instance this data service is bound to is {#component}.
+        #
+        # {#component}.{#model} is guaranteed to be {#model}.{#component}
         class BoundDataService
             include Syskit::PortAccess
 
-            # [Component] The component instance we are bound to
+            # @return [Component] The component instance we are bound to
             attr_reader :component
-            # [Models::BoundDataService] the data service we are an instance of
+            # @return [Models::BoundDataService] the data service we are an
+            #   instance of. self is basically model.bind(component)
             attr_reader :model
             # The data service name
+            #
             # @return [String]
-            def name
+            def name;
                 model.name
             end
 
@@ -63,6 +72,7 @@ module Syskit
                 end
             end
 
+            # Looks for a slave data service by name
             def find_data_service(name)
                 component.model.each_slave_data_service(self.model) do |slave_m|
                     if slave_m.name == name

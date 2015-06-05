@@ -375,11 +375,27 @@ module Syskit
 
             # Declares that this component model instantiates a dynamic service
             # of the given service model
-            def provides_dynamic(service_model, port_mappings, as: nil, slave_of: nil)
+            #
+            # The main difference when compared to {#provides} is that service
+            # ports that are not mapped to the task are automatically created
+            # (provided a corresponding dynamic_input_port or
+            # dynamic_output_port declaration exists on the oroGen model).
+            # 
+            # @param [Syskit::DataService] service_model the service model
+            # @param [Hash] port_mappings explicit port mappings needed to
+            #   resolve the service's ports  to the task's ports
+            # @param [String] as the name of the newly created {BoundDynamicDataService}
+            # @param [BoundDataService,String,nil] slave_of if this service is slave of another,
+            #   the master service
+            # @return [BoundDynamicDataService]
+            def provides_dynamic(service_model, port_mappings = Hash.new, as: nil, slave_of: nil)
                 # Do not use #filter_options here, it will transform the
                 # port names into symbols
                 port_mappings = DynamicDataService.update_component_model_interface(self, service_model, port_mappings)
-                provides(service_model, port_mappings, as: as, slave_of: slave_of, bound_service_class: BoundDynamicDataService)
+                provides(service_model, port_mappings,
+                         as: as,
+                         slave_of: slave_of,
+                         bound_service_class: BoundDynamicDataService)
             end
 
             # Called by the dynamic_service accessors to promote dynamic
@@ -423,14 +439,14 @@ module Syskit
             #         # setup the task to create the required service
             #       end
             #     end
-            def dynamic_service(model, as: nil, remove_when_unused: false, &block)
+            def dynamic_service(model, as: nil, dynamic: false, remove_when_unused: false, &block)
                 if !as
                     raise ArgumentError, "no name given to the dynamic service, please provide one with the :as option"
                 elsif !block_given?
-                    raise ArgumentError, "no block given to #dynamic_service"
+                    raise ArgumentError, "no block given to #dynamic_service, one must be provided and must call provides()"
                 end
 
-                dynamic_services[as] = DynamicDataService.new(self, as, model, block, remove_when_unused: remove_when_unused)
+                dynamic_services[as] = DynamicDataService.new(self, as, model, block, dynamic: dynamic, remove_when_unused: remove_when_unused)
             end
 
             # Enumerates the services that have been created from a dynamic
@@ -457,13 +473,18 @@ module Syskit
             end
 
             # Instanciate a dynamic service on this model
-            def require_dynamic_service(dynamic_service_name, options = Hash.new)
-                options, dyn_options = Kernel.filter_options options,
-                    :as => nil
-                if !options[:as]
-                    raise ArgumentError, "no name given, please provide the :as option"
+            #
+            # @param [String] dynamic_service_name the name under which the
+            #   dynamic service got registered when calling {#dynamic_service}
+            # @param [String] as the name of the newly created service
+            # @param dyn_options options passed to the dynamic service block
+            #   through {DynamicDataService#instanciate}
+            # @return [BoundDynamicDataService] the newly created service
+            def require_dynamic_service(dynamic_service_name, as: nil, **dyn_options)
+                if !as
+                    raise ArgumentError, "no name given, please provide the as: option"
                 end
-                service_name = options[:as]
+                service_name = as.to_s
 
                 dyn = find_dynamic_service(dynamic_service_name)
                 if !dyn
@@ -476,7 +497,7 @@ module Syskit
                     else raise ArgumentError, "there is already a service #{service_name}, but it is of type #{srv.model.short_name} while the dynamic service #{dynamic_service_name} expects #{dyn.service_model.short_name}"
                     end
                 end
-                dyn.instanciate(service_name, dyn_options)
+                dyn.instanciate(service_name, **dyn_options)
             end
 
             def each_port; end
@@ -528,7 +549,7 @@ module Syskit
 
                 if !as
                     raise ArgumentError, "no service name given, please use the as: option"
-                else name = as
+                else name = as.to_str
                 end
                 full_name = name
 
