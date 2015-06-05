@@ -329,7 +329,7 @@ module Syskit
 
                     # Get the set of candidates. We are checking if the tasks in
                     # this set can be replaced by +task+
-                    candidates = plan.find_local_tasks(task.model.fullfilled_model)
+                    candidates = plan.find_local_tasks(task.fullfilled_model.first)
                     debug { "#{candidates.to_a.size} candidates for #{task}" }
                     candidates = candidates.sort_by { |t| Flows::DataFlow.in_degree(t) }
                         
