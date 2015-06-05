@@ -53,7 +53,7 @@ module Syskit
 
                 # Proxy for component_model#provides which does some sanity
                 # checks
-                def provides(service_model, arguments = Hash.new)
+                def provides(service_model, port_mappings = Hash.new, as: nil, **arguments)
                     if service
                         raise ArgumentError, "this dynamic service instantiation block already created one new service"
                     end
@@ -62,11 +62,10 @@ module Syskit
                         raise ArgumentError, "#{service_model.short_name} does not fullfill the model for the dynamic service #{dynamic_service.name}, #{dynamic_service.service_model.short_name}"
                     end
 
-                    arg_name = arguments.delete('as') || arguments.delete(:as)
-                    if arg_name && arg_name != name
-                        raise ArgumentError, "a :as argument of \"#{arg_name}\" was given but it is required to be #{name}. Note that it can be omitted in a dynamic service block"
+                    if as && as != name
+                        raise ArgumentError, "the as: argument was given (with value #{as}) but it is required to be #{name}. Note that it can be omitted in a dynamic service block"
                     end
-                    @service = component_model.provides_dynamic(service_model, arguments.merge(:as => name))
+                    @service = component_model.provides_dynamic(service_model, port_mappings, as: name, **arguments)
                     service.dynamic_service = dynamic_service
                     service.dynamic_service_options = self.options.dup
                     service

@@ -22,7 +22,7 @@ module Syskit
             #
             # @key_name full_name
             # @return [Hash<String,BoundDataService>]
-            inherited_attribute(:data_service, :data_services, :map => true) { Hash.new }
+            inherited_attribute(:data_service, :data_services, map: true) { Hash.new }
 
             def clear_model
                 super
@@ -134,10 +134,8 @@ module Syskit
             #
             # It creates a new task from the component model using
             # Component.new, adds it to the plan and returns it.
-            def instanciate(plan, context = DependencyInjectionContext.new, arguments = Hash.new)
-                task_arguments, _ = Kernel.
-                    filter_options arguments, :task_arguments => Hash.new
-                plan.add_task(task = new(task_arguments[:task_arguments]))
+            def instanciate(plan, context = DependencyInjectionContext.new, task_arguments: Hash.new, **arguments)
+                plan.add_task(task = new(task_arguments))
                 task
             end
 
@@ -377,13 +375,11 @@ module Syskit
 
             # Declares that this component model instantiates a dynamic service
             # of the given service model
-            def provides_dynamic(service_model, arguments = Hash.new)
+            def provides_dynamic(service_model, port_mappings, as: nil, slave_of: nil)
                 # Do not use #filter_options here, it will transform the
                 # port names into symbols
-                arg_name = arguments.delete('as') || arguments.delete(:as)
-                slave_of = arguments.delete('slave_of') || arguments.delete(:slave_of)
-                port_mappings = DynamicDataService.update_component_model_interface(self, service_model, arguments)
-                provides(service_model, port_mappings.merge(:as => arg_name, :slave_of => slave_of, :bound_service_class => BoundDynamicDataService))
+                port_mappings = DynamicDataService.update_component_model_interface(self, service_model, port_mappings)
+                provides(service_model, port_mappings, as: as, slave_of: slave_of, bound_service_class: BoundDynamicDataService)
             end
 
             # Called by the dynamic_service accessors to promote dynamic
@@ -397,7 +393,7 @@ module Syskit
             #
             # @key_name dynamic_service_name
             # @return [Hash<String,DynamicDataService>]
-            inherited_attribute('dynamic_service', 'dynamic_services', :map => true) { Hash.new }
+            inherited_attribute('dynamic_service', 'dynamic_services', map: true) { Hash.new }
 
             # Declares that this component model can dynamically extend its
             # interface by adding services of the given type
@@ -417,7 +413,7 @@ module Syskit
             #
             # @example
             #   class Example < Syskit::Composition
-            #     dynamic_service CameraSrv, :as => 'camera' do
+            #     dynamic_service CameraSrv, as: 'camera' do
             #       provides WeirdCameraSrv, 'image_samples' => '#{name}_samples'
             #     end
             #
@@ -427,15 +423,14 @@ module Syskit
             #         # setup the task to create the required service
             #       end
             #     end
-            def dynamic_service(model, arguments = Hash.new, &block)
-                arguments = Kernel.validate_options arguments, :as => nil
-                if !arguments[:as]
+            def dynamic_service(model, as: nil, &block)
+                if !as
                     raise ArgumentError, "no name given to the dynamic service, please provide one with the :as option"
                 elsif !block_given?
                     raise ArgumentError, "no block given to #dynamic_service"
                 end
 
-                dynamic_services[arguments[:as]] = DynamicDataService.new(self, arguments[:as], model, block)
+                dynamic_services[as] = DynamicDataService.new(self, as, model, block)
             end
 
             # Enumerates the services that have been created from a dynamic
@@ -491,7 +486,7 @@ module Syskit
             def find_output_port(name); end
             def find_port(name); end
 
-            PROVIDES_ARGUMENTS = { :as => nil, :slave_of => nil }
+            PROVIDES_ARGUMENTS = { as: nil, slave_of: nil }
 
             # Declares that this component provides the given data service.
             # +model+ can either be the data service constant name (from
@@ -520,29 +515,24 @@ module Syskit
             #   does not provide Service1
             #
             #   class TaskModel < Component
-            #     provides Service, :as => 'service'
+            #     provides Service, as: 'service'
             #   end
             #   class SubTaskModel < TaskModel
-            #     provides Service2, :as => 'service2'
+            #     provides Service2, as: 'service2'
             #   end
             #
-            def provides(model, arguments = Hash.new)
+            def provides(model, port_mappings = Hash.new, as: nil, slave_of: nil, bound_service_class: BoundDataService)
                 if !model.kind_of?(DataServiceModel)
                     raise ArgumentError, "expected a data service model as argument and got #{model}"
                 end
 
-                source_arguments, arguments = Kernel.filter_options arguments,
-                    :as => nil,
-                    :slave_of => nil,
-                    :bound_service_class => BoundDataService
-
-                if !source_arguments[:as]
-                    raise ArgumentError, "no service name given, please add the :as option"
-                else name = source_arguments[:as]
+                if !as
+                    raise ArgumentError, "no service name given, please use the as: option"
+                else name = as
                 end
                 full_name = name
 
-                if master = source_arguments[:slave_of]
+                if master = slave_of
                     if master.respond_to?(:to_str)
                         master_srv = find_data_service(master)
                         if !master_srv
@@ -572,12 +562,12 @@ module Syskit
                 end
 
                 begin
-                    new_port_mappings = compute_port_mappings(model, arguments)
+                    new_port_mappings = compute_port_mappings(model, port_mappings)
                 rescue InvalidPortMapping => e
                     raise InvalidProvides.new(self, model, e), "#{short_name} does not provide the '#{model.name}' service's interface. #{e.message}", e.backtrace
                 end
 
-                service = source_arguments[:bound_service_class].new(name, self, master, model, Hash.new)
+                service = bound_service_class.new(name, self, master, model, Hash.new)
                 service.port_mappings[model] = new_port_mappings
 
                 # Now, adapt the port mappings from +model+ itself and map
@@ -586,10 +576,10 @@ module Syskit
 
                 # Remove from +arguments+ the items that were port mappings
                 new_port_mappings.each do |from, to|
-                    if arguments[from].to_s == to # this was a port mapping !
-                        arguments.delete(from)
-                    elsif arguments[from.to_sym].to_s == to
-                        arguments.delete(from.to_sym)
+                    if port_mappings[from].to_s == to # this was a port mapping !
+                        port_mappings.delete(from)
+                    elsif port_mappings[from.to_sym].to_s == to
+                        port_mappings.delete(from.to_sym)
                     end
                 end
                 if !port_mappings.empty?
@@ -764,19 +754,15 @@ module Syskit
             #   brackets (i.e. PlaceholderTask<Component,Srv>)
             #
             # @return [Model<Component>]
-            def create_proxy_task_model(service_models, options = Hash.new)
-                options = Kernel.validate_options options,
-                    :as => nil,
-                    :extension => PlaceholderTask
-
+            def create_proxy_task_model(service_models, as: nil, extension: PlaceholderTask)
                 name_models = service_models.map(&:to_s).sort.join(",")
                 if self != Syskit::Component
                     name_models = "#{self},#{name_models}"
                 end
-                model = specialize(options[:as] || ("#{options[:extension]}<%s>" % [name_models]))
+                model = specialize(as || ("#{extension}<%s>" % [name_models]))
                 model.abstract
                 model.concrete_model = nil
-                model.include options[:extension]
+                model.include extension
                 if self != Syskit::Component
                     model.proxied_task_context_model = self
                 end
@@ -784,7 +770,7 @@ module Syskit
 		model.fullfilled_model = [self] + model.proxied_data_services.to_a
 
                 service_models.each_with_index do |m, i|
-                    model.provides m, :as => "m#{i}"
+                    model.provides m, as: "m#{i}"
                 end
                 model
             end
@@ -808,7 +794,7 @@ module Syskit
                     name = "<#{name}>"
                 end
 
-                model = create_proxy_task_model(service_models, :as => name)
+                model = create_proxy_task_model(service_models, as: name)
                 proxy_task_models[service_models] = model
                 model
             end
@@ -897,7 +883,7 @@ module Syskit
                                  else self
                                  end
                     missing_services.each do |_, srv|
-                        dynamic_service_options = Hash[:as => srv.name].
+                        dynamic_service_options = Hash[as: srv.name].
                             merge(srv.dynamic_service_options)
                         base_model.require_dynamic_service srv.dynamic_service.name, dynamic_service_options
                     end
