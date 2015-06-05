@@ -217,7 +217,7 @@ describe Syskit::Component do
             merged_task.specialize
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel)
             task.specialize
-            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => nil).once.pass_thru
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, Hash.new, as: 'srv', slave_of: nil).once.pass_thru
             task.merge(merged_task)
         end
         it "adds slave dynamic services as slaves" do
@@ -225,7 +225,7 @@ describe Syskit::Component do
             merged_task.specialize
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
             task.specialize
-            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => 'master').once.pass_thru
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, Hash.new, as: 'srv', slave_of: 'master').once.pass_thru
             task.merge(merged_task)
         end
         it "specializes the target task regardless of whether the target model was already specialized" do

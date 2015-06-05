@@ -47,13 +47,15 @@ module Syskit
                 # @return [Hash]
                 attr_reader :options
 
-                def initialize(component_model, name, dynamic_service, options = Hash.new)
+                def initialize(component_model, name, dynamic_service, **options)
                     @component_model, @name, @dynamic_service, @options =
                         component_model, name, dynamic_service, options
                 end
 
                 # Proxy to declare a new argument on the (specialized) component
                 # model
+                #
+                # @param (see Roby::Models::Task#argument)
                 def argument(name, options = Hash.new)
                     component_model.argument(name, options)
                 end
@@ -83,8 +85,15 @@ module Syskit
             end
 
 
-            def instanciate(name, options = Hash.new)
-                instantiator = InstantiationContext.new(component_model, name, self, options)
+            # Instanciates a new bound dynamic service on the underlying
+            # component
+            #
+            # @param [String] the name of the bound service
+            # @param options options that should be given to {#block}. These
+            #   options are available to the block as an 'options' local variable
+            # @return [BoundDynamicDataService]
+            def instanciate(name, **options)
+                instantiator = InstantiationContext.new(component_model, name, self, **options)
                 instantiator.instance_eval(&block)
                 if !instantiator.service
                     raise InvalidDynamicServiceBlock.new(self), "the block #{block} used to instantiate the dynamic service #{name} on #{component_model.short_name} with options #{options} did not provide any service"
