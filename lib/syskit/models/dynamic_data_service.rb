@@ -90,12 +90,17 @@ module Syskit
             #
             # @return [Hash{String=>String}] the updated port mappings
             def self.update_component_model_interface(component_model, service_model, user_port_mappings)
+                user_port_mappings = user_port_mappings.dup
                 port_mappings = Hash.new
                 service_model.each_output_port do |service_port|
-                    port_mappings[service_port.name] = directional_port_mapping(component_model, 'output', service_port, user_port_mappings[service_port.name])
+                    port_mappings[service_port.name] = directional_port_mapping(component_model, 'output', service_port, user_port_mappings.delete(service_port.name))
                 end
                 service_model.each_input_port do |service_port|
-                    port_mappings[service_port.name] = directional_port_mapping(component_model, 'input', service_port, user_port_mappings[service_port.name])
+                    port_mappings[service_port.name] = directional_port_mapping(component_model, 'input', service_port, user_port_mappings.delete(service_port.name))
+                end
+
+                if !user_port_mappings.empty?
+                    raise Syskit::InvalidPortMapping, "port mappings #{user_port_mappings} do not match either the ports of #{service_model} or the ports of #{component_model}"
                 end
 
                 # Unlike #data_service, we need to add the service's interface

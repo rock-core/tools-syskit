@@ -238,6 +238,26 @@ describe Syskit::Models::Component do
                     dyn_srv.instanciate('srv', options)
                     assert_equal options, received_options
                 end
+                it "should raise if the port mappings do not match ports in the provided service" do
+                    # Make sure we have a direct static mapping. Otherwise, the
+                    # error we will get is that the port cannot be mapped
+                    task_m = Syskit::TaskContext.new_submodel { output_port "out", "int" }
+                    srv_m = Syskit::DataService.new_submodel { output_port "out", "int" }
+                    dyn_srv = task_m.dynamic_service srv_m, as: 'ddd' do
+                        provides srv_m, "does_not_exist" => "#{name}_out"
+                    end
+                    assert_raises(Syskit::InvalidProvides) { dyn_srv.instanciate('srv') }
+                end
+                it "should raise if the port mappings do not match ports in the task context" do
+                    # Make sure we have a direct static mapping. Otherwise, the
+                    # error we will get is that the port cannot be mapped
+                    task_m = Syskit::TaskContext.new_submodel { output_port "out", "int" }
+                    srv_m = Syskit::DataService.new_submodel { output_port "out", "int" }
+                    dyn_srv = task_m.dynamic_service srv_m, as: 'ddd' do
+                        provides srv_m, "out" => "does_not_exist"
+                    end
+                    assert_raises(Syskit::InvalidProvides) { dyn_srv.instanciate('srv') }
+                end
             end
 
             describe "#update_component_model_interface" do
@@ -426,7 +446,7 @@ describe Syskit::Models::Component do
                 @base_m = Syskit::TaskContext.new_submodel
                 @srv_m = srv_m = Syskit::DataService.new_submodel
                 base_m.dynamic_service srv_m, as: 'test' do
-                    provides srv_m, 'out' => name
+                    provides srv_m
                 end
                 @m0 = base_m.specialize
                 m0.require_dynamic_service 'test', as: 'm0'
