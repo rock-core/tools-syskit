@@ -579,6 +579,20 @@ describe Syskit::Models::Component do
                 bound_service = component.provides(service, as: 'srv', 'out' => 'other1')
                 assert_equal({'out' => 'other1'}, bound_service.port_mappings_for_task)
             end
+
+            it "raises if given an explicit port mapping with an invalid service port" do
+                component = Syskit::TaskContext.new_submodel do
+                    output_port 'out', '/int'
+                end
+                assert_raises(Syskit::InvalidProvides) { component.provides(service, as: 'srv', 'does_not_exist' => 'other1') }
+            end
+
+            it "raises if given an explicit port mapping with an invalid component port" do
+                component = Syskit::TaskContext.new_submodel do
+                    output_port 'out', '/int'
+                end
+                assert_raises(Syskit::InvalidProvides) { component.provides(service, as: 'srv', 'out' => 'does_not_exist') }
+            end
         end
     end
 end

@@ -592,6 +592,9 @@ module Syskit
                         arguments.delete(from.to_sym)
                     end
                 end
+                if !port_mappings.empty?
+                    raise InvalidProvides.new(self, model), "invalid port mappings: #{port_mappings} do not match any ports in either #{self} or #{service}"
+                end
 
                 include model
 
