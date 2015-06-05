@@ -606,9 +606,6 @@ module Syskit
                     break
                 end
 
-                arguments.each do |key, value|
-                    send("#{key}=", value)
-                end
                 return service
             end
 
