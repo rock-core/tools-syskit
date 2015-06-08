@@ -427,7 +427,80 @@ module Syskit
 
                 ::Robot.info "cleaning up #{self}"
                 orocos_task.cleanup
+
+                # {#cleanup} is meant to clear dynamic ports, clear the
+                # ActualDataFlow graph accordingly
+                to_remove = Hash.new
+                to_remove.merge!(dynamic_input_port_connections)
+                to_remove.merge!(dynamic_output_port_connections)
+                Flows::DataFlow.modified_tasks << self
+                to_remove.each do |(source_task, sink_task), connections|
+                    ActualDataFlow.remove_connections(source_task, sink_task, connections)
+                end
+
                 return true
+            end
+
+            # @api private
+            #
+            # Helper for {#prepare_for_setup} that enumerates the inbound
+            # connections originating from a dynamic output port
+            def dynamic_input_port_connections
+                to_remove = Hash.new
+                real_model = self.model.concrete_model
+                dynamic_ports = self.model.each_input_port.find_all do |p|
+                    !real_model.find_input_port(p.name)
+                end
+                dynamic_ports = dynamic_ports.map(&:name).to_set
+
+                # In development mode, we actually check that the
+                # task did remove the port(s)
+                if Roby.app.development_mode?
+                    dynamic_ports.each do |name|
+                        if orocos_task.find_input_port(name)
+                            Syskit.fatal "task #{orocos_task} did not clear #{name}, a dynamic input port, during cleanup, as it should have. Go fix it."
+                        end
+                    end
+                end
+
+                orocos_task.each_parent_vertex(ActualDataFlow) do |source_task|
+                    mappings = source_task[orocos_task, ActualDataFlow]
+                    to_remove[[source_task, orocos_task]] = mappings.each_key.find_all do |from_port, to_port|
+                        dynamic_ports.include?(to_port)
+                    end
+                end
+                to_remove
+            end
+
+            # @api private
+            #
+            # Helper for {#prepare_for_setup} that enumerates the outbound
+            # connections originating from a dynamic output port
+            def dynamic_output_port_connections
+                to_remove = Hash.new
+                real_model = self.model.concrete_model
+                dynamic_ports = self.model.each_output_port.find_all do |p|
+                    !real_model.find_output_port(p.name)
+                end
+                dynamic_ports = dynamic_ports.map(&:name).to_set
+
+                # In development mode, we actually check that the
+                # task did remove the port(s)
+                if Roby.app.development_mode?
+                    dynamic_ports.each do |name|
+                        if orocos_task.find_output_port(name)
+                            Syskit.fatal "task #{orocos_task} did not clear #{name}, a dynamic output port, during cleanup, as it should have. Go fix it."
+                        end
+                    end
+                end
+
+                orocos_task.each_child_vertex(ActualDataFlow) do |sink_task|
+                    mappings = orocos_task[sink_task, ActualDataFlow]
+                    to_remove[[orocos_task, sink_task]] = mappings.each_key.find_all do |from_port, to_port|
+                        dynamic_ports.include?(from_port)
+                    end
+                end
+                to_remove
             end
 
             # Called to configure the component

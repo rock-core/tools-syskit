@@ -495,6 +495,52 @@ describe Syskit::TaskContext do
             orocos_task.should_receive(:cleanup).once
             assert task.prepare_for_setup(:STOPPED)
         end
+        describe "handling of dynamic input ports" do
+            attr_reader :source_task, :orocos_tasks
+            before do
+                srv = Syskit::DataService.new_submodel { input_port 'p', '/double' }
+                task.specialize
+                task.model.orogen_model.dynamic_input_port /.*/, '/double'
+                task.model.provides_dynamic srv, as: 'test', 'p' => 'dynamic'
+                @source_task = syskit_deploy_task_context 'SourceTask', 'source_task' do
+                    input_port "dynamic", "/double"
+                end
+                @orocos_tasks = [source_task.orocos_task, task.orocos_task]
+            end
+
+            it "removes the connections to dynamic input ports from ActualDataFlow" do
+                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => Hash.new])
+                assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
+
+                Syskit::TaskContext.configured['task'] = nil
+                orocos_task.should_receive(:cleanup).once
+                assert task.prepare_for_setup(:STOPPED)
+                assert !Syskit::ActualDataFlow.linked?(*orocos_tasks)
+            end
+        end
+        describe "handling of dynamic output ports" do
+            attr_reader :sink_task, :orocos_tasks
+            before do
+                srv = Syskit::DataService.new_submodel { output_port 'p', '/double' }
+                task.specialize
+                task.model.orogen_model.dynamic_output_port /.*/, '/double'
+                task.model.provides_dynamic srv, as: 'test', 'p' => 'dynamic'
+                @sink_task = syskit_deploy_task_context 'SinkTask', 'sink_task' do
+                    output_port "dynamic", "/double"
+                end
+                @orocos_tasks = [task.orocos_task, sink_task.orocos_task]
+            end
+
+            it "removes the connections to dynamic output ports from ActualDataFlow" do
+                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => Hash.new])
+                assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
+
+                Syskit::TaskContext.configured['task'] = nil
+                orocos_task.should_receive(:cleanup).once
+                assert task.prepare_for_setup(:STOPPED)
+                assert !Syskit::ActualDataFlow.linked?(*orocos_tasks)
+            end
+        end
     end
     describe "#setup" do
         attr_reader :task, :orocos_task
