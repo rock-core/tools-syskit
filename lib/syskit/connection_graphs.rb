@@ -84,7 +84,7 @@ module Syskit
                 end
                 if linked?(source_task, sink_task)
                     current_mappings = source_task[sink_task, self]
-                    new_mappings = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
+                    mappings = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
                         if old_options.empty? then new_options
                         elsif new_options.empty? then old_options
                         elsif old_options != new_options
@@ -92,10 +92,11 @@ module Syskit
                         end
                         old_options
                     end
-                    source_task[sink_task, self] = new_mappings
+                    source_task[sink_task, self] = mappings
                 else
                     link(source_task, sink_task, mappings)
                 end
+                updated_connections(source_task, sink_task, mappings)
             end
 
             # Removes the given set of connections between +source_task+ and
@@ -114,11 +115,25 @@ module Syskit
                     # To make the relation system call #update_info
                     source_task[sink_task, self] = current_mappings
                 end
+                updated_connections(source_task, sink_task, current_mappings)
+            end
+
+            def updated_connections(source_task, sink_task, connections)
+                super if defined? super
+            end
+        end
+
+        Roby::Log.define_hook :updated_actual_data_flow
+
+        class ActualDataFlowGraph < ConnectionGraph
+            def updated_connections(source_task, sink_task, connections) # :nodoc:
+                Roby::Log.log(:updated_actual_data_flow) { [source_task.name, sink_task.name, connections] }
+                super
             end
         end
 
         # (see ConnectionGraph)
-        ActualDataFlow   = ConnectionGraph.new
+        ActualDataFlow   = ActualDataFlowGraph.new
         ActualDataFlow.name = "Syskit::ActualDataFlow"
         Orocos::TaskContext.include BGL::Vertex
 
