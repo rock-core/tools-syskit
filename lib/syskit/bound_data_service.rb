@@ -16,10 +16,18 @@ module Syskit
                 model.name
             end
 
-            def ==(other)
+            def hash
+                [self.class, component, model].hash
+            end
+
+            def eql?(other)
                 other.kind_of?(self.class) &&
                     other.component == component &&
                     other.model == model
+            end
+
+            def ==(other)
+                eql?(other)
             end
 
             def initialize(component, model)
