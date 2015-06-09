@@ -140,38 +140,63 @@ module Syskit
                 return new, removed
             end
 
-            # Adds source_task (resp. sink_task) to +set+ if modifying
-            # connection specified in +mappings+ will require source_task (resp.
-            # sink_task) to be restarted.
-            #
-            # Restart is required by having the task's input ports marked as
-            # 'static' in the oroGen specification
-            def update_restart_set(set, source_task, sink_task, mappings)
-                if !set.include?(source_task)
-                    needs_restart = mappings.any? do |source_port, sink_port|
-                        begin
-                            source_task.model.find_output_port(source_port).static? && source_task.running?
-                        rescue Orocos::ComError
+            def find_syskit_task_context_from_orocos_task(orocos_task)
+                klass = TaskContext.model_for(orocos_task.model)
+                task = plan.find_tasks(klass.concrete_model).running.
+                    find { |t| t.orocos_task == orocos_task }
+            end
+
+            def new_connections_require_network_update?(connections)
+                connections.each do |(source_task, sink_task), mappings|
+                    if source_task.running?
+                        mappings.each_key do |source_port, _|
+                            if port = source_task.model.find_output_port(source_port)
+                                return true if !port || port.static?
+                            end
                         end
                     end
-                    if needs_restart
-                        set << source_task
+                    if sink_task.running?
+                        mappings.each_key do |_, sink_port|
+                            if port = sink_task.model.find_input_port(sink_port)
+                                return true if !port || port.static?
+                            end
+                        end
+                    end
+                end
+                false
+            end
+
+            def removed_connections_require_network_update?(connections)
+                unneeded_tasks = nil
+                handle_modified_task = lambda do |orocos_task|
+                    if syskit_task = find_syskit_task_context_from_orocos_task(orocos_task)
+                        if syskit_task.running?
+                            unneeded_tasks ||= plan.unneeded_tasks
+                            if !unneeded_tasks.include?(syskit_task)
+                                return true
+                            end
+                        end
                     end
                 end
 
-                if !set.include?(sink_task)
-                    needs_restart =  mappings.any? do |source_port, sink_port|
-                        begin
-                            sink_task.model.find_input_port(sink_port).static? && sink_task.running?
-                        rescue Orocos::ComError
-                        end
+                connections.each do |(source_task, sink_task), mappings|
+                    source_task_modified = mappings.any? do |source_port, sink_port|
+                        port = source_task.model.find_output_port(source_port)
+                        (!port || port.static?)
+                    end
+                    if source_task_modified && handle_modified_task[source_task]
+                        return true
                     end
 
-                    if needs_restart
-                        set << sink_task
+                    sink_task_modified = mappings.any? do |_, sink_port|
+                        port = sink_task.model.find_input_port(sink_port)
+                        (!port || port.static?)
+                    end
+                    if sink_task_modified && handle_modified_task[sink_task]
+                        return true
                     end
                 end
-                set
+                false
             end
 
             # Apply all connection changes on the system. The principle is to
@@ -214,40 +239,13 @@ module Syskit
                             throw :cancelled
                         end
                     end
-
-                    update_restart_set(restart_tasks, source, sink, mappings.keys)
                 end
 
-                restart_task_proxies = ValueSet.new
-                removed.each do |(source, sink), mappings|
-                    update_restart_set(restart_task_proxies, source, sink, mappings)
-                end
-                restart_task_proxies.each do |corba_handle|
-                    klass = TaskContext.model_for(corba_handle.model)
-                    task = plan.find_tasks(klass).running.
-                        find { |t| t.orocos_name == corba_handle.name }
-
-                    if task
-                        restart_tasks << task
-                    end
+                if new_connections_require_network_update?(new) || removed_connections_require_network_update?(removed)
+                    plan.syskit_engine.force_update!
+                    throw :cancelled
                 end
 
-                if !restart_tasks.empty?
-                    new_tasks = Array.new
-                    all_stopped = Roby::AndGenerator.new
-
-                    restart_tasks.each do |task|
-                        debug { "restarting #{task}" }
-                        replacement = plan.recreate(task)
-                        debug { "  replaced by #{replacement}" }
-                        new_tasks << replacement
-                        all_stopped << task.stop_event
-                    end
-                    new_tasks.each do |new_task|
-                        all_stopped.add_causal_link new_task.start_event
-                    end
-                    throw :cancelled, all_stopped
-                end
 
                 # Remove connections first
                 removed.each do |(source_task, sink_task), mappings|

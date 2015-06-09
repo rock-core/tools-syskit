@@ -160,7 +160,10 @@ module Syskit
             #   model = RootCmp.use(
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   stub_deploy_and_start_composition(model)
-            def stub_and_deploy(model, recursive: false, as: nil, prefix: nil)
+            def stub_and_deploy(model, recursive: false, as: nil, prefix: nil, &block)
+                if model.respond_to?(:to_str)
+                    model = stub_syskit_task_context_model(model, &block)
+                end
                 model = model.to_instance_requirements.dup
 
                 if prefix
@@ -177,13 +180,13 @@ module Syskit
                 syskit_run_deployer(model, compute_policies: false)
             end
 
-            def stub_deploy_and_start(model, options = Hash.new)
-                root = stub_and_deploy(model, options)
+            def stub_deploy_and_start(model, options = Hash.new, &block)
+                root = stub_and_deploy(model, options, &block)
                 syskit_start_component(root)
             end
 
-            def stub_deploy_and_configure(model, options = Hash.new)
-                root = stub_and_deploy(model, options)
+            def stub_deploy_and_configure(model, options = Hash.new, &block)
+                root = stub_and_deploy(model, options, &block)
                 syskit_setup_component(root)
             end
 

@@ -730,5 +730,55 @@ describe Syskit::TaskContext do
         process_events
         process_events
     end
+
+    describe "#transaction_modifies_static_ports?" do
+        attr_reader :transaction
+        attr_reader :source_task, :task
+        before do
+            @source_task = syskit_deploy_task_context "SourceTask", 'source_task' do
+                output_port 'out', 'int'
+            end
+            @task = syskit_deploy_task_context "Task", "task" do
+                input_port('in', 'int').static
+            end
+            @transaction = create_transaction
+        end
+
+        it "returns true if connected to new tasks" do
+            transaction.add(new_task = source_task.model.new)
+            task_p = transaction[task]
+            new_task.out_port.connect_to task_p.in_port
+            assert task_p.transaction_modifies_static_ports?
+        end
+        it "returns true if the transaction adds a connections to a static port" do
+            task_p = transaction[task]
+            source_task_p = transaction[source_task]
+            source_task_p.out_port.connect_to task_p.in_port
+            assert task_p.transaction_modifies_static_ports?
+        end
+        it "returns true if the transaction removes a connections to a static port" do
+            source_task.out_port.connect_to task.in_port
+            task_p = transaction[task]
+            source_task_p = transaction[source_task]
+            source_task_p.out_port.disconnect_from task_p.in_port
+            assert task_p.transaction_modifies_static_ports?
+        end
+        it "returns false if an unconnected port stays unconnected" do
+            task_p = transaction[task]
+            source_task_p = transaction[source_task]
+            assert !task_p.transaction_modifies_static_ports?
+        end
+        it "returns false if a connected port stays the same" do
+            source_task.out_port.connect_to task.in_port
+            task_p = transaction[task]
+            source_task_p = transaction[source_task]
+            assert !task_p.transaction_modifies_static_ports?
+        end
+        it "returns false if a connected port stays the same, the peer not being included in the transaction" do
+            source_task.out_port.connect_to task.in_port
+            task_p = transaction[task]
+            assert !task_p.transaction_modifies_static_ports?
+        end
+    end
 end
 
