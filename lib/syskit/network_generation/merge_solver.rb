@@ -85,7 +85,7 @@ module Syskit
 
             # Merge task into target_task, i.e. applies target_task.merge(task)
             # and updates the merge solver's data structures in the process
-            def merge(task, target_task)
+            def merge(task, target_task, remove: true)
                 if task == target_task
                     raise "trying to merge a task onto itself: #{task}"
                 end
@@ -102,7 +102,9 @@ module Syskit
                 else
                     plan.replace_task(task, target_task)
                 end
-                plan.remove_object(task)
+                if remove
+                    plan.remove_object(task)
+                end
                 register_replacement(task, target_task)
 
                 if MergeSolver.tracing_directory

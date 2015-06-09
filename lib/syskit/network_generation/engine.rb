@@ -77,6 +77,16 @@ module Syskit
 	    # See #disabled?
 	    def enable_updates; @disabled = false end
 
+            # Force running {#resolve} the next chance we have to
+            #
+            # @see Runtime.apply_requirement_modifications
+            def force_update!; @forced_update = true end
+
+            # Whether we should run {#resolve} the next have we have the chance
+            #
+            # @see #force_update! Runtime.apply_requirement_modifications
+            def forced_update?; @forced_update end
+
             # The set of tasks that represent the running deployments
             attr_reader :deployment_tasks
 
@@ -114,6 +124,8 @@ module Syskit
                 @real_plan = plan
                 @work_plan = plan
                 real_plan.syskit_engine = self
+
+                @forced_update = false
 
                 @merge_solver = NetworkGeneration::MergeSolver.new(real_plan)
                 @use_automatic_selection = true
@@ -1001,11 +1013,32 @@ module Syskit
                     result << selected_deployment
                 end
 
+                merged_tasks = reconfigure_tasks_on_static_port_modification(merged_tasks)
+
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
                 merge_seeds = merge_solver.merge_tasks_next_step_hierarchy(merged_tasks)
                 merge_solver.merge_identical_tasks(merge_seeds)
                 result
+            end
+
+            def reconfigure_tasks_on_static_port_modification(deployed_tasks)
+                final_deployed_tasks = deployed_tasks.dup
+
+                already_setup_tasks = work_plan.find_tasks(Syskit::TaskContext).not_finished.not_finishing.
+                    find_all { |t| deployed_tasks.include?(t) && t.setup? }
+
+                already_setup_tasks.each do |t|
+                    next if !t.transaction_proxy?
+                    if t.transaction_modifies_static_ports?
+                        new_task = t.execution_agent.task(t.orocos_name, t.concrete_model)
+                        merge_solver.merge(t, new_task, remove: false)
+                        new_task.should_configure_after t.stop_event
+                        final_deployed_tasks.delete(t)
+                        final_deployed_tasks << new_task
+                    end
+                end
+                final_deployed_tasks
             end
 
             # Given a required deployment task in {#work_plan} and a proxy
@@ -1088,6 +1121,8 @@ module Syskit
             def resolve(options = Hash.new)
                 @timepoints = []
 	    	return if disabled?
+
+                @forced_update = false
 
                 # Set some objects to nil to make sure that noone is using them
                 # while they are not valid

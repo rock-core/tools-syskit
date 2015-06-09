@@ -841,6 +841,34 @@ module Syskit
                         Syskit::Models.merge_orogen_task_context_models(__getobj__.model.orogen_model, [model.orogen_model])
                     end
                 end
+
+                def transaction_modifies_static_ports?
+                    new_connections_to_static = Hash.new
+                    each_source do |source_task|
+                        connections = source_task[self, Flows::DataFlow]
+                        connections.each_key do |source_port, sink_port|
+                            if find_input_port(sink_port).static?
+                                return true if !source_task.transaction_proxy?
+
+                                sources = (new_connections_to_static[sink_port] ||= Set.new)
+                                sources << [source_task.orocos_name, source_port]
+                            end
+                        end
+                    end
+
+                    current_connections_to_static = Hash.new
+                    __getobj__.each_source do |source_task|
+                        connections = source_task[__getobj__, Flows::DataFlow]
+                        connections.each_key do |source_port, sink_port|
+                            if find_input_port(sink_port).static?
+                                sources = (current_connections_to_static[sink_port] ||= Set.new)
+                                sources << [source_task.orocos_name, source_port]
+                            end
+                        end
+                    end
+
+                    current_connections_to_static != new_connections_to_static
+                end
             end
         end
 end

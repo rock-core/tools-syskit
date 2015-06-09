@@ -4,7 +4,7 @@ module Syskit
             return if plan.syskit_engine.disabled?
 
             tasks = plan.find_tasks(Syskit::InstanceRequirementsTask).running.to_a
-            if !tasks.empty?
+            if plan.syskit_engine.forced_update? || !tasks.empty?
                 begin
                     plan.syskit_engine.resolve
                     tasks.each do |t|
