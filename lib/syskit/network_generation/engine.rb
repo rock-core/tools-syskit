@@ -1162,7 +1162,7 @@ module Syskit
                 end
 
             rescue Exception => e
-                if work_plan != real_plan # we started processing, look at what the user wants to do with the partial transaction
+                if !work_plan.finalized? && (work_plan != real_plan) # we started processing, look at what the user wants to do with the partial transaction
                     if options[:on_error] == :save
                         log_pp(:fatal, e)
                         fatal "Engine#resolve failed"
