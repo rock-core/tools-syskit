@@ -271,6 +271,8 @@ module Syskit
                     end
                 end
 
+                component.freeze_delayed_arguments
+
                 # Might already have been configured while waiting for the ready
                 # event
                 if !component.setup?
