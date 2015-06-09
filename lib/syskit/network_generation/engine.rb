@@ -237,7 +237,6 @@ module Syskit
                 @main_automatic_selection = DependencyInjection.new
                 main_automatic_selection.add_defaults(@deployed_component_models)
 
-                @work_plan = Roby::Transaction.new(real_plan)
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @required_instances = Hash.new
                 @toplevel_tasks.clear
@@ -1059,6 +1058,10 @@ module Syskit
                 applied_merges
             end
 
+            def create_work_plan_transaction
+                @work_plan = Roby::Transaction.new(real_plan)
+            end
+
             # Generate the deployment according to the current requirements, and
             # merges it into the current plan
             #
@@ -1092,7 +1095,9 @@ module Syskit
                     @port_dynamics =
                     @deployment_tasks = nil
 
+                create_work_plan_transaction
                 prepare(options)
+
                 # We use simply "options" below, which resolves to the local
                 # variable. Update it.
                 options = self.options
