@@ -22,6 +22,7 @@ describe Syskit::NetworkGeneration::Engine do
             @planning_task = original_task.planning_task
             @requirements = planning_task.requirements
             stub_roby_deployment_model(simple_component_model)
+            syskit_engine.create_work_plan_transaction
             syskit_engine.prepare
         end
 
@@ -138,6 +139,7 @@ describe Syskit::NetworkGeneration::Engine do
         before do
             plan.add(@original_task = simple_component_model.as_plan)
             @planning_task = original_task.planning_task
+            syskit_engine.create_work_plan_transaction
             syskit_engine.prepare
             syskit_engine.work_plan.add_permanent(@final_task = simple_component_model.new)
             syskit_engine.required_instances[original_task.planning_task] = final_task
