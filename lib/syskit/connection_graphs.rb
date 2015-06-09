@@ -431,7 +431,7 @@ module Syskit
                     raise ArgumentError, "no such connections #{mappings} for #{self} => #{target_task}"
                 end
 
-                connections = self[target_task, Flows::DataFlow]
+                connections = self[target_task, Flows::DataFlow].dup
 
                 result = Hash.new
                 mappings.delete_if do |port_pair|
@@ -443,6 +443,7 @@ module Syskit
                 if !mappings.empty?
                     raise ArgumentError, "no such connections #{mappings.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")} for #{self} => #{target_task}. Existing connections are: #{connections.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")}"
                 end
+                self[target_task, Flows::DataFlow] = connections
 
                 Flows::DataFlow.modified_tasks << self << target_task
                 result
