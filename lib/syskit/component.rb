@@ -50,6 +50,11 @@ module Syskit
                 @requirements = InstanceRequirements.new
             end
 
+            def initialize_copy(source)
+                super
+                @requirements = @requirements.dup
+            end
+
             def create_fresh_copy
                 new_task = super
                 new_task.robot = robot
@@ -215,24 +220,7 @@ module Syskit
                 # If merged_task has instantiated dynamic services, instantiate
                 # them on self
                 if merged_task.model.private_specialization?
-                    missing_services = merged_task.model.each_data_service.find_all do |_, srv|
-                        !model.find_data_service(srv.full_name)
-                    end
-
-                    if !missing_services.empty?
-                        # We really really need to specialize self. The reason is
-                        # that self.model, even though it has private
-                        # specializations, might be a reusable model from the system
-                        # designer's point of view. With the singleton class, we
-                        # know that it is not
-                        specialize
-
-                        missing_services.each do |_, srv|
-                            dynamic_service_options = Hash[:as => srv.name].
-                                merge(srv.dynamic_service_options)
-                            model.require_dynamic_service srv.dynamic_service.name, dynamic_service_options
-                        end
-                    end
+                    duplicate_missing_services_from(merged_task)
                 end
 
                 # Call included plugins if there are some
@@ -242,6 +230,27 @@ module Syskit
                 # #replace_task to replace it completely
                 plan.replace_task(merged_task, self)
                 nil
+            end
+
+            def duplicate_missing_services_from(task)
+                missing_services = task.model.each_data_service.find_all do |_, srv|
+                    !model.find_data_service(srv.full_name)
+                end
+
+                if !missing_services.empty?
+                    # We really really need to specialize self. The reason is
+                    # that self.model, even though it has private
+                    # specializations, might be a reusable model from the system
+                    # designer's point of view. With the singleton class, we
+                    # know that it is not
+                    specialize
+
+                    missing_services.each do |_, srv|
+                        dynamic_service_options = Hash[as: srv.name].
+                            merge(srv.dynamic_service_options)
+                        model.require_dynamic_service srv.dynamic_service.name, **dynamic_service_options
+                    end
+                end
             end
 
             # The set of data readers created with #data_reader. Used to disconnect
@@ -509,6 +518,10 @@ module Syskit
                     if specialized_model?
                         __getobj__.specialize
                     end
+
+                    # Merge the InstanceRequirements objects
+                    __getobj__.requirements.merge(requirements)
+                    __getobj__.duplicate_missing_services_from(self)
                 end
             end
         end
