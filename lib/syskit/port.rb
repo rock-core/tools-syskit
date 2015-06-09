@@ -117,6 +117,13 @@ module Syskit
         def to_s
             "#{component}.#{name}"
         end
+
+        def connected?
+            each_connection { return true }
+            false
+        end
+
+        def static?; model.orogen_model.static? end
     end
 
     class InputPort < Port
