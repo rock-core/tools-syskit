@@ -1154,6 +1154,13 @@ module Syskit
                 end
                 work_plan.commit_transaction
 
+                # Reset the oroGen model on all already-running tasks
+                real_plan.find_tasks(Syskit::TaskContext).each do |task|
+                    if (orocos_task = task.orocos_task) && orocos_task.respond_to?(:model=)
+                        task.orocos_task.model = task.model.orogen_model
+                    end
+                end
+
             rescue Exception => e
                 if work_plan != real_plan # we started processing, look at what the user wants to do with the partial transaction
                     if options[:on_error] == :save
