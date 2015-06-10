@@ -1,9 +1,5 @@
 module Syskit
     module NetworkGeneration
-        module PlanExtension
-            attr_accessor :syskit_engine
-        end
-
         # The main deployment algorithm
         #
         # Engine instances are the objects that actually get deployment
@@ -117,7 +113,6 @@ module Syskit
             def initialize(plan)
                 @real_plan = plan
                 @work_plan = plan
-                real_plan.extend PlanExtension
                 real_plan.syskit_engine = self
 
                 @merge_solver = NetworkGeneration::MergeSolver.new(real_plan)

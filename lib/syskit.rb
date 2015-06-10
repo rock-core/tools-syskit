@@ -17,6 +17,7 @@ require 'syskit/base'
 require 'syskit/instance_requirements'
 
 require 'syskit/roby_app'
+require 'syskit/plan_extension'
 
 # Models
 require 'metaruby/dsls'
