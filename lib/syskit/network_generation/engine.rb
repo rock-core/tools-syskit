@@ -157,9 +157,9 @@ module Syskit
             # Computes the set of task context models that are available in
             # deployments
             def compute_deployed_models
-                deployed_models = ValueSet.new
+                deployed_models = Set.new
 
-                new_models = ValueSet.new
+                new_models = Set.new
                 available_deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
                         model.each_orogen_deployed_task_context_model do |deployed_task|
@@ -172,7 +172,7 @@ module Syskit
                     deployed_models.merge(new_models)
 
                     # First, add everything the new models fullfill
-                    fullfilled_models = ValueSet.new
+                    fullfilled_models = Set.new
                     new_models.each do |m|
                         m.each_fullfilled_model do |fullfilled_m|
                             next if !(fullfilled_m <= Syskit::Component) && !(fullfilled_m.kind_of?(Models::DataServiceModel))
@@ -224,7 +224,7 @@ module Syskit
                 @deployed_component_models.each do |component_m|
                     component_m.each_fullfilled_model do |fullfilled_m|
                         if fullfilled_m <= DataService
-                            service_allocation_candidates[fullfilled_m] ||= ValueSet.new
+                            service_allocation_candidates[fullfilled_m] ||= Set.new
                             service_allocation_candidates[fullfilled_m] << component_m
                         end
                     end
@@ -589,7 +589,7 @@ module Syskit
                     deployment_models.each do |model|
                         model.each_orogen_deployed_task_context_model do |deployed_task|
                             task_model = TaskContext.model_for(deployed_task.task_model)
-                            deployed_models[task_model] ||= ValueSet.new
+                            deployed_models[task_model] ||= Set.new
                             deployed_models[task_model] << [machine_name, model, deployed_task.name]
                         end
                     end
@@ -932,10 +932,10 @@ module Syskit
             def finalize_deployed_tasks
                 debug "finalizing deployed tasks"
 
-                used_deployments = work_plan.find_local_tasks(Deployment).to_value_set
-                used_tasks       = work_plan.find_local_tasks(Component).to_value_set
+                used_deployments = work_plan.find_local_tasks(Deployment).to_set
+                used_tasks       = work_plan.find_local_tasks(Component).to_set
 
-                all_tasks = work_plan.find_tasks(Component).to_value_set
+                all_tasks = work_plan.find_tasks(Component).to_set
                 all_tasks.delete_if do |t|
                     if !t.reusable?
                         debug { "  clearing the relations of the finished task #{t}" }
@@ -958,7 +958,7 @@ module Syskit
                 finishing_deployments, existing_deployments =
                     work_plan.find_tasks(Syskit::Deployment).not_finished.
                     partition { |t| t.finishing? }
-                existing_deployments = existing_deployments.to_value_set - used_deployments
+                existing_deployments = existing_deployments.to_set - used_deployments
                 finishing_deployments = finishing_deployments.inject(Hash.new) do |h, task|
                     h[task.process_name] = task
                     h
@@ -973,11 +973,11 @@ module Syskit
                     break
                 end
 
-                merged_tasks = ValueSet.new
-                result = ValueSet.new
+                merged_tasks = Set.new
+                result = Set.new
                 used_deployments.each do |deployment_task|
                     existing_candidates = work_plan.find_local_tasks(deployment_task.model).
-                        not_finishing.not_finished.to_value_set
+                        not_finishing.not_finished.to_set
                     debug do
                         debug "  looking to reuse a deployment for #{deployment_task.process_name} (#{deployment_task})"
                         debug "  #{existing_candidates.size} candidates:"
@@ -1061,7 +1061,7 @@ module Syskit
                     end
                 end
 
-                applied_merges = ValueSet.new
+                applied_merges = Set.new
                 deployed_tasks = deployment_task.each_executed_task.to_a
                 deployed_tasks.each do |task|
                     existing_task = existing_tasks[task.orocos_name]
@@ -1283,7 +1283,7 @@ module Syskit
                 Graphviz.new(work_plan).to_file(kind, 'svg', filename, *additional_args)
             end
 
-            def to_dot_dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = ["connection_policy"])
+            def to_dot_dataflow(remove_compositions = false, excluded_models = Set.new, annotations = ["connection_policy"])
                 gen = Graphviz.new(work_plan)
                 gen.dataflow(remove_compositions, excluded_models, annotations)
             end

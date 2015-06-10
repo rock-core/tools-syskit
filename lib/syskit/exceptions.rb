@@ -288,13 +288,13 @@ module Syskit
                 still_abstract.each do |task|
                     if task.respond_to?(:proxied_data_services)
                         candidates = task.proxied_data_services.inject(nil) do |set, m|
-                            m_candidates = (engine.service_allocation_candidates[m] || ValueSet.new).to_value_set
+                            m_candidates = (engine.service_allocation_candidates[m] || Set.new).to_set
                             set ||= m_candidates
                             set & m_candidates
                         end
-                        candidates ||= ValueSet.new
+                        candidates ||= Set.new
                     else
-                        candidates = engine.work_plan.find_local_tasks(task.concrete_model).to_value_set
+                        candidates = engine.work_plan.find_local_tasks(task.concrete_model).to_set
                     end
 
                     parents = task.
@@ -361,13 +361,13 @@ module Syskit
             end
 
             def resolve_device_task(plan, abstract_task)
-                all_tasks = [abstract_task].to_value_set
+                all_tasks = [abstract_task].to_set
 
                 # List the possible candidates for the missing devices
                 candidates = Hash.new
                 abstract_task.model.each_master_driver_service do |srv|
                     if !abstract_task.arguments["#{srv.name}_dev"]
-                        candidates[srv] = plan.find_local_tasks(srv.model).to_value_set
+                        candidates[srv] = plan.find_local_tasks(srv.model).to_set
                         candidates[srv].delete(abstract_task)
                         all_tasks |= candidates[srv]
                     end

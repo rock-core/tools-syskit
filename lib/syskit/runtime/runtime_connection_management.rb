@@ -28,7 +28,7 @@ module Syskit
             # remove all tasks that have to be updated and add their connections
             # again
             def update_required_dataflow_graph(tasks)
-                seen = ValueSet.new
+                seen = Set.new
 
                 # Remove first all tasks. Otherwise, removing some tasks will
                 # also remove the new edges we just added
@@ -207,7 +207,7 @@ module Syskit
             # Returns a false value if it could not apply the changes and a true
             # value otherwise.
             def apply_connection_changes(new, removed)
-                restart_tasks = ValueSet.new
+                restart_tasks = Set.new
 
                 # Don't do anything if some of the connection changes are
                 # between static ports and the relevant tasks are running
@@ -307,7 +307,7 @@ module Syskit
                 end
 
                 # And create the new ones
-                pending_tasks = ValueSet.new
+                pending_tasks = Set.new
                 new.each do |(from_task, to_task), mappings|
                     # The task might have been killed while the connections
                     # were already added to the data flow graph. Roby's GC will
@@ -415,7 +415,7 @@ module Syskit
                     # connections.  However, we should remove these tasks now as they
                     # should not be passed to compute_connection_changes
                     main_tasks, proxy_tasks = tasks.partition { |t| t.plan == plan }
-                    main_tasks = main_tasks.to_value_set
+                    main_tasks = main_tasks.to_set
                     if Flows::DataFlow.pending_changes
                         main_tasks.merge(Flows::DataFlow.pending_changes.first)
                     end
@@ -462,7 +462,7 @@ module Syskit
 
                         Flows::DataFlow.pending_changes = [main_tasks, new, removed, pending_replacement]
                         Flows::DataFlow.modified_tasks.clear
-                        Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_value_set)
+                        Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_set)
                     else
                         debug "cannot compute changes, keeping the tasks queued"
                     end

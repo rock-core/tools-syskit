@@ -195,7 +195,7 @@ require 'syskit/roby_app'
                 end
                 display_options = Kernel.validate_options display_options,
                     :remove_compositions => false,
-                    :excluded_models => default_exclude.to_value_set,
+                    :excluded_models => default_exclude.to_set,
                     :annotations => Set.new
 
                 # Now output them

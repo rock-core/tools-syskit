@@ -293,7 +293,7 @@ module Syskit
 
                 # task_handles is only initialized when ready is reached ...
                 # so can be nil here
-                all_orocos_tasks = task_handles.values.to_value_set
+                all_orocos_tasks = task_handles.values.to_set
                 all_orocos_tasks.each do |task|
                     task.each_parent_vertex(ActualDataFlow) do |parent_task|
                         if parent_task.process

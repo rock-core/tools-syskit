@@ -101,7 +101,7 @@ module Syskit
                 done.signals protection.stop_event
 
                 models.each do |m|
-                    agents = ValueSet.new
+                    agents = Set.new
                     plan.find_tasks(m).
                         each do |task|
                             if task.kind_of?(Syskit::TaskContext)
