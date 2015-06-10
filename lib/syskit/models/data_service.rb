@@ -18,14 +18,14 @@ module Syskit
                 attr_accessor :base_module
             end
 
-            def initialize
-                @orogen_model = Models.create_orogen_task_context_model
-                super
+            def initialize(project: Roby.app.default_orogen_project)
+                @orogen_model = OroGen::Spec::TaskContext.new(project)
+                super()
             end
 
             def clear_model
-                super
-                @orogen_model = Models.create_orogen_task_context_model
+                super()
+                @orogen_model = OroGen::Spec::TaskContext.new(@orogen_model.project)
                 port_mappings.clear
             end
 
