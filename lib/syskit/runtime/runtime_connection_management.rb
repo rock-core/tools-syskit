@@ -259,6 +259,13 @@ module Syskit
                         source = source_task.port(source_port, false)
                         sink   = sink_task.port(sink_port, false)
 
+                        if syskit_source_task = find_setup_syskit_task_context_from_orocos_task(source_task)
+                            syskit_source_task.removing_output_port_connection(source_port, sink_task, sink_port)
+                        end
+                        if syskit_sink_task = find_setup_syskit_task_context_from_orocos_task(sink_task)
+                            syskit_sink_task.removing_input_port_connection(source_task, source_port, sink_port)
+                        end
+
                         begin
                             if !source.disconnect_from(sink)
                                 warn "while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port} returned false"
@@ -271,6 +278,13 @@ module Syskit
                         rescue Orocos::ComError => e
                             warn "Communication error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
                             warn "I am assuming that the source component is dead and that therefore the connection is actually effective"
+                        end
+
+                        if syskit_source_task
+                            syskit_source_task.removed_output_port_connection(source_port, sink_task, sink_port)
+                        end
+                        if syskit_sink_task
+                            syskit_sink_task.removed_input_port_connection(source_task, source_port, sink_port)
                         end
 
                         ActualDataFlow.remove_connections(source_task, sink_task,
@@ -313,7 +327,27 @@ module Syskit
 
                         begin
                             policy, _ = Kernel.filter_options(policy, Orocos::Port::CONNECTION_POLICY_OPTIONS)
+
+                            from_task.adding_output_port_connection(
+                                from_task.find_output_port(from_port),
+                                to_task.find_input_port(to_port),
+                                policy)
+                            to_task.adding_input_port_connection(
+                                from_task.find_output_port(from_port),
+                                to_task.find_input_port(to_port),
+                                policy)
+
                             from_task.orocos_task.port(from_port).connect_to(to_task.orocos_task.port(to_port), policy)
+
+                            from_task.added_output_port_connection(
+                                from_task.find_output_port(from_port),
+                                to_task.find_input_port(to_port),
+                                policy)
+                            to_task.added_input_port_connection(
+                                from_task.find_output_port(from_port),
+                                to_task.find_input_port(to_port),
+                                policy)
+
                             ActualDataFlow.add_connections(from_task.orocos_task, to_task.orocos_task,
                                                        [from_port, to_port] => policy)
                         rescue Orocos::ComError
