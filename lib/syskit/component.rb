@@ -425,7 +425,6 @@ module Syskit
             def require_dynamic_service(dynamic_service_name, options = Hash.new)
                 specialize
                 bound_service = self.model.require_dynamic_service(dynamic_service_name, options)
-                needs_reconfiguration!
                 bound_service.bind(self)
             end
 
