@@ -53,6 +53,10 @@ module Syskit
             def initialize_copy(source)
                 super
                 @requirements = @requirements.dup
+                if source.specialized_model?
+                    specialize
+                end
+                duplicate_missing_services_from(source)
             end
 
             def create_fresh_copy

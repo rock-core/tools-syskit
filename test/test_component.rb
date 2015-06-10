@@ -110,6 +110,31 @@ describe Syskit::Component do
             task.require_dynamic_service 'device_dyn', :as => 'slave'
             assert_equal [task.model.driver_srv], task.model.each_master_driver_service.to_a
         end
+
+        describe "behaviour in transaction context" do
+            before do
+                srv_m = Syskit::DataService.new_submodel
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.dynamic_service srv_m, as: 'test' do
+                    provides srv_m
+                end
+                plan.add(@task = task_m.new)
+            end
+
+            it "exposes services that are registered on the underlying task's specialized model" do
+                task.require_dynamic_service 'test', as: 'test'
+                transaction = create_transaction
+                task_p = transaction[task]
+                task_p.specialize
+                assert task_p.find_data_service('test')
+            end
+            it "adds new dynamic services only at the transaction level" do
+                transaction = create_transaction
+                task_p = transaction[task]
+                task_p.require_dynamic_service 'test', as: 'test'
+                assert !task.find_data_service('test')
+            end
+        end
     end
 
     describe "#can_merge?" do
