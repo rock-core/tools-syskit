@@ -140,10 +140,10 @@ module Syskit
                 return new, removed
             end
 
-            def find_syskit_task_context_from_orocos_task(orocos_task)
+            def find_setup_syskit_task_context_from_orocos_task(orocos_task)
                 klass = TaskContext.model_for(orocos_task.model)
-                task = plan.find_tasks(klass.concrete_model).running.
-                    find { |t| t.orocos_task == orocos_task }
+                task = plan.find_tasks(klass.concrete_model).not_finishing.not_finished.
+                    find { |t| t.setup? && (t.orocos_task == orocos_task) }
             end
 
             def new_connections_require_network_update?(connections)
@@ -169,12 +169,10 @@ module Syskit
             def removed_connections_require_network_update?(connections)
                 unneeded_tasks = nil
                 handle_modified_task = lambda do |orocos_task|
-                    if syskit_task = find_syskit_task_context_from_orocos_task(orocos_task)
-                        if syskit_task.running?
-                            unneeded_tasks ||= plan.unneeded_tasks
-                            if !unneeded_tasks.include?(syskit_task)
-                                return true
-                            end
+                    if syskit_task = find_setup_syskit_task_context_from_orocos_task(orocos_task)
+                        unneeded_tasks ||= plan.unneeded_tasks
+                        if !unneeded_tasks.include?(syskit_task)
+                            return true
                         end
                     end
                 end
