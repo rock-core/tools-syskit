@@ -780,7 +780,7 @@ module Syskit
             # Returns the set of tasks whose data flow has been changed that has
             # not yet been applied.
             def modified_tasks
-                @modified_tasks ||= ValueSet.new
+                @modified_tasks ||= Set.new
             end
 
             def add_relation(from, to, info)

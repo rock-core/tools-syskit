@@ -269,7 +269,7 @@ module Syskit
 
                 result = []
 
-                all_tasks = ValueSet.new
+                all_tasks = Set.new
 
                 plan.find_local_tasks(Component).each do |task|
                     all_tasks << task
@@ -405,16 +405,16 @@ module Syskit
 
             # Generates a dot graph that represents the task dataflow in this
             # deployment
-            def dataflow(options = Hash.new, excluded_models = ValueSet.new, annotations = Set.new)
+            def dataflow(options = Hash.new, excluded_models = Set.new, annotations = Set.new)
                 # For backward compatibility with the signature
-                # dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = Set.new)
+                # dataflow(remove_compositions = false, excluded_models = Set.new, annotations = Set.new)
                 if !options.kind_of?(Hash)
                     options = { :remove_compositions => options, :excluded_models => excluded_models, :annotations => annotations }
                 end
 
                 options = Kernel.validate_options options,
                     :remove_compositions => false,
-                    :excluded_models => ValueSet.new,
+                    :excluded_models => Set.new,
                     :annotations => Set.new,
                     :highlights => Set.new,
                     :show_all_ports => true
@@ -442,7 +442,7 @@ module Syskit
                 end
                 connections = Hash.new
 
-                all_tasks = plan.find_local_tasks(Deployment).to_value_set
+                all_tasks = plan.find_local_tasks(Deployment).to_set
 
                 # Register all ports and all connections
                 #
@@ -529,7 +529,7 @@ module Syskit
                 # graph coloring so that two related tasks don't get the same
                 # color, but that's TODO
                 task_colors = Hash.new
-                used_deployments = all_tasks.map(&:execution_agent).to_value_set
+                used_deployments = all_tasks.map(&:execution_agent).to_set
                 used_deployments.each do |task|
                     task_colors[task] = Syskit.allocate_color
                 end
