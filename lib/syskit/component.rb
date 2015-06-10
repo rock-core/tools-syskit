@@ -524,6 +524,122 @@ module Syskit
                     end
             end
 
+            # Hook called when a connection will be created on an input port
+            #
+            # This is called *before* the connection gets established on the
+            # underlying ports
+            #
+            # @param [Port] source_port
+            # @param [Port] sink_port
+            # @param [Hash] policy
+            def adding_input_port_connection(source_port, sink_port, policy)
+                super if defined? super
+            end
+
+            # Hook called when a connection has been created to an input port
+            #
+            # This is called *after* the connection has been established on the
+            # underlying ports
+            #
+            # @param [Port] source_port
+            # @param [Port] sink_port
+            # @param [Hash] policy
+            def added_input_port_connection(source_port, sink_port, policy)
+                super if defined? super
+            end
+
+            # Hook called when a connection will be created on an output port
+            #
+            # This is called *before* the connection gets established on the
+            # underlying ports
+            #
+            # @param [Port] source_port
+            # @param [Port] sink_port
+            # @param [Hash] policy
+            def adding_output_port_connection(source_port, sink_port, policy)
+                super if defined? super
+            end
+
+            # Hook called when a connection has been created to an output port
+            #
+            # This is called *after* the connection has been established on the
+            # underlying ports
+            #
+            # @param [Port] source_port
+            # @param [Port] sink_port
+            # @param [Hash] policy
+            def added_output_port_connection(source_port, sink_port, policy)
+                super if defined? super
+            end
+
+            # Hook called when a connection will be removed from an input port
+            #
+            # This is called *before* the connection gets removed on the
+            # underlying ports. It will be called only if this task is set up
+            #
+            # Unlike the add hooks, this does not deal with the syskit-level
+            # representation of tasks, but with the underlying component
+            # handler. The root cause of it is that disconnection can be
+            # performed *after* a Roby task got finalized.
+            #
+            # @param [Orocos::TaskContext] source_task
+            # @param [String] source_port
+            # @param [String] sink_port
+            def removing_input_port_connection(source_task, source_port, sink_port)
+                super if defined? super
+            end
+
+            # Hook called when a connection has been removed from an input port
+            #
+            # This is called *after* the connection has been removed on the
+            # underlying ports. It will be called only if this task is set up
+            #
+            # Unlike the add hooks, this does not deal with the syskit-level
+            # representation of tasks, but with the underlying component
+            # handler. The root cause of it is that disconnection can be
+            # performed *after* a Roby task got finalized.
+            #
+            # @param [Orocos::TaskContext] source_task
+            # @param [String] source_port
+            # @param [String] sink_port
+            def removed_input_port_connection(source_task, source_port, sink_port)
+                super if defined? super
+            end
+
+            # Hook called when a connection will be removed from an output port
+            #
+            # This is called *before* the connection gets removed on the
+            # underlying ports. It will be called only if this task is set up
+            #
+            # Unlike the add hooks, this does not deal with the syskit-level
+            # representation of tasks, but with the underlying component
+            # handler. The root cause of it is that disconnection can be
+            # performed *after* a Roby task got finalized.
+            #
+            # @param [String] source_port
+            # @param [Orocos::TaskContext] sink_task
+            # @param [String] sink_port
+            def removing_output_port_connection(source_port, sink_task, sink_port)
+                super if defined? super
+            end
+
+            # Hook called when a connection has been removed from an output port
+            #
+            # This is called *after* the connection has been removed on the
+            # underlying ports. It will be called only if this task is set up
+            #
+            # Unlike the add hooks, this does not deal with the syskit-level
+            # representation of tasks, but with the underlying component
+            # handler. The root cause of it is that disconnection can be
+            # performed *after* a Roby task got finalized.
+            #
+            # @param [String] source_port
+            # @param [Orocos::TaskContext] sink_task
+            # @param [String] sink_port
+            def removed_output_port_connection(source_port, sink_task, sink_port)
+                super if defined? super
+            end
+
             module Proxying
                 proxy_for Component
 
