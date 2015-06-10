@@ -241,19 +241,13 @@ module Syskit
                     !model.find_data_service(srv.full_name)
                 end
 
-                if !missing_services.empty?
-                    # We really really need to specialize self. The reason is
-                    # that self.model, even though it has private
-                    # specializations, might be a reusable model from the system
-                    # designer's point of view. With the singleton class, we
-                    # know that it is not
-                    specialize
-
-                    missing_services.each do |_, srv|
-                        dynamic_service_options = Hash[as: srv.name].
-                            merge(srv.dynamic_service_options)
-                        model.require_dynamic_service srv.dynamic_service.name, **dynamic_service_options
+                missing_services.each do |_, srv|
+                    if !srv.respond_to?(:dynamic_service)
+                        raise InternalError, "attempting to duplicate static service #{srv.name} from #{task} to #{self}"
                     end
+                    dynamic_service_options = Hash[as: srv.name].
+                        merge(srv.dynamic_service_options)
+                    require_dynamic_service srv.dynamic_service.name, **dynamic_service_options
                 end
             end
 
@@ -438,7 +432,24 @@ module Syskit
             def require_dynamic_service(dynamic_service_name, options = Hash.new)
                 specialize
                 bound_service = self.model.require_dynamic_service(dynamic_service_name, options)
-                bound_service.bind(self)
+                srv = bound_service.bind(self)
+                if plan && plan.executable? && setup?
+                    added_dynamic_service(srv)
+                end
+                srv
+            end
+
+            # Hook called on an already-configured task when a new service got
+            # added.
+            #
+            # Note that it will only happen for services whose 'dynamic' flag is
+            # set (not the default)
+            #
+            # @param [BoundDynamicDataService] srv the newly created service
+            # @return [void]
+            # @see {#require_dynamic_service}
+            def added_dynamic_service(srv)
+                super if defined? super
             end
 
             # @deprecated has been renamed to {#each_required_dynamic_service}
