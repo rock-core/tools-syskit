@@ -473,11 +473,11 @@ describe Syskit::TaskContext do
             assert task.prepare_for_setup(:PRE_OPERATIONAL)
         end
         it "does nothing if the state is STOPPED and the task does not need to be reconfigured" do
-            Syskit::TaskContext.configured['task'] = [nil, []]
+            Syskit::TaskContext.configured['task'] = [nil, [], Set.new]
             task.prepare_for_setup(:STOPPED)
         end
         it "returns false if the state is STOPPED and the task does not need to be reconfigured" do
-            Syskit::TaskContext.configured['task'] = [nil, []]
+            Syskit::TaskContext.configured['task'] = [nil, [], Set.new]
             assert !task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task is marked as requiring reconfiguration" do
@@ -491,7 +491,7 @@ describe Syskit::TaskContext do
             assert task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task's configuration changed" do
-            Syskit::TaskContext.configured['task'] = [nil, ['default']]
+            Syskit::TaskContext.configured['task'] = [nil, ['default'], Set.new]
             orocos_task.should_receive(:cleanup).once
             assert task.prepare_for_setup(:STOPPED)
         end

@@ -11,9 +11,16 @@ module Syskit
             attr_reader :service_model
             # The service definition block
             attr_reader :block
+            # Whether this service can be dynamically added to a
+            # configured/running task
+            attr_predicate :dynamic?
+            # Whether this service should be removed if unused
+            attr_predicate :remove_when_unused?
 
-            def initialize(component_model, name, service_model, block)
+            def initialize(component_model, name, service_model, block, dynamic: false, remove_when_unused: false)
                 @component_model, @name, @service_model, @block = component_model, name, service_model, block
+                @dynamic = dynamic
+                @remove_when_unused = remove_when_unused
             end
 
             def attach(component_model)
