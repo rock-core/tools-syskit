@@ -78,10 +78,6 @@ describe Syskit::Component do
             flexmock(task).should_receive(:specialize).once.pass_thru
             task.require_dynamic_service 'dyn', :as => 'service_name'
         end
-        it "marks the task as needing reconfiguration" do
-            flexmock(task).should_receive(:needs_reconfiguration!).once.pass_thru
-            task.require_dynamic_service 'dyn', :as => 'service_name'
-        end
         it "creates a new dynamic service on the specialized model" do
             bound_service = task.require_dynamic_service 'dyn', :as => 'service_name'
             assert_equal bound_service, task.find_data_service('service_name')
