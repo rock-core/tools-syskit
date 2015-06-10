@@ -400,7 +400,7 @@ describe Syskit::NetworkGeneration::Engine do
         attr_reader :create_task
         attr_reader :merge
         before do
-            @task_model = Class.new(Roby::Task) { argument :orocos_name; argument :conf }
+            @task_model = Class.new(Syskit::Component) { argument :orocos_name; argument :conf }
             @deployment_model = Class.new(Roby::Task) { event :ready }
             @existing_task, @existing_deployment_task = task_model.new, deployment_model.new
             existing_task.executed_by existing_deployment_task
@@ -441,7 +441,7 @@ describe Syskit::NetworkGeneration::Engine do
         end
         it "creates a new deployed task if there is an existing deployment but it cannot be merged" do
             task.orocos_name = existing_task.orocos_name = 'task'
-            flexmock(existing_task).should_receive(:can_merge?).with(task).and_return(false)
+            flexmock(task).should_receive(:can_be_deployed_by?).with(existing_task).and_return(false)
             should_create_new_task
             syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
         end
@@ -449,7 +449,7 @@ describe Syskit::NetworkGeneration::Engine do
         end
         it "synchronizes the newly created task with the end of the existing one" do
             task.orocos_name = existing_task.orocos_name = 'task'
-            flexmock(existing_task).should_receive(:can_merge?).with(task).and_return(false)
+            flexmock(task).should_receive(:can_be_deployed_by?).with(existing_task).and_return(false)
             new_task = should_create_new_task
             flexmock(new_task).should_receive(:should_configure_after).with(existing_task.stop_event).once
             syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)

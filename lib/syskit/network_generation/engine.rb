@@ -1033,11 +1033,11 @@ module Syskit
                 deployed_tasks = deployment_task.each_executed_task.to_a
                 deployed_tasks.each do |task|
                     existing_task = existing_tasks[task.orocos_name]
-                    if !existing_task || !existing_task.can_merge?(task)
+                    if !existing_task || !task.can_be_deployed_by?(existing_task)
                         debug do
                             if !existing_task
                                 "  task #{task.orocos_name} has not yet been deployed"
-                            elsif !existing_task.can_merge?(task)
+                            else
                                 "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment"
                             end
                         end

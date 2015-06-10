@@ -173,6 +173,18 @@ module Syskit
                 return true
             end
 
+            # Tests whether a task can be used as-is to deploy this
+            #
+            # It is mostly the same as {#can_merge?}, while taking into account
+            # e.g. that some operations done during merging will require the
+            # component to do a reconfiguration cycle
+            #
+            # @param [Component] task
+            # @return [Boolean]
+            def can_be_deployed_by?(task)
+                task.can_merge?(self)
+            end
+
             # Updates self so that it is a valid replacement for merged_task
             #
             # This method assumes that #can_merge?(task) has already been called

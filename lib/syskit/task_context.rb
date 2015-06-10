@@ -205,6 +205,31 @@ module Syskit
                 end
             end
 
+            # (see Component#can_be_deployed_by?)
+            def can_be_deployed_by?(task)
+                if !super
+                    return false
+                elsif !task.setup?
+                    return true
+                end
+
+                # NOTE: in the two tests below, we use the fact that
+                # {#can_merge?} (and therefore {Component#can_be_deployed_by?})
+                # already checked that services that have the same name in task
+                # and self are actually of identical definition.
+                task.each_required_dynamic_service do |srv|
+                    if srv.model.remove_when_unused? && !find_data_service(srv.name)
+                        return false
+                    end
+                end
+                each_required_dynamic_service do |srv|
+                    if !srv.model.dynamic? && !task.find_data_service(srv.name)
+                        return false
+                    end
+                end
+                true
+            end
+
             # Replaces the given task by this task
             #
             # @param [TaskContext] merged_task the task that should be replaced
@@ -418,10 +443,12 @@ module Syskit
                 elsif state == :PRE_OPERATIONAL
                     return true
                 elsif !needs_reconfiguration?
-                    _, current_conf = TaskContext.configured[orocos_name]
-                    if current_conf && current_conf == self.conf
-                        ::Robot.info "not reconfiguring #{self}: the task is already configured as required"
-                        return false
+                    _, current_conf, dynamic_services = TaskContext.configured[orocos_name]
+                    if current_conf
+                        if current_conf == self.conf && dynamic_services == each_required_dynamic_service.to_set
+                            ::Robot.info "not reconfiguring #{self}: the task is already configured as required"
+                            return false
+                        end
                     end
                 end
 
@@ -534,7 +561,9 @@ module Syskit
                 end
 
                 TaskContext.needs_reconfiguration.delete(orocos_name)
-                TaskContext.configured[orocos_name] = [orocos_task.model, self.conf.dup]
+                TaskContext.configured[orocos_name] = [orocos_task.model,
+                                                       self.conf.dup,
+                                                       self.each_required_dynamic_service.to_set]
                 is_setup!
             end
 
