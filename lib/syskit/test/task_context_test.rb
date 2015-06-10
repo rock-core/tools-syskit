@@ -1,28 +1,32 @@
 module Syskit
     module Test
         class TaskContextTest < ComponentTest
-            def self.subject_syskit_model
-                current = self
-                while current && !current.desc.respond_to?(:orogen_model)
-                    current = current.superclass
+            def setup
+                super
+                use_deployment self.class.subject_syskit_model => 'task_under_test'
+            end
+
+            def self.use_syskit_model(model)
+                @subject_syskit_model = model
+            end
+
+            def self.subject_syskit_model(*setter)
+                if @subject_syskit_model
+                    @subject_syskit_model
+                else
+                    current = self
+                    while current && !current.desc.respond_to?(:orogen_model)
+                        current = current.superclass
+                    end
+                    current.desc
                 end
-                current.desc
             end
 
             # Helper that creates a standard test which configures the
             # underlying task
             def self.it_should_be_configurable
                 it "should be configurable" do
-                    component_m = self.class.desc
-                    if driver_srv = component_m.each_master_driver_service.first
-                        component_m = stub_syskit_driver(driver_srv.model,
-                                                         :as => 'driver_task',
-                                                         :using => component_m)
-                    else
-                        stub_syskit_deployment_model(component_m, 'task')
-                    end
-                    task = syskit_run_deployer(component_m)
-                    syskit_setup_component(task)
+                    stub_deploy_and_configure(self.class.subject_syskit_model)
                 end
             end
 

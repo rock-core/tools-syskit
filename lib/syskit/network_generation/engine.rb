@@ -1216,7 +1216,7 @@ module Syskit
                         tasks_with_candidates[task] = candidates
                     end
                     raise MissingDeployments.new(tasks_with_candidates),
-                        "there are tasks for which it exists no deployed equivalent: #{not_deployed.map(&:to_s)}"
+                        "there are tasks for which it exists no deployed equivalent: #{not_deployed.map { |m| "#{m}(#{m.orogen_model.name})" }}"
                 end
             end
 

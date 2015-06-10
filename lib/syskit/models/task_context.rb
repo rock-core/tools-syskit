@@ -12,6 +12,10 @@ module Syskit
             include Models::PortAccess
             include Models::OrogenBase
 
+            # @return [String] path to the extension file that got loaded to
+            #   extend this model
+            attr_accessor :extension_file
+
             # Clears all registered submodels
             #
             # On TaskContext, it also clears all orogen-to-syskit model mappings
@@ -116,14 +120,13 @@ module Syskit
                 orogen_model = model.orogen_model
 
                 namespace, basename = syskit_names_from_orogen_name(orogen_model.name)
-                if Syskit.conf.backward_compatible_naming?
+                if Roby.app.backward_compatible_naming?
                     register_syskit_model(Object, namespace, basename, model)
                 end
                 register_syskit_model(OroGen, namespace, basename, model)
             end
 
             def register_syskit_model(mod, namespace, basename, model)
-                # For backward compatibility only
                 namespace =
                     if mod.const_defined_here?(namespace)
                         mod.const_get(namespace)

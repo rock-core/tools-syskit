@@ -434,6 +434,10 @@ module Syskit
 
             # Called to configure the component
             def setup
+                if @setup
+                    raise ArgumentError, "already setup"
+                end
+
                 state = orocos_task.rtt_state
                 if !ready_for_setup?(state)
                     raise InternalError, "#setup called but we are not ready for setup"
@@ -641,8 +645,10 @@ module Syskit
                 # First, set configuration from the configuration files
                 # Note: it can only set properties
                 conf = self.conf
-                if Orocos.conf.apply(orocos_task, conf, :model_name => concrete_model.orogen_model.name, :override => true)
-                    ::Robot.info "applied configuration #{conf} to #{orocos_task.name}"
+                if concrete_model.orogen_model.name
+                    if Orocos.conf.apply(orocos_task, conf, model_name: concrete_model.orogen_model.name, override: true)
+                        ::Robot.info "applied configuration #{conf} to #{orocos_task.name}"
+                    end
                 end
 
                 # Then set configuration stored in Syskit.conf

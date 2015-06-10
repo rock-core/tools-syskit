@@ -554,8 +554,8 @@ module Syskit
             # task that provides this source.
             #
             # @return [DataServiceModel] the created model
-            def data_service_type(name, &block)
-                model = MetaRuby::ModelAsModule.create_and_register_submodel(self, name, Syskit::DataService, &block)
+            def data_service_type(name, parent: Syskit::DataService, &block)
+                model = MetaRuby::ModelAsModule.create_and_register_submodel(self, name, parent, &block)
                 model.doc MetaRuby::DSLs.parse_documentation_block(/.*/, "data_service_type")
                 model
             end
@@ -565,8 +565,8 @@ module Syskit
             # The returned value is an instance of DeviceModel in which
             # Device has been included.
             #
-            def device_type(name, &block)
-                model = MetaRuby::ModelAsModule.create_and_register_submodel(self, name, Syskit::Device, &block)
+            def device_type(name, parent: Syskit::Device, &block)
+                model = MetaRuby::ModelAsModule.create_and_register_submodel(self, name, parent, &block)
                 model.doc MetaRuby::DSLs.parse_documentation_block(/.*/, "device_type")
                 model
             end
@@ -581,8 +581,8 @@ module Syskit
             #
             # The returned value is an instance of DataServiceModel, in which
             # ComBus is included.
-            def com_bus_type(name, options = Hash.new, &block)
-                model = MetaRuby::ModelAsModule.create_and_register_submodel(self, name, Syskit::ComBus, options, &block)
+            def com_bus_type(name, parent: Syskit::ComBus, **options, &block)
+                model = MetaRuby::ModelAsModule.create_and_register_submodel(self, name, parent, **options, &block)
                 model.doc MetaRuby::DSLs.parse_documentation_block(/.*/, "com_bus_type")
                 model
             end

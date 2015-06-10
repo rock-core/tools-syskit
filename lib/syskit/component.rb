@@ -426,7 +426,11 @@ module Syskit
             # Yields the data services that have been created through the
             # dynamic data service mechanism
             #
-            # @yieldparam [BoundDataService] srv
+            # @yieldparam [BoundDataService] srv the data service generated
+            #   using a dynamic data service. srv.model is an instance of
+            #   {Models::BoundDynamicDataService} and srv.model.dynamic_service
+            #   is the original dynamic data service (ouch !)
+            # @return [void]
             def each_required_dynamic_service
                 return enum_for(:each_dynamic_service) if !block_given?
                 each_data_service do |srv|

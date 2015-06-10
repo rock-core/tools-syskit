@@ -33,9 +33,6 @@ module Syskit
             # Controls whether the orogen types should be exported as Ruby
             # constants
             attr_predicate :export_types?, true
-            # Controls whether we should provide backward compatible names (as
-            # per the change in syskit naming conventions)
-            attr_predicate :backward_compatible_naming?, true
 
             # Controls whether the orogen types should be exported as Ruby
             # constants
@@ -68,7 +65,6 @@ module Syskit
                 @ignore_load_errors = false
                 @buffer_size_margin = 0.1
                 @use_only_model_pack = false
-                @backward_compatible_naming = true
 
                 @log_groups = { nil => LogGroup.new(false) }
 
@@ -395,7 +391,7 @@ module Syskit
                     configured_deployment = Models::ConfiguredDeployment.
                         new(process_server_config.name, model, mappings, name, spawn_options)
                     register_configured_deployment(configured_deployment)
-                    model
+                    configured_deployment
                 end
             end
 
@@ -659,19 +655,30 @@ module Syskit
             #
             # @param [String] process_server_name the name of the process server
             # @return [Array<Models::ConfiguredDeployment>] the set of
-            #   configured deployments that were registered
+            #   configured deployments that were deregistered
             def clear_deployments_for(process_server_name)
                 registered_deployments = deployments.delete(process_server_name) ||
                     Array.new
 
                 registered_deployments.each do |d|
-                    d.each_orogen_deployed_task_context_model do |task|
-                        if deployed_tasks[task.name] == d
-                            deployed_tasks.delete(task.name)
-                        end
-                    end
+                    deregister_configured_deployment(d)
                 end
                 registered_deployments
+            end
+
+            # Deregister deployments
+            #
+            # @param [ConfiguredDeployment] the deployment to remove, as
+            #   returned by e.g. {#use_deployment}
+            # @return [void]
+            def deregister_configured_deployment(configured_deployment)
+                configured_deployment.each_orogen_deployed_task_context_model do |task|
+                    if deployed_tasks[task.name] == configured_deployment
+                        deployed_tasks.delete(task.name)
+                    end
+                end
+                deployments[configured_deployment.process_server_name].
+                    delete(configured_deployment)
             end
 
             # Deregisters a process server

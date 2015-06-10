@@ -4,6 +4,8 @@ module Syskit
             extend Logger::Hierarchy
             include Logger::Hierarchy
 
+            dsl_attribute :doc
+
             # This requirement's name, mostly for debugging / display reasons
             # @return [String,nil]
             attr_accessor :name

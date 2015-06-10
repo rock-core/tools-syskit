@@ -44,8 +44,8 @@ module Syskit
                                       :off_text => 'Hide unused ports',
                                       :state => dataflow_options[:show_all_ports])
 
-                if defined? ::Logger::Logger
-                    dataflow_options[:excluded_models] << ::Logger::Logger
+                if defined? OroGen::Logger::Logger
+                    dataflow_options[:excluded_models] << OroGen::Logger::Logger
                     buttons << Button.new("dataflow/show_loggers",
                                           :on_text => 'Show loggers',
                                           :off_text => 'Hide loggers',

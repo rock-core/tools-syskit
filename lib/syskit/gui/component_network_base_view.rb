@@ -12,16 +12,16 @@ module Syskit
             def self.make_annotation_buttons(namespace, annotations, defaults)
                 annotations.sort.map do |ann_name|
                     Button.new("#{namespace}/annotations/#{ann_name}",
-                               :on_text => "Show #{ann_name}",
-                               :off_text => "Hide #{ann_name}",
-                               :state => defaults.include?(ann_name))
+                               on_text: "Show #{ann_name}",
+                               off_text: "Hide #{ann_name}",
+                               state: defaults.include?(ann_name))
                 end
             end
 
             def self.common_graph_buttons(namespace)
-                [Button.new("#{namespace}/zoom", :text => "Zoom +"),
-                 Button.new("#{namespace}/unzoom", :text => "Zoom -"),
-                 Button.new("#{namespace}/save", :text => "Save SVG")]
+                [Button.new("#{namespace}/zoom", text: "Zoom +"),
+                 Button.new("#{namespace}/unzoom", text: "Zoom -"),
+                 Button.new("#{namespace}/save", text: "Save SVG")]
             end
 
             def self.task_annotation_buttons(namespace, defaults)
@@ -144,7 +144,7 @@ module Syskit
                     end
                 end
 
-                page.push("Provided Services", html, :id => 'provided_services')
+                page.push("Provided Services", html, id: 'provided_services')
             end
 
             def self.find_definition_place(model)
@@ -154,15 +154,24 @@ module Syskit
                 end
             end
 
-            def render(model, options = Hash.new)
-                if model.respond_to?(:definition_location)
-                    if file = ComponentNetworkBaseView.find_definition_place(model)
-                        page.push(nil, "<p><b>Defined in</b> #{file[0]}:#{file[1]}</p>")
-                        if req_base = $LOAD_PATH.find { |p| File.fnmatch?(File.join(p, "*") , file[0]) }
-                            req = Pathname.new(file[0]).relative_path_from(Pathname.new(req_base))
+            def self.html_defined_in(page, model, with_require: true, definition_location: nil, format: "<b>Defined in</b> %s")
+                path, lineno = *definition_location || find_definition_place(model)
+                if path
+                    path = Pathname.new(path)
+                    path_link = page.link_to(path, "#{path}:#{lineno}", lineno: lineno)
+                    page.push(nil, "<p>#{format % [path_link]}</p>")
+                    if with_require
+                        if req_base = $LOAD_PATH.find { |p| path.fnmatch?(File.join(p, "*")) }
+                            req = path.relative_path_from(Pathname.new(req_base))
                             page.push(nil, "<code>require '#{req.sub_ext("")}'</code>")
                         end
                     end
+                end
+            end
+
+            def render(model, options = Hash.new)
+                if model.respond_to?(:definition_location)
+                    ComponentNetworkBaseView.html_defined_in(page, model, with_require: true)
                 end
                 @current_model = model
             end
@@ -192,9 +201,9 @@ module Syskit
                     config[:show_all_ports] = new_state
                 when /\/show_logger/
                     if new_state
-                        config[:excluded_models].delete(Logger::Logger)
+                        config[:excluded_models].delete(OroGen::Logger::Logger)
                     else
-                        config[:excluded_models] << Logger::Logger
+                        config[:excluded_models] << OroGen::Logger::Logger
                     end
                 when /\/zoom/
                     config[:zoom] += 0.1
@@ -218,7 +227,7 @@ module Syskit
             signals 'updated()'
 
             def push_plan(id, plan, options = Hash.new)
-                options, push_options = Kernel.filter_options options, :interactive => true
+                options, push_options = Kernel.filter_options options, interactive: true
                 config = send("#{id}_options").merge(push_options)
                 if !options[:interactive]
                     config.delete(:buttons)

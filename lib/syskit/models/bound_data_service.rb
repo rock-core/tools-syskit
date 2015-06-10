@@ -124,6 +124,14 @@ module Syskit
                 "#{component_model.short_name}:#{full_name}"
             end
 
+            def pretty_print(pp)
+                pp.text "service #{name}(#{model.name}) of"
+                pp.nest(2) do
+                    pp.breakable
+                    component_model.pretty_print(pp)
+                end
+            end
+
             # Returns a view of this service as a provider of +service_model+
             #
             # It allows to transparently apply port mappings as if +self+ was a

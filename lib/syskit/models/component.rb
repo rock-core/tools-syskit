@@ -527,6 +527,10 @@ module Syskit
             #   end
             #
             def provides(model, arguments = Hash.new)
+                if !model.kind_of?(DataServiceModel)
+                    raise ArgumentError, "expected a data service model as argument and got #{model}"
+                end
+
                 source_arguments, arguments = Kernel.filter_options arguments,
                     :as => nil,
                     :slave_of => nil,

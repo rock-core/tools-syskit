@@ -18,6 +18,13 @@ module Syskit::GUI
 
             def render(model, options = Hash.new)
                 doc = [model.doc, model.orogen_model.doc].compact.join("\n\n").strip
+                if model.extension_file
+                    ComponentNetworkBaseView.html_defined_in(
+                        page, model,
+                        definition_location: [model.extension_file, 1],
+                        with_require: false,
+                        format: "<b>Extended in</b> %s")
+                end
                 if !doc.empty?
                     page.push nil, page.main_doc(doc)
                 end
