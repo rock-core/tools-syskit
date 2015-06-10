@@ -188,9 +188,7 @@ module Syskit
             # @return [Boolean] true if #merge(other_task) can be called and
             # false otherwise
             def can_merge?(other_task) # :nodoc:
-                if !(super_result = super)
-                    return super_result
-                end
+                return if !super
 
                 # Verify the host constraints (i.e. can't merge other_task in
                 # +self+ if both have constraints on which host they should run,
