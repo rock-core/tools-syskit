@@ -19,7 +19,9 @@ module Syskit
             # @yield a block in which the task context interface can be
             #   defined
             def stub_syskit_task_context_model(name, &block)
-                TaskContext.new_submodel(:name => name, &block)
+                model = TaskContext.new_submodel(:name => name, &block)
+                model.orogen_model.extended_state_support
+                model
             end
 
             # Create a new stub task context instance and add it to the plan
