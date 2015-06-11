@@ -40,7 +40,7 @@ module Syskit
             #
             #   The mapping is of the form
             #     
-            #     [service_model, port] => target_port
+            #     provided_service_model => [provided_service_model_port, port]
             #
             #   @return [Hash<DataServiceModel,Hash<String,String>>] the
             #     mappings
@@ -117,7 +117,7 @@ module Syskit
             #
             #   actual_port_name = (port_mappings_for(service_type)['A'] || 'A')
             #
-            # Raises ArgumentError if +self+ does not provide +service_type+
+            # @raise [ArgumentError] if self does not provide service_type
             def port_mappings_for(service_type)
                 result = port_mappings[service_type]
                 if !result

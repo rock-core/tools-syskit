@@ -6,8 +6,6 @@ module SyskitProfileTest
 end
 
 describe Syskit::Actions::Profile do
-    include Syskit::Test::Self
-
     describe "#use_profile" do
         attr_reader :definition_mock
         before do
@@ -15,6 +13,7 @@ describe Syskit::Actions::Profile do
             definition_mock.should_receive(:push_selections).by_default
             definition_mock.should_receive(:composition_model?).by_default
             definition_mock.should_receive(:use).by_default
+            definition_mock.should_receive(:doc).by_default
         end
 
         it "resets the profile to the new profile" do
@@ -33,7 +32,8 @@ describe Syskit::Actions::Profile do
             src.define 'test', task_m
 
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:define).with('test', src.test_def).once
+            flexmock(dst).should_receive(:define).with('test', src.test_def).once.
+                and_return(definition_mock)
             dst.use_profile src
         end
 
@@ -58,7 +58,8 @@ describe Syskit::Actions::Profile do
                 and_return(duped = definition_mock)
             duped.should_receive(:push_selections).once
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:define).with('test', duped).once
+            flexmock(dst).should_receive(:define).with('test', duped).once.
+                and_return(duped)
             dst.use_profile src
         end
 
