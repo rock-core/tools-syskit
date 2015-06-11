@@ -205,6 +205,25 @@ describe Syskit::Models::BoundDataService do
             assert_equal subtask_m.test_srv, srv.attach(subtask_m)
         end
     end
+
+    describe "#==" do
+        attr_reader :parent_srv_m, :srv_m, :task_m
+        before do
+            @parent_srv_m = Syskit::DataService.new_submodel
+            @srv_m = Syskit::DataService.new_submodel
+            srv_m.provides parent_srv_m
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, as: 'test'
+        end
+
+        it "returns true for two different instances pointing to the same service" do
+            srv = task_m.test_srv
+            assert_equal srv, srv.dup
+        end
+        it "returns false for a faceted service" do
+            refute_equal task_m.test_srv.as(parent_srv_m), task_m.test_srv
+        end
+    end
 end
 
 class TC_Models_BoundDataService < Minitest::Test
