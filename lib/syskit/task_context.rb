@@ -339,7 +339,8 @@ module Syskit
 
                 if state_reader
                     if !state_reader.connected?
-                        raise InternalError, "state_reader got disconnected"
+                        emit :aborted
+                        return
                     end
 
                     if v = state_reader.read_new
@@ -709,6 +710,12 @@ module Syskit
 
             on :aborted do |event|
 	        ::Robot.info "#{event.task} has been aborted"
+                begin
+                    if execution_agent && !execution_agent.finishing?
+                        orocos_task.stop(false)
+                    end
+                rescue Exception
+                end
                 @orocos_task = nil
             end
 
