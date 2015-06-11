@@ -291,9 +291,14 @@ describe Syskit::TaskContext do
                 task.should_receive(:create_state_reader).never
                 task.update_orogen_state
             end
-            it "raises if the state reader got disconnected" do
-                state_reader.should_receive(:connected?).and_return(false)
-                assert_raises(Syskit::InternalError) { task.update_orogen_state }
+            it "emits :aborted if the state reader got disconnected" do
+                task = stub_deploy_and_start('Task')
+                task.update_orogen_state
+                task.state_reader.disconnect
+                orocos_task = task.orocos_task
+                assert_raises(Roby::MissionFailedError) { task.update_orogen_state }
+                assert task.aborted_event.happened?
+                assert_equal :STOPPED, orocos_task.rtt_state
             end
             it "sets orogen_state with the new state" do
                 state_reader.should_receive(:read_new).and_return(state = Object.new)
