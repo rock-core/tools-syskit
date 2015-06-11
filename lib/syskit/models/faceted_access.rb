@@ -14,8 +14,8 @@ module Syskit
             # @return [{String=>[Port]}] the ports on {required} that provide the
             #   named port
             attr_reader :ports_on_required
-            # @return [{String=>String}] mapping of ports in {required} to ports in
-            #   {selected}
+            # @return [{String=>Port}] mapping of ports in {required} to ports in
+            #   {object}
             attr_reader :port_mappings
 
             def initialize(object, required, mappings = Hash.new)
@@ -50,11 +50,22 @@ module Syskit
                 end
             end
 
+            # Find all possible port mappings for the given port name to {#object}
+            #
+            # @param [String] name the port name on {#required}
+            # @return [Set<Port>] the set of ports on {#object} that are mapped
+            #   from {#required}
             def find_all_port_mappings_for(name)
                 candidates = Set.new
                 ports_on_required[name] ||= find_ports_on_required(name)
                 ports_on_required[name].each do |p|
-                    candidates << service_selection[p.component_model].find_port(p.name).to_component_port
+                    srv = service_selection[p.component_model]
+                    actual_port_name = srv.port_mappings_for_task[p.name]
+                    if p = object.find_port(actual_port_name)
+                        candidates << p
+                    else
+                        raise InternalError, "failed to map port from the required facet #{required} to #{object}"
+                    end
                 end
                 candidates
             end
@@ -76,7 +87,7 @@ module Syskit
             end
             
             def self_port_to_component_port(port)
-                object.find_port(port_mappings[port.name].first.name)
+                port_mappings[port.name].first.to_component_port
             end
 
             def each_port_helper(each_method)
