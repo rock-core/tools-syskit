@@ -40,6 +40,7 @@ module Syskit
             def eql?(other)
                 other.kind_of?(self.class) &&
                     other.full_name == full_name &&
+                    other.model == model &&
                     other.component_model == component_model
             end
 
