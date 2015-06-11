@@ -22,6 +22,7 @@ describe Syskit::NetworkGeneration::Engine do
             @planning_task = original_task.planning_task
             @requirements = planning_task.requirements
             stub_roby_deployment_model(simple_component_model)
+            syskit_engine.create_work_plan_transaction
             syskit_engine.prepare
         end
 
@@ -100,6 +101,35 @@ describe Syskit::NetworkGeneration::Engine do
             cmp = syskit_engine.required_instances[original_task.planning_task]
             assert_equal device, cmp.test_child.device_dev
         end
+        it "sets the task's fullfilled model to the instance requirement's" do
+            task_m = Syskit::TaskContext.new_submodel do
+                argument :arg
+            end
+            req = Syskit::InstanceRequirements.new([task_m]).
+                with_arguments(arg: 10)
+            plan.add_permanent(original = req.as_plan)
+            original.planning_task.start!
+            syskit_engine.instanciate
+            task = syskit_engine.required_instances[original.planning_task]
+            assert_equal [[task_m], Hash[arg: 10]], task.fullfilled_model
+        end
+        it "use the arguments as filtered by the task" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg
+            task_m.class_eval do
+                def arg=(value)
+                    self.arguments[:arg] = value / 2
+                end
+            end
+            req = Syskit::InstanceRequirements.new([task_m]).
+                with_arguments(arg: 10)
+            plan.add_permanent(original = req.as_plan)
+            original.planning_task.start!
+            syskit_engine.instanciate
+            task = syskit_engine.required_instances[original.planning_task]
+            assert_equal 5, task.arg
+            assert_equal [[task_m], Hash[arg: 5]], task.fullfilled_model
+        end
     end
 
     describe "#fix_toplevel_tasks" do
@@ -109,6 +139,7 @@ describe Syskit::NetworkGeneration::Engine do
         before do
             plan.add(@original_task = simple_component_model.as_plan)
             @planning_task = original_task.planning_task
+            syskit_engine.create_work_plan_transaction
             syskit_engine.prepare
             syskit_engine.work_plan.add_permanent(@final_task = simple_component_model.new)
             syskit_engine.required_instances[original_task.planning_task] = final_task
@@ -139,6 +170,30 @@ describe Syskit::NetworkGeneration::Engine do
             syskit_engine.work_plan.commit_transaction
             assert_same service.task, final_task
             assert_same final_task.planning_task, planning_task
+        end
+    end
+
+    describe "#reconfigure_tasks_on_static_port_modification" do
+        it "reconfigures already-configured tasks whose static input ports have been modified" do
+            task = stub_deploy_and_configure("Task", as: 'task') { input_port('in', '/double').static }
+            flexmock(task).should_receive(:transaction_proxy?).and_return(true)
+            flexmock(task).should_receive(:transaction_modifies_static_ports?).once.and_return(true)
+            syskit_engine.reconfigure_tasks_on_static_port_modification([task])
+            tasks = work_plan.find_local_tasks(Syskit::TaskContext).
+                with_arguments(orocos_name: task.orocos_name).to_a
+            assert_equal 2, tasks.size
+            tasks.delete(task)
+            new_task = tasks.first
+
+            assert Roby::EventStructure::SyskitConfigurationPrecedence.linked?(task.stop_event, new_task.start_event)
+        end
+
+        it "does not reconfigure not-setup tasks" do
+            task = stub_and_deploy("Task", as: 'task') { input_port('in', '/double').static }
+            syskit_engine.reconfigure_tasks_on_static_port_modification([task])
+            tasks = work_plan.find_local_tasks(Syskit::TaskContext).
+                with_arguments(orocos_name: task.orocos_name).to_a
+            assert_equal [task], tasks
         end
     end
 
@@ -371,7 +426,7 @@ describe Syskit::NetworkGeneration::Engine do
         attr_reader :create_task
         attr_reader :merge
         before do
-            @task_model = Class.new(Roby::Task) { argument :orocos_name; argument :conf }
+            @task_model = Class.new(Syskit::Component) { argument :orocos_name; argument :conf }
             @deployment_model = Class.new(Roby::Task) { event :ready }
             @existing_task, @existing_deployment_task = task_model.new, deployment_model.new
             existing_task.executed_by existing_deployment_task
@@ -412,7 +467,7 @@ describe Syskit::NetworkGeneration::Engine do
         end
         it "creates a new deployed task if there is an existing deployment but it cannot be merged" do
             task.orocos_name = existing_task.orocos_name = 'task'
-            flexmock(existing_task).should_receive(:can_merge?).with(task).and_return(false)
+            flexmock(task).should_receive(:can_be_deployed_by?).with(existing_task).and_return(false)
             should_create_new_task
             syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)
         end
@@ -420,7 +475,7 @@ describe Syskit::NetworkGeneration::Engine do
         end
         it "synchronizes the newly created task with the end of the existing one" do
             task.orocos_name = existing_task.orocos_name = 'task'
-            flexmock(existing_task).should_receive(:can_merge?).with(task).and_return(false)
+            flexmock(task).should_receive(:can_be_deployed_by?).with(existing_task).and_return(false)
             new_task = should_create_new_task
             flexmock(new_task).should_receive(:should_configure_after).with(existing_task.stop_event).once
             syskit_engine.adapt_existing_deployment(deployment_task, existing_deployment_task)

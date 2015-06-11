@@ -188,9 +188,7 @@ module Syskit
             # @return [Boolean] true if #merge(other_task) can be called and
             # false otherwise
             def can_merge?(other_task) # :nodoc:
-                if !(super_result = super)
-                    return super_result
-                end
+                return if !super
 
                 # Verify the host constraints (i.e. can't merge other_task in
                 # +self+ if both have constraints on which host they should run,
@@ -205,6 +203,31 @@ module Syskit
                 else
                     true
                 end
+            end
+
+            # (see Component#can_be_deployed_by?)
+            def can_be_deployed_by?(task)
+                if !super
+                    return false
+                elsif !task.setup?
+                    return true
+                end
+
+                # NOTE: in the two tests below, we use the fact that
+                # {#can_merge?} (and therefore {Component#can_be_deployed_by?})
+                # already checked that services that have the same name in task
+                # and self are actually of identical definition.
+                task.each_required_dynamic_service do |srv|
+                    if srv.model.remove_when_unused? && !find_data_service(srv.name)
+                        return false
+                    end
+                end
+                each_required_dynamic_service do |srv|
+                    if !srv.model.dynamic? && !task.find_data_service(srv.name)
+                        return false
+                    end
+                end
+                true
             end
 
             # Replaces the given task by this task
@@ -316,7 +339,8 @@ module Syskit
 
                 if state_reader
                     if !state_reader.connected?
-                        raise InternalError, "state_reader got disconnected"
+                        emit :aborted
+                        return
                     end
 
                     if v = state_reader.read_new
@@ -420,16 +444,91 @@ module Syskit
                 elsif state == :PRE_OPERATIONAL
                     return true
                 elsif !needs_reconfiguration?
-                    _, current_conf = TaskContext.configured[orocos_name]
-                    if current_conf && current_conf == self.conf
-                        ::Robot.info "not reconfiguring #{self}: the task is already configured as required"
-                        return false
+                    _, current_conf, dynamic_services = TaskContext.configured[orocos_name]
+                    if current_conf
+                        if current_conf == self.conf && dynamic_services == each_required_dynamic_service.to_set
+                            ::Robot.info "not reconfiguring #{self}: the task is already configured as required"
+                            return false
+                        end
                     end
                 end
 
                 ::Robot.info "cleaning up #{self}"
                 orocos_task.cleanup
+
+                # {#cleanup} is meant to clear dynamic ports, clear the
+                # ActualDataFlow graph accordingly
+                to_remove = Hash.new
+                to_remove.merge!(dynamic_input_port_connections)
+                to_remove.merge!(dynamic_output_port_connections)
+                Flows::DataFlow.modified_tasks << self
+                to_remove.each do |(source_task, sink_task), connections|
+                    ActualDataFlow.remove_connections(source_task, sink_task, connections)
+                end
+
                 return true
+            end
+
+            # @api private
+            #
+            # Helper for {#prepare_for_setup} that enumerates the inbound
+            # connections originating from a dynamic output port
+            def dynamic_input_port_connections
+                to_remove = Hash.new
+                real_model = self.model.concrete_model
+                dynamic_ports = self.model.each_input_port.find_all do |p|
+                    !real_model.find_input_port(p.name)
+                end
+                dynamic_ports = dynamic_ports.map(&:name).to_set
+
+                # In development mode, we actually check that the
+                # task did remove the port(s)
+                if Roby.app.development_mode?
+                    dynamic_ports.each do |name|
+                        if orocos_task.find_input_port(name)
+                            Syskit.fatal "task #{orocos_task} did not clear #{name}, a dynamic input port, during cleanup, as it should have. Go fix it."
+                        end
+                    end
+                end
+
+                orocos_task.each_parent_vertex(ActualDataFlow) do |source_task|
+                    mappings = source_task[orocos_task, ActualDataFlow]
+                    to_remove[[source_task, orocos_task]] = mappings.each_key.find_all do |from_port, to_port|
+                        dynamic_ports.include?(to_port)
+                    end
+                end
+                to_remove
+            end
+
+            # @api private
+            #
+            # Helper for {#prepare_for_setup} that enumerates the outbound
+            # connections originating from a dynamic output port
+            def dynamic_output_port_connections
+                to_remove = Hash.new
+                real_model = self.model.concrete_model
+                dynamic_ports = self.model.each_output_port.find_all do |p|
+                    !real_model.find_output_port(p.name)
+                end
+                dynamic_ports = dynamic_ports.map(&:name).to_set
+
+                # In development mode, we actually check that the
+                # task did remove the port(s)
+                if Roby.app.development_mode?
+                    dynamic_ports.each do |name|
+                        if orocos_task.find_output_port(name)
+                            Syskit.fatal "task #{orocos_task} did not clear #{name}, a dynamic output port, during cleanup, as it should have. Go fix it."
+                        end
+                    end
+                end
+
+                orocos_task.each_child_vertex(ActualDataFlow) do |sink_task|
+                    mappings = orocos_task[sink_task, ActualDataFlow]
+                    to_remove[[orocos_task, sink_task]] = mappings.each_key.find_all do |from_port, to_port|
+                        dynamic_ports.include?(from_port)
+                    end
+                end
+                to_remove
             end
 
             # Called to configure the component
@@ -463,7 +562,9 @@ module Syskit
                 end
 
                 TaskContext.needs_reconfiguration.delete(orocos_name)
-                TaskContext.configured[orocos_name] = [orocos_task.model, self.conf.dup]
+                TaskContext.configured[orocos_name] = [orocos_task.model,
+                                                       self.conf.dup,
+                                                       self.each_required_dynamic_service.to_set]
                 is_setup!
             end
 
@@ -609,6 +710,12 @@ module Syskit
 
             on :aborted do |event|
 	        ::Robot.info "#{event.task} has been aborted"
+                begin
+                    if execution_agent && !execution_agent.finishing?
+                        orocos_task.stop(false)
+                    end
+                rescue Exception
+                end
                 @orocos_task = nil
             end
 
@@ -740,6 +847,34 @@ module Syskit
                     if specialized_model?
                         Syskit::Models.merge_orogen_task_context_models(__getobj__.model.orogen_model, [model.orogen_model])
                     end
+                end
+
+                def transaction_modifies_static_ports?
+                    new_connections_to_static = Hash.new
+                    each_source do |source_task|
+                        connections = source_task[self, Flows::DataFlow]
+                        connections.each_key do |source_port, sink_port|
+                            if find_input_port(sink_port).static?
+                                return true if !source_task.transaction_proxy?
+
+                                sources = (new_connections_to_static[sink_port] ||= Set.new)
+                                sources << [source_task.orocos_name, source_port]
+                            end
+                        end
+                    end
+
+                    current_connections_to_static = Hash.new
+                    __getobj__.each_source do |source_task|
+                        connections = source_task[__getobj__, Flows::DataFlow]
+                        connections.each_key do |source_port, sink_port|
+                            if find_input_port(sink_port).static?
+                                sources = (current_connections_to_static[sink_port] ||= Set.new)
+                                sources << [source_task.orocos_name, source_port]
+                            end
+                        end
+                    end
+
+                    current_connections_to_static != new_connections_to_static
                 end
             end
         end

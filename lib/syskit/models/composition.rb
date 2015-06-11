@@ -77,8 +77,8 @@ module Syskit
             # Empty connection policies means "autodetect policy"
             inherited_attribute(:explicit_connection, :explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
 
-            # [ValueSet<Model<Composition>>] the composition models that are parent to this one
-            attribute(:parent_models) { ValueSet.new }
+            # [Set<Model<Composition>>] the composition models that are parent to this one
+            attribute(:parent_models) { Set.new }
 
             # The root composition model in the specialization hierarchy
             def root_model; self end
@@ -166,7 +166,12 @@ module Syskit
                 # valid overloading of the previous one.
                 
                 child_model = find_child(name) || CompositionChild.new(self, name)
-                child_model.merge(child_models)
+                # The user might have called e.g.
+                #
+                #   overload 'bla', bla_child.with_arguments(bla: 10)
+                if child_models.object_id != child_model.object_id
+                    child_model.merge(child_models)
+                end
                 dependency_options = Roby::TaskStructure::DependencyGraphClass.
                     merge_dependency_options(child_model.dependency_options, dependency_options)
                 child_model.dependency_options.clear
@@ -536,9 +541,9 @@ module Syskit
             #
             # See #constrain
             def constraints_for(child_name)
-                result = ValueSet.new
+                result = Set.new
                 each_child_constraint(child_name, false) do |constraint_set|
-                    result |= constraint_set.to_value_set
+                    result |= constraint_set.to_set
                 end
                 result
             end

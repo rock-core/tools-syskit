@@ -30,7 +30,7 @@ module Syskit
             end
 
             def pretty_print(pp)
-                pp.text name
+                pp.text(name || "")
             end
 
             # Generates the InstanceRequirements object that represents +self+

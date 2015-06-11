@@ -331,17 +331,18 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert graph.empty?
             assert cycles.empty?
         end
-        it "considers non-specialized versions of a specialized model as valid candidates" do
+        it "uses the instance-level #fullfilled_model to search for candidates" do
             task_model = Syskit::TaskContext.new_submodel
-            plan.add(non_specialized = task_model.new)
-            plan.add(specialized = task_model.new)
-            specialized.specialize
-            flexmock(non_specialized).should_receive(:can_merge?).with(specialized).once
-            flexmock(specialized).should_receive(:can_merge?).with(non_specialized).once
-            solver.direct_merge_mappings([non_specialized, specialized].to_value_set)
+            plan.add(task0 = task_model.specialize.new)
+            task0.fullfilled_model = [task_model, [], Hash.new]
+            plan.add(task1 = task_model.specialize.new)
+            task1.fullfilled_model = [task_model, [], Hash.new]
+            flexmock(task0).should_receive(:can_merge?).with(task1).once
+            flexmock(task1).should_receive(:can_merge?).with(task0).once
+            solver.direct_merge_mappings([task0, task1].to_set)
         end
         it "merges every merge candidate for which resolve_single_merge return true" do
-            flexmock(plan).should_receive(:find_local_tasks).with(task_model.fullfilled_model).
+            flexmock(plan).should_receive(:find_local_tasks).with([task_model]).
                 and_return([target_task])
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(true)
             graph, cycles = solver.direct_merge_mappings([task, target_task].to_value_set)
@@ -349,7 +350,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert cycles.empty?
         end
         it "adds the merge candidates for which resolve_single_merge return nil to the cycle candidates" do
-            flexmock(plan).should_receive(:find_local_tasks).with(task_model.fullfilled_model).
+            flexmock(plan).should_receive(:find_local_tasks).with([task_model]).
                 and_return([target_task])
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(nil)
             graph, cycles = solver.direct_merge_mappings([task, target_task].to_value_set)
@@ -357,7 +358,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert_equal [[task, target_task]], cycles
         end
         it "does not take into account possible candidates that are not in the provided set" do
-            flexmock(plan).should_receive(:find_local_tasks).with(task_model.fullfilled_model).
+            flexmock(plan).should_receive(:find_local_tasks).with([task_model]).
                 and_return([target_task])
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(true)
             graph, cycles = solver.direct_merge_mappings([task].to_value_set)
@@ -366,3 +367,4 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
     end
 end
+

@@ -61,6 +61,81 @@ describe Syskit::Port do
                 out_task.out_port.connect_to out_task.in_port
             end
         end
+
+        describe "in transaction context" do
+            attr_reader :task_m, :source, :sink, :transaction
+            before do
+                @task_m = Syskit::TaskContext.new_submodel do
+                    input_port 'in', '/double'
+                    output_port 'out', '/double'
+                end
+                plan.add(@source = task_m.new)
+                plan.add(@sink = task_m.new)
+                @transaction = create_transaction
+            end
+
+            it "does not modify the connections of the underlying tasks" do
+                transaction[source].out_port.connect_to transaction[sink].in_port
+                assert !source.out_port.connected_to?(sink.in_port)
+            end
+        end
+    end
+
+    describe "#disconnect_from" do
+        describe "in transaction context" do
+            attr_reader :task_m, :source, :sink, :transaction
+            before do
+                @task_m = Syskit::TaskContext.new_submodel do
+                    input_port 'in', '/double'
+                    output_port 'out', '/double'
+                end
+                plan.add(@source = task_m.new)
+                plan.add(@sink = task_m.new)
+                @transaction = create_transaction
+            end
+
+            it "does not modify the connections of the underlying tasks" do
+                source.out_port.connect_to sink.in_port
+                transaction[source].out_port.disconnect_from transaction[sink].in_port
+                assert source.out_port.connected_to?(sink.in_port)
+            end
+        end
+    end
+    
+    describe "#connected_to?" do
+        attr_reader :task_m, :source, :sink, :transaction
+        before do
+            @task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+                output_port 'out', '/double'
+            end
+            plan.add(@source = task_m.new)
+            plan.add(@sink = task_m.new)
+        end
+
+        it "returns true if the ports are connected" do
+            source.out_port.connect_to sink.in_port
+            assert source.out_port.connected_to?(sink.in_port)
+        end
+
+        it "returns false if the ports are not connected" do
+            assert !source.out_port.connected_to?(sink.in_port)
+        end
+
+        it "resolves 'self' to the component port" do
+            p = source.out_port
+            flexmock(p).should_receive(:to_component_port).once.and_return(m = flexmock)
+            m.should_receive(:connected_to?).with(sink.in_port).and_return(ret = flexmock)
+            p.connected_to?(sink.in_port)
+        end
+
+        it "resolves 'in_port' to the component port" do
+            p = sink.in_port
+            flexmock(p).should_receive(:to_component_port).once.and_return(flexmock(component: nil, name: ''))
+            # Would have been true if we were not meddling with
+            # to_component_port
+            assert !source.out_port.connected_to?(p)
+        end
     end
 end
 

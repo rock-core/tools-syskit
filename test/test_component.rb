@@ -114,6 +114,31 @@ describe Syskit::Component do
             task.require_dynamic_service 'device_dyn', :as => 'slave'
             assert_equal [task.model.driver_srv], task.model.each_master_driver_service.to_a
         end
+
+        describe "behaviour in transaction context" do
+            before do
+                srv_m = Syskit::DataService.new_submodel
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.dynamic_service srv_m, as: 'test' do
+                    provides srv_m
+                end
+                plan.add(@task = task_m.new)
+            end
+
+            it "exposes services that are registered on the underlying task's specialized model" do
+                task.require_dynamic_service 'test', as: 'test'
+                transaction = create_transaction
+                task_p = transaction[task]
+                task_p.specialize
+                assert task_p.find_data_service('test')
+            end
+            it "adds new dynamic services only at the transaction level" do
+                transaction = create_transaction
+                task_p = transaction[task]
+                task_p.require_dynamic_service 'test', as: 'test'
+                assert !task.find_data_service('test')
+            end
+        end
     end
 
     describe "#can_merge?" do
@@ -196,7 +221,7 @@ describe Syskit::Component do
             merged_task.specialize
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel)
             task.specialize
-            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => nil).once.pass_thru
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, Hash.new, as: 'srv', slave_of: nil).once.pass_thru
             task.merge(merged_task)
         end
         it "adds slave dynamic services as slaves" do
@@ -204,7 +229,7 @@ describe Syskit::Component do
             merged_task.specialize
             merged_task.require_dynamic_service 'dyn', :as => 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
             task.specialize
-            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, :as => 'srv', :slave_of => 'master').once.pass_thru
+            flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, Hash.new, as: 'srv', slave_of: 'master').once.pass_thru
             task.merge(merged_task)
         end
         it "specializes the target task regardless of whether the target model was already specialized" do
@@ -357,11 +382,22 @@ describe Syskit::Component do
     end
 
     describe "#commit_transaction" do
-        it "specializes the proxied task and applies model modifications if there are some" do
+        it "specializes the real task if the proxy was specialized" do
+            task_m = Syskit::TaskContext.new_submodel
+            plan.add(task = task_m.new)
+            plan.in_transaction do |trsc|
+                trsc[task].specialize
+                trsc.commit_transaction
+            end
+            assert task.specialized_model?
+        end
+
+        it "creates dynamic ports" do
             task_m = Syskit::TaskContext.new_submodel do
                 dynamic_output_port /\w+/, nil
             end
             dynport = task_m.orogen_model.dynamic_ports.find { true }
+
 
             plan.add(task = task_m.new)
             plan.in_transaction do |trsc|
@@ -369,8 +405,26 @@ describe Syskit::Component do
                 proxy.instanciate_dynamic_output_port('name', '/double', dynport)
                 trsc.commit_transaction
             end
-            assert task.specialized_model?
             assert task.model.find_output_port('name')
+        end
+
+        it "creates dynamic services" do
+            srv_m  = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            dyn_m  = task_m.dynamic_service srv_m, as: 'test' do
+                provides srv_m, as: 'test'
+            end
+
+            plan.add(task = task_m.new)
+            plan.in_transaction do |trsc|
+                proxy = trsc[task]
+                proxy.require_dynamic_service 'test', as: 'test'
+                trsc.commit_transaction
+            end
+            services = task.each_required_dynamic_service.to_a
+            assert_equal 1, services.size
+            expected_dyn_srv = task.model.find_dynamic_service('test')
+            assert_equal expected_dyn_srv, services.first.model.dynamic_service
         end
     end
 

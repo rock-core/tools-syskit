@@ -50,6 +50,15 @@ module Syskit
                 @requirements = InstanceRequirements.new
             end
 
+            def initialize_copy(source)
+                super
+                @requirements = @requirements.dup
+                if source.specialized_model?
+                    specialize
+                end
+                duplicate_missing_services_from(source)
+            end
+
             def create_fresh_copy
                 new_task = super
                 new_task.robot = robot
@@ -173,6 +182,18 @@ module Syskit
                 return true
             end
 
+            # Tests whether a task can be used as-is to deploy this
+            #
+            # It is mostly the same as {#can_merge?}, while taking into account
+            # e.g. that some operations done during merging will require the
+            # component to do a reconfiguration cycle
+            #
+            # @param [Component] task
+            # @return [Boolean]
+            def can_be_deployed_by?(task)
+                task.can_merge?(self)
+            end
+
             # Updates self so that it is a valid replacement for merged_task
             #
             # This method assumes that #can_merge?(task) has already been called
@@ -203,24 +224,7 @@ module Syskit
                 # If merged_task has instantiated dynamic services, instantiate
                 # them on self
                 if merged_task.model.private_specialization?
-                    missing_services = merged_task.model.each_data_service.find_all do |_, srv|
-                        !model.find_data_service(srv.full_name)
-                    end
-
-                    if !missing_services.empty?
-                        # We really really need to specialize self. The reason is
-                        # that self.model, even though it has private
-                        # specializations, might be a reusable model from the system
-                        # designer's point of view. With the singleton class, we
-                        # know that it is not
-                        specialize
-
-                        missing_services.each do |_, srv|
-                            dynamic_service_options = Hash[:as => srv.name].
-                                merge(srv.dynamic_service_options)
-                            model.require_dynamic_service srv.dynamic_service.name, dynamic_service_options
-                        end
-                    end
+                    duplicate_missing_services_from(merged_task)
                 end
 
                 # Call included plugins if there are some
@@ -230,6 +234,21 @@ module Syskit
                 # #replace_task to replace it completely
                 plan.replace_task(merged_task, self)
                 nil
+            end
+
+            def duplicate_missing_services_from(task)
+                missing_services = task.model.each_data_service.find_all do |_, srv|
+                    !model.find_data_service(srv.full_name)
+                end
+
+                missing_services.each do |_, srv|
+                    if !srv.respond_to?(:dynamic_service)
+                        raise InternalError, "attempting to duplicate static service #{srv.name} from #{task} to #{self}"
+                    end
+                    dynamic_service_options = Hash[as: srv.name].
+                        merge(srv.dynamic_service_options)
+                    require_dynamic_service srv.dynamic_service.name, **dynamic_service_options
+                end
             end
 
             # The set of data readers created with #data_reader. Used to disconnect
@@ -409,12 +428,30 @@ module Syskit
             # One needs to reimplement the model's #configure method to actually
             # configure the task properly.
             #
+            # @param (see Models::Component#require_dynamic_service)
             # @return [BoundDataService] the newly created service
-            def require_dynamic_service(dynamic_service_name, options = Hash.new)
+            def require_dynamic_service(dynamic_service_name, as: nil, **dyn_options)
                 specialize
-                bound_service = self.model.require_dynamic_service(dynamic_service_name, options)
-                needs_reconfiguration!
-                bound_service.bind(self)
+                bound_service = self.model.require_dynamic_service(
+                    dynamic_service_name, as: as, **dyn_options)
+                srv = bound_service.bind(self)
+                if plan && plan.executable? && setup?
+                    added_dynamic_service(srv)
+                end
+                srv
+            end
+
+            # Hook called on an already-configured task when a new service got
+            # added.
+            #
+            # Note that it will only happen for services whose 'dynamic' flag is
+            # set (not the default)
+            #
+            # @param [BoundDynamicDataService] srv the newly created service
+            # @return [void]
+            # @see {#require_dynamic_service}
+            def added_dynamic_service(srv)
+                super if defined? super
             end
 
             # @deprecated has been renamed to {#each_required_dynamic_service}
@@ -489,6 +526,122 @@ module Syskit
                     end
             end
 
+            # Hook called when a connection will be created on an input port
+            #
+            # This is called *before* the connection gets established on the
+            # underlying ports
+            #
+            # @param [Port] source_port
+            # @param [Port] sink_port
+            # @param [Hash] policy
+            def adding_input_port_connection(source_port, sink_port, policy)
+                super if defined? super
+            end
+
+            # Hook called when a connection has been created to an input port
+            #
+            # This is called *after* the connection has been established on the
+            # underlying ports
+            #
+            # @param [Port] source_port
+            # @param [Port] sink_port
+            # @param [Hash] policy
+            def added_input_port_connection(source_port, sink_port, policy)
+                super if defined? super
+            end
+
+            # Hook called when a connection will be created on an output port
+            #
+            # This is called *before* the connection gets established on the
+            # underlying ports
+            #
+            # @param [Port] source_port
+            # @param [Port] sink_port
+            # @param [Hash] policy
+            def adding_output_port_connection(source_port, sink_port, policy)
+                super if defined? super
+            end
+
+            # Hook called when a connection has been created to an output port
+            #
+            # This is called *after* the connection has been established on the
+            # underlying ports
+            #
+            # @param [Port] source_port
+            # @param [Port] sink_port
+            # @param [Hash] policy
+            def added_output_port_connection(source_port, sink_port, policy)
+                super if defined? super
+            end
+
+            # Hook called when a connection will be removed from an input port
+            #
+            # This is called *before* the connection gets removed on the
+            # underlying ports. It will be called only if this task is set up
+            #
+            # Unlike the add hooks, this does not deal with the syskit-level
+            # representation of tasks, but with the underlying component
+            # handler. The root cause of it is that disconnection can be
+            # performed *after* a Roby task got finalized.
+            #
+            # @param [Orocos::TaskContext] source_task
+            # @param [String] source_port
+            # @param [String] sink_port
+            def removing_input_port_connection(source_task, source_port, sink_port)
+                super if defined? super
+            end
+
+            # Hook called when a connection has been removed from an input port
+            #
+            # This is called *after* the connection has been removed on the
+            # underlying ports. It will be called only if this task is set up
+            #
+            # Unlike the add hooks, this does not deal with the syskit-level
+            # representation of tasks, but with the underlying component
+            # handler. The root cause of it is that disconnection can be
+            # performed *after* a Roby task got finalized.
+            #
+            # @param [Orocos::TaskContext] source_task
+            # @param [String] source_port
+            # @param [String] sink_port
+            def removed_input_port_connection(source_task, source_port, sink_port)
+                super if defined? super
+            end
+
+            # Hook called when a connection will be removed from an output port
+            #
+            # This is called *before* the connection gets removed on the
+            # underlying ports. It will be called only if this task is set up
+            #
+            # Unlike the add hooks, this does not deal with the syskit-level
+            # representation of tasks, but with the underlying component
+            # handler. The root cause of it is that disconnection can be
+            # performed *after* a Roby task got finalized.
+            #
+            # @param [String] source_port
+            # @param [Orocos::TaskContext] sink_task
+            # @param [String] sink_port
+            def removing_output_port_connection(source_port, sink_task, sink_port)
+                super if defined? super
+            end
+
+            # Hook called when a connection has been removed from an output port
+            #
+            # This is called *after* the connection has been removed on the
+            # underlying ports. It will be called only if this task is set up
+            #
+            # Unlike the add hooks, this does not deal with the syskit-level
+            # representation of tasks, but with the underlying component
+            # handler. The root cause of it is that disconnection can be
+            # performed *after* a Roby task got finalized.
+            #
+            # @param [String] source_port
+            # @param [Orocos::TaskContext] sink_task
+            # @param [String] sink_port
+            def removed_output_port_connection(source_port, sink_task, sink_port)
+                super if defined? super
+            end
+
             module Proxying
                 proxy_for Component
 
@@ -498,6 +651,10 @@ module Syskit
                     if specialized_model?
                         __getobj__.specialize
                     end
+
+                    # Merge the InstanceRequirements objects
+                    __getobj__.requirements.merge(requirements)
+                    __getobj__.duplicate_missing_services_from(self)
                 end
             end
         end

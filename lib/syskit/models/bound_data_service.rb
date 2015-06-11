@@ -1,6 +1,15 @@
 module Syskit
     module Models
         # Representation of a data service as provided by a component model
+        #
+        # Instances of this class are usually created by
+        # {Models::Component#provides}. Note that bound dynamic services are
+        # instances of {BoundDynamicDataService} instead.
+        #
+        # At the component instance level, each {Models::BoundDataService} is
+        # represented by a corresponding {Syskit::BoundDataService}, whose
+        # {Syskit::BoundDataService#model} method returns this object. This
+        # instance-level object is created with {#bind}
         class BoundDataService
             include Models::Base
             include Models::PortAccess
@@ -31,6 +40,7 @@ module Syskit
             def eql?(other)
                 other.kind_of?(self.class) &&
                     other.full_name == full_name &&
+                    other.model == model &&
                     other.component_model == component_model
             end
 
@@ -120,6 +130,8 @@ module Syskit
                 "#{component_model.short_name}.#{full_name}"
             end
 
+            def inspect; to_s end
+
             def short_name
                 "#{component_model.short_name}:#{full_name}"
             end
@@ -179,24 +191,25 @@ module Syskit
                 true
             end
 
-            # Returns the port mappings that should be applied from the service
-            # model +model+ to the providing task
+            # Returns the port mappings that should be applied to convert a port
+            # from this service to {#component_model}
             #
-            # The returned value is a hash of the form
+            # @return [Hash<String,String>] mapping from the name of a port of
+            #   self to the name of a port on {#component_model}
             #
-            #   service_port_name => task_port_name
-            #
+            # @see port_mappings_for
             def port_mappings_for_task
                 port_mappings_for(model)
             end
 
-            # Returns the port mappings that should be applied from the service
-            # model +service_model+ to the providing task
+            # Returns the port mappings that should be applied from one of the
+            # service models provided by {#model} to {#component_model}
             #
-            # The returned value is a hash of the form
-            #
-            #   service_port_name => task_port_name
-            #
+            # @param [Model<DataService>] service_model the model of a service
+            #   provided by {#model}
+            # @return [Hash<String,String>] mapping from the name of a port of
+            #   service_model to the name of a port on {#component_model}
+            # @see port_mappings_for_task
             def port_mappings_for(service_model)
                 if !(result = port_mappings[service_model])
                     raise ArgumentError, "#{service_model} is not provided by #{model.short_name}"

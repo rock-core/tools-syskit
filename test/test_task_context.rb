@@ -291,9 +291,14 @@ describe Syskit::TaskContext do
                 task.should_receive(:create_state_reader).never
                 task.update_orogen_state
             end
-            it "raises if the state reader got disconnected" do
-                state_reader.should_receive(:connected?).and_return(false)
-                assert_raises(Syskit::InternalError) { task.update_orogen_state }
+            it "emits :aborted if the state reader got disconnected" do
+                task = stub_deploy_and_start('Task')
+                task.update_orogen_state
+                task.state_reader.disconnect
+                orocos_task = task.orocos_task
+                assert_raises(Roby::MissionFailedError) { task.update_orogen_state }
+                assert task.aborted_event.happened?
+                assert_equal :STOPPED, orocos_task.rtt_state
             end
             it "sets orogen_state with the new state" do
                 state_reader.should_receive(:read_new).and_return(state = Object.new)
@@ -473,11 +478,11 @@ describe Syskit::TaskContext do
             assert task.prepare_for_setup(:PRE_OPERATIONAL)
         end
         it "does nothing if the state is STOPPED and the task does not need to be reconfigured" do
-            Syskit::TaskContext.configured['task'] = [nil, []]
+            Syskit::TaskContext.configured['task'] = [nil, [], Set.new]
             task.prepare_for_setup(:STOPPED)
         end
         it "returns false if the state is STOPPED and the task does not need to be reconfigured" do
-            Syskit::TaskContext.configured['task'] = [nil, []]
+            Syskit::TaskContext.configured['task'] = [nil, [], Set.new]
             assert !task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task is marked as requiring reconfiguration" do
@@ -491,9 +496,55 @@ describe Syskit::TaskContext do
             assert task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task's configuration changed" do
-            Syskit::TaskContext.configured['task'] = [nil, ['default']]
+            Syskit::TaskContext.configured['task'] = [nil, ['default'], Set.new]
             orocos_task.should_receive(:cleanup).once
             assert task.prepare_for_setup(:STOPPED)
+        end
+        describe "handling of dynamic input ports" do
+            attr_reader :source_task, :orocos_tasks
+            before do
+                srv = Syskit::DataService.new_submodel { input_port 'p', '/double' }
+                task.specialize
+                task.model.orogen_model.dynamic_input_port /.*/, '/double'
+                task.model.provides_dynamic srv, as: 'test', 'p' => 'dynamic'
+                @source_task = syskit_deploy_task_context 'SourceTask', 'source_task' do
+                    input_port "dynamic", "/double"
+                end
+                @orocos_tasks = [source_task.orocos_task, task.orocos_task]
+            end
+
+            it "removes the connections to dynamic input ports from ActualDataFlow" do
+                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => Hash.new])
+                assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
+
+                Syskit::TaskContext.configured['task'] = nil
+                orocos_task.should_receive(:cleanup).once
+                assert task.prepare_for_setup(:STOPPED)
+                assert !Syskit::ActualDataFlow.linked?(*orocos_tasks)
+            end
+        end
+        describe "handling of dynamic output ports" do
+            attr_reader :sink_task, :orocos_tasks
+            before do
+                srv = Syskit::DataService.new_submodel { output_port 'p', '/double' }
+                task.specialize
+                task.model.orogen_model.dynamic_output_port /.*/, '/double'
+                task.model.provides_dynamic srv, as: 'test', 'p' => 'dynamic'
+                @sink_task = syskit_deploy_task_context 'SinkTask', 'sink_task' do
+                    output_port "dynamic", "/double"
+                end
+                @orocos_tasks = [task.orocos_task, sink_task.orocos_task]
+            end
+
+            it "removes the connections to dynamic output ports from ActualDataFlow" do
+                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => Hash.new])
+                assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
+
+                Syskit::TaskContext.configured['task'] = nil
+                orocos_task.should_receive(:cleanup).once
+                assert task.prepare_for_setup(:STOPPED)
+                assert !Syskit::ActualDataFlow.linked?(*orocos_tasks)
+            end
         end
     end
     describe "#setup" do
@@ -683,6 +734,56 @@ describe Syskit::TaskContext do
         plan.engine.scheduler.enabled = true
         process_events
         process_events
+    end
+
+    describe "#transaction_modifies_static_ports?" do
+        attr_reader :transaction
+        attr_reader :source_task, :task
+        before do
+            @source_task = syskit_deploy_task_context "SourceTask", 'source_task' do
+                output_port 'out', 'int'
+            end
+            @task = syskit_deploy_task_context "Task", "task" do
+                input_port('in', 'int').static
+            end
+            @transaction = create_transaction
+        end
+
+        it "returns true if connected to new tasks" do
+            transaction.add(new_task = source_task.model.new)
+            task_p = transaction[task]
+            new_task.out_port.connect_to task_p.in_port
+            assert task_p.transaction_modifies_static_ports?
+        end
+        it "returns true if the transaction adds a connections to a static port" do
+            task_p = transaction[task]
+            source_task_p = transaction[source_task]
+            source_task_p.out_port.connect_to task_p.in_port
+            assert task_p.transaction_modifies_static_ports?
+        end
+        it "returns true if the transaction removes a connections to a static port" do
+            source_task.out_port.connect_to task.in_port
+            task_p = transaction[task]
+            source_task_p = transaction[source_task]
+            source_task_p.out_port.disconnect_from task_p.in_port
+            assert task_p.transaction_modifies_static_ports?
+        end
+        it "returns false if an unconnected port stays unconnected" do
+            task_p = transaction[task]
+            source_task_p = transaction[source_task]
+            assert !task_p.transaction_modifies_static_ports?
+        end
+        it "returns false if a connected port stays the same" do
+            source_task.out_port.connect_to task.in_port
+            task_p = transaction[task]
+            source_task_p = transaction[source_task]
+            assert !task_p.transaction_modifies_static_ports?
+        end
+        it "returns false if a connected port stays the same, the peer not being included in the transaction" do
+            source_task.out_port.connect_to task.in_port
+            task_p = transaction[task]
+            assert !task_p.transaction_modifies_static_ports?
+        end
     end
 end
 

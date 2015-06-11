@@ -234,8 +234,14 @@ module Syskit
             end
 
             def as(models)
-                models = Array(models) if !models.respond_to?(:each)
-                Models::FacetedAccess.new(self, Syskit.proxy_task_model_for(models))
+                if service
+                    result = to_component_model
+                    result.select_service(service.as(models))
+                    result
+                else
+                    models = Array(models) if !models.respond_to?(:each)
+                    Models::FacetedAccess.new(self, Syskit.proxy_task_model_for(models))
+                end
             end
 
             def as_real_model

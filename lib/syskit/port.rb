@@ -81,7 +81,28 @@ module Syskit
                 out_port.connect_to(in_port, policy)
             end
         end
-        
+
+        def disconnect_from(in_port)
+            out_port = self.to_component_port
+            if out_port == self
+                in_port = in_port.to_component_port
+                component.disconnect_ports(in_port.component, [[out_port.name, in_port.name]])
+            else
+                out_port.disconnect_from(in_port)
+            end
+        end
+
+        def connected_to?(in_port)
+            out_port = self.to_component_port
+            if out_port == self
+                in_port = in_port.to_component_port
+                Flows::DataFlow.linked?(component, in_port.component) &&
+                    component[in_port.component, Flows::DataFlow].has_key?([out_port.name, in_port.name])
+            else
+                out_port.connected_to?(in_port)
+            end
+        end
+
         def new_sample
             model.new_sample
         end
@@ -96,6 +117,13 @@ module Syskit
         def to_s
             "#{component}.#{name}"
         end
+
+        def connected?
+            each_connection { return true }
+            false
+        end
+
+        def static?; model.orogen_model.static? end
     end
 
     class InputPort < Port
