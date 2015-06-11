@@ -491,5 +491,32 @@ describe Syskit::InstanceRequirements do
             assert_equal ir, task.planning_task.requirements
         end
     end
+
+    describe "#as" do
+        attr_reader :parent_srv_m, :srv_m, :task_m
+        before do
+            @parent_srv_m = Syskit::DataService.new_submodel
+            @srv_m = Syskit::DataService.new_submodel
+            srv_m.provides parent_srv_m
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, as: 'test'
+        end
+
+        it "selects the component model's service that matches the given service model" do
+            ir = task_m.to_instance_requirements
+            ir = ir.as(parent_srv_m)
+            expected = task_m.test_srv.as(srv_m).to_instance_requirements
+            assert_equal expected, ir.selected
+        end
+
+        it "allows to override an already selected service by one of its parent models" do
+            ir = task_m.to_instance_requirements
+            ir.select_service(task_m.test_srv)
+            ir = ir.as(parent_srv_m)
+
+            expected = task_m.test_srv.as(srv_m).attach(ir.model)
+            assert_equal expected, ir.service
+        end
+    end
 end
 

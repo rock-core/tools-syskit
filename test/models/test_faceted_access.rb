@@ -100,15 +100,8 @@ describe Syskit::Models::FacetedAccess do
 
     describe "#self_port_to_component_port" do
         it "should resolve the port on the object" do
-            object = flexmock(:to_instance_requirements => sub_task_m.to_instance_requirements)
-            facet = Syskit::Models::FacetedAccess.new(
-                object, Syskit.proxy_task_model_for([task_m, srv_m]))
-            object.should_receive(:find_port).with('sd').ordered.
-                and_return(sd_port = flexmock)
-            object.should_receive(:find_port).with('i').ordered.
-                and_return(i_port = flexmock)
-            assert_equal sd_port, facet.find_port('d').to_component_port
-            assert_equal i_port, facet.find_port('i').to_component_port
+            assert_equal sub_task_m.sd_port, facet.find_port('d').to_component_port
+            assert_equal sub_task_m.i_port,  facet.find_port('i').to_component_port
         end
 
         it "should be able to resolve if the port exists multiple times on the fact and all the candidates map one single port on the final object" do
