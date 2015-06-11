@@ -206,7 +206,7 @@ module Syskit
 	    # Defined to be compatible, in port mapping code, with the data services
             def port_mappings_for(model)
                 if model.kind_of?(Class) 
-                    if self <= model
+                    if fullfills?(model)
                         mappings = Hash.new
                         model.each_port do |port|
                             mappings[port.name] = port.name
