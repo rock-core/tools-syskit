@@ -147,7 +147,7 @@ module Syskit
         # configuration(s)
         def redeploy
             engine.execute do
-                plan.syskit_engine.resolve
+                plan.syskit_engine.force_update!
             end
             nil
         end
