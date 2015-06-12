@@ -751,11 +751,8 @@ module Syskit
             def configure
                 # First, set configuration from the configuration files
                 # Note: it can only set properties
-                conf = self.conf
-                if concrete_model.orogen_model.name
-                    if Orocos.conf.apply(orocos_task, conf, model_name: concrete_model.orogen_model.name, override: true)
-                        ::Robot.info "applied configuration #{conf} to #{orocos_task.name}"
-                    end
+                if model.configuration_manager.apply(self, override: true)
+                    ::Robot.info "applied configuration #{conf} to #{orocos_task.name}"
                 end
 
                 # Then set configuration stored in Syskit.conf

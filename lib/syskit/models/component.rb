@@ -718,6 +718,12 @@ module Syskit
                 end
             end
 
+            # Returns true if this model is a "true" concrete model or a
+            # specialized one
+            def concrete_model?
+                concrete_model == self
+            end
+
             # Returns a placeholder task that can be used to require that a
             # task from this component model is deployed and started at a
             # certain point in the plan.

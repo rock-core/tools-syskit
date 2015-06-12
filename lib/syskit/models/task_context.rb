@@ -192,13 +192,20 @@ module Syskit
                 orogen_model.each_event_port(&block)
             end
 
-            # Returns the configuration hash for the given configuration names,
-            # given this task context
-            def resolve_configuration(*names)
-                if conf = Orocos.conf.conf[orogen_model.name].conf(names, true)
-                    conf.map_value { |k, v| Typelib.to_ruby(v) }
-                else raise ArgumentError, "there is no configuration #{names} for #{self}"
+            # Returns the configuration management object for this task model
+            #
+            # @return [TaskConfigurationManager]
+            def configuration_manager
+                if !@configuration_manager
+                    if !concrete_model?
+                        manager = concrete_model.configuration_manager
+                    else
+                        manager = TaskConfigurationManager.new(Roby.app, self)
+                        manager.reload
+                    end
+                    @configuration_manager = manager
                 end
+                @configuration_manager
             end
         end
     end

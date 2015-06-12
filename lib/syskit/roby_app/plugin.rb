@@ -98,15 +98,15 @@ module Syskit
                 Syskit.info "loading oroGen project #{orogen.name}"
 
                 tasks = orogen.self_tasks.each_value.map do |task_def|
-                    # Load configuration directories
-                    if conf_file = find_file('config', 'orogen', 'ROBOT', "#{task_def.name}.yml", order: :specific_first, all: true)
-                        isolate_load_errors("could not load oroGen configuration file #{conf_file}") do
-                            Orocos.conf.load_file(conf_file, task_def)
+                    syskit_model =
+                        if !TaskContext.has_model_for?(task_def)
+                            Syskit::TaskContext.define_from_orogen(task_def, register: true)
+                        else
+                            Syskit::TaskContext.model_for(task_def)
                         end
-                    end
-                    if !TaskContext.has_model_for?(task_def)
-                        Syskit::TaskContext.define_from_orogen(task_def, register: true)
-                    end
+
+                    syskit_model.configuration_manager.reload
+                    syskit_model
                 end
 
                 if file = load_component_extension(orogen.name)
