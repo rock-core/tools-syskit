@@ -139,7 +139,7 @@ module Syskit
             nil
         end
         command :reload_config, 'reloads YAML configuration files from disk',
-            'The new configuration will only be applied after the redeploy command is issued'
+            'You need to call the redeploy command to apply the new configuration'
 
         # Require the engine to redeploy the current network
         #
