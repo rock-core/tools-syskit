@@ -39,11 +39,12 @@ module Syskit
             component.self_port_to_component_port(self)
         end
 
-        # Returns the orocos port attached that corresponds to self
+        # Returns the port attached to a TaskContext instance that corresponds
+        # to self
         #
         # @raise [ArgumentError] if it is not possible (for instance, ports on
         #   InstanceRequirements are not associated with a component port)
-        # @return [Orocos::Port] the resolved port
+        # @return [Port] the resolved port
         def to_actual_port
             component_port = to_component_port
             component_port.component.self_port_to_actual_port(component_port)
