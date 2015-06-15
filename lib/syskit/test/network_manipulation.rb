@@ -4,14 +4,24 @@ module Syskit
         module NetworkManipulation
             def setup
                 @__test_created_deployments = Array.new
+                @__test_overriden_configurations = Array.new
                 super
             end
 
             def teardown
                 super
+                @__test_overriden_configurations.each do |model, manager|
+                    model.configuration_manager = manager
+                end
                 @__test_created_deployments.each do |d|
                     Syskit.conf.deregister_configured_deployment(d)
                 end
+            end
+
+            def protect_configuration_manager(model)
+                manager = model.configuration_manager
+                model.configuration_manager = manager.dup
+                @__test_overriden_configurations << [model, manager]
             end
 
             # Create a new task context model with the given name
@@ -119,6 +129,13 @@ module Syskit
                 end
                 stub_deployment_model(task_m, name)
                 model.prefer_deployed_tasks(name)
+                concrete_task_m = task_m.concrete_model
+                protect_configuration_manager(concrete_task_m)
+                if conf = model.arguments[:conf]
+                    conf.each do |conf_name|
+                        concrete_task_m.configuration_manager.add(conf_name, Hash.new, merge: true)
+                    end
+                end
             end
 
             # @api private

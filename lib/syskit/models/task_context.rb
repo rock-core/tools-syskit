@@ -192,6 +192,11 @@ module Syskit
                 orogen_model.each_event_port(&block)
             end
 
+            # Override this model's default configuration manager
+            #
+            # @see configuration_manager
+            attr_writer :configuration_manager
+
             # Returns the configuration management object for this task model
             #
             # @return [TaskConfigurationManager]
