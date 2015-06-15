@@ -67,8 +67,12 @@ module Syskit
                 @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), [])
             end
 
-            def initialize_copy(old)
-                super
+            # HACK: allows CompositionChild#to_instance_requirements to return a
+            # HACK: problem InstanceRequirements object
+            # HACK:
+            # HACK: the proper fix would be to make the IR an attribute of
+            # HACK: CompositionChild instead of a superclass
+            def do_copy(old)
                 @model = old.model
                 @base_model = old.base_model
                 @arguments = old.arguments.dup
@@ -77,6 +81,11 @@ module Syskit
                 @deployment_hints = old.deployment_hints.dup
                 @specialization_hints = old.specialization_hints.dup
                 @dependency_injection_context = old.dependency_injection_context.dup
+            end
+
+            def initialize_copy(old)
+                super
+                do_copy(old)
             end
 
             def self.from_object(object, original_requirements = Syskit::InstanceRequirements.new) 

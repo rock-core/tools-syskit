@@ -676,12 +676,17 @@ module Syskit
 
                     # task.model would be wrong here as task.model could be the
                     # singleton class (if there are dynamic services)
-                    candidates = deployed_models[task.concrete_model]
+                    candidates = deployed_models[task.model]
                     if !candidates || candidates.empty?
-                        debug { "no deployments found for #{task} (#{task.concrete_model.short_name})" }
-                        missing_deployments << task
-                        next
-                    elsif candidates.size > 1
+                        candidates = deployed_models[task.concrete_model]
+                        if !candidates || candidates.empty?
+                            debug { "no deployments found for #{task} (#{task.concrete_model.short_name})" }
+                            missing_deployments << task
+                            next
+                        end
+                    end
+
+                    if candidates.size > 1
                         debug { "multiple deployments available for #{task} (#{task.concrete_model.short_name}), trying to resolve" }
                         selected = log_nest(2) do
                             resolve_deployment_ambiguity(candidates, task)

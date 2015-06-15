@@ -93,7 +93,7 @@ module Syskit
             # Create a new stub deployment instance
             def stub_syskit_deployment(name = "deployment", deployment_model = nil, &block)
                 deployment_model ||= stub_deployment_model(nil, name, &block)
-                plan.add_permanent(task = deployment_model.new(:process_name => name, :on => 'stubs'))
+                plan.add_permanent(task = deployment_model.new(process_name: name, on: 'stubs'))
                 task
             end
 
@@ -103,8 +103,8 @@ module Syskit
             #
             # @param [InstanceRequirements] task_m the task context model
             # @param [String] deployment_name the deployment name
-            def stub_and_deploy_task_context(model, deployment_name)
-                model = model.dup
+            def stub_task_context(model, deployment_name)
+                model = model.to_instance_requirements.dup
                 task_m = model.model
                 if task_m.respond_to?(:proxied_data_services)
                     superclass = if task_m.superclass <= Syskit::TaskContext
@@ -121,14 +121,13 @@ module Syskit
                         srv.each_output_port do |p|
                             task_m.orogen_model.output_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
                         end
-                        task_m.provides srv, :as => "srv#{idx}"
+                        task_m.provides srv, as: "srv#{idx}"
                     end
                 elsif task_m.abstract?
                     task_m = task_m.new_submodel
-                    model.add_models(task_m)
                 end
-                stub_deployment_model(task_m, name)
-                model.prefer_deployed_tasks(name)
+                model.add_models([task_m])
+
                 concrete_task_m = task_m.concrete_model
                 protect_configuration_manager(concrete_task_m)
                 if conf = model.arguments[:conf]
@@ -136,6 +135,9 @@ module Syskit
                         concrete_task_m.configuration_manager.add(conf_name, Hash.new, merge: true)
                     end
                 end
+                stub_deployment_model(task_m, deployment_name)
+                model.to_instance_requirements.dup.
+                    prefer_deployed_tasks(deployment_name)
             end
 
             # @api private
@@ -143,19 +145,34 @@ module Syskit
             # Helper for {#stub_and_deploy}
             #
             # @param [InstanceRequirements] model
-            def stub_and_deploy_composition_children(model, recursive: false, prefix: "")
+            def stub_composition_children(model, recursive: false, as: "")
                 model = model.dup
                 model.model.each_child do |child_name, child|
                     if child.composition_model? 
                         if recursive
-                            model.use(child_name => stub_and_deploy(child, prefix: "#{prefix}_#{child_name}"))
+                            model.use(child_name => stub(
+                                child, recursive: true, as: "#{as}_#{child_name}"))
                         end
                     else
-                        deployed_child = stub_and_deploy_task_context(child, "#{prefix}_#{child_name}")
+                        deployed_child = stub_task_context(child, "#{as}_#{child_name}")
                         model.use(child_name => deployed_child)
                     end
                 end
                 model
+            end
+
+            def stub(model, recursive: false, as: self.name, &block)
+                if model.respond_to?(:to_str)
+                    model = stub_syskit_task_context_model(model, &block)
+                end
+                model = model.to_instance_requirements.dup
+
+                if model.composition_model?
+                    stub_composition_children(
+                        model, recursive: recursive, as: as)
+                else
+                    stub_task_context(model, as)
+                end
             end
 
             # Deploy the given composition, replacing every single data service
@@ -179,23 +196,8 @@ module Syskit
             #   model = RootCmp.use(
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   stub_deploy_and_start_composition(model)
-            def stub_and_deploy(model, recursive: false, as: nil, prefix: nil, &block)
-                if model.respond_to?(:to_str)
-                    model = stub_syskit_task_context_model(model, &block)
-                end
-                model = model.to_instance_requirements.dup
-
-                if prefix
-                    Syskit.warn "the 'prefix' option to stub_and_deploy is deprecated, use 'as' instead"
-                    as = prefix
-                end
-
-                if model.composition_model?
-                    model = stub_and_deploy_composition_children(model, recursive: recursive, prefix: (as || ""))
-                else
-                    model = stub_and_deploy_task_context(model, as || "task")
-                end
-
+            def stub_and_deploy(model, recursive: false, as: nil, &block)
+                model = stub(model, recursive: recursive, as: as, &block)
                 syskit_run_deployer(model, compute_policies: false)
             end
 
