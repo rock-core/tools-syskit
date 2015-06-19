@@ -264,7 +264,7 @@ module Syskit
             # Returns the InstanceRequirements object that can be used to
             # represent this device
             def to_instance_requirements
-                driver_model.to_instance_requirements.
+                driver_model.to_instance_requirements.dup.
                     with_arguments(task_arguments).
                     merge(requirements)
             end
