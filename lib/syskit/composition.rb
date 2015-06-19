@@ -181,7 +181,7 @@ module Syskit
                         if !child_task.orocos_task
                             return false
                         end
-                    elsif child_task.kind_of?(Component)
+                    elsif child_task.kind_of?(Component) && child_task.start_event.root?
                         if !child_task.executable?
                             return false
                         end
