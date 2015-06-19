@@ -126,7 +126,7 @@ module Syskit
                 @combus_in_srv  = find_combus_client_srv(com_bus.model.client_in_srv, options[:in])
                 @combus_out_srv = find_combus_client_srv(com_bus.model.client_out_srv, options[:out])
 		if !combus_out_srv && !combus_in_srv
-		    raise ArgumentError, "#{driver_model.component_model.short_name} provides neither an input nor an output service for combus #{com_bus.name}. It should provide #{com_bus.model.client_in_srv.short_name} for input-only, #{com_bus.model.client_out_srv.short_name} for output-only or #{com_bus.model.client_srv.short_name} for bidirectional connections"
+		    raise ArgumentError, "#{driver_model.to_component_model.short_name} provides neither an input nor an output service for combus #{com_bus.name}. It should provide #{com_bus.model.client_in_srv.short_name} for input-only, #{com_bus.model.client_out_srv.short_name} for output-only or #{com_bus.model.client_srv.short_name} for bidirectional connections"
 		end
                 com_busses << com_bus
                 com_bus.attached_devices << self
@@ -142,16 +142,17 @@ module Syskit
             # @param [String,nil] the expected data service name, or nil if none
             #   is given. In this case, one is searched by type
             def find_combus_client_srv(srv_m, srv_name)
+                driver_task_model = driver_model.to_component_model
 		if srv_name
-		    result = driver_model.component_model.find_data_service(srv_name)
+		    result = driver_task_model.find_data_service(srv_name)
 		    if !result
-			raise ArgumentError, "#{srv_name} is specified as a client service on device #{name} for combus #{com_bus.name}, but it is not a data service on #{driver_model.component_model.short_name}"
+			raise ArgumentError, "#{srv_name} is specified as a client service on device #{name} for combus #{com_bus.name}, but it is not a data service on #{driver_task_model}"
                     elsif !result.fullfills?(srv_m)
-                        raise ArgumentError, "#{srv_name} is specified as a client service on device #{name} for combus #{com_bus.name}, but it does not provide the required service from #{com_bus.model.short_name}"
+                        raise ArgumentError, "#{srv_name} is specified as a client service on device #{name} for combus #{com_bus.name}, but it does not provide the required service from #{com_bus.model}"
 		    end
                     result
 		else
-		    driver_model.component_model.find_data_service_from_type(srv_m)
+		    driver_task_model.find_data_service_from_type(srv_m)
 		end
             end
 
@@ -212,7 +213,7 @@ module Syskit
 
                 # If slave_service is a string, it should refer to an actual
                 # service on +task_model+
-                task_model = driver_model.component_model
+                task_model = driver_model.to_component_model
 
                 slave_name = "#{driver_model.full_name}.#{slave_service}"
                 srv = task_model.find_data_service(slave_name)
