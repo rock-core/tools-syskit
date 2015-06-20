@@ -34,6 +34,8 @@ module Syskit
             attr_reader :driver_model
             # The task arguments
             attr_reader :task_arguments
+            # Injected dependencies
+            attr_reader :dependency_injection
             # Configuration data structure
             attr_reader :configuration
             # Block given to #configure to configure the device. It will be
@@ -77,6 +79,11 @@ module Syskit
             # this device
             def with_conf(*conf)
                 task_arguments[:conf] = conf
+                self
+            end
+
+            def use(hash)
+                @dependency_injection = hash
                 self
             end
 
@@ -263,9 +270,17 @@ module Syskit
             # Returns the InstanceRequirements object that can be used to
             # represent this device
             def to_instance_requirements
-                driver_model.to_instance_requirements.
-                    with_arguments(task_arguments).
-                    merge(requirements)
+                #binding.pry
+                if driver_model.component_model.fullfills? Syskit::Composition
+                    driver_model.to_instance_requirements.
+                        with_arguments(task_arguments).
+                        merge(requirements).
+                        merge(Syskit::Composition.use(@dependency_injection))
+                else
+                    driver_model.to_instance_requirements.
+                        with_arguments(task_arguments).
+                        merge(requirements)
+                end
             end
 
             def as_plan; to_instance_requirements.as_plan end

@@ -131,7 +131,7 @@ module Syskit
                     # concrete task model. So, search for one.
                     #
                     # Get all task models that implement this device
-                    tasks = TaskContext.submodels.
+                    tasks = Component.submodels.
                         find_all { |t| t.fullfills?(device_model) }
 
                     # Now, get the most abstract ones
