@@ -507,12 +507,12 @@ module Syskit
                     # Iterate over the existing elements
                     result.each do |merged, all|
                         if all.include?(s0)
-                            remaining.substract(all)
+                            remaining.subtract(all)
                         elsif merged.compatible_with?(s0)
                             # not there yet and compatible, add it
                             merged.merge(s0)
                             all << s0
-                            remaining.substract(all)
+                            remaining.subtract(all)
                         end
                     end
 
