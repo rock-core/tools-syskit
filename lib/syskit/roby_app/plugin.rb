@@ -572,6 +572,26 @@ module Syskit
             def self.register_generators(app)
                 RubiGen::Base.__sources << RubiGen::PathSource.new(:syskit, File.join(Syskit::SYSKIT_ROOT_DIR, "generators"))
             end
+
+            def self.filter_test_files(app, files)
+                files = files.find_all { |path| File.basename(path) != 'suite_orogen.rb' }
+                orogen_tests = app.find_files_in_dirs(
+                    'test', 'ROBOT', 'orogen',
+                    path: [Roby.app.app_dir],
+                    all: true,
+                    order: :specific_first,
+                    pattern: /^(?:suite_|test_).*\.rb$/)
+                orogen_tests.each do |path|
+                    orogen_project = File.basename(path, '.rb').gsub(/^test_/, '')
+                    begin
+                        app.using_task_library orogen_project
+                        files << path
+                    rescue OroGen::ProjectNotFound => e
+                        Roby.warn "skipping #{path}: #{e}"
+                    end
+                end
+                files
+            end
         end
     end
 end
