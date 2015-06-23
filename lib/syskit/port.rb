@@ -26,6 +26,13 @@ module Syskit
             @model, @component = model, component
         end
 
+        def hash; component.hash | name.hash end
+        def eql?(other)
+            self == other
+        end
+
+        def inspect; to_s end
+
         # Returns the port attached to a proper Component instance that
         # corresponds to self
         #

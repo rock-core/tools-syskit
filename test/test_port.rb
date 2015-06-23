@@ -137,6 +137,21 @@ describe Syskit::Port do
             assert !source.out_port.connected_to?(p)
         end
     end
+
+    describe "handling in Hash" do
+        it "can be used as a hash key" do
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+                output_port 'out2', '/double'
+            end
+            plan.add(task = task_m.new)
+            port0 = Syskit::Port.new(task_m.out_port, task)
+            port1 = Syskit::Port.new(task_m.out_port, task)
+            assert_equal 10, Hash[port0 => 10][port1]
+            port2 = Syskit::Port.new(task_m.out2_port, task)
+            assert_equal nil, Hash[port0 => 10][port2]
+        end
+    end
 end
 
 describe Syskit::InputWriter do
