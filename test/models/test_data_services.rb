@@ -1,8 +1,7 @@
 require 'syskit/test/self'
 
+module Syskit
 module Test_DataServiceModel
-    include Syskit::Test::Self
-
     attr_reader :service_type
     attr_reader :dsl_service_type_name
 
@@ -20,7 +19,7 @@ module Test_DataServiceModel
     end
 
     def test_data_services_are_registered_as_submodels_of_task_service
-        srv = Syskit::DataService.new_submodel
+        srv = DataService.new_submodel
         assert Roby::TaskService.each_submodel.to_a.include?(srv)
     end
 
@@ -139,14 +138,14 @@ module Test_DataServiceModel
     end
 
     def test_provides_detects_port_collisions_even_if_they_have_the_same_type
-        base_m = Syskit::DataService.new_submodel do
+        base_m = DataService.new_submodel do
             output_port 'out', '/double'
         end
-        provided_m = Syskit::DataService.new_submodel do
+        provided_m = DataService.new_submodel do
             output_port 'out', '/double'
         end
 
-        assert_raises(SpecError) { base_m.provides provided_m }
+        assert_raises(Syskit::SpecError) { base_m.provides provided_m }
     end
 
     def test_provides_port_collision_with_different_types
@@ -250,187 +249,72 @@ module Test_DataServiceModel
     end
 end
 
-class TC_Models_DataService < Minitest::Test
+describe DataService do
     include Test_DataServiceModel
 
-    def setup
-        @service_type = Syskit::DataService
+    before do
+        @service_type = DataService
         @dsl_service_type_name = :data_service_type
-        super
     end
 
-    def test_each_fullfilled_model
-        parent_model = new_submodel
-        assert_equal [parent_model, service_type].to_set, parent_model.each_fullfilled_model.to_set
-        child_model = new_submodel do
-            provides parent_model
+    describe "the DSL definition" do
+        attr_reader :mod
+        before do
+            @mod = Module.new
         end
-        assert_equal [parent_model, child_model, service_type].to_set, child_model.each_fullfilled_model.to_set
-    end
 
-    def test_module_dsl_service_type_definition
-        DataServiceDefinitionTest.send(dsl_service_type_name, "Image")
-        srv = DataServiceDefinitionTest::Image
-        assert_equal "Test_DataServiceModel::DataServiceDefinitionTest::Image", srv.name
-    end
-
-    def test_cannot_provide_combus
-        srv = Syskit::DataService.new_submodel
-        combus = Syskit::ComBus.new_submodel :message_type => '/int'
-        assert_raises(ArgumentError) { srv.provides combus }
-    end
-
-    def test_cannot_provide_device
-        srv = Syskit::DataService.new_submodel
-        combus = Syskit::Device.new_submodel
-        assert_raises(ArgumentError) { srv.provides combus }
-    end
-
-    def test_it_is_registered_as_a_submodel_of_TaskService
-        srv = Syskit::DataService.new_submodel
-        assert Roby::TaskService.each_submodel.to_a.include?(srv)
-    end
-end
-
-class TC_Models_Device < Minitest::Test
-    include Test_DataServiceModel
-
-    def setup
-        @service_type = Syskit::Device
-        @dsl_service_type_name = :device_type
-        super
-    end
-
-    def test_each_fullfilled_model
-        parent_model = new_submodel
-        assert_equal [parent_model, service_type, Syskit::DataService].to_set, parent_model.each_fullfilled_model.to_set
-        child_model = new_submodel do
-            provides parent_model
+        it "registers the services as constant on the receiver" do
+            srv = mod.data_service_type "Image"
+            assert_same srv, mod::Image
         end
-        assert_equal [parent_model, child_model, service_type, Syskit::DataService].to_set, child_model.each_fullfilled_model.to_set
     end
 
-    def test_module_dsl_service_type_definition
-        DataServiceDefinitionTest.send(dsl_service_type_name, "Image")
-        srv = DataServiceDefinitionTest::Image
-        assert_equal "Test_DataServiceModel::DataServiceDefinitionTest::Image", srv.name
-    end
-
-    def test_cannot_provide_combus
-        srv = Syskit::Device.new_submodel
-        combus = Syskit::ComBus.new_submodel :message_type => '/int'
-        assert_raises(ArgumentError) { srv.provides combus }
-    end
-
-    def test_it_is_registered_as_a_submodel_of_TaskService
-        device = Syskit::Device.new_submodel
-        assert Roby::TaskService.each_submodel.to_a.include?(device)
-    end
-end
-
-class TC_Models_ComBus < Minitest::Test
-    include Test_DataServiceModel
-
-    def setup
-        @service_type = Syskit::ComBus
-        @dsl_service_type_name = :com_bus_type
-        super
-    end
-
-    def test_each_fullfilled_model
-        parent_model = new_submodel
-        assert_equal [parent_model, service_type, Syskit::Device, Syskit::DataService].to_set, parent_model.each_fullfilled_model.to_set
-        child_model = new_submodel do
-            provides parent_model
+    describe "#provides" do
+        it "refuses to provide a ComBus" do
+            srv = DataService.new_submodel
+            combus = ComBus.new_submodel message_type: '/int'
+            assert_raises(ArgumentError) { srv.provides combus }
         end
-        assert_equal [parent_model, child_model, service_type, Syskit::Device, Syskit::DataService].to_set, child_model.each_fullfilled_model.to_set
+        it "refuses to provide a Device" do
+            srv = DataService.new_submodel
+            device = Device.new_submodel
+            assert_raises(ArgumentError) { srv.provides device }
+        end
     end
 
-    def new_submodel(options = Hash.new, &block)
-        options = Kernel.validate_options options,
-            :name => nil, :message_type => '/int'
-        Syskit::ComBus.new_submodel(options, &block)
+    describe "#each_fullfilled_model" do
+        it "includes the model itself, the service type and the root models" do
+            parent_model = DataService.new_submodel
+            assert_equal [parent_model, DataService], 
+                parent_model.each_fullfilled_model.to_a
+        end
+        it "includes other service models it provides" do
+            parent_model = DataService.new_submodel
+            child_model  = DataService.new_submodel { provides parent_model }
+            assert_equal [child_model, parent_model, DataService], 
+                child_model.each_fullfilled_model.to_a
+        end
     end
-
-    def test_module_dsl_service_type_definition
-        DataServiceDefinitionTest.com_bus_type "Image", :message_type => '/double'
-        srv = DataServiceDefinitionTest::Image
-        assert_equal "Test_DataServiceModel::DataServiceDefinitionTest::Image", srv.name
-    end
-
-    def test_can_set_message_type_directly
-        combus = ComBus.new_submodel :message_type => '/int32_t'
-        assert_equal '/int32_t', combus.message_type
-    end
-
-    def test_can_set_message_type_with_provides
-        parent_combus = ComBus.new_submodel :message_type => '/int32_t'
-        combus = ComBus.new_submodel { provides parent_combus }
-        assert_equal '/int32_t', combus.message_type
-    end
-
-    def test_cannot_override_message_type_in_submodel_directly
-        combus = ComBus.new_submodel :message_type => '/int'
-        assert_raises(ArgumentError) { combus.new_submodel :message_type => '/double' }
-    end
-
-    def test_cannot_override_message_type_in_submodel_with_provides
-        parent_combus = ComBus.new_submodel :message_type => '/int32_t'
-        combus = ComBus.new_submodel { provides parent_combus }
-        other_combus = ComBus.new_submodel :message_type => '/double'
-        assert_raises(ArgumentError) { combus.provides other_combus }
-    end
-
-    def test_cannot_provide_a_combus_that_has_not_the_same_message_type
-        combus = ComBus.new_submodel :message_type => '/int'
-        other_combus = ComBus.new_submodel :message_type => '/double'
-        assert_raises(ArgumentError) { combus.provides other_combus }
-    end
-
-    def test_requires_message_type
-        assert_raises(ArgumentError) { ComBus.new_submodel }
-    end
-
-    def test_defines_client_in_srv
-        combus = ComBus.new_submodel :message_type => '/int'
-        assert combus.client_in_srv
-    end
-    def test_defines_client_out_srv
-        combus = ComBus.new_submodel :message_type => '/int'
-        assert combus.client_out_srv
-    end
-    def test_defines_bus_in_srv
-        combus = ComBus.new_submodel :message_type => '/int'
-        assert combus.bus_in_srv
-    end
-    def test_defines_bus_out_srv
-        combus = ComBus.new_submodel :message_type => '/int'
-        assert combus.bus_out_srv
-    end
-end
-
-describe Syskit::DataService do
-    include Syskit::Test::Self
 
     describe "#try_resolve" do
         it "returns a non-ambiguous bound service if there is one" do
-            srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::Component.new_submodel
+            srv_m = DataService.new_submodel
+            task_m = Component.new_submodel
             task_m.provides srv_m, :as => 'test'
             plan.add(task = task_m.new)
             assert_equal task.test_srv, srv_m.try_resolve(task)
         end
         it "returns nil on ambiguities" do
-            srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::Component.new_submodel
+            srv_m = DataService.new_submodel
+            task_m = Component.new_submodel
             task_m.provides srv_m, :as => 'test1'
             task_m.provides srv_m, :as => 'test2'
             plan.add(task = task_m.new)
             assert !srv_m.try_resolve(task)
         end
         it "returns nil if no service matches" do
-            srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::Component.new_submodel
+            srv_m = DataService.new_submodel
+            task_m = Component.new_submodel
             plan.add(task = task_m.new)
             assert !srv_m.try_resolve(task)
         end
@@ -438,13 +322,13 @@ describe Syskit::DataService do
 
     describe "#resolve" do
         it "returns the value of try_resolve is non-nil" do
-            srv_m = Syskit::DataService.new_submodel
+            srv_m = DataService.new_submodel
             flexmock(srv_m).should_receive(:try_resolve).with(task = flexmock).and_return(obj = flexmock)
             assert_equal obj, srv_m.resolve(task)
         end
 
         it "raises if try_resolve returns nil" do
-            srv_m = Syskit::DataService.new_submodel
+            srv_m = DataService.new_submodel
             flexmock(srv_m).should_receive(:try_resolve).with(task = flexmock).and_return(nil)
             assert_raises(ArgumentError) do
                 srv_m.resolve(task)
@@ -454,10 +338,10 @@ describe Syskit::DataService do
 
     describe "Port#connected?" do
         it "returns false" do
-            m0 = Syskit::DataService.new_submodel do
+            m0 = DataService.new_submodel do
                 output_port 'out', 'int'
             end
-            m1 = Syskit::DataService.new_submodel do
+            m1 = DataService.new_submodel do
                 input_port 'in', 'int'
             end
             assert !m0.out_port.connected_to?(m1.in_port)
@@ -465,38 +349,80 @@ describe Syskit::DataService do
     end
 end
 
-describe Syskit::ComBus do
+describe Device do
+    include Test_DataServiceModel
+
+    before do
+        @service_type = Device
+        @dsl_service_type_name = :device_type
+    end
+
+    describe "the DSL definition" do
+        attr_reader :mod
+        before do
+            @mod = Module.new
+        end
+
+        it "registers the services as constant on the receiver" do
+            srv = mod.device_type "Image"
+            assert_same srv, mod::Image
+        end
+    end
+
+    describe "#provides" do
+        it "refuses to provide a ComBus" do
+            srv = Device.new_submodel
+            combus = ComBus.new_submodel message_type: '/int'
+            assert_raises(ArgumentError) { srv.provides combus }
+        end
+    end
+
+    describe "#each_fullfilled_model" do
+        it "includes the model itself, the service type and the root models" do
+            parent_model = Device.new_submodel
+            assert_equal [parent_model, Device, DataService], 
+                parent_model.each_fullfilled_model.to_a
+        end
+        it "includes other service models it provides" do
+            parent_model = Device.new_submodel
+            child_model  = Device.new_submodel { provides parent_model }
+            assert_equal [child_model, parent_model, Device, DataService], 
+                child_model.each_fullfilled_model.to_a
+        end
+    end
+end
+
+describe ComBus do
     include Test_DataServiceModel
 
     def new_submodel(options = Hash.new, &block)
         options = Kernel.validate_options options,
             :name => nil, :message_type => '/int'
-        Syskit::ComBus.new_submodel(options, &block)
+        ComBus.new_submodel(options, &block)
     end
 
-
-    def setup
-        @service_type = Syskit::ComBus
+    before do
+        # This is defined for the benefit of Test_DataServiceModel
+        @service_type = ComBus
         @dsl_service_type_name = :com_bus_type
-        super
     end
 
     # This is important for reloading: the reloading code calls
-    # ExistingComBusModule.provides Syskit::ComBus
-    it "can provide Syskit::ComBus" do
+    # ExistingComBusModule.provides ComBus
+    it "can provide ComBus" do
         m = new_submodel
         m.clear_model
-        m.provides Syskit::ComBus
+        m.provides ComBus
     end
 
     it "is registered as a submodel of Roby::TaskService" do
-        combus = Syskit::ComBus.new_submodel :message_type => '/int'
+        combus = ComBus.new_submodel :message_type => '/int'
         assert Roby::TaskService.each_submodel.to_a.include?(combus)
     end
 
     it "declares the necesary dynamic service when provided on its driver" do
-        combus = Syskit::ComBus.new_submodel :message_type => '/int'
-        driver_m = Syskit::TaskContext.new_submodel
+        combus = ComBus.new_submodel :message_type => '/int'
+        driver_m = TaskContext.new_submodel
         flexmock(combus).should_receive(:dynamic_service_name).and_return('dyn_srv')
         flexmock(driver_m).should_receive(:dynamic_service).with(combus.bus_base_srv, Hash[:as => 'dyn_srv'], Proc).once
         driver_m.provides combus, :as => 'name'
@@ -505,8 +431,8 @@ describe Syskit::ComBus do
     describe "the dynamic service definition" do
         attr_reader :combus_m, :driver_m
         before do
-            @combus_m = Syskit::ComBus.new_submodel :message_type => '/double'
-            @driver_m = Syskit::TaskContext.new_submodel do
+            @combus_m = ComBus.new_submodel :message_type => '/double'
+            @driver_m = TaskContext.new_submodel do
                 dynamic_input_port /\w+/, '/double'
                 dynamic_output_port /\w+/, '/double'
             end
@@ -550,7 +476,7 @@ describe Syskit::ComBus do
 
     describe "#extend_attached_device_configuration" do
         it "can be called from within the definition block" do
-            com_bus = Syskit::ComBus.new_submodel :message_type => '/double' do
+            com_bus = ComBus.new_submodel :message_type => '/double' do
                 extend_attached_device_configuration do
                     def m; end
                 end
@@ -558,4 +484,84 @@ describe Syskit::ComBus do
             assert com_bus.attached_device_configuration_module.instance_methods.include?(:m)
         end
     end
+
+    describe "#each_fullfilled_model" do
+        it "includes the model itself, the service type and the root models" do
+            parent_model = ComBus.new_submodel message_type: '/int'
+            assert_equal [parent_model, ComBus, Device, DataService],
+                parent_model.each_fullfilled_model.to_a
+        end
+        it "includes other service models it provides" do
+            parent_model = ComBus.new_submodel message_type: '/int'
+            child_model  = ComBus.new_submodel { provides parent_model }
+            assert_equal [child_model, parent_model, ComBus, Device, DataService], 
+                child_model.each_fullfilled_model.to_a
+        end
+    end
+
+    describe "#new_submodel" do
+        attr_reader :combus
+        before do
+            @combus = ComBus.new_submodel :message_type => '/int'
+        end
+
+        it "can set the message type directly" do
+            combus = ComBus.new_submodel message_type: '/int32_t'
+            assert_equal '/int32_t', combus.message_type
+        end
+
+        it "can infer the message type through a provide" do
+            parent_combus = self.combus
+            combus = ComBus.new_submodel { provides parent_combus }
+            assert_equal '/int', combus.message_type
+        end
+
+        it "does not allow to override the message type in submodels through the argument" do
+            assert_raises(ArgumentError) { combus.new_submodel message_type: '/double' }
+        end
+
+        it "does not allow to override the mesage type in submodels through #provides" do
+            parent_combus = self.combus
+            combus = ComBus.new_submodel { provides parent_combus }
+            other_combus = ComBus.new_submodel message_type: '/double'
+            assert_raises(ArgumentError) { combus.provides other_combus }
+        end
+
+        it "cannot provide a ComBus that does not have the same message type" do
+            other_combus = ComBus.new_submodel message_type: '/double'
+            assert_raises(ArgumentError) { combus.provides other_combus }
+        end
+
+        it "requires the message type" do
+            assert_raises(ArgumentError) { ComBus.new_submodel }
+        end
+
+        describe "the definition of interface services" do
+            it "defines a client_in service" do
+                assert combus.client_in_srv
+            end
+            it "defines a client_out service" do
+                assert combus.client_out_srv
+            end
+            it "defines a bus_in service" do
+                assert combus.bus_in_srv
+            end
+            it "defines a bus_out service" do
+                assert combus.bus_out_srv
+            end
+        end
+    end
+
+    describe "the DSL definition" do
+        attr_reader :mod
+        before do
+            @mod = Module.new
+        end
+
+        it "registers the services as constant on the receiver" do
+            srv = mod.com_bus_type "Image", message_type: '/double'
+            assert_same srv, mod::Image
+        end
+    end
+end
 end
