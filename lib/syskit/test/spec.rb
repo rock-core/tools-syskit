@@ -26,11 +26,11 @@ module Syskit
                 Syskit.conf.remove_process_server('stubs')
             end
 
-            # Create a stub device
+            # Create a stub driver model
             #
             # @param [String] dev_name the name of the created device
             # @return [Syskit::Component] the device driver task
-            def stub_syskit_driver(dev_m, options = Hash.new)
+            def syskit_stub_driver_model(dev_m, options = Hash.new)
                 robot = Syskit::Robot::RobotDefinition.new
                 device = robot.device(dev_m, options)
                 task_srv = device.driver_model
@@ -48,10 +48,10 @@ module Syskit
             #
             # @param [String] dev_name the name of the created device
             # @return [Syskit::Component] the device driver task
-            def stub_syskit_attached_device(bus_m, dev_name = 'dev')
+            def syskit_stub_attached_device_model(bus_m, dev_name = 'dev')
                 robot = Syskit::Robot::RobotDefinition.new
-                dev_m = Syskit::Device.new_submodel(:name => "StubDevice")
-                driver_m = Syskit::TaskContext.new_submodel(:name => "StubDriver") do
+                dev_m = Syskit::Device.new_submodel(name: "StubDevice")
+                driver_m = Syskit::TaskContext.new_submodel(name: "StubDriver") do
                     input_port 'bus_in', bus_m.message_type
                     output_port 'bus_out', bus_m.message_type
                     provides bus_m.client_srv, :as => 'can'

@@ -30,7 +30,7 @@ module Syskit
             # underlying task
             def self.it_should_be_configurable
                 it "should be configurable" do
-                    stub_deploy_and_configure(self.class.subject_syskit_model)
+                    syskit_stub_deploy_and_configure(self.class.subject_syskit_model)
                 end
             end
 

@@ -7,6 +7,8 @@ module Syskit
         # It assumes that the test class was extended using
         # {ProfileModelAssertions}
         module ProfileAssertions
+            include NetworkManipulation
+
             # Instanciate the given list of requirements, calling Engine#resolve
             # with the provided option hash (if there is one)
             #
@@ -34,8 +36,8 @@ module Syskit
             # deployment)
             def assert_can_instanciate_together(*actions)
                 try_instanciate(actions,
-                                 :compute_policies => false,
-                                 :compute_deployments => false)
+                                 compute_policies: false,
+                                 compute_deployments: false)
             end
 
             # Tests that the given syskit-generated actions can be deployed together
@@ -44,8 +46,8 @@ module Syskit
             # {assert_can_instanciate_together}
             def assert_can_deploy_together(*actions)
                 try_instanciate(actions,
-                                 :compute_policies => true,
-                                 :compute_deployments => true)
+                                 compute_policies: true,
+                                 compute_deployments: true)
             end
 
             # Tests that the given syskit-generated actions can be deployed together
@@ -60,26 +62,7 @@ module Syskit
             def assert_can_configure_together(*actions)
                 assert_can_deploy_together(*actions)
                 plan.find_tasks(Syskit::TaskContext).each do |task_context|
-                    if task_context.kind_of?(Syskit::TaskContext) && (deployment = task_context.execution_agent)
-                        if !deployment.running?
-                            Syskit::RobyApp::Plugin.disable_engine_in_roby engine, :update_task_states do
-                                deployment.start!
-                            end
-                        end
-
-                        if !deployment.ready?
-                            Syskit::RobyApp::Plugin.disable_engine_in_roby engine, :update_task_states do
-                                assert_event_emission deployment.ready_event
-                            end
-                        end
-                    end
-
-                    # The task may have been garbage-collected while we were
-                    # starting the deployment ... call #configure only if it is
-                    # not the case
-                    if task_context.plan
-                        task_context.configure
-                    end
+                    syskit_setup(task_context)
                 end
             end
         end

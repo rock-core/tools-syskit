@@ -77,37 +77,6 @@ module Syskit
             end
         end
 
-        def deploy(*args, &block)
-            syskit_run_deployer(*args, &block)
-        end
-
-        # Run Syskit's deployer (i.e. engine) on the current plan
-        def syskit_run_deployer(base_task = nil, resolve_options = Hash.new, &block)
-            syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
-            syskit_engine.disable_updates
-            if base_task
-                base_task = base_task.as_plan
-                plan.add_mission(base_task)
-                base_task = base_task.as_service
-
-                planning_task = base_task.planning_task
-                if !planning_task.running?
-                    planning_task.start!
-                end
-            end
-            syskit_engine.enable_updates
-            syskit_engine.resolve(resolve_options)
-            if planning_task
-                planning_task.emit :success
-            end
-            if Roby.app.test_show_timings?
-                merge_timepoints(syskit_engine)
-            end
-            if base_task
-                base_task.task
-            end
-        end
-
         def assert_event_command_failed(expected_code_error = nil)
             begin
                 yield
