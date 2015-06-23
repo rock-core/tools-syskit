@@ -114,6 +114,7 @@ module Syskit
                 # NOTE: might require some promotion from parent models, which
                 # NOTE: is done using #attach !
                 result = dup
+                result.ports.clear
                 result.instance_variable_set :@component_model, new_component_model
                 result
             end

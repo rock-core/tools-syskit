@@ -188,8 +188,12 @@ describe Syskit::Models::BoundDataService do
     describe "#attach" do
         attr_reader :srv, :task_m
         before do
-            srv_m = Syskit::DataService.new_submodel
-            @task_m = Syskit::TaskContext.new_submodel
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'out', '/double'
+            end
+            @task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end
             @srv = task_m.provides srv_m, :as => 'test'
         end
         it "should return itself if given itself" do
@@ -203,6 +207,17 @@ describe Syskit::Models::BoundDataService do
         it "should return the service with the same name on the new component model" do
             subtask_m = task_m.new_submodel
             assert_equal subtask_m.test_srv, srv.attach(subtask_m)
+        end
+        it "clears the ports cache on the returned value" do
+            # This tests for a regression. The port cache on the bound data
+            # service was not cleared in #attach, which led already-accessed
+            # ports to leak onto the newly attached service. These already
+            # accessed port would point to the wrong component model, though,
+            # obviously
+            subtask_m = task_m.new_submodel
+            srv.out_port
+            attached  = srv.attach(subtask_m)
+            assert_equal subtask_m, attached.out_port.to_component_port.component_model
         end
     end
 
