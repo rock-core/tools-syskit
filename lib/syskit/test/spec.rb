@@ -4,7 +4,8 @@ module Syskit
             include Test::Base
 
             def setup
-                Syskit.conf.register_process_server('stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+                Syskit.conf.register_process_server(
+                    'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext), "")
                 super
                 Syskit.conf.disable_logging
             end
