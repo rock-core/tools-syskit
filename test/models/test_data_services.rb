@@ -390,6 +390,33 @@ describe Device do
                 child_model.each_fullfilled_model.to_a
         end
     end
+
+    describe "#find_all_drivers" do
+        it "returns the list of task contexts declared as drivers for self" do
+            device = Device.new_submodel
+            task0 = TaskContext.new_submodel { driver_for device, as: 'driver' }
+            task1 = TaskContext.new_submodel { driver_for device, as: 'driver' }
+            task2 = TaskContext.new_submodel
+            assert_equal [task0, task1].to_set, device.find_all_drivers.to_set
+        end
+    end
+
+    describe "#default_driver" do
+        subject { Device.new_submodel }
+
+        it "raises Ambiguous if more than one driver exists" do
+            flexmock(subject).should_receive(:find_all_drivers).and_return([2, 1])
+            assert_raises(Ambiguous) { subject.default_driver }
+        end
+        it "raises ArgumentError if there are no drivers" do
+            assert_raises(ArgumentError) { subject.default_driver }
+        end
+        it "returns the driver if there is exactly one" do
+            flexmock(subject).should_receive(:find_all_drivers).
+                and_return([mock = flexmock])
+            assert_equal mock, subject.default_driver
+        end
+    end
 end
 
 describe ComBus do

@@ -352,6 +352,25 @@ module Syskit
                     self.device_configuration_module.include(service_model.device_configuration_module)
                 end
             end
+
+            def find_all_drivers
+                # Since we want to drive a particular device, we actually need a
+                # concrete task model. So, search for one.
+                #
+                # Get all task models that implement this device
+                Syskit::TaskContext.submodels.
+                    find_all { |t| t.fullfills?(self) && !t.abstract? }
+            end
+
+            def default_driver
+                tasks = find_all_drivers
+                if tasks.size > 1
+                    raise Ambiguous, "#{tasks.map(&:to_s).join(", ")} can all handle '#{self}'"
+                elsif tasks.empty?
+                    raise ArgumentError, "no task can handle devices of type '#{self}'"
+                end
+                tasks.first
+            end
         end
 
         # Metamodel for all communication busses
