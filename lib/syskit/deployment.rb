@@ -120,7 +120,11 @@ module Syskit
                 task.executed_by self
                 task.orogen_model = orogen_task_deployment
                 if ready?
-                    initialize_running_task(task, task_handles[name])
+                    if orocos_task = task_handles[name]
+                        initialize_running_task(task, orocos_task)
+                    else
+                        raise Internal, "no handle under then #{name} in #{self} for #{task}"
+                    end
                 end
                 task
             end
@@ -199,20 +203,35 @@ module Syskit
 
                     @task_handles = Hash.new
                     each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                        task_handles[task.orocos_name] = task.orocos_task
+                        if orocos_task = task.orocos_task
+                            task_handles[task.orocos_name] = orocos_task
+                        end
                     end
 
+                    errors = Hash.new
                     model.each_orogen_deployed_task_context_model do |activity|
                         name = orocos_process.get_mapped_name(activity.name)
                         if !task_handles[name]
-                            orocos_task = orocos_process.task(name)
+                            begin
+                                orocos_task = orocos_process.task(name)
+                            rescue ArgumentError => e
+                                errors[name] = e
+                                next
+                            end
+
                             orocos_task.process = orocos_process
                             task_handles[name] =  orocos_task
                         end
                     end
 
                     each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
-                        initialize_running_task(task, task_handles[task.orocos_name])
+                        if error = errors[task.orocos_name]
+                            task.failed_to_start!(error)
+                        elsif orocos_task = task_handles[task.orocos_name]
+                            initialize_running_task(task, orocos_task)
+                        else
+                            raise Internal, "#{task} is supported by #{self} but there does not seem to be any task called #{task.orocos_name} on #{self}"
+                        end
                     end
                 end
             end

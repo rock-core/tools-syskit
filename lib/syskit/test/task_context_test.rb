@@ -34,9 +34,7 @@ module Syskit
                 end
             end
 
-            def self.roby_should_run(test, app)
-                super
-
+            def self.ensure_can_deploy_subject_syskit_model(test, app)
                 if app.simulation?
                     begin
                         ruby_task = Orocos::RubyTasks::TaskContext.new(
@@ -48,9 +46,14 @@ module Syskit
                 else
                     project_name = subject_syskit_model.orogen_model.project.name
                     if !Orocos.default_pkgconfig_loader.has_project?(project_name)
-                        test.skip("#{test.__full_name__} cannot run: the task is not available")
+                        test.skip("#{test.__full_name__} cannot run: oroGen project #{project_name} is not available")
                     end
                 end
+            end
+
+            def self.roby_should_run(test, app)
+                super
+                ensure_can_deploy_subject_syskit_model(test, app)
             end
         end
     end
