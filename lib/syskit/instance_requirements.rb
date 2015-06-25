@@ -242,6 +242,21 @@ module Syskit
                 end
             end
 
+            # Finds all the data services that match the given service type
+            def find_all_data_services_from_type(service_type)
+                if model.respond_to?(:find_all_data_services_from_type)
+                    model.find_all_data_services_from_type(service_type).map do |service|
+                        result = dup
+                        result.select_service(service)
+                        result
+                    end
+                elsif model.fullfills?(service_type)
+                    [self]
+                else
+                    []
+                end
+            end
+
             def as(models)
                 if service
                     result = to_component_model
