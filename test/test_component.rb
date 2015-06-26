@@ -54,6 +54,31 @@ describe Syskit::Component do
             task.specialize
             assert_equal [task_m], task.fullfilled_model.first
         end
+
+        describe "once specialized" do
+            it "yields ports from the specialized model" do
+                task_m = Syskit::TaskContext.new_submodel do
+                    output_port 'out', '/double'
+                end
+                task = task_m.new
+                task.out_port
+                task.specialize
+                assert_equal task.out_port.model.component_model, task.model
+            end
+            it "yields services from the specialized model" do
+                srv_m = Syskit::DataService.new_submodel do
+                    output_port 'out', '/double'
+                end
+
+                task_m = Syskit::TaskContext.new_submodel do
+                    output_port 'out', '/double'
+                    provides srv_m, as: 'test'
+                end
+                task = task_m.new
+                task.specialize
+                assert_equal task.test_srv.out_port.model.component_model.component_model, task.model
+            end
+        end
     end
 
     describe "#require_dynamic_service" do
