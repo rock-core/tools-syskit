@@ -33,29 +33,58 @@ module Syskit
             end
 
             # Run Syskit's deployer (i.e. engine) on the current plan
-            def syskit_deploy(base_task = nil, resolve_options = Hash.new, &block)
+            def syskit_deploy(*to_instanciate, **resolve_options, &block)
                 syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
                 syskit_engine.disable_updates
-                if base_task
-                    base_task = base_task.as_plan
-                    plan.add_mission(base_task)
-                    base_task = base_task.as_service
 
-                    planning_task = base_task.planning_task
-                    if !planning_task.running?
-                        planning_task.start!
+                # For backward-compatibility
+                to_instanciate = to_instanciate.flatten
+
+                placeholder_tasks = to_instanciate.map do |act|
+                    if act.respond_to?(:to_action)
+                        act = act.to_action
                     end
-                end
+                    task = if act.respond_to?(:as_plan)
+                               act.as_plan
+                           else act.instanciate(plan)
+                           end
+
+                    if (planner = task.planning_task) && planner.respond_to?(:requirements)
+                        plan.add_mission(task)
+                        if !task.planning_task.running?
+                            task.planning_task.start!
+                        end
+                        task
+                    end
+                end.compact
+                root_tasks = placeholder_tasks.map(&:as_service)
+                requirement_tasks = placeholder_tasks.map(&:planning_task)
+
                 syskit_engine.enable_updates
-                syskit_engine.resolve(resolve_options)
-                if planning_task
+                syskit_engine.resolve(**Hash[on_error: :commit].merge(resolve_options))
+
+                requirement_tasks.each do |planning_task|
                     planning_task.emit :success
+                end
+                placeholder_tasks.each do |task|
+                    plan.remove_object(task)
+                end
+
+                if Roby.app.public_logs?
+                    filename = name.gsub("/", "_")
+                    dataflow, hierarchy = filename + "-dataflow.svg", filename + "-hierarchy.svg"
+                    Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
+                    Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                 end
                 if Roby.app.test_show_timings?
                     merge_timepoints(syskit_engine)
                 end
-                if base_task
-                    base_task.task
+
+                root_tasks = root_tasks.map(&:task)
+                if root_tasks.size == 1
+                    return root_tasks.first
+                elsif root_tasks.size > 1
+                    return root_tasks
                 end
             end
 
@@ -175,7 +204,7 @@ module Syskit
                 model
             end
 
-            def syskit_stub_device(model, as: 'test', driver: nil)
+            def self.syskit_stub_device(model, as: 'test', driver: nil)
                 robot = Syskit::Robot::RobotDefinition.new
 
                 driver ||= model.find_all_drivers.first
@@ -187,19 +216,41 @@ module Syskit
                 robot.device(model, as: 'test', using: driver)
             end
 
+            # Stubs the devices required by the given model
+            def self.syskit_stub_required_devices(model)
+                model = model.to_instance_requirements.dup
+                model.model.each_master_driver_service do |srv|
+                    if !model.arguments["#{srv.name}_dev"]
+                        model.with_arguments("#{srv.name}_dev" => syskit_stub_device(srv.model, driver: model.model))
+                    end
+                end
+                model
+            end
+
+            # Create a stub device of the given model
+            #
+            # It is created on a new robot instance so that to avoid clashes
+            #
+            # @param [Model<Device>] model the device model
+            # @param [String] as the device name
+            # @param [Model<TaskContext>] driver the driver that should be used.
+            #   If not given, a new driver is stubbed
+            def syskit_stub_device(model, as: 'test', driver: nil)
+                self.class(model, as: 'test', driver: nil)
+            end
+
+            # Stubs the devices required by the given model
+            def syskit_stub_required_devices(model)
+                NetworkManipulation.syskit_stub_required_devices(model)
+            end
+
             # Create an InstanceRequirement instance that would allow to deploy
             # the given model
             def syskit_stub(model, recursive: true, as: self.name, &block)
                 if model.respond_to?(:to_str)
                     model = syskit_stub_task_context_model(model, &block)
                 end
-                robot = nil
-                model = model.to_instance_requirements.dup
-                model.model.each_master_driver_service do |srv|
-                    if !model.arguments["#{srv.name}_dev"]
-                        model.with_arguments("#{srv.name}_dev" => syskit_stub_device(srv.model))
-                    end
-                end
+                model = syskit_stub_required_devices(model)
 
                 if model.composition_model? && recursive
                     syskit_stub_composition_children(
@@ -210,6 +261,10 @@ module Syskit
             end
 
             def syskit_start_execution_agents(component, recursive: true)
+                # Protect the component against configuration and startup
+                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+                component.should_configure_after(sync_ev)
+
                 if component.kind_of?(Syskit::Composition) && recursive
                     component.each_child do |child_task|
                         syskit_start_execution_agents(child_task, recursive: true)
@@ -217,6 +272,7 @@ module Syskit
                 end
 
                 if agent = component.execution_agent
+                    # Protect the component against configuration and 
                     if !agent.running?
                         agent.start!
                     end
@@ -224,11 +280,19 @@ module Syskit
                         assert_event_emission agent.ready_event
                     end
                 end
+            ensure
+                if sync_ev
+                    plan.remove_object(sync_ev)
+                end
             end
 
             # Set this component instance up
             def syskit_configure(component, recursive: true)
                 syskit_start_execution_agents(component, recursive: true)
+
+                # Protect the component against startup and startup
+                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+                component.should_start_after(sync_ev)
 
                 if component.kind_of?(Syskit::Composition) && recursive
                     component.each_child do |child_task|
@@ -243,9 +307,17 @@ module Syskit
                 # Might already have been configured while waiting for the ready
                 # event
                 if !component.setup?
+                    if !component.ready_for_setup?
+                        component.ready_for_setup?
+                    end
+
                     component.setup
                 end
                 component
+            ensure
+                if sync_ev
+                    plan.remove_object(sync_ev)
+                end
             end
 
             # Start this component
@@ -290,34 +362,34 @@ module Syskit
             #   model = RootCmp.use(
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   syskit_stub_deploy_and_start_composition(model)
-            def syskit_stub_and_deploy(model, recursive: true, as: self.name, &block)
+            def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: self.name, &block)
                 model = syskit_stub(model, recursive: recursive, as: as, &block)
                 syskit_deploy(model, compute_policies: false)
             end
 
-            def syskit_stub_deploy_and_configure(model, recursive: true, as: self.name, &block)
+            def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: self.name, &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure(root, recursive: recursive)
                 root
             end
 
-            def syskit_stub_deploy_configure_and_start(model, recursive: true, as: self.name, &block)
+            def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: self.name, &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure_and_start(root, recursive: recursive)
                 root
             end
 
-            def syskit_deploy_and_configure(model, recursive: true)
+            def syskit_deploy_and_configure(model = subject_syskit_model, recursive: true)
                 root = syskit_deploy(model)
                 syskit_configure(root, recursive: recursive)
             end
 
-            def syskit_deploy_configure_and_start(model, recursive: true)
-                root = syskit_deploy(model, recursive: recursive)
+            def syskit_deploy_configure_and_start(model = subject_syskit_model, recursive: true)
+                root = syskit_deploy(model)
                 syskit_configure_and_start(root, recursive: recursive)
             end
 
-            def syskit_configure_and_start(component, recursive: true)
+            def syskit_configure_and_start(component = subject_syskit_model, recursive: true)
                 component = syskit_configure(component, recursive: recursive)
                 syskit_start(component, recursive: recursive)
             end
