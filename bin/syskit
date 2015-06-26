@@ -10,7 +10,7 @@ Roby.app.public_logs = false
 mode = ARGV.shift
 
 SYSKIT_MODES = ['browse', 'instanciate', 'run', 'doc']
-ROBY_MODES = []
+ROBY_MODES = ['test']
 if not mode || mode == "--help" || mode == "-h"
     puts "usage: syskit [#{SYSKIT_MODES.join("|")}] <mode-arguments>"
     puts "Run 'syskit <mode> --help' for more information"
