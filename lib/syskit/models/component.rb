@@ -24,6 +24,15 @@ module Syskit
             # @return [Hash<String,BoundDataService>]
             inherited_attribute(:data_service, :data_services, map: true) { Hash.new }
 
+            # List of modules that should be applied on the underlying
+            # {Orocos::RubyTasks::StubTaskContext} when running tests in
+            # non-stub mode
+            #
+            # @see stub
+            #
+            # @return [Array<Module>]
+            inherited_attribute(:stub_module, :stub_modules) { [Module.new] }
+
             def clear_model
                 super
                 data_services.clear
@@ -102,6 +111,29 @@ module Syskit
                 end
 
                 selected
+            end
+
+            # Define a module that should be applied on the underlying
+            # {Orocos::RubyTasks::StubTaskContext} when running tests in
+            # non-live mode
+            def stub(&block)
+                stub_modules.first.class_eval(&block)
+            end
+            
+            # Apply what's necessary for this component (from the underlying
+            # component implementation) to be a proper component stub
+            def prepare_stub(component)
+                stub_modules = each_stub_module.to_a
+                component.singleton_class.class_eval do
+                    stub_modules.each do |m|
+                        prepend m
+                    end
+                end
+            end
+
+            # Checks if a given component implementation needs to be stubbed
+            def needs_stub?(component)
+                false
             end
 
             # Enumerates all services that are slave (i.e. not slave of other

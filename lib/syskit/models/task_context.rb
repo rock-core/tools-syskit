@@ -16,6 +16,11 @@ module Syskit
             #   extend this model
             attr_accessor :extension_file
 
+            # Checks if a given component implementation needs to be stubbed
+            def needs_stub?(component)
+                super || component.kind_of?(Orocos::RubyTasks::StubTaskContext)
+            end
+
             # Clears all registered submodels
             #
             # On TaskContext, it also clears all orogen-to-syskit model mappings
