@@ -45,11 +45,11 @@ module Syskit
                 end
 
                 def find_definition(name)
-                    desc.resolved_definition(name)
+                    subject_syskit_model.resolved_definition(name)
                 end
 
                 def find_device(name)
-                    desc.robot.devices[name]
+                    subject_syskit_model.robot.devices[name]
                 end
 
                 def method_missing(m, *args)
