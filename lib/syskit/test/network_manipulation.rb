@@ -326,6 +326,7 @@ module Syskit
                     end
 
                     component.setup
+                    component.is_setup!
                 end
                 component
             ensure

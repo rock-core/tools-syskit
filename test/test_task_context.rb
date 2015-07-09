@@ -601,8 +601,8 @@ describe Syskit::TaskContext do
                 orocos_task.should_receive(:configure).once
                 task.setup
             end
-            it "calls is_setup!" do
-                flexmock(task).should_receive(:is_setup!).once
+            it "does not call is_setup!" do
+                flexmock(task).should_receive(:is_setup!).never
                 task.setup
             end
             it "calls the user-provided #configure method" do
@@ -629,8 +629,8 @@ describe Syskit::TaskContext do
                 orocos_task.should_receive(:configure).never
                 task.setup
             end
-            it "calls is_setup!" do
-                flexmock(task).should_receive(:is_setup!).once
+            it "does not call is_setup!" do
+                flexmock(task).should_receive(:is_setup!).never
                 task.setup
             end
             it "still calls the user-provided #configure method" do

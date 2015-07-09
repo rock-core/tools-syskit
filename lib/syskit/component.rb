@@ -156,6 +156,10 @@ module Syskit
                 configure
             end
 
+            def is_setup!
+                self.setup = true
+            end
+
             # User-provided part of the component configuration
             def configure
                 super if defined? super

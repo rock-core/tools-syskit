@@ -397,13 +397,13 @@ module Syskit
             # This is meant for internal use. Don't use it unless you know what
             # you are doing
             def is_setup!
-                @setup = true
                 if all_inputs_connected?
                     self.executable = nil
                     Runtime.debug { "#{self} is setup and all its inputs are connected, set executable to nil and executable? = #{executable?}" }
                 else
                     Runtime.debug { "#{self} is setup but some of its inputs are not connected, keep executable = #{executable?}" }
                 end
+                super
             end
 
             # If true, #configure must be called on this task before it is
@@ -534,12 +534,12 @@ module Syskit
             # Called to configure the component
             def setup
                 if @setup
-                    raise ArgumentError, "already setup"
+                    raise ArgumentError, "#{self} is already set up"
                 end
 
                 state = orocos_task.rtt_state
                 if !ready_for_setup?(state)
-                    raise InternalError, "#setup called but we are not ready for setup"
+                    raise InternalError, "#setup called on #{self} but we are not ready for setup"
                 end
 
                 # prepare_for_setup MUST be called before we call super (i.e.
@@ -565,7 +565,6 @@ module Syskit
                 TaskContext.configured[orocos_name] = [orocos_task.model,
                                                        self.conf.dup,
                                                        self.each_required_dynamic_service.to_set]
-                is_setup!
             end
 
             ##
