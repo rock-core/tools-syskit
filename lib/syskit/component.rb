@@ -149,8 +149,8 @@ module Syskit
             # by this method. Caller must call is_setup! after a successful call
             # to #setup
             def setup
-                if self.model.needs_stub?(orocos_task)
-                    self.model.prepare_stub(orocos_task)
+                if self.model.needs_stub?(self)
+                    self.model.prepare_stub(self)
                 end
 
                 configure

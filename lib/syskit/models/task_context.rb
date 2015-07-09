@@ -18,7 +18,7 @@ module Syskit
 
             # Checks if a given component implementation needs to be stubbed
             def needs_stub?(component)
-                super || component.kind_of?(Orocos::RubyTasks::StubTaskContext)
+                super || component.orocos_task.kind_of?(Orocos::RubyTasks::StubTaskContext)
             end
 
             # Clears all registered submodels

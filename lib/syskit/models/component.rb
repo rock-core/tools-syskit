@@ -124,7 +124,7 @@ module Syskit
             # component implementation) to be a proper component stub
             def prepare_stub(component)
                 stub_modules = each_stub_module.to_a
-                component.singleton_class.class_eval do
+                component.orocos_task.singleton_class.class_eval do
                     stub_modules.each do |m|
                         prepend m
                     end
