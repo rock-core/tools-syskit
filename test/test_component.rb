@@ -291,6 +291,41 @@ describe Syskit::Component do
                 pass_thru
             task.merge(merged_task)
         end
+        describe "handling of default arguments" do
+            attr_reader :task_m, :default_arg
+            before do
+                @task_m = Syskit::Component.new_submodel do
+                    argument :arg
+                end
+                @default_arg = flexmock(:evaluate_delayed_argument => 10)
+            end
+
+            it "propagates default arguments to components that have no argument at all" do
+                plan.add(receiver = task_m.new)
+                plan.add(argument = task_m.new(arg: default_arg))
+                receiver.merge(argument)
+                assert_equal default_arg, receiver.arguments.values[:arg]
+            end
+            it "does not propagate a default argument if the receiver has a default argument set" do
+                receiver_arg = flexmock(:evaluate_delayed_argument => 20)
+                plan.add(receiver = task_m.new(arg: receiver_arg))
+                plan.add(argument = task_m.new(arg: default_arg))
+                receiver.merge(argument)
+                assert_equal receiver_arg, receiver.arguments.values[:arg]
+            end
+            it "overrides default arguments by static ones" do
+                plan.add(receiver = task_m.new(arg: default_arg))
+                plan.add(argument = task_m.new(arg: 10))
+                receiver.merge(argument)
+                assert_equal 10, receiver.arguments.values[:arg]
+            end
+            it "does not propagate a default argument if the receiver has a static argument set" do
+                plan.add(receiver = task_m.new(arg: 10))
+                plan.add(argument = task_m.new(arg: default_arg))
+                receiver.merge(argument)
+                assert_equal 10, receiver.arguments.values[:arg]
+            end
+        end
     end
 
     describe "#each_required_dynamic_service" do

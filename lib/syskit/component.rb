@@ -205,8 +205,12 @@ module Syskit
             def merge(merged_task)
                 # Copy arguments of +merged_task+ that are not yet assigned in
                 # +self+
-                merged_task.arguments.each_static do |key, value|
-                    arguments[key] = value if !arguments.set?(key)
+                merged_task.arguments.each do |key, value|
+                    if value.respond_to?(:evaluate_delayed_argument)
+                        arguments[key] = value if !arguments.assigned?(key)
+                    else
+                        arguments[key] = value if !arguments.set?(key)
+                    end
                 end
 
                 # Merge the fullfilled model if set explicitely
