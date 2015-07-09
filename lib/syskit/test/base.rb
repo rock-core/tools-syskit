@@ -1,5 +1,5 @@
 require 'minitest/spec'
-require 'flexmock/test_unit'
+require 'flexmock/minitest'
 
 # simplecov must be loaded FIRST. Only the files required after it gets loaded
 # will be profiled !!!
