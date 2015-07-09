@@ -40,6 +40,7 @@ module Syskit
                 # For backward-compatibility
                 to_instanciate = to_instanciate.flatten
 
+                emit_calls = Set.new
                 placeholder_tasks = to_instanciate.map do |act|
                     if act.respond_to?(:to_action)
                         act = act.to_action
@@ -51,20 +52,33 @@ module Syskit
 
                     if (planner = task.planning_task) && planner.respond_to?(:requirements)
                         plan.add_mission(task)
-                        if !task.planning_task.running?
-                            task.planning_task.start!
-                        end
                         task
                     end
                 end.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
 
-                syskit_engine.enable_updates
-                syskit_engine.resolve(**Hash[on_error: :commit].merge(resolve_options))
+                plan.execution_engine.process_events_synchronous do
+                    requirement_tasks.each { |t| t.start_event.emit }
+                end
 
-                requirement_tasks.each do |planning_task|
-                    planning_task.emit :success
+                syskit_engine.enable_updates
+                begin
+                    syskit_engine.resolve(**Hash[on_error: :commit].merge(resolve_options))
+                rescue Exception => e
+                    begin
+                        plan.execution_engine.process_events_synchronous do
+                            requirement_tasks.each { |t| t.failed_event.emit }
+                        end
+                    rescue Roby::PlanningFailedError
+                        # Emitting failed_event will cause the engine to raise
+                        # PlanningFailedError
+                    end
+                    raise
+                end
+
+                plan.execution_engine.process_events_synchronous do
+                    requirement_tasks.each { |t| t.success_event.emit }
                 end
                 placeholder_tasks.each do |task|
                     plan.remove_object(task)
