@@ -11,7 +11,7 @@ module Syskit
             # Define a deployment for the task model under test
             def deploy_subject_syskit_model
                 @deploy_subject_syskit_model =
-                    use_deployment self.class.subject_syskit_model.model => 'task_under_test'
+                    use_deployment self.class.subject_syskit_model.model.concrete_model => 'task_under_test'
             end
 
             # Returns the task model under test
