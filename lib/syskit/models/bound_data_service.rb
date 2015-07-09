@@ -62,6 +62,11 @@ module Syskit
                     end
             end
 
+            def initialize_copy(original)
+                super
+                @ports = Hash.new
+            end
+
             # (see Component#self_port_to_component_port)
             def self_port_to_component_port(port)
                 return component_model.find_port(port_mappings_for_task[port.name])
@@ -114,7 +119,6 @@ module Syskit
                 # NOTE: might require some promotion from parent models, which
                 # NOTE: is done using #attach !
                 result = dup
-                result.ports.clear
                 result.instance_variable_set :@component_model, new_component_model
                 result
             end
