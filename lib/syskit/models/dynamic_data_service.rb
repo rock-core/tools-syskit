@@ -23,6 +23,19 @@ module Syskit
                 @remove_when_unused = remove_when_unused
             end
 
+            def eql?(other)
+                component_model == other.component_model &&
+                    name == other.name
+            end
+
+            def hash
+                [component_model, name].hash
+            end
+
+            def ==(other)
+                eql?(other)
+            end
+
             def attach(component_model)
                 result = dup
                 result.instance_variable_set(:@component_model, component_model)
