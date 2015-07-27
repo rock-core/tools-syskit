@@ -78,11 +78,9 @@ describe Syskit::Composition do
                 export srv_child.srv_in_port, :as => 'srv_in'
                 provides srv_m, :as => 'test', 'srv_out' => 'out', 'srv_in' => 'in'
             end
-            @cmp = cmp_m.use('srv' => task_m).instanciate(plan)
-            @task = syskit_deploy_task_context(task_m, 'task')
-            @srv  = syskit_deploy_task_context(task_m, 'srv')
-            plan.replace_task(cmp.child_from_role('task'), task)
-            plan.replace_task(cmp.child_from_role('srv'), srv)
+            @cmp  = syskit_stub_deploy_and_configure(cmp_m.use('srv' => task_m))
+            @task = cmp.task_child
+            @srv  = cmp.srv_child
         end
 
         it "an exported input can be resolved from a task" do

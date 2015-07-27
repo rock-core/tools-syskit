@@ -78,7 +78,7 @@ describe Syskit::TaskContext do
     describe "#find_input_port" do
         attr_reader :task
         before do
-            @task = syskit_deploy_task_context 'Task' do
+            @task = syskit_stub_deploy_and_configure 'Task' do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -98,7 +98,7 @@ describe Syskit::TaskContext do
     describe "#find_output_port" do
         attr_reader :task
         before do
-            @task = syskit_deploy_task_context 'Task' do
+            @task = syskit_stub_deploy_and_configure 'Task' do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -370,7 +370,7 @@ describe Syskit::TaskContext do
     describe "#ready_for_setup?" do
         attr_reader :task, :orocos_task
         before do
-            @task = flexmock(syskit_deploy_task_context('Task') {})
+            @task = flexmock(syskit_stub_deploy_and_configure('Task') {})
             task.conf = []
             @orocos_task = flexmock
             task.should_receive(:orocos_task).and_return(orocos_task)
@@ -457,7 +457,7 @@ describe Syskit::TaskContext do
     describe "#prepare_for_setup" do
         attr_reader :task, :orocos_task
         before do
-            @task = syskit_deploy_task_context 'Task' do
+            @task = syskit_stub_deploy_and_configure 'Task' do
                 input_port "in", "/double"
                 output_port "out", "/double"
             end
@@ -507,7 +507,7 @@ describe Syskit::TaskContext do
                 task.specialize
                 task.model.orogen_model.dynamic_input_port /.*/, '/double'
                 task.model.provides_dynamic srv, as: 'test', 'p' => 'dynamic'
-                @source_task = syskit_deploy_task_context 'SourceTask', 'source_task' do
+                @source_task = syskit_stub_deploy_and_configure 'SourceTask', 'source_task' do
                     input_port "dynamic", "/double"
                 end
                 @orocos_tasks = [source_task.orocos_task, task.orocos_task]
@@ -530,7 +530,7 @@ describe Syskit::TaskContext do
                 task.specialize
                 task.model.orogen_model.dynamic_output_port /.*/, '/double'
                 task.model.provides_dynamic srv, as: 'test', 'p' => 'dynamic'
-                @sink_task = syskit_deploy_task_context 'SinkTask', 'sink_task' do
+                @sink_task = syskit_stub_deploy_and_configure 'SinkTask', 'sink_task' do
                     output_port "dynamic", "/double"
                 end
                 @orocos_tasks = [task.orocos_task, sink_task.orocos_task]
@@ -550,7 +550,7 @@ describe Syskit::TaskContext do
     describe "#setup" do
         attr_reader :task, :orocos_task
         before do
-            @task = syskit_deploy_task_context 'Task' do
+            @task = syskit_stub_deploy_and_configure 'Task' do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -642,7 +642,7 @@ describe Syskit::TaskContext do
     describe "#configure" do
         attr_reader :task, :orocos_task
         before do
-            @task = syskit_deploy_task_context 'Task' do
+            @task = syskit_stub_deploy_and_configure 'Task' do
                 input_port "in", "int"
                 output_port "out", "int"
             end
@@ -656,7 +656,7 @@ describe Syskit::TaskContext do
         end
         it "applies the selected configuration from the parent model on specialized models" do
             flexmock(task.model.orogen_model).should_receive(:name).and_return('test::Task')
-            task = syskit_deploy_task_context self.task.model.specialize, 'SpecializedTask'
+            task = syskit_stub_deploy_and_configure self.task.model.specialize, 'SpecializedTask'
             task.conf = ['my', 'conf']
             flexmock(Orocos.conf).should_receive(:apply).with(task.orocos_task, ['my', 'conf'], :model_name => 'test::Task', :override => true).once
             task.configure
@@ -740,10 +740,10 @@ describe Syskit::TaskContext do
         attr_reader :transaction
         attr_reader :source_task, :task
         before do
-            @source_task = syskit_deploy_task_context "SourceTask", 'source_task' do
+            @source_task = syskit_stub_deploy_and_configure "SourceTask", 'source_task' do
                 output_port 'out', 'int'
             end
-            @task = syskit_deploy_task_context "Task", "task" do
+            @task = syskit_stub_deploy_and_configure "Task", "task" do
                 input_port('in', 'int').static
             end
             @transaction = create_transaction

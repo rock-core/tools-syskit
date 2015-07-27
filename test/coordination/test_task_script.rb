@@ -34,7 +34,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         describe "mapping ports from services using submodel creation" do
             def start
-                component = syskit_deploy_task_context(component_m)
+                component = syskit_stub_deploy_and_configure(component_m)
                 composition_m = self.composition_m.new_submodel
                 composition_m.overload 'test', component_m
                 composition = composition_m.use('test' => component).instanciate(plan)
@@ -71,7 +71,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         describe "mapping ports from services using dependency injection" do
             def start
-                component = syskit_deploy_task_context(component_m)
+                component = syskit_stub_deploy_and_configure(component_m)
                 composition = composition_m.use('test' => component).instanciate(plan)
                 plan.add_permanent(composition)
                 syskit_start_component(composition)
@@ -105,7 +105,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             component_m.script do
                 writer = in_port.writer
             end
-            component = syskit_deploy_task_context(component_m)
+            component = syskit_stub_deploy_and_configure(component_m)
             syskit_start_component(component)
             writer.write(10)
             assert_equal 10, component.orocos_task.in.read
@@ -116,7 +116,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             component_m.script do
                 reader = out_port.reader
             end
-            component = syskit_deploy_task_context(component_m)
+            component = syskit_stub_deploy_and_configure(component_m)
             syskit_start_component(component)
             component.orocos_task.out.write(10)
             assert_equal 10, reader.read
@@ -128,7 +128,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         before do
             @srv_m = srv_m = Syskit::DataService.new_submodel { input_port 'srv_in', '/double' }
-            @component = syskit_deploy_task_context 'Task' do
+            @component = syskit_stub_deploy_and_configure 'Task' do
                 input_port 'in', '/double'
                 provides srv_m, :as => 'test'
             end
@@ -145,7 +145,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                 writer = in_port.writer
             end
 
-            start_task_context(component)
+            syskit_start(component)
             writer.write(10)
             assert_equal 10, component.orocos_task.in.read
         end
@@ -189,7 +189,7 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         before do
             @srv_m = srv_m = Syskit::DataService.new_submodel { output_port 'srv_out', '/double' }
-            @component = syskit_deploy_task_context 'Task' do
+            @component = syskit_stub_deploy_and_configure 'Task' do
                 output_port 'out', '/double'
                 provides srv_m, :as => 'test'
             end
@@ -206,7 +206,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                 reader = out_port.reader
             end
 
-            start_task_context(component)
+            syskit_start(component)
             component.orocos_task.out.write(10)
             assert_equal 10, reader.read
         end
@@ -227,8 +227,8 @@ describe Syskit::Coordination::TaskScriptExtension do
                 reader = test_child.srv_out_port.reader
             end
 
-            start_task_context(composition)
-            start_task_context(component)
+            syskit_start(composition)
+            syskit_start(component)
             component.orocos_task.out.write(10)
             assert_equal 10, reader.read
         end

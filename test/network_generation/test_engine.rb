@@ -7,7 +7,7 @@ describe Syskit::NetworkGeneration::Engine do
 
     before do
         create_simple_composition_model
-        plan.engine.scheduler = nil
+        plan.engine.scheduler.enabled = false
         @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
     end
 
@@ -21,7 +21,7 @@ describe Syskit::NetworkGeneration::Engine do
             plan.add_mission(@original_task = simple_component_model.as_plan)
             @planning_task = original_task.planning_task
             @requirements = planning_task.requirements
-            stub_roby_deployment_model(simple_component_model)
+            syskit_stub_deployment_model(simple_component_model)
             syskit_engine.create_work_plan_transaction
             syskit_engine.prepare
         end
@@ -144,7 +144,7 @@ describe Syskit::NetworkGeneration::Engine do
             syskit_engine.work_plan.add_permanent(@final_task = simple_component_model.new)
             syskit_engine.required_instances[original_task.planning_task] = final_task
             syskit_engine.add_toplevel_task(final_task, false, false)
-            stub_roby_deployment_model(simple_component_model)
+            syskit_stub_deployment_model(simple_component_model)
         end
 
         it "leaves non-mission and non-permanent tasks as non-mission and non-permanent" do
@@ -203,7 +203,7 @@ describe Syskit::NetworkGeneration::Engine do
             parent_model = Syskit::TaskContext.new_submodel(:name => 'ParentTask')
             task_model = parent_model.new_submodel(:name => 'Task') { provides service_model, :as => 'srv' }
             provided_models = [service_model, parent_model, task_model].to_value_set
-            stub_roby_deployment_model(task_model, 'task')
+            syskit_stub_deployment_model(task_model, 'task')
             
             assert_equal provided_models.to_value_set, syskit_engine.compute_deployed_models.to_value_set
         end
@@ -213,7 +213,7 @@ describe Syskit::NetworkGeneration::Engine do
             composition_model = Syskit::Composition.new_submodel do
                 add service_model, :as => 'child'
             end
-            stub_roby_deployment_model(task_model, 'task')
+            syskit_stub_deployment_model(task_model, 'task')
             assert_equal [service_model, task_model, composition_model].to_value_set,
                 syskit_engine.compute_deployed_models.to_value_set
         end
@@ -228,7 +228,7 @@ describe Syskit::NetworkGeneration::Engine do
             next_composition_model = Syskit::Composition.new_submodel do
                 add composition_service_model, :as => 'child'
             end
-            stub_roby_deployment_model(task_model, 'task')
+            syskit_stub_deployment_model(task_model, 'task')
             assert_equal [service_model, task_model, composition_model, composition_service_model, next_composition_model].to_value_set,
                 syskit_engine.compute_deployed_models.to_value_set
         end
@@ -240,7 +240,7 @@ describe Syskit::NetworkGeneration::Engine do
                 add service_model, :as => 'child'
                 add composition_service_model, :as => 'other_child'
             end
-            stub_roby_deployment_model(task_model, 'task')
+            syskit_stub_deployment_model(task_model, 'task')
             assert_equal [service_model, task_model].to_value_set,
                 syskit_engine.compute_deployed_models.to_value_set
         end
@@ -249,8 +249,8 @@ describe Syskit::NetworkGeneration::Engine do
     describe "#compute_task_context_deployment_candidates" do
         it "lists the deployments on a per-model basis" do
             task_model = Syskit::TaskContext.new_submodel
-            deployment_1 = stub_roby_deployment_model(task_model, 'task')
-            deployment_2 = stub_roby_deployment_model(simple_component_model, 'other_task')
+            deployment_1 = syskit_stub_deployment_model(task_model, 'task')
+            deployment_2 = syskit_stub_deployment_model(simple_component_model, 'other_task')
 
             result = syskit_engine.compute_task_context_deployment_candidates
 
@@ -494,7 +494,7 @@ describe Syskit::NetworkGeneration::Engine do
 
         it "deploys a mission as mission" do
             task_model = Syskit::TaskContext.new_submodel
-            deployment = stub_roby_deployment_model(task_model, 'task')
+            deployment = syskit_stub_deployment_model(task_model, 'task')
             plan.add_mission(original_task = task_model.as_plan)
             deployed, original_task, planning_task = deploy_task(original_task)
             refute_same deployed, original_task
@@ -503,7 +503,7 @@ describe Syskit::NetworkGeneration::Engine do
 
         it "deploys a permanent task as permanent" do
             task_model = Syskit::TaskContext.new_submodel
-            deployment = stub_roby_deployment_model(task_model, 'task')
+            deployment = syskit_stub_deployment_model(task_model, 'task')
             plan.add_permanent(original_task = task_model.as_plan)
             deployed, original_task, planning_task = deploy_task(original_task)
             refute_same deployed, original_task
@@ -515,7 +515,7 @@ describe Syskit::NetworkGeneration::Engine do
             composition_model = Syskit::Composition.new_submodel do
                 add task_model, :as => 'child'
             end
-            deployment = stub_roby_deployment_model(task_model, 'task')
+            deployment = syskit_stub_deployment_model(task_model, 'task')
 
             deployed, original, planning_task = deploy_task(composition_model)
             # This deregisters the task from the list of requirements in the
@@ -532,7 +532,7 @@ describe Syskit::NetworkGeneration::Engine do
 
         it "reconfigures a toplevel task if its configuration changed" do
             task_model = Syskit::TaskContext.new_submodel
-            deployment = stub_roby_deployment_model(task_model, 'task')
+            deployment = syskit_stub_deployment_model(task_model, 'task')
 
             deployed_task, original_task, planning_task = deploy_task(task_model)
             plan.remove_object(planning_task)
@@ -550,7 +550,7 @@ describe Syskit::NetworkGeneration::Engine do
             composition_model = Syskit::Composition.new_submodel do
                 add task_model, :as => 'child'
             end
-            deployment = stub_roby_deployment_model(task_model, 'task')
+            deployment = syskit_stub_deployment_model(task_model, 'task')
 
             cmp, original_cmp = deploy_task(composition_model.use('child' => task_model))
             child = cmp.child_child.to_task
@@ -570,7 +570,7 @@ describe Syskit::NetworkGeneration::Engine do
                 composition_model = Syskit::Composition.new_submodel do
                     add task_model, :as => 'child'
                 end
-                deployment = stub_roby_deployment_model(task_model, 'task')
+                deployment = syskit_stub_deployment_model(task_model, 'task')
 
                 deploy_task(composition_model.use('child' => task_model))
                 plan_copy, mappings = plan.deep_copy
@@ -590,7 +590,7 @@ describe Syskit::NetworkGeneration::Engine do
                 add task_model, :as => 'child'
                 export child_child.out_port
             end
-            deployment = stub_roby_deployment_model(task_model, 'task')
+            deployment = syskit_stub_deployment_model(task_model, 'task')
             cmp, _ = deploy_task(composition_model)
             assert_equal Hash[['out', 'out'] => Hash.new], cmp.child_child[cmp, Syskit::Flows::DataFlow]
         end

@@ -175,10 +175,10 @@ describe Syskit::InputWriter do
         policy = Hash[:type => :buffer, :size => 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_writer = abstract_task.in_port.writer(policy)
-        task = syskit_deploy_task_context(task_m, 'task')
+        task = syskit_stub_deploy_and_configure(task_m, 'task')
         plan.replace(abstract_task, task)
 
-        start_task_context(task)
+        syskit_start(task)
         assert_equal task.in_port, port_writer.resolved_port
         assert_equal task.orocos_task.port('in'), port_writer.writer.port
     end
@@ -194,10 +194,10 @@ describe Syskit::OutputReader do
         policy = Hash[:type => :buffer, :size => 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_reader = abstract_task.out_port.reader(policy)
-        task = syskit_deploy_task_context(task_m, 'task')
+        task = syskit_stub_deploy_and_configure(task_m, 'task')
         plan.replace(abstract_task, task)
 
-        start_task_context(task)
+        syskit_start(task)
         assert_equal task.out_port, port_reader.resolved_port
         assert_equal task.orocos_task.port('out'), port_reader.reader.port
     end

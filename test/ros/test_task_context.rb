@@ -114,7 +114,7 @@ describe Syskit::ROS::Node do
     #describe "#find_input_port" do
     #    attr_reader :task
     #    before do
-    #        @task = syskit_deploy_task_context 'Task' do
+    #        @task = syskit_stub_deploy_and_configure 'Task' do
     #            input_port "in", "int"
     #            output_port "out", "int"
     #        end
@@ -134,7 +134,7 @@ describe Syskit::ROS::Node do
     #describe "#find_output_port" do
     #    attr_reader :task
     #    before do
-    #        @task = syskit_deploy_task_context 'Task' do
+    #        @task = syskit_stub_deploy_and_configure 'Task' do
     #            input_port "in", "int"
     #            output_port "out", "int"
     #        end
@@ -401,7 +401,7 @@ describe Syskit::ROS::Node do
     #describe "#ready_for_setup?" do
     #    attr_reader :task, :orocos_task
     #    before do
-    #        @task = flexmock(syskit_deploy_task_context('Task') {})
+    #        @task = flexmock(syskit_stub_deploy_and_configure('Task') {})
     #        task.conf = []
     #        @orocos_task = flexmock
     #        task.should_receive(:orocos_task).and_return(orocos_task)
@@ -488,7 +488,7 @@ describe Syskit::ROS::Node do
     #describe "#prepare_for_setup" do
     #    attr_reader :task, :orocos_task
     #    before do
-    #        @task = syskit_deploy_task_context 'Task' do
+    #        @task = syskit_stub_deploy_and_configure 'Task' do
     #            input_port "in", "/double"
     #            output_port "out", "/double"
     #        end
@@ -535,7 +535,7 @@ describe Syskit::ROS::Node do
     ##describe "#setup" do
     ##    attr_reader :task, :orocos_task
     ##    before do
-    ##        @task = syskit_deploy_task_context 'Task' do
+    ##        @task = syskit_stub_deploy_and_configure 'Task' do
     ##            input_port "in", "int"
     ##            output_port "out", "int"
     ##        end
@@ -627,7 +627,7 @@ describe Syskit::ROS::Node do
     #describe "#configure" do
     #    attr_reader :task, :orocos_task
     #    before do
-    #        @task = syskit_deploy_task_context 'Task' do
+    #        @task = syskit_stub_deploy_and_configure 'Task' do
     #            input_port "in", "int"
     #            output_port "out", "int"
     #        end

@@ -38,7 +38,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             trigger_on { |sample| raise }.
             raise_exception
 
-        component = syskit_deploy_task_context(component_m, 'task')
+        component = syskit_stub_deploy_and_configure(component_m, 'task')
         table = table_m.new(component)
         syskit_start_component(component)
         component.orocos_task.out.write(10)
@@ -57,7 +57,7 @@ describe Syskit::Coordination::DataMonitoringTable do
                 false
             end.raise_exception
 
-        component = syskit_deploy_task_context(component_m, 'task')
+        component = syskit_stub_deploy_and_configure(component_m, 'task')
         table = table_m.new(component, :arg => 10)
         recorder.should_receive(:called).with(10).at_least.once
         syskit_start_component(component)
@@ -75,7 +75,7 @@ describe Syskit::Coordination::DataMonitoringTable do
                 false
             end.raise_exception
 
-        component = syskit_deploy_task_context(component_m, 'task')
+        component = syskit_stub_deploy_and_configure(component_m, 'task')
         table = table_m.new(component, :arg => 10)
         recorder.should_receive(:called).with(true).at_least.once
         recorder.should_receive(:called).with(false).at_least.once
@@ -192,7 +192,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(4, 2).once.ordered
         recorder.should_receive(:called).with(1, 12).once.ordered
 
-        component = syskit_deploy_task_context(component_m)
+        component = syskit_stub_deploy_and_configure(component_m)
         plan.add_permanent(composition = composition_m.use('test' => component.test1_srv).instanciate(plan))
         syskit_start_component(composition)
         table = table_m.new(composition)
@@ -225,7 +225,7 @@ describe Syskit::Coordination::DataMonitoringTable do
                 trigger_on { |sample| true }.
                 emit table_m.success_event
 
-            component = syskit_deploy_task_context(component_m, 'task')
+            component = syskit_stub_deploy_and_configure(component_m, 'task')
             table = table_m.new(component)
             syskit_start_component(component)
             table.remove!

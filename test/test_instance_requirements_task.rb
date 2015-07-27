@@ -7,7 +7,7 @@ describe Syskit::InstanceRequirementsTask do
 
     before do
         create_simple_composition_model
-        plan.engine.scheduler = nil
+        plan.engine.scheduler.enabled = false
         @handler_ids = Syskit::RobyApp::Plugin.plug_engine_in_roby(engine)
     end
 

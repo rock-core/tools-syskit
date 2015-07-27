@@ -27,10 +27,10 @@ describe Syskit::Runtime::ConnectionManagement do
     describe "#update" do
         attr_reader :source_task, :sink_task
         before do
-            @source_task = syskit_deploy_task_context("source", 'source') do
+            @source_task = syskit_stub_deploy_and_configure("source", 'source') do
                 output_port 'out', '/double'
             end
-            @sink_task = syskit_deploy_task_context("sink", 'sink') do
+            @sink_task = syskit_stub_deploy_and_configure("sink", 'sink') do
                 input_port 'in', '/double'
             end
         end
