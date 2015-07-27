@@ -556,6 +556,31 @@ module Syskit
                 each_child.map { |name, _| name }
             end
 
+            def find_child_model_and_task(child_name, context)
+                Models.debug do
+                    Models.debug "selecting #{child_name}:"
+                    Models.log_nest(2) do
+                        Models.debug "on the basis of"
+                        Models.log_nest(2) do
+                            Models.log_pp(:debug, context)
+                        end
+                    end
+                    break
+                end
+                child_requirements = find_child(child_name)
+                selected_child, used_keys =
+                    context.instance_selection_for(child_name, child_requirements)
+                Models.debug do
+                    Models.debug "selected"
+                    Models.log_nest(2) do
+                        Models.log_pp(:debug, selected_child)
+                    end
+                    break
+                end
+                explicit = context.has_selection_for?(child_name)
+                return selected_child, explicit, used_keys
+            end
+
             # Given a dependency injection context, it computes the models and
             # task instances for each of the composition's children
             #
@@ -569,30 +594,12 @@ module Syskit
                 result   = Hash.new
                 used_keys = Hash.new
                 each_child do |child_name, child_requirements|
-                    Models.debug do
-                        Models.debug "selecting #{child_name}:"
-                        Models.log_nest(2) do
-                            Models.debug "on the basis of"
-                            Models.log_nest(2) do
-                                Models.log_pp(:debug, context)
-                            end
-                        end
-                        break
-                    end
-                    selected_child, used_keys[child_name] =
-                        context.instance_selection_for(child_name, child_requirements)
-                    Models.debug do
-                        Models.debug "selected"
-                        Models.log_nest(2) do
-                            Models.log_pp(:debug, selected_child)
-                        end
-                        break
-                    end
+                    result[child_name], child_is_explicit, used_keys[child_name] =
+                        find_child_model_and_task(child_name, context)
 
-                    if context.has_selection_for?(child_name)
-                        explicit[child_name] = selected_child
+                    if child_is_explicit
+                        explicit[child_name] = result[child_name]
                     end
-                    result[child_name] = selected_child
                 end
 
                 return explicit, result, used_keys

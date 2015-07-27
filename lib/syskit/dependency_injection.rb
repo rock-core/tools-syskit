@@ -503,6 +503,10 @@ module Syskit
             def self.normalize_selected_object(value, key = nil)
                 return if !value
 
+                if value.kind_of?(InstanceSelection)
+                    value = value.component || value.selected
+                end
+
                 # 'value' must be one of String,Model<Component>,Component,DataService,Model<BoundDataService>,BoundDataService or nil
                 if !value.respond_to?(:to_str) &&
                     !value.kind_of?(Component) &&
