@@ -49,15 +49,17 @@ describe Syskit::RobyApp::Plugin do
             end
         end
 
-        it "registers a given task model only once" do
+        it "registers a given deployment model only once" do
             Roby.app.using_task_library 'plugin_remote_model_loading'
 
             m0 = Syskit.conf.use_deployment 'plugin_remote_model_loading' => 'm0', :on => 'server0'
             m0 = m0.first
             m1 = Syskit.conf.use_deployment 'plugin_remote_model_loading' => 'm1', :on => 'server1'
             m1 = m1.first
-            assert_same m0.orogen_model, m1.orogen_model
-            assert_same OroGen::PluginRemoteModelLoading::Task.orogen_model, m1.orogen_model.find_task_by_name('task').task_model
+
+            assert_same m0.model.orogen_model, m1.model.orogen_model
+            assert_same OroGen::PluginRemoteModelLoading::Task.orogen_model,
+                m1.orogen_model.find_task_by_name('m1task').task_model
         end
     end
 end
