@@ -274,6 +274,11 @@ module Syskit
             def syskit_stub_required_devices(model)
                 NetworkManipulation.syskit_stub_required_devices(model)
             end
+
+            @@syskit_stub_model_id = 0
+
+            def syskit_stub_model_id
+                (@@syskit_stub_model_id += 1).to_s
             end
 
             # Create an InstanceRequirement instance that would allow to deploy
@@ -397,18 +402,18 @@ module Syskit
             #   model = RootCmp.use(
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   syskit_stub_deploy_and_start_composition(model)
-            def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: self.name, &block)
+            def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: nil, &block)
                 model = syskit_stub(model, recursive: recursive, as: as, &block)
                 syskit_deploy(model, compute_policies: false)
             end
 
-            def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: self.name, &block)
+            def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: nil, &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure(root, recursive: recursive)
                 root
             end
 
-            def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: self.name, &block)
+            def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: nil, &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure_and_start(root, recursive: recursive)
                 root
