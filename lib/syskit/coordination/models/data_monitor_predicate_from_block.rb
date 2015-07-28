@@ -36,7 +36,7 @@ module Syskit
                     data_streams.each_with_index do |s, idx|
                         stream_to_index[s] = idx
                     end
-                    @samples = Array.new
+                    @samples = Array.new(data_streams.size)
                     @block = predicate_block
 
                     # Flag used to know whether we have at least a sample per
