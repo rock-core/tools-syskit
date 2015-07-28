@@ -76,7 +76,9 @@ module Syskit
                 model.each_task do |coordination_task_model|
                     if coordination_task_model.respond_to?(:instanciate)
                         root_task.depends_on(task_instance = coordination_task_model.instanciate(root_task.plan))
-                        bind_coordination_task_to_instance(instance_for(coordination_task_model), task_instance)
+                        bind_coordination_task_to_instance(
+                            instance_for(coordination_task_model), task_instance,
+                            on_replace: :copy)
                     end
                 end
 
