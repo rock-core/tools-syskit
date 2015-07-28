@@ -8,10 +8,10 @@ describe Syskit::Composition do
     describe "#find_required_composition_child_from_role" do
         attr_reader :composition_m, :base_srv_m, :srv_m, :task_m
         before do
-            @base_srv_m = Syskit::DataService.new_submodel :name => 'BaseSrv'
-            @srv_m = Syskit::DataService.new_submodel :name => 'Srv'
+            @base_srv_m = Syskit::DataService.new_submodel name: 'BaseSrv'
+            @srv_m = Syskit::DataService.new_submodel name: 'Srv'
             srv_m.provides base_srv_m
-            @task_m = Syskit::TaskContext.new_submodel :name => 'Task'
+            @task_m = Syskit::TaskContext.new_submodel name: 'Task'
             task_m.provides srv_m, as: 'test1'
             task_m.provides srv_m, as: 'test2'
         end
@@ -60,11 +60,11 @@ describe Syskit::Composition do
     describe "port access" do
         attr_reader :cmp, :child, :srv_m, :task_m
         before do
-            @srv_m = Syskit::DataService.new_submodel(:name => "Srv") do
+            @srv_m = Syskit::DataService.new_submodel(name: "Srv") do
                 output_port "srv_out", "/double"
                 input_port "srv_in", "/double"
             end
-            @task_m = Syskit::TaskContext.new_submodel(:name => "Task") do
+            @task_m = Syskit::TaskContext.new_submodel(name: "Task") do
                 output_port "out", "/double"
                 input_port "in", "/double"
             end
@@ -111,7 +111,7 @@ describe Syskit::Composition do
         
         describe "a provided service" do
             before do
-                cmp_m = Syskit::Composition.new_submodel(:name => "Cmp")
+                cmp_m = Syskit::Composition.new_submodel(name: "Cmp")
                 cmp_m.add task_m, as: 'test'
                 cmp_m.export cmp_m.test_child.out_port, as: 'exported_out'
                 cmp_m.export cmp_m.test_child.in_port, as: 'exported_in'
@@ -154,15 +154,15 @@ describe Syskit::Composition do
         end
 
         it "should be able to map a port whose actually selected task has a different name" do
-            srv_m = Syskit::DataService.new_submodel :name => 'Srv' do
+            srv_m = Syskit::DataService.new_submodel name: 'Srv' do
                 output_port 'srv_out', '/double'
             end
-            cmp_m = Syskit::Composition.new_submodel :name => 'ChildCmp' do
+            cmp_m = Syskit::Composition.new_submodel name: 'ChildCmp' do
                 add srv_m, as: 'test'
                 export test_child.srv_out_port, as: 'new_name'
                 provides srv_m, as: 'test'
             end
-            task_m = Syskit::TaskContext.new_submodel :name => 'Task' do
+            task_m = Syskit::TaskContext.new_submodel name: 'Task' do
                 output_port 'out', '/double'
                 provides srv_m, as: 'test'
             end

@@ -30,7 +30,7 @@ describe Syskit::DependencyInjection do
         end
         it "returns an existing instance service if one is selected and required" do
             srv = Syskit::DataService.new_submodel
-            task = Syskit::Component.new_submodel { provides srv, :as => 'srv' }.new
+            task = Syskit::Component.new_submodel { provides srv, as: 'srv' }.new
             di = Syskit::DependencyInjection.new('child' => task.srv_srv)
 
             instance, requirements, services = di.selection_for('child', Syskit::InstanceRequirements.new([srv]))
@@ -43,7 +43,7 @@ describe Syskit::DependencyInjection do
             srv_m = Syskit::DataService.new_submodel
             srv_m.provides base_srv_m
             task_m = Syskit::Component.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
             di = Syskit::DependencyInjection.new('child' => task_m.test_srv)
             _, _, service_selections = di.selection_for('child', Syskit::InstanceRequirements.new([base_srv_m]))
             assert_equal task_m.test_srv, service_selections[base_srv_m]
@@ -53,8 +53,8 @@ describe Syskit::DependencyInjection do
             srv_m = Syskit::DataService.new_submodel
             srv_m.provides base_srv_m
             task_m = Syskit::Component.new_submodel
-            task_m.provides srv_m, :as => 'test'
-            task_m.provides srv_m, :as => 'ambiguous'
+            task_m.provides srv_m, as: 'test'
+            task_m.provides srv_m, as: 'ambiguous'
             di = Syskit::DependencyInjection.new('child' => task_m, srv_m => task_m.test_srv)
             _, _, service_selections = di.selection_for('child', Syskit::InstanceRequirements.new([base_srv_m]))
             assert_equal task_m.test_srv, service_selections[base_srv_m]
@@ -100,8 +100,8 @@ describe Syskit::DependencyInjection do
 
     describe "#add_explicit" do
         it "does not modify the selections if given an identity mapping" do
-            a = Syskit::DataService.new_submodel(:name => 'A')
-            b = Syskit::DataService.new_submodel(:name => 'B') { provides a }
+            a = Syskit::DataService.new_submodel(name: 'A')
+            b = Syskit::DataService.new_submodel(name: 'B') { provides a }
             di = Syskit::DependencyInjection.new(a => b)
             di.add(a => a)
             assert_equal Hash[a => b], di.explicit
@@ -129,7 +129,7 @@ describe Syskit::DependencyInjection do
             proxy_m = Syskit.proxy_task_model_for([srv_m])
             proxy2_m = Syskit.proxy_task_model_for([srv_m])
             task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
 
             mapping = { srv_m => proxy_m.m0_srv, proxy_m => proxy2_m, proxy2_m => task_m }
             assert_equal(task_m.test_srv, 
@@ -139,8 +139,8 @@ describe Syskit::DependencyInjection do
         it "properly maintains already resolved bound data services if an indentity selection is present" do
             srv_m = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, :as => 'test'
-            task_m.provides srv_m, :as => 'ambiguous'
+            task_m.provides srv_m, as: 'test'
+            task_m.provides srv_m, as: 'ambiguous'
 
             mapping = { srv_m => task_m.test_srv, task_m => task_m }
             assert_equal(task_m.test_srv, 
@@ -245,7 +245,7 @@ class TC_DependencyInjection < Minitest::Test
     def test_normalize_selection_accepts_string_to_allowed_values
         srv = DataService.new_submodel
         component = Component.new_submodel
-        component.provides srv, :as => 'srv'
+        component.provides srv, as: 'srv'
         key = 'key'
         assert_equal(Hash[key => nil], DependencyInjection.normalize_selection(key => nil))
         assert_equal(Hash[key => 'value'], DependencyInjection.normalize_selection(key => 'value'))
@@ -267,7 +267,7 @@ class TC_DependencyInjection < Minitest::Test
     def test_normalize_selection_accepts_component_to_nil_string_and_identity
         srv = DataService.new_submodel
         component = Component.new_submodel
-        component.provides srv, :as => 'srv'
+        component.provides srv, as: 'srv'
         key = component
         
         assert_equal(Hash[key => nil], DependencyInjection.normalize_selection(key => nil))
@@ -284,7 +284,7 @@ class TC_DependencyInjection < Minitest::Test
         srv = DataService.new_submodel
         key = Component.new_submodel
         subcomponent = key.new_submodel
-        subcomponent.provides srv, :as => 'srv'
+        subcomponent.provides srv, as: 'srv'
 
         assert_equal(Hash[key => subcomponent], DependencyInjection.normalize_selection(key => subcomponent))
 	subcomponent = subcomponent.new
@@ -300,7 +300,7 @@ class TC_DependencyInjection < Minitest::Test
     def test_normalize_selection_rejects_component_to_component_that_does_not_fullfill_the_key
         key = Component.new_submodel
         srv = DataService.new_submodel
-        component = Component.new_submodel { provides(srv, :as => 'srv') }
+        component = Component.new_submodel { provides(srv, as: 'srv') }
         
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component) }
         assert_raises(ArgumentError) { DependencyInjection.normalize_selection(key => component.srv_srv) }
@@ -336,7 +336,7 @@ class TC_DependencyInjection < Minitest::Test
 
     def test_normalize_selection_accepts_data_service_to_instance_requirements_that_fullfill_the_key_and_selects_the_corresponding_service
         key = DataService.new_submodel
-	c = Component.new_submodel { provides key, :as => 'srv' }
+	c = Component.new_submodel { provides key, as: 'srv' }
         req = InstanceRequirements.new([c])
 	normalized = DependencyInjection.normalize_selection(key => req)
 	req_srv = req.dup
@@ -345,7 +345,7 @@ class TC_DependencyInjection < Minitest::Test
     end
     def test_normalize_selection_accepts_data_service_to_component_that_fullfill_the_key_and_maps_the_service
         srv0 = DataService.new_submodel
-        c = Component.new_submodel { provides srv0, :as => 'srv' }
+        c = Component.new_submodel { provides srv0, as: 'srv' }
         assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
 	c = c.new
         assert_equal(Hash[srv0 => c.srv_srv], DependencyInjection.normalize_selection(srv0 => c))
@@ -360,8 +360,8 @@ class TC_DependencyInjection < Minitest::Test
     def test_normalize_selection_rejects_data_service_to_component_that_has_multiple_matching_candidates
         srv0 = DataService.new_submodel
         c = Component.new_submodel do
-            provides srv0, :as => 'srv0'
-            provides srv0, :as => 'srv1'
+            provides srv0, as: 'srv0'
+            provides srv0, as: 'srv1'
         end
         assert_raises(Syskit::AmbiguousServiceSelection) { DependencyInjection.normalize_selection(srv0 => c) }
     end
@@ -384,8 +384,8 @@ class TC_DependencyInjection < Minitest::Test
         srv0 = DataService.new_submodel
         srv1 = DataService.new_submodel
         c = Component.new_submodel
-        c.provides srv0, :as => 'srv0'
-        c.provides srv1, :as => 'srv1'
+        c.provides srv0, as: 'srv0'
+        c.provides srv1, as: 'srv1'
         assert_equal(Hash[srv0 => c, srv1 => c, c => c], DependencyInjection.resolve_default_selections(Hash.new, [c]))
     end
 
@@ -393,19 +393,19 @@ class TC_DependencyInjection < Minitest::Test
         srv0 = DataService.new_submodel
         srv1 = DataService.new_submodel
         c0 = Component.new_submodel
-        c0.provides srv0, :as => 'srv0'
-        c0.provides srv1, :as => 'srv1'
+        c0.provides srv0, as: 'srv0'
+        c0.provides srv1, as: 'srv1'
         c1 = Component.new_submodel
-        c1.provides srv0, :as => 'srv0'
+        c1.provides srv0, as: 'srv0'
         c2 = Component.new_submodel
-        c2.provides srv0, :as => 'srv0'
+        c2.provides srv0, as: 'srv0'
         assert_equal(Hash[srv1 => c0, c0 => c0, c1 => c1, c2 => c2], DependencyInjection.resolve_default_selections(Hash.new, [c0, c1, c2]))
     end
 
     def test_resolve_default_selections_does_not_override_explicit_selections
         srv0 = DataService.new_submodel
         c0 = Component.new_submodel
-        c0.provides srv0, :as => 'srv0'
+        c0.provides srv0, as: 'srv0'
         assert_equal(Hash[srv0 => 'value', c0 => c0], DependencyInjection.resolve_default_selections(Hash[srv0 => 'value'], [c0]))
     end
 
@@ -413,15 +413,15 @@ class TC_DependencyInjection < Minitest::Test
         srv0 = DataService.new_submodel
         c0 = Component.new_submodel
         c1 = c0.new_submodel
-        c1.provides srv0, :as => 'srv0'
+        c1.provides srv0, as: 'srv0'
         assert_equal(Hash[srv0 => c1, c0 => c1, c1 => c1], DependencyInjection.resolve_default_selections(Hash[c0 => c1], [c0]))
     end
 
     def test_resolve_default_selections_ignores_services_provided_multiple_times
-        srv_m = DataService.new_submodel :name => 'Srv'
-        c_m = Component.new_submodel :name => 'Component'
-        c_m.provides srv_m, :as => 's0'
-        c_m.provides srv_m, :as => 's1'
+        srv_m = DataService.new_submodel name: 'Srv'
+        c_m = Component.new_submodel name: 'Component'
+        c_m.provides srv_m, as: 's0'
+        c_m.provides srv_m, as: 's1'
 
         assert_equal(Hash[c_m => c_m], DependencyInjection.resolve_default_selections(Hash.new, [c_m]))
     end
@@ -451,7 +451,7 @@ class TC_DependencyInjection < Minitest::Test
     def test_find_name_resolution_with_service
         c0 = Component.new_submodel
         srv = DataService.new_submodel
-        c0.provides srv, :as => 'srv'
+        c0.provides srv, as: 'srv'
         assert_equal c0.srv_srv, DependencyInjection.find_name_resolution('name.srv', 'name' => c0)
     end
 
@@ -468,15 +468,15 @@ class TC_DependencyInjection < Minitest::Test
     def test_find_name_resolution_with_slave_service
         c0 = Component.new_submodel
         srv = DataService.new_submodel
-        c0.provides srv, :as => 'srv'
-        c0.provides srv, :as => 'slave', :slave_of => 'srv'
+        c0.provides srv, as: 'srv'
+        c0.provides srv, as: 'slave', :slave_of => 'srv'
         assert_equal c0.srv_srv.slave_srv, DependencyInjection.find_name_resolution('name.srv.slave', 'name' => c0)
     end
 
     def test_find_name_resolution_with_slave_service_raises_if_service_not_found
         c0 = Component.new_submodel
         srv = DataService.new_submodel
-        c0.provides srv, :as => 'srv'
+        c0.provides srv, as: 'srv'
         assert_raises(Syskit::NameResolutionError) { DependencyInjection.find_name_resolution('name.srv.slave', 'name' => c0) }
     end
 
@@ -566,16 +566,16 @@ class TC_DependencyInjection < Minitest::Test
 
     def test_selection_for_data_services_to_component_maps_services
         srv = DataService.new_submodel
-        c0 = Component.new_submodel { provides srv, :as => 'srv' }
+        c0 = Component.new_submodel { provides srv, as: 'srv' }
         di = DependencyInjection.new(srv => c0)
         assert_equal [nil, InstanceRequirements.new([c0]), {srv => c0.srv_srv}, [srv].to_set],
             di.selection_for(nil, InstanceRequirements.new([srv]))
     end
 
     def test_selection_for_data_services_to_composite_model_without_proxy
-        srv = DataService.new_submodel :name => 'Srv'
-        c0 = Component.new_submodel(:name => 'C0') { provides srv, :as => 'srv' }
-        c1 = c0.new_submodel(:name => 'C1')
+        srv = DataService.new_submodel name: 'Srv'
+        c0 = Component.new_submodel(name: 'C0') { provides srv, as: 'srv' }
+        c1 = c0.new_submodel(name: 'C1')
         di = DependencyInjection.new(c0 => c1, srv => c0)
 
         task, requirements, service_mappings, used_keys =
@@ -587,9 +587,9 @@ class TC_DependencyInjection < Minitest::Test
     end
 
     def test_selection_for_data_services_to_composite_model_with_proxy
-        srv = DataService.new_submodel :name => 'Srv'
-        c0 = TaskContext.new_submodel(:name => 'C0')
-        c1 = c0.new_submodel(:name => 'C1')
+        srv = DataService.new_submodel name: 'Srv'
+        c0 = TaskContext.new_submodel(name: 'C0')
+        c1 = c0.new_submodel(name: 'C1')
         di = DependencyInjection.new(c0 => c1)
 
         assert_equal [nil, InstanceRequirements.new([srv]), Hash.new],
@@ -597,9 +597,9 @@ class TC_DependencyInjection < Minitest::Test
     end
 
     def test_selection_for_data_services_to_composite_model_with_proxy
-        srv = DataService.new_submodel :name => 'Srv'
-        c0 = TaskContext.new_submodel(:name => 'C0')
-        c1 = TaskContext.new_submodel(:name => 'C1') { provides srv, :as => 'srv' }
+        srv = DataService.new_submodel name: 'Srv'
+        c0 = TaskContext.new_submodel(name: 'C0')
+        c1 = TaskContext.new_submodel(name: 'C1') { provides srv, as: 'srv' }
         di = DependencyInjection.new(srv => c1)
 
         assert_raises(IncompatibleComponentModels) { di.selection_for(nil, InstanceRequirements.new([c0, srv])) }
@@ -615,8 +615,8 @@ class TC_DependencyInjection < Minitest::Test
     def test_select_bound_service_using_instance_requirements
         srv_m = Syskit::DataService.new_submodel
         task_m = Syskit::TaskContext.new_submodel do
-            provides srv_m, :as => 's0'
-            provides srv_m, :as => 's1'
+            provides srv_m, as: 's0'
+            provides srv_m, as: 's1'
         end
         di = DependencyInjection.new(srv_m => task_m.s0_srv.to_instance_requirements)
         di.instance_selection_for(nil, srv_m.to_instance_requirements)

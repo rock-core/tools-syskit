@@ -293,7 +293,7 @@ describe Syskit::Deployment do
                 input_port 'in', '/double'
                 output_port 'out', '/double'
             end
-            @deployment_m = Syskit::Deployment.new_submodel(:name => 'deployment') do
+            @deployment_m = Syskit::Deployment.new_submodel(name: 'deployment') do
                 task 'task', task_m.orogen_model
             end
             Syskit.conf.process_server_for('test').

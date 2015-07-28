@@ -693,8 +693,8 @@ describe Syskit::TaskContext do
             device_hint, component_hint = flexmock, flexmock
             task_m = Syskit::TaskContext.new_submodel
             device_m = Syskit::Device.new_submodel
-            task_m.driver_for device_m, :as => 'test'
-            dev = robot.device(device_m, :as => 'test').
+            task_m.driver_for device_m, as: 'test'
+            dev = robot.device(device_m, as: 'test').
                 prefer_deployed_tasks(device_hint)
 
             task = task_m.new("test_dev" => dev)
@@ -708,16 +708,16 @@ describe Syskit::TaskContext do
         combus_driver_m = Syskit::TaskContext.new_submodel do
             dynamic_output_port /.*/, '/int'
         end
-        combus_driver_m.provides combus_m, :as => 'driver'
+        combus_driver_m.provides combus_m, as: 'driver'
         device_m = Syskit::Device.new_submodel
         device_driver_m = Syskit::TaskContext.new_submodel do
             input_port 'bus_in', '/int'
         end
-        device_driver_m.provides combus_m.client_in_srv, :as => 'bus'
-        device_driver_m.provides device_m, :as => 'driver'
+        device_driver_m.provides combus_m.client_in_srv, as: 'bus'
+        device_driver_m.provides device_m, as: 'driver'
 
-        bus = robot.com_bus combus_m, :as => 'bus'
-        dev = robot.device device_m, :as => 'dev'
+        bus = robot.com_bus combus_m, as: 'bus'
+        dev = robot.device device_m, as: 'dev'
         dev.attach_to(bus)
 
         # Now, deploy !

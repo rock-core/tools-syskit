@@ -234,8 +234,8 @@ describe Syskit::Models::Component do
                         received_options = self.options
                         provides srv_m, "out" => "#{name}_out", "in" => "#{name}_in"
                     end
-                    options = {'test' => 'bla'}
-                    dyn_srv.instanciate('srv', options)
+                    options = Hash[test: 'bla']
+                    dyn_srv.instanciate('srv', **options)
                     assert_equal options, received_options
                 end
                 it "should raise if the port mappings do not match ports in the provided service" do

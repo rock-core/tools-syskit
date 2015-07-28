@@ -63,7 +63,7 @@ describe Syskit::Actions::InterfaceModelExtension do
         end
 
         it "should make task arguments that do have a default an optional argument of the action model" do
-            task_m = Syskit::TaskContext.new_submodel { argument :arg0, :default => nil }
+            task_m = Syskit::TaskContext.new_submodel { argument :arg0, default: nil }
             profile.define('def', task_m)
             actions.use_profile(profile)
             action = actions.find_action_by_name('def_def')
@@ -74,7 +74,7 @@ describe Syskit::Actions::InterfaceModelExtension do
         end
 
         it "should not require arguments to be given to the newly defined action method if there are no required arguments" do
-            task_m = Syskit::TaskContext.new_submodel { argument :arg0, :default => nil }
+            task_m = Syskit::TaskContext.new_submodel { argument :arg0, default: nil }
             profile.define('test', task_m)
             actions.use_profile(profile)
             act = actions.new(plan)
@@ -82,7 +82,7 @@ describe Syskit::Actions::InterfaceModelExtension do
         end
 
         it "should accept to be given argument to the newly defined action method even if there are no required arguments" do
-            task_m = Syskit::TaskContext.new_submodel { argument :arg0, :default => nil }
+            task_m = Syskit::TaskContext.new_submodel { argument :arg0, default: nil }
             profile.define('test', task_m)
             actions.use_profile(profile)
             act = actions.new(plan)
@@ -160,7 +160,7 @@ describe Syskit::Actions::InterfaceModelExtension do
         it "should require passing arguments if the main model has some without defaults" do
             task_m = Syskit::TaskContext.new_submodel do
                 argument :arg0
-                argument :with_defaults, :default => nil
+                argument :with_defaults, default: nil
             end
             profile.define('test', task_m)
             actions.use_profile(profile)
@@ -168,7 +168,7 @@ describe Syskit::Actions::InterfaceModelExtension do
         end
         it "should allow calling without arguments if the task has defaults" do
             task_m = Syskit::TaskContext.new_submodel do
-                argument :arg0, :default => 10
+                argument :arg0, default: 10
             end
             profile.define('test', task_m)
             actions.use_profile(profile)

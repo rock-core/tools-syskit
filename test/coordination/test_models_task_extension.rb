@@ -5,7 +5,7 @@ describe Syskit::Coordination::Models::TaskExtension do
 
     attr_reader :component_m, :action_m
     before do
-        @component_m = Syskit::TaskContext.new_submodel :name => 'Task' do
+        @component_m = Syskit::TaskContext.new_submodel name: 'Task' do
             output_port 'out', '/double'
         end
         component_m.event :monitor_failed

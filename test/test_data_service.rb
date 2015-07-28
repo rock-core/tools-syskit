@@ -15,8 +15,8 @@ describe Syskit::Device do
     describe "#find_device_attached_to" do
         attr_reader :dev0
         before do
-            task_m.driver_for device_m, :as => 'dev0'
-            @dev0 = robot.device device_m, :as => 'DEV0'
+            task_m.driver_for device_m, as: 'dev0'
+            @dev0 = robot.device device_m, as: 'DEV0'
         end
         it "should resolve the device attached using a service name" do
             task = task_m.new "dev0_dev" => dev0
@@ -39,10 +39,10 @@ describe Syskit::Device do
     describe "#each_master_device" do
         attr_reader :dev0, :dev1
         before do
-            task_m.driver_for device_m, :as => 'dev0'
-            task_m.driver_for device_m, :as => 'dev1'
-            @dev0 = robot.device device_m, :as => 'DEV0', :using => task_m.dev0_srv
-            @dev1 = robot.device device_m, :as => 'DEV1', :using => task_m.dev1_srv
+            task_m.driver_for device_m, as: 'dev0'
+            task_m.driver_for device_m, as: 'dev1'
+            @dev0 = robot.device device_m, as: 'DEV0', :using => task_m.dev0_srv
+            @dev1 = robot.device device_m, as: 'DEV1', :using => task_m.dev1_srv
         end
         it "should map the driver services to the actual devices using #find_device_attached_to" do
             task = task_m.new "dev0_dev" => dev0, 'dev1_dev' => dev1
@@ -60,12 +60,12 @@ describe Syskit::Device do
     
     describe "#find_all_driver_services_for" do
         it "returns the services bound to the given device" do
-            task_m.driver_for device_m, :as => 'dev0'
-            task_m.driver_for device_m, :as => 'dev1'
-            task_m.driver_for device_m, :as => 'dev2'
-            dev0 = robot.device device_m, :as => 'DEV0', :using => task_m.dev0_srv
-            dev1 = robot.device device_m, :as => 'DEV1', :using => task_m.dev1_srv
-            dev2 = robot.device device_m, :as => 'DEV2', :using => task_m.dev2_srv
+            task_m.driver_for device_m, as: 'dev0'
+            task_m.driver_for device_m, as: 'dev1'
+            task_m.driver_for device_m, as: 'dev2'
+            dev0 = robot.device device_m, as: 'DEV0', :using => task_m.dev0_srv
+            dev1 = robot.device device_m, as: 'DEV1', :using => task_m.dev1_srv
+            dev2 = robot.device device_m, as: 'DEV2', :using => task_m.dev2_srv
             task = task_m.new('dev0_dev' => dev0, 'dev1_dev' => dev0, 'dev2_dev' => dev1)
             assert_equal [task.dev0_srv, task.dev1_srv], task.find_all_driver_services_for(dev0)
             assert_equal [task.dev2_srv], task.find_all_driver_services_for(dev1)
@@ -74,10 +74,10 @@ describe Syskit::Device do
 
         it "can enumerate the slave services that are bound to a slave device" do
             slave_m = Syskit::DataService.new_submodel
-            task_m.driver_for device_m, :as => 'dev'
-            task_m.provides slave_m, :as => 'slave', :slave_of => task_m.dev_srv
+            task_m.driver_for device_m, as: 'dev'
+            task_m.provides slave_m, as: 'slave', :slave_of => task_m.dev_srv
 
-            dev = robot.device device_m, :as => 'DEV0', :using => task_m
+            dev = robot.device device_m, as: 'DEV0', :using => task_m
             task = task_m.new('dev_dev' => dev)
             assert_equal [task.dev_srv.slave_srv], task.find_all_driver_services_for(dev.slave_dev).to_a
         end
@@ -94,16 +94,16 @@ describe Syskit::ComBus do
         @device_driver_m = Syskit::TaskContext.new_submodel do
             input_port 'from_bus', '/double'
             output_port 'to_bus', '/double'
-            driver_for device_m, :as => 'dev'
-            provides combus_m.client_srv, :as => 'combus_client'
+            driver_for device_m, as: 'dev'
+            provides combus_m.client_srv, as: 'combus_client'
         end
         @combus_driver_m = Syskit::TaskContext.new_submodel do
             dynamic_input_port /^w\w+$/, '/double'
             dynamic_output_port /^\w+$/, '/double'
-            driver_for combus_m, :as => 'com'
+            driver_for combus_m, as: 'com'
         end
-        @combus = robot.com_bus combus_m, :as => 'COM'
-        @device = robot.device(device_m, :as => 'DEV').
+        @combus = robot.com_bus combus_m, as: 'COM'
+        @device = robot.device(device_m, as: 'DEV').
             attach_to(robot.COM_dev)
     end
     describe "#each_com_bus_device" do
@@ -118,11 +118,11 @@ describe Syskit::ComBus do
             assert device.attached_to?(combus)
         end
         it "returns false if the device is not attached to any bus" do
-            device = robot.device device_m, :as => 'other_device'
+            device = robot.device device_m, as: 'other_device'
             assert !device.attached_to?(combus)
         end
         it "returns false if the device is attached to a different bus" do
-            other_bus = robot.com_bus combus_m, :as => 'other_bus'
+            other_bus = robot.com_bus combus_m, as: 'other_bus'
             assert !device.attached_to?(other_bus)
         end
     end
@@ -152,23 +152,23 @@ describe Syskit::ComBus do
             flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv')
         end
         it "creates a service on the combus task" do
-            srv = combus_task.require_dynamic_service('com_bus', :as => 'DEV', :direction => 'inout')
+            srv = combus_task.require_dynamic_service('com_bus', as: 'DEV', :direction => 'inout')
             flexmock(combus_task).should_receive(:require_dynamic_service).
-                with('dyn_srv', :as => 'DEV', :direction => 'inout').once.and_return(srv)
+                with('dyn_srv', as: 'DEV', :direction => 'inout').once.and_return(srv)
             combus_task.attach(device_task)
         end
         it "does not create an input service on the combus task if the device does not have an output service" do
-            srv = combus_task.require_dynamic_service('com_bus', :as => 'DEV', :direction => 'out')
+            srv = combus_task.require_dynamic_service('com_bus', as: 'DEV', :direction => 'out')
             flexmock(device).should_receive(:combus_out_srv)
             flexmock(combus_task).should_receive(:require_dynamic_service).
-                with('dyn_srv', :as => 'DEV', :direction => 'out').once.and_return(srv)
+                with('dyn_srv', as: 'DEV', :direction => 'out').once.and_return(srv)
             combus_task.attach(device_task)
         end
         it "does not create an output service on the combus task if the device does not have an input service" do
-            srv = combus_task.require_dynamic_service('com_bus', :as => 'DEV', :direction => 'in')
+            srv = combus_task.require_dynamic_service('com_bus', as: 'DEV', :direction => 'in')
             flexmock(device).should_receive(:combus_in_srv)
             flexmock(combus_task).should_receive(:require_dynamic_service).
-                with('dyn_srv', :as => 'DEV', :direction => 'in').once.and_return(srv)
+                with('dyn_srv', as: 'DEV', :direction => 'in').once.and_return(srv)
             combus_task.attach(device_task)
         end
         it "ignores devices that are not attached to the bus" do
@@ -181,8 +181,8 @@ describe Syskit::ComBus do
             combus_driver_m = Syskit::TaskContext.new_submodel do
                 input_port "in", '/double'
                 dynamic_output_port /^\w+$/, '/double'
-                driver_for combus_m, :as => 'com'
-                provides combus_m::BusInSrv, :as => 'to_bus'
+                driver_for combus_m, as: 'com'
+                provides combus_m::BusInSrv, as: 'to_bus'
             end
             plan.add(combus_task = combus_driver_m.new('com_dev' => combus))
             plan.add(device_task = device_driver_m.new('dev_dev' => device))

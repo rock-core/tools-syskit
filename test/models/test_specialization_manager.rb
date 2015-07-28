@@ -12,10 +12,10 @@ describe Syskit::Models::SpecializationManager do
     before do
         @srv_m = Syskit::DataService.new_submodel
         @task_m = Syskit::TaskContext.new_submodel
-        task_m.provides srv_m, :as => 'test'
+        task_m.provides srv_m, as: 'test'
         @cmp_m = Syskit::Composition.new_submodel
-        cmp_m.add srv_m, :as => 'test'
-        cmp_m.add srv_m, :as => 'second'
+        cmp_m.add srv_m, as: 'test'
+        cmp_m.add srv_m, as: 'second'
         @mng = cmp_m.specializations
     end
 
@@ -122,7 +122,7 @@ describe Syskit::Models::SpecializationManager do
             normalized_mappings = Hash.new
             flexmock(mng).should_receive(:normalize_specialization_mappings).with(mappings).once.and_return(normalized_mappings)
             flexmock(mng).should_receive(:validate_specialization_mappings).with(normalized_mappings).once.and_return(nil)
-            block = proc { add Syskit::TaskContext, :as => 'child' }
+            block = proc { add Syskit::TaskContext, as: 'child' }
             flexmock(Syskit::Models::CompositionSpecialization).new_instances.should_receive(:add).with(normalized_mappings, eq(block)).once
             mng.specialize(mappings, &block)
         end
@@ -415,7 +415,7 @@ describe Syskit::Models::SpecializationManager do
 
     describe "#create_specialized_model" do
         it "should only inherit compatible specializations from the root" do
-            root = Syskit::Composition.new_submodel(:name => 'Cmp') { add Syskit::DataService.new_submodel, :as => 'test' }
+            root = Syskit::Composition.new_submodel(name: 'Cmp') { add Syskit::DataService.new_submodel, as: 'test' }
             spec0 = root.specialize(root.test_child => (srv0 = Syskit::DataService.new_submodel))
             spec1 = root.specialize(root.test_child => (srv1 = Syskit::DataService.new_submodel))
             spec2 = root.specialize(root.test_child => (srv2 = Syskit::DataService.new_submodel))
@@ -437,11 +437,11 @@ describe Syskit::Models::SpecializationManager do
             end
             task_m = Syskit::TaskContext.new_submodel do
                 output_port 'out', '/double'
-                provides srv_m, :as => 'test'
+                provides srv_m, as: 'test'
             end
 
             root_m = Syskit::Composition.new_submodel do
-                add base_srv_m, :as => 'test'
+                add base_srv_m, as: 'test'
             end
             return root_m, task_m, srv_m
         end

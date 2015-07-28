@@ -14,7 +14,7 @@ describe Syskit::RobyApp::Configuration do
 
         def stub_deployment(name)
             task_m = @task_m
-            Syskit::Deployment.new_submodel(:name => name) do
+            Syskit::Deployment.new_submodel(name: name) do
                 task('task', task_m.orogen_model)
             end
         end

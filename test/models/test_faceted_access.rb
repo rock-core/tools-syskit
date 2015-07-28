@@ -14,7 +14,7 @@ describe Syskit::Models::FacetedAccess do
         @sub_task_m = task_m.new_submodel do
             output_port 'sd', '/double'
         end
-        sub_task_m.provides srv_m, :as => 'test'
+        sub_task_m.provides srv_m, as: 'test'
 
         @facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([task_m, srv_m]))
     end
@@ -43,7 +43,7 @@ describe Syskit::Models::FacetedAccess do
             srv1_m = Syskit::DataService.new_submodel do
                 output_port 'd', '/double'
             end
-            sub_task_m.provides srv1_m, :as => 'test1'
+            sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
             assert_equal [sub_task_m.sd_port].to_set,
                 facet.find_all_port_mappings_for('d')
@@ -52,7 +52,7 @@ describe Syskit::Models::FacetedAccess do
             srv1_m = Syskit::DataService.new_submodel do
                 output_port 'd', '/int'
             end
-            sub_task_m.provides srv1_m, :as => 'test1'
+            sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
             assert_equal [sub_task_m.sd_port, sub_task_m.i_port].to_set,
                 facet.find_all_port_mappings_for('d')
@@ -74,7 +74,7 @@ describe Syskit::Models::FacetedAccess do
             srv1_m = Syskit::DataService.new_submodel do
                 output_port 'd', '/double'
             end
-            sub_task_m.provides srv1_m, :as => 'test1'
+            sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
 
             p = facet.find_port('d')
@@ -86,7 +86,7 @@ describe Syskit::Models::FacetedAccess do
             srv1_m = Syskit::DataService.new_submodel do
                 output_port 'd', '/int'
             end
-            sub_task_m.provides srv1_m, :as => 'test1'
+            sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
             assert_raises(Syskit::AmbiguousPortOnCompositeModel) do
                 facet.find_port('d')
@@ -108,7 +108,7 @@ describe Syskit::Models::FacetedAccess do
             srv1_m = Syskit::DataService.new_submodel do
                 output_port 'd', '/double'
             end
-            sub_task_m.provides srv1_m, :as => 'test1'
+            sub_task_m.provides srv1_m, as: 'test1'
             facet = Syskit::Models::FacetedAccess.new(sub_task_m, Syskit.proxy_task_model_for([srv1_m, srv_m]))
             assert_equal sub_task_m.sd_port, facet.find_port('d').to_component_port
         end
@@ -122,18 +122,18 @@ describe Syskit::Models::FacetedAccess do
             in_task_m = Syskit::TaskContext.new_submodel do
                 input_port 'task_in', 'double'
             end
-            in_task_m.provides in_srv_m, :as => 'test'
+            in_task_m.provides in_srv_m, as: 'test'
             out_srv_m = Syskit::DataService.new_submodel do
                 output_port 'out', 'double'
             end
             out_task_m = Syskit::TaskContext.new_submodel do
                 output_port 'task_out', 'double'
             end
-            out_task_m.provides out_srv_m, :as => 'test'
+            out_task_m.provides out_srv_m, as: 'test'
 
             cmp_m = Syskit::Composition.new_submodel do
-                add out_task_m, :as => 'out'
-                add in_task_m, :as => 'in'
+                add out_task_m, as: 'out'
+                add in_task_m, as: 'in'
             end
             cmp_m.out_child.as(out_srv_m).connect_to cmp_m.in_child.as(in_srv_m)
         end

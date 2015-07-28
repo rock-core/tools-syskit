@@ -6,7 +6,7 @@ describe Syskit::Coordination::TaskScriptExtension do
     it "sets the CompositionChild instance as model for child tasks" do
         data_service = Syskit::DataService.new_submodel { output_port 'out', '/double' }
         composition_m = Syskit::Composition.new_submodel do
-            add data_service, :as => 'test'
+            add data_service, as: 'test'
         end
         assert_equal composition_m.test_child, composition_m.script.test_child.model.model
     end
@@ -130,7 +130,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             @srv_m = srv_m = Syskit::DataService.new_submodel { input_port 'srv_in', '/double' }
             @component = syskit_stub_deploy_and_configure 'Task' do
                 input_port 'in', '/double'
-                provides srv_m, :as => 'test'
+                provides srv_m, as: 'test'
             end
         end
 
@@ -152,13 +152,13 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         it "gives access to ports from children" do
             composition_m = Syskit::Composition.new_submodel
-            composition_m.add srv_m, :as => 'test'
+            composition_m.add srv_m, as: 'test'
             assert_kind_of Syskit::InputPort, composition_m.script.test_child.srv_in_port
         end
 
         it "does port mapping if necessary" do
             composition_m = Syskit::Composition.new_submodel
-            composition_m.add srv_m, :as => 'test'
+            composition_m.add srv_m, as: 'test'
             composition = composition_m.use('test' => component).instanciate(plan)
 
             writer = nil
@@ -191,7 +191,7 @@ describe Syskit::Coordination::TaskScriptExtension do
             @srv_m = srv_m = Syskit::DataService.new_submodel { output_port 'srv_out', '/double' }
             @component = syskit_stub_deploy_and_configure 'Task' do
                 output_port 'out', '/double'
-                provides srv_m, :as => 'test'
+                provides srv_m, as: 'test'
             end
         end
 
@@ -213,14 +213,14 @@ describe Syskit::Coordination::TaskScriptExtension do
 
         it "gives access to ports from children" do
             composition_m = Syskit::Composition.new_submodel
-            composition_m.add srv_m, :as => 'test'
+            composition_m.add srv_m, as: 'test'
             assert_kind_of Syskit::OutputPort, composition_m.script.test_child.srv_out_port
         end
 
         it "does port mapping if necessary" do
             composition_m = Syskit::Composition.new_submodel
-            composition_m.add srv_m, :as => 'test'
-            composition = composition_m.use('test' => component).instanciate(plan)
+            composition_m.add srv_m, as: 'test'
+            composition = syskit_deploy_and_configure(composition_m.use('test' => component))
 
             reader = nil
             composition.script do
@@ -228,7 +228,6 @@ describe Syskit::Coordination::TaskScriptExtension do
             end
 
             syskit_start(composition)
-            syskit_start(component)
             component.orocos_task.out.write(10)
             assert_equal 10, reader.read
         end

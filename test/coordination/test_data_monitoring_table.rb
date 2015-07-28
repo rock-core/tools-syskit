@@ -7,7 +7,7 @@ describe Syskit::Coordination::DataMonitoringTable do
     before do
         @component_m = Syskit::TaskContext.new_submodel { output_port 'out', '/int' }
         @table_m = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(:root => component_m)
+            new_submodel(root: component_m)
     end
 
     it "generates an error if one of its monitor has no trigger" do
@@ -25,7 +25,7 @@ describe Syskit::Coordination::DataMonitoringTable do
 
     it "should raise if some monitors have no effect at the end of the definition block" do
         assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) do
-            Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m) do
+            Syskit::Coordination::DataMonitoringTable.new_submodel(root: component_m) do
                 monitor 'test', out_port do
                 end
             end
@@ -92,7 +92,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             output_port 'out2', '/int'
         end
         table_m = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(:root => component_m)
+            new_submodel(root: component_m)
         recorder = flexmock
         table_m.monitor('sample_value_10', table_m.out1_port, table_m.out2_port).
             trigger_on do |sample1, sample2|
@@ -120,16 +120,16 @@ describe Syskit::Coordination::DataMonitoringTable do
         assert component.success?
     end
     it "can monitor the child of a composition, and applies port mappings" do
-        srv_m = Syskit::DataService.new_submodel(:name => 'Srv') { output_port 'out', '/int' }
-        composition_m = Syskit::Composition.new_submodel(:name => 'Cmp') { add srv_m, :as => 'test' }
-        component_m = Syskit::TaskContext.new_submodel(:name => 'Task') do
+        srv_m = Syskit::DataService.new_submodel(name: 'Srv') { output_port 'out', '/int' }
+        composition_m = Syskit::Composition.new_submodel(name: 'Cmp') { add srv_m, as: 'test' }
+        component_m = Syskit::TaskContext.new_submodel(name: 'Task') do
             output_port 'out1', '/int'
             output_port 'out2', '/int'
-            provides srv_m, :as => 'test1', 'out' => 'out1'
-            provides srv_m, :as => 'test2', 'out' => 'out2'
+            provides srv_m, as: 'test1', 'out' => 'out1'
+            provides srv_m, as: 'test2', 'out' => 'out2'
         end
         table_m = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(:root => composition_m)
+            new_submodel(root: composition_m)
         recorder = flexmock
         table_m.monitor('sample_value_10', table_m.test_child.out_port).
             raise_exception.
@@ -166,19 +166,19 @@ describe Syskit::Coordination::DataMonitoringTable do
     end
 
     it "can use whole component networks as data sources" do
-        srv_m = Syskit::DataService.new_submodel(:name => 'Srv') { output_port 'out', '/int' }
-        composition_m = Syskit::Composition.new_submodel(:name => 'Cmp') do
-            add srv_m, :as => 'test'
+        srv_m = Syskit::DataService.new_submodel(name: 'Srv') { output_port 'out', '/int' }
+        composition_m = Syskit::Composition.new_submodel(name: 'Cmp') do
+            add srv_m, as: 'test'
             export test_child.out_port
         end
-        component_m = Syskit::TaskContext.new_submodel(:name => 'Task') do
+        component_m = Syskit::TaskContext.new_submodel(name: 'Task') do
             output_port 'out1', '/int'
             output_port 'out2', '/int'
-            provides srv_m, :as => 'test1', 'out' => 'out1'
-            provides srv_m, :as => 'test2', 'out' => 'out2'
+            provides srv_m, as: 'test1', 'out' => 'out1'
+            provides srv_m, as: 'test2', 'out' => 'out2'
         end
         table_m = Syskit::Coordination::DataMonitoringTable.
-            new_submodel(:root => composition_m)
+            new_submodel(root: composition_m)
         recorder = flexmock
         monitor_task = table_m.task(composition_m.use('test' => component_m.test2_srv))
         table_m.monitor('sample_value_10', table_m.out_port, monitor_task.out_port).

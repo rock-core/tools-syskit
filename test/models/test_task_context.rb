@@ -32,7 +32,7 @@ describe Syskit::Models::TaskContext do
             model = Syskit::TaskContext.new_submodel do
                 input_port "port", "int"
                 property "property", "int"
-                provides srv, :as => 'srv'
+                provides srv, as: 'srv'
             end
             assert(model < Syskit::TaskContext)
             assert model.find_data_service('srv')
@@ -67,7 +67,7 @@ describe Syskit::Models::TaskContext do
         it "does not register the new models as children of the provided services" do
             submodel = Syskit::TaskContext.new_submodel
             ds = Syskit::DataService.new_submodel
-            submodel.provides ds, :as => 'srv'
+            submodel.provides ds, as: 'srv'
             subsubmodel = submodel.new_submodel
 
             assert !ds.submodels.include?(subsubmodel)

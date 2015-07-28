@@ -8,9 +8,9 @@ describe Syskit::Robot::MasterDeviceInstance do
     before do
         device_m = @device_m = Syskit::Device.new_submodel
         @task_m = Syskit::TaskContext.new_submodel do
-            driver_for device_m, :as => 'driver'
+            driver_for device_m, as: 'driver'
         end
-        @device = robot.device device_m, :as => 'dev'
+        @device = robot.device device_m, as: 'dev'
     end
 
     describe "#each_fullfilled_model" do
@@ -32,17 +32,17 @@ describe Syskit::Robot::MasterDeviceInstance do
                 dynamic_input_port /^w\w+$/, "/double"
                 dynamic_output_port /^\w+$/, "/double"
             end
-            combus_driver_m.provides combus_m, :as => 'combus_driver'
-            @bus = robot.com_bus combus_m, :as => 'bus0'
+            combus_driver_m.provides combus_m, as: 'combus_driver'
+            @bus = robot.com_bus combus_m, as: 'bus0'
             @driver_m = Syskit::TaskContext.new_submodel
-            driver_m.driver_for device_m, :as => 'dev_driver'
-            @dev = robot.device device_m, :as => 'dev0'
+            driver_m.driver_for device_m, as: 'dev_driver'
+            @dev = robot.device device_m, as: 'dev0'
         end
 
         describe "#attach_to" do
             it "should find combus_in_srv automatically if the task provides the requested service" do
                 driver_m.orogen_model.input_port 'combus_in', '/double'
-                driver_m.provides combus_m.client_in_srv, :as => 'combus_in'
+                driver_m.provides combus_m.client_in_srv, as: 'combus_in'
                 dev.attach_to(bus)
 
                 assert_equal dev.combus_in_srv, driver_m.combus_in_srv
@@ -55,7 +55,7 @@ describe Syskit::Robot::MasterDeviceInstance do
         describe "#attached_to?" do
             before do
                 driver_m.orogen_model.input_port 'combus_in', '/double'
-                driver_m.provides combus_m.client_in_srv, :as => 'combus_in'
+                driver_m.provides combus_m.client_in_srv, as: 'combus_in'
             end
 
             it "should return true if the device is attached to the given combus" do
@@ -74,14 +74,14 @@ describe Syskit::Robot::MasterDeviceInstance do
     describe "#slave" do
         it "should be able to create a slave device from a driver service slave" do
             slave_m = Syskit::DataService.new_submodel
-            task_m.provides slave_m, :as => 'slave', :slave_of => task_m.driver_srv
+            task_m.provides slave_m, as: 'slave', :slave_of => task_m.driver_srv
             slave_device = device.slave 'slave'
             assert_equal device, slave_device.master_device
             assert_equal task_m.driver_srv.slave_srv, slave_device.service
         end
         it "should return existing slave devices" do
             slave_m = Syskit::DataService.new_submodel
-            task_m.provides slave_m, :as => 'slave', :slave_of => task_m.driver_srv
+            task_m.provides slave_m, as: 'slave', :slave_of => task_m.driver_srv
             slave_device = device.slave 'slave'
             assert_same slave_device, device.slave('slave')
         end
@@ -104,10 +104,10 @@ describe Syskit::Robot::SlaveDeviceInstance do
         device_m = @device_m = Syskit::Device.new_submodel
         slave_m = @slave_m = Syskit::DataService.new_submodel
         @task_m = Syskit::TaskContext.new_submodel do
-            driver_for device_m, :as => 'driver'
-            provides slave_m, :as => 'slave', :slave_of => 'driver'
+            driver_for device_m, as: 'driver'
+            provides slave_m, as: 'slave', :slave_of => 'driver'
         end
-        @device = robot.device device_m, :as => 'dev'
+        @device = robot.device device_m, as: 'dev'
         @slave_device = device.slave('slave')
     end
 

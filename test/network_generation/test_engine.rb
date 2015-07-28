@@ -89,9 +89,9 @@ describe Syskit::NetworkGeneration::Engine do
         it "allocates devices using the task instance requirement information" do
             dev_m = Syskit::Device.new_submodel
             cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add simple_task_model, :as => 'test'
-            simple_task_model.driver_for dev_m, :as => 'device'
-            device = robot.device dev_m, :as => 'test'
+            cmp_m.add simple_task_model, as: 'test'
+            simple_task_model.driver_for dev_m, as: 'device'
+            device = robot.device dev_m, as: 'test'
             requirements = cmp_m.use(device)
 
             original_task = requirements.as_plan
@@ -199,46 +199,46 @@ describe Syskit::NetworkGeneration::Engine do
 
     describe "#compute_deployed_models" do
         it "should register all fullfilled models for deployed tasks" do
-            service_model = Syskit::DataService.new_submodel(:name => 'Srv')
-            parent_model = Syskit::TaskContext.new_submodel(:name => 'ParentTask')
-            task_model = parent_model.new_submodel(:name => 'Task') { provides service_model, :as => 'srv' }
+            service_model = Syskit::DataService.new_submodel(name: 'Srv')
+            parent_model = Syskit::TaskContext.new_submodel(name: 'ParentTask')
+            task_model = parent_model.new_submodel(name: 'Task') { provides service_model, as: 'srv' }
             provided_models = [service_model, parent_model, task_model].to_value_set
             syskit_stub_deployment_model(task_model, 'task')
             
             assert_equal provided_models.to_value_set, syskit_engine.compute_deployed_models.to_value_set
         end
         it "should be able to discover compositions that are enabled because of deployed tasks" do
-            service_model = Syskit::DataService.new_submodel(:name => 'Srv')
-            task_model = Syskit::TaskContext.new_submodel(:name => 'Task') { provides service_model, :as => 'srv' }
+            service_model = Syskit::DataService.new_submodel(name: 'Srv')
+            task_model = Syskit::TaskContext.new_submodel(name: 'Task') { provides service_model, as: 'srv' }
             composition_model = Syskit::Composition.new_submodel do
-                add service_model, :as => 'child'
+                add service_model, as: 'child'
             end
             syskit_stub_deployment_model(task_model, 'task')
             assert_equal [service_model, task_model, composition_model].to_value_set,
                 syskit_engine.compute_deployed_models.to_value_set
         end
         it "should be able to discover compositions that are enabled because of other compositions" do
-            service_model = Syskit::DataService.new_submodel(:name => 'Srv')
-            task_model = Syskit::TaskContext.new_submodel(:name => 'Task') { provides service_model, :as => 'srv' }
+            service_model = Syskit::DataService.new_submodel(name: 'Srv')
+            task_model = Syskit::TaskContext.new_submodel(name: 'Task') { provides service_model, as: 'srv' }
             composition_service_model = Syskit::DataService.new_submodel
             composition_model = Syskit::Composition.new_submodel do
-                add service_model, :as => 'child'
-                provides composition_service_model, :as => 'srv'
+                add service_model, as: 'child'
+                provides composition_service_model, as: 'srv'
             end
             next_composition_model = Syskit::Composition.new_submodel do
-                add composition_service_model, :as => 'child'
+                add composition_service_model, as: 'child'
             end
             syskit_stub_deployment_model(task_model, 'task')
             assert_equal [service_model, task_model, composition_model, composition_service_model, next_composition_model].to_value_set,
                 syskit_engine.compute_deployed_models.to_value_set
         end
         it "should add a composition only if all its children are available" do
-            service_model = Syskit::DataService.new_submodel(:name => 'Srv')
-            task_model = Syskit::TaskContext.new_submodel(:name => 'Task') { provides service_model, :as => 'srv' }
+            service_model = Syskit::DataService.new_submodel(name: 'Srv')
+            task_model = Syskit::TaskContext.new_submodel(name: 'Task') { provides service_model, as: 'srv' }
             composition_service_model = Syskit::DataService.new_submodel
             composition_model = Syskit::Composition.new_submodel do
-                add service_model, :as => 'child'
-                add composition_service_model, :as => 'other_child'
+                add service_model, as: 'child'
+                add composition_service_model, as: 'other_child'
             end
             syskit_stub_deployment_model(task_model, 'task')
             assert_equal [service_model, task_model].to_value_set,
@@ -513,7 +513,7 @@ describe Syskit::NetworkGeneration::Engine do
         it "reconfigures a child task if needed" do
             task_model = Syskit::TaskContext.new_submodel
             composition_model = Syskit::Composition.new_submodel do
-                add task_model, :as => 'child'
+                add task_model, as: 'child'
             end
             deployment = syskit_stub_deployment_model(task_model, 'task')
 
@@ -548,7 +548,7 @@ describe Syskit::NetworkGeneration::Engine do
         it "reconfigures tasks using the should_reconfigure_after relation" do
             task_model = Syskit::TaskContext.new_submodel
             composition_model = Syskit::Composition.new_submodel do
-                add task_model, :as => 'child'
+                add task_model, as: 'child'
             end
             deployment = syskit_stub_deployment_model(task_model, 'task')
 
@@ -568,7 +568,7 @@ describe Syskit::NetworkGeneration::Engine do
             begin
                 task_model = Syskit::TaskContext.new_submodel
                 composition_model = Syskit::Composition.new_submodel do
-                    add task_model, :as => 'child'
+                    add task_model, as: 'child'
                 end
                 deployment = syskit_stub_deployment_model(task_model, 'task')
 
@@ -587,7 +587,7 @@ describe Syskit::NetworkGeneration::Engine do
                 output_port 'out', '/double'
             end
             composition_model = Syskit::Composition.new_submodel do
-                add task_model, :as => 'child'
+                add task_model, as: 'child'
                 export child_child.out_port
             end
             deployment = syskit_stub_deployment_model(task_model, 'task')
@@ -599,11 +599,11 @@ describe Syskit::NetworkGeneration::Engine do
     describe "#allocate_devices" do
         attr_reader :dev_m, :task_m, :cmp_m, :device, :cmp, :task
         before do
-            dev_m = @dev_m = Syskit::Device.new_submodel :name => 'Driver'
-            @task_m = Syskit::TaskContext.new_submodel(:name => 'Task') { driver_for dev_m, :as => 'driver' }
+            dev_m = @dev_m = Syskit::Device.new_submodel name: 'Driver'
+            @task_m = Syskit::TaskContext.new_submodel(name: 'Task') { driver_for dev_m, as: 'driver' }
             @cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add task_m, :as => 'test'
-            @device = robot.device dev_m, :as => 'd'
+            cmp_m.add task_m, as: 'test'
+            @device = robot.device dev_m, as: 'd'
             @cmp = cmp_m.instanciate(plan)
             @task = cmp.test_child
         end
@@ -620,7 +620,7 @@ describe Syskit::NetworkGeneration::Engine do
             assert_equal device, task.find_device_attached_to(task.driver_srv)
         end
         it "does not override already set devices" do
-            dev2 = robot.device dev_m, :as => 'd2'
+            dev2 = robot.device dev_m, as: 'd2'
             task.arguments['driver_dev'] = dev2
             cmp.requirements.merge(cmp_m.use(dev_m => device))
             engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)

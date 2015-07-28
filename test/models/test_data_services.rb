@@ -24,11 +24,11 @@ module Test_DataServiceModel
     end
 
     def test_new_submodel_can_give_name_to_anonymous_models
-        assert_equal 'Srv', new_submodel(:name => 'Srv').name
+        assert_equal 'Srv', new_submodel(name: 'Srv').name
     end
 
     def test_short_name_returns_name_if_there_is_one
-        assert_equal 'Srv', new_submodel(:name => 'Srv').short_name
+        assert_equal 'Srv', new_submodel(name: 'Srv').short_name
     end
 
     def test_short_name_returns_to_s_if_there_are_no_name
@@ -45,7 +45,7 @@ module Test_DataServiceModel
     end
 
     def test_new_submodel_with_name
-        model = new_submodel(:name => "Image")
+        model = new_submodel(name: "Image")
         assert_kind_of(DataServiceModel, model)
         assert(model < service_type)
         assert_equal("Image", model.name)
@@ -300,15 +300,15 @@ describe DataService do
         it "returns a non-ambiguous bound service if there is one" do
             srv_m = DataService.new_submodel
             task_m = Component.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
             plan.add(task = task_m.new)
             assert_equal task.test_srv, srv_m.try_resolve(task)
         end
         it "returns nil on ambiguities" do
             srv_m = DataService.new_submodel
             task_m = Component.new_submodel
-            task_m.provides srv_m, :as => 'test1'
-            task_m.provides srv_m, :as => 'test2'
+            task_m.provides srv_m, as: 'test1'
+            task_m.provides srv_m, as: 'test2'
             plan.add(task = task_m.new)
             assert !srv_m.try_resolve(task)
         end
@@ -424,7 +424,7 @@ describe ComBus do
 
     def new_submodel(options = Hash.new, &block)
         options = Kernel.validate_options options,
-            :name => nil, :message_type => '/int'
+            name: nil, :message_type => '/int'
         ComBus.new_submodel(options, &block)
     end
 
@@ -451,8 +451,8 @@ describe ComBus do
         combus = ComBus.new_submodel :message_type => '/int'
         driver_m = TaskContext.new_submodel
         flexmock(combus).should_receive(:dynamic_service_name).and_return('dyn_srv')
-        flexmock(driver_m).should_receive(:dynamic_service).with(combus.bus_base_srv, Hash[:as => 'dyn_srv'], Proc).once
-        driver_m.provides combus, :as => 'name'
+        flexmock(driver_m).should_receive(:dynamic_service).with(combus.bus_base_srv, Hash[as: 'dyn_srv'], Proc).once
+        driver_m.provides combus, as: 'name'
     end
 
     describe "the dynamic service definition" do
@@ -464,39 +464,39 @@ describe ComBus do
                 dynamic_output_port /\w+/, '/double'
             end
             flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv')
-            driver_m.driver_for combus_m, :as => 'combus_driver'
+            driver_m.driver_for combus_m, as: 'combus_driver'
         end
         it "instanciates an input bus service if requested one" do
-            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'in')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', :direction => 'in')
             assert_same combus_m.bus_in_srv, srv.model.model
         end
         it "provides the mapping of from_bus to input_name_for if requested an input service" do
             flexmock(combus_m).should_receive(:input_name_for).with('dev').and_return('in_DEV')
-            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'in')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', :direction => 'in')
             assert_equal Hash['to_bus' => 'in_DEV'], srv.model.port_mappings_for_task
         end
         it "instanciates an output bus service if requested one" do
-            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'out')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', :direction => 'out')
             assert_same combus_m.bus_out_srv, srv.model.model
         end
         it "provides the mapping of from_bus to output_name_for if requested an output service" do
             flexmock(combus_m).should_receive(:output_name_for).with('dev').and_return('out_DEV')
-            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'out')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', :direction => 'out')
             assert_equal Hash['from_bus' => 'out_DEV'], srv.model.port_mappings_for_task
         end
         it "instanciates bidirectional service if requested one" do
-            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'inout')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', :direction => 'inout')
             assert_same combus_m.bus_srv, srv.model.model
         end
         it "provides the proper mappings if requested a bidirectional service" do
             flexmock(combus_m).should_receive(:output_name_for).with('dev').and_return('out_DEV')
             flexmock(combus_m).should_receive(:input_name_for).with('dev').and_return('in_DEV')
-            srv = driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'inout')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', :direction => 'inout')
             assert_equal Hash['from_bus' => 'out_DEV', 'to_bus' => 'in_DEV'], srv.model.port_mappings_for_task
         end
         it "raises if the :direction option is invalid" do
             assert_raises(ArgumentError) do
-                driver_m.new.require_dynamic_service('dyn_srv', :as => 'dev', :direction => 'bla')
+                driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', :direction => 'bla')
             end
         end
     end
