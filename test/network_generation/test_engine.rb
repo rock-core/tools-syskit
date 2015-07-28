@@ -175,7 +175,7 @@ describe Syskit::NetworkGeneration::Engine do
 
     describe "#reconfigure_tasks_on_static_port_modification" do
         it "reconfigures already-configured tasks whose static input ports have been modified" do
-            task = stub_deploy_and_configure("Task", as: 'task') { input_port('in', '/double').static }
+            task = syskit_stub_deploy_and_configure("Task", as: 'task') { input_port('in', '/double').static }
             flexmock(task).should_receive(:transaction_proxy?).and_return(true)
             flexmock(task).should_receive(:transaction_modifies_static_ports?).once.and_return(true)
             syskit_engine.reconfigure_tasks_on_static_port_modification([task])
@@ -189,7 +189,7 @@ describe Syskit::NetworkGeneration::Engine do
         end
 
         it "does not reconfigure not-setup tasks" do
-            task = stub_and_deploy("Task", as: 'task') { input_port('in', '/double').static }
+            task = syskit_stub_and_deploy("Task", as: 'task') { input_port('in', '/double').static }
             syskit_engine.reconfigure_tasks_on_static_port_modification([task])
             tasks = work_plan.find_local_tasks(Syskit::TaskContext).
                 with_arguments(orocos_name: task.orocos_name).to_a

@@ -12,14 +12,14 @@ describe Syskit::Coordination::DataMonitoringTable do
 
     it "generates an error if one of its monitor has no trigger" do
         table_m.monitor('sample_value_10', table_m.out_port)
-        root_task = syskit_deploy_and_start_task_context(component_m, 'task')
+        root_task = syskit_stub_deploy_configure_and_start(component_m)
         assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) { table_m.new(root_task) }
     end
 
     it "generates an error if one of its monitor has no effect" do
         table_m.monitor('sample_value_10', table_m.out_port).
             trigger_on { |sample| }
-        root_task = syskit_deploy_and_start_task_context(component_m, 'task')
+        root_task = syskit_stub_deploy_configure_and_start(component_m)
         assert_raises(Syskit::Coordination::Models::InvalidDataMonitor) { table_m.new(root_task) }
     end
 
@@ -38,9 +38,9 @@ describe Syskit::Coordination::DataMonitoringTable do
             trigger_on { |sample| raise }.
             raise_exception
 
-        component = syskit_stub_deploy_and_configure(component_m, 'task')
+        component = syskit_stub_deploy_and_configure(component_m)
         table = table_m.new(component)
-        syskit_start_component(component)
+        syskit_start(component)
         component.orocos_task.out.write(10)
         inhibit_fatal_messages do
             process_events
@@ -57,10 +57,10 @@ describe Syskit::Coordination::DataMonitoringTable do
                 false
             end.raise_exception
 
-        component = syskit_stub_deploy_and_configure(component_m, 'task')
+        component = syskit_stub_deploy_and_configure(component_m)
         table = table_m.new(component, :arg => 10)
         recorder.should_receive(:called).with(10).at_least.once
-        syskit_start_component(component)
+        syskit_start(component)
         component.orocos_task.out.write(20)
         process_events
     end
@@ -75,11 +75,11 @@ describe Syskit::Coordination::DataMonitoringTable do
                 false
             end.raise_exception
 
-        component = syskit_stub_deploy_and_configure(component_m, 'task')
+        component = syskit_stub_deploy_and_configure(component_m)
         table = table_m.new(component, :arg => 10)
         recorder.should_receive(:called).with(true).at_least.once
         recorder.should_receive(:called).with(false).at_least.once
-        syskit_start_component(component)
+        syskit_start(component)
         component.orocos_task.out.write(20)
         process_events
         component.orocos_task.out.write(20)
@@ -105,7 +105,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(5, 2).once.ordered
         recorder.should_receive(:called).with(5, 7).once.ordered
 
-        component = syskit_deploy_and_start_task_context(component_m, 'task')
+        component = syskit_stub_deploy_configure_and_start(component_m)
         table = table_m.new(component)
         process_events
         component.orocos_task.out1.write(5)
@@ -142,7 +142,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(2).once.ordered
         recorder.should_receive(:called).with(12).once.ordered
 
-        component = syskit_deploy_and_start_task_context(component_m, 'task')
+        component = syskit_stub_deploy_configure_and_start(component_m)
         composition = composition_m.use('test' => component.test2_srv).instanciate(plan)
         composition.depends_on composition.test_child, :success => :success, :remove_when_done => true
         plan.add_permanent(composition)
@@ -192,17 +192,16 @@ describe Syskit::Coordination::DataMonitoringTable do
         recorder.should_receive(:called).with(4, 2).once.ordered
         recorder.should_receive(:called).with(1, 12).once.ordered
 
-        component = syskit_stub_deploy_and_configure(component_m)
-        plan.add_permanent(composition = composition_m.use('test' => component.test1_srv).instanciate(plan))
-        syskit_start_component(composition)
+        composition = syskit_stub_deploy_configure_and_start(composition_m.use('test' => component_m.test1_srv))
         table = table_m.new(composition)
-        process_events
-        Syskit::Runtime.apply_requirement_modifications(plan)
-
-        monitor     = (plan.find_tasks(composition_m).to_a - [composition]).first
+        monitors = (plan.find_tasks(composition_m).to_a - [composition])
+        assert_equal 1, monitors.size
+        monitor = syskit_deploy_configure_and_start(monitors.first)
         # We want the fault table to emit 'success', don't make it an error
         composition.depends_on composition.test_child,
             :success => :success, :remove_when_done => true
+        plan.add_mission(composition)
+        process_events
 
         component = composition.test_child
         component.orocos_task.out1.write(4)
@@ -225,9 +224,9 @@ describe Syskit::Coordination::DataMonitoringTable do
                 trigger_on { |sample| true }.
                 emit table_m.success_event
 
-            component = syskit_stub_deploy_and_configure(component_m, 'task')
+            component = syskit_stub_deploy_and_configure(component_m)
             table = table_m.new(component)
-            syskit_start_component(component)
+            syskit_start(component)
             table.remove!
             component.orocos_task.out.write(10)
             process_events

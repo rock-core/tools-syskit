@@ -186,20 +186,10 @@ describe Syskit::TaskContext do
     end
 
     describe "stop_event" do
-        attr_reader :task, :orocos_task
-        before do
-            @task = stub_roby_task_context do
-                input_port "in", "int"
-                output_port "out", "int"
-            end
-            task.conf = []
-            task.executable = true
-            @orocos_task = flexmock(task.orocos_task)
-        end
         it "disconnects the state readers once emitted" do
-            flexmock(task).should_receive(:state_reader).and_return(reader = flexmock)
-            reader.should_receive(:disconnect).once
-            task.emit :start
+            task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
+            task.create_state_reader
+            flexmock(task.state_reader).should_receive(:disconnect).once
             task.emit :stop
         end
     end
@@ -211,17 +201,15 @@ describe Syskit::TaskContext do
                 input_port "in", "/double"
                 output_port "out", "/double"
             end
-            plan.add(@task = task_m.new(:conf => [], :orocos_name => ""))
-            task.executable = true
-            flexmock(task).should_receive(:orocos_task).and_return(@orocos_task = flexmock)
+            @task = syskit_stub_deploy_and_configure(task_m)
+            @orocos_task = flexmock(task.orocos_task)
             orocos_task.should_receive(:start).by_default
             orocos_task.should_receive(:exception_state?).by_default
             orocos_task.should_receive(:fatal_error_state?).by_default
             orocos_task.should_receive(:runtime_state?).by_default
             orocos_task.should_receive(:error_state?).by_default
-            task.start!
-            flexmock(task).should_receive(:emit).with(:start).once.ordered.pass_thru
             flexmock(task).should_receive(:emit).with(:stop).pass_thru
+            task.start!
         end
 
         after do
@@ -232,12 +220,14 @@ describe Syskit::TaskContext do
         end
 
         it "does nothing if no runtime state has been received" do
+            flexmock(task).should_receive(:emit).with(:start).never
             flexmock(task).should_receive(:orogen_state).and_return(:exception)
             orocos_task.should_receive(:runtime_state?).with(:exception).and_return(false)
             task.handle_state_changes
             assert !task.running?
         end
         it "emits start as soon as a runtime state has been received" do
+            flexmock(task).should_receive(:emit).with(:start).once.pass_thru
             flexmock(task).should_receive(:orogen_state).and_return(:blabla)
             orocos_task.should_receive(:runtime_state?).with(:blabla).and_return(true)
             flexmock(task).should_receive(:state_event).with(:blabla).and_return(:success)
@@ -246,6 +236,7 @@ describe Syskit::TaskContext do
             assert task.running?
         end
         it "emits the event that is mapped to the state" do
+            flexmock(task).should_receive(:emit).with(:start).once.pass_thru
             flexmock(task).should_receive(:orogen_state).and_return(:blabla)
             orocos_task.should_receive(:runtime_state?).with(:blabla).and_return(true)
             flexmock(task).should_receive(:state_event).with(:blabla).and_return(:blabla_event)
@@ -253,6 +244,7 @@ describe Syskit::TaskContext do
             task.handle_state_changes
         end
         it "does not emit running if the last state was not an error state" do
+            flexmock(task).should_receive(:emit).with(:start).once.pass_thru
             orocos_task.should_receive(:runtime_state?).with(:RUNNING).and_return(true)
             flexmock(task).should_receive(:orogen_state).and_return(:RUNNING)
             flexmock(task).should_receive(:last_orogen_state).and_return(:BLA)
@@ -292,7 +284,7 @@ describe Syskit::TaskContext do
                 task.update_orogen_state
             end
             it "emits :aborted if the state reader got disconnected" do
-                task = stub_deploy_and_start('Task')
+                task = syskit_stub_deploy_configure_and_start('Task')
                 task.update_orogen_state
                 task.state_reader.disconnect
                 orocos_task = task.orocos_task
@@ -371,7 +363,6 @@ describe Syskit::TaskContext do
         attr_reader :task, :orocos_task
         before do
             @task = flexmock(syskit_stub_deploy_and_configure('Task') {})
-            task.conf = []
             @orocos_task = flexmock
             task.should_receive(:orocos_task).and_return(orocos_task)
             orocos_task.should_receive(:rtt_state).by_default
@@ -457,11 +448,8 @@ describe Syskit::TaskContext do
     describe "#prepare_for_setup" do
         attr_reader :task, :orocos_task
         before do
-            @task = syskit_stub_deploy_and_configure 'Task' do
-                input_port "in", "/double"
-                output_port "out", "/double"
-            end
-            task.conf = []
+            task_m = Syskit::TaskContext.new_submodel
+            @task = syskit_stub_deploy_and_configure(task_m, as: 'task')
             @orocos_task = flexmock(task.orocos_task)
         end
 
@@ -478,11 +466,11 @@ describe Syskit::TaskContext do
             assert task.prepare_for_setup(:PRE_OPERATIONAL)
         end
         it "does nothing if the state is STOPPED and the task does not need to be reconfigured" do
-            Syskit::TaskContext.configured['task'] = [nil, [], Set.new]
+            Syskit::TaskContext.configured['task'] = [nil, ['default'], Set.new]
             task.prepare_for_setup(:STOPPED)
         end
         it "returns false if the state is STOPPED and the task does not need to be reconfigured" do
-            Syskit::TaskContext.configured['task'] = [nil, [], Set.new]
+            Syskit::TaskContext.configured['task'] = [nil, ['default'], Set.new]
             assert !task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task is marked as requiring reconfiguration" do
@@ -496,52 +484,57 @@ describe Syskit::TaskContext do
             assert task.prepare_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task's configuration changed" do
-            Syskit::TaskContext.configured['task'] = [nil, ['default'], Set.new]
+            Syskit::TaskContext.configured['task'] = [nil, [], Set.new]
             orocos_task.should_receive(:cleanup).once
             assert task.prepare_for_setup(:STOPPED)
         end
         describe "handling of dynamic input ports" do
-            attr_reader :source_task, :orocos_tasks
-            before do
-                srv = Syskit::DataService.new_submodel { input_port 'p', '/double' }
-                task.specialize
-                task.model.orogen_model.dynamic_input_port /.*/, '/double'
-                task.model.provides_dynamic srv, as: 'test', 'p' => 'dynamic'
-                @source_task = syskit_stub_deploy_and_configure 'SourceTask', 'source_task' do
+            it "removes the connections to dynamic input ports from ActualDataFlow" do
+                srv_m = Syskit::DataService.new_submodel { input_port 'p', '/double' }
+                task_m = Syskit::TaskContext.new_submodel do
+                    orogen_model.dynamic_input_port /.*/, '/double'
+                end
+                task_m.dynamic_service srv_m, as: 'test' do
+                    provides srv_m, 'p' => "dynamic"
+                end
+                task = syskit_stub_deploy_and_configure task_m
+                task.require_dynamic_service 'test', as: 'test'
+                source_task = syskit_stub_deploy_and_configure 'SourceTask', as: 'source_task' do
                     input_port "dynamic", "/double"
                 end
-                @orocos_tasks = [source_task.orocos_task, task.orocos_task]
-            end
+                orocos_tasks = [source_task.orocos_task, task.orocos_task]
 
-            it "removes the connections to dynamic input ports from ActualDataFlow" do
                 Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => Hash.new])
                 assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
 
                 Syskit::TaskContext.configured['task'] = nil
-                orocos_task.should_receive(:cleanup).once
+                flexmock(task.orocos_task).should_receive(:cleanup).once
                 assert task.prepare_for_setup(:STOPPED)
                 assert !Syskit::ActualDataFlow.linked?(*orocos_tasks)
             end
         end
         describe "handling of dynamic output ports" do
-            attr_reader :sink_task, :orocos_tasks
-            before do
-                srv = Syskit::DataService.new_submodel { output_port 'p', '/double' }
-                task.specialize
-                task.model.orogen_model.dynamic_output_port /.*/, '/double'
-                task.model.provides_dynamic srv, as: 'test', 'p' => 'dynamic'
-                @sink_task = syskit_stub_deploy_and_configure 'SinkTask', 'sink_task' do
+            it "removes the connections to dynamic output ports from ActualDataFlow" do
+                srv_m = Syskit::DataService.new_submodel { output_port 'p', '/double' }
+                task_m = Syskit::TaskContext.new_submodel do
+                    orogen_model.dynamic_output_port /.*/, '/double'
+                end
+                task_m.dynamic_service srv_m, as: 'test' do
+                    provides srv_m, 'p' => "dynamic"
+                end
+                task = syskit_stub_deploy_and_configure task_m
+                task.require_dynamic_service 'test', as: 'test'
+
+                sink_task = syskit_stub_deploy_and_configure 'SinkTask', as: 'sink_task' do
                     output_port "dynamic", "/double"
                 end
-                @orocos_tasks = [task.orocos_task, sink_task.orocos_task]
-            end
+                orocos_tasks = [task.orocos_task, sink_task.orocos_task]
 
-            it "removes the connections to dynamic output ports from ActualDataFlow" do
                 Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => Hash.new])
                 assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
 
                 Syskit::TaskContext.configured['task'] = nil
-                orocos_task.should_receive(:cleanup).once
+                flexmock(task.orocos_task).should_receive(:cleanup).once
                 assert task.prepare_for_setup(:STOPPED)
                 assert !Syskit::ActualDataFlow.linked?(*orocos_tasks)
             end
@@ -550,11 +543,11 @@ describe Syskit::TaskContext do
     describe "#setup" do
         attr_reader :task, :orocos_task
         before do
-            @task = syskit_stub_deploy_and_configure 'Task' do
+            @task = syskit_stub_and_deploy 'Task', as: 'task' do
                 input_port "in", "int"
                 output_port "out", "int"
             end
-            task.conf = []
+            syskit_start_execution_agents(task, recursive: true)
             @orocos_task = flexmock(task.orocos_task)
             flexmock(task).should_receive(:ready_for_setup?).with(:BLA).and_return(true).by_default
             orocos_task.should_receive(:rtt_state).by_default.and_return(:BLA)
@@ -583,7 +576,7 @@ describe Syskit::TaskContext do
             flexmock(task).should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
             task.needs_reconfiguration!
             task.setup
-            assert_equal [], Syskit::TaskContext.configured['task'][1]
+            assert_equal ['default'], Syskit::TaskContext.configured['task'][1]
         end
         it "calls the user-provided #configure method after prepare_for_setup" do
             flexmock(task).should_receive(:prepare_for_setup).once.
@@ -640,48 +633,24 @@ describe Syskit::TaskContext do
         end
     end
     describe "#configure" do
-        attr_reader :task, :orocos_task
-        before do
-            @task = syskit_stub_deploy_and_configure 'Task' do
-                input_port "in", "int"
-                output_port "out", "int"
-            end
-            @orocos_task = flexmock(task.orocos_task)
-        end
         it "applies the selected configuration" do
-            task.conf = ['my', 'conf']
-            flexmock(task.model.orogen_model).should_receive(:name).and_return('test::Task')
-            flexmock(Orocos.conf).should_receive(:apply).with(orocos_task, ['my', 'conf'], :model_name => 'test::Task', :override => true).once
-            task.configure
-        end
-        it "applies the selected configuration from the parent model on specialized models" do
-            flexmock(task.model.orogen_model).should_receive(:name).and_return('test::Task')
-            task = syskit_stub_deploy_and_configure self.task.model.specialize, 'SpecializedTask'
-            task.conf = ['my', 'conf']
-            flexmock(Orocos.conf).should_receive(:apply).with(task.orocos_task, ['my', 'conf'], :model_name => 'test::Task', :override => true).once
-            task.configure
+            task_m = Syskit::TaskContext.new_submodel name: 'Task' do
+                property 'v', '/int'
+            end
+            task = syskit_stub_and_deploy(task_m.with_conf('my', 'conf'))
+            flexmock(task.model.configuration_manager).should_receive(:conf).
+                with(['my', 'conf'], true).
+                once.
+                and_return('v' => 10)
+            syskit_configure(task)
+            assert_equal 10, task.orocos_task.v
         end
     end
 
     describe "interrupt_event" do
         attr_reader :task, :orocos_task, :deployment
-        before do
-            task_m = Syskit::TaskContext.new_submodel
-            @deployment = stub_syskit_deployment('deployment') do
-                task "task", task_m.orogen_model
-            end
-            @task = deployment.task "task"
-            task.conf = ['default']
-
-            @handler_ids = Syskit::RobyApp::Plugin.plug_engine_in_roby(engine)
-        end
         it "calls stop on the task if it has an execution agent in nominal state" do
-            plan.add_mission(task)
-            deployment.start!
-            task.setup
-            task.is_setup!
-            task.start!
-            assert_event_emission task.start_event
+            task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
             flexmock(task.orocos_task).should_receive(:stop).once.pass_thru
             task.interrupt!
             assert_event_emission task.stop_event
@@ -720,13 +689,16 @@ describe Syskit::TaskContext do
         dev = robot.device device_m, as: 'dev'
         dev.attach_to(bus)
 
-        # Now, deploy !
-        stub_syskit_deployment_model(combus_driver_m, 'bus_task')
-        stub_syskit_deployment_model(device_driver_m, 'dev_task')
-        dev_driver = syskit_run_deployer(dev)
-        bus_driver = plan.find_tasks(combus_driver_m).first
-
         engine.scheduler.enabled = false
+
+        # Now, deploy !
+        syskit_stub_deployment_model(combus_driver_m, 'bus_task')
+        syskit_stub_deployment_model(device_driver_m, 'dev_task')
+        dev_driver = syskit_deploy(dev)
+        bus_driver = plan.find_tasks(combus_driver_m).first
+        syskit_start_execution_agents(bus_driver)
+        syskit_start_execution_agents(dev_driver)
+
         bus_driver.orocos_task.create_output_port 'dev', '/int'
         flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:setup).pass_thru
         flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered(:setup).pass_thru
@@ -740,10 +712,10 @@ describe Syskit::TaskContext do
         attr_reader :transaction
         attr_reader :source_task, :task
         before do
-            @source_task = syskit_stub_deploy_and_configure "SourceTask", 'source_task' do
+            @source_task = syskit_stub_deploy_and_configure "SourceTask", as: 'source_task' do
                 output_port 'out', 'int'
             end
-            @task = syskit_stub_deploy_and_configure "Task", "task" do
+            @task = syskit_stub_deploy_and_configure "Task" do
                 input_port('in', 'int').static
             end
             @transaction = create_transaction

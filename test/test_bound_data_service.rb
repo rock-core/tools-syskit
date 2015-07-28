@@ -103,7 +103,7 @@ class TC_BoundDataService < Minitest::Test
     def test_find_input_port_gives_access_to_unmapped_ports
         base, parent, model, component_model, service_model =
             setup_transitive_services
-        task = syskit_stub_deploy_and_configure(component_model, 'task')
+        task = syskit_stub_deploy_and_configure(component_model)
         service = service_model.bind(task)
         assert_equal task.find_input_port('in_parent_unmapped'), service.find_input_port('in_parent_unmapped').to_component_port
         assert_equal task.find_input_port('in_base_unmapped'), service.find_input_port('in_base_unmapped').to_component_port
@@ -112,7 +112,7 @@ class TC_BoundDataService < Minitest::Test
     def test_find_input_port_gives_access_to_mapped_ports
         base, parent, model, component_model, service_model =
             setup_transitive_services
-        task = syskit_stub_deploy_and_configure(component_model, 'task')
+        task = syskit_stub_deploy_and_configure(component_model)
         service = service_model.bind(task)
         assert_equal task.find_input_port('in_port'), service.find_input_port('in_model').to_component_port
     end
@@ -135,7 +135,7 @@ class TC_BoundDataService < Minitest::Test
     def test_narrowed_find_input_port_gives_access_to_unmapped_ports
         base, parent, model, component_model, service_model =
             setup_transitive_services
-        task = syskit_stub_deploy_and_configure(component_model, 'task')
+        task = syskit_stub_deploy_and_configure(component_model)
         service = service_model.as(parent).bind(task)
         assert_equal task.find_input_port('in_parent_unmapped'), service.find_input_port('in_parent_unmapped').to_component_port
         assert_equal task.find_input_port('in_base_unmapped'), service.find_input_port('in_base_unmapped').to_component_port
@@ -151,7 +151,7 @@ class TC_BoundDataService < Minitest::Test
     def test_narrowed_find_input_port_gives_access_to_mapped_ports
         base, parent, model, component_model, service_model =
             setup_transitive_services
-        task = syskit_stub_deploy_and_configure(component_model, 'task')
+        task = syskit_stub_deploy_and_configure(component_model)
         service = service_model.as(parent).bind(task = component_model.new)
         assert_equal task.find_input_port('in_port'), service.find_input_port('in_parent').to_component_port
     end

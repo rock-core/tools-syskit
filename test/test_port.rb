@@ -175,7 +175,7 @@ describe Syskit::InputWriter do
         policy = Hash[:type => :buffer, :size => 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_writer = abstract_task.in_port.writer(policy)
-        task = syskit_stub_deploy_and_configure(task_m, 'task')
+        task = syskit_stub_deploy_and_configure(task_m)
         plan.replace(abstract_task, task)
 
         syskit_start(task)
@@ -194,7 +194,7 @@ describe Syskit::OutputReader do
         policy = Hash[:type => :buffer, :size => 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_reader = abstract_task.out_port.reader(policy)
-        task = syskit_stub_deploy_and_configure(task_m, 'task')
+        task = syskit_stub_deploy_and_configure(task_m)
         plan.replace(abstract_task, task)
 
         syskit_start(task)

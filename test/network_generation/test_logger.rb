@@ -17,7 +17,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             task 'task', task_m.orogen_model
             add_default_logger
         end
-        @deployment = stub_syskit_deployment('deployment', deployment_m)
+        @deployment = syskit_stub_deployment('deployment', deployment_m)
         flexmock(deployment).should_receive(:log_port?).and_return(true).by_default
         flexmock(syskit_engine).should_receive(:deployment_tasks).and_return([deployment])
 

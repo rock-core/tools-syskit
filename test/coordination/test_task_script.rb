@@ -15,21 +15,21 @@ describe Syskit::Coordination::TaskScriptExtension do
         attr_reader :base_srv_m, :srv_m, :component_m, :composition_m
         before do
             @base_srv_m = Syskit::DataService.new_submodel do
-                input_port 'base_in', '/int'
-                output_port 'base_out', '/int'
+                input_port 'base_in', '/double'
+                output_port 'base_out', '/double'
             end
             @srv_m = Syskit::DataService.new_submodel do
-                input_port 'srv_in', '/int'
-                output_port 'srv_out', '/int'
+                input_port 'srv_in', '/double'
+                output_port 'srv_out', '/double'
             end
             srv_m.provides base_srv_m, 'base_in' => 'srv_in', 'base_out' => 'srv_out'
-            @component_m = stub_syskit_task_context_model 'Task' do
-                input_port 'in', '/int'
-                output_port 'out', '/int'
+            @component_m = syskit_stub_task_context_model 'Task' do
+                input_port 'in', '/double'
+                output_port 'out', '/double'
             end
-            component_m.provides srv_m, :as => 'test'
+            component_m.provides srv_m, as: 'test'
             @composition_m = Syskit::Composition.new_submodel
-            composition_m.add base_srv_m, :as => 'test'
+            composition_m.add base_srv_m, as: 'test'
         end
 
         describe "mapping ports from services using submodel creation" do
@@ -37,10 +37,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                 component = syskit_stub_deploy_and_configure(component_m)
                 composition_m = self.composition_m.new_submodel
                 composition_m.overload 'test', component_m
-                composition = composition_m.use('test' => component).instanciate(plan)
-                plan.add_permanent(composition)
-                syskit_start_component(composition)
-                syskit_start_component(component)
+                composition = syskit_stub_deploy_configure_and_start(composition_m.use('test' => component))
                 return composition, component
             end
 
@@ -72,10 +69,7 @@ describe Syskit::Coordination::TaskScriptExtension do
         describe "mapping ports from services using dependency injection" do
             def start
                 component = syskit_stub_deploy_and_configure(component_m)
-                composition = composition_m.use('test' => component).instanciate(plan)
-                plan.add_permanent(composition)
-                syskit_start_component(composition)
-                syskit_start_component(component)
+                composition = syskit_stub_deploy_configure_and_start(composition_m.use('test' => component))
                 return composition, component
             end
 
@@ -106,7 +100,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                 writer = in_port.writer
             end
             component = syskit_stub_deploy_and_configure(component_m)
-            syskit_start_component(component)
+            syskit_start(component)
             writer.write(10)
             assert_equal 10, component.orocos_task.in.read
         end
@@ -117,7 +111,7 @@ describe Syskit::Coordination::TaskScriptExtension do
                 reader = out_port.reader
             end
             component = syskit_stub_deploy_and_configure(component_m)
-            syskit_start_component(component)
+            syskit_start(component)
             component.orocos_task.out.write(10)
             assert_equal 10, reader.read
         end
@@ -159,15 +153,15 @@ describe Syskit::Coordination::TaskScriptExtension do
         it "does port mapping if necessary" do
             composition_m = Syskit::Composition.new_submodel
             composition_m.add srv_m, as: 'test'
-            composition = composition_m.use('test' => component).instanciate(plan)
+            composition = syskit_stub_and_deploy(composition_m.use('test' => component))
 
             writer = nil
             composition.script do
                 writer = test_child.srv_in_port.writer
             end
 
-            syskit_start_component(composition)
-            syskit_start_component(component)
+            syskit_configure_and_start(composition)
+            syskit_configure_and_start(component)
             writer.write(10)
             assert_equal 10, component.orocos_task.in.read
         end
