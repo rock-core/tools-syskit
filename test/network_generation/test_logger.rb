@@ -13,7 +13,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             output_port 'out2', '/int'
         end
         task_m = @task_m
-        @deployment_m = Syskit::Deployment.new_submodel(:name => 'deployment') do
+        @deployment_m = Syskit::Deployment.new_submodel(name: 'deployment') do
             task 'task', task_m.orogen_model
             add_default_logger
         end

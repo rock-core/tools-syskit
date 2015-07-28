@@ -254,13 +254,13 @@ describe Syskit::Models::TaskContext do
 
         it "registers the model as a constant whose name is based on the oroGen model name, under OroGen" do
             orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
-            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
             assert_same syskit_model, OroGen::MyProject::Task
         end
 
         it "has a name derived from the oroGen model name" do
             orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
-            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
             assert_equal 'OroGen::MyProject::Task', syskit_model.name
         end
 
@@ -268,13 +268,13 @@ describe Syskit::Models::TaskContext do
             orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "definition_module::Task")
             OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
             flexmock(Syskit::TaskContext).should_receive(:warn).once
-            Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
         end
         it "refuses to register the model as a constant if the constant already exists" do
             Syskit.logger.level = Logger::FATAL
             orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "definition_module::Task")
             OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
-            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
             assert_same obj, ::OroGen::DefinitionModule::Task
             OroGen::DefinitionModule.send(:remove_const, :Task)
         end
