@@ -245,7 +245,14 @@ describe Syskit::Models::TaskContext do
         describe "backward-compatible name registration" do
             it "registers the model as a global constant whose name is based on the oroGen model name" do
                 orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
-                syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+                syskit_model =
+                    begin
+                        Roby.app.backward_compatible_naming = true
+                        Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
+                    ensure
+                        Roby.app.backward_compatible_naming = false
+                    end
+
                 with_log_level(Syskit, Logger::FATAL) do
                     assert_same syskit_model, ::MyProject::Task
                 end
