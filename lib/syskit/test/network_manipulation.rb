@@ -40,20 +40,34 @@ module Syskit
                 # For backward-compatibility
                 to_instanciate = to_instanciate.flatten
 
+                # Instanciate all actions until we have a syskit instance
+                # requirement pattern
+                while true
+                    action_tasks, to_instanciate = to_instanciate.partition do |t|
+                        t.respond_to?(:planning_task) &&
+                            t.planning_task.pending? &&
+                            !t.planning_task.respond_to?(:requirements)
+                    end
+                    if action_tasks.empty?
+                        break
+                    else
+                        action_tasks.each do |t|
+                            tracker = t.as_service
+                            assert_any_event(t.planning_task.success_event) do
+                                t.planning_task.start!
+                            end
+                            to_instanciate << tracker.task
+                        end
+                    end
+                end
+
                 emit_calls = Set.new
                 placeholder_tasks = to_instanciate.map do |act|
                     if act.respond_to?(:to_action)
                         act = act.to_action
                     end
-                    task = if act.respond_to?(:as_plan)
-                               act.as_plan
-                           else act.instanciate(plan)
-                           end
-
-                    if (planner = task.planning_task) && planner.respond_to?(:requirements)
-                        plan.add_mission(task)
-                        task
-                    end
+                    plan.add_mission(task = act.as_plan)
+                    task
                 end.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
