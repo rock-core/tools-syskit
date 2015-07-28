@@ -490,6 +490,8 @@ describe Syskit::NetworkGeneration::Engine do
             syskit_engine.resolve
             task.planning_task.emit :success
             return task.task, original_task, task.planning_task
+        ensure
+            plan.unmark_permanent(original_task)
         end
 
         it "deploys a mission as mission" do
@@ -573,9 +575,11 @@ describe Syskit::NetworkGeneration::Engine do
                 deployment = syskit_stub_deployment_model(task_model, 'task')
 
                 deploy_task(composition_model.use('child' => task_model))
+                plan.engine.garbage_collect
                 plan_copy, mappings = plan.deep_copy
 
                 syskit_engine.resolve
+                plan.engine.garbage_collect
                 assert plan.same_plan?(plan_copy, mappings)
             ensure
                 plan_copy.clear if plan_copy
