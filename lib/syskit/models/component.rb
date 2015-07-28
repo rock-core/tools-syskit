@@ -405,8 +405,8 @@ module Syskit
             end
 
 
-            # Declares that this component model instantiates a dynamic service
-            # of the given service model
+            # Declares that this component model will dynamically provide the
+            # ports necessary to provide a service model
             #
             # The main difference when compared to {#provides} is that service
             # ports that are not mapped to the task are automatically created
@@ -420,14 +420,15 @@ module Syskit
             # @param [BoundDataService,String,nil] slave_of if this service is slave of another,
             #   the master service
             # @return [BoundDynamicDataService]
-            def provides_dynamic(service_model, port_mappings = Hash.new, as: nil, slave_of: nil)
+            def provides_dynamic(service_model, port_mappings = Hash.new, as: nil, slave_of: nil, bound_service_class: BoundDataService)
                 # Do not use #filter_options here, it will transform the
                 # port names into symbols
-                port_mappings = DynamicDataService.update_component_model_interface(self, service_model, port_mappings)
+                port_mappings = DynamicDataService.update_component_model_interface(
+                    self, service_model, port_mappings)
                 provides(service_model, port_mappings,
                          as: as,
                          slave_of: slave_of,
-                         bound_service_class: BoundDynamicDataService)
+                         bound_service_class: bound_service_class)
             end
 
             # Called by the dynamic_service accessors to promote dynamic

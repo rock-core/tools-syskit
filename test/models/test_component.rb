@@ -337,7 +337,7 @@ describe Syskit::Models::Component do
                 it "should call provides_dynamic" do
                     srv_m = self.srv_m.new_submodel
                     flexmock(task_m).should_receive(:provides_dynamic).once.
-                        with(srv_m, Hash['out' => 'out_port', 'in' => 'in_port'], Hash[as: 'dyn']).
+                        with(srv_m, Hash['out' => 'out_port', 'in' => 'in_port'], as: 'dyn', bound_service_class: Syskit::Models::BoundDynamicDataService).
                         and_return(result = flexmock)
                     result.should_receive(:dynamic_service=)
                     result.should_receive(:dynamic_service_options=)

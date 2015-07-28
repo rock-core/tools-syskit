@@ -87,7 +87,9 @@ module Syskit
                     if as && as != name
                         raise ArgumentError, "the as: argument was given (with value #{as}) but it is required to be #{name}. Note that it can be omitted in a dynamic service block"
                     end
-                    @service = component_model.provides_dynamic(service_model, port_mappings, as: name, **arguments)
+                    @service = component_model.provides_dynamic(
+                        service_model, port_mappings, as: name,
+                        bound_service_class: BoundDynamicDataService, **arguments)
                     service.dynamic_service = dynamic_service
                     service.dynamic_service_options = self.options.dup
                     service
