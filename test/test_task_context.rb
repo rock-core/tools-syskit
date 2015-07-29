@@ -3,7 +3,7 @@ require 'syskit/test/self'
 describe Syskit::TaskContext do
     describe "#initialize" do
         it "sets up the task object to be non-executable" do
-            plan.add(task = Syskit::TaskContext.new_submodel.new(:orocos_name => "bla", :conf => []))
+            plan.add(task = Syskit::TaskContext.new_submodel.new(orocos_name: "bla", conf: []))
             assert !task.executable?
             # Verify that the task is indeed non-executable because the flag is
             # already set
@@ -61,7 +61,7 @@ describe Syskit::TaskContext do
             assert_equal Syskit::TaskContext::D_SAME_HOST, task0.distance_to(task1)
         end
         it "returns D_DIFFERENT_HOSTS if both tasks are from processes from different hosts" do
-            plan.add(@deployment1 = deployment_m.new(:on => 'other_host'))
+            plan.add(@deployment1 = deployment_m.new(on: 'other_host'))
             task0.executed_by deployment0
             task1.executed_by deployment1
             assert_equal Syskit::TaskContext::D_DIFFERENT_HOSTS, task0.distance_to(task1)
@@ -120,7 +120,7 @@ describe Syskit::TaskContext do
                 input_port "in", "/double"
                 output_port "out", "/double"
             end
-            plan.add(@task = task_m.new(:conf => [], :orocos_name => ""))
+            plan.add(@task = task_m.new(conf: [], orocos_name: ""))
             task.executable = true
             flexmock(task).should_receive(:orocos_task).and_return(@orocos_task = flexmock)
         end
@@ -402,7 +402,7 @@ describe Syskit::TaskContext do
     describe "#is_setup!" do
         attr_reader :task
         before do
-            plan.add(@task = Syskit::TaskContext.new_submodel.new(:orocos_name => "", :conf => []))
+            plan.add(@task = Syskit::TaskContext.new_submodel.new(orocos_name: "", conf: []))
             assert !task.executable?
         end
         it "resets the executable flag if all inputs are connected" do
@@ -431,14 +431,14 @@ describe Syskit::TaskContext do
             @task_m = Syskit::TaskContext.new_submodel
         end
         it "sets the reconfiguration flag to true for a given orocos name" do
-            t0 = task_m.new(:orocos_name => "bla")
-            t1 = task_m.new(:orocos_name => "bla")
+            t0 = task_m.new(orocos_name: "bla")
+            t1 = task_m.new(orocos_name: "bla")
             t0.needs_reconfiguration!
             assert t1.needs_reconfiguration?
         end
         it "does not set the flag for tasks of the same model but different names" do
-            t0 = task_m.new(:orocos_name => "bla")
-            t1 = task_m.new(:orocos_name => "other")
+            t0 = task_m.new(orocos_name: "bla")
+            t1 = task_m.new(orocos_name: "other")
             t0.needs_reconfiguration!
             assert !t1.needs_reconfiguration?
         end
@@ -671,7 +671,7 @@ describe Syskit::TaskContext do
     end
 
     it "should synchronize the startup of communication busses and their supported devices" do
-        combus_m = Syskit::ComBus.new_submodel :message_type => '/int'
+        combus_m = Syskit::ComBus.new_submodel message_type: '/int'
         combus_driver_m = Syskit::TaskContext.new_submodel do
             dynamic_output_port /.*/, '/int'
         end

@@ -56,7 +56,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             end.raise_exception
 
         component = syskit_stub_deploy_and_configure(component_m)
-        table = table_m.new(component, :arg => 10)
+        table = table_m.new(component, arg: 10)
         recorder.should_receive(:called).with(10).at_least.once
         syskit_start(component)
         component.orocos_task.out.write(20)
@@ -74,7 +74,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             end.raise_exception
 
         component = syskit_stub_deploy_and_configure(component_m)
-        table = table_m.new(component, :arg => 10)
+        table = table_m.new(component, arg: 10)
         recorder.should_receive(:called).with(true).at_least.once
         recorder.should_receive(:called).with(false).at_least.once
         syskit_start(component)
@@ -142,7 +142,7 @@ describe Syskit::Coordination::DataMonitoringTable do
 
         component = syskit_stub_deploy_configure_and_start(component_m)
         composition = composition_m.use('test' => component.test2_srv).instanciate(plan)
-        composition.depends_on composition.test_child, :success => :success, :remove_when_done => true
+        composition.depends_on composition.test_child, success: :success, remove_when_done: true
         plan.add_permanent(composition)
 
         table = table_m.new(composition)
@@ -197,7 +197,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         monitor = syskit_deploy_configure_and_start(monitors.first)
         # We want the fault table to emit 'success', don't make it an error
         composition.depends_on composition.test_child,
-            :success => :success, :remove_when_done => true
+            success: :success, remove_when_done: true
         plan.add_mission(composition)
         process_events
 
@@ -237,23 +237,23 @@ describe Syskit::Coordination::DataMonitoringTable do
             table_m.argument :arg
         end
         it "can be added in a transaction" do
-            flexmock(plan).should_receive(:use_data_monitoring_table).with(table_m, :arg => 10).once
+            flexmock(plan).should_receive(:use_data_monitoring_table).with(table_m, arg: 10).once
             plan.in_transaction do |trsc|
-                trsc.use_data_monitoring_table table_m, :arg => 10
+                trsc.use_data_monitoring_table table_m, arg: 10
                 trsc.commit_transaction
             end
         end
         it "is not added if the transaction is discarded" do
             flexmock(plan).should_receive(:use_data_monitoring_table).never
             plan.in_transaction do |trsc|
-                trsc.use_data_monitoring_table table_m, :arg => 10
+                trsc.use_data_monitoring_table table_m, arg: 10
                 trsc.discard_transaction
             end
         end
         it "is added only once if added to the transaction through a fault response table" do
             fault_table_m = Roby::Coordination::FaultResponseTable.new_submodel
-            fault_table_m.use_data_monitoring_table table_m, :arg => 10
-            flexmock(plan).should_receive(:use_data_monitoring_table).with(table_m, :arg => 10).once
+            fault_table_m.use_data_monitoring_table table_m, arg: 10
+            flexmock(plan).should_receive(:use_data_monitoring_table).with(table_m, arg: 10).once
             plan.in_transaction do |trsc|
                 trsc.use_fault_response_table fault_table_m
                 trsc.commit_transaction

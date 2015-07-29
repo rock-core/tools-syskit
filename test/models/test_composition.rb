@@ -361,7 +361,7 @@ describe Syskit::Models::Composition do
                 add(srv, as: 'srv').
                     with_arguments(test: 10)
             end
-            cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task.with_arguments(:bla => 20)))
+            cmp = cmp.instanciate(plan, Syskit::DependencyInjectionContext.new(srv => task.with_arguments(bla: 20)))
             assert_same task, cmp.srv_child.class
             assert_equal [[:bla, 20]], cmp.srv_child.arguments.each_assigned_argument.to_a
         end
@@ -436,8 +436,8 @@ describe Syskit::Models::Composition do
             task_m = simple_task_model
             # The value returned by #find_children_models_and_tasks is a
             # name-to-InstanceSelection mapping
-            srv = flexmock(:selected => flexmock(:component_model => task_m))
-            srv2 = flexmock(:selected => flexmock(:component_model => task_m))
+            srv = flexmock(selected: flexmock(component_model: task_m))
+            srv2 = flexmock(selected: flexmock(component_model: task_m))
             explicit   = Hash['srv' => srv]
             selections = Hash['srv2' => srv2]
             cmp_m = simple_composition_model
@@ -454,7 +454,7 @@ describe Syskit::Models::Composition do
 
             flexmock(final_cmp_m).should_receive(:new).and_throw(:pass)
             catch(:pass) do
-                cmp_m.instanciate(plan, Syskit::DependencyInjectionContext.new, :task_arguments => Hash[:id => 10])
+                cmp_m.instanciate(plan, Syskit::DependencyInjectionContext.new, task_arguments: Hash[id: 10])
             end
         end
 
@@ -497,46 +497,46 @@ describe Syskit::Models::Composition do
             end
 
             it "overrides the :success flag" do
-                composition_model :success => [:failed]
+                composition_model success: [:failed]
                 task = instanciate
-                assert_dependency_contains :success => :failed.to_unbound_task_predicate
+                assert_dependency_contains success: :failed.to_unbound_task_predicate
             end
             it "resets the :failure flag if explicitly given the :success flag" do
-                composition_model :success => [:failed]
+                composition_model success: [:failed]
                 task = instanciate
-                assert_dependency_contains :failure => false.to_unbound_task_predicate
+                assert_dependency_contains failure: false.to_unbound_task_predicate
             end
             it "overrides the :failure flag" do
-                composition_model :failure => [:success]
+                composition_model failure: [:success]
                 task = instanciate
-                assert_dependency_contains :failure => (:start.never.or(:success.to_unbound_task_predicate))
+                assert_dependency_contains failure: (:start.never.or(:success.to_unbound_task_predicate))
             end
             it "resets the :success flag if explicitly given the :failure flag" do
-                composition_model :failure => [:success]
+                composition_model failure: [:success]
                 task = instanciate
-                assert_dependency_contains :success => nil
+                assert_dependency_contains success: nil
             end
             it "adds additional roles to the default ones" do
-                composition_model :roles => ['a_new_role']
+                composition_model roles: ['a_new_role']
                 task = instanciate
-                assert_dependency_contains :roles => ['a_new_role', 'srv'].to_set
+                assert_dependency_contains roles: ['a_new_role', 'srv'].to_set
             end
             it "overrides remove_when_done" do
                 skip "feature not implemented"
-                composition_model :remove_when_done => true
+                composition_model remove_when_done: true
                 task = instanciate
-                assert_dependency_contains :remove_when_done => true
+                assert_dependency_contains remove_when_done: true
             end
             it "overrides consider_in_pending" do
                 skip "feature not implemented"
-                composition_model :consider_in_pending => true
+                composition_model consider_in_pending: true
                 task = instanciate
-                assert_dependency_contains :consider_in_pending => true
+                assert_dependency_contains consider_in_pending: true
             end
-            it "uses :failure => [:stop] as default dependency option" do
+            it "uses failure: [:stop] as default dependency option" do
                 composition_model(Hash.new)
                 task = instanciate
-                assert_dependency_contains :failure => :start.never.or(:stop.to_unbound_task_predicate)
+                assert_dependency_contains failure: :start.never.or(:stop.to_unbound_task_predicate)
             end
         end
     end
@@ -830,7 +830,7 @@ describe Syskit::Models::Composition do
             y_spec    = cmp_m.specialize cmp_m.test_child => y_srv_m
             result = cmp_m.narrow(
                 Syskit::DependencyInjection.new('test' => task_m),
-                :specialization_hints => ['test' => x_srv_m])
+                specialization_hints: ['test' => x_srv_m])
             assert_equal [x_spec].to_set, result.applied_specializations
         end
     end

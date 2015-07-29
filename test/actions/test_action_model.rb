@@ -33,7 +33,7 @@ describe Syskit::Actions::Models::Action do
         it "sets the job ID on the planning task" do
             req = Syskit::InstanceRequirements.new
             action_m = Syskit::Actions::Models::Action.new(nil, req)
-            plan.add(task = action_m.plan_pattern(:job_id => 20, test: 10))
+            plan.add(task = action_m.plan_pattern(job_id: 20, test: 10))
             assert_equal 20, task.planning_task.job_id
         end
         it "does not set the job ID at all if not given" do
@@ -50,7 +50,7 @@ describe Syskit::Actions::Models::Action do
         before do
             @req = Syskit::InstanceRequirements.new
             @action_m = Syskit::Actions::Models::Action.new(nil, req)
-            @interface = flexmock(:plan => plan)
+            @interface = flexmock(plan: plan)
         end
         it "adds the task to the interface's plan" do
             task = action_m.run(interface, test: 10)

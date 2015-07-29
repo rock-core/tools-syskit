@@ -24,7 +24,7 @@ describe Syskit::Robot::MasterDeviceInstance do
         attr_reader :robot, :bus, :dev
         before do
             @device_m = Syskit::Device.new_submodel
-            @combus_m = Syskit::ComBus.new_submodel :message_type => "/double"
+            @combus_m = Syskit::ComBus.new_submodel message_type: "/double"
             @robot = Syskit::Robot::RobotDefinition.new
             combus_driver_m = Syskit::TaskContext.new_submodel do
                 dynamic_input_port /^w\w+$/, "/double"
@@ -72,14 +72,14 @@ describe Syskit::Robot::MasterDeviceInstance do
     describe "#slave" do
         it "should be able to create a slave device from a driver service slave" do
             slave_m = Syskit::DataService.new_submodel
-            task_m.provides slave_m, as: 'slave', :slave_of => task_m.driver_srv
+            task_m.provides slave_m, as: 'slave', slave_of: task_m.driver_srv
             slave_device = device.slave 'slave'
             assert_equal device, slave_device.master_device
             assert_equal task_m.driver_srv.slave_srv, slave_device.service
         end
         it "should return existing slave devices" do
             slave_m = Syskit::DataService.new_submodel
-            task_m.provides slave_m, as: 'slave', :slave_of => task_m.driver_srv
+            task_m.provides slave_m, as: 'slave', slave_of: task_m.driver_srv
             slave_device = device.slave 'slave'
             assert_same slave_device, device.slave('slave')
         end
@@ -101,7 +101,7 @@ describe Syskit::Robot::SlaveDeviceInstance do
         slave_m = @slave_m = Syskit::DataService.new_submodel
         @task_m = Syskit::TaskContext.new_submodel do
             driver_for device_m, as: 'driver'
-            provides slave_m, as: 'slave', :slave_of => 'driver'
+            provides slave_m, as: 'slave', slave_of: 'driver'
         end
         @device = robot.device device_m, as: 'dev'
         @slave_device = device.slave('slave')

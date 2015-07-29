@@ -57,7 +57,7 @@ describe Syskit::Coordination::Models::TaskExtension do
         action_m.describe('').required_arg('arg')
         action_m.action_state_machine :test_machine do
             task = state component_m
-            task.monitor('thresholding', task.out_port, :test_arg => arg).
+            task.monitor('thresholding', task.out_port, test_arg: arg).
                 trigger_on do |value|
                     recorder.called(test_arg)
                     false
@@ -65,10 +65,10 @@ describe Syskit::Coordination::Models::TaskExtension do
             start task
         end
         assert_equal Roby::Coordination::Models::Base::Argument.new(:test_arg, true, nil), task.data_monitoring_table.arguments[:test_arg]
-        assert_equal Hash[:arg => :test_arg], task.data_monitoring_arguments
+        assert_equal Hash[arg: :test_arg], task.data_monitoring_arguments
 
         syskit_stub_deployment_model(component_m)
-        task = action_m.test_machine(:arg => 0).instanciate(plan)
+        task = action_m.test_machine(arg: 0).instanciate(plan)
         recorder.should_receive(:called).with(0).once
         plan.add_mission(task)
         task.start!

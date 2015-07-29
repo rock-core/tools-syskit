@@ -349,7 +349,7 @@ describe Syskit::Models::SpecializationManager do
                 with('child' => task_m).
                 and_return([[flexmock(:weak_match? => true), []], [flexmock(:weak_match? => true), []]])
             assert_raises(Syskit::AmbiguousSpecialization) do
-                mng.matching_specialized_model(selection, :strict => true)
+                mng.matching_specialized_model(selection, strict: true)
             end
         end
         it "uses the common subset if more than one specialization matches and strict is not set" do
@@ -360,7 +360,7 @@ describe Syskit::Models::SpecializationManager do
                 with(matches).and_return(matches[0])
             flexmock(mng).should_receive(:specialized_model).once.
                 with(matches[0][0], matches[0][1]).and_return(model = flexmock)
-            assert_equal model, mng.matching_specialized_model(selection, :strict => false)
+            assert_equal model, mng.matching_specialized_model(selection, strict: false)
         end
         it "applies specializations that are orthogonal from the service selection" do
             task_spec = cmp_m.specialize cmp_m.test_child => task_m
@@ -368,7 +368,7 @@ describe Syskit::Models::SpecializationManager do
                 instance_selection_for('test', cmp_m.test_child)
             selection = Hash['test' => selection]
             result = cmp_m.specializations.
-                matching_specialized_model(selection, :strict => true)
+                matching_specialized_model(selection, strict: true)
             assert result.applied_specializations.include?(task_spec)
         end
         it "can disambiguate among the possible specializations based on the selected services" do
@@ -379,7 +379,7 @@ describe Syskit::Models::SpecializationManager do
             flexmock(mng).should_receive(:find_matching_specializations).with('test' => task_m).and_return(matches)
             flexmock(mng).should_receive(:specialized_model).once.
                 with(matches[0][0], matches[0][1]).and_return(model = flexmock)
-            assert_equal model, mng.matching_specialized_model(selection, :strict => true)
+            assert_equal model, mng.matching_specialized_model(selection, strict: true)
         end
         it "can disambiguate among the possible specializations based on the specialization hints" do
             selection = flexmock
@@ -392,8 +392,8 @@ describe Syskit::Models::SpecializationManager do
             flexmock(mng).should_receive(:specialized_model).once.
                 with(matches[0][0], matches[0][1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(
-                selection, :strict => true,
-                :specialization_hints => [hint])
+                selection, strict: true,
+                specialization_hints: [hint])
         end
     end
 

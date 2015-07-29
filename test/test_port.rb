@@ -157,7 +157,7 @@ describe Syskit::InputWriter do
         task_m = Syskit::TaskContext.new_submodel do
             input_port 'in', '/double'
         end
-        policy = Hash[:type => :buffer, :size => 10]
+        policy = Hash[type: :buffer, size: 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_writer = abstract_task.in_port.writer(policy)
         flexmock(Typelib).should_receive(:from_ruby).once.with([], abstract_task.in_port.type)
@@ -168,7 +168,7 @@ describe Syskit::InputWriter do
         task_m = Syskit::TaskContext.new_submodel do
             input_port 'in', '/double'
         end
-        policy = Hash[:type => :buffer, :size => 10]
+        policy = Hash[type: :buffer, size: 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_writer = abstract_task.in_port.writer(policy)
         task = syskit_stub_deploy_and_configure(task_m)
@@ -185,7 +185,7 @@ describe Syskit::OutputReader do
         task_m = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'
         end
-        policy = Hash[:type => :buffer, :size => 10]
+        policy = Hash[type: :buffer, size: 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_reader = abstract_task.out_port.reader(policy)
         task = syskit_stub_deploy_and_configure(task_m)

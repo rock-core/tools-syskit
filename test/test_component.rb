@@ -127,7 +127,7 @@ describe Syskit::Component do
 
             task_m.driver_for master_m, as: 'driver'
             dyn = task_m.dynamic_service slave_m, as: 'device_dyn' do
-                provides slave_m, as: name, :slave_of => 'driver'
+                provides slave_m, as: name, slave_of: 'driver'
             end
             task = task_m.new
             task.require_dynamic_service 'device_dyn', as: 'slave'
@@ -210,7 +210,7 @@ describe Syskit::Component do
             srv_m = @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel do
                 dynamic_service srv_m, as: 'dyn' do
-                    provides (options[:model] || srv_m.new_submodel), as: name, :slave_of => options[:master]
+                    provides (options[:model] || srv_m.new_submodel), as: name, slave_of: options[:master]
                 end
             end
             @task, @merged_task = task_m.new, task_m.new
@@ -238,7 +238,7 @@ describe Syskit::Component do
         end
         it "adds dynamic services from the merged task" do
             merged_task.specialize
-            merged_task.require_dynamic_service 'dyn', as: 'srv', :model => (actual_m = srv_m.new_submodel)
+            merged_task.require_dynamic_service 'dyn', as: 'srv', model: (actual_m = srv_m.new_submodel)
             task.specialize
             flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, Hash.new, as: 'srv', slave_of: nil, bound_service_class: Syskit::Models::BoundDynamicDataService).once.pass_thru
             task.merge(merged_task)
@@ -246,7 +246,7 @@ describe Syskit::Component do
         it "adds slave dynamic services as slaves" do
             task_m.provides srv_m, as: 'master'
             merged_task.specialize
-            merged_task.require_dynamic_service 'dyn', as: 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
+            merged_task.require_dynamic_service 'dyn', as: 'srv', model: (actual_m = srv_m.new_submodel), master: 'master'
             task.specialize
             flexmock(task.model).should_receive(:provides_dynamic).with(actual_m, Hash.new, as: 'srv', slave_of: 'master', bound_service_class: Syskit::Models::BoundDynamicDataService).once.pass_thru
             task.merge(merged_task)
@@ -256,7 +256,7 @@ describe Syskit::Component do
             task_m.provides srv_m, as: 'master'
             task_m = task_m.specialize
             merged_task_m = task_m.specialize
-            merged_task_m.require_dynamic_service 'dyn', as: 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
+            merged_task_m.require_dynamic_service 'dyn', as: 'srv', model: (actual_m = srv_m.new_submodel), master: 'master'
             plan.add(merged_task = merged_task_m.new)
             plan.add(task = task_m.new)
             flexmock(task).should_receive(:specialize).once
@@ -266,7 +266,7 @@ describe Syskit::Component do
             task_m = self.task_m.new_submodel
             task_m.provides srv_m, as: 'master'
             merged_task_m = task_m.specialize
-            merged_task_m.require_dynamic_service 'dyn', as: 'srv', :model => (actual_m = srv_m.new_submodel), :master => 'master'
+            merged_task_m.require_dynamic_service 'dyn', as: 'srv', model: (actual_m = srv_m.new_submodel), master: 'master'
             plan.add(task = task_m.new)
             plan.add(merged_task = merged_task_m.new)
             task.merge(merged_task)
@@ -295,7 +295,7 @@ describe Syskit::Component do
                 @task_m = Syskit::Component.new_submodel do
                     argument :arg
                 end
-                @default_arg = flexmock(:evaluate_delayed_argument => 10)
+                @default_arg = flexmock(evaluate_delayed_argument: 10)
             end
 
             it "propagates default arguments to components that have no argument at all" do
@@ -305,7 +305,7 @@ describe Syskit::Component do
                 assert_equal default_arg, receiver.arguments.values[:arg]
             end
             it "does not propagate a default argument if the receiver has a default argument set" do
-                receiver_arg = flexmock(:evaluate_delayed_argument => 20)
+                receiver_arg = flexmock(evaluate_delayed_argument: 20)
                 plan.add(receiver = task_m.new(arg: receiver_arg))
                 plan.add(argument = task_m.new(arg: default_arg))
                 receiver.merge(argument)
@@ -487,8 +487,8 @@ describe Syskit::Component do
             task_m = Syskit::Component.new_submodel do
                 argument :arg
             end
-            req = task_m.new(:arg => 10).to_instance_requirements
-            assert_equal Hash[:arg => 10], req.arguments.to_hash
+            req = task_m.new(arg: 10).to_instance_requirements
+            assert_equal Hash[arg: 10], req.arguments.to_hash
         end
         it "should not list unassigned arguments" do
             task_m = Syskit::Component.new_submodel do
@@ -529,15 +529,15 @@ class TC_Component < Minitest::Test
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
-        source_task.connect_ports(sink_task, ['out', 'out'] => {:type => :buffer, :size => 20 })
-        assert_equal({['out', 'out'] => {:type => :buffer, :size => 20 }},
+        source_task.connect_ports(sink_task, ['out', 'out'] => {type: :buffer, size: 20 })
+        assert_equal({['out', 'out'] => {type: :buffer, size: 20 }},
                      source_task[sink_task, Syskit::Flows::DataFlow])
         assert(source_task.connected_to?('out', sink_task, 'out'))
-        source_task.connect_ports(sink_task, ['out', 'other'] => {:type => :buffer, :size => 30 })
+        source_task.connect_ports(sink_task, ['out', 'other'] => {type: :buffer, size: 30 })
         assert_equal(
             {
-                ['out', 'out'] => {:type => :buffer, :size => 20 },
-                ['out', 'other'] => {:type => :buffer, :size => 30 }
+                ['out', 'out'] => {type: :buffer, size: 20 },
+                ['out', 'other'] => {type: :buffer, size: 30 }
             }, source_task[sink_task, Syskit::Flows::DataFlow])
         assert(source_task.connected_to?('out', sink_task, 'out'))
         assert(source_task.connected_to?('out', sink_task, 'other'))
@@ -554,13 +554,13 @@ class TC_Component < Minitest::Test
         plan.add(sink_task = sink_model.new)
 
         assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task, ['out', 'does_not_exist'] => {:type => :buffer, :size => 20 })
+            source_task.connect_ports(sink_task, ['out', 'does_not_exist'] => {type: :buffer, size: 20 })
         end
         assert(!Syskit::Flows::DataFlow.include?(source_task))
         assert(!Syskit::Flows::DataFlow.include?(sink_task))
 
         assert_raises(ArgumentError) do
-            source_task.connect_ports(sink_task, ['does_not_exist', 'out'] => {:type => :buffer, :size => 20 })
+            source_task.connect_ports(sink_task, ['does_not_exist', 'out'] => {type: :buffer, size: 20 })
         end
         assert(!Syskit::Flows::DataFlow.include?(source_task))
         assert(!Syskit::Flows::DataFlow.include?(sink_task))
@@ -578,15 +578,15 @@ class TC_Component < Minitest::Test
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
-        source_task.connect_ports(sink_task, ['out', 'out'] => {:type => :buffer, :size => 20 })
-        source_task.connect_ports(sink_task, ['out', 'other'] => {:type => :buffer, :size => 30 })
+        source_task.connect_ports(sink_task, ['out', 'out'] => {type: :buffer, size: 20 })
+        source_task.connect_ports(sink_task, ['out', 'other'] => {type: :buffer, size: 30 })
         assert(source_task.connected_to?('out', sink_task, 'out'))
         assert(source_task.connected_to?('out', sink_task, 'other'))
 
         source_task.disconnect_ports(sink_task, [%w{out other}])
         assert_equal(
             {
-                ['out', 'out'] => {:type => :buffer, :size => 20 }
+                ['out', 'out'] => {type: :buffer, size: 20 }
             }, source_task[sink_task, Syskit::Flows::DataFlow])
         assert(source_task.connected_to?('out', sink_task, 'out'))
         assert(!source_task.connected_to?('out', sink_task, 'other'))
@@ -601,25 +601,25 @@ class TC_Component < Minitest::Test
         end
         plan.add(source_task = source_model.new)
         plan.add(sink_task = sink_model.new)
-        source_task.connect_ports(sink_task, ['out', 'out'] => {:type => :buffer, :size => 20 })
+        source_task.connect_ports(sink_task, ['out', 'out'] => {type: :buffer, size: 20 })
 
         assert_raises(ArgumentError) do
             source_task.disconnect_ports(sink_task, [['out', 'does_not_exist']])
         end
         assert_equal(
-            { ['out', 'out'] => {:type => :buffer, :size => 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
+            { ['out', 'out'] => {type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
 
         assert_raises(ArgumentError) do
             source_task.disconnect_ports(sink_task, [['does_not_exist', 'out']])
         end
         assert_equal(
-            { ['out', 'out'] => {:type => :buffer, :size => 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
+            { ['out', 'out'] => {type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
 
         assert_raises(ArgumentError) do
             source_task.disconnect_ports(sink_task, [['does_not_exist', 'does_not_exist']])
         end
         assert_equal(
-            { ['out', 'out'] => {:type => :buffer, :size => 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
+            { ['out', 'out'] => {type: :buffer, size: 20 } }, source_task[sink_task, Syskit::Flows::DataFlow])
     end
 
     def test_disconnect_ports_non_existent_connection
@@ -643,21 +643,21 @@ class TC_Component < Minitest::Test
         model = Syskit::TaskContext.new_submodel name: "Model"
         submodel = model.new_submodel name: "Submodel"
 
-        plan.add(merged_task = model.new(:id => 'test'))
-        merged_task.fullfilled_model = [Component, [], {:id => 'test'}]
+        plan.add(merged_task = model.new(id: 'test'))
+        merged_task.fullfilled_model = [Component, [], {id: 'test'}]
         plan.add(merging_task = submodel.new)
 
         merging_task.merge(merged_task)
-        assert_equal([[Component], {:id => 'test'}],
+        assert_equal([[Component], {id: 'test'}],
                      merging_task.fullfilled_model)
 
         plan.add(merged_task = model.new)
-        merged_task.fullfilled_model = [Component, [], {:id => 'test'}]
-        plan.add(merging_task = submodel.new(:id => 'test'))
+        merged_task.fullfilled_model = [Component, [], {id: 'test'}]
+        plan.add(merging_task = submodel.new(id: 'test'))
         merging_task.fullfilled_model = [model, [], {}]
 
         merging_task.merge(merged_task)
-        assert_equal([[model], {:id => 'test'}],
+        assert_equal([[model], {id: 'test'}],
                      merging_task.fullfilled_model)
     end
 
@@ -672,7 +672,7 @@ class TC_Component < Minitest::Test
     def test_data_reader_passes_policy
         task = flexmock(Component.new)
         port = flexmock
-        policy = Hash[:pull => true, :type => :buffer, :size => 20]
+        policy = Hash[pull: true, type: :buffer, size: 20]
         port.should_receive(:reader).once.with(policy)
         task.should_receive(:find_output_port).once.with('out').and_return(port)
         task.data_reader('out', policy)
@@ -688,20 +688,20 @@ class TC_Component < Minitest::Test
         task = flexmock(Component.new)
         port = flexmock
         port.should_receive(:reader).
-            once.with(:pull => true, :type => :buffer, :size => 20)
+            once.with(pull: true, type: :buffer, size: 20)
         task.should_receive(:find_output_port).
             once.with('out').and_return(port)
-        task.data_reader('out', :type => :buffer, :size => 20)
+        task.data_reader('out', type: :buffer, size: 20)
     end
 
     def test_data_reader_allows_to_override_pull_flag
         task = flexmock(Component.new)
         port = flexmock
         port.should_receive(:reader).
-            once.with(:pull => false, :type => :buffer, :size => 20)
+            once.with(pull: false, type: :buffer, size: 20)
         task.should_receive(:find_output_port).
             once.with('out').and_return(port)
-        task.data_reader('out', :type => :buffer, :size => 20, :pull => false)
+        task.data_reader('out', type: :buffer, size: 20, pull: false)
     end
 
     def test_data_writer_creates_writer_on_associated_port
@@ -715,7 +715,7 @@ class TC_Component < Minitest::Test
     def test_data_writer_passes_policy
         task = flexmock(Component.new)
         port = flexmock
-        policy = Hash[:type => :buffer, :size => 20]
+        policy = Hash[type: :buffer, size: 20]
         port.should_receive(:writer).once.with(policy)
         task.should_receive(:find_input_port).once.with('in').and_return(port)
         task.data_writer('in', policy)

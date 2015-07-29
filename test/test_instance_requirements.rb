@@ -244,7 +244,7 @@ describe Syskit::InstanceRequirements do
         end
         it "should raise if a name to value mapping is invalid for a known child, even though the model does not respond to #fullfills?" do
             simple_composition_model.overload('srv', simple_component_model)
-            req = flexmock(:to_instance_requirements => Syskit::TaskContext.new_submodel.to_instance_requirements)
+            req = flexmock(to_instance_requirements: Syskit::TaskContext.new_submodel.to_instance_requirements)
             assert_raises(Syskit::InvalidSelection) do
                 simple_composition_model.use('srv' => req)
             end

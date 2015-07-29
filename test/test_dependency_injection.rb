@@ -466,7 +466,7 @@ class TC_DependencyInjection < Minitest::Test
         c0 = Component.new_submodel
         srv = DataService.new_submodel
         c0.provides srv, as: 'srv'
-        c0.provides srv, as: 'slave', :slave_of => 'srv'
+        c0.provides srv, as: 'slave', slave_of: 'srv'
         assert_equal c0.srv_srv.slave_srv, DependencyInjection.find_name_resolution('name.srv.slave', 'name' => c0)
     end
 

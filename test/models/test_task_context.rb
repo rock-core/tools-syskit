@@ -186,7 +186,7 @@ describe Syskit::Models::TaskContext do
         it "calls new_submodel to create the new model" do
             model = Syskit::TaskContext.new_submodel
             orogen = OroGen::Spec::TaskContext.new(Orocos.default_project)
-            flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel).with(:orogen_model => orogen).once.and_return(model)
+            flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel).with(orogen_model: orogen).once.and_return(model)
             assert_same model, Syskit::TaskContext.define_from_orogen(orogen)
         end
 
@@ -196,12 +196,12 @@ describe Syskit::Models::TaskContext do
             parent_model = Syskit::TaskContext.new_submodel
             orogen.subclasses orogen_parent
             flexmock(Syskit::TaskContext).
-                should_receive(:define_from_orogen).with(orogen, :register => false).
+                should_receive(:define_from_orogen).with(orogen, register: false).
                 pass_thru
             flexmock(Syskit::TaskContext).
-                should_receive(:define_from_orogen).with(orogen_parent, :register => false).
+                should_receive(:define_from_orogen).with(orogen_parent, register: false).
                 and_return(parent_model)
-            model = Syskit::TaskContext.define_from_orogen(orogen, :register => false)
+            model = Syskit::TaskContext.define_from_orogen(orogen, register: false)
             assert_same parent_model, model.superclass
         end
     
@@ -294,12 +294,12 @@ describe Syskit::Models::TaskContext do
         end
 
         it "passes the :task_arguments option as arguments to the newly created task" do
-            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, :task_arguments => {:conf => ['default']})
-            assert_equal Hash[:conf => ['default']], task.arguments
+            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, task_arguments: {conf: ['default']})
+            assert_equal Hash[conf: ['default']], task.arguments
         end
         it "sets the fullfilled model properly" do
-            arguments = Hash[:conf => ['default']]
-            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, :task_arguments => arguments)
+            arguments = Hash[conf: ['default']]
+            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, task_arguments: arguments)
             assert_equal([[task_model], arguments], task.fullfilled_model)
         end
     end

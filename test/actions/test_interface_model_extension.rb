@@ -84,8 +84,8 @@ describe Syskit::Actions::InterfaceModelExtension do
             profile.define('test', task_m)
             actions.use_profile(profile)
             act = actions.new(plan)
-            plan.add(task = act.test_def(:arg0 => 10))
-            assert_equal Hash[:arg0 => 10], task.planning_task.requirements.arguments
+            plan.add(task = act.test_def(arg0: 10))
+            assert_equal Hash[arg0: 10], task.planning_task.requirements.arguments
         end
 
         it "should make task arguments that do not have a default but are selected in the instance requirements an optional argument of the action model" do
@@ -113,7 +113,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             actions.use_profile(profile)
 
             actions = self.actions.new(plan)
-            plan.add(act = actions.def_def(:arg0 => 10))
+            plan.add(act = actions.def_def(arg0: 10))
             assert_equal 10, act.arg0
         end
     end
@@ -152,8 +152,8 @@ describe Syskit::Actions::InterfaceModelExtension do
             assert_equal task_m, task.planning_task.requirements.model
         end
         it "should allow passing arguments if the main model has some" do
-            task_m, task = call_action_method(:arg0 => 10) { argument :arg0 }
-            assert_equal Hash[:arg0 => 10], task.planning_task.requirements.arguments
+            task_m, task = call_action_method(arg0: 10) { argument :arg0 }
+            assert_equal Hash[arg0: 10], task.planning_task.requirements.arguments
         end
         it "should require passing arguments if the main model has some without defaults" do
             task_m = Syskit::TaskContext.new_submodel do

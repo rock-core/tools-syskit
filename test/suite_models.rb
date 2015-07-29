@@ -3,6 +3,7 @@ if !ENV['SYSKIT_ENABLE_COVERAGE']
 end
 require 'syskit/test/self'
 
+require './test/models/test_configured_deployment'
 require './test/models/test_base'
 require './test/models/test_port'
 require './test/models/test_bound_data_service'

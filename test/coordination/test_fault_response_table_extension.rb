@@ -80,21 +80,21 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
 
 
         it "should allow giving static arguments to the used data monitoring tables" do
-            fault_m.use_data_monitoring_table data_m, :arg => 10
-            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, :arg => 10)
-            plan.use_fault_response_table fault_m, :test_arg => 20
+            fault_m.use_data_monitoring_table data_m, arg: 10
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, arg: 10)
+            plan.use_fault_response_table fault_m, test_arg: 20
         end
 
         it "should allow passing fault response arguments to the used data monitoring tables" do
-            fault_m.use_data_monitoring_table data_m, :arg => fault_m.test_arg
-            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, :arg => 10)
-            plan.use_fault_response_table fault_m, :test_arg => 10
+            fault_m.use_data_monitoring_table data_m, arg: fault_m.test_arg
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, arg: 10)
+            plan.use_fault_response_table fault_m, test_arg: 10
         end
 
         it "should allow passing fault response arguments that are also name of arguments on the fault response table" do
-            fault_m.use_data_monitoring_table data_m, :arg => :test_arg
-            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, :arg => :test_arg)
-            plan.use_fault_response_table fault_m, :test_arg => 10
+            fault_m.use_data_monitoring_table data_m, arg: :test_arg
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, arg: :test_arg)
+            plan.use_fault_response_table fault_m, test_arg: 10
         end
 
         it "should raise if the embedded data monitoring table requires arguments that do not exist on the fault response table" do

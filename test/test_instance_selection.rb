@@ -71,7 +71,7 @@ describe Syskit::InstanceSelection do
         it "should instanciate the selected requirements if no component is selected" do
             req = Syskit::InstanceRequirements.new
             flexmock(req).should_receive(:instanciate).and_return(task = Object.new)
-            sel = Syskit::InstanceSelection.new(nil, flexmock(:service => nil, :dup => req))
+            sel = Syskit::InstanceSelection.new(nil, flexmock(service: nil, dup: req))
             assert_same task, sel.instanciate(plan)
         end
         it "should apply the selected service on the selected component if there is one" do

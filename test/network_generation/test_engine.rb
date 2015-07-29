@@ -264,22 +264,22 @@ describe Syskit::NetworkGeneration::Engine do
         it "resolves ambiguity by orocos_name" do
             candidates = [['localhost', Object.new, 'task'], ['other_machine', Object.new, 'other_task']]
             assert_equal candidates[1],
-                syskit_engine.resolve_deployment_ambiguity(candidates, flexmock(:orocos_name => 'other_task'))
+                syskit_engine.resolve_deployment_ambiguity(candidates, flexmock(orocos_name: 'other_task'))
         end
         it "resolves ambiguity by deployment hints if there are no name" do
             candidates = [['localhost', Object.new, 'task'], ['other_machine', Object.new, 'other_task']]
-            task = flexmock(:orocos_name => nil, :deployment_hints => [/other/])
+            task = flexmock(orocos_name: nil, deployment_hints: [/other/])
             assert_equal candidates[1],
                 syskit_engine.resolve_deployment_ambiguity(candidates, task)
         end
         it "returns nil if there are neither an orocos name nor hints" do
             candidates = [['localhost', Object.new, 'task'], ['other_machine', Object.new, 'other_task']]
-            task = flexmock(:orocos_name => nil, :deployment_hints => [], :model => nil)
+            task = flexmock(orocos_name: nil, deployment_hints: [], model: nil)
             assert !syskit_engine.resolve_deployment_ambiguity(candidates, task)
         end
         it "returns nil if the hints don't allow to resolve the ambiguity" do
             candidates = [['localhost', Object.new, 'task'], ['other_machine', Object.new, 'other_task']]
-            task = flexmock(:orocos_name => nil, :deployment_hints => [/^other/, /^task/], :model => nil)
+            task = flexmock(orocos_name: nil, deployment_hints: [/^other/, /^task/], model: nil)
             assert !syskit_engine.resolve_deployment_ambiguity(candidates, task)
         end
     end
@@ -295,14 +295,14 @@ describe Syskit::NetworkGeneration::Engine do
             ]
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments).by_default
-            syskit_engine.prepare(:validate_deployed_network => false, :validate_final_network => false)
+            syskit_engine.prepare(validate_deployed_network: false, validate_final_network: false)
         end
 
         it "creates the necessary deployment task and uses #task to get the deployed task context" do
             syskit_engine.work_plan.add(task = task_models[0].new)
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
-                with(:on => 'machine').
+                with(on: 'machine').
                 and_return(deployment_task = flexmock(Roby::Task.new))
             # Add it to the work plan
             flexmock(syskit_engine.work_plan).should_receive(:add_task).once.with(deployment_task).ordered
@@ -314,8 +314,8 @@ describe Syskit::NetworkGeneration::Engine do
             syskit_engine.deploy_system_network
         end
         it "instanciates the same deployment only once on the same machine" do
-            syskit_engine.work_plan.add(task0 = task_models[0].new(:orocos_name => 'task'))
-            syskit_engine.work_plan.add(task1 = task_models[0].new(:orocos_name => 'other_task'))
+            syskit_engine.work_plan.add(task0 = task_models[0].new(orocos_name: 'task'))
+            syskit_engine.work_plan.add(task1 = task_models[0].new(orocos_name: 'other_task'))
 
             deployments = Hash[
                 task_models[0] => [['machine', deployment_models[0], 'task'], ['machine', deployment_models[0], 'other_task']]
@@ -327,7 +327,7 @@ describe Syskit::NetworkGeneration::Engine do
 
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
-                with(:on => 'machine').
+                with(on: 'machine').
                 and_return(deployment_task = flexmock(Roby::Task.new))
             deployment_task.should_receive(:task).with('task').once
             deployment_task.should_receive(:task).with('other_task').once
@@ -336,8 +336,8 @@ describe Syskit::NetworkGeneration::Engine do
             assert_equal [], syskit_engine.deploy_system_network
         end
         it "instanciates the same deployment twice if on two different machines" do
-            syskit_engine.work_plan.add(task0 = task_models[0].new(:orocos_name => 'task'))
-            syskit_engine.work_plan.add(task1 = task_models[0].new(:orocos_name => 'other_task'))
+            syskit_engine.work_plan.add(task0 = task_models[0].new(orocos_name: 'task'))
+            syskit_engine.work_plan.add(task1 = task_models[0].new(orocos_name: 'other_task'))
 
             deployments = Hash[
                 task_models[0] => [
@@ -353,10 +353,10 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(Roby::Queries::Query).new_instances.should_receive(:to_a).and_return([task0, task1])
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
-                with(:on => 'machine').
+                with(on: 'machine').
                 and_return(deployment_task0 = flexmock(Roby::Task.new))
             flexmock(deployment_models[0]).should_receive(:new).once.
-                with(:on => 'other_machine').
+                with(on: 'other_machine').
                 and_return(deployment_task1 = flexmock(Roby::Task.new))
             deployment_task0.should_receive(:task).with('task').once
             deployment_task1.should_receive(:task).with('other_task').once
@@ -387,7 +387,7 @@ describe Syskit::NetworkGeneration::Engine do
             assert [task0, task1].include?(missing.first)
         end
         it "does not resolve ambiguities by considering already allocated tasks" do
-            syskit_engine.work_plan.add(task0 = task_models[0].new(:orocos_name => 'task'))
+            syskit_engine.work_plan.add(task0 = task_models[0].new(orocos_name: 'task'))
             syskit_engine.work_plan.add(task1 = task_models[0].new)
 
             deployments = Hash[
