@@ -355,4 +355,12 @@ describe Syskit::Models::TaskContext do
             assert !m0.out_port.connected_to?(m1.in_port)
         end
     end
+
+    describe "#configuration_manager" do
+        it "inherits the manager from the underlying concrete model" do
+            task_m = Syskit::TaskContext.new_submodel
+            assert_same task_m.configuration_manager,
+                task_m.specialize.configuration_manager
+        end
+    end
 end
