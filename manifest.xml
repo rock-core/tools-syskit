@@ -13,5 +13,9 @@
     <depend package="tools/orocos.rb" />
     <depend package="tools/metaruby" />
     <depend package="tools/pocolog" />
+
+    <test_depend package="minitest" />
+    <test_depend package="flexmock" />
+    <test_depend package="tools/logger" />
 </package>
 
