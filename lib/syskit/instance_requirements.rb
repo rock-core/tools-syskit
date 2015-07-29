@@ -172,11 +172,11 @@ module Syskit
             #   the resulting BoundDataService is attached to the actual model
             #   in {#model} and this return value is different from 'service'
             def select_service(service)
-                if self.service && service != self.service
+                if self.service && !self.service.fullfills?(service)
                     raise ArgumentError, "#{self} already points to a service which is different from #{service}"
                 end
 
-                if !model.fullfills?(service.component_model)
+                if !model.to_component_model.fullfills?(service.component_model)
                     raise ArgumentError, "#{service} is not a service of #{self}"
                 end
                 if service.component_model.respond_to?(:proxied_data_services)
