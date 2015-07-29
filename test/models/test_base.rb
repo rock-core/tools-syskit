@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Models do
-    include Syskit::Test::Self
-
     describe "is_model?" do
         it "should return false for nil" do
             assert !Syskit::Models.is_model?(nil)

@@ -2,7 +2,6 @@ require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::Models::Component do
-    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     describe "#as_plan" do
@@ -618,8 +617,6 @@ describe Syskit::Models::Component do
 end
 
 class TC_Models_Component < Minitest::Test
-    include Syskit::Test::Self
-
     DataService = Syskit::DataService
     TaskContext = Syskit::TaskContext
 

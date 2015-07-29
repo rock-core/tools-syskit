@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Coordination::Models::TaskExtension do
-    include Syskit::Test::Self
-
     attr_reader :component_m, :action_m
     before do
         @component_m = Syskit::TaskContext.new_submodel name: 'Task' do

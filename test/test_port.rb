@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Port do
-    include Syskit::Test::Self
-
     describe "#to_component_port" do
         attr_reader :component, :port
         before do
@@ -155,8 +153,6 @@ describe Syskit::Port do
 end
 
 describe Syskit::InputWriter do
-    include Syskit::Test::Self
-
     it "validates the given samples if the writer is not yet accessible" do
         task_m = Syskit::TaskContext.new_submodel do
             input_port 'in', '/double'
@@ -185,8 +181,6 @@ describe Syskit::InputWriter do
 end
 
 describe Syskit::OutputReader do
-    include Syskit::Test::Self
-
     it "should be able to rebind to actual tasks that replaced the task" do
         task_m = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'

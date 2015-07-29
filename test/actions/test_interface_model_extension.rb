@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Actions::InterfaceModelExtension do
-    include Syskit::Test::Self
-
     describe "#use_profile" do
         attr_reader :actions, :profile
         before do

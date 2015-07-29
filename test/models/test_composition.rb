@@ -6,7 +6,6 @@ module DefinitionModule
 end
 
 describe Syskit::Models::Composition do
-    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     def models

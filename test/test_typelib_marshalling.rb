@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::TypelibMarshalling do
-    include Syskit::Test::Self
-
     attr_reader :type, :value, :registry, :peer
 
     before do

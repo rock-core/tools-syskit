@@ -8,8 +8,6 @@ end
 
 
 describe Syskit::Models::TaskContext do
-    include Syskit::Test::Self
-
     after do
         begin OroGen::DefinitionModule.send(:remove_const, :Task)
         rescue NameError

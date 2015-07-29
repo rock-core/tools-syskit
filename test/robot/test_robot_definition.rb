@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Robot::RobotDefinition do
-    include Syskit::Test::Self
-
     describe "#device" do
         attr_reader :device_m
         before do

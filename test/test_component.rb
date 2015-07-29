@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Component do
-    include Syskit::Test::Self
-
     describe "#specialize" do
         attr_reader :task, :task_m
         before do
@@ -510,8 +508,6 @@ describe Syskit::Component do
 end
 
 class TC_Component < Minitest::Test
-    include Syskit::Test::Self
-
     DataService = Syskit::DataService
     TaskContext = Syskit::TaskContext
 

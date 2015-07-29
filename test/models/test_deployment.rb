@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 class TC_Models_Deployment < Minitest::Test
-    include Syskit::Test::Self
-
     module DefinitionModule
         # Module used when we want to do some "public" models
     end

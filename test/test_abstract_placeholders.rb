@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 class TC_AbstractPlaceholders < Minitest::Test
-    include Syskit::Test::Self
-
     def test_proxy_simple_task_context
 	task_model = TaskContext.new_submodel
 	proxy_model = Syskit.proxy_task_model_for([task_model])

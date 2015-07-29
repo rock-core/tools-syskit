@@ -2,8 +2,6 @@ require 'syskit/test/self'
 require 'orocos/remote_processes/server'
 
 describe Syskit::RobyApp::Plugin do
-    include Syskit::Test::Self
-
     describe "#enable" do
         it "makes Roby.syskit_engine return app.plan.syskit_engine" do
             assert Roby.app.plan.syskit_engine

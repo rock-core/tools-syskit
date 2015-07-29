@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::RobyApp::Configuration do
-    include Syskit::Test::Self
-
     describe "#use_deployment" do
         attr_reader :task_m, :conf
         before do

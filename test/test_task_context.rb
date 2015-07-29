@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::TaskContext do
-    include Syskit::Test::Self
-
     describe "#initialize" do
         it "sets up the task object to be non-executable" do
             plan.add(task = Syskit::TaskContext.new_submodel.new(:orocos_name => "bla", :conf => []))

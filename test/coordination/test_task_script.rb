@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Coordination::TaskScriptExtension do
-    include Syskit::Test::Self
-
     it "sets the CompositionChild instance as model for child tasks" do
         data_service = Syskit::DataService.new_submodel { output_port 'out', '/double' }
         composition_m = Syskit::Composition.new_submodel do

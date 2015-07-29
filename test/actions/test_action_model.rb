@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Actions::Models::Action do
-    include Syskit::Test::Self
-
     describe "droby marshalling" do
         attr_reader :interface_m, :requirements, :action_m, :task_m, :reloaded
         before do

@@ -1,7 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::DependencyInjection do
-    include Syskit::Test::Self
     describe "#push" do
         it "applies explicit choices recursively layer-by-layer" do
             srv0 = Syskit::DataService.new_submodel

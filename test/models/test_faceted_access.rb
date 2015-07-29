@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Models::FacetedAccess do
-    include Syskit::Test::Self
-
     attr_reader :srv_m, :task_m, :sub_task_m, :facet
     before do
         @srv_m = Syskit::DataService.new_submodel do

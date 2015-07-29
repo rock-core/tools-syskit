@@ -2,8 +2,6 @@ require 'syskit/test/self'
 require 'minitest/spec'
 
 describe Syskit::Models::SpecializationManager do
-    include Syskit::Test::Self
-
     # [Syskit::Models::SpecializationManager] the manager under test
     attr_reader :mng
 

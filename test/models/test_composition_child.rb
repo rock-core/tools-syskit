@@ -2,7 +2,6 @@ require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::Models::CompositionChild do
-    include Syskit::Test::Self
     describe "#try_resolve" do
         it "returns the composition child if it exists" do
             task_m = Syskit::Component.new_submodel
@@ -123,8 +122,6 @@ describe Syskit::Models::CompositionChild do
 end
 
 describe Syskit::Models::InvalidCompositionChildPort do
-    include Syskit::Test::Self
-     
     attr_reader :cmp_m
     before do
         task_m = Syskit::TaskContext.new_submodel do

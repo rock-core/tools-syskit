@@ -3,7 +3,6 @@ require './test/fixtures/simple_composition_model'
 require 'minitest/spec'
 
 describe Syskit::Models::CompositionSpecialization do
-    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     before do

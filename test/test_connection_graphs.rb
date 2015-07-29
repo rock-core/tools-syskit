@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit do
-    include Syskit::Test::Self
-
     describe ".resolve_connections" do
         it "should match ports by name" do
             ports = [['port1', '/type1'], ['port2', '/type2']]

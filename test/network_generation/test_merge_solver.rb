@@ -2,7 +2,6 @@ require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::NetworkGeneration::MergeSolver do
-    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     attr_reader :solver

@@ -1,7 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::DependencyInjection do
-    include Syskit::Test::Self
     describe "#selection_for" do
         it "returns an existing instance if one is selected" do
             task = Syskit::Component.new_submodel.new
@@ -191,8 +190,6 @@ describe Syskit::DependencyInjection do
 end
 
 class TC_DependencyInjection < Minitest::Test
-    include Syskit::Test::Self
-
     def test_to_s
         # Just checking that it does not raise and returns a string
         di = DependencyInjection.new('val', 'name' => 'value')

@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::BoundDataService do
-    include Syskit::Test::Self
-
     describe "#to_s" do
         it "should return a string" do
             srv_m = Syskit::DataService.new_submodel
@@ -58,8 +56,6 @@ describe Syskit::BoundDataService do
 end
 
 class TC_BoundDataService < Minitest::Test
-    include Syskit::Test::Self
-
     DataService = Syskit::DataService
 
     def setup_transitive_services

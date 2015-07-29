@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Device do
-    include Syskit::Test::Self
-
     attr_reader :task_m, :device_m, :devices
     before do
         @task_m = Syskit::TaskContext.new_submodel
@@ -85,8 +83,6 @@ describe Syskit::Device do
 end
 
 describe Syskit::ComBus do
-    include Syskit::Test::Self
-
     attr_reader :device_driver_m, :combus_driver_m, :combus_m, :combus, :device, :device_m
     before do
         combus_m = @combus_m = Syskit::ComBus.new_submodel(:message_type => '/double')

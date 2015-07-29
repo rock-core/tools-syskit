@@ -2,7 +2,6 @@ require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::Models::BoundDataService do
-    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     def setup_transitive_services
@@ -242,8 +241,6 @@ describe Syskit::Models::BoundDataService do
 end
 
 class TC_Models_BoundDataService < Minitest::Test
-    include Syskit::Test::Self
-
     DataService = Syskit::DataService
 
     def setup_stereocamera
