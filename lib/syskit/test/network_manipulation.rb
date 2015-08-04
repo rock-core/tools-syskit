@@ -264,6 +264,7 @@ module Syskit
 
             # Stubs the devices required by the given model
             def self.syskit_stub_required_devices(model)
+                model = model.to_instance_requirements
                 model.model.each_master_driver_service do |srv|
                     if !model.arguments["#{srv.name}_dev"]
                         model.with_arguments("#{srv.name}_dev" => syskit_stub_device(srv.model, driver: model.model))
