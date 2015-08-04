@@ -751,6 +751,7 @@ module Syskit
             end
 
             def each_child
+                return enum_for(__method__) if !block_given?
                 if !composition_model?
                     raise RuntimeError, "cannot call #each_child on #{self} as it does not represent a composition model"
                 end
