@@ -755,8 +755,10 @@ module Syskit
                 if !composition_model?
                     raise RuntimeError, "cannot call #each_child on #{self} as it does not represent a composition model"
                 end
+                resolved_di = resolved_dependency_injection
                 model.each_child do |child_name, _|
-                    selected_child, _ = model.find_child_model_and_task(child_name, resolved_dependency_injection)
+                    selected_child, _ = model.find_child_model_and_task(
+                        child_name, resolved_di)
                     yield(child_name, selected_child)
                 end
             end

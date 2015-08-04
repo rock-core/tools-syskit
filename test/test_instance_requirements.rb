@@ -517,5 +517,24 @@ describe Syskit::InstanceRequirements do
             assert_equal expected, ir.service
         end
     end
+
+    describe "#each_child" do
+        it "does not trigger a modification-during-iteration exception because of promotion" do
+            srv_m = Syskit::DataService.new_submodel
+            c0 = Syskit::Composition.new_submodel do
+                add srv_m, as: 'test2'
+            end
+            c1 = c0.new_submodel do
+                add srv_m, as: 'test1'
+            end
+            ir = c1.to_instance_requirements
+            # InstanceRequirements#each_child has a tendency to iterate over the
+            # underlying's model children. This caused a hash
+            # modification-during-iteration when some promotions were needed
+            #
+            # So, everything fine's if the following passes
+            ir.each_child.to_a
+        end
+    end
 end
 
