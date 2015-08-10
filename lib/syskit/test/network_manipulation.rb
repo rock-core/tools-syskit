@@ -422,28 +422,68 @@ module Syskit
                 syskit_deploy(model, compute_policies: false)
             end
 
+            # Stub a task, deploy it and configure it
+            #
+            # This starts the underlying (stubbed) deployment process
+            #
+            # @param (see syskit_stub)
+            # @return [Syskit::Component]
+            # @see syskit_stub
             def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: nil, &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure(root, recursive: recursive)
                 root
             end
 
+            # Stub a task, deploy it, configure it and start the task and
+            # the underlying stub deployment
+            #
+            # This starts the underlying (stubbed) deployment process
+            #
+            # @param (see syskit_stub)
+            # @return [Syskit::Component]
+            # @see syskit_stub
             def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: nil, &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure_and_start(root, recursive: recursive)
                 root
             end
 
+            # Deploy and configure a model
+            #
+            # Unlike {#syskit_stub_deploy_and_configure}, it does not stub the
+            # model, so model has to be deploy-able as-is.
+            #
+            # @param [#to_instance_requirements] model the requirements to
+            #   deploy and configure
+            # @param [Boolean] recursive if true, children of the provided model
+            #   will be configured as well. Otherwise, only the toplevel task
+            #   will
+            # @return [Syskit::Component]
             def syskit_deploy_and_configure(model = subject_syskit_model, recursive: true)
                 root = syskit_deploy(model)
                 syskit_configure(root, recursive: recursive)
             end
 
+            # Deploy, configure and start a model
+            #
+            # Unlike {#syskit_stub_deploy_configure_and_start}, it does not stub
+            # the model, so model has to be deploy-able as-is.
+            #
+            # @param (see syskit_stub)
+            # @return [Syskit::Component]
             def syskit_deploy_configure_and_start(model = subject_syskit_model, recursive: true)
                 root = syskit_deploy(model)
                 syskit_configure_and_start(root, recursive: recursive)
             end
 
+            # Configure and start a task
+            #
+            # Unlike {#syskit_stub_deploy_configure_and_start}, it does not stub
+            # the model, so model has to be deploy-able as-is.
+            #
+            # @param (see syskit_stub)
+            # @return [Syskit::Component]
             def syskit_configure_and_start(component = subject_syskit_model, recursive: true)
                 component = syskit_configure(component, recursive: recursive)
                 syskit_start(component, recursive: recursive)
