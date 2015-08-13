@@ -18,14 +18,14 @@ module Syskit
                 attr_accessor :base_module
             end
 
-            def initialize
-                @orogen_model = Models.create_orogen_task_context_model
-                super
+            def initialize(project: Roby.app.default_orogen_project)
+                @orogen_model = OroGen::Spec::TaskContext.new(project)
+                super()
             end
 
             def clear_model
-                super
-                @orogen_model = Models.create_orogen_task_context_model
+                super()
+                @orogen_model = OroGen::Spec::TaskContext.new(@orogen_model.project)
                 port_mappings.clear
             end
 
@@ -40,7 +40,7 @@ module Syskit
             #
             #   The mapping is of the form
             #     
-            #     [service_model, port] => target_port
+            #     provided_service_model => [provided_service_model_port, port]
             #
             #   @return [Hash<DataServiceModel,Hash<String,String>>] the
             #     mappings
@@ -117,7 +117,7 @@ module Syskit
             #
             #   actual_port_name = (port_mappings_for(service_type)['A'] || 'A')
             #
-            # Raises ArgumentError if +self+ does not provide +service_type+
+            # @raise [ArgumentError] if self does not provide service_type
             def port_mappings_for(service_type)
                 result = port_mappings[service_type]
                 if !result
@@ -351,6 +351,25 @@ module Syskit
                     self.device_configuration_module ||= Module.new
                     self.device_configuration_module.include(service_model.device_configuration_module)
                 end
+            end
+
+            def find_all_drivers
+                # Since we want to drive a particular device, we actually need a
+                # concrete task model. So, search for one.
+                #
+                # Get all task models that implement this device
+                Syskit::TaskContext.submodels.
+                    find_all { |t| t.fullfills?(self) && !t.abstract? }
+            end
+
+            def default_driver
+                tasks = find_all_drivers
+                if tasks.size > 1
+                    raise Ambiguous, "#{tasks.map(&:to_s).join(", ")} can all handle '#{self}'"
+                elsif tasks.empty?
+                    raise ArgumentError, "no task can handle devices of type '#{self}'"
+                end
+                tasks.first
             end
         end
 

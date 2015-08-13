@@ -1,13 +1,9 @@
 require 'syskit/test/self'
 
 module SyskitProfileTest
-    profile 'Test' do
-    end
 end
 
 describe Syskit::Actions::Profile do
-    include Syskit::Test::Self
-
     describe "#use_profile" do
         attr_reader :definition_mock
         before do
@@ -15,6 +11,7 @@ describe Syskit::Actions::Profile do
             definition_mock.should_receive(:push_selections).by_default
             definition_mock.should_receive(:composition_model?).by_default
             definition_mock.should_receive(:use).by_default
+            definition_mock.should_receive(:doc).by_default
         end
 
         it "resets the profile to the new profile" do
@@ -33,7 +30,8 @@ describe Syskit::Actions::Profile do
             src.define 'test', task_m
 
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:define).with('test', src.test_def).once
+            flexmock(dst).should_receive(:define).with('test', src.test_def).once.
+                and_return(definition_mock)
             dst.use_profile src
         end
 
@@ -58,13 +56,14 @@ describe Syskit::Actions::Profile do
                 and_return(duped = definition_mock)
             duped.should_receive(:push_selections).once
             dst = Syskit::Actions::Profile.new
-            flexmock(dst).should_receive(:define).with('test', duped).once
+            flexmock(dst).should_receive(:define).with('test', duped).once.
+                and_return(duped)
             dst.use_profile src
         end
 
         it "resolves definitions using the use flags" do
             srv_m  = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'srv' }
+            task_m = Syskit::TaskContext.new_submodel { provides srv_m, as: 'srv' }
             profile = Syskit::Actions::Profile.new
             profile.use srv_m => task_m
             profile.define 'test', srv_m
@@ -73,11 +72,11 @@ describe Syskit::Actions::Profile do
         end
 
         it "applies selections on the requirement's use flags" do
-            parent_srv_m = Syskit::DataService.new_submodel(:name => 'ParentSrv')
-            srv_m  = Syskit::DataService.new_submodel(:name => 'Srv') { provides parent_srv_m }
-            task_m = Syskit::TaskContext.new_submodel(:name => 'Task') { provides srv_m, :as => 'srv' }
-            cmp_m  = Syskit::Composition.new_submodel(:name => 'Cmp') do
-                add parent_srv_m, :as => 'c'
+            parent_srv_m = Syskit::DataService.new_submodel(name: 'ParentSrv')
+            srv_m  = Syskit::DataService.new_submodel(name: 'Srv') { provides parent_srv_m }
+            task_m = Syskit::TaskContext.new_submodel(name: 'Task') { provides srv_m, as: 'srv' }
+            cmp_m  = Syskit::Composition.new_submodel(name: 'Cmp') do
+                add parent_srv_m, as: 'c'
             end
             profile = Syskit::Actions::Profile.new
             profile.use srv_m => task_m
@@ -91,13 +90,13 @@ describe Syskit::Actions::Profile do
         it "allows to apply selections to tags" do
             srv_m = Syskit::DataService.new_submodel
             cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add srv_m, :as => 'test'
+            cmp_m.add srv_m, as: 'test'
             src = Syskit::Actions::Profile.new
             src.tag 'test', srv_m
             src.define 'test', src.test_tag
 
             task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
             dst = Syskit::Actions::Profile.new
             dst.use_profile src, 'test' => task_m
         end
@@ -124,11 +123,11 @@ describe Syskit::Actions::Profile do
 
     describe "#use" do
         it "should allow to globally inject dependencies in all definitions" do
-            srv_m = Syskit::DataService.new_submodel :name => "Srv"
-            task_m = Syskit::TaskContext.new_submodel :name => "Task"
-            task_m.provides srv_m, :as => 'test'
+            srv_m = Syskit::DataService.new_submodel name: "Srv"
+            task_m = Syskit::TaskContext.new_submodel name: "Task"
+            task_m.provides srv_m, as: 'test'
             cmp = Syskit::Composition.new_submodel
-            cmp.add srv_m, :as => 'test'
+            cmp.add srv_m, as: 'test'
             profile = Syskit::Actions::Profile.new
             profile.use srv_m => task_m
             profile.define 'test', cmp
@@ -144,7 +143,7 @@ describe Syskit::Actions::Profile do
             @profile = Syskit::Actions::Profile.new
             @dev_m = Syskit::Device.new_submodel
             driver_m = Syskit::TaskContext.new_submodel
-            driver_m.driver_for dev_m, :as => 'driver'
+            driver_m.driver_for dev_m, as: 'driver'
         end
         it "gives access to tags" do
             srv_m = Syskit::DataService.new_submodel
@@ -181,7 +180,7 @@ describe Syskit::Actions::Profile do
         end
 
         it "gives access to devices" do
-            device = profile.robot.device dev_m, :as => 'test'
+            device = profile.robot.device dev_m, as: 'test'
             assert_same device, profile.test_dev
         end
         it "raises NoMethodError for unknown devices" do
@@ -190,7 +189,7 @@ describe Syskit::Actions::Profile do
             end
         end
         it "raises ArgumentError if arguments are given to a _dev method" do
-            profile.robot.device dev_m, :as => 'test'
+            profile.robot.device dev_m, as: 'test'
             assert_raises(ArgumentError) do
                 profile.test_dev('bla')
             end
@@ -198,6 +197,8 @@ describe Syskit::Actions::Profile do
     end
 
     it "should be usable through droby" do
+        SyskitProfileTest.profile 'Test' do
+        end
         verify_is_droby_marshallable_object(SyskitProfileTest::Test)
     end
 

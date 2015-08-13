@@ -77,8 +77,8 @@ module Syskit
             # Empty connection policies means "autodetect policy"
             inherited_attribute(:explicit_connection, :explicit_connections) { Hash.new { |h, k| h[k] = Hash.new } }
 
-            # [ValueSet<Model<Composition>>] the composition models that are parent to this one
-            attribute(:parent_models) { ValueSet.new }
+            # [Set<Model<Composition>>] the composition models that are parent to this one
+            attribute(:parent_models) { Set.new }
 
             # The root composition model in the specialization hierarchy
             def root_model; self end
@@ -166,7 +166,12 @@ module Syskit
                 # valid overloading of the previous one.
                 
                 child_model = find_child(name) || CompositionChild.new(self, name)
-                child_model.merge(child_models)
+                # The user might have called e.g.
+                #
+                #   overload 'bla', bla_child.with_arguments(bla: 10)
+                if child_models.object_id != child_model.object_id
+                    child_model.merge(child_models)
+                end
                 dependency_options = Roby::TaskStructure::DependencyGraphClass.
                     merge_dependency_options(child_model.dependency_options, dependency_options)
                 child_model.dependency_options.clear
@@ -536,9 +541,9 @@ module Syskit
             #
             # See #constrain
             def constraints_for(child_name)
-                result = ValueSet.new
+                result = Set.new
                 each_child_constraint(child_name, false) do |constraint_set|
-                    result |= constraint_set.to_value_set
+                    result |= constraint_set.to_set
                 end
                 result
             end
@@ -549,6 +554,31 @@ module Syskit
             # For compositions, this is the list of children names
             def dependency_injection_names
                 each_child.map { |name, _| name }
+            end
+
+            def find_child_model_and_task(child_name, context)
+                Models.debug do
+                    Models.debug "selecting #{child_name}:"
+                    Models.log_nest(2) do
+                        Models.debug "on the basis of"
+                        Models.log_nest(2) do
+                            Models.log_pp(:debug, context)
+                        end
+                    end
+                    break
+                end
+                child_requirements = find_child(child_name)
+                selected_child, used_keys =
+                    context.instance_selection_for(child_name, child_requirements)
+                Models.debug do
+                    Models.debug "selected"
+                    Models.log_nest(2) do
+                        Models.log_pp(:debug, selected_child)
+                    end
+                    break
+                end
+                explicit = context.has_selection_for?(child_name)
+                return selected_child, explicit, used_keys
             end
 
             # Given a dependency injection context, it computes the models and
@@ -564,30 +594,12 @@ module Syskit
                 result   = Hash.new
                 used_keys = Hash.new
                 each_child do |child_name, child_requirements|
-                    Models.debug do
-                        Models.debug "selecting #{child_name}:"
-                        Models.log_nest(2) do
-                            Models.debug "on the basis of"
-                            Models.log_nest(2) do
-                                Models.log_pp(:debug, context)
-                            end
-                        end
-                        break
-                    end
-                    selected_child, used_keys[child_name] =
-                        context.instance_selection_for(child_name, child_requirements)
-                    Models.debug do
-                        Models.debug "selected"
-                        Models.log_nest(2) do
-                            Models.log_pp(:debug, selected_child)
-                        end
-                        break
-                    end
+                    result[child_name], child_is_explicit, used_keys[child_name] =
+                        find_child_model_and_task(child_name, context)
 
-                    if context.has_selection_for?(child_name)
-                        explicit[child_name] = selected_child
+                    if child_is_explicit
+                        explicit[child_name] = result[child_name]
                     end
-                    result[child_name] = selected_child
                 end
 
                 return explicit, result, used_keys

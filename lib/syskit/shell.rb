@@ -38,13 +38,14 @@ module Syskit
         # Helper method that makes sure that changed configuration files will
         # cause the relevant tasks to be reconfigured in the next re-deployment
         def mark_changed_configuration_as_not_reusable(changed)
-            Roby.execute do
-                TaskContext.configured.each do |task_name, (orogen_model, current_conf)|
-                    changed_conf = changed[orogen_model.name]
-                if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
-                    ::Robot.info "task #{task_name} needs reconfiguration"
-                    TaskContext.needs_reconfiguration << task_name
-                end
+            engine.execute do
+                TaskContext.configured.each do |task_name, (syskit_model, current_conf)|
+                    changed_conf = changed[syskit_model.concrete_model]
+
+                    if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
+                        ::Robot.info "task #{task_name} needs reconfiguration"
+                        TaskContext.needs_reconfiguration << task_name
+                    end
                 end
             end
         end
@@ -101,7 +102,7 @@ module Syskit
                 done.signals protection.stop_event
 
                 models.each do |m|
-                    agents = ValueSet.new
+                    agents = Set.new
                     plan.find_tasks(m).
                         each do |task|
                             if task.kind_of?(Syskit::TaskContext)
@@ -130,14 +131,15 @@ module Syskit
         # The new configuration will only be applied to running tasks after
         # {#redeploy} is called as well
         def reload_config
-            Roby.app.find_dirs('config', 'orogen','ROBOT', :all => true, :order => :specific_last).each do |dir|
-                changed = Orocos.conf.load_dir(dir)
-                mark_changed_configuration_as_not_reusable(changed)
+            TaskContext.each_submodel do |model|
+                next if !model.concrete_model?
+                changed_sections = model.configuration_manager.reload
+                mark_changed_configuration_as_not_reusable(model => changed_sections)
             end
             nil
         end
         command :reload_config, 'reloads YAML configuration files from disk',
-            'The new configuration will only be applied after the redeploy command is issued'
+            'You need to call the redeploy command to apply the new configuration'
 
         # Require the engine to redeploy the current network
         #
@@ -145,7 +147,7 @@ module Syskit
         # configuration(s)
         def redeploy
             engine.execute do
-                plan.syskit_engine.resolve
+                plan.syskit_engine.force_update!
             end
             nil
         end

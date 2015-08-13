@@ -171,6 +171,12 @@ module Syskit
                 end
                 super
             end
+
+            def to_instance_requirements
+                ir = InstanceRequirements.new
+                ir.do_copy(self)
+                ir
+            end
         end
 
         class InvalidCompositionChildPort < RuntimeError

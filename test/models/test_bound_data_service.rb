@@ -2,7 +2,6 @@ require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::Models::BoundDataService do
-    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     def setup_transitive_services
@@ -36,7 +35,7 @@ describe Syskit::Models::BoundDataService do
             output_port 'out_base_unmapped', '/double'
         end
         service = component_model.provides(model,
-                    :as => 'test',
+                    as: 'test',
                     'in_model' => 'in_port',
                     'out_model' => 'out_port')
 
@@ -48,7 +47,7 @@ describe Syskit::Models::BoundDataService do
             create_simple_composition_model
             task_m = simple_component_model
             srv_m  = task_m.srv_srv
-            port = flexmock(:name => 'srv_port')
+            port = flexmock(name: 'srv_port')
             flexmock(srv_m).should_receive(:port_mappings_for_task).and_return('srv_port' => 'component_port')
             flexmock(task_m).should_receive(:find_port).with('component_port').and_return(obj = Object.new)
             assert_equal obj, srv_m.self_port_to_component_port(port)
@@ -83,8 +82,8 @@ describe Syskit::Models::BoundDataService do
             srv_m = Syskit::DataService.new_submodel
             slave_m = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel do
-                provides srv_m, :as => 'master'
-                provides slave_m, :as => 'slave'
+                provides srv_m, as: 'master'
+                provides slave_m, as: 'slave'
             end
             assert_same task_m.find_data_service('master.slave'), task_m.master_srv.find_data_service('slave')
         end
@@ -92,8 +91,8 @@ describe Syskit::Models::BoundDataService do
             srv_m = Syskit::DataService.new_submodel
             slave_m = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel do
-                provides srv_m, :as => 'master'
-                provides slave_m, :as => 'slave'
+                provides srv_m, as: 'master'
+                provides slave_m, as: 'slave'
             end
             assert_same task_m.find_data_service('master.slave'), task_m.master_srv.find_data_service('master')
         end
@@ -102,21 +101,21 @@ describe Syskit::Models::BoundDataService do
     describe "#method_missing" do
         it "gives direct access to slave services" do
             srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'master' }
+            task_m = Syskit::TaskContext.new_submodel { provides srv_m, as: 'master' }
             master = task_m.master_srv
             flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(obj = Object.new)
             assert_same obj, master.slave_srv
         end
         it "raises ArgumentError if arguments are given" do
             srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'master' }
+            task_m = Syskit::TaskContext.new_submodel { provides srv_m, as: 'master' }
             master = task_m.master_srv
             flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(Object.new)
             assert_raises(ArgumentError) { master.slave_srv('an_argument') }
         end
         it "raises NoMethodError if the requested service does not exist" do
             srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'master' }
+            task_m = Syskit::TaskContext.new_submodel { provides srv_m, as: 'master' }
             master = task_m.master_srv
             flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(nil)
             assert_raises(NoMethodError) { master.slave_srv }
@@ -127,7 +126,7 @@ describe Syskit::Models::BoundDataService do
         attr_reader :srv_m, :task_m
         before do
             srv_m = Syskit::DataService.new_submodel
-            @task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'test' }
+            @task_m = Syskit::TaskContext.new_submodel { provides srv_m, as: 'test' }
             @srv_m = task_m.test_srv
         end
         it "can bind to a bound data service of the right model" do
@@ -180,7 +179,7 @@ describe Syskit::Models::BoundDataService do
         it "should return the service model" do
             srv_m = Syskit::DataService.new_submodel
             task_m = Syskit::Component.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
             assert_equal [srv_m], task_m.test_srv.fullfilled_model
         end
     end
@@ -188,9 +187,13 @@ describe Syskit::Models::BoundDataService do
     describe "#attach" do
         attr_reader :srv, :task_m
         before do
-            srv_m = Syskit::DataService.new_submodel
-            @task_m = Syskit::TaskContext.new_submodel
-            @srv = task_m.provides srv_m, :as => 'test'
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'out', '/double'
+            end
+            @task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end
+            @srv = task_m.provides srv_m, as: 'test'
         end
         it "should return itself if given itself" do
             assert_equal srv, srv.attach(srv)
@@ -204,12 +207,40 @@ describe Syskit::Models::BoundDataService do
             subtask_m = task_m.new_submodel
             assert_equal subtask_m.test_srv, srv.attach(subtask_m)
         end
+        it "clears the ports cache on the returned value" do
+            # This tests for a regression. The port cache on the bound data
+            # service was not cleared in #attach, which led already-accessed
+            # ports to leak onto the newly attached service. These already
+            # accessed port would point to the wrong component model, though,
+            # obviously
+            subtask_m = task_m.new_submodel
+            srv.out_port
+            attached  = srv.attach(subtask_m)
+            assert_equal subtask_m, attached.out_port.to_component_port.component_model
+        end
+    end
+
+    describe "#==" do
+        attr_reader :parent_srv_m, :srv_m, :task_m
+        before do
+            @parent_srv_m = Syskit::DataService.new_submodel
+            @srv_m = Syskit::DataService.new_submodel
+            srv_m.provides parent_srv_m
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, as: 'test'
+        end
+
+        it "returns true for two different instances pointing to the same service" do
+            srv = task_m.test_srv
+            assert_equal srv, srv.dup
+        end
+        it "returns false for a faceted service" do
+            refute_equal task_m.test_srv.as(parent_srv_m), task_m.test_srv
+        end
     end
 end
 
 class TC_Models_BoundDataService < Minitest::Test
-    include Syskit::Test::Self
-
     DataService = Syskit::DataService
 
     def setup_stereocamera
@@ -221,9 +252,9 @@ class TC_Models_BoundDataService < Minitest::Test
             output_port 'left', '/int'
             output_port 'right', '/int'
         end
-        left_srv  = component_model.provides service_model, :as => 'left', 'image' => 'left'
-        right_srv = component_model.provides service_model, :as => 'right', 'image' => 'right'
-        component_model.provides other_service_model, :as => 'other_srv'
+        left_srv  = component_model.provides service_model, as: 'left', 'image' => 'left'
+        right_srv = component_model.provides service_model, as: 'right', 'image' => 'right'
+        component_model.provides other_service_model, as: 'other_srv'
         return service_model, other_service_model, component_model, left_srv, right_srv
     end
 
@@ -258,7 +289,7 @@ class TC_Models_BoundDataService < Minitest::Test
             output_port 'out_base_unmapped', '/double'
         end
         service = component_model.provides(model,
-                    :as => 'test',
+                    as: 'test',
                     'in_model' => 'in_port',
                     'out_model' => 'out_port')
 
@@ -269,8 +300,8 @@ class TC_Models_BoundDataService < Minitest::Test
         component_model = TaskContext.new_submodel
         service_model = DataService.new_submodel
         other_service_model = DataService.new_submodel
-        service = component_model.provides service_model, :as => 'service'
-        component_model.provides other_service_model, :as => 'other_service'
+        service = component_model.provides service_model, as: 'service'
+        component_model.provides other_service_model, as: 'other_service'
         assert_equal component_model, service.component_model
         assert service.master?
         assert_equal('service', service.full_name)
@@ -284,7 +315,7 @@ class TC_Models_BoundDataService < Minitest::Test
             setup_transitive_services
 
         other_service = DataService.new_submodel
-        component_model.provides other_service, :as => 'unrelated_service'
+        component_model.provides other_service, as: 'unrelated_service'
 
         assert_equal [base,parent,model,DataService].to_set,
             service.each_fullfilled_model.to_set

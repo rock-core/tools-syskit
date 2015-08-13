@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::RobyApp::Configuration do
-    include Syskit::Test::Self
-
     describe "#use_deployment" do
         attr_reader :task_m, :conf
         before do
@@ -14,7 +12,7 @@ describe Syskit::RobyApp::Configuration do
 
         def stub_deployment(name)
             task_m = @task_m
-            Syskit::Deployment.new_submodel(:name => name) do
+            Syskit::Deployment.new_submodel(name: name) do
                 task('task', task_m.orogen_model)
             end
         end
@@ -45,7 +43,7 @@ describe Syskit::RobyApp::Configuration do
         end
         it "should allow registering on another process server" do
             deployment1_m = stub_deployment 'deployment1'
-            conf.use_deployment deployment1_m, :on => 'test'
+            conf.use_deployment deployment1_m, on: 'test'
             assert_equal 1, conf.deployments['test'].size
         end
     end

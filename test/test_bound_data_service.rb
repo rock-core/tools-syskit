@@ -1,12 +1,10 @@
 require 'syskit/test/self'
 
 describe Syskit::BoundDataService do
-    include Syskit::Test::Self
-
     describe "#to_s" do
         it "should return a string" do
             srv_m = Syskit::DataService.new_submodel
-            task_m = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'srv' }
+            task_m = Syskit::TaskContext.new_submodel { provides srv_m, as: 'srv' }
             assert_kind_of String, task_m.new.srv_srv.to_s
         end
     end
@@ -16,8 +14,8 @@ describe Syskit::BoundDataService do
             srv_m = Syskit::DataService.new_submodel
             slave_m = Syskit::DataService.new_submodel
             task = Syskit::TaskContext.new_submodel do
-                provides srv_m, :as => 'master'
-                provides slave_m, :as => 'slave'
+                provides srv_m, as: 'master'
+                provides slave_m, as: 'slave'
             end.new
             assert_same task.find_data_service('master.slave'), task.master_srv.find_data_service('slave')
         end
@@ -25,8 +23,8 @@ describe Syskit::BoundDataService do
             srv_m = Syskit::DataService.new_submodel
             slave_m = Syskit::DataService.new_submodel
             task = Syskit::TaskContext.new_submodel do
-                provides srv_m, :as => 'master'
-                provides slave_m, :as => 'slave'
+                provides srv_m, as: 'master'
+                provides slave_m, as: 'slave'
             end.new
             assert_same task.find_data_service('master.slave'), task.master_srv.find_data_service('master')
         end
@@ -35,21 +33,21 @@ describe Syskit::BoundDataService do
     describe "#method_missing" do
         it "gives direct access to slave services" do
             srv_m = Syskit::DataService.new_submodel
-            task = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'master' }.new
+            task = Syskit::TaskContext.new_submodel { provides srv_m, as: 'master' }.new
             master = task.master_srv
             flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(obj = Object.new)
             assert_same obj, master.slave_srv
         end
         it "raises ArgumentError if arguments are given" do
             srv_m = Syskit::DataService.new_submodel
-            task = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'master' }.new
+            task = Syskit::TaskContext.new_submodel { provides srv_m, as: 'master' }.new
             master = task.master_srv
             flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(Object.new)
             assert_raises(ArgumentError) { master.slave_srv('an_argument') }
         end
         it "raises NoMethodError if the requested service does not exist" do
             srv_m = Syskit::DataService.new_submodel
-            task = Syskit::TaskContext.new_submodel { provides srv_m, :as => 'master' }.new
+            task = Syskit::TaskContext.new_submodel { provides srv_m, as: 'master' }.new
             master = task.master_srv
             flexmock(master).should_receive(:find_data_service).once.with('slave').and_return(nil)
             assert_raises(NoMethodError) { master.slave_srv }
@@ -58,8 +56,6 @@ describe Syskit::BoundDataService do
 end
 
 class TC_BoundDataService < Minitest::Test
-    include Syskit::Test::Self
-
     DataService = Syskit::DataService
 
     def setup_transitive_services
@@ -93,7 +89,7 @@ class TC_BoundDataService < Minitest::Test
             output_port 'out_base_unmapped', '/double'
         end
         service = component_model.provides(model,
-                    :as => 'test',
+                    as: 'test',
                     'in_model' => 'in_port',
                     'out_model' => 'out_port')
 
@@ -103,7 +99,7 @@ class TC_BoundDataService < Minitest::Test
     def test_find_input_port_gives_access_to_unmapped_ports
         base, parent, model, component_model, service_model =
             setup_transitive_services
-        task = syskit_deploy_task_context(component_model, 'task')
+        task = syskit_stub_deploy_and_configure(component_model)
         service = service_model.bind(task)
         assert_equal task.find_input_port('in_parent_unmapped'), service.find_input_port('in_parent_unmapped').to_component_port
         assert_equal task.find_input_port('in_base_unmapped'), service.find_input_port('in_base_unmapped').to_component_port
@@ -112,7 +108,7 @@ class TC_BoundDataService < Minitest::Test
     def test_find_input_port_gives_access_to_mapped_ports
         base, parent, model, component_model, service_model =
             setup_transitive_services
-        task = syskit_deploy_task_context(component_model, 'task')
+        task = syskit_stub_deploy_and_configure(component_model)
         service = service_model.bind(task)
         assert_equal task.find_input_port('in_port'), service.find_input_port('in_model').to_component_port
     end
@@ -135,7 +131,7 @@ class TC_BoundDataService < Minitest::Test
     def test_narrowed_find_input_port_gives_access_to_unmapped_ports
         base, parent, model, component_model, service_model =
             setup_transitive_services
-        task = syskit_deploy_task_context(component_model, 'task')
+        task = syskit_stub_deploy_and_configure(component_model)
         service = service_model.as(parent).bind(task)
         assert_equal task.find_input_port('in_parent_unmapped'), service.find_input_port('in_parent_unmapped').to_component_port
         assert_equal task.find_input_port('in_base_unmapped'), service.find_input_port('in_base_unmapped').to_component_port
@@ -151,7 +147,7 @@ class TC_BoundDataService < Minitest::Test
     def test_narrowed_find_input_port_gives_access_to_mapped_ports
         base, parent, model, component_model, service_model =
             setup_transitive_services
-        task = syskit_deploy_task_context(component_model, 'task')
+        task = syskit_stub_deploy_and_configure(component_model)
         service = service_model.as(parent).bind(task = component_model.new)
         assert_equal task.find_input_port('in_port'), service.find_input_port('in_parent').to_component_port
     end
@@ -231,7 +227,7 @@ class TC_BoundDataService < Minitest::Test
         service = service.bind(component_model.new)
 
         other_service = DataService.new_submodel
-        component_model.provides other_service, :as => 'unrelated_service'
+        component_model.provides other_service, as: 'unrelated_service'
 
         assert !service.fullfills?(component_model)
         assert service.fullfills?(base)
@@ -246,7 +242,7 @@ class TC_BoundDataService < Minitest::Test
         service = service.bind(component_model.new)
 
         other_service = DataService.new_submodel
-        component_model.provides other_service, :as => 'unrelated_service'
+        component_model.provides other_service, as: 'unrelated_service'
 
         assert_equal [base,parent,model,DataService].to_set,
             service.each_fullfilled_model.to_set

@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Port do
-    include Syskit::Test::Self
-
     describe "#to_component_port" do
         attr_reader :component, :port
         before do
@@ -61,17 +59,105 @@ describe Syskit::Port do
                 out_task.out_port.connect_to out_task.in_port
             end
         end
+
+        describe "in transaction context" do
+            attr_reader :task_m, :source, :sink, :transaction
+            before do
+                @task_m = Syskit::TaskContext.new_submodel do
+                    input_port 'in', '/double'
+                    output_port 'out', '/double'
+                end
+                plan.add(@source = task_m.new)
+                plan.add(@sink = task_m.new)
+                @transaction = create_transaction
+            end
+
+            it "does not modify the connections of the underlying tasks" do
+                transaction[source].out_port.connect_to transaction[sink].in_port
+                assert !source.out_port.connected_to?(sink.in_port)
+            end
+        end
+    end
+
+    describe "#disconnect_from" do
+        describe "in transaction context" do
+            attr_reader :task_m, :source, :sink, :transaction
+            before do
+                @task_m = Syskit::TaskContext.new_submodel do
+                    input_port 'in', '/double'
+                    output_port 'out', '/double'
+                end
+                plan.add(@source = task_m.new)
+                plan.add(@sink = task_m.new)
+                @transaction = create_transaction
+            end
+
+            it "does not modify the connections of the underlying tasks" do
+                source.out_port.connect_to sink.in_port
+                transaction[source].out_port.disconnect_from transaction[sink].in_port
+                assert source.out_port.connected_to?(sink.in_port)
+            end
+        end
+    end
+    
+    describe "#connected_to?" do
+        attr_reader :task_m, :source, :sink, :transaction
+        before do
+            @task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+                output_port 'out', '/double'
+            end
+            plan.add(@source = task_m.new)
+            plan.add(@sink = task_m.new)
+        end
+
+        it "returns true if the ports are connected" do
+            source.out_port.connect_to sink.in_port
+            assert source.out_port.connected_to?(sink.in_port)
+        end
+
+        it "returns false if the ports are not connected" do
+            assert !source.out_port.connected_to?(sink.in_port)
+        end
+
+        it "resolves 'self' to the component port" do
+            p = source.out_port
+            flexmock(p).should_receive(:to_component_port).once.and_return(m = flexmock)
+            m.should_receive(:connected_to?).with(sink.in_port).and_return(ret = flexmock)
+            p.connected_to?(sink.in_port)
+        end
+
+        it "resolves 'in_port' to the component port" do
+            p = sink.in_port
+            flexmock(p).should_receive(:to_component_port).once.and_return(flexmock(component: nil, name: ''))
+            # Would have been true if we were not meddling with
+            # to_component_port
+            assert !source.out_port.connected_to?(p)
+        end
+    end
+
+    describe "handling in Hash" do
+        it "can be used as a hash key" do
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+                output_port 'out2', '/double'
+            end
+            plan.add(task = task_m.new)
+            port0 = Syskit::Port.new(task_m.out_port, task)
+            port1 = Syskit::Port.new(task_m.out_port, task)
+            assert_equal 10, Hash[port0 => 10][port1]
+            port2 = Syskit::Port.new(task_m.out2_port, task)
+            assert_equal nil, Hash[port0 => 10][port2]
+        end
     end
 end
 
 describe Syskit::InputWriter do
-    include Syskit::Test::Self
-
     it "validates the given samples if the writer is not yet accessible" do
         task_m = Syskit::TaskContext.new_submodel do
             input_port 'in', '/double'
         end
-        policy = Hash[:type => :buffer, :size => 10]
+        policy = Hash[type: :buffer, size: 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_writer = abstract_task.in_port.writer(policy)
         flexmock(Typelib).should_receive(:from_ruby).once.with([], abstract_task.in_port.type)
@@ -82,32 +168,30 @@ describe Syskit::InputWriter do
         task_m = Syskit::TaskContext.new_submodel do
             input_port 'in', '/double'
         end
-        policy = Hash[:type => :buffer, :size => 10]
+        policy = Hash[type: :buffer, size: 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_writer = abstract_task.in_port.writer(policy)
-        task = syskit_deploy_task_context(task_m, 'task')
+        task = syskit_stub_deploy_and_configure(task_m)
         plan.replace(abstract_task, task)
 
-        start_task_context(task)
+        syskit_start(task)
         assert_equal task.in_port, port_writer.resolved_port
         assert_equal task.orocos_task.port('in'), port_writer.writer.port
     end
 end
 
 describe Syskit::OutputReader do
-    include Syskit::Test::Self
-
     it "should be able to rebind to actual tasks that replaced the task" do
         task_m = Syskit::TaskContext.new_submodel do
             output_port 'out', '/double'
         end
-        policy = Hash[:type => :buffer, :size => 10]
+        policy = Hash[type: :buffer, size: 10]
         plan.add_permanent(abstract_task = task_m.as_plan)
         port_reader = abstract_task.out_port.reader(policy)
-        task = syskit_deploy_task_context(task_m, 'task')
+        task = syskit_stub_deploy_and_configure(task_m)
         plan.replace(abstract_task, task)
 
-        start_task_context(task)
+        syskit_start(task)
         assert_equal task.out_port, port_reader.resolved_port
         assert_equal task.orocos_task.port('out'), port_reader.reader.port
     end

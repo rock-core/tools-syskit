@@ -497,22 +497,22 @@ module Syskit
                 # We gather all the capabilities and iteratively remove the ones
                 # for which this property is fullfilled
                 result = []
-                specialization_set = specialization_set.to_value_set
+                specialization_set = specialization_set.to_set
 
                 compatibilities = Hash.new
                 specialization_set.each do |s0|
-                    compatibilities[s0] = (s0.compatibilities.to_value_set & specialization_set) << s0
+                    compatibilities[s0] = (s0.compatibilities.to_set & specialization_set) << s0
                 end
                 compatibilities.each do |s0, remaining|
                     # Iterate over the existing elements
                     result.each do |merged, all|
                         if all.include?(s0)
-                            remaining.difference!(all.to_value_set)
+                            remaining.subtract(all)
                         elsif merged.compatible_with?(s0)
                             # not there yet and compatible, add it
                             merged.merge(s0)
                             all << s0
-                            remaining.difference!(all.to_value_set)
+                            remaining.subtract(all)
                         end
                     end
 

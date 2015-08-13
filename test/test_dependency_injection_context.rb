@@ -1,11 +1,10 @@
 require 'syskit/test/self'
 
 describe Syskit::DependencyInjection do
-    include Syskit::Test::Self
     describe "#push" do
         it "applies explicit choices recursively layer-by-layer" do
             srv0 = Syskit::DataService.new_submodel
-            task0 = Syskit::TaskContext.new_submodel { provides srv0, :as => 'test' }
+            task0 = Syskit::TaskContext.new_submodel { provides srv0, as: 'test' }
             di0 = Syskit::DependencyInjection.new
             di0.add(srv0 => task0)
             di1 = Syskit::DependencyInjection.new
@@ -19,7 +18,7 @@ describe Syskit::DependencyInjection do
 
         it "applies default choices recursively layer-by-layer" do
             srv0 = Syskit::DataService.new_submodel
-            task0 = Syskit::TaskContext.new_submodel { provides srv0, :as => 'test' }
+            task0 = Syskit::TaskContext.new_submodel { provides srv0, as: 'test' }
             di0 = Syskit::DependencyInjection.new
             di0.add(srv0 => task0)
             di1 = Syskit::DependencyInjection.new

@@ -1,31 +1,29 @@
 require 'syskit/test/self'
 
 describe Syskit do
-    include Syskit::Test::Self
-
     describe ".resolve_connections" do
         it "should match ports by name" do
             ports = [['port1', '/type1'], ['port2', '/type2']]
-            out_ports = ports.map { |n, t| flexmock(:name => n, :type => t) }
-            in_ports  = ports.map { |n, t| flexmock(:name => n, :type => t) }
+            out_ports = ports.map { |n, t| flexmock(name: n, type: t) }
+            in_ports  = ports.map { |n, t| flexmock(name: n, type: t) }
 
             assert_equal [[out_ports[0], in_ports[0]], [out_ports[1], in_ports[1]]].to_set,
                 Syskit.resolve_connections(out_ports, in_ports).to_set
         end
         it "should match ports by type" do
             out_ports = [['port1', '/type1'], ['port2', '/type2']].
-                map { |n, t| flexmock(:name => n, :type => t) }
+                map { |n, t| flexmock(name: n, type: t) }
             in_ports = [['port1', '/type2'], ['port2', '/type1']].
-                map { |n, t| flexmock(:name => n, :type => t) }
+                map { |n, t| flexmock(name: n, type: t) }
 
             assert_equal [[out_ports[0], in_ports[1]], [out_ports[1], in_ports[0]]].to_set,
                 Syskit.resolve_connections(out_ports, in_ports).to_set
         end
         it "should raise AmbiguousAutoConnection if a port-by-type match resolves to multiple inputs" do
             out_ports = [['port1', '/type1'], ['port2', '/type2']].
-                map { |n, t| flexmock(:name => n, :type => t) }
+                map { |n, t| flexmock(name: n, type: t) }
             in_ports = [['in_port1', '/type1'], ['in_port2', '/type1']].
-                map { |n, t| flexmock(:name => n, :type => t) }
+                map { |n, t| flexmock(name: n, type: t) }
 
             assert_raises(Syskit::AmbiguousAutoConnection) do
                 Syskit.resolve_connections(out_ports, in_ports)
@@ -35,17 +33,17 @@ describe Syskit do
             # Important: the exact name match should be second so that we are
             # sure that it is not a fluke due to the order
             out_ports = [['port1', '/type2'], ['port2', '/type2']].
-                map { |n, t| flexmock(:name => n, :type => t) }
+                map { |n, t| flexmock(name: n, type: t) }
             in_ports = [['port1', '/type2'], ['port2', '/type2']].
-                map { |n, t| flexmock(:name => n, :type => t) }
+                map { |n, t| flexmock(name: n, type: t) }
 
             assert_equal [[out_ports[0], in_ports[0]], [out_ports[1], in_ports[1]]].to_set,
                 Syskit.resolve_connections(out_ports, in_ports).to_set
         end
         it "should raise AmbiguousAutoConnection if more than one output gets connected to a non-multiplexing input" do
             out_ports = [['port1', '/type2'], ['port1', '/type2']].
-                map { |n, t| flexmock(:name => n, :type => t) }
-            in_ports = [flexmock(:name => 'port', :type => '/type2', :multiplexes? => false)]
+                map { |n, t| flexmock(name: n, type: t) }
+            in_ports = [flexmock(name: 'port', type: '/type2', :multiplexes? => false)]
 
             assert_raises(Syskit::AmbiguousAutoConnection) do
                 Syskit.resolve_connections(out_ports, in_ports)
@@ -53,8 +51,8 @@ describe Syskit do
         end
         it "should not raise AmbiguousAutoConnection if more than one output gets connected to a multiplexing input" do
             out_ports = [['port1', '/type2'], ['port2', '/type2']].
-                map { |n, t| flexmock(:name => n, :type => t) }
-            in_ports = [flexmock(:name => 'port', :type => '/type2', :multiplexes? => true)]
+                map { |n, t| flexmock(name: n, type: t) }
+            in_ports = [flexmock(name: 'port', type: '/type2', :multiplexes? => true)]
 
             Syskit.resolve_connections(out_ports, in_ports)
         end

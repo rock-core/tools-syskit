@@ -1,5 +1,5 @@
 require 'minitest/spec'
-require 'flexmock/test_unit'
+require 'flexmock/minitest'
 
 # simplecov must be loaded FIRST. Only the files required after it gets loaded
 # will be profiled !!!
@@ -49,13 +49,15 @@ end
 
 module Syskit
     module Test
+        extend Logger::Hierarchy
+        extend Logger::Forward
+
     # Base functionality for all testing cases
     module Base
         def setup
             @task_stubs = Array.new
             @old_loglevel = Orocos.logger.level
 
-            Roby.app.filter_backtraces = false
             super
         end
 
@@ -74,37 +76,6 @@ module Syskit
             Orocos.logger.level = @old_loglevel if @old_loglevel
             if teardown_failure
                 raise teardown_failure
-            end
-        end
-
-        def deploy(*args, &block)
-            syskit_run_deployer(*args, &block)
-        end
-
-        # Run Syskit's deployer (i.e. engine) on the current plan
-        def syskit_run_deployer(base_task = nil, resolve_options = Hash.new, &block)
-            syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
-            syskit_engine.disable_updates
-            if base_task
-                base_task = base_task.as_plan
-                plan.add_mission(base_task)
-                base_task = base_task.as_service
-
-                planning_task = base_task.planning_task
-                if !planning_task.running?
-                    planning_task.start!
-                end
-            end
-            syskit_engine.enable_updates
-            syskit_engine.resolve(resolve_options)
-            if planning_task
-                planning_task.emit :success
-            end
-            if Roby.app.test_show_timings?
-                merge_timepoints(syskit_engine)
-            end
-            if base_task
-                base_task.task
             end
         end
 

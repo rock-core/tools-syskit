@@ -2,8 +2,6 @@ require 'syskit/test/self'
 require 'minitest/spec'
 
 describe Syskit::Models::SpecializationManager do
-    include Syskit::Test::Self
-
     # [Syskit::Models::SpecializationManager] the manager under test
     attr_reader :mng
 
@@ -12,10 +10,10 @@ describe Syskit::Models::SpecializationManager do
     before do
         @srv_m = Syskit::DataService.new_submodel
         @task_m = Syskit::TaskContext.new_submodel
-        task_m.provides srv_m, :as => 'test'
+        task_m.provides srv_m, as: 'test'
         @cmp_m = Syskit::Composition.new_submodel
-        cmp_m.add srv_m, :as => 'test'
-        cmp_m.add srv_m, :as => 'second'
+        cmp_m.add srv_m, as: 'test'
+        cmp_m.add srv_m, as: 'second'
         @mng = cmp_m.specializations
     end
 
@@ -122,7 +120,7 @@ describe Syskit::Models::SpecializationManager do
             normalized_mappings = Hash.new
             flexmock(mng).should_receive(:normalize_specialization_mappings).with(mappings).once.and_return(normalized_mappings)
             flexmock(mng).should_receive(:validate_specialization_mappings).with(normalized_mappings).once.and_return(nil)
-            block = proc { add Syskit::TaskContext, :as => 'child' }
+            block = proc { add Syskit::TaskContext, as: 'child' }
             flexmock(Syskit::Models::CompositionSpecialization).new_instances.should_receive(:add).with(normalized_mappings, eq(block)).once
             mng.specialize(mappings, &block)
         end
@@ -351,7 +349,7 @@ describe Syskit::Models::SpecializationManager do
                 with('child' => task_m).
                 and_return([[flexmock(:weak_match? => true), []], [flexmock(:weak_match? => true), []]])
             assert_raises(Syskit::AmbiguousSpecialization) do
-                mng.matching_specialized_model(selection, :strict => true)
+                mng.matching_specialized_model(selection, strict: true)
             end
         end
         it "uses the common subset if more than one specialization matches and strict is not set" do
@@ -362,7 +360,7 @@ describe Syskit::Models::SpecializationManager do
                 with(matches).and_return(matches[0])
             flexmock(mng).should_receive(:specialized_model).once.
                 with(matches[0][0], matches[0][1]).and_return(model = flexmock)
-            assert_equal model, mng.matching_specialized_model(selection, :strict => false)
+            assert_equal model, mng.matching_specialized_model(selection, strict: false)
         end
         it "applies specializations that are orthogonal from the service selection" do
             task_spec = cmp_m.specialize cmp_m.test_child => task_m
@@ -370,7 +368,7 @@ describe Syskit::Models::SpecializationManager do
                 instance_selection_for('test', cmp_m.test_child)
             selection = Hash['test' => selection]
             result = cmp_m.specializations.
-                matching_specialized_model(selection, :strict => true)
+                matching_specialized_model(selection, strict: true)
             assert result.applied_specializations.include?(task_spec)
         end
         it "can disambiguate among the possible specializations based on the selected services" do
@@ -381,7 +379,7 @@ describe Syskit::Models::SpecializationManager do
             flexmock(mng).should_receive(:find_matching_specializations).with('test' => task_m).and_return(matches)
             flexmock(mng).should_receive(:specialized_model).once.
                 with(matches[0][0], matches[0][1]).and_return(model = flexmock)
-            assert_equal model, mng.matching_specialized_model(selection, :strict => true)
+            assert_equal model, mng.matching_specialized_model(selection, strict: true)
         end
         it "can disambiguate among the possible specializations based on the specialization hints" do
             selection = flexmock
@@ -394,8 +392,8 @@ describe Syskit::Models::SpecializationManager do
             flexmock(mng).should_receive(:specialized_model).once.
                 with(matches[0][0], matches[0][1]).and_return(model = flexmock)
             assert_equal model, mng.matching_specialized_model(
-                selection, :strict => true,
-                :specialization_hints => [hint])
+                selection, strict: true,
+                specialization_hints: [hint])
         end
     end
 
@@ -415,7 +413,7 @@ describe Syskit::Models::SpecializationManager do
 
     describe "#create_specialized_model" do
         it "should only inherit compatible specializations from the root" do
-            root = Syskit::Composition.new_submodel(:name => 'Cmp') { add Syskit::DataService.new_submodel, :as => 'test' }
+            root = Syskit::Composition.new_submodel(name: 'Cmp') { add Syskit::DataService.new_submodel, as: 'test' }
             spec0 = root.specialize(root.test_child => (srv0 = Syskit::DataService.new_submodel))
             spec1 = root.specialize(root.test_child => (srv1 = Syskit::DataService.new_submodel))
             spec2 = root.specialize(root.test_child => (srv2 = Syskit::DataService.new_submodel))
@@ -437,11 +435,11 @@ describe Syskit::Models::SpecializationManager do
             end
             task_m = Syskit::TaskContext.new_submodel do
                 output_port 'out', '/double'
-                provides srv_m, :as => 'test'
+                provides srv_m, as: 'test'
             end
 
             root_m = Syskit::Composition.new_submodel do
-                add base_srv_m, :as => 'test'
+                add base_srv_m, as: 'test'
             end
             return root_m, task_m, srv_m
         end

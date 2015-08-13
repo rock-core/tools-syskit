@@ -2,7 +2,6 @@ require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::NetworkGeneration::MergeSolver do
-    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     attr_reader :solver
@@ -13,17 +12,17 @@ describe Syskit::NetworkGeneration::MergeSolver do
 
     describe "#replacement_for" do
         it "returns the leaf object in a path in task_replacement_graph" do
-            t0, t1, t2 = prepare_plan :add => 3
+            t0, t1, t2 = prepare_plan add: 3
             solver.register_replacement(t0, t1)
             solver.register_replacement(t1, t2)
             assert_equal t2, solver.replacement_for(t0)
         end
         it "returns the given task if it has no child in the graph" do
-            t0 = prepare_plan :add => 1
+            t0 = prepare_plan add: 1
             assert_equal t0, solver.replacement_for(t0)
         end
         it "can resolve the same task twice and takes into accunt modifications in the replacement graph" do
-            t0, t1, t2 = prepare_plan :add => 3
+            t0, t1, t2 = prepare_plan add: 3
             solver.register_replacement(t0, t1)
             assert_equal t1, solver.replacement_for(t0)
             solver.register_replacement(t1, t2)
@@ -81,16 +80,16 @@ describe Syskit::NetworkGeneration::MergeSolver do
             plan.add(c0 = simple_composition_model.new)
             plan.add(t1 = simple_component_model.new)
             plan.add(c1 = simple_composition_model.new)
-            c0.depends_on(t0, :role => 'child')
-            c1.depends_on(t1, :role => 'child')
+            c0.depends_on(t0, role: 'child')
+            c1.depends_on(t1, role: 'child')
             assert_same false, solver.resolve_single_merge(c0, c1)
         end
         it "returns false for compositions that have the same child task but in different roles" do
             plan.add(t = simple_component_model.new)
             plan.add(c0 = simple_composition_model.new)
-            c0.depends_on(t, :role => 'child0')
+            c0.depends_on(t, role: 'child0')
             plan.add(c1 = simple_composition_model.new)
-            c1.depends_on(t, :role => 'child1')
+            c1.depends_on(t, role: 'child1')
             assert_same false, solver.resolve_single_merge(c0, c1)
         end
         it "returns false for tasks that have execution agents" do
@@ -114,32 +113,32 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
 
         it "should return an empty array if given the same task" do
-            task = flexmock(:model => task_model).
+            task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new).
                 mock
             assert_equal [], solver.resolve_input_matching(task, task)
         end
         it "should not check for multiplexing ports for ports that do match" do
-            task = flexmock(:model => task_model).
+            task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new).
                 mock
             task_model.should_receive(:find_input_port).never
             solver.resolve_input_matching(task, task)
         end
         it "should return nil if the source port name is different" do
-            task = flexmock(:model => task_model).
+            task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new).
                 mock
-            target_task = flexmock(:model => task_model).
+            target_task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', Hash.new).
                 mock
             assert !solver.resolve_input_matching(task, target_task)
         end
         it "should return nil if the policies are different" do
-            task = flexmock(:model => task_model).
+            task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false)).
                 mock
-            target_task = flexmock(:model => task_model).
+            target_task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false)).
                 mock
             flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
@@ -147,29 +146,29 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
         it "should call the task model with the input port name to get the port model if connections mismatch" do
             task_model.should_receive(:find_input_port).with('sink_port').once.and_return(port_model)
-            task = flexmock(:model => task_model).
+            task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false)).
                 mock
-            target_task = flexmock(:model => task_model).
+            target_task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false)).
                 mock
             flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
             assert !solver.resolve_input_matching(task, target_task)
         end
         it "should return the mismatching connection if the source port task is different" do
-            task = flexmock(:model => task_model).
+            task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', Hash.new).
                 mock
-            target_task = flexmock(:model => task_model).
+            target_task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', Hash.new).
                 mock
             assert_equal [["sink_port", "src_port", src, target_src]], solver.resolve_input_matching(task, target_task)
         end
         it "should return nil if the source port tasks are different and the policies are not compatible" do
-            task = flexmock(:model => task_model).
+            task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy = flexmock(:empty? => false)).
                 mock
-            target_task = flexmock(:model => task_model).
+            target_task = flexmock(model: task_model).
                 should_receive(:each_concrete_input_connection).and_yield(target_src = Object.new, 'src_port', 'sink_port', target_policy = flexmock(:empty? => false)).
                 mock
             flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil).once
@@ -184,28 +183,28 @@ describe Syskit::NetworkGeneration::MergeSolver do
                 flexmock(Syskit).should_receive(:update_connection_policy).with(policy, target_policy).and_return(nil)
             end
             it "should return nil if connections from the same port are connected with different policies" do
-                task = flexmock(:model => task_model).
+                task = flexmock(model: task_model).
                     should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy).
                     mock
-                target_task = flexmock(:model => task_model).
+                target_task = flexmock(model: task_model).
                     should_receive(:each_concrete_input_connection).and_yield(src, 'src_port', 'sink_port', target_policy).
                     mock
                 assert !solver.resolve_input_matching(task, target_task)
             end
             it "should return an empty array for connections from different ports regardless of the connection policy" do
-                task = flexmock(:model => task_model).
+                task = flexmock(model: task_model).
                     should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy).
                     mock
-                target_task = flexmock(:model => task_model).
+                target_task = flexmock(model: task_model).
                     should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy).
                     mock
                 assert_equal [], solver.resolve_input_matching(task, target_task)
             end
             it "should return an empty array for connections from different tasks regardless of the connection policy" do
-                task = flexmock(:model => task_model).
+                task = flexmock(model: task_model).
                     should_receive(:each_concrete_input_connection).and_yield(src = Object.new, 'src_port', 'sink_port', policy).
                     mock
-                target_task = flexmock(:model => task_model).
+                target_task = flexmock(model: task_model).
                     should_receive(:each_concrete_input_connection).and_yield(src, 'other_src_port', 'sink_port', target_policy).
                     mock
                 assert_equal [], solver.resolve_input_matching(task, target_task)
@@ -331,17 +330,18 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert graph.empty?
             assert cycles.empty?
         end
-        it "considers non-specialized versions of a specialized model as valid candidates" do
+        it "uses the instance-level #fullfilled_model to search for candidates" do
             task_model = Syskit::TaskContext.new_submodel
-            plan.add(non_specialized = task_model.new)
-            plan.add(specialized = task_model.new)
-            specialized.specialize
-            flexmock(non_specialized).should_receive(:can_merge?).with(specialized).once
-            flexmock(specialized).should_receive(:can_merge?).with(non_specialized).once
-            solver.direct_merge_mappings([non_specialized, specialized].to_value_set)
+            plan.add(task0 = task_model.specialize.new)
+            task0.fullfilled_model = [task_model, [], Hash.new]
+            plan.add(task1 = task_model.specialize.new)
+            task1.fullfilled_model = [task_model, [], Hash.new]
+            flexmock(task0).should_receive(:can_merge?).with(task1).once
+            flexmock(task1).should_receive(:can_merge?).with(task0).once
+            solver.direct_merge_mappings([task0, task1].to_set)
         end
         it "merges every merge candidate for which resolve_single_merge return true" do
-            flexmock(plan).should_receive(:find_local_tasks).with(task_model.fullfilled_model).
+            flexmock(plan).should_receive(:find_local_tasks).with([task_model]).
                 and_return([target_task])
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(true)
             graph, cycles = solver.direct_merge_mappings([task, target_task].to_value_set)
@@ -349,7 +349,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert cycles.empty?
         end
         it "adds the merge candidates for which resolve_single_merge return nil to the cycle candidates" do
-            flexmock(plan).should_receive(:find_local_tasks).with(task_model.fullfilled_model).
+            flexmock(plan).should_receive(:find_local_tasks).with([task_model]).
                 and_return([target_task])
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(nil)
             graph, cycles = solver.direct_merge_mappings([task, target_task].to_value_set)
@@ -357,7 +357,7 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert_equal [[task, target_task]], cycles
         end
         it "does not take into account possible candidates that are not in the provided set" do
-            flexmock(plan).should_receive(:find_local_tasks).with(task_model.fullfilled_model).
+            flexmock(plan).should_receive(:find_local_tasks).with([task_model]).
                 and_return([target_task])
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(true)
             graph, cycles = solver.direct_merge_mappings([task].to_value_set)
@@ -366,3 +366,4 @@ describe Syskit::NetworkGeneration::MergeSolver do
         end
     end
 end
+

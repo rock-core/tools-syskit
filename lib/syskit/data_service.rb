@@ -1,5 +1,5 @@
 module Syskit
-        DataService = Models::DataServiceModel.new
+        DataService = Models::DataServiceModel.new(project: OroGen::Spec::Project.blank)
         DataService.root = true
         DataService.permanent_model = true
         DataService.provides Roby::TaskService
@@ -27,7 +27,7 @@ module Syskit
             end
         end
 
-        Device   = Models::DeviceModel.new
+        Device   = Models::DeviceModel.new(project: OroGen::Spec::Project.blank)
         Device.root = true
         Device.permanent_model = true
         Device.provides DataService
@@ -125,7 +125,7 @@ module Syskit
             end
         end
 
-        ComBus = Models::ComBusModel.new
+        ComBus = Models::ComBusModel.new(project: OroGen::Spec::Project.blank)
         ComBus.root = true
         ComBus.permanent_model = true
         ComBus.provides Device

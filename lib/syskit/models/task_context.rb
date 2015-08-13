@@ -16,6 +16,11 @@ module Syskit
             #   extend this model
             attr_accessor :extension_file
 
+            # Checks if a given component implementation needs to be stubbed
+            def needs_stub?(component)
+                super || component.orocos_task.kind_of?(Orocos::RubyTasks::StubTaskContext)
+            end
+
             # Clears all registered submodels
             #
             # On TaskContext, it also clears all orogen-to-syskit model mappings
@@ -192,13 +197,25 @@ module Syskit
                 orogen_model.each_event_port(&block)
             end
 
-            # Returns the configuration hash for the given configuration names,
-            # given this task context
-            def resolve_configuration(*names)
-                if conf = Orocos.conf.conf[orogen_model.name].conf(names, true)
-                    conf.map_value { |k, v| Typelib.to_ruby(v) }
-                else raise ArgumentError, "there is no configuration #{names} for #{self}"
+            # Override this model's default configuration manager
+            #
+            # @see configuration_manager
+            attr_writer :configuration_manager
+
+            # Returns the configuration management object for this task model
+            #
+            # @return [TaskConfigurationManager]
+            def configuration_manager
+                if !@configuration_manager
+                    if !concrete_model?
+                        manager = concrete_model.configuration_manager
+                    else
+                        manager = TaskConfigurationManager.new(Roby.app, self)
+                        manager.reload
+                    end
+                    @configuration_manager = manager
                 end
+                @configuration_manager
             end
         end
     end

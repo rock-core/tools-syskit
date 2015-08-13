@@ -8,7 +8,7 @@ module Syskit
             # #cleanup_dead_connections, thus avoiding to disconnect connections
             # between already-dead processes
 
-            all_dead_deployments = ValueSet.new
+            all_dead_deployments = Set.new
             for config in Syskit.conf.each_process_server_config
                 server = config.client
                 dead_deployments = server.wait_termination(0)

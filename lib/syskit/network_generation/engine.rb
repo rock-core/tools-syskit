@@ -1,9 +1,5 @@
 module Syskit
     module NetworkGeneration
-        module PlanExtension
-            attr_accessor :syskit_engine
-        end
-
         # The main deployment algorithm
         #
         # Engine instances are the objects that actually get deployment
@@ -81,6 +77,16 @@ module Syskit
 	    # See #disabled?
 	    def enable_updates; @disabled = false end
 
+            # Force running {#resolve} the next chance we have to
+            #
+            # @see Runtime.apply_requirement_modifications
+            def force_update!; @forced_update = true end
+
+            # Whether we should run {#resolve} the next have we have the chance
+            #
+            # @see #force_update! Runtime.apply_requirement_modifications
+            def forced_update?; @forced_update end
+
             # The set of tasks that represent the running deployments
             attr_reader :deployment_tasks
 
@@ -117,8 +123,9 @@ module Syskit
             def initialize(plan)
                 @real_plan = plan
                 @work_plan = plan
-                real_plan.extend PlanExtension
                 real_plan.syskit_engine = self
+
+                @forced_update = false
 
                 @merge_solver = NetworkGeneration::MergeSolver.new(real_plan)
                 @use_automatic_selection = true
@@ -150,9 +157,9 @@ module Syskit
             # Computes the set of task context models that are available in
             # deployments
             def compute_deployed_models
-                deployed_models = ValueSet.new
+                deployed_models = Set.new
 
-                new_models = ValueSet.new
+                new_models = Set.new
                 available_deployments.each do |machine_name, deployment_models|
                     deployment_models.each do |model|
                         model.each_orogen_deployed_task_context_model do |deployed_task|
@@ -165,7 +172,7 @@ module Syskit
                     deployed_models.merge(new_models)
 
                     # First, add everything the new models fullfill
-                    fullfilled_models = ValueSet.new
+                    fullfilled_models = Set.new
                     new_models.each do |m|
                         m.each_fullfilled_model do |fullfilled_m|
                             next if !(fullfilled_m <= Syskit::Component) && !(fullfilled_m.kind_of?(Models::DataServiceModel))
@@ -217,7 +224,7 @@ module Syskit
                 @deployed_component_models.each do |component_m|
                     component_m.each_fullfilled_model do |fullfilled_m|
                         if fullfilled_m <= DataService
-                            service_allocation_candidates[fullfilled_m] ||= ValueSet.new
+                            service_allocation_candidates[fullfilled_m] ||= Set.new
                             service_allocation_candidates[fullfilled_m] << component_m
                         end
                     end
@@ -242,7 +249,6 @@ module Syskit
                 @main_automatic_selection = DependencyInjection.new
                 main_automatic_selection.add_defaults(@deployed_component_models)
 
-                @work_plan = Roby::Transaction.new(real_plan)
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @required_instances = Hash.new
                 @toplevel_tasks.clear
@@ -376,7 +382,11 @@ module Syskit
                     # #static_garbage_collect to cleanup #work_plan. The
                     # actual mission / permanent marking is fixed at the end
                     # of resolution by calling #fix_toplevel_tasks
-                    task.fullfilled_model = req.fullfilled_model
+                    fullfilled_task_m, fullfilled_modules, fullfilled_args = req.fullfilled_model
+                    fullfilled_args = fullfilled_args.map_value do |arg_name, _|
+                        task.arguments[arg_name]
+                    end
+                    task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
                     required_instances[req_task] = task
                     add_toplevel_task(task, real_plan.mission?(real_plan_task), real_plan.permanent?(real_plan_task))
                     add_timepoint 'compute_system_network', 'instanciate', req.to_s
@@ -579,7 +589,7 @@ module Syskit
                     deployment_models.each do |model|
                         model.each_orogen_deployed_task_context_model do |deployed_task|
                             task_model = TaskContext.model_for(deployed_task.task_model)
-                            deployed_models[task_model] ||= ValueSet.new
+                            deployed_models[task_model] ||= Set.new
                             deployed_models[task_model] << [machine_name, model, deployed_task.name]
                         end
                     end
@@ -666,12 +676,17 @@ module Syskit
 
                     # task.model would be wrong here as task.model could be the
                     # singleton class (if there are dynamic services)
-                    candidates = deployed_models[task.concrete_model]
+                    candidates = deployed_models[task.model]
                     if !candidates || candidates.empty?
-                        debug { "no deployments found for #{task} (#{task.concrete_model.short_name})" }
-                        missing_deployments << task
-                        next
-                    elsif candidates.size > 1
+                        candidates = deployed_models[task.concrete_model]
+                        if !candidates || candidates.empty?
+                            debug { "no deployments found for #{task} (#{task.concrete_model.short_name})" }
+                            missing_deployments << task
+                            next
+                        end
+                    end
+
+                    if candidates.size > 1
                         debug { "multiple deployments available for #{task} (#{task.concrete_model.short_name}), trying to resolve" }
                         selected = log_nest(2) do
                             resolve_deployment_ambiguity(candidates, task)
@@ -922,10 +937,10 @@ module Syskit
             def finalize_deployed_tasks
                 debug "finalizing deployed tasks"
 
-                used_deployments = work_plan.find_local_tasks(Deployment).to_value_set
-                used_tasks       = work_plan.find_local_tasks(Component).to_value_set
+                used_deployments = work_plan.find_local_tasks(Deployment).to_set
+                used_tasks       = work_plan.find_local_tasks(Component).to_set
 
-                all_tasks = work_plan.find_tasks(Component).to_value_set
+                all_tasks = work_plan.find_tasks(Component).to_set
                 all_tasks.delete_if do |t|
                     if !t.reusable?
                         debug { "  clearing the relations of the finished task #{t}" }
@@ -948,7 +963,7 @@ module Syskit
                 finishing_deployments, existing_deployments =
                     work_plan.find_tasks(Syskit::Deployment).not_finished.
                     partition { |t| t.finishing? }
-                existing_deployments = existing_deployments.to_value_set - used_deployments
+                existing_deployments = existing_deployments.to_set - used_deployments
                 finishing_deployments = finishing_deployments.inject(Hash.new) do |h, task|
                     h[task.process_name] = task
                     h
@@ -963,11 +978,11 @@ module Syskit
                     break
                 end
 
-                merged_tasks = ValueSet.new
-                result = ValueSet.new
+                merged_tasks = Set.new
+                result = Set.new
                 used_deployments.each do |deployment_task|
                     existing_candidates = work_plan.find_local_tasks(deployment_task.model).
-                        not_finishing.not_finished.to_value_set
+                        not_finishing.not_finished.to_set
                     debug do
                         debug "  looking to reuse a deployment for #{deployment_task.process_name} (#{deployment_task})"
                         debug "  #{existing_candidates.size} candidates:"
@@ -1003,11 +1018,32 @@ module Syskit
                     result << selected_deployment
                 end
 
+                merged_tasks = reconfigure_tasks_on_static_port_modification(merged_tasks)
+
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
                 merge_seeds = merge_solver.merge_tasks_next_step_hierarchy(merged_tasks)
                 merge_solver.merge_identical_tasks(merge_seeds)
                 result
+            end
+
+            def reconfigure_tasks_on_static_port_modification(deployed_tasks)
+                final_deployed_tasks = deployed_tasks.dup
+
+                already_setup_tasks = work_plan.find_tasks(Syskit::TaskContext).not_finished.not_finishing.
+                    find_all { |t| deployed_tasks.include?(t) && t.setup? }
+
+                already_setup_tasks.each do |t|
+                    next if !t.transaction_proxy?
+                    if t.transaction_modifies_static_ports?
+                        new_task = t.execution_agent.task(t.orocos_name, t.concrete_model)
+                        merge_solver.merge(t, new_task, remove: false)
+                        new_task.should_configure_after t.stop_event
+                        final_deployed_tasks.delete(t)
+                        final_deployed_tasks << new_task
+                    end
+                end
+                final_deployed_tasks
             end
 
             # Given a required deployment task in {#work_plan} and a proxy
@@ -1030,15 +1066,15 @@ module Syskit
                     end
                 end
 
-                applied_merges = ValueSet.new
+                applied_merges = Set.new
                 deployed_tasks = deployment_task.each_executed_task.to_a
                 deployed_tasks.each do |task|
                     existing_task = existing_tasks[task.orocos_name]
-                    if !existing_task || !existing_task.can_merge?(task)
+                    if !existing_task || !task.can_be_deployed_by?(existing_task)
                         debug do
                             if !existing_task
                                 "  task #{task.orocos_name} has not yet been deployed"
-                            elsif !existing_task.can_merge?(task)
+                            else
                                 "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment"
                             end
                         end
@@ -1058,6 +1094,10 @@ module Syskit
                 end
                 work_plan.remove_object(deployment_task)
                 applied_merges
+            end
+
+            def create_work_plan_transaction
+                @work_plan = Roby::Transaction.new(real_plan)
             end
 
             # Generate the deployment according to the current requirements, and
@@ -1087,13 +1127,17 @@ module Syskit
                 @timepoints = []
 	    	return if disabled?
 
+                @forced_update = false
+
                 # Set some objects to nil to make sure that noone is using them
                 # while they are not valid
                 @dataflow_dynamics =
                     @port_dynamics =
                     @deployment_tasks = nil
 
+                create_work_plan_transaction
                 prepare(options)
+
                 # We use simply "options" below, which resolves to the local
                 # variable. Update it.
                 options = self.options
@@ -1155,8 +1199,15 @@ module Syskit
                 end
                 work_plan.commit_transaction
 
+                # Reset the oroGen model on all already-running tasks
+                real_plan.find_tasks(Syskit::TaskContext).each do |task|
+                    if (orocos_task = task.orocos_task) && orocos_task.respond_to?(:model=)
+                        task.orocos_task.model = task.model.orogen_model
+                    end
+                end
+
             rescue Exception => e
-                if work_plan != real_plan # we started processing, look at what the user wants to do with the partial transaction
+                if !work_plan.finalized? && (work_plan != real_plan) # we started processing, look at what the user wants to do with the partial transaction
                     if options[:on_error] == :save
                         log_pp(:fatal, e)
                         fatal "Engine#resolve failed"
@@ -1237,7 +1288,7 @@ module Syskit
                 Graphviz.new(work_plan).to_file(kind, 'svg', filename, *additional_args)
             end
 
-            def to_dot_dataflow(remove_compositions = false, excluded_models = ValueSet.new, annotations = ["connection_policy"])
+            def to_dot_dataflow(remove_compositions = false, excluded_models = Set.new, annotations = ["connection_policy"])
                 gen = Graphviz.new(work_plan)
                 gen.dataflow(remove_compositions, excluded_models, annotations)
             end

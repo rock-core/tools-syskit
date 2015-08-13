@@ -4,54 +4,58 @@ module Syskit
         class ProfileTest < Spec
             include Syskit::Test
             include ProfileAssertions
-            extend ProfileModelAssertions
 
-            def assert_is_self_contained(definition, options = Hash.new)
-                options, instanciate_options = Kernel.filter_options options,
-                    :message => "#{definition.name}_def is not self contained"
-                message = options[:message]
-                engine, _ = try_instanciate([definition],
-                                            instanciate_options.merge(
-                                                compute_policies: false,
-                                                compute_deployments: false,
-                                                validate_generated_network: false))
-                still_abstract = plan.find_local_tasks(Syskit::Component).
-                    abstract.to_a
-                tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }
-                tags_from_other = tags.find_all { |task| task.class.profile != self.class.desc }
-                if !other.empty?
-                    raise Roby::Test::Assertion.new(TaskAllocationFailed.new(engine, other)), message
-                elsif !tags_from_other.empty?
-                    other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
-                    raise Roby::Test::Assertion.new(TaskAllocationFailed.new(engine, tags)), "#{definition.name} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{self.class.desc})"
+            def self.subject_syskit_model
+                if @subject_syskit_model
+                    return @subject_syskit_model
+                elsif desc.kind_of?(Syskit::Actions::Profile)
+                    return desc
+                else
+                    super
                 end
             end
 
-            # Tests that the only variation points left in all definitions are
-            # profile tags
-            def self.it_should_be_self_contained(*definitions)
-                if definitions.empty?
-                    definitions = desc.definitions.keys
-                end
-                definitions = definitions.map do |d|
-                    if !d.respond_to?(:to_str)
-                        d = d.name
+            class << self
+                def self.define_deprecated_test_form(name)
+                    define_method("it_#{name}") do |*args, **options|
+                        Syskit::Test.warn "class-level it_#{name} is deprecated, replace by"
+                        Syskit::Test.warn "it { #{name}(a_def, another_def) }"
+                        it { send(name, *args, **options) }
                     end
-                    desc.resolved_definition(d)
-                end
-                definitions.each do |d|
-                    it "#{d.name}_def should be self-contained" do
-                        assert_is_self_contained(d)
+                    define_method("it_#{name}_all") do |**options|
+                        Syskit::Test.warn "class-level it_#{name}_all is deprecated, replace by"
+                        Syskit::Test.warn "it { #{name} }"
+                        it { send(name, **options) }
+                    end
+                    define_method("it_#{name}_together") do |*args, **options|
+                        Syskit::Test.warn "class-level it_#{name}_together is deprecated, replace by"
+                        Syskit::Test.warn "it { #{name}(a_def, another_def) }"
+                        it { send(name, *args, **options) }
                     end
                 end
-            end
+                define_deprecated_test_form(:can_instanciate)
+                define_deprecated_test_form(:can_deploy)
+                define_deprecated_test_form(:can_configure)
 
-            def self.find_definition(name)
-                desc.resolved_definition(name)
-            end
+                # @deprecated replace by
+                #   it { is_self_contained }
+                #   it { is_self_contained(a_def, another_def) }
+                def it_should_be_self_contained(*definitions)
+                    it { is_self_contained(*definitions) }
+                end
 
-            def self.find_device(name)
-                desc.robot.devices[name]
+                def find_definition(name)
+                    subject_syskit_model.resolved_definition(name)
+                end
+
+                def find_device(name)
+                    subject_syskit_model.robot.devices[name]
+                end
+
+                def method_missing(m, *args)
+                    MetaRuby::DSLs.find_through_method_missing(self, m, args, 'def' => 'find_definition', 'dev' => 'find_device') ||
+                        super
+                end
             end
 
             def method_missing(m, *args)
@@ -59,10 +63,6 @@ module Syskit
                     super
             end
 
-            def self.method_missing(m, *args)
-                MetaRuby::DSLs.find_through_method_missing(self, m, args, 'def' => 'find_definition', 'dev' => 'find_device') ||
-                    super
-            end
         end
     end
 end

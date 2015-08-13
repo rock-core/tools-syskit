@@ -327,7 +327,7 @@ module Syskit
             def sim_process_server(name)
                 sim_name = "#{name}-sim"
                 if !process_servers[sim_name]
-                    mng = Orocos::RubyTasks::ProcessManager.new(app.default_loader)
+                    mng = Orocos::RubyTasks::ProcessManager.new(app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext)
                     register_process_server(sim_name, mng, "")
                 end
                 process_server_config_for(sim_name)
@@ -335,11 +335,12 @@ module Syskit
 
             # Declare deployed versions of some Ruby tasks
             def use_ruby_tasks(mappings)
-                mappings.each do |task_model, name|
+                mappings.map do |task_model, name|
                     deployment_model = task_model.deployment_model(name)
                     configured_deployment = Models::ConfiguredDeployment.
                         new('ruby_tasks', deployment_model, Hash[name => name], name, Hash.new)
                     register_configured_deployment(configured_deployment)
+                    configured_deployment
                 end
             end
 

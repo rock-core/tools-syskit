@@ -85,7 +85,7 @@ module Syskit
 
             # Merge task into target_task, i.e. applies target_task.merge(task)
             # and updates the merge solver's data structures in the process
-            def merge(task, target_task)
+            def merge(task, target_task, remove: true)
                 if task == target_task
                     raise "trying to merge a task onto itself: #{task}"
                 end
@@ -102,7 +102,9 @@ module Syskit
                 else
                     plan.replace_task(task, target_task)
                 end
-                plan.remove_object(task)
+                if remove
+                    plan.remove_object(task)
+                end
                 register_replacement(task, target_task)
 
                 if MergeSolver.tracing_directory
@@ -147,8 +149,8 @@ module Syskit
                 # If both tasks are compositions, merge only if +task+
                 # has the same child set than +target+
                 if task.kind_of?(Composition) && target_task.kind_of?(Composition)
-                    task_children   = task.merged_relations(:each_child, true, false).to_value_set
-                    target_children = target_task.merged_relations(:each_child, true, false).to_value_set
+                    task_children   = task.merged_relations(:each_child, true, false).to_set
+                    target_children = target_task.merged_relations(:each_child, true, false).to_set
                     if task_children != target_children || task_children.any? { |t| t.respond_to?(:proxied_data_services) }
                         debug { "rejecting #{target_task}.merge(#{task}) as composition have different children" }
                         return false
@@ -310,7 +312,7 @@ module Syskit
             # In the returned graph, an edge 'a' => 'b' means that we can use a
             # to replace b, i.e. a.merge(b) is valid
             #
-            # @param [ValueSet<Roby::Task>] task_set the set of tasks for which
+            # @param [Set<Roby::Task>] task_set the set of tasks for which
             #   we need the merge graph
             # @return [(BGL::Graph,Array<(Roby::Task,Roby::Task)>)] the merge
             #   graph, and a list of (task, target_task) pairs in which the
@@ -329,7 +331,7 @@ module Syskit
 
                     # Get the set of candidates. We are checking if the tasks in
                     # this set can be replaced by +task+
-                    candidates = plan.find_local_tasks(task.model.fullfilled_model)
+                    candidates = plan.find_local_tasks(task.fullfilled_model.first)
                     debug { "#{candidates.to_a.size} candidates for #{task}" }
                     candidates = candidates.sort_by { |t| Flows::DataFlow.in_degree(t) }
                         
@@ -356,7 +358,7 @@ module Syskit
             # Returns the merge graph for all tasks in {#plan}
             def complete_merge_graph
                 all_tasks = plan.find_local_tasks(Syskit::Component).
-                    to_value_set
+                    to_set
                 direct_merge_mappings(all_tasks)
             end
 
@@ -364,12 +366,12 @@ module Syskit
             # candidates that should be examined, following only dataflow
             # relations
             def merge_tasks_next_step_dataflow(task_set) # :nodoc:
-                result = ValueSet.new
+                result = Set.new
                 for t in task_set
                     sinks = t.each_concrete_output_connection.map do |_, _, sink_task, _|
                         sink_task
                     end
-                    result.merge(sinks.to_value_set) if sinks.size > 1
+                    result.merge(sinks.to_set) if sinks.size > 1
                 end
                 result
             end
@@ -378,7 +380,7 @@ module Syskit
             # candidates that should be examined, following only dataflow
             # relations
             def merge_tasks_next_step_hierarchy(task_set) # :nodoc:
-                result = ValueSet.new
+                result = Set.new
                 for t in task_set
                     parents = t.each_parent_task.to_a
                     debug { "#{t}: #{parents.size} parents" }
@@ -461,7 +463,7 @@ module Syskit
                     break
                 end
 
-                candidates = candidates.to_value_set
+                candidates = candidates.to_set
 
                 debug do
                     debug "-- Initial candidates"
@@ -480,7 +482,7 @@ module Syskit
                 # propagates to the children of the merged tasks and so on.
 
                 possible_cycles = Set.new
-                merged_tasks = ValueSet.new
+                merged_tasks = Set.new
                 pass_idx = 0
                 while !candidates.empty?
                     pass_idx += 1
@@ -529,7 +531,7 @@ module Syskit
 
                         next_step_seeds = applied_merges.vertices.
                             find_all { |task| task.leaf?(applied_merges) }.
-                            to_value_set                         
+                            to_set                         
                         candidates = merge_tasks_next_step_dataflow(next_step_seeds)
                         merged_tasks.merge(next_step_seeds)
                         debug do

@@ -8,8 +8,6 @@ end
 
 
 describe Syskit::Models::TaskContext do
-    include Syskit::Test::Self
-
     after do
         begin OroGen::DefinitionModule.send(:remove_const, :Task)
         rescue NameError
@@ -32,7 +30,7 @@ describe Syskit::Models::TaskContext do
             model = Syskit::TaskContext.new_submodel do
                 input_port "port", "int"
                 property "property", "int"
-                provides srv, :as => 'srv'
+                provides srv, as: 'srv'
             end
             assert(model < Syskit::TaskContext)
             assert model.find_data_service('srv')
@@ -67,7 +65,7 @@ describe Syskit::Models::TaskContext do
         it "does not register the new models as children of the provided services" do
             submodel = Syskit::TaskContext.new_submodel
             ds = Syskit::DataService.new_submodel
-            submodel.provides ds, :as => 'srv'
+            submodel.provides ds, as: 'srv'
             subsubmodel = submodel.new_submodel
 
             assert !ds.submodels.include?(subsubmodel)
@@ -188,7 +186,7 @@ describe Syskit::Models::TaskContext do
         it "calls new_submodel to create the new model" do
             model = Syskit::TaskContext.new_submodel
             orogen = OroGen::Spec::TaskContext.new(Orocos.default_project)
-            flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel).with(:orogen_model => orogen).once.and_return(model)
+            flexmock(OroGen::RTT::TaskContext).should_receive(:new_submodel).with(orogen_model: orogen).once.and_return(model)
             assert_same model, Syskit::TaskContext.define_from_orogen(orogen)
         end
 
@@ -198,12 +196,12 @@ describe Syskit::Models::TaskContext do
             parent_model = Syskit::TaskContext.new_submodel
             orogen.subclasses orogen_parent
             flexmock(Syskit::TaskContext).
-                should_receive(:define_from_orogen).with(orogen, :register => false).
+                should_receive(:define_from_orogen).with(orogen, register: false).
                 pass_thru
             flexmock(Syskit::TaskContext).
-                should_receive(:define_from_orogen).with(orogen_parent, :register => false).
+                should_receive(:define_from_orogen).with(orogen_parent, register: false).
                 and_return(parent_model)
-            model = Syskit::TaskContext.define_from_orogen(orogen, :register => false)
+            model = Syskit::TaskContext.define_from_orogen(orogen, register: false)
             assert_same parent_model, model.superclass
         end
     
@@ -245,7 +243,14 @@ describe Syskit::Models::TaskContext do
         describe "backward-compatible name registration" do
             it "registers the model as a global constant whose name is based on the oroGen model name" do
                 orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
-                syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+                syskit_model =
+                    begin
+                        Roby.app.backward_compatible_naming = true
+                        Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
+                    ensure
+                        Roby.app.backward_compatible_naming = false
+                    end
+
                 with_log_level(Syskit, Logger::FATAL) do
                     assert_same syskit_model, ::MyProject::Task
                 end
@@ -254,13 +259,13 @@ describe Syskit::Models::TaskContext do
 
         it "registers the model as a constant whose name is based on the oroGen model name, under OroGen" do
             orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
-            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
             assert_same syskit_model, OroGen::MyProject::Task
         end
 
         it "has a name derived from the oroGen model name" do
             orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "my_project::Task")
-            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
             assert_equal 'OroGen::MyProject::Task', syskit_model.name
         end
 
@@ -268,13 +273,13 @@ describe Syskit::Models::TaskContext do
             orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "definition_module::Task")
             OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
             flexmock(Syskit::TaskContext).should_receive(:warn).once
-            Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
         end
         it "refuses to register the model as a constant if the constant already exists" do
             Syskit.logger.level = Logger::FATAL
             orogen_model = OroGen::Spec::TaskContext.new(Orocos.default_project, "definition_module::Task")
             OroGen::DefinitionModule.const_set(:Task, (obj = Object.new))
-            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, :register => true)
+            syskit_model = Syskit::TaskContext.define_from_orogen(orogen_model, register: true)
             assert_same obj, ::OroGen::DefinitionModule::Task
             OroGen::DefinitionModule.send(:remove_const, :Task)
         end
@@ -289,12 +294,12 @@ describe Syskit::Models::TaskContext do
         end
 
         it "passes the :task_arguments option as arguments to the newly created task" do
-            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, :task_arguments => {:conf => ['default']})
-            assert_equal Hash[:conf => ['default']], task.arguments
+            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, task_arguments: {conf: ['default']})
+            assert_equal Hash[conf: ['default']], task.arguments
         end
         it "sets the fullfilled model properly" do
-            arguments = Hash[:conf => ['default']]
-            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, :task_arguments => arguments)
+            arguments = Hash[conf: ['default']]
+            task = task_model.instanciate(plan, Syskit::DependencyInjectionContext.new, task_arguments: arguments)
             assert_equal([[task_model], arguments], task.fullfilled_model)
         end
     end
@@ -348,6 +353,14 @@ describe Syskit::Models::TaskContext do
                 input_port 'in', 'int'
             end
             assert !m0.out_port.connected_to?(m1.in_port)
+        end
+    end
+
+    describe "#configuration_manager" do
+        it "inherits the manager from the underlying concrete model" do
+            task_m = Syskit::TaskContext.new_submodel
+            assert_same task_m.configuration_manager,
+                task_m.specialize.configuration_manager
         end
     end
 end

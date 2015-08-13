@@ -3,6 +3,7 @@ require 'metaruby'
 require 'metaruby/dsls/find_through_method_missing'
 require 'orocos/remote_processes'
 require 'orocos/ruby_tasks/process_manager'
+require 'orocos/ruby_tasks/stub_task_context'
 require 'roby'
 require 'orogen'
 
@@ -17,6 +18,7 @@ require 'syskit/base'
 require 'syskit/instance_requirements'
 
 require 'syskit/roby_app'
+require 'syskit/plan_extension'
 
 # Models
 require 'metaruby/dsls'
@@ -38,6 +40,7 @@ require 'syskit/models/deployment'
 require 'syskit/models/configured_deployment'
 
 # Instances
+require 'syskit/task_configuration_manager'
 require 'syskit/port'
 require 'syskit/port_access'
 require 'syskit/component'

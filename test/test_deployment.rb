@@ -1,21 +1,19 @@
 require 'syskit/test/self'
 
 describe Syskit::Deployment do
-    include Syskit::Test::Self
-
     attr_reader :deployment_task, :task_m, :orogen_deployed_task, :deployment_m
     before do
         @task_m = Syskit::TaskContext.new_submodel
         orogen_model = Orocos::Spec::Deployment.new(Orocos.default_loader, 'deployment')
         @orogen_deployed_task = orogen_model.task 'task', task_m.orogen_model
-        @deployment_m = Syskit::Deployment.new_submodel(:orogen_model => orogen_model)
+        @deployment_m = Syskit::Deployment.new_submodel(orogen_model: orogen_model)
         plan.add(@deployment_task = deployment_m.new)
     end
 
     describe "#initialize" do
         it "should use the model name as default deployment name" do
             model = Orocos::Spec::Deployment.new(nil, "test")
-            deployment_m = Syskit::Deployment.new_submodel(:orogen_model => model)
+            deployment_m = Syskit::Deployment.new_submodel(orogen_model: model)
             deployment = deployment_m.new
             deployment.freeze_delayed_arguments
             assert_equal "test", deployment.process_name
@@ -28,7 +26,7 @@ describe Syskit::Deployment do
         end
 
         it "allows to access the value of the :on argument through the #host method" do
-            task = Syskit::Deployment.new_submodel.new(:on => 'bla')
+            task = Syskit::Deployment.new_submodel.new(on: 'bla')
             assert_equal 'bla', task.host
         end
     end
@@ -41,7 +39,7 @@ describe Syskit::Deployment do
         it "returns orocos_process.pid otherwise" do
             task = Syskit::Deployment.new_submodel.new
             flexmock(task).should_receive(:running?).and_return(true)
-            flexmock(task).should_receive(:orocos_process).and_return(flexmock(:pid => (pid = Object.new)))
+            flexmock(task).should_receive(:orocos_process).and_return(flexmock(pid: (pid = Object.new)))
             assert_same pid, task.pid
         end
     end
@@ -105,7 +103,7 @@ describe Syskit::Deployment do
     describe "runtime behaviour" do
         attr_reader :process_server, :process, :log_dir
         before do
-            @process_server = flexmock('process_server', :wait_termination => [])
+            @process_server = flexmock('process_server', wait_termination: [])
             process_server.should_receive(:loader).and_return(FlexMock.undefined).by_default
             process_server.should_receive(:disconnect).by_default
             @process = flexmock('process')
@@ -114,7 +112,7 @@ describe Syskit::Deployment do
             process.should_receive(:get_mapped_name).with('task').and_return('mapped_task_name').by_default
             @log_dir = flexmock('log_dir')
             Syskit.conf.register_process_server('bla', process_server, log_dir)
-            plan.add(@deployment_task = deployment_m.new(:on => 'bla', :name_mappings => Hash['task' => 'mapped_task_name']))
+            plan.add(@deployment_task = deployment_m.new(on: 'bla', name_mappings: Hash['task' => 'mapped_task_name']))
         end
         after do
             if deployment_task.running?
@@ -132,17 +130,17 @@ describe Syskit::Deployment do
                 deployment_task.start!
             end
             it "passes the process server's log dir as working directory" do
-                process_server.should_receive(:start).once.with(any, any, any, hsh(:working_directory => log_dir)).and_return(process)
+                process_server.should_receive(:start).once.with(any, any, any, hsh(working_directory: log_dir)).and_return(process)
                 deployment_task.start!
             end
             it "passes the model-level run command line options to the process server start command" do
-                cmdline_options = {:valgrind => true}
+                cmdline_options = {valgrind: true}
                 deployment_m.default_run_options.merge!(cmdline_options)
-                process_server.should_receive(:start).with(any, any, any, hsh(:cmdline_args => cmdline_options)).and_return(process)
+                process_server.should_receive(:start).with(any, any, any, hsh(cmdline_args: cmdline_options)).and_return(process)
                 deployment_task.start!
             end
             it "raises if the on option refers to a non-existing process server" do
-                plan.add(task = deployment_m.new(:on => 'bla'))
+                plan.add(task = deployment_m.new(on: 'bla'))
                 assert_raises(Roby::CommandFailed) { task.start! }
             end
             it "does not emit ready" do
@@ -160,7 +158,7 @@ describe Syskit::Deployment do
                 process.should_receive(:get_mapped_name).
                     with('task').and_return('mapped_task_name')
                 @orocos_task = flexmock
-                orocos_task.should_receive(:rtt_state => :PRE_OPERATIONAL).
+                orocos_task.should_receive(rtt_state: :PRE_OPERATIONAL).
                     by_default
                 orocos_task.should_receive(:process=).
                     with(process)
@@ -188,7 +186,7 @@ describe Syskit::Deployment do
                     argument :orocos_name
                     attr_reader :orocos_task
                     terminates
-                end.new(:orocos_name => 'mapped_task_name')
+                end.new(orocos_name: 'mapped_task_name')
 
                 task.executed_by deployment_task
                 plan.add_permanent(task)
@@ -202,7 +200,7 @@ describe Syskit::Deployment do
                     argument :orocos_name
                     attr_accessor :orocos_task
                     terminates
-                end.new(:orocos_name => 'mapped_task_name')
+                end.new(orocos_name: 'mapped_task_name')
                 task.orocos_task = orocos_task
                 flexmock(Orocos.name_service).should_receive(:get).never
 
@@ -293,26 +291,26 @@ describe Syskit::Deployment do
                 input_port 'in', '/double'
                 output_port 'out', '/double'
             end
-            @deployment_m = Syskit::Deployment.new_submodel(:name => 'deployment') do
+            @deployment_m = Syskit::Deployment.new_submodel(name: 'deployment') do
                 task 'task', task_m.orogen_model
             end
             Syskit.conf.process_server_for('test').
                 register_deployment_model(deployment_m.orogen_model)
         end
         it "can start tasks defined on a ruby process server" do
-            plan.add_permanent(deployment = deployment_m.new(:on => 'test'))
+            plan.add_permanent(deployment = deployment_m.new(on: 'test'))
             deployment.start!
             task = deployment.task('task')
             assert task.orocos_task
             assert 'task', task.orocos_task.name
         end
         it "sets the orocos_task attribute to a RubyTaskContext" do
-            plan.add_permanent(deployment = deployment_m.new(:on => 'test'))
+            plan.add_permanent(deployment = deployment_m.new(on: 'test'))
             deployment.start!
             assert_kind_of Orocos::RubyTasks::TaskContext, deployment.task('task').orocos_task
         end
         it "makes sure that the Ruby tasks are disposed when the deployment is stopped" do
-            plan.add_permanent(deployment = deployment_m.new(:on => 'test'))
+            plan.add_permanent(deployment = deployment_m.new(on: 'test'))
             deployment.start!
             flexmock(deployment.task('task').orocos_task).should_receive(:dispose).once.pass_thru
             deployment.stop!

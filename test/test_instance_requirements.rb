@@ -2,7 +2,6 @@ require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::InstanceRequirements do
-    include Syskit::Test::Self
     include Syskit::Fixtures::SimpleCompositionModel
 
     before do
@@ -19,7 +18,7 @@ describe Syskit::InstanceRequirements do
         it "strips out the data service first" do
             task_m = Syskit::Component.new_submodel
             srv_m = Syskit::DataService.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
             req = Syskit::InstanceRequirements.new([task_m.test_srv])
             assert_same task_m, req.component_model
         end
@@ -37,7 +36,7 @@ describe Syskit::InstanceRequirements do
             attr_reader :a, :b
 
             before do
-                simple_component_model.provides simple_service_model, :as => 'srv2'
+                simple_component_model.provides simple_service_model, as: 'srv2'
                 @a = Syskit::InstanceRequirements.new([simple_component_model])
                 @b = Syskit::InstanceRequirements.new([simple_component_model])
             end
@@ -180,7 +179,7 @@ describe Syskit::InstanceRequirements do
 
         it "should return a bound data service if the service is provided by a component model" do
             s = Syskit::DataService.new_submodel
-            c = Syskit::Component.new_submodel { provides s, :as => 's' }
+            c = Syskit::Component.new_submodel { provides s, as: 's' }
             subc = c.new_submodel
             req = Syskit::InstanceRequirements.new([subc])
             flexmock(req).should_receive(:find_data_service_from_type).with(s).and_return(obj = Object.new)
@@ -190,8 +189,8 @@ describe Syskit::InstanceRequirements do
         it "should not raise if the contained component model has multiple services of the requested type, but one is selected in the InstanceRequirements object itself" do
             s = Syskit::DataService.new_submodel
             c = Syskit::Component.new_submodel do
-                provides s, :as => 's0'
-                provides s, :as => 's1'
+                provides s, as: 's0'
+                provides s, as: 's1'
             end
             req = Syskit::InstanceRequirements.new([c])
             req.select_service(c.s0_srv)
@@ -201,8 +200,8 @@ describe Syskit::InstanceRequirements do
         it "should raise if the data service is ambiguous w.r.t. the contained component model" do
             s = Syskit::DataService.new_submodel
             c = Syskit::Component.new_submodel do
-                provides s, :as => 'srv'
-                provides s, :as => 'srv1'
+                provides s, as: 'srv'
+                provides s, as: 'srv1'
             end
             req = Syskit::InstanceRequirements.new([c])
             assert_raises(Syskit::AmbiguousServiceSelection) { req.find_data_service_from_type(s) }
@@ -210,7 +209,7 @@ describe Syskit::InstanceRequirements do
         it "should raise if the data service is provided by both a component model and a service" do
             s = Syskit::DataService.new_submodel
             s2 = s.new_submodel
-            c = Syskit::TaskContext.new_submodel { provides s, :as => 'srv' }
+            c = Syskit::TaskContext.new_submodel { provides s, as: 'srv' }
             req = Syskit::InstanceRequirements.new([c, s2])
             assert_raises(Syskit::AmbiguousServiceSelection) { req.find_data_service_from_type(s) }
         end
@@ -229,9 +228,9 @@ describe Syskit::InstanceRequirements do
         before do
             @srv_m = Syskit::DataService.new_submodel
             @cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add srv_m, :as => 'test'
+            cmp_m.add srv_m, as: 'test'
             @task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
         end
         it "should not try to verify a name to value mapping for a known child if the value is a string" do
             simple_composition_model.overload('srv', simple_component_model)
@@ -245,7 +244,7 @@ describe Syskit::InstanceRequirements do
         end
         it "should raise if a name to value mapping is invalid for a known child, even though the model does not respond to #fullfills?" do
             simple_composition_model.overload('srv', simple_component_model)
-            req = flexmock(:to_instance_requirements => Syskit::TaskContext.new_submodel.to_instance_requirements)
+            req = flexmock(to_instance_requirements: Syskit::TaskContext.new_submodel.to_instance_requirements)
             assert_raises(Syskit::InvalidSelection) do
                 simple_composition_model.use('srv' => req)
             end
@@ -254,18 +253,18 @@ describe Syskit::InstanceRequirements do
             srv_m = Syskit::DataService.new_submodel
             subsrv_m = srv_m.new_submodel
             cmp_m = Syskit::Composition.new_submodel do
-                add srv_m, :as => 'test'
+                add srv_m, as: 'test'
             end
             ir = Syskit::InstanceRequirements.new([cmp_m])
             ir.use('test' => subsrv_m)
         end
 
         it "should raise if a child selection is ambiguous" do
-            task_m.provides srv_m, :as => 'ambiguous'
+            task_m.provides srv_m, as: 'ambiguous'
             cmp_m.use('test' => task_m)
         end
         it "should allow selecting a service explicitly" do
-            task_m.provides srv_m, :as => 'ambiguous'
+            task_m.provides srv_m, as: 'ambiguous'
             req = cmp_m.use('test' => task_m.test_srv)
             assert_equal task_m.test_srv, req.resolved_dependency_injection.explicit['test']
         end
@@ -278,7 +277,7 @@ describe Syskit::InstanceRequirements do
         it "should return Syskit::Component as first element if the model is a data service" do
             srv_m = Syskit::DataService.new_submodel
             task_m = Syskit::Component.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
             assert_equal Syskit::Component, Syskit::InstanceRequirements.new([srv_m]).fullfilled_model[0]
         end
         it "should return the component model as first element" do
@@ -292,8 +291,8 @@ describe Syskit::InstanceRequirements do
         it "should list the data services as second element" do
             srv1, srv2 = Syskit::DataService.new_submodel, Syskit::DataService.new_submodel
             component_model = Syskit::Component.new_submodel do
-                provides srv1, :as => "1"
-                provides srv2, :as => "2"
+                provides srv1, as: "1"
+                provides srv2, as: "2"
             end
             assert_equal [srv1, srv2, Syskit::DataService].to_set, Syskit::InstanceRequirements.new([component_model]).fullfilled_model[1].to_set
         end
@@ -307,7 +306,7 @@ describe Syskit::InstanceRequirements do
     describe "#select_service" do
         it "raises ArgumentError if the given service is not provided by the current requirements" do
             req = Syskit::InstanceRequirements.new([Syskit::TaskContext.new_submodel])
-            task_m = Syskit::TaskContext.new_submodel { provides Syskit::DataService.new_submodel, :as => 'srv' }
+            task_m = Syskit::TaskContext.new_submodel { provides Syskit::DataService.new_submodel, as: 'srv' }
             assert_raises(ArgumentError) { req.select_service(task_m.srv_srv) }
         end
         it "accepts selecting services from placeholder tasks if the set of models in the task matches the set of models in the instance requirements" do
@@ -339,7 +338,7 @@ describe Syskit::InstanceRequirements do
             task_m = Syskit::TaskContext.new_submodel
             plan.add(task = task_m.new)
             cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add task_m, :as => 'test'
+            cmp_m.add task_m, as: 'test'
             ir = cmp_m.use('test' => task)
             cmp = ir.instanciate(plan)
             assert_equal Syskit::InstanceRequirements.new([task_m]), cmp.requirements.resolved_dependency_injection.explicit['test']
@@ -350,7 +349,7 @@ describe Syskit::InstanceRequirements do
             task_m = Syskit::TaskContext.new_submodel
             plan.add(task = task_m.new)
             cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add task_m, :as => 'test'
+            cmp_m.add task_m, as: 'test'
             ir = cmp_m.use('test' => task_m)
             cmp = ir.instanciate(plan)
             assert_equal task_m, cmp.requirements.resolved_dependency_injection.explicit['test']
@@ -368,7 +367,7 @@ describe Syskit::InstanceRequirements do
 
         it "adds a barrier to make sure that the models' direct dependencies can only be picked by the direct use() flags even if a service is selected" do
             model_m = Syskit::Composition.new_submodel
-            model_m.provides Syskit::DataService, :as => 'test'
+            model_m.provides Syskit::DataService, as: 'test'
             flexmock(model_m).should_receive(:dependency_injection_names).and_return(%w{child})
             context = Syskit::DependencyInjectionContext.new(Syskit::DependencyInjection.new('child' => model_m))
             flexmock(model_m).should_receive(:instanciate).
@@ -382,7 +381,7 @@ describe Syskit::InstanceRequirements do
         it "strips off the data service if there is one" do
             task_m = Syskit::TaskContext.new_submodel
             srv_m = Syskit::DataService.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
             req = Syskit::InstanceRequirements.new([task_m.test_srv])
             req.unselect_service
             assert_same task_m, req.base_model
@@ -402,13 +401,13 @@ describe Syskit::InstanceRequirements do
         before do
             srv_m = @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
                 
 
             @cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add srv_m, :as => 'test0'
+            cmp_m.add srv_m, as: 'test0'
             cmp_m.specialize cmp_m.test0_child => task_m do
-                add srv_m, :as => 'test1'
+                add srv_m, as: 'test1'
             end
         end
 
@@ -425,7 +424,7 @@ describe Syskit::InstanceRequirements do
         before do
             @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
 
             @with_service = Syskit::InstanceRequirements.new([task_m.test_srv])
             @without_service = Syskit::InstanceRequirements.new([task_m])
@@ -459,7 +458,7 @@ describe Syskit::InstanceRequirements do
             task_m = Syskit::TaskContext.new_submodel do
                 output_port 'out', '/double'
             end
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
 
             ir = Syskit::InstanceRequirements.new([task_m.test_srv])
             port = ir.srv_out_port
@@ -473,7 +472,7 @@ describe Syskit::InstanceRequirements do
         before do
             @srv_m = Syskit::DataService.new_submodel
             @task_m = Syskit::TaskContext.new_submodel
-            task_m.provides srv_m, :as => 'test'
+            task_m.provides srv_m, as: 'test'
         end
         it "should return a planning pattern for itself" do
             ir = Syskit::InstanceRequirements.new([task_m])
@@ -489,6 +488,52 @@ describe Syskit::InstanceRequirements do
             assert_kind_of task_m, task
             assert task.planning_task
             assert_equal ir, task.planning_task.requirements
+        end
+    end
+
+    describe "#as" do
+        attr_reader :parent_srv_m, :srv_m, :task_m
+        before do
+            @parent_srv_m = Syskit::DataService.new_submodel
+            @srv_m = Syskit::DataService.new_submodel
+            srv_m.provides parent_srv_m
+            @task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, as: 'test'
+        end
+
+        it "selects the component model's service that matches the given service model" do
+            ir = task_m.to_instance_requirements
+            ir = ir.as(parent_srv_m)
+            expected = task_m.test_srv.as(srv_m).to_instance_requirements
+            assert_equal expected, ir.selected
+        end
+
+        it "allows to override an already selected service by one of its parent models" do
+            ir = task_m.to_instance_requirements
+            ir.select_service(task_m.test_srv)
+            ir = ir.as(parent_srv_m)
+
+            expected = task_m.test_srv.as(srv_m).attach(ir.model)
+            assert_equal expected, ir.service
+        end
+    end
+
+    describe "#each_child" do
+        it "does not trigger a modification-during-iteration exception because of promotion" do
+            srv_m = Syskit::DataService.new_submodel
+            c0 = Syskit::Composition.new_submodel do
+                add srv_m, as: 'test2'
+            end
+            c1 = c0.new_submodel do
+                add srv_m, as: 'test1'
+            end
+            ir = c1.to_instance_requirements
+            # InstanceRequirements#each_child has a tendency to iterate over the
+            # underlying's model children. This caused a hash
+            # modification-during-iteration when some promotions were needed
+            #
+            # So, everything fine's if the following passes
+            ir.each_child.to_a
         end
     end
 end

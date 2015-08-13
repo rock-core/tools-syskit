@@ -125,27 +125,11 @@ module Syskit
                 end
 
                 # If the user gave us an explicit selection, honor it
-                driver_model = options[:using]
-                if !driver_model
-                    # Since we want to drive a particular device, we actually need a
-                    # concrete task model. So, search for one.
-                    #
-                    # Get all task models that implement this device
-                    tasks = TaskContext.submodels.
-                        find_all { |t| t.fullfills?(device_model) }
-
-                    # Now, get the most abstract ones
-                    tasks.delete_if do |model|
-                        tasks.any? { |t| model < t }
+                driver_model =
+                    begin options[:using] || device_model.default_driver
+                    rescue Ambiguous => e
+                        raise e, "#{e.message}, select one explicitely with the using: option", e.backtrace
                     end
-
-                    if tasks.size > 1
-                        raise Ambiguous, "#{tasks.map(&:short_name).join(", ")} can all handle '#{device_model.short_name}', please select one explicitely with the 'using' statement"
-                    elsif tasks.empty?
-                        raise ArgumentError, "no task can handle devices of type '#{device_model.short_name}'"
-                    end
-                    driver_model = tasks.first
-                end
 
                 if driver_model.respond_to?(:find_data_service_from_type)
                     driver_model =

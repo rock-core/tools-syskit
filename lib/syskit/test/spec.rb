@@ -4,29 +4,60 @@ module Syskit
             include Test::Base
 
             def setup
-                Syskit.conf.register_process_server('stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+                Syskit.conf.register_process_server(
+                    'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader, task_context_class: Orocos::RubyTasks::StubTaskContext), "")
                 super
                 Syskit.conf.disable_logging
             end
 
             def teardown
-                if !passed? && Roby.app.public_logs?
+                if !passed? && app.public_logs?
                     dataflow, hierarchy = __full_name__ + "-partial-dataflow.svg", __full_name__ + "-partial-hierarchy.svg"
                     dataflow, hierarchy = [dataflow, hierarchy].map do |filename|
                         filename.gsub("/", "_")
                     end
-                    Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
-                    Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
+                    Graphviz.new(plan).to_file('dataflow', 'svg', File.join(app.log_dir, dataflow))
+                    Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(app.log_dir, hierarchy))
                 end
+
                 super
+
+            ensure
                 Syskit.conf.remove_process_server('stubs')
             end
 
-            # Create a stub device
+            # Override the task model that should by default in tests such as
+            # {#is_configurable}. This is used mainly in case the task model
+            # under test is abstract
+            def self.use_syskit_model(model)
+                @subject_syskit_model = model
+            end
+
+            # Returns the syskit model under test
+            #
+            # It is delegated to self.class.subject_syskit_model by default
+            def subject_syskit_model
+                self.class.subject_syskit_model
+            end
+
+            # Returns the syskit model under test
+            def self.subject_syskit_model
+                if @subject_syskit_model
+                    return @subject_syskit_model
+                end
+                parent = superclass
+                if parent.respond_to?(:subject_syskit_model)
+                    parent.subject_syskit_model
+                else
+                    raise ArgumentError, "no subject syskit model found"
+                end
+            end
+
+            # Create a stub driver model
             #
             # @param [String] dev_name the name of the created device
             # @return [Syskit::Component] the device driver task
-            def stub_syskit_driver(dev_m, options = Hash.new)
+            def syskit_stub_driver_model(dev_m, options = Hash.new)
                 robot = Syskit::Robot::RobotDefinition.new
                 device = robot.device(dev_m, options)
                 task_srv = device.driver_model
@@ -44,10 +75,10 @@ module Syskit
             #
             # @param [String] dev_name the name of the created device
             # @return [Syskit::Component] the device driver task
-            def stub_syskit_attached_device(bus_m, dev_name = 'dev')
+            def syskit_stub_attached_device_model(bus_m, dev_name = 'dev')
                 robot = Syskit::Robot::RobotDefinition.new
-                dev_m = Syskit::Device.new_submodel(:name => "StubDevice")
-                driver_m = Syskit::TaskContext.new_submodel(:name => "StubDriver") do
+                dev_m = Syskit::Device.new_submodel(name: "StubDevice")
+                driver_m = Syskit::TaskContext.new_submodel(name: "StubDriver") do
                     input_port 'bus_in', bus_m.message_type
                     output_port 'bus_out', bus_m.message_type
                     provides bus_m.client_srv, :as => 'can'

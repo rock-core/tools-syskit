@@ -26,6 +26,13 @@ module Syskit
             @model, @component = model, component
         end
 
+        def hash; component.hash | name.hash end
+        def eql?(other)
+            self == other
+        end
+
+        def inspect; to_s end
+
         # Returns the port attached to a proper Component instance that
         # corresponds to self
         #
@@ -39,11 +46,12 @@ module Syskit
             component.self_port_to_component_port(self)
         end
 
-        # Returns the orocos port attached that corresponds to self
+        # Returns the port attached to a TaskContext instance that corresponds
+        # to self
         #
         # @raise [ArgumentError] if it is not possible (for instance, ports on
         #   InstanceRequirements are not associated with a component port)
-        # @return [Orocos::Port] the resolved port
+        # @return [Port] the resolved port
         def to_actual_port
             component_port = to_component_port
             component_port.component.self_port_to_actual_port(component_port)
@@ -81,7 +89,28 @@ module Syskit
                 out_port.connect_to(in_port, policy)
             end
         end
-        
+
+        def disconnect_from(in_port)
+            out_port = self.to_component_port
+            if out_port == self
+                in_port = in_port.to_component_port
+                component.disconnect_ports(in_port.component, [[out_port.name, in_port.name]])
+            else
+                out_port.disconnect_from(in_port)
+            end
+        end
+
+        def connected_to?(in_port)
+            out_port = self.to_component_port
+            if out_port == self
+                in_port = in_port.to_component_port
+                Flows::DataFlow.linked?(component, in_port.component) &&
+                    component[in_port.component, Flows::DataFlow].has_key?([out_port.name, in_port.name])
+            else
+                out_port.connected_to?(in_port)
+            end
+        end
+
         def new_sample
             model.new_sample
         end
@@ -96,6 +125,13 @@ module Syskit
         def to_s
             "#{component}.#{name}"
         end
+
+        def connected?
+            each_connection { return true }
+            false
+        end
+
+        def static?; model.orogen_model.static? end
     end
 
     class InputPort < Port

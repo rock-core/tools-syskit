@@ -67,8 +67,12 @@ module Syskit
                 @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), [])
             end
 
-            def initialize_copy(old)
-                super
+            # HACK: allows CompositionChild#to_instance_requirements to return a
+            # HACK: problem InstanceRequirements object
+            # HACK:
+            # HACK: the proper fix would be to make the IR an attribute of
+            # HACK: CompositionChild instead of a superclass
+            def do_copy(old)
                 @model = old.model
                 @base_model = old.base_model
                 @arguments = old.arguments.dup
@@ -77,6 +81,11 @@ module Syskit
                 @deployment_hints = old.deployment_hints.dup
                 @specialization_hints = old.specialization_hints.dup
                 @dependency_injection_context = old.dependency_injection_context.dup
+            end
+
+            def initialize_copy(old)
+                super
+                do_copy(old)
             end
 
             def self.from_object(object, original_requirements = Syskit::InstanceRequirements.new) 
@@ -163,11 +172,11 @@ module Syskit
             #   the resulting BoundDataService is attached to the actual model
             #   in {#model} and this return value is different from 'service'
             def select_service(service)
-                if self.service && service != self.service
+                if self.service && !self.service.fullfills?(service)
                     raise ArgumentError, "#{self} already points to a service which is different from #{service}"
                 end
 
-                if !model.fullfills?(service.component_model)
+                if !model.to_component_model.fullfills?(service.component_model)
                     raise ArgumentError, "#{service} is not a service of #{self}"
                 end
                 if service.component_model.respond_to?(:proxied_data_services)
@@ -233,9 +242,30 @@ module Syskit
                 end
             end
 
+            # Finds all the data services that match the given service type
+            def find_all_data_services_from_type(service_type)
+                if model.respond_to?(:find_all_data_services_from_type)
+                    model.find_all_data_services_from_type(service_type).map do |service|
+                        result = dup
+                        result.select_service(service)
+                        result
+                    end
+                elsif model.fullfills?(service_type)
+                    [self]
+                else
+                    []
+                end
+            end
+
             def as(models)
-                models = Array(models) if !models.respond_to?(:each)
-                Models::FacetedAccess.new(self, Syskit.proxy_task_model_for(models))
+                if service
+                    result = to_component_model
+                    result.select_service(service.as(models))
+                    result
+                else
+                    models = Array(models) if !models.respond_to?(:each)
+                    Models::FacetedAccess.new(self, Syskit.proxy_task_model_for(models))
+                end
             end
 
             def as_real_model
@@ -717,6 +747,19 @@ module Syskit
                         pp.breakable
                         pp.text ".with_arguments(#{arguments.map { |k, v| "#{k} => #{v}" }.join(", ")})"
                     end
+                end
+            end
+
+            def each_child
+                return enum_for(__method__) if !block_given?
+                if !composition_model?
+                    raise RuntimeError, "cannot call #each_child on #{self} as it does not represent a composition model"
+                end
+                resolved_di = resolved_dependency_injection
+                model.each_child do |child_name, _|
+                    selected_child, _ = model.find_child_model_and_task(
+                        child_name, resolved_di)
+                    yield(child_name, selected_child)
                 end
             end
 

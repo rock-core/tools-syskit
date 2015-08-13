@@ -1,8 +1,6 @@
 require 'syskit/test/self'
 
 class TC_AbstractPlaceholders < Minitest::Test
-    include Syskit::Test::Self
-
     def test_proxy_simple_task_context
 	task_model = TaskContext.new_submodel
 	proxy_model = Syskit.proxy_task_model_for([task_model])
@@ -114,8 +112,8 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_proxy_task_can_use_anonymous_services
-	task_model = TaskContext.new_submodel(:name => 'A')
-	services = [DataService.new_submodel(:name => 'S')]
+	task_model = TaskContext.new_submodel(name: 'A')
+	services = [DataService.new_submodel(name: 'S')]
 	proxy = Syskit.proxy_task_model_for(services + [task_model])
 	assert(proxy.abstract?)
 	assert(proxy < task_model)
@@ -142,8 +140,8 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_merge_removes_duplicate_proxied_data_services
-        srvA_m = Syskit::DataService.new_submodel(:name => 'A')
-        srvB_m = Syskit::DataService.new_submodel(:name => 'B')
+        srvA_m = Syskit::DataService.new_submodel(name: 'A')
+        srvB_m = Syskit::DataService.new_submodel(name: 'B')
         srvB_m.provides srvA_m
 	proxyA = Syskit.proxy_task_model_for([srvA_m])
 	proxyB = Syskit.proxy_task_model_for([srvB_m])
@@ -152,14 +150,14 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
 
     def test_merge_uses_the_component_model_s_merge_to_determine_the_target_task_model
-        srvA_m = Syskit::DataService.new_submodel(:name => 'A')
-        srvB_m = Syskit::DataService.new_submodel(:name => 'B')
+        srvA_m = Syskit::DataService.new_submodel(name: 'A')
+        srvB_m = Syskit::DataService.new_submodel(name: 'B')
         srvB_m.provides srvA_m
 
         taskA_m = Syskit::TaskContext.new_submodel
         taskB_m = Syskit::TaskContext.new_submodel
         merged_m = Syskit::TaskContext.new_submodel
-        merged_m.provides srvB_m, :as => 'test'
+        merged_m.provides srvB_m, as: 'test'
         flexmock(taskA_m).should_receive(:merge).with(taskB_m).and_return(merged_m)
 
 	proxyA = Syskit.proxy_task_model_for([taskA_m, srvA_m])
@@ -169,9 +167,9 @@ class TC_AbstractPlaceholders < Minitest::Test
     end
     
     def test_it_ignores_redundant_services
-        srv  = Syskit::DataService.new_submodel :name => 'Srv'
-        task = Syskit::TaskContext.new_submodel :name => 'Task'
-        task.provides srv, :as => 'test'
+        srv  = Syskit::DataService.new_submodel name: 'Srv'
+        task = Syskit::TaskContext.new_submodel name: 'Task'
+        task.provides srv, as: 'test'
         assert_same task, Syskit.proxy_task_model_for([task,srv])
     end
 end

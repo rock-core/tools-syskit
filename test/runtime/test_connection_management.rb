@@ -1,7 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::Runtime::ConnectionManagement do
-    include Syskit::Test::Self
     describe "#update_required_dataflow_graph" do
         it "registers all concrete input and output connections of the given tasks" do
             source_task, task, target_task = flexmock('source'), flexmock('task'), flexmock('target')
@@ -27,12 +26,16 @@ describe Syskit::Runtime::ConnectionManagement do
     describe "#update" do
         attr_reader :source_task, :sink_task
         before do
-            @source_task = syskit_deploy_task_context("source", 'source') do
+            @source_task = syskit_stub_and_deploy("source") do
                 output_port 'out', '/double'
+                output_port 'state', '/int'
             end
-            @sink_task = syskit_deploy_task_context("sink", 'sink') do
+            @sink_task = syskit_stub_and_deploy("sink") do
+                output_port 'state', '/int'
                 input_port 'in', '/double'
             end
+            syskit_start_execution_agents(source_task)
+            syskit_start_execution_agents(sink_task)
         end
 
         it "should connect tasks only once they have been set up" do
@@ -44,8 +47,8 @@ describe Syskit::Runtime::ConnectionManagement do
 
             FlexMock.use(source_task.orocos_task.port('out')) do |mock|
                 mock.should_receive(:connect_to).once
-                syskit_setup_component(source_task)
-                syskit_setup_component(sink_task)
+                syskit_configure(source_task)
+                syskit_configure(sink_task)
                 Syskit::Runtime::ConnectionManagement.update(plan)
             end
         end
@@ -65,8 +68,8 @@ describe Syskit::Runtime::ConnectionManagement do
 
         it "should ignore pending removed connections that involve a dead task" do
             source_task.connect_to(sink_task)
-            syskit_setup_component(source_task)
-            syskit_setup_component(sink_task)
+            syskit_configure(source_task)
+            syskit_configure(sink_task)
             Syskit::Runtime::ConnectionManagement.update(plan)
 
             source_task.disconnect_ports(sink_task, [['out', 'in']])

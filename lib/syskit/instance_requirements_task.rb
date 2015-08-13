@@ -24,7 +24,7 @@ module Syskit
         # We don't use task arguments here as InstanceRequirements is not (yet)
         # marshallable
         def executable?
-            super && requirements
+            super && !!requirements
         end
 
         # Creates the subplan required to add the given InstanceRequirements to

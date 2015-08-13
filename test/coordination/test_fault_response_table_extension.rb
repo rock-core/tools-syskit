@@ -1,12 +1,10 @@
 require 'syskit/test/self'
 
 describe Syskit::Coordination::Models::FaultResponseTableExtension do
-    include Syskit::Test::Self
-
     it "should attach the associated data monitoring tables to the plan it is attached to" do
         component_m = Syskit::TaskContext.new_submodel
         fault_m = Roby::Coordination::FaultResponseTable.new_submodel
-        data_m = Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m)
+        data_m = Syskit::Coordination::DataMonitoringTable.new_submodel(root: component_m)
         fault_m.use_data_monitoring_table data_m
         flexmock(plan).should_receive(:use_data_monitoring_table).with(data_m, Hash.new).once
         plan.use_fault_response_table fault_m
@@ -15,7 +13,7 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
     it "should remove the associated data monitoring tables from the plan when it is removed from it" do
         component_m = Syskit::TaskContext.new_submodel
         fault_m = Roby::Coordination::FaultResponseTable.new_submodel
-        data_m = Syskit::Coordination::DataMonitoringTable.new_submodel(:root => component_m)
+        data_m = Syskit::Coordination::DataMonitoringTable.new_submodel(root: component_m)
         fault_m.use_data_monitoring_table data_m
 
         assert plan.data_monitoring_tables.empty?
@@ -33,7 +31,7 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         response_task_m = Roby::Task.new_submodel do
             terminates
         end
-        component_m = Syskit::TaskContext.new_submodel(:name => 'Test') do
+        component_m = Syskit::TaskContext.new_submodel(name: 'Test') do
             output_port 'out1', '/int'
             output_port 'out2', '/int'
         end
@@ -57,11 +55,8 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         plan.use_fault_response_table table_model
         assert_equal Array[table_model.data_monitoring_tables.first.table],
             plan.data_monitoring_tables.map(&:model)
-        stub_syskit_deployment_model(component_m)
-        component = deploy(component_m)
-        syskit_start_component(component)
-        process_events
-        process_events
+        syskit_stub_deployment_model(component_m)
+        component = syskit_deploy_configure_and_start(component_m)
 
         recorder.should_receive(:called).with(5).once.ordered
         recorder.should_receive(:called).with(11).once.ordered
@@ -85,21 +80,21 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
 
 
         it "should allow giving static arguments to the used data monitoring tables" do
-            fault_m.use_data_monitoring_table data_m, :arg => 10
-            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, :arg => 10)
-            plan.use_fault_response_table fault_m, :test_arg => 20
+            fault_m.use_data_monitoring_table data_m, arg: 10
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, arg: 10)
+            plan.use_fault_response_table fault_m, test_arg: 20
         end
 
         it "should allow passing fault response arguments to the used data monitoring tables" do
-            fault_m.use_data_monitoring_table data_m, :arg => fault_m.test_arg
-            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, :arg => 10)
-            plan.use_fault_response_table fault_m, :test_arg => 10
+            fault_m.use_data_monitoring_table data_m, arg: fault_m.test_arg
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, arg: 10)
+            plan.use_fault_response_table fault_m, test_arg: 10
         end
 
         it "should allow passing fault response arguments that are also name of arguments on the fault response table" do
-            fault_m.use_data_monitoring_table data_m, :arg => :test_arg
-            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, :arg => :test_arg)
-            plan.use_fault_response_table fault_m, :test_arg => 10
+            fault_m.use_data_monitoring_table data_m, arg: :test_arg
+            flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, arg: :test_arg)
+            plan.use_fault_response_table fault_m, test_arg: 10
         end
 
         it "should raise if the embedded data monitoring table requires arguments that do not exist on the fault response table" do
@@ -113,7 +108,7 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         it "should allow the embedded data monitoring table to have optional arguments" do
             fault_m = Roby::Coordination::FaultResponseTable.new_submodel do
                 data_monitoring_table do
-                    argument :arg, :default => 10
+                    argument :arg, default: 10
                 end
             end
             flexmock(plan).should_receive(:use_data_monitoring_table).once.with(fault_m.data_monitoring_table, Hash.new)
@@ -121,7 +116,7 @@ describe Syskit::Coordination::Models::FaultResponseTableExtension do
         end
         it "should allow used data monitoring tables to have optional arguments" do
             data_m = Syskit::Coordination::DataMonitoringTable.new_submodel
-            data_m.argument :arg, :default => 10
+            data_m.argument :arg, default: 10
             fault_m = Roby::Coordination::FaultResponseTable.new_submodel
             fault_m.use_data_monitoring_table data_m
             flexmock(plan).should_receive(:use_data_monitoring_table).once.with(data_m, Hash.new)

@@ -1,10 +1,10 @@
+require 'orocos/ruby_tasks/stub_task_context'
 require 'syskit/test/base'
 
 require 'roby/test/spec'
 require 'syskit/test/flexmock_extension'
-require 'syskit/test/profile_assertions'
-require 'syskit/test/profile_model_assertions'
 require 'syskit/test/network_manipulation'
+require 'syskit/test/profile_assertions'
 
 require 'syskit/test/spec'
 require 'syskit/test/action_interface_test'
@@ -12,6 +12,7 @@ require 'syskit/test/action_test'
 require 'syskit/test/profile_test'
 require 'syskit/test/component_test'
 require 'syskit/test/task_context_test'
+require 'syskit/test/ruby_task_context_test'
 
 class Minitest::Spec
     include FlexMock::ArgumentTypes
@@ -35,6 +36,9 @@ module Syskit
     end
     Minitest::Spec.register_spec_type Syskit::Test::TaskContextTest do |desc|
         (desc.kind_of?(Class) && desc <= Syskit::TaskContext)
+    end
+    Minitest::Spec.register_spec_type Syskit::Test::RubyTaskContextTest do |desc|
+        (desc.kind_of?(Class) && desc <= Syskit::RubyTaskContext)
     end
     Minitest::Spec.register_spec_type Syskit::Test::ComponentTest do |desc|
         (desc.kind_of?(Class) && desc <= Syskit::Component && !(desc <= Syskit::TaskContext))

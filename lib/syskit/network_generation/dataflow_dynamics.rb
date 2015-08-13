@@ -348,7 +348,7 @@ module Syskit
             # Computes the set of input ports in +task+ that are used during the
             # information propagation
             def triggering_inputs(task)
-                all_triggers = ValueSet.new
+                all_triggers = Set.new
                 @triggers[[task, nil]] = Set.new
                 task.model.each_event_port do |port|
                     if task.has_concrete_input_connection?(port.name)

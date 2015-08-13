@@ -1,7 +1,6 @@
 require 'syskit/test/self'
 
 describe Syskit::ROS::Node do
-    include Syskit::Test::Self
     @pid = nil 
     @ros_projects = Hash.new
 
@@ -29,7 +28,7 @@ describe Syskit::ROS::Node do
 
     describe "#initialize" do
         it "sets up the task object to be non-executable" do
-            plan.add(task = Syskit::ROS::Node.new_submodel.new(:orocos_name => "rosout", :conf => []))
+            plan.add(task = Syskit::ROS::Node.new_submodel.new(orocos_name: "rosout", conf: []))
             assert !task.executable?
             # Verify that the task is indeed non-executable because the flag is
             # already set
@@ -38,12 +37,12 @@ describe Syskit::ROS::Node do
         end
 
         it "configure the task object" do
-            plan.add(task = Syskit::ROS::Node.new_submodel.new(:orocos_name => "rosout", :conf => []))
+            plan.add(task = Syskit::ROS::Node.new_submodel.new(orocos_name: "rosout", conf: []))
             task.configure
         end
 
         it "setup the task object" do
-            plan.add(task = Syskit::ROS::Node.new_submodel.new(:orocos_name => "rosout", :conf => []))
+            plan.add(task = Syskit::ROS::Node.new_submodel.new(orocos_name: "rosout", conf: []))
             task.orocos_task = Orocos::ROS.rosnode_running? '/rosout'
  
             task.setup
@@ -99,7 +98,7 @@ describe Syskit::ROS::Node do
     #        assert_equal Syskit::ROS::Node::D_SAME_HOST, task0.distance_to(task1)
     #    end
     #    it "returns D_DIFFERENT_HOSTS if both tasks are from processes from different hosts" do
-    #        plan.add(@deployment1 = deployment_m.new(:on => 'other_host'))
+    #        plan.add(@deployment1 = deployment_m.new(on: 'other_host'))
     #        task0.executed_by deployment0
     #        task1.executed_by deployment1
     #        assert_equal Syskit::ROS::Node::D_DIFFERENT_HOSTS, task0.distance_to(task1)
@@ -114,7 +113,7 @@ describe Syskit::ROS::Node do
     #describe "#find_input_port" do
     #    attr_reader :task
     #    before do
-    #        @task = syskit_deploy_task_context 'Task' do
+    #        @task = syskit_stub_deploy_and_configure 'Task' do
     #            input_port "in", "int"
     #            output_port "out", "int"
     #        end
@@ -134,7 +133,7 @@ describe Syskit::ROS::Node do
     #describe "#find_output_port" do
     #    attr_reader :task
     #    before do
-    #        @task = syskit_deploy_task_context 'Task' do
+    #        @task = syskit_stub_deploy_and_configure 'Task' do
     #            input_port "in", "int"
     #            output_port "out", "int"
     #        end
@@ -158,7 +157,7 @@ describe Syskit::ROS::Node do
     #            input_port "in", "/double"
     #            output_port "out", "/double"
     #        end
-    #        plan.add(@task = task_m.new(:conf => [], :orocos_name => ""))
+    #        plan.add(@task = task_m.new(conf: [], orocos_name: ""))
     #        task.executable = true
     #        flexmock(task).should_receive(:orocos_task).and_return(@orocos_task = flexmock)
     #    end
@@ -247,7 +246,7 @@ describe Syskit::ROS::Node do
     #            input_port "in", "/double"
     #            output_port "out", "/double"
     #        end
-    #        plan.add(@task = task_m.new(:conf => [], :orocos_name => ""))
+    #        plan.add(@task = task_m.new(conf: [], orocos_name: ""))
     #        task.executable = true
     #        flexmock(task).should_receive(:orocos_task).and_return(@orocos_task = flexmock)
     #        orocos_task.should_receive(:start).by_default
@@ -401,7 +400,7 @@ describe Syskit::ROS::Node do
     #describe "#ready_for_setup?" do
     #    attr_reader :task, :orocos_task
     #    before do
-    #        @task = flexmock(syskit_deploy_task_context('Task') {})
+    #        @task = flexmock(syskit_stub_deploy_and_configure('Task') {})
     #        task.conf = []
     #        @orocos_task = flexmock
     #        task.should_receive(:orocos_task).and_return(orocos_task)
@@ -444,7 +443,7 @@ describe Syskit::ROS::Node do
     #describe "#is_setup!" do
     #    attr_reader :task
     #    before do
-    #        plan.add(@task = Syskit::ROS::Node.new_submodel.new(:orocos_name => "", :conf => []))
+    #        plan.add(@task = Syskit::ROS::Node.new_submodel.new(orocos_name: "", conf: []))
     #        assert !task.executable?
     #    end
     #    it "resets the executable flag if all inputs are connected" do
@@ -473,14 +472,14 @@ describe Syskit::ROS::Node do
     #        @task_m = Syskit::ROS::Node.new_submodel
     #    end
     #    it "sets the reconfiguration flag to true for a given orocos name" do
-    #        t0 = task_m.new(:orocos_name => "bla")
-    #        t1 = task_m.new(:orocos_name => "bla")
+    #        t0 = task_m.new(orocos_name: "bla")
+    #        t1 = task_m.new(orocos_name: "bla")
     #        t0.needs_reconfiguration!
     #        assert t1.needs_reconfiguration?
     #    end
     #    it "does not set the flag for tasks of the same model but different names" do
-    #        t0 = task_m.new(:orocos_name => "bla")
-    #        t1 = task_m.new(:orocos_name => "other")
+    #        t0 = task_m.new(orocos_name: "bla")
+    #        t1 = task_m.new(orocos_name: "other")
     #        t0.needs_reconfiguration!
     #        assert !t1.needs_reconfiguration?
     #    end
@@ -488,7 +487,7 @@ describe Syskit::ROS::Node do
     #describe "#prepare_for_setup" do
     #    attr_reader :task, :orocos_task
     #    before do
-    #        @task = syskit_deploy_task_context 'Task' do
+    #        @task = syskit_stub_deploy_and_configure 'Task' do
     #            input_port "in", "/double"
     #            output_port "out", "/double"
     #        end
@@ -535,7 +534,7 @@ describe Syskit::ROS::Node do
     ##describe "#setup" do
     ##    attr_reader :task, :orocos_task
     ##    before do
-    ##        @task = syskit_deploy_task_context 'Task' do
+    ##        @task = syskit_stub_deploy_and_configure 'Task' do
     ##            input_port "in", "int"
     ##            output_port "out", "int"
     ##        end
@@ -627,7 +626,7 @@ describe Syskit::ROS::Node do
     #describe "#configure" do
     #    attr_reader :task, :orocos_task
     #    before do
-    #        @task = syskit_deploy_task_context 'Task' do
+    #        @task = syskit_stub_deploy_and_configure 'Task' do
     #            input_port "in", "int"
     #            output_port "out", "int"
     #        end
@@ -636,7 +635,7 @@ describe Syskit::ROS::Node do
     #    it "applies the selected configuration" do
     #        task.conf = ['my', 'conf']
     #        flexmock(task.model.orogen_model).should_receive(:name).and_return('test::Task')
-    #        flexmock(Orocos.conf).should_receive(:apply).with(orocos_task, ['my', 'conf'], :model_name => 'test::Task', :override => true).once
+    #        flexmock(Orocos.conf).should_receive(:apply).with(orocos_task, ['my', 'conf'], model_name: 'test::Task', override: true).once
     #        task.configure
     #    end
     #end
