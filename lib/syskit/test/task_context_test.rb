@@ -11,13 +11,13 @@ module Syskit
             # Define a deployment for the task model under test
             def deploy_subject_syskit_model
                 @deploy_subject_syskit_model =
-                    use_deployment self.class.subject_syskit_model.model.concrete_model => 'task_under_test'
+                    use_deployment subject_syskit_model.model.concrete_model => 'task_under_test'
             end
 
             # Returns the task model under test
-            def self.subject_syskit_model
-                model = super
-                model = NetworkManipulation.syskit_stub_required_devices(model)
+            def subject_syskit_model
+                model = self.class.subject_syskit_model
+                model = syskit_stub_required_devices(model)
                 model.prefer_deployed_tasks(@deployed_subject_syskit_model)
                 model
             end
@@ -43,7 +43,7 @@ module Syskit
             #   model.require_dynamic_service('srv')
             #   assert_is_configurable model
             #
-            def assert_is_configurable(task_model = self.class.subject_syskit_model)
+            def assert_is_configurable(task_model = subject_syskit_model)
                 syskit_deploy_and_configure(task_model)
             end
 
@@ -55,14 +55,14 @@ module Syskit
             #       it { is_configurable }
             #     end
             #   end
-            def is_configurable(task_model = self.class.subject_syskit_model)
+            def is_configurable(task_model = subject_syskit_model)
                 assert_is_configurable(task_model)
             end
 
             # Automatically skip tests for which the task model under test is
             # not available
             def self.ensure_can_deploy_subject_syskit_model(test, app)
-                orogen_model = subject_syskit_model.model.orogen_model
+                orogen_model = subject_syskit_model.orogen_model
 
                 if app.simulation?
                     begin

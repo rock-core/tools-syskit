@@ -46,6 +46,9 @@ module Syskit
     Minitest::Spec.register_spec_type Syskit::Test::ProfileTest do |desc|
         desc.kind_of?(Syskit::Actions::Profile)
     end
+    Minitest::Spec.register_spec_type Syskit::Test::ComponentTest do |desc|
+        (!desc.kind_of?(Class) && desc.kind_of?(Module) && desc <= Syskit::Device)
+    end
     Minitest::Spec.register_spec_type Syskit::Test::ActionInterfaceTest do |desc|
         (desc.kind_of?(Class) && desc <= Roby::Actions::Interface)
     end

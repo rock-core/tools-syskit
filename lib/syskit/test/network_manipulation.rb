@@ -197,7 +197,11 @@ module Syskit
                         srv.each_output_port do |p|
                             task_m.orogen_model.output_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
                         end
-                        task_m.provides srv, as: "srv#{idx}"
+                        if srv <= Syskit::Device
+                            task_m.driver_for srv, as: "dev#{idx}"
+                        else
+                            task_m.provides srv, as: "srv#{idx}"
+                        end
                     end
                 elsif task_m.abstract?
                     task_m = task_m.new_submodel
@@ -250,27 +254,12 @@ module Syskit
                 model
             end
 
-            def self.syskit_stub_device(model, as: 'test', driver: nil)
-                robot = Syskit::Robot::RobotDefinition.new
-
-                driver ||= model.find_all_drivers.first
-                if !driver
-                    driver = Syskit::TaskContext.new_submodel do
-                        driver_for model, as: 'driver'
-                    end
-                end
-                robot.device(model, as: 'test', using: driver)
-            end
-
-            # Stubs the devices required by the given model
-            def self.syskit_stub_required_devices(model)
-                model = model.to_instance_requirements
-                model.model.each_master_driver_service do |srv|
-                    if !model.arguments["#{srv.name}_dev"]
-                        model.with_arguments("#{srv.name}_dev" => syskit_stub_device(srv.model, driver: model.model))
-                    end
-                end
-                model
+            # @api private
+            #
+            # Finds a driver model for a given device model, or create one if
+            # there is none
+            def syskit_stub_driver_model_for(model)
+                model.find_all_drivers.first || syskit_stub(model).model
             end
 
             # Create a stub device of the given model
@@ -281,13 +270,60 @@ module Syskit
             # @param [String] as the device name
             # @param [Model<TaskContext>] driver the driver that should be used.
             #   If not given, a new driver is stubbed
-            def syskit_stub_device(model, as: 'test', driver: nil)
-                self.class(model, as: 'test', driver: nil)
+            def syskit_stub_device(model, as: syskit_default_stub_name(model), driver: nil, **device_options)
+                robot = Syskit::Robot::RobotDefinition.new
+                driver ||= syskit_stub_driver_model_for(model)
+                robot.device(model, as: as, using: driver, **device_options)
+            end
+
+            # Create a stub combus of the given model
+            #
+            # It is created on a new robot instance so that to avoid clashes
+            #
+            # @param [Model<ComBus>] model the device model
+            # @param [String] as the combus name
+            # @param [Model<TaskContext>] driver the driver that should be used.
+            #   If not given, a new driver is stubbed
+            def syskit_stub_com_bus(model, as: syskit_default_stub_name(model), driver: nil, **device_options)
+                robot = Syskit::Robot::RobotDefinition.new
+                driver ||= syskit_stub_driver_model_for(model)
+                robot.com_bus(model, as: as, using: driver, **device_options)
+            end
+
+            # Create a stub device attached on the given bus
+            #
+            # If the bus is a device object, the new device is attached to the
+            # same robot model. Otherwise, a new robot model is created for both
+            # the bus and the device
+            #
+            # @param [Model<ComBus>,MasterDeviceInstance] bus either a bus model
+            #   or a bus object
+            # @param [String] as a name for the new device
+            # @param [Model<TaskContext>] driver the driver that should be used
+            #   for the device. If not given, syskit will look for a suitable
+            #   driver or stub one
+            def syskit_stub_attached_device(bus, as: syskit_default_stub_name(bus))
+                if !bus.kind_of?(Robot::DeviceInstance)
+                    bus = syskit_stub_com_bus(bus, as: "#{as}_bus")
+                end
+                bus_m = bus.model
+                dev_m = Syskit::Device.new_submodel do
+                    provides bus_m::ClientSrv
+                end
+                dev = syskit_stub_device(dev_m, as: as)
+                dev.attach_to(bus)
+                dev
             end
 
             # Stubs the devices required by the given model
             def syskit_stub_required_devices(model)
-                NetworkManipulation.syskit_stub_required_devices(model)
+                model = model.to_instance_requirements
+                model.model.each_master_driver_service do |srv|
+                    if !model.arguments["#{srv.name}_dev"]
+                        model.with_arguments("#{srv.name}_dev" => syskit_stub_device(srv.model, driver: model.model))
+                    end
+                end
+                model
             end
 
             @@syskit_stub_model_id = 0

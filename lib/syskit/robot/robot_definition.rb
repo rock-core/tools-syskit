@@ -28,7 +28,7 @@ module Syskit
 
             # Declares a new communication bus
             def com_bus(type, options = Hash.new)
-                device(type, options.merge(:expected_model => Syskit::ComBus, :class => ComBus))
+                device(type, options.merge(expected_model: Syskit::ComBus, class: ComBus))
             end
 
             # Returns true if +name+ is the name of a device registered on this
@@ -103,10 +103,10 @@ module Syskit
             # describes the actual device
             def device(device_model, options = Hash.new)
                 options, device_options = Kernel.filter_options options,
-                    :as => nil,
-                    :using => nil,
-                    :expected_model => Syskit::Device,
-                    :class => MasterDeviceInstance
+                    as: nil,
+                    using: nil,
+                    expected_model: Syskit::Device,
+                    class: MasterDeviceInstance
                 device_options, root_task_arguments = Kernel.filter_options device_options,
                     MasterDeviceInstance::KNOWN_PARAMETERS
 
