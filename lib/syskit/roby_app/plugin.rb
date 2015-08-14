@@ -278,6 +278,11 @@ module Syskit
                             end
                         end
                     end
+
+                   # Also require all the available oroGen projects
+                   app.default_loader.each_available_project_name do |name|
+                       app.using_task_library name
+                   end
                 end
                 if app.auto_load_all? || app.auto_load_all_task_libraries?
                     app.auto_load_all_task_libraries
