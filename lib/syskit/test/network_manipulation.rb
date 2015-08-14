@@ -178,7 +178,7 @@ module Syskit
             #
             # @param [InstanceRequirements] task_m the task context model
             # @param [String] as the deployment name
-            def syskit_stub_task_context(model, as: '')
+            def syskit_stub_task_context(model, as: syskit_default_stub_name(model))
                 model = syskit_stub_component(model)
 
                 task_m = model.model
@@ -225,7 +225,7 @@ module Syskit
             # Helper for {#syskit_stub_model}
             #
             # @param [InstanceRequirements] model
-            def syskit_stub_composition(model, recursive: true, as: "")
+            def syskit_stub_composition(model, recursive: true, as: syskit_default_stub_name(model))
                 model = syskit_stub_component(model)
 
                 if recursive
@@ -332,14 +332,19 @@ module Syskit
                 (@@syskit_stub_model_id += 1).to_s
             end
 
+            def syskit_default_stub_name(model)
+                model_name =
+                    if model.respond_to?(:name) then model.name
+                    else model.to_str
+                    end
+                self.name + "_" + (model_name || syskit_stub_model_id)
+            end
+
             # Create an InstanceRequirement instance that would allow to deploy
             # the given model
-            def syskit_stub(model, recursive: true, as: nil, &block)
+            def syskit_stub(model, recursive: true, as: syskit_default_stub_name(model), &block)
                 if model.respond_to?(:to_str)
                     model = syskit_stub_task_context_model(model, &block)
-                end
-                if !as
-                    as = self.name + "_" + (model.name || syskit_stub_model_id)
                 end
                 model = model.to_instance_requirements.dup
 
@@ -453,7 +458,7 @@ module Syskit
             #   model = RootCmp.use(
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   syskit_stub_deploy_and_start_composition(model)
-            def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: nil, &block)
+            def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
                 model = syskit_stub(model, recursive: recursive, as: as, &block)
                 syskit_deploy(model, compute_policies: false)
             end
@@ -465,7 +470,7 @@ module Syskit
             # @param (see syskit_stub)
             # @return [Syskit::Component]
             # @see syskit_stub
-            def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: nil, &block)
+            def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure(root, recursive: recursive)
                 root
@@ -479,7 +484,7 @@ module Syskit
             # @param (see syskit_stub)
             # @return [Syskit::Component]
             # @see syskit_stub
-            def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: nil, &block)
+            def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure_and_start(root, recursive: recursive)
                 root
