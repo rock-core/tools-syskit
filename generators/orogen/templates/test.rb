@@ -3,7 +3,7 @@ using_task_library '<%= orogen_project_name %>'
 <%= open %>
 <% classes.each do |class_name| %>
 <%= indent %>describe <%= class_name.last %> do
-<%= indent %>    it_should_be_configurable
+<%= indent %>    it { is_configurable }
 <%= indent %>end
 <% end %>
 <%= close %>
