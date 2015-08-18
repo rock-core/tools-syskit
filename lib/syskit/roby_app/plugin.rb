@@ -294,7 +294,7 @@ module Syskit
 
             def self.load_default_models(app)
                 ['services.rb', 'devices.rb', 'compositions.rb', 'profiles.rb'].each do |root_file|
-                    if path = app.find_file('models', root_file, order: :specific_first)
+                    if path = app.find_file('models', root_file, path: [app.app_dir], order: :specific_first)
                         require path
                     end
                 end
