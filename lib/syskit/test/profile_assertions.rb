@@ -16,9 +16,7 @@ module Syskit
             # @raise [ArgumentError] if the argument is invalid
             def Actions(arg)
                 if arg.kind_of?(Syskit::Actions::Profile)
-                    arg.definitions.each_key.map do |name|
-                        arg.resolved_definition(name)
-                    end
+                    arg.each_action
                 elsif arg.respond_to?(:to_action)
                     [arg]
                 elsif arg.respond_to?(:flat_map)
