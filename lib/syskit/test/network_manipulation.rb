@@ -342,7 +342,7 @@ module Syskit
 
             # Create an InstanceRequirement instance that would allow to deploy
             # the given model
-            def syskit_stub(model, recursive: true, as: syskit_default_stub_name(model), &block)
+            def syskit_stub(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
                 if model.respond_to?(:to_str)
                     model = syskit_stub_task_context_model(model, &block)
                 end
