@@ -270,8 +270,8 @@ module Syskit
             # @param [String] as the device name
             # @param [Model<TaskContext>] driver the driver that should be used.
             #   If not given, a new driver is stubbed
-            def syskit_stub_device(model, as: syskit_default_stub_name(model), driver: nil, **device_options)
-                robot = Syskit::Robot::RobotDefinition.new
+            def syskit_stub_device(model, as: syskit_default_stub_name(model), driver: nil, robot: nil, **device_options)
+                robot ||= Syskit::Robot::RobotDefinition.new
                 driver ||= syskit_stub_driver_model_for(model)
                 robot.device(model, as: as, using: driver, **device_options)
             end
