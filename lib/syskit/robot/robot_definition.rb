@@ -165,12 +165,14 @@ module Syskit
 
             # Enumerates all master devices that are available on this robot
             def each_master_device
+                return enum_for(__method__) if !block_given?
                 devices.find_all { |name, instance| instance.kind_of?(MasterDeviceInstance) }.
                     each { |_, instance| yield(instance) }
             end
 
             # Enumerates all slave devices that are available on this robot
             def each_slave_device
+                return enum_for(__method__) if !block_given?
                 devices.find_all { |name, instance| instance.kind_of?(SlaveDeviceInstance) }.
                     each { |_, instance| yield(instance) }
             end
