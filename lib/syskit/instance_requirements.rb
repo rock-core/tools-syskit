@@ -501,7 +501,7 @@ module Syskit
             end
 
             # Specifies new arguments that must be set to the instanciated task
-            def with_arguments(arguments)
+            def with_arguments(**arguments)
                 @arguments.merge!(arguments)
                 self
             end
