@@ -86,6 +86,10 @@ module Syskit
                     super
                     profile.invalidate_dependency_injection
                 end
+
+                def to_s
+                    "#{profile.name}.robot"
+                end
             end
             
             def initialize(name = nil)
