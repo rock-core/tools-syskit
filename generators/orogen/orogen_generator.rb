@@ -7,7 +7,6 @@ class OrogenGenerator < Roby::App::GenBase
     attr_reader :orogen_project_module_name
 
     def initialize(runtime_args, runtime_options = Hash.new)
-        @model_type = "orogen"
         super
         @project_name = runtime_args.shift
         @project = Roby.app.using_task_library(project_name)
