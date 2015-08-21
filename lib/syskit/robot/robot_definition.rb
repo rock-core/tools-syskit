@@ -201,7 +201,7 @@ module Syskit
                     if !args.empty?
                         raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}"
                     elsif !(dev = devices[device_name])
-                        raise NoMethodError, "#{self} has no device named #{device_name}"
+                        raise NoMethodError.new(m), "#{self} has no device named #{device_name} (existing devices are: #{devices.keys.sort.join(", ")})"
                     end
                     return dev
                 end
