@@ -375,6 +375,18 @@ describe Syskit::InstanceRequirements do
                 once.pass_thru
             model_m.test_srv.to_instance_requirements.instanciate(plan, context)
         end
+
+        it "marks the task as abstract if abstract? is true" do
+            task_m = Syskit::Component.new_submodel
+            ir = task_m.to_instance_requirements.abstract
+            assert ir.instanciate(plan).abstract?
+        end
+
+        it "does not mark the task as abstract if abstract? is false" do
+            task_m = Syskit::Component.new_submodel
+            ir = task_m.to_instance_requirements
+            assert !ir.instanciate(plan).abstract?
+        end
     end
 
     describe "#unselect_service" do
@@ -438,6 +450,18 @@ describe Syskit::InstanceRequirements do
         end
         it "should keep the selected service if both have a compatible selection" do
             assert_equal task_m.test_srv, with_service.merge(with_service.dup).service
+        end
+        it "sets abstract? to false by default if any of the two IRs are not abstract" do
+            ir = task_m.to_instance_requirements.abstract.merge(task_m.to_instance_requirements)
+            assert !ir.abstract?
+            ir = task_m.to_instance_requirements.merge(task_m.to_instance_requirements.abstract)
+            assert !ir.abstract?
+        end
+        it "OR-ed abstract? if any of the two IRs is abstract and keep_abstract is true" do
+            ir = task_m.to_instance_requirements.abstract.merge(task_m.to_instance_requirements, keep_abstract: true)
+            assert ir.abstract?
+            ir = task_m.to_instance_requirements.merge(task_m.to_instance_requirements.abstract, keep_abstract: true)
+            assert ir.abstract?
         end
     end
 

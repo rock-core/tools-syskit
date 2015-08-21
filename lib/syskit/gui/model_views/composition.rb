@@ -121,7 +121,6 @@ module Syskit::GUI
                     page.push nil, page.main_doc(model.doc)
                 end
 
-                super_options = super_options.merge(:instanciate_options => Hash[:keep_optional_children => true])
                 super(model, super_options)
                 task_model_view.render(model, :doc => false)
                 if task

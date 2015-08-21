@@ -431,7 +431,7 @@ module Syskit
             # Compute in #plan the network needed to fullfill the requirements
             #
             # This network is neither validated nor tied to actual deployments
-            def compute_system_network(req_tasks = nil)
+            def compute_system_network(req_tasks = nil, **options)
                 add_timepoint 'compute_system_network', 'start'
                 instanciate(req_tasks)
                 Engine.instanciation_postprocessing.each do |block|
@@ -448,6 +448,26 @@ module Syskit
                 link_to_busses
                 add_timepoint 'compute_system_network', 'link_to_busses'
                 merge_solver.merge_identical_tasks
+
+                # Now remove the optional, non-resolved children of compositions
+                work_plan.find_local_tasks(Syskit::Component).abstract.each do |task|
+                    parent_tasks = task.each_parent_task.to_a
+                    parent_tasks.each do |parent_task|
+                        next if !parent_task.kind_of?(Syskit::Composition)
+                        next if parent_task.abstract?
+
+                        roles = parent_task.roles_of(task).dup
+                        remaining_roles = roles.find_all do |child_role|
+                            !(child_model = parent_task.model.find_child(child_role)) || !child_model.optional?
+                        end
+                        if remaining_roles.empty?
+                            parent_task.remove_child(task)
+                        else
+                            parent_task.remove_roles(task, *(roles - remaining_roles))
+                        end
+                    end
+                end
+
                 add_timepoint 'compute_system_network', 'merge'
 
                 # Finally, select 'default' as configuration for all
@@ -457,6 +477,8 @@ module Syskit
                         task.freeze_delayed_arguments
                     end
                 add_timepoint 'compute_system_network', 'default_conf'
+
+                options = self.options.merge(options)
 
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)

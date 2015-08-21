@@ -317,7 +317,7 @@ module Syskit
                             end
                         end
                     end
-                    selected_requirements.merge(sel_m.to_component_model)
+                    selected_requirements.merge(sel_m.to_component_model, keep_abstract: true)
                 end
 
                 if selected_instance && !selected_instance.fullfills?(requirements, requirements.arguments)
