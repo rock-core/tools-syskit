@@ -35,6 +35,7 @@ app = Qt::Application.new(ARGV)
 Syskit::Scripts.run do
     Roby.app.syskit_engine.prepare
     main = Syskit::GUI::IDE.new
+    main.window_title = "Syskit IDE - #{Roby.app.app_name}"
 
     main.restore_from_settings
     main.show
