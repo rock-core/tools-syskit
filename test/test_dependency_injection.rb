@@ -58,6 +58,14 @@ describe Syskit::DependencyInjection do
             _, _, service_selections = di.selection_for('child', Syskit::InstanceRequirements.new([base_srv_m]))
             assert_equal task_m.test_srv, service_selections[base_srv_m]
         end
+        it "will accept nil as a selection, thus overriding more general selections" do
+            srv_m  = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, as: 'test'
+            di = Syskit::DependencyInjection.new('child' => nil, srv_m => task_m)
+            _, requirements, _ = di.selection_for('child', srv_m.to_instance_requirements)
+            assert_equal Syskit.proxy_task_model_for([srv_m]), requirements.model
+        end
     end
 
     describe "#add" do

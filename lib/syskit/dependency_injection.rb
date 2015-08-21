@@ -274,8 +274,9 @@ module Syskit
                 used_keys = Set.new
                 selected_services = Hash.new
                 selections = Set.new
-                if name && (sel = selection[name])
+                if name && selection.has_key?(name)
                     used_keys << name
+                    sel = selection[name] || requirements
                     selections << sel
                     selection.each do |key, value|
                         next if !value.respond_to?(:component_model) || value.component_model != sel
