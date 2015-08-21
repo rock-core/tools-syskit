@@ -128,17 +128,17 @@ module Syskit
                 driver_model =
                     begin options[:using] || device_model.default_driver
                     rescue Ambiguous => e
-                        raise e, "#{e.message}, select one explicitely with the using: option", e.backtrace
+                        raise e, "#{e.message}, select one explicitely with the using: option of the 'device' statement", e.backtrace
                     end
 
                 if driver_model.respond_to?(:find_data_service_from_type)
                     driver_model =
                         begin driver_model.find_data_service_from_type(device_model)
                         rescue Syskit::AmbiguousServiceSelection => e
-                            raise e, "#{e.message}, select one explicitly with the :using option", e.backtrace
+                            raise e, "#{e.message}, select one explicitly with the using: option of the 'device' statement", e.backtrace
                         end
                     if !driver_model
-                        raise ArgumentError, "#{options[:using]}, given as the :using option to create #{self}, is not a driver for #{device_model}"
+                        raise ArgumentError, "#{options[:using]}, given as the using: option to create #{self}, is not a driver for #{device_model}"
                     end
                 end
 
