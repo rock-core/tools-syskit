@@ -45,13 +45,16 @@ module Syskit
 
             def initialize(robot, name, device_model, options,
                            driver_model, task_arguments)
-                @robot, @name, @device_model, @driver_model, @task_arguments =
-                    robot, name, device_model, driver_model, task_arguments
+                @robot, @name, @device_model, @task_arguments =
+                    robot, name, device_model, task_arguments
                 @slaves      = Hash.new
                 @conf = Array.new
                 @com_busses = Array.new
-                @requirements = Syskit::InstanceRequirements.new([driver_model.to_component_model])
-                requirements.with_arguments(:"#{driver_model.name}_dev" => self)
+
+                driver_model = driver_model.to_instance_requirements
+                @driver_model = driver_model.service
+                @requirements = driver_model.to_component_model
+                requirements.with_arguments("#{driver_model.service.name}_dev" => self)
                 requirements.with_arguments(**task_arguments)
 
                 sample_size 1

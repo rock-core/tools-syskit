@@ -142,6 +142,7 @@ module Syskit
                     end
                 end
 
+                driver_model = driver_model.to_instance_requirements
                 device_instance = options[:class].new(
                     self, name, device_model, device_options,
                     driver_model, root_task_arguments)
@@ -150,7 +151,7 @@ module Syskit
                 device_model.apply_device_configuration_extensions(devices[name])
 
                 # And register all the slave services there is on the driver
-                driver_model.each_slave_data_service do |slave_service|
+                driver_model.service.each_slave_data_service do |slave_service|
                     slave_device = SlaveDeviceInstance.new(devices[name], slave_service)
                     device_instance.slaves[slave_service.name] = slave_device
                     devices["#{name}.#{slave_service.name}"] = slave_device
