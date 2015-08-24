@@ -168,8 +168,12 @@ module Syskit
                 task
             end
 
-            def syskit_stub_component(model)
-                syskit_stub_required_devices(model)
+            def syskit_stub_component(model, devices: true)
+                if devices
+                    syskit_stub_required_devices(model)
+                else
+                    model
+                end
             end
 
             # @api private
@@ -178,8 +182,8 @@ module Syskit
             #
             # @param [InstanceRequirements] task_m the task context model
             # @param [String] as the deployment name
-            def syskit_stub_task_context(model, as: syskit_default_stub_name(model))
-                model = syskit_stub_component(model)
+            def syskit_stub_task_context(model, as: syskit_default_stub_name(model), devices: true)
+                model = syskit_stub_component(model, devices: devices)
 
                 task_m = model.model
                 if task_m.respond_to?(:proxied_data_services)
@@ -225,8 +229,8 @@ module Syskit
             # Helper for {#syskit_stub_model}
             #
             # @param [InstanceRequirements] model
-            def syskit_stub_composition(model, recursive: true, as: syskit_default_stub_name(model))
-                model = syskit_stub_component(model)
+            def syskit_stub_composition(model, recursive: true, as: syskit_default_stub_name(model), devices: true)
+                model = syskit_stub_component(model, devices: devices)
 
                 if recursive
                     model.each_child do |child_name, selected_child|
@@ -238,10 +242,10 @@ module Syskit
                             child_model = child_model.to_component_model
                             if child_model.composition_model? 
                                 deployed_child = syskit_stub_composition(
-                                    child_model, recursive: true, as: "#{as}_#{child_name}")
+                                    child_model, recursive: true, as: "#{as}_#{child_name}", devices: devices)
                             else
                                 deployed_child = syskit_stub_task_context(
-                                    child_model, as: "#{as}_#{child_name}")
+                                    child_model, as: "#{as}_#{child_name}", devices: devices)
                             end
                             if selected_service
                                 deployed_child.select_service(selected_service)
@@ -259,7 +263,7 @@ module Syskit
             # Finds a driver model for a given device model, or create one if
             # there is none
             def syskit_stub_driver_model_for(model)
-                model.find_all_drivers.first || syskit_stub(model).model
+                syskit_stub(model.find_all_drivers.first || model, devices: false)
             end
 
             # Create a stub device of the given model
@@ -284,8 +288,8 @@ module Syskit
             # @param [String] as the combus name
             # @param [Model<TaskContext>] driver the driver that should be used.
             #   If not given, a new driver is stubbed
-            def syskit_stub_com_bus(model, as: syskit_default_stub_name(model), driver: nil, **device_options)
-                robot = Syskit::Robot::RobotDefinition.new
+            def syskit_stub_com_bus(model, as: syskit_default_stub_name(model), driver: nil, robot: nil, **device_options)
+                robot ||= Syskit::Robot::RobotDefinition.new
                 driver ||= syskit_stub_driver_model_for(model)
                 robot.com_bus(model, as: as, using: driver, **device_options)
             end
@@ -345,16 +349,16 @@ module Syskit
 
             # Create an InstanceRequirement instance that would allow to deploy
             # the given model
-            def syskit_stub(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
+            def syskit_stub(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), devices: true, &block)
                 if model.respond_to?(:to_str)
                     model = syskit_stub_task_context_model(model, &block)
                 end
                 model = model.to_instance_requirements.dup
 
                 if model.composition_model?
-                    syskit_stub_composition(model, recursive: recursive, as: as)
+                    syskit_stub_composition(model, recursive: recursive, as: as, devices: devices)
                 else
-                    syskit_stub_task_context(model, as: as)
+                    syskit_stub_task_context(model, as: as, devices: devices)
                 end
             end
 
