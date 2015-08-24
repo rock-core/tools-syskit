@@ -326,10 +326,13 @@ module Syskit
                 model
             end
 
-            @@syskit_stub_model_id = 0
+            @@syskit_stub_model_id = -1
 
             def syskit_stub_model_id
-                (@@syskit_stub_model_id += 1).to_s
+                id = (@@syskit_stub_model_id += 1)
+                if id != 0
+                    id
+                end
             end
 
             def syskit_default_stub_name(model)
@@ -337,7 +340,7 @@ module Syskit
                     if model.respond_to?(:name) then model.name
                     else model.to_str
                     end
-                self.name + "_" + (model_name || syskit_stub_model_id)
+                "#{self.name}_#{model_name}#{syskit_stub_model_id}"
             end
 
             # Create an InstanceRequirement instance that would allow to deploy
