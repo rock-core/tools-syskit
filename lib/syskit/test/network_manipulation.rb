@@ -189,7 +189,7 @@ module Syskit
                                  end
 
                     services = task_m.proxied_data_services
-                    task_m = superclass.new_submodel
+                    task_m = superclass.new_submodel(name: "#{task_m.to_s}-stub")
                     services.each_with_index do |srv, idx|
                         srv.each_input_port do |p|
                             task_m.orogen_model.input_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
@@ -204,7 +204,7 @@ module Syskit
                         end
                     end
                 elsif task_m.abstract?
-                    task_m = task_m.new_submodel
+                    task_m = task_m.new_submodel(name: "#{task_m.name}-stub")
                 end
                 model.add_models([task_m])
 
@@ -307,7 +307,7 @@ module Syskit
                     bus = syskit_stub_com_bus(bus, as: "#{as}_bus")
                 end
                 bus_m = bus.model
-                dev_m = Syskit::Device.new_submodel do
+                dev_m = Syskit::Device.new_submodel(name: "#{bus}-stub") do
                     provides bus_m::ClientSrv
                 end
                 dev = syskit_stub_device(dev_m, as: as)
