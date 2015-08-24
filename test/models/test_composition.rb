@@ -480,7 +480,7 @@ describe Syskit::Models::Composition do
             cmp_m.add srv_m, as: 'control'
 
             context = Syskit::DependencyInjectionContext.new(
-                Syskit::DependencyInjection.new('test' => nil, srv_m => task_m))
+                Syskit::DependencyInjection.new('test' => Syskit::DependencyInjection.nothing, srv_m => task_m))
             task = cmp_m.instanciate(plan, context)
             assert_kind_of Syskit.proxy_task_model_for([srv_m]), task.test_child
             assert_kind_of task_m, task.control_child

@@ -58,13 +58,23 @@ describe Syskit::DependencyInjection do
             _, _, service_selections = di.selection_for('child', Syskit::InstanceRequirements.new([base_srv_m]))
             assert_equal task_m.test_srv, service_selections[base_srv_m]
         end
-        it "will accept nil as a selection, thus overriding more general selections" do
+        it "will accept DependencyInjection.nothing as a selection, thus overriding more general selections" do
             srv_m  = Syskit::DataService.new_submodel
             task_m = Syskit::TaskContext.new_submodel
             task_m.provides srv_m, as: 'test'
-            di = Syskit::DependencyInjection.new('child' => nil, srv_m => task_m)
-            _, requirements, _ = di.selection_for('child', srv_m.to_instance_requirements)
+            di = Syskit::DependencyInjection.new(
+                'child' => Syskit::DependencyInjection.nothing, srv_m => task_m)
+            _, requirements, _ = di.selection_for('child', srv_m)
             assert_equal Syskit.proxy_task_model_for([srv_m]), requirements.model
+        end
+        it "will accept DependencyInjection.do_not_inherit as a selection, thus falling back to more general selections" do
+            srv_m  = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, as: 'test'
+            di = Syskit::DependencyInjection.new(
+                'child' => Syskit::DependencyInjection.do_not_inherit, srv_m => task_m)
+            _, requirements, _ = di.selection_for('child', srv_m)
+            assert_equal task_m, requirements.model
         end
     end
 
@@ -158,10 +168,10 @@ describe Syskit::DependencyInjection do
     describe "#merge" do
         attr_reader :model0, :model1, :di0, :di1
         before do
-            @model0 = flexmock
-            @model1 = flexmock
-            model0.should_receive(:to_instance_requirements).and_return(model0)
-            model1.should_receive(:to_instance_requirements).and_return(model1)
+            @model0 = flexmock(Syskit::InstanceRequirements.new)
+            @model1 = flexmock(Syskit::InstanceRequirements.new)
+            model0.should_receive(:==).with(model1).and_return(false)
+            model1.should_receive(:==).with(model0).and_return(false)
             @di0 = Syskit::DependencyInjection.new('test' => model0)
             @di1 = Syskit::DependencyInjection.new('test' => model1)
         end
@@ -252,7 +262,8 @@ class TC_DependencyInjection < Minitest::Test
         component = Component.new_submodel
         component.provides srv, as: 'srv'
         key = 'key'
-        assert_equal(Hash[key => nil], DependencyInjection.normalize_selection(key => nil))
+        assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
+        assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
         assert_equal(Hash[key => 'value'], DependencyInjection.normalize_selection(key => 'value'))
         assert_equal(Hash[key => srv], DependencyInjection.normalize_selection(key => srv))
         assert_equal(Hash[key => component], DependencyInjection.normalize_selection(key => component))
@@ -275,7 +286,8 @@ class TC_DependencyInjection < Minitest::Test
         component.provides srv, as: 'srv'
         key = component
         
-        assert_equal(Hash[key => nil], DependencyInjection.normalize_selection(key => nil))
+        assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
+        assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
         assert_equal(Hash[key => 'value'], DependencyInjection.normalize_selection(key => 'value'))
         assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
     end
@@ -322,7 +334,8 @@ class TC_DependencyInjection < Minitest::Test
 
     def test_normalize_selection_accepts_data_service_to_string_nil_and_identity
         key = DataService.new_submodel
-        assert_equal(Hash[key => nil], DependencyInjection.normalize_selection(key => nil))
+        assert_equal(Hash[key => DependencyInjection.nothing], DependencyInjection.normalize_selection(key => DependencyInjection.nothing))
+        assert_equal(Hash[key => DependencyInjection.do_not_inherit], DependencyInjection.normalize_selection(key => DependencyInjection.do_not_inherit))
         assert_equal(Hash[key => 'value'], DependencyInjection.normalize_selection(key => 'value'))
         assert_equal(Hash[key => key], DependencyInjection.normalize_selection(key => key))
     end

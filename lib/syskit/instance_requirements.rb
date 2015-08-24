@@ -644,11 +644,9 @@ module Syskit
                     # Add a barrier for the names that our models expect. This is
                     # required to avoid recursively reusing names (which was once
                     # upon a time, and is a very confusing feature)
-                    barrier = Hash.new
-                    self.proxy_task_model.dependency_injection_names.each do |n|
-                        barrier[n] = nil
-                    end
-                    context.push(Syskit::DependencyInjection.new(barrier))
+                    barrier = Syskit::DependencyInjection.new
+                    barrier.add_mask(self.proxy_task_model.dependency_injection_names)
+                    context.push(barrier)
                     context.push(pushed_selections)
                     context.push(selections)
                     @di = context.current_state

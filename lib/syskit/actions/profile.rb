@@ -68,6 +68,19 @@ module Syskit
             # @return [DependencyInjection]
             attr_reader :dependency_injection
 
+            # Dependency injection object that signifies "select nothing for
+            # this"
+            #
+            # This is used to override more generic selections, or to make sure
+            # that a compositions' optional child is not present
+            #
+            # @example disable the optional 'pose' child of Camera composition
+            #   Compositions::Camera.use('pose' => nothing)
+            #
+            def nothing
+                DependencyInjection.nothing
+            end
+
             # Robot definition class inside a profile
             #
             # It is subclassed so that we can invalidate the cached dependency
