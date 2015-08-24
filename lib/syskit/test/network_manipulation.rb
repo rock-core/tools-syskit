@@ -33,8 +33,8 @@ module Syskit
             end
 
             # Run Syskit's deployer (i.e. engine) on the current plan
-            def syskit_deploy(*to_instanciate, **resolve_options, &block)
-                syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
+            def syskit_deploy(*to_instanciate, syskit_engine: nil, **resolve_options, &block)
+                syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
                 syskit_engine.disable_updates
 
                 # For backward-compatibility
