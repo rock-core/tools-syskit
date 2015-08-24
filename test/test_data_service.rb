@@ -20,6 +20,10 @@ describe Syskit::Device do
             task = task_m.new "dev0_dev" => dev0
             assert_equal dev0, task.find_device_attached_to('dev0')
         end
+        it "resolves devices by device model" do
+            task = task_m.new "dev0_dev" => dev0
+            assert_equal dev0, task.find_device_attached_to(device_m)
+        end
         it "should resolve the device attached using a data service bound to the task instance" do
             task = task_m.new "dev0_dev" => dev0
             assert_equal dev0, task.find_device_attached_to(task.dev0_srv)

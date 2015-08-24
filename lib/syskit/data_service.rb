@@ -77,14 +77,15 @@ module Syskit
             #   exist, or if it is nil and this task context drives more than
             #   one device.
             def find_device_attached_to(service = nil)
-                if service
-                    if service.respond_to?(:to_str)
-                        if !(service = find_data_service(service))
-                            raise ArgumentError, "#{service} is not a known service of #{self}, known services are: #{each_data_service.map(&:name).sort.join(', ')}"
-                        end
+                if service && service.respond_to?(:to_str)
+                    if !(service = find_data_service(service))
+                        raise ArgumentError, "#{service} is not a known service of #{self}, known services are: #{each_data_service.map(&:name).sort.join(', ')}"
                     end
-                else
-                    driver_services = model.each_master_driver_service.to_a
+                elsif !service || service.kind_of?(Syskit::Models::DataServiceModel)
+                    driver_services =
+                        if service then model.find_all_data_services_from_type(service)
+                        else model.each_master_driver_service.to_a
+                        end
                     if driver_services.empty?
                         raise ArgumentError, "#{self} is not attached to any device"
                     elsif driver_services.size > 1
