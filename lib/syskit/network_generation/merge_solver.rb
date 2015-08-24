@@ -139,6 +139,12 @@ module Syskit
                     return false
                 end
 
+                # A transaction proxy can only be the merged-into task
+                if task.transaction_proxy?
+                    debug { "rejecting #{target_task}.merge(#{task}): the merged task is a transaction proxy" }
+                    return false
+                end
+
                 # Merges involving a deployed task can only involve a
                 # non-deployed task as well
                 if task.execution_agent && target_task.execution_agent
