@@ -294,7 +294,7 @@ module Syskit
                         end
                         candidates ||= Set.new
                     else
-                        candidates = engine.work_plan.find_local_tasks(task.concrete_model).to_set
+                        candidates = engine.work_plan.find_local_tasks(task.concrete_model).not_abstract.to_set
                     end
 
                     parents = task.
