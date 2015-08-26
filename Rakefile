@@ -8,6 +8,7 @@ begin
     namespace 'dist' do
         config = Hoe.spec('syskit') do |p|
             self.readme_file = 'README.rd'
+            self.description = "Model-based coordination of component-based layers"
             self.developer("Sylvain Joyeux", "sylvain.joyeux@dfki.de")
             self.license 'LGPLv2+'
 
@@ -70,6 +71,7 @@ if Utilrb.doc?
 
     task 'redocs' => 'doc:reapi'
     task 'doc' => 'doc:api'
+    task 'gem' => 'dist:gem'
 else
     STDERR.puts "WARN: cannot load yard or rdoc , documentation generation disabled"
 end
