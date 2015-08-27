@@ -1,6 +1,8 @@
 require 'Qt'
 require 'open3'
 require 'syskit/gui/model_browser'
+require 'syskit/gui/state_label'
+require 'syskit/gui/runtime_state'
 require 'shellwords'
 module Syskit
     module GUI
@@ -10,6 +12,14 @@ module Syskit
             attr_reader :btn_reload_models
             attr_reader :tab_widget
             attr_reader :model_browser
+            attr_reader :runtime_state
+            attr_reader :connection_state
+
+            COLOR_INIT = "rgb(51, 181, 229)"
+            COLOR_CONNECTED = "rgb(153, 204, 0)"
+            COLOR_UNREACHABLE = "rgb(255, 68, 68)"
+            CONNECTION_STATE_STYLE = "QLabel { font-size: 10pt; background-color: %s; }"
+            CONNECTION_STATE_TEXT = "<b>%s</b>: %s"
 
             def initialize(parent = nil)
                 super
@@ -17,6 +27,7 @@ module Syskit
                 @layout = Qt::VBoxLayout.new(self)
                 @tab_widget = Qt::TabWidget.new(self)
                 @model_browser = ModelBrowser.new
+                @runtime_state = RuntimeState.new
                 @btn_reload_models = Qt::PushButton.new("Reload Models", self)
 
                 connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
@@ -25,6 +36,17 @@ module Syskit
                 layout.add_widget btn_reload_models
                 layout.add_widget tab_widget
                 tab_widget.add_tab model_browser, "Browse"
+                idx = tab_widget.add_tab runtime_state, "Runtime"
+                @connection_state = StateLabel.new(
+                    name: runtime_state.remote_name,
+                    extra_style: 'margin-left: 2px; margin-top: 2px; font-size: 10pt;')
+                connection_state.declare_state 'CONNECTED', :green
+                connection_state.declare_state 'UNREACHABLE', :red
+
+                tab_widget.set_corner_widget(connection_state, Qt::TopLeftCorner)
+                connect runtime_state, SIGNAL('connection_state_changed(bool)') do |flag|
+                    connection_state_changed(flag)
+                end
 
                 model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
 
@@ -34,6 +56,14 @@ module Syskit
                     Roby.app.reload_models
                     model_browser.update_exceptions
                     model_browser.reload
+                end
+            end
+
+            def connection_state_changed(connected)
+                if connected
+                    connection_state.update_state 'CONNECTED'
+                else
+                    connection_state.update_state 'UNREACHABLE'
                 end
             end
 
