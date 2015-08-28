@@ -18,8 +18,8 @@ module Syskit
             def use_profile(profile)
                 @current_description = nil
                 main_profile.use_profile(profile)
-                profile.robot.devices.each do |name, dev|
-                    action_name = "#{name}_dev"
+                profile.robot.each_master_device do |dev|
+                    action_name = "#{dev.name}_dev"
                     if !actions[action_name]
                         req = dev.to_instance_requirements
                         profile.inject_di_context(req)
