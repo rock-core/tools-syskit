@@ -3,6 +3,7 @@ require 'metaruby/gui'
 require 'syskit/gui/model_views'
 require 'syskit/gui/page'
 require 'roby/gui/model_views'
+require 'roby/gui/exception_view'
 module Syskit
     module GUI
         class ModelBrowser < MetaRuby::GUI::ModelBrowser
@@ -18,7 +19,7 @@ module Syskit
             ]
 
             def initialize(parent = nil)
-                super
+                super(parent, exception_view: Roby::GUI::ExceptionView.new)
 
                 if ENV['SYSKIT_GUI_DEBUG_HTML']
                     display.page.settings.setAttribute(Qt::WebSettings::DeveloperExtrasEnabled, true)
