@@ -11,9 +11,11 @@ module Syskit
 
             class Definition < InstanceRequirements
                 attr_accessor :profile
+                attr_predicate :advanced?, true
                 def initialize(profile, name)
                     super()
                     self.profile = profile
+                    self.advanced = false
                     self.name = name
                 end
 
@@ -221,6 +223,7 @@ module Syskit
                 
                 definition = Definition.new(self, name)
                 definition.doc MetaRuby::DSLs.parse_documentation_block(->(file) { Roby.app.app_file?(file) }, /^define$/)
+                definition.advanced = false
                 definition.merge(req)
                 definitions[name] = definition
             end

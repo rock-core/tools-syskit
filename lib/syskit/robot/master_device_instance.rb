@@ -69,6 +69,15 @@ module Syskit
                 name
             end
 
+            # Whether this device should be hidden from the user interfaces
+            attr_predicate :advanced?, true
+
+            # Sets {#advanced?}
+            def advanced
+                @advanced = true
+                self
+            end
+
             # @deprecated
             def use_conf(*conf)
                 Roby.warn_deprecated "MasterDeviceInstance#use_conf is deprecated. Use #with_conf instead"

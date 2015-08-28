@@ -5,27 +5,20 @@ module Syskit
         #
         # It is returned by Robot.device
         class DeviceInstance
-            ##
-            # :method:period
-            #
-            # call-seq:
-            #   period(new_period) => new_period
-            #   period => current_period or nil
-            #
             # Gets or sets the device period
             #
             # The device period is the amount of time there is between two
             # samples coming from the device. The value is a floating-point
             # value in seconds.
+            #
+            # @return [Float]
             dsl_attribute(:period) { |v| Float(v) }
 
-            ## 
-            # :method:sample_size
+            # Gets or sets a documentation string for this device
             #
-            # call-seq:
-            #   sample_size(size)
-            #   sample_size => current_size
-            #
+            # @return [String]
+            dsl_attribute(:doc) { |s| !s || s.to_str }
+
             # If this device is on a communication bus, the sample_size
             # statement specifies how many messages on the bus are required to
             # form one of the device sample.
