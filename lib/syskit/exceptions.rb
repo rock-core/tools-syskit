@@ -425,6 +425,48 @@ module Syskit
             end
         end
 
+        class ConflictingDeviceAllocation < SpecError
+            attr_reader :device
+            attr_reader :tasks
+            attr_reader :inputs
+
+            def can_merge?; !!@can_merge end
+
+            def initialize(device, task0, task1)
+                @device, @tasks = device, [task0, task1]
+                @can_merge = task0.can_merge?(task1) || task1.can_merge?(task0)
+                if can_merge?
+                    # Mismatching inputs ... gather more info
+                    @inputs = Array.new
+                    @inputs[0] = task0.each_concrete_input_connection.to_a
+                    @inputs[1] = task1.each_concrete_input_connection.to_a
+                end
+            end
+
+            def pretty_print(pp)
+                pp.text "device #{device.name} is assigned to two tasks"
+                if can_merge?
+                    pp.text " that have mismatching inputs"
+                    tasks.each_with_index do |t, i|
+                        pp.breakable
+                        t.pretty_print(pp)
+                        pp.breakable
+                        pp.text "#{inputs[i].size} input(s):"
+                        inputs[i].each do |source_task, source_port, sink_port|
+                            pp.breakable
+                            pp.text "  #{source_task}.#{source_port} -> #{sink_port}"
+                        end
+                    end
+                else
+                    pp.text " that cannot be merged"
+                    tasks.each do |t|
+                        pp.breakable
+                        t.pretty_print(pp)
+                    end
+                end
+            end
+        end
+
         # Exception raised at the end of #resolve if some tasks do not have a
         # deployed equivalent
         class MissingDeployments < SpecError

@@ -558,11 +558,7 @@ module Syskit
                     task.each_master_device do |dev|
                         device_name = dev.full_name
                         if old_task = devices[device_name]
-			    if !old_task.can_merge?(task)
-				raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}, and the tasks refuse to be merged"
-			    else
-				raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}, but the tasks have mismatching inputs"
-			    end
+                            raise ConflictingDeviceAllocation.new(dev, task, old_task)
                         else
                             devices[device_name] = task
                         end
