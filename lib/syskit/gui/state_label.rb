@@ -24,13 +24,23 @@ module Syskit
             # Set to nil to remove any additional text
             def name=(name)
                 @name = name
-                update_state(current_state)
+                update_text
             end
 
             # The current state
             #
             # @return [String]
-            attr_reader :state
+            attr_reader :current_state
+
+            # The current text
+            #
+            # @return [String]
+            attr_reader :current_text
+
+            # The current color
+            #
+            # @return [String]
+            attr_reader :current_color
 
             # Set of known states
             #
@@ -41,9 +51,21 @@ module Syskit
             # stylesheet
             attr_reader :extra_style
 
+            # Sets {#extra_style}
             def extra_style=(style)
                 @extra_style = style.to_str
-                update_state(current_state)
+                update_style
+            end
+
+            # The default color that will be used for undeclared states
+            #
+            # If nil, calling {#update_state} with an unknown state will raise
+            # an exception
+            attr_reader :default_color
+
+            # Sets {#default_color}
+            def default_color=(color)
+                @default_color = handle_color_argument(color)
             end
 
             def initialize(name: nil, extra_style: '', parent: nil)
@@ -56,28 +78,58 @@ module Syskit
                 update_state :INIT
             end
 
-            def declare_state(state_name, color)
+            def ignore_state(state_name)
+                states[state_name.to_s] = nil
+            end
+
+            def handle_color_argument(color)
                 if c = COLORS[color]
-                    states[state_name.to_s] = COLORS[color]
+                    COLORS[color]
                 else
-                    states[state_name.to_s] = color.to_str
+                    color.to_str
                 end
             end
-            
-            # Update to reflect a state change
-            def update_state(state)
-                state = state.to_s
-                if !color = states[state]
-                    raise ArgumentError, "unknown state #{state}"
-                end
 
+            def declare_state(state_name, color)
+                states[state_name.to_s] = handle_color_argument(color)
+                self
+            end
+
+            def declare_default_color(color)
+                self.default_color = handle_color_argument(color)
+                self
+            end
+
+            def color_from_state(state)
+                state = state.to_s
+                if states.has_key?(state)
+                    return states[state]
+                elsif !(color = default_color)
+                    raise ArgumentError, "unknown state #{state} and no default color defined"
+                end
+            end
+
+            # Update to reflect a state change
+            def update_state(state, text: state.to_s, color: color_from_state(state))
+                return if !color
+                update_style(color)
+                update_text(text)
+                @current_state = state.to_s
+            end
+
+            def update_style(color = current_color)
+                @current_color = color
+                color = handle_color_argument(color)
                 self.style_sheet = STYLE % [color, extra_style]
-                puts STYLE % [color, extra_style]
+            end
+            
+            def update_text(text = current_text)
+                text = text.to_str
+                @current_text = text
                 self.text =
-                    if name then TEXT_WITH_NAME % [name, state]
-                    else TEXT_WITHOUT_NAME % [state]
+                    if name then TEXT_WITH_NAME % [name, text]
+                    else TEXT_WITHOUT_NAME % [text]
                     end
-                @current_state = state
             end
 
             slots 'update_state(QString)'

@@ -1,5 +1,7 @@
 require 'syskit'
 require 'roby/interface/async'
+require 'roby/interface/async/log'
+require 'syskit/gui/job_status_display'
 
 module Syskit
     module GUI
@@ -8,6 +10,8 @@ module Syskit
             # @return [Roby::Interface::Async::Interface] the underlying syskit
             #   interface
             attr_reader :syskit
+            # An async object to access the log stream
+            attr_reader :syskit_log_stream
 
             # The toplevel layout
             attr_reader :main_layout
@@ -74,8 +78,10 @@ module Syskit
 
                 @syskit = syskit
                 syskit.on_reachable do
+                    update_log_server_connection(syskit.client.log_server_port)
                     action_combo.clear
                     syskit.actions.sort_by(&:name).each do |action|
+                        next if action.advanced?
                         action_combo.add_item(action.name, Qt::Variant.new(action.doc))
                     end
                     emit connection_state_changed(true)
@@ -89,6 +95,19 @@ module Syskit
                 end
             end
 
+            def update_log_server_connection(port)
+                if syskit_log_stream && (syskit_log_stream.port == port)
+                    return
+                elsif syskit_log_stream
+                    syskit_log_stream.close
+                end
+                @syskit_log_stream = Roby::Interface::Async::Log.new(syskit.remote_name, port: port)
+                syskit_log_stream.on_update do |cycle_index, cycle_time|
+                    emit updated(cycle_index, Qt::DateTime.new(cycle_time))
+                end
+            end
+
+            signals 'updated(int, QDateTime)'
             signals 'connection_state_changed(bool)'
 
             def remote_name
@@ -103,7 +122,7 @@ module Syskit
             end
 
             def job_control_ui
-                job_control_layout = Qt::GridLayout.new
+                job_control_layout = Qt::VBoxLayout.new
                 job_control_layout
             end
 
@@ -120,10 +139,47 @@ module Syskit
                 new_job_layout
             end
 
+            class NewJobDialog < Qt::Dialog
+                attr_reader :editor
+
+                def initialize(parent = nil, text = '')
+                    super(parent)
+                    layout = Qt::VBoxLayout.new(self)
+                    @editor = Qt::TextEdit.new(self)
+                    layout.add_widget editor
+                    self.text = text
+                end
+
+                def self.exec(parent, text)
+                    new(parent, text).exec
+                end
+
+                def text=(text)
+                    editor.plain_text = text
+                end
+
+                def text
+                    editor.plain_text
+                end
+            end
+
             def create_new_job(action_name)
                 action_model = syskit.actions.find { |m| m.name == action_name }
                 if !action_model
                     raise ArgumentError, "no action named #{action_name} found"
+                end
+
+                if action_model.arguments.empty?
+                    syskit.client.send("#{action_name}!", Hash.new)
+                else
+                    formatted_action = Array.new
+                    formatted_action << "#{action_name}("
+                    action_model.arguments.each do |arg|
+                        formatted_action << "  # #{arg.doc}"
+                        formatted_action << "  #{arg.name}: #{arg.default},"
+                    end
+                    formatted_action << ")"
+                    NewJobDialog.exec(self, formatted_action.join("\n"))
                 end
             end
 
@@ -134,6 +190,9 @@ module Syskit
                 syskit_poll = Qt::Timer.new
                 syskit_poll.connect(SIGNAL('timeout()')) do
                     syskit.poll
+                    if syskit_log_stream
+                        syskit_log_stream.poll
+                    end
                 end
                 syskit_poll.start(period)
                 syskit
@@ -145,19 +204,13 @@ module Syskit
             #
             # @param [Roby::Interface::Async::JobMonitor] job
             def monitor_job(job)
-                job_state = Vizkit.default_loader.StateViewer
-                job_state.set_size_policy(Qt::SizePolicy::MinimumExpanding, Qt::SizePolicy::Minimum)
-                job_state.update :INIT,
-                    "##{job.job_id} #{job.action_name}",
-                    job_state.unreachable_color
-                job_kill = Qt::PushButton.new(self, "Kill")
-                job_kill.connect(SIGNAL(:clicked)) do
-                    job.kill
-                end
-                row = job_control_layout.row_count
-                job_control_layout.add_widget job_state, row, 0
-                job_control_layout.add_widget job_kill, row, 1
+                job_status = JobStatusDisplay.new(job, self)
+                connect(job_status, SIGNAL('fileOpenClicked(const QUrl&)'),
+                        self, SIGNAL('fileOpenClicked(const QUrl&)'))
+                job_control_layout.add_widget job_status
             end
+
+            signals 'fileOpenClicked(const QUrl&)'
         end
     end
 end

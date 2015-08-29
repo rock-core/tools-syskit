@@ -32,6 +32,8 @@ module Syskit
 
                 connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SLOT('fileOpenClicked(const QUrl&)'))
+                connect(runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
+                        self, SLOT('fileOpenClicked(const QUrl&)'))
 
                 layout.add_widget btn_reload_models
                 layout.add_widget tab_widget
@@ -46,6 +48,12 @@ module Syskit
                 tab_widget.set_corner_widget(connection_state, Qt::TopLeftCorner)
                 connect runtime_state, SIGNAL('connection_state_changed(bool)') do |flag|
                     connection_state_changed(flag)
+                end
+                connect runtime_state, SIGNAL('updated(int, QDateTime)') do |cycle_index, cycle_time|
+                    state = connection_state.current_state.to_s
+                    cycle_time = cycle_time.to_time
+                    time_s = "#{cycle_time.strftime('%H:%M:%S')}.#{'%.03i' % [cycle_time.tv_usec / 1000]}"
+                    connection_state.update_text("%s - @%i %s" % [state, cycle_index, time_s])
                 end
 
                 model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
