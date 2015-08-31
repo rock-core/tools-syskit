@@ -139,13 +139,13 @@ module Syskit
 
             def add_mask(mask)
                 mask.each do |key|
-                    explicit[key] = nil
+                    explicit[key] = DependencyInjection.do_not_inherit
                 end
             end
 
             # True if there is an explicit selection for the given name
             def has_selection_for?(name)
-                !!explicit[name]
+                !!direct_selection_for(name)
             end
             
             # Normalizes an explicit selection
@@ -155,9 +155,9 @@ module Syskit
             #
             # A normalized selection has this form:
             #
-            # * string to String,Component,DataService,BoundDataService,nil
-            # * Component to String,Component,nil
-            # * DataService to String,DataService,BoundDataService,nil
+            # * string to String,{Component},{DataService},{BoundDataService},{.do_not_inherit},{.nothing}
+            # * Component to String,{Component},{.do_not_inherit},{.nothing}
+            # * DataService to String,{DataService},{BoundDataService},{.do_not_inherit},{.nothing}
             #
             # @raise ArgumentError if the key and value are not valid
             #   selection (see above)
@@ -240,7 +240,9 @@ module Syskit
 
             def direct_selection_for(obj)
                 if defaults.empty?
-                    self.explicit[obj]
+                    if (sel = self.explicit[obj]) && sel != DependencyInjection.do_not_inherit
+                        sel
+                    end
                 else
                     @resolved ||= resolve
                     return @resolved.direct_selection_for(obj)
@@ -274,8 +276,11 @@ module Syskit
                 used_keys = Set.new
                 selected_services = Hash.new
                 selections = Set.new
-                if name && (sel = selection[name])
+                if name && (sel = selection[name]) && (sel != DependencyInjection.do_not_inherit)
                     used_keys << name
+                    if sel == DependencyInjection.nothing
+                        sel = requirements
+                    end
                     selections << sel
                     selection.each do |key, value|
                         next if !value.respond_to?(:component_model) || value.component_model != sel
@@ -288,10 +293,12 @@ module Syskit
                     end
                 else
                     requirements.each_required_model do |required_m|
-                        if selected = selection[required_m]
+                        if sel = direct_selection_for(required_m)
+                            selections << [sel, required_m]
                             used_keys << required_m
+                        else
+                            selections << [required_m, required_m]
                         end
-                        selections << [(selected || required_m), required_m]
                     end
                 end
 
@@ -466,6 +473,20 @@ module Syskit
                 explicit.each_key(&block)
             end
 
+            class SpecialDIValue
+                def initialize(name); @name = name end
+                def to_s; "DependencyInjection.#{@name}" end
+                def inspect; to_s end
+            end
+
+            def self.do_not_inherit
+                @do_not_inherit ||= SpecialDIValue.new('do_not_inherit')
+            end
+
+            def self.nothing
+                @nothing ||= SpecialDIValue.new('nothing')
+            end
+
             # Helper method that resolves recursive selections in a dependency
             # injection mapping
             def self.resolve_recursive_selection_mapping(spec)
@@ -476,7 +497,7 @@ module Syskit
 
             # Helper method that resolves one single object recursively
             def self.resolve_selection_recursively(value, spec)
-                while !value.respond_to?(:to_str)
+                while value && !value.respond_to?(:to_str)
                     case value
                     when Models::BoundDataService
                         return value if !value.component_model.kind_of?(Class)
@@ -501,14 +522,17 @@ module Syskit
             ROOT_MODELS = [TaskContext, Component, Composition]
 
             def self.normalize_selected_object(value, key = nil)
-                return if !value
+                if !value
+                    raise ArgumentError, "found nil as selection for #{key}, but it is not accepted anymore"
+                end
 
                 if value.kind_of?(InstanceSelection)
                     value = value.component || value.selected
                 end
 
-                # 'value' must be one of String,Model<Component>,Component,DataService,Model<BoundDataService>,BoundDataService or nil
+                # 'value' must be one of String,Model<Component>,Component,DataService,Model<BoundDataService>,BoundDataService
                 if !value.respond_to?(:to_str) &&
+                    !value.kind_of?(SpecialDIValue) &&
                     !value.kind_of?(Component) &&
                     !value.kind_of?(BoundDataService) &&
                     !value.kind_of?(Models::BoundDataService) &&
@@ -519,9 +543,9 @@ module Syskit
                         value = value.to_instance_requirements
                     else
                         if key
-                            raise ArgumentError, "found #{value}(of class #{value.class}) as a selection for #{key}, but only nil,name,component models,components,data service models and bound data services are allowed"
+                            raise ArgumentError, "found #{value}(of class #{value.class}) as a selection for #{key}, but only name,component models,components,data service models and bound data services are allowed"
                         else
-                            raise ArgumentError, "found #{value}(of class #{value.class}) as a selection, but only nil,name,component models,components,data service models and bound data services are allowed"
+                            raise ArgumentError, "found #{value}(of class #{value.class}) as a selection, but only name,component models,components,data service models and bound data services are allowed"
                         end
                     end
                 end

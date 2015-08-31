@@ -471,6 +471,21 @@ describe Syskit::Models::Composition do
             refute_kind_of cmp_m, task.test_child.test_child
         end
 
+        it "instanciates using the child's plain model if the child has been explicitely selected to nil" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, as: 'test'
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, as: 'test'
+            cmp_m.add srv_m, as: 'control'
+
+            context = Syskit::DependencyInjectionContext.new(
+                Syskit::DependencyInjection.new('test' => Syskit::DependencyInjection.nothing, srv_m => task_m))
+            task = cmp_m.instanciate(plan, context)
+            assert_kind_of Syskit.proxy_task_model_for([srv_m]), task.test_child
+            assert_kind_of task_m, task.control_child
+        end
+
         describe "dependency relation definition based on information in the child definition" do
             attr_reader :composition_m, :srv_child
             before do
