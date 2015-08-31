@@ -62,7 +62,7 @@ module Syskit
             end
 
             def to_s
-                "device(#{device_model.short_name}, :as => #{full_name})"
+                "device(#{device_model}, as: #{full_name})"
             end
 
             def full_name
