@@ -190,6 +190,20 @@ module Syskit
                 InstanceRequirements.new([self]).with_arguments(*spec, &block)
             end
 
+            # Optional dependency injection
+            #
+            # Returns an {InstanceRequirements} that you can use to inject
+            # optional dependencies that will be fullfilled only if there is
+            # already a matching task deployed in the plan
+            #
+            # This can only be meaningfully used when injected for a
+            # composition's optional child
+            #
+            # @return [InstanceRequirements]
+            def if_already_present
+                to_instance_requirements.if_already_present
+            end
+
             # @deprecated replaced by {prefer_deployed_tasks}
             def use_deployments(*selection)
                 prefer_deployed_tasks(*selection)

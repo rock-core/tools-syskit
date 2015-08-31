@@ -116,6 +116,59 @@ describe Syskit::NetworkGeneration::Engine do
         end
     end
 
+    describe "#compute_system_network" do
+        describe "handling of optional dependencies" do
+            attr_reader :cmp_m, :srv_m, :task_m, :syskit_engine
+            before do
+                @srv_m = Syskit::DataService.new_submodel
+                @cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add_optional srv_m, as: 'test'
+                @task_m = Syskit::TaskContext.new_submodel
+                task_m.provides srv_m, as: 'test'
+            end
+
+            subject do
+                engine = Syskit::NetworkGeneration::Engine.new(plan)
+                engine.prepare
+                engine
+            end
+
+            def compute_system_network(*requirements)
+                tasks = requirements.map do |req|
+                    plan.add_mission(task = req.as_plan)
+                    task
+                end
+                subject.compute_system_network(tasks.map(&:planning_task), validate_generated_network: false)
+                tasks.each { |task| plan.remove_object(task) if plan.include?(task) }
+
+                cmp = plan.find_tasks(cmp_m).to_a
+                assert_equal 1, cmp.size
+                cmp.first
+            end
+
+            it "keeps the compositions' optional dependencies that are not abstract" do
+                cmp = compute_system_network(cmp_m.use('test' => task_m))
+                assert cmp.has_role?('test')
+            end
+            it "keeps the compositions' non-optional dependencies that are abstract" do
+                cmp_m.add srv_m, as: 'non_optional'
+                cmp = compute_system_network(cmp_m)
+                assert cmp.has_role?('non_optional')
+            end
+            it "removes the compositions' optional dependencies that are still abstract" do
+                cmp = compute_system_network(cmp_m)
+                assert !cmp.has_role?('test')
+            end
+            it "enables the use of the abstract flag in InstanceRequirements to use an optional dep only if it is instanciated by other means" do
+                cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract))
+                assert !cmp.has_role?('test')
+                plan.remove_object(cmp)
+                cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract), task_m)
+                assert cmp.has_role?('test')
+            end
+        end
+    end
+
     describe "#fix_toplevel_tasks" do
         attr_reader :original_task
         attr_reader :planning_task

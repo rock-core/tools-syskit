@@ -60,6 +60,20 @@ describe Syskit::DependencyInjection do
         end
     end
 
+    describe "#instance_selection_for" do
+        it "propagates the abstract flag" do
+            srv_m = Syskit::DataService.new_submodel
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.provides srv_m, as: 'test'
+            di = Syskit::DependencyInjection.new('child' => task_m.to_instance_requirements.abstract)
+            assert di.instance_selection_for('child', task_m.to_instance_requirements)[0].selected.abstract?
+            di = Syskit::DependencyInjection.new(task_m => task_m.to_instance_requirements.abstract)
+            assert di.instance_selection_for(nil, task_m.to_instance_requirements)[0].selected.abstract?
+            di = Syskit::DependencyInjection.new('child' => srv_m.to_instance_requirements.abstract, srv_m => task_m)
+            assert di.instance_selection_for('child', task_m.to_instance_requirements)[0].selected.abstract?
+        end
+    end
+
     describe "#add" do
         attr_reader :di, :explicit_m, :default_m
         before do

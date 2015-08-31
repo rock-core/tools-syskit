@@ -73,6 +73,7 @@ module Syskit
             # HACK: the proper fix would be to make the IR an attribute of
             # HACK: CompositionChild instead of a superclass
             def do_copy(old)
+                @abstract = old.abstract?
                 @model = old.model
                 @base_model = old.base_model
                 @arguments = old.arguments.dup
@@ -91,7 +92,7 @@ module Syskit
             def self.from_object(object, original_requirements = Syskit::InstanceRequirements.new) 
                 if object.plain?
                     object = object.dup
-                    object.merge(original_requirements)
+                    object.merge(original_requirements, keep_abstract: true)
                     object
                 else
                     object
@@ -346,7 +347,13 @@ module Syskit
             #
             # Throws ArgumentError if the two specifications are not compatible
             # (i.e. can't be merged)
-            def merge(other_spec)
+            def merge(other_spec, keep_abstract: false)
+                if keep_abstract
+                    @abstract ||= other_spec.abstract?
+                elsif !other_spec.abstract?
+                    @abstract = false 
+                end
+
                 @base_model = base_model.merge(other_spec.base_model)
                 @arguments = @arguments.merge(other_spec.arguments) do |name, v1, v2|
                     if v1 != v2
@@ -498,6 +505,46 @@ module Syskit
                 @pushed_selections = merger.current_state
                 @selections = DependencyInjection.new
                 nil
+            end
+            
+            # The instanciated task should be marked as abstract
+            #
+            # @return [self]
+            def abstract
+                @abstract = true
+                self
+            end
+
+            # The instanciated task should not be marked as abstract
+            #
+            # This is the default. This method is here only to be able to un-set
+            # {#abstract}
+            #
+            # @return [self]
+            def not_abstract
+                @abstract = false
+                self
+            end
+
+            # Tests whether the instanciated task will be marked as abstract or
+            # not
+            def abstract?
+                !!@abstract
+            end
+
+            # Optional dependency injection
+            #
+            # Once this is called, this {InstanceRequirements} object can be
+            # used to inject into an optional dependency. This dependency that
+            # will be fullfilled only if there is already a matching task
+            # deployed in the plan
+            #
+            # This can only be meaningfully used when injected for a
+            # composition's optional child (see {CompositionChild#optional})
+            #
+            # @return [self]
+            def if_already_present
+                abstract
             end
 
             # Specifies new arguments that must be set to the instanciated task
@@ -679,6 +726,7 @@ module Syskit
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host
                 end
+                task.abstract = true if abstract?
                 model.bind(task)
 
             rescue InstanciationError => e

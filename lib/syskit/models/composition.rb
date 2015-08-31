@@ -806,10 +806,11 @@ module Syskit
             #   resolution is bypassed.
             # @option arguments [Hash] task_arguments the set of arguments that
             #   should be passed to the composition task instance
-            # @option arguments [Boolean] keep_optional_children (false) control
-            #   whether optional children that are not given should be added to
-            #   the instanciated composition anyways
-            def instanciate(plan, context = DependencyInjectionContext.new, arguments = Hash.new)
+            def instanciate(plan, context = DependencyInjectionContext.new,
+                            task_arguments: Hash.new,
+                            specialize: true,
+                            specialization_hints: Array.new)
+
                 Models.debug do
                     Models.debug "instanciating #{short_name} with"
                     Models.log_nest(2)
@@ -817,38 +818,31 @@ module Syskit
                     break
                 end
 
-                arguments = Kernel.validate_options arguments,
-                    :task_arguments => Hash.new,
-                    :specialize => true,
-                    :specialization_hints => Array.new,
-                    :keep_optional_children => false
-
                 # Find what we should use for our children. +explicit_selection+
                 # is the set of children for which a selection existed and
                 # +selected_models+ all the models we should use
                 explicit_selections, selected_models, used_keys =
                     find_children_models_and_tasks(context.current_state)
 
-                if arguments[:specialize]
+                if specialize
                     specialized_model = find_applicable_specialization_from_selection(
                         explicit_selections,
                         selected_models,
-                        :specialization_hints => arguments[:specialization_hints])
+                        specialization_hints: specialization_hints)
                     if specialized_model != self
-                        return specialized_model.instanciate(plan, context, arguments)
+                        return specialized_model.instanciate(plan, context,
+                                                             task_arguments: task_arguments,
+                                                             specialize: true,
+                                                             specialization_hints: specialization_hints)
                     end
                 end
 
                 # First of all, add the task for +self+
-                plan.add_task(self_task = new(arguments[:task_arguments]))
+                plan.add_task(self_task = new(task_arguments))
                 conf = if self_task.has_argument?(:conf)
                            self_task.conf(self_task.arguments[:conf])
                        else Hash.new
                        end
-
-                # This stores the names of the optional children that have not
-                # been set 
-                removed_optional_children = Set.new
 
                 # This is the part of the context that is directly associated
                 # with the composition. We use it later to extract by-name
@@ -881,11 +875,6 @@ module Syskit
                             instanciate_child(plan, context, self_task, child_name, resolved_selected_child)
                         end
                         child_task = child_task.to_task
-                        if !arguments[:keep_optional_children] && child_task.abstract? && find_child(child_name).optional?
-                            Models.debug "not adding optional child #{child_name}"
-                            removed_optional_children << child_name
-                            next(true)
-                        end
 
                         if child_conf = conf[child_name]
                             child_task.arguments[:conf] ||= child_conf

@@ -29,6 +29,20 @@ module Syskit
                 port_mappings.clear
             end
 
+            # Optional dependency injection
+            #
+            # Returns an {InstanceRequirements} that you can use to inject
+            # optional dependencies that will be fullfilled only if there is
+            # already a matching task deployed in the plan
+            #
+            # This can only be meaningfully used when injected for a
+            # composition's optional child
+            #
+            # @return [InstanceRequirements]
+            def if_already_present
+                to_instance_requirements.if_already_present
+            end
+
             # @!attribute rw port_mappings
             #   Port mappings from this service's parent models to the service
             #   itself
