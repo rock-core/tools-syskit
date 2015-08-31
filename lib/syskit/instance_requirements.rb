@@ -721,6 +721,15 @@ module Syskit
                 end
                 task.requirements.merge(task_requirements)
 
+                fullfilled_task_m, fullfilled_modules, fullfilled_args = self.fullfilled_model
+                fullfilled_args = fullfilled_args.each_key.inject(Hash.new) do |h, arg_name|
+                    if task.arguments.set?(arg_name)
+                        h[arg_name] = task.arguments[arg_name]
+                    end
+                    h
+                end
+                task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
+
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host
                 end
@@ -741,7 +750,7 @@ module Syskit
                 fullfilled = model.fullfilled_model
                 task_model = fullfilled.find { |m| m <= Roby::Task } || Syskit::Component
                 tags = fullfilled.find_all { |m| m.kind_of?(Syskit::Models::DataServiceModel) || m.kind_of?(Roby::Models::TaskServiceModel) }
-                [task_model, tags, @arguments.dup]
+                [task_model.concrete_model, tags, @arguments.dup]
             end
 
             # Returns a plan pattern (main task and planning task) that will
