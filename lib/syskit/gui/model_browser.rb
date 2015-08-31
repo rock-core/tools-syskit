@@ -1,3 +1,4 @@
+require 'syskit'
 require 'metaruby/gui'
 require 'syskit/gui/model_views'
 require 'syskit/gui/page'
@@ -19,18 +20,18 @@ module Syskit
             def initialize(parent = nil)
                 super
 
+                if ENV['SYSKIT_GUI_DEBUG_HTML']
+                    display.page.settings.setAttribute(Qt::WebSettings::DeveloperExtrasEnabled, true)
+                    @inspector = Qt::WebInspector.new
+                    @inspector.page = display.page
+                    @inspector.show
+                end
+
+                page.load_javascript File.expand_path("composer_buttons.js", File.dirname(__FILE__))
                 AVAILABLE_VIEWS.each do |view|
                     register_type(view.root_model, view.renderer, view.name, view.priority)
                 end
                 update_model_selector
-
-                btn_reload_models.connect(SIGNAL('clicked()')) do
-                    registered_exceptions.clear
-                    Roby.app.clear_exceptions
-                    Roby.app.reload_models
-                    update_exceptions
-                    model_selector.reload
-                end
             end
 
             def registered_exceptions

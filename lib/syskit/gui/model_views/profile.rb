@@ -144,13 +144,12 @@ module Syskit::GUI
                         text = ModelViews.render_mapping(page, key, object)
                         key_text, value_text = text.first.split(" => ")
                         text[0] = "%s => #{value_text}"
-                        Element.new(object, "<pre>#{text.join("\n")}</pre>", id, key_text, Hash.new)
+                        Element.new(object, "<pre>#{text.join("\n")}</pre>", id, key_text, Hash.new(buttons: []), Hash.new)
                     else
-                        Element.new(object, "%s", id, key, Hash.new)
+                        Element.new(object, "%s", id, key, Hash.new(buttons: []), Hash.new)
                     end
                 end
             end
-
 
             def compute_toplevel_links(model, options)
                 explicit_selections = mapping_to_links(
