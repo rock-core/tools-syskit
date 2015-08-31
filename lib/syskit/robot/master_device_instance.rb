@@ -32,8 +32,6 @@ module Syskit
             # The driver for this device
             # @return [BoundDataService]
             attr_reader :driver_model
-            # The task arguments
-            attr_reader :task_arguments
             # Configuration data structure
             attr_reader :configuration
             # Block given to #configure to configure the device. It will be
@@ -47,14 +45,18 @@ module Syskit
 
             def initialize(robot, name, device_model, options,
                            driver_model, task_arguments)
-                @robot, @name, @device_model, @driver_model, @task_arguments =
-                    robot, name, device_model, driver_model, task_arguments
+                @robot, @name, @device_model, @task_arguments =
+                    robot, name, device_model, task_arguments
                 @slaves      = Hash.new
                 @conf = Array.new
                 @com_busses = Array.new
-                @requirements = Syskit::InstanceRequirements.new
 
-                task_arguments["#{driver_model.name}_dev"] = self
+                driver_model = driver_model.to_instance_requirements
+                @driver_model = driver_model.service
+                @requirements = driver_model.to_component_model
+                requirements.with_arguments("#{driver_model.service.name}_dev" => self)
+                requirements.with_arguments(**task_arguments)
+
                 sample_size 1
                 burst   0
             end
@@ -76,7 +78,7 @@ module Syskit
             # Declares that the following configuration chain should be used for
             # this device
             def with_conf(*conf)
-                task_arguments[:conf] = conf
+                requirements.with_conf(*conf)
                 self
             end
 
@@ -246,10 +248,18 @@ module Syskit
                 super
             end
 
+            # If this device's driver is a composition, allows to specify
+            # dependency injections for it
+            def use(dependency_injection)
+                requirements.use(dependency_injection)
+            end
+
+            # Specify frame selection for the device's driver
             def use_frames(frame_mappings)
                 requirements.use_frames(frame_mappings)
             end
 
+            # Specify deployment selection hints for the device's driver
 	    def prefer_deployed_tasks(hints)
 		requirements.prefer_deployed_tasks(hints)
 		self
@@ -269,9 +279,9 @@ module Syskit
             # Returns the InstanceRequirements object that can be used to
             # represent this device
             def to_instance_requirements
-                driver_model.to_instance_requirements.dup.
-                    with_arguments(task_arguments).
-                    merge(requirements)
+                result = requirements.dup
+                result.select_service(driver_model)
+                result
             end
 
             def as_plan; to_instance_requirements.as_plan end
