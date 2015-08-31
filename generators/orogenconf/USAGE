@@ -1,0 +1,7 @@
+Generates a new section into an OroGen configuration file
+
+Example: running the following command in a rock_auv app
+  roby gen orogen-conf auv_control::AccelerationControllerTask
+
+  will create a new 'default' section in
+  config/orogen/auv_control::AccelerationControllerTask.yml
