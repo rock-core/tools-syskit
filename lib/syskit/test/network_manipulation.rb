@@ -33,8 +33,8 @@ module Syskit
             end
 
             # Run Syskit's deployer (i.e. engine) on the current plan
-            def syskit_deploy(*to_instanciate, **resolve_options, &block)
-                syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
+            def syskit_deploy(*to_instanciate, syskit_engine: nil, **resolve_options, &block)
+                syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
                 syskit_engine.disable_updates
 
                 # For backward-compatibility
@@ -168,8 +168,12 @@ module Syskit
                 task
             end
 
-            def syskit_stub_component(model)
-                syskit_stub_required_devices(model)
+            def syskit_stub_component(model, devices: true)
+                if devices
+                    syskit_stub_required_devices(model)
+                else
+                    model
+                end
             end
 
             # @api private
@@ -178,8 +182,8 @@ module Syskit
             #
             # @param [InstanceRequirements] task_m the task context model
             # @param [String] as the deployment name
-            def syskit_stub_task_context(model, as: '')
-                model = syskit_stub_component(model)
+            def syskit_stub_task_context(model, as: syskit_default_stub_name(model), devices: true)
+                model = syskit_stub_component(model, devices: devices)
 
                 task_m = model.model
                 if task_m.respond_to?(:proxied_data_services)
@@ -189,7 +193,7 @@ module Syskit
                                  end
 
                     services = task_m.proxied_data_services
-                    task_m = superclass.new_submodel
+                    task_m = superclass.new_submodel(name: "#{task_m.to_s}-stub")
                     services.each_with_index do |srv, idx|
                         srv.each_input_port do |p|
                             task_m.orogen_model.input_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
@@ -197,10 +201,14 @@ module Syskit
                         srv.each_output_port do |p|
                             task_m.orogen_model.output_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
                         end
-                        task_m.provides srv, as: "srv#{idx}"
+                        if srv <= Syskit::Device
+                            task_m.driver_for srv, as: "dev#{idx}"
+                        else
+                            task_m.provides srv, as: "srv#{idx}"
+                        end
                     end
                 elsif task_m.abstract?
-                    task_m = task_m.new_submodel
+                    task_m = task_m.new_submodel(name: "#{task_m.name}-stub")
                 end
                 model.add_models([task_m])
 
@@ -221,8 +229,8 @@ module Syskit
             # Helper for {#syskit_stub_model}
             #
             # @param [InstanceRequirements] model
-            def syskit_stub_composition(model, recursive: true, as: "")
-                model = syskit_stub_component(model)
+            def syskit_stub_composition(model, recursive: true, as: syskit_default_stub_name(model), devices: true)
+                model = syskit_stub_component(model, devices: devices)
 
                 if recursive
                     model.each_child do |child_name, selected_child|
@@ -234,10 +242,10 @@ module Syskit
                             child_model = child_model.to_component_model
                             if child_model.composition_model? 
                                 deployed_child = syskit_stub_composition(
-                                    child_model, recursive: true, as: "#{as}_#{child_name}")
+                                    child_model, recursive: true, as: "#{as}_#{child_name}", devices: devices)
                             else
                                 deployed_child = syskit_stub_task_context(
-                                    child_model, as: "#{as}_#{child_name}")
+                                    child_model, as: "#{as}_#{child_name}", devices: devices)
                             end
                             if selected_service
                                 deployed_child.select_service(selected_service)
@@ -250,27 +258,12 @@ module Syskit
                 model
             end
 
-            def self.syskit_stub_device(model, as: 'test', driver: nil)
-                robot = Syskit::Robot::RobotDefinition.new
-
-                driver ||= model.find_all_drivers.first
-                if !driver
-                    driver = Syskit::TaskContext.new_submodel do
-                        driver_for model, as: 'driver'
-                    end
-                end
-                robot.device(model, as: 'test', using: driver)
-            end
-
-            # Stubs the devices required by the given model
-            def self.syskit_stub_required_devices(model)
-                model = model.to_instance_requirements
-                model.model.each_master_driver_service do |srv|
-                    if !model.arguments["#{srv.name}_dev"]
-                        model.with_arguments("#{srv.name}_dev" => syskit_stub_device(srv.model, driver: model.model))
-                    end
-                end
-                model
+            # @api private
+            #
+            # Finds a driver model for a given device model, or create one if
+            # there is none
+            def syskit_stub_driver_model_for(model)
+                syskit_stub(model.find_all_drivers.first || model, devices: false)
             end
 
             # Create a stub device of the given model
@@ -281,36 +274,91 @@ module Syskit
             # @param [String] as the device name
             # @param [Model<TaskContext>] driver the driver that should be used.
             #   If not given, a new driver is stubbed
-            def syskit_stub_device(model, as: 'test', driver: nil)
-                self.class(model, as: 'test', driver: nil)
+            def syskit_stub_device(model, as: syskit_default_stub_name(model), driver: nil, robot: nil, **device_options)
+                robot ||= Syskit::Robot::RobotDefinition.new
+                driver ||= syskit_stub_driver_model_for(model)
+                robot.device(model, as: as, using: driver, **device_options)
+            end
+
+            # Create a stub combus of the given model
+            #
+            # It is created on a new robot instance so that to avoid clashes
+            #
+            # @param [Model<ComBus>] model the device model
+            # @param [String] as the combus name
+            # @param [Model<TaskContext>] driver the driver that should be used.
+            #   If not given, a new driver is stubbed
+            def syskit_stub_com_bus(model, as: syskit_default_stub_name(model), driver: nil, robot: nil, **device_options)
+                robot ||= Syskit::Robot::RobotDefinition.new
+                driver ||= syskit_stub_driver_model_for(model)
+                robot.com_bus(model, as: as, using: driver, **device_options)
+            end
+
+            # Create a stub device attached on the given bus
+            #
+            # If the bus is a device object, the new device is attached to the
+            # same robot model. Otherwise, a new robot model is created for both
+            # the bus and the device
+            #
+            # @param [Model<ComBus>,MasterDeviceInstance] bus either a bus model
+            #   or a bus object
+            # @param [String] as a name for the new device
+            # @param [Model<TaskContext>] driver the driver that should be used
+            #   for the device. If not given, syskit will look for a suitable
+            #   driver or stub one
+            def syskit_stub_attached_device(bus, as: syskit_default_stub_name(bus))
+                if !bus.kind_of?(Robot::DeviceInstance)
+                    bus = syskit_stub_com_bus(bus, as: "#{as}_bus")
+                end
+                bus_m = bus.model
+                dev_m = Syskit::Device.new_submodel(name: "#{bus}-stub") do
+                    provides bus_m::ClientSrv
+                end
+                dev = syskit_stub_device(dev_m, as: as)
+                dev.attach_to(bus)
+                dev
             end
 
             # Stubs the devices required by the given model
             def syskit_stub_required_devices(model)
-                NetworkManipulation.syskit_stub_required_devices(model)
+                model = model.to_instance_requirements
+                model.model.each_master_driver_service do |srv|
+                    if !model.arguments["#{srv.name}_dev"]
+                        model.with_arguments("#{srv.name}_dev" => syskit_stub_device(srv.model, driver: model.model))
+                    end
+                end
+                model
             end
 
-            @@syskit_stub_model_id = 0
+            @@syskit_stub_model_id = -1
 
             def syskit_stub_model_id
-                (@@syskit_stub_model_id += 1).to_s
+                id = (@@syskit_stub_model_id += 1)
+                if id != 0
+                    id
+                end
+            end
+
+            def syskit_default_stub_name(model)
+                model_name =
+                    if model.respond_to?(:name) then model.name
+                    else model.to_str
+                    end
+                "#{self.name}_#{model_name}#{syskit_stub_model_id}"
             end
 
             # Create an InstanceRequirement instance that would allow to deploy
             # the given model
-            def syskit_stub(model, recursive: true, as: nil, &block)
+            def syskit_stub(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), devices: true, &block)
                 if model.respond_to?(:to_str)
                     model = syskit_stub_task_context_model(model, &block)
-                end
-                if !as
-                    as = self.name + "_" + (model.name || syskit_stub_model_id)
                 end
                 model = model.to_instance_requirements.dup
 
                 if model.composition_model?
-                    syskit_stub_composition(model, recursive: recursive, as: as)
+                    syskit_stub_composition(model, recursive: recursive, as: as, devices: devices)
                 else
-                    syskit_stub_task_context(model, as: as)
+                    syskit_stub_task_context(model, as: as, devices: devices)
                 end
             end
 
@@ -417,33 +465,73 @@ module Syskit
             #   model = RootCmp.use(
             #      'processor' => Cmp.use('pose' => RootCmp.pose_child))
             #   syskit_stub_deploy_and_start_composition(model)
-            def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: nil, &block)
+            def syskit_stub_and_deploy(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
                 model = syskit_stub(model, recursive: recursive, as: as, &block)
                 syskit_deploy(model, compute_policies: false)
             end
 
-            def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: nil, &block)
+            # Stub a task, deploy it and configure it
+            #
+            # This starts the underlying (stubbed) deployment process
+            #
+            # @param (see syskit_stub)
+            # @return [Syskit::Component]
+            # @see syskit_stub
+            def syskit_stub_deploy_and_configure(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure(root, recursive: recursive)
                 root
             end
 
-            def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: nil, &block)
+            # Stub a task, deploy it, configure it and start the task and
+            # the underlying stub deployment
+            #
+            # This starts the underlying (stubbed) deployment process
+            #
+            # @param (see syskit_stub)
+            # @return [Syskit::Component]
+            # @see syskit_stub
+            def syskit_stub_deploy_configure_and_start(model = subject_syskit_model, recursive: true, as: syskit_default_stub_name(model), &block)
                 root = syskit_stub_and_deploy(model, recursive: recursive, as: as, &block)
                 syskit_configure_and_start(root, recursive: recursive)
                 root
             end
 
+            # Deploy and configure a model
+            #
+            # Unlike {#syskit_stub_deploy_and_configure}, it does not stub the
+            # model, so model has to be deploy-able as-is.
+            #
+            # @param [#to_instance_requirements] model the requirements to
+            #   deploy and configure
+            # @param [Boolean] recursive if true, children of the provided model
+            #   will be configured as well. Otherwise, only the toplevel task
+            #   will
+            # @return [Syskit::Component]
             def syskit_deploy_and_configure(model = subject_syskit_model, recursive: true)
                 root = syskit_deploy(model)
                 syskit_configure(root, recursive: recursive)
             end
 
+            # Deploy, configure and start a model
+            #
+            # Unlike {#syskit_stub_deploy_configure_and_start}, it does not stub
+            # the model, so model has to be deploy-able as-is.
+            #
+            # @param (see syskit_stub)
+            # @return [Syskit::Component]
             def syskit_deploy_configure_and_start(model = subject_syskit_model, recursive: true)
                 root = syskit_deploy(model)
                 syskit_configure_and_start(root, recursive: recursive)
             end
 
+            # Configure and start a task
+            #
+            # Unlike {#syskit_stub_deploy_configure_and_start}, it does not stub
+            # the model, so model has to be deploy-able as-is.
+            #
+            # @param (see syskit_stub)
+            # @return [Syskit::Component]
             def syskit_configure_and_start(component = subject_syskit_model, recursive: true)
                 component = syskit_configure(component, recursive: recursive)
                 syskit_start(component, recursive: recursive)

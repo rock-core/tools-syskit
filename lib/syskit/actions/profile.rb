@@ -86,6 +86,10 @@ module Syskit
                     super
                     profile.invalidate_dependency_injection
                 end
+
+                def to_s
+                    "#{profile.name}.robot"
+                end
             end
             
             def initialize(name = nil)
@@ -363,7 +367,7 @@ module Syskit
                 elsif m.to_s =~ /^(\w+)_dev$/
                     devname = $1
                     if !robot.devices[devname]
-                        raise NoMethodError.new(m), "#{name} has no device called #{devname}"
+                        raise NoMethodError.new(m), "#{name} has no device called #{devname} (existing devices are: #{robot.devices.keys.sort.join(", ")})"
                     elsif !args.empty?
                         raise ArgumentError, "expected zero arguments, got #{args.size}"
                     end

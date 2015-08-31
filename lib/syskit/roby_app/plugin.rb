@@ -278,6 +278,11 @@ module Syskit
                             end
                         end
                     end
+
+                   # Also require all the available oroGen projects
+                   app.default_loader.each_available_project_name do |name|
+                       app.using_task_library name
+                   end
                 end
                 if app.auto_load_all? || app.auto_load_all_task_libraries?
                     app.auto_load_all_task_libraries
@@ -289,7 +294,7 @@ module Syskit
 
             def self.load_default_models(app)
                 ['services.rb', 'devices.rb', 'compositions.rb', 'profiles.rb'].each do |root_file|
-                    if path = app.find_file('models', root_file, order: :specific_first)
+                    if path = app.find_file('models', root_file, path: [app.app_dir], order: :specific_first)
                         require path
                     end
                 end

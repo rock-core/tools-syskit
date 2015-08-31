@@ -189,8 +189,8 @@ module Syskit
                 # Mark as permanent any currently running logger
                 work_plan.find_tasks(logger_model).
                     not_finished.
-                    each do |t|
-                        engine.add_toplevel_task(t, false, true)
+                    to_a.each do |t|
+                        work_plan.add_permanent(t)
                     end
             end
         end

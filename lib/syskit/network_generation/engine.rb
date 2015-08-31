@@ -26,14 +26,6 @@ module Syskit
             #
             # This is only valid during resolution
             attr_reader :required_instances
-            # The set of tasks that have to be considered as toplevel when
-            # finalizing the plan. These tasks can have a permanent/mission
-            # status assigned to them.
-            #
-            # @see {#add_toplevel_task}
-            # @return [Hash<Task,(Boolean,Boolean)>] mapping from the toplevel
-            #   task to its desired final status, as (mission,permanent)
-            attr_reader :toplevel_tasks
             # A list of data service or component models for which a deployment
             # exists. It includes compositions that have all their children
             # deployed as well
@@ -133,7 +125,6 @@ module Syskit
                 @main_automatic_selection = DependencyInjection.new
 
                 @service_allocation_candidates = Hash.new
-                @toplevel_tasks = Hash.new
             end
 
             # The set of selections computed based on what is actually available
@@ -251,7 +242,6 @@ module Syskit
 
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @required_instances = Hash.new
-                @toplevel_tasks.clear
 
                 add_timepoint 'prepare', 'done'
             end
@@ -277,7 +267,6 @@ module Syskit
                     merge_solver.task_replacement_graph.clear
                     @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                     @required_instances.clear if @required_instances
-                    @toplevel_tasks.clear
                 end
             end
 
@@ -377,18 +366,16 @@ module Syskit
                     req = req_task.requirements
                     task = req.instanciate(work_plan, main_selection).
                         to_task
-                    real_plan_task = req_task.planned_task
                     # We add all these tasks as permanent tasks, to use
-                    # #static_garbage_collect to cleanup #work_plan. The
-                    # actual mission / permanent marking is fixed at the end
-                    # of resolution by calling #fix_toplevel_tasks
+                    # #static_garbage_collect to cleanup #work_plan.
+                    work_plan.add_permanent_task(task)
+
                     fullfilled_task_m, fullfilled_modules, fullfilled_args = req.fullfilled_model
                     fullfilled_args = fullfilled_args.map_value do |arg_name, _|
                         task.arguments[arg_name]
                     end
                     task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
                     required_instances[req_task] = task
-                    add_toplevel_task(task, real_plan.mission?(real_plan_task), real_plan.permanent?(real_plan_task))
                     add_timepoint 'compute_system_network', 'instanciate', req.to_s
                 end
                 work_plan.each_task do |task|
@@ -468,6 +455,12 @@ module Syskit
                         work_plan.remove_object(obj)
                     end
                     add_timepoint 'compute_system_network', 'static_garbage_collect'
+                end
+
+                # And get rid of the 'permanent' marking we use to be able to
+                # run static_garbage_collect
+                work_plan.each_task do |task|
+                    work_plan.unmark_permanent(task)
                 end
 
                 Engine.system_network_postprocessing.each do |block|
@@ -715,6 +708,7 @@ module Syskit
                     deployed_task = deployment_task.task(task_name)
                     debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
                     merge_solver.merge(task, deployed_task)
+                    debug { "  => #{deployed_task}" }
                 end
 
                 if options[:validate_deployed_network]
@@ -856,41 +850,11 @@ module Syskit
                 end
             end
 
-            # Registers a toplevel task, as well as its final mission/permanent
-            # status.
-            #
-            # This information must be stored separately as the syskit
-            # resolution marks all toplevel tasks as permanent to be able to use
-            # #static_garbage_collect to cleanup the transaction
-            def add_toplevel_task(task, mission, permanent)
-                toplevel_tasks[task] = [mission, permanent]
-                work_plan.unmark_mission(task)
-                work_plan.add_permanent_task(task)
-            end
-
             # Replaces the toplevel tasks (i.e. tasks planned by the
             # InstanceRequirementsTask tasks) by their computed implementation.
             #
             # Also updates the permanent and mission flags for these tasks.
             def fix_toplevel_tasks
-                work_plan.each_task do |t|
-                    work_plan.unmark_permanent(t)
-                    work_plan.unmark_mission(t)
-                end
-                toplevel_tasks.each do |task, (mission, permanent)|
-                    task = merge_solver.replacement_for(task)
-                    # At this stage, replacement_for returns the task object
-                    # that is going to be in #real_plan. re-wrap to the transaction
-                    # if needed.
-                    task = work_plan.may_wrap(task)
-                    if mission
-                        work_plan.add_mission_task(task)
-                    end
-                    if permanent
-                        work_plan.add_permanent_task(task)
-                    end
-                end
-
                 required_instances.each do |req_task, actual_task|
                     placeholder_task = work_plan[req_task.planned_task]
                     req_task         = work_plan[req_task]
@@ -903,7 +867,6 @@ module Syskit
                         placeholder_task.remove_planning_task req_task
                         actual_task.add_planning_task req_task
                     end
-
                 end
             end
 

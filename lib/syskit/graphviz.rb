@@ -493,28 +493,15 @@ module Syskit
 
                 # Finally, emit the dot code for connections
                 connections.each do |(source_task, source_port, sink_port, sink_task), policy|
-                    source_type =
-                        if input_ports[source_task].include?(source_port)
-                            "inputs"
-                        else
-                            "outputs"
-                        end
-                    sink_type =
-                        if output_ports[sink_task].include?(sink_port)
-                            "outputs"
-                        else
-                            "inputs"
-                        end
-
                     if source_task.kind_of?(Composition) || sink_task.kind_of?(Composition)
                         style = "style=dashed,"
                     end
 
-                    source_port_id = escape_dot(source_port)
-                    sink_port_id   = escape_dot(sink_port)
+                    source_port_id = dot_id(source_task.find_port(source_port), source_task)
+                    sink_port_id   = dot_id(sink_task.find_port(sink_port), sink_task)
 
                     label = conn_annotations[[source_task, source_port, sink_task, sink_port]].join(",")
-                    result << "  #{source_type}#{source_task.dot_id}:#{source_port_id} -> #{sink_type}#{sink_task.dot_id}:#{sink_port_id} [#{style}label=\"#{label}\"];"
+                    result << "  #{source_port_id} -> #{sink_port_id} [#{style}label=\"#{label}\"];"
                 end
 
                 # Group the tasks by deployment
@@ -577,7 +564,6 @@ module Syskit
                     return "digraph { }"
                 else
                     ["digraph {",
-                     "  splines=ortho;",
                      "  rankdir=LR;",
                      "  node [shape=none,margin=0,height=.1,fontname=\"Arial\"];"].
                     concat(result).
@@ -590,16 +576,20 @@ module Syskit
                 case object
                 when Syskit::TaskContext
                     "label#{object.dot_id}"
-                when Orocos::Spec::InputPort
-                    "inputs#{context.dot_id}:#{object.name}"
-                when Orocos::Spec::OutputPort
-                    "outputs#{context.dot_id}:#{object.name}"
+                when Syskit::InputPort, OroGen::Spec::InputPort
+                    "inputs#{context.dot_id}:#{dot_id(object.name)}"
+                when Syskit::OutputPort, OroGen::Spec::OutputPort
+                    "outputs#{context.dot_id}:#{dot_id(object.name)}"
                 else
-                    if object.respond_to?(:to_str) && context.respond_to?(:object_id)
-                        "#{object}#{context.dot_id}"
-                    else
-                        raise ArgumentError, "don't know how to generate a dot ID for #{object} in context #{context}"
+                    if object.respond_to?(:to_str)
+                        if !context
+                            return object.gsub(/[^\w]/, '_')
+                        elsif context.respond_to?(:dot_id)
+                            return "#{dot_id(object)}#{context.dot_id}"
+                        end
                     end
+
+                    raise ArgumentError, "don't know how to generate a dot ID for #{object} in context #{context}"
                 end
             end
 
@@ -628,7 +618,7 @@ module Syskit
                 if !input_ports.empty?
                     input_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     input_ports.each do |p|
-                        port_id = escape_dot(p)
+                        port_id = dot_id(p)
                         ann = format_annotations(port_annotations, [task, p])
                         input_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end
@@ -640,7 +630,7 @@ module Syskit
                 if !output_ports.empty?
                     output_port_label = "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">"
                     output_ports.each do |p|
-                        port_id = escape_dot(p)
+                        port_id = dot_id(p)
                         ann = format_annotations(port_annotations, [task, p])
                         output_port_label << "<TR><TD><TABLE BORDER=\"0\" CELLBORDER=\"0\"><TR><TD PORT=\"#{port_id}\" COLSPAN=\"2\">#{p}</TD></TR>#{ann}</TABLE></TD></TR>"
                     end

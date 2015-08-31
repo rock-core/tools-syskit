@@ -28,7 +28,7 @@ module Syskit
 
             # Declares a new communication bus
             def com_bus(type, options = Hash.new)
-                device(type, options.merge(:expected_model => Syskit::ComBus, :class => ComBus))
+                device(type, options.merge(expected_model: Syskit::ComBus, class: ComBus))
             end
 
             # Returns true if +name+ is the name of a device registered on this
@@ -103,10 +103,10 @@ module Syskit
             # describes the actual device
             def device(device_model, options = Hash.new)
                 options, device_options = Kernel.filter_options options,
-                    :as => nil,
-                    :using => nil,
-                    :expected_model => Syskit::Device,
-                    :class => MasterDeviceInstance
+                    as: nil,
+                    using: nil,
+                    expected_model: Syskit::Device,
+                    class: MasterDeviceInstance
                 device_options, root_task_arguments = Kernel.filter_options device_options,
                     MasterDeviceInstance::KNOWN_PARAMETERS
 
@@ -128,17 +128,17 @@ module Syskit
                 driver_model =
                     begin options[:using] || device_model.default_driver
                     rescue Ambiguous => e
-                        raise e, "#{e.message}, select one explicitely with the using: option", e.backtrace
+                        raise e, "#{e.message}, select one explicitely with the using: option of the 'device' statement", e.backtrace
                     end
 
                 if driver_model.respond_to?(:find_data_service_from_type)
                     driver_model =
                         begin driver_model.find_data_service_from_type(device_model)
                         rescue Syskit::AmbiguousServiceSelection => e
-                            raise e, "#{e.message}, select one explicitly with the :using option", e.backtrace
+                            raise e, "#{e.message}, select one explicitly with the using: option of the 'device' statement", e.backtrace
                         end
                     if !driver_model
-                        raise ArgumentError, "#{options[:using]}, given as the :using option to create #{self}, is not a driver for #{device_model}"
+                        raise ArgumentError, "#{options[:using]}, given as the using: option to create #{self}, is not a driver for #{device_model}"
                     end
                 end
 
@@ -165,12 +165,14 @@ module Syskit
 
             # Enumerates all master devices that are available on this robot
             def each_master_device
+                return enum_for(__method__) if !block_given?
                 devices.find_all { |name, instance| instance.kind_of?(MasterDeviceInstance) }.
                     each { |_, instance| yield(instance) }
             end
 
             # Enumerates all slave devices that are available on this robot
             def each_slave_device
+                return enum_for(__method__) if !block_given?
                 devices.find_all { |name, instance| instance.kind_of?(SlaveDeviceInstance) }.
                     each { |_, instance| yield(instance) }
             end
@@ -199,7 +201,7 @@ module Syskit
                     if !args.empty?
                         raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}"
                     elsif !(dev = devices[device_name])
-                        raise NoMethodError, "#{self} has no device named #{device_name}"
+                        raise NoMethodError.new(m), "#{self} has no device named #{device_name} (existing devices are: #{devices.keys.sort.join(", ")})"
                     end
                     return dev
                 end

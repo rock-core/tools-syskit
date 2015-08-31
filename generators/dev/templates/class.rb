@@ -16,5 +16,34 @@
 <%= indent %>    # from the provided service to the one in this service (instead
 <%= indent %>    # of adding)
 <%= indent %>    # provides AnotherSrv, 'provided_srv_in' => 'in'
+
+<%= indent %>    # # Device models can define configuration extensions, which
+<%= indent %>    # # extend the additconfiguration capabilities of the device
+<%= indent %>    # # objects, for instance with
+<%= indent %>    # extend_device_configuration do
+<%= indent %>    #     # Communication baudrate in bit/s
+<%= indent %>    #     dsl_attribute :baudrate do |value|
+<%= indent %>    #         Float(value)
+<%= indent %>    #     end
+<%= indent %>    # end
+<%= indent %>    # # One can do the following in the robot description:
+<%= indent %>    # # robot do
+<%= indent %>    # #     device(<%= class_name.last %>).
+<%= indent %>    # #         baudrate(1_000_000) # Use 1Mbit/s
+<%= indent %>    # # end
+<%= indent %>    # # 
+<%= indent %>    # # and then use the information to auto-configure the device
+<%= indent %>    # # drivers
+<%= indent %>    # # class OroGen::MyDeviceDriver::Task
+<%= indent %>    # #     driver_for <%= class_name.last %>, as: 'driver'
+<%= indent %>    # #     def configure
+<%= indent %>    # #         super
+<%= indent %>    # #         orocos_task.baudrate = robot_device.baudrate
+<%= indent %>    # #     end
+<%= indent %>    # # end
+<%= indent %>    # #
+<%= indent %>    # # NOTE: this should be limited to device-specific configurations
+<%= indent %>    # # NOTE: driver-specific parameters must be set in the corresponding
+<%= indent %>    # # NOTE: oroGen configuration file
 <%= indent %>end
 <%= close_code %>

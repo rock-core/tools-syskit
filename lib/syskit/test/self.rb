@@ -10,7 +10,6 @@ module Syskit
         include Syskit
         include Roby::Test
         include Roby::Test::Assertions
-        include Roby::Test::Self
         include Test::Base
         include Test::NetworkManipulation
 

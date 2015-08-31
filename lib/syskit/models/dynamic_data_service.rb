@@ -73,6 +73,12 @@ module Syskit
                     component_model.argument(name, options)
                 end
 
+                def driver_for(device_model, port_mappings = Hash.new, **options)
+                    dserv = provides(device_model, port_mappings, **options)
+                    component_model.argument "#{dserv.name}_dev"
+                    dserv
+                end
+
                 # Proxy for component_model#provides which does some sanity
                 # checks
                 def provides(service_model, port_mappings = Hash.new, as: nil, **arguments)

@@ -16,9 +16,7 @@ module Syskit
             # @raise [ArgumentError] if the argument is invalid
             def Actions(arg)
                 if arg.kind_of?(Syskit::Actions::Profile)
-                    arg.definitions.each_key.map do |name|
-                        arg.resolved_definition(name)
-                    end
+                    arg.each_action
                 elsif arg.respond_to?(:to_action)
                     [arg]
                 elsif arg.respond_to?(:flat_map)
@@ -39,16 +37,17 @@ module Syskit
             # Seriously. Keep it in your tests.
             def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "#{action_or_profile} is not self contained", **instanciate_options)
                 Actions(action_or_profile).each do |act|
-                    task = syskit_deploy(act, compute_policies: false, compute_deployments: false, validate_generated_network: false, **instanciate_options)
+                    syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
+                    task = syskit_deploy(act, syskit_engine: syskit_engine, compute_policies: false, compute_deployments: false, validate_generated_network: false, **instanciate_options)
                     still_abstract = plan.find_local_tasks(Syskit::Component).
                         abstract.to_a
                     tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }
                     tags_from_other = tags.find_all { |task| task.class.profile != subject_syskit_model }
                     if !other.empty?
-                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(engine, other)), message
+                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, other)), message
                     elsif !tags_from_other.empty?
                         other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
-                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(engine, tags)), "#{definition.name} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
+                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{definition.name} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
                     end
                     plan.unmark_mission(task)
                     plan.execution_engine.garbage_collect

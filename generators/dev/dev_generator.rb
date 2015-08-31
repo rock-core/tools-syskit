@@ -5,6 +5,6 @@ class DevGenerator < Roby::App::GenModelClass
         super
     end
 
-    def has_test?; false end
+    def has_test?; true end
 end
 
