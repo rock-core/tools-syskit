@@ -51,13 +51,13 @@ module Syskit
             end
 
             def mousePressEvent(event)
-                emit maybeClicked
+                emit clicked
                 event.accept
             end
             def mouseReleaseEvent(event)
                 event.accept
             end
-            signals 'maybeClicked()'
+            signals 'clicked()'
 
             signals 'fileOpenClicked(const QUrl&)'
 

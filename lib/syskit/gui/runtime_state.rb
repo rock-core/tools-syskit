@@ -27,6 +27,13 @@ module Syskit
             attr_reader :job_expanded_status
             # The combo box used to create new jobs
             attr_reader :action_combo
+            # The job that is currently selected
+            attr_reader :current_job
+
+            # All known tasks
+            attr_reader :all_tasks
+            # Job information for tasks in the rebuilt plan
+            attr_reader :all_job_info
 
             class ActionListDelegate < Qt::StyledItemDelegate
                 OUTER_MARGIN = 5
@@ -83,6 +90,9 @@ module Syskit
                 create_ui
 
                 @syskit = syskit
+                @current_job = nil
+                @all_tasks = Set.new
+                @all_job_info = Hash.new
                 syskit.on_reachable do
                     update_log_server_connection(syskit.client.log_server_port)
                     action_combo.clear
@@ -109,7 +119,11 @@ module Syskit
                 end
                 @syskit_log_stream = Roby::Interface::Async::Log.new(syskit.remote_name, port: port)
                 syskit_log_stream.on_update do |cycle_index, cycle_time|
+                    update_tasks_info
+                    job_expanded_status.update_time(cycle_index, cycle_time)
+                    job_expanded_status.add_tasks_info(all_tasks, all_job_info)
                     emit updated(cycle_index, Qt::DateTime.new(cycle_time))
+                    syskit_log_stream.clear_integrated
                 end
             end
 
@@ -118,6 +132,31 @@ module Syskit
 
             def remote_name
                 syskit.remote_name
+            end
+
+            def update_tasks_info
+                if current_job
+                    job_task = syskit_log_stream.plan.find_tasks(Roby::Interface::Job).
+                        with_arguments(job_id: current_job.job_id).
+                        first
+                    return if !job_task
+                    placeholder_task = job_task.planned_task
+                    return if !placeholder_task
+
+                    tasks = placeholder_task.generated_subgraph(Roby::TaskStructure::Dependency)
+                    tasks << job_task
+                else
+                    tasks = syskit_log_stream.plan.known_tasks
+                end
+
+                all_tasks.merge(tasks.to_set)
+                tasks.each do |job|
+                    if job.kind_of?(Roby::Interface::Job)
+                        if placeholder_task = job.planned_task
+                            all_job_info[placeholder_task] = job
+                        end
+                    end
+                end
             end
 
             def create_ui
@@ -216,11 +255,20 @@ module Syskit
                 job_status = JobStatusDisplay.new(job)
                 job_status.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::MinimumExpanding)
                 job_status_list.add_widget job_status
-                job_status.connect(SIGNAL('maybeClicked()')) do
-                    job_expanded_status.update(job_status)
+                job_status.connect(SIGNAL('clicked()')) do
+                    select_job(job_status)
                 end
                 connect(job_status, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SIGNAL('fileOpenClicked(const QUrl&)'))
+            end
+
+            def select_job(job_status)
+                @current_job = job_status.job
+                all_tasks.clear
+                all_job_info.clear
+                update_tasks_info
+                job_expanded_status.select(job_status)
+                job_expanded_status.add_tasks_info(all_tasks, all_job_info)
             end
 
             signals 'fileOpenClicked(const QUrl&)'
