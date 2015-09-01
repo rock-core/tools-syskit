@@ -183,11 +183,13 @@ module Syskit
                 end
             end
 
+            attr_reader :syskit_poll
+
             # @api private
             #
             # Sets up polling on a given syskit interface
             def poll_syskit_interface(syskit, period)
-                syskit_poll = Qt::Timer.new
+                @syskit_poll = Qt::Timer.new
                 syskit_poll.connect(SIGNAL('timeout()')) do
                     syskit.poll
                     if syskit_log_stream
