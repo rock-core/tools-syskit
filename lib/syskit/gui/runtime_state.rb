@@ -2,6 +2,8 @@ require 'syskit'
 require 'roby/interface/async'
 require 'roby/interface/async/log'
 require 'syskit/gui/job_status_display'
+require 'syskit/gui/widget_list'
+require 'syskit/gui/expanded_job_status'
 
 module Syskit
     module GUI
@@ -17,8 +19,12 @@ module Syskit
             attr_reader :main_layout
             # The layout used to organize the widgets to create new jobs
             attr_reader :new_job_layout
-            # The layout used to organize the running jobs
-            attr_reader :job_control_layout
+            # The [WidgetList] widget in which we display the
+            # summary of job status
+            attr_reader :job_status_list
+            # The [ExpandedJobStatus] widget in which we display expanded job
+            # information
+            attr_reader :job_expanded_status
             # The combo box used to create new jobs
             attr_reader :action_combo
 
@@ -115,18 +121,19 @@ module Syskit
             end
 
             def create_ui
+                job_summary = Qt::Widget.new
+                job_summary_layout = Qt::VBoxLayout.new(job_summary)
+                job_summary_layout.add_layout(@new_job_layout  = create_ui_new_job)
+                job_summary_layout.add_widget(@job_status_list = WidgetList.new(self))
+
                 main_layout = Qt::VBoxLayout.new(self)
-                main_layout.add_layout(@new_job_layout = new_job_ui)
-                main_layout.add_layout(@job_control_layout = job_control_ui)
-                main_layout.add_stretch(1)
+                splitter = Qt::Splitter.new
+                splitter.add_widget job_summary
+                splitter.add_widget(@job_expanded_status = ExpandedJobStatus.new)
+                main_layout.add_widget splitter
             end
 
-            def job_control_ui
-                job_control_layout = Qt::VBoxLayout.new
-                job_control_layout
-            end
-
-            def new_job_ui
+            def create_ui_new_job
                 new_job_layout = Qt::HBoxLayout.new
                 label   = Qt::Label.new("New Job", self)
                 @action_combo = Qt::ComboBox.new(self)
@@ -206,10 +213,14 @@ module Syskit
             #
             # @param [Roby::Interface::Async::JobMonitor] job
             def monitor_job(job)
-                job_status = JobStatusDisplay.new(job, self)
+                job_status = JobStatusDisplay.new(job)
+                job_status.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::MinimumExpanding)
+                job_status_list.add_widget job_status
+                job_status.connect(SIGNAL('maybeClicked()')) do
+                    job_expanded_status.update(job_status)
+                end
                 connect(job_status, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SIGNAL('fileOpenClicked(const QUrl&)'))
-                job_control_layout.add_widget job_status
             end
 
             signals 'fileOpenClicked(const QUrl&)'
