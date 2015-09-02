@@ -688,7 +688,10 @@ module Syskit
                     if task.model.respond_to?(:tag_name)
                         name = "#{task.model.tag_name}_tag(#{name})"
                     end
-                    label << "<TR><TD COLSPAN=\"2\">#{name}</TD></TR>"
+                    if task.transaction_proxy?
+                        name = "[T] #{name}"
+                    end
+                    label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name)}</TD></TR>"
                 else
                     annotations = Array.new
                     if task.model.respond_to?(:is_specialization?) && task.model.is_specialization?
@@ -708,6 +711,9 @@ module Syskit
 
                     if task.execution_agent && task.respond_to?(:orocos_name)
                         name << "[#{task.orocos_name}]"
+                    end
+                    if task.transaction_proxy?
+                        name = "[T] #{name}"
                     end
                     label << "<TR><TD COLSPAN=\"2\">#{escape_dot(name)}</TD></TR>"
                     ann = format_annotations(annotations)
