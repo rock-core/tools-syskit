@@ -204,7 +204,58 @@ describe Syskit::NetworkGeneration::Engine do
             tasks.delete(task)
             new_task = tasks.first
 
-            assert Roby::EventStructure::SyskitConfigurationPrecedence.linked?(task.stop_event, new_task.start_event)
+            assert(Roby::EventStructure::SyskitConfigurationPrecedence.
+                linked?(task.stop_event, new_task.start_event))
+        end
+
+        describe "when child of a composition" do
+            it "ensures that the existing deployment will be garbage collected" do
+                task_m = Syskit::TaskContext.new_submodel
+                cmp_m  = Syskit::Composition.new_submodel
+                cmp_m.add task_m, as: 'test'
+
+                cmp = syskit_stub_and_deploy(cmp_m)
+                original_task = cmp.test_child
+                flexmock(task_m).new_instances.should_receive(:can_be_deployed_by?).
+                    with(->(proxy) { proxy.__getobj__ == cmp.test_child }).and_return(false)
+                new_cmp = syskit_deploy(cmp_m)
+
+                # Should have instanciated a new composition since the children
+                # differ
+                refute_equal new_cmp, cmp
+                # Should have of course created a new task
+                refute_equal new_cmp.test_child, cmp.test_child
+                # And the old tasks should be ready to garbage-collect
+                assert_equal [cmp, original_task].to_set, plan.static_garbage_collect.to_set
+            end
+        end
+
+        describe "when child of a task" do
+            it "ensures that the existing deployment will be garbage collected" do
+                child_m  = Syskit::TaskContext.new_submodel
+                parent_m = Syskit::TaskContext.new_submodel
+                parent_m.singleton_class.class_eval do
+                    define_method(:instanciate) do |*args|
+                        task = super(*args)
+                        task.depends_on(child_m.instanciate(*args), role: 'test')
+                        task
+                    end
+                end
+
+                syskit_stub(child_m)
+                parent = syskit_stub_and_deploy(parent_m)
+                child  = parent.test_child
+
+                flexmock(child_m).new_instances.should_receive(:can_be_deployed_by?).
+                    with(->(proxy) { proxy.__getobj__ == child }).and_return(false)
+                new_parent = syskit_deploy(parent_m)
+                new_child = new_parent.test_child
+
+                assert_equal new_parent, parent
+                refute_equal new_child, child
+                # And the old tasks should be ready to garbage-collect
+                assert_equal [child].to_set, plan.static_garbage_collect.to_set
+            end
         end
 
         it "does not reconfigure not-setup tasks" do

@@ -1059,6 +1059,11 @@ module Syskit
                         debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
                         if existing_task
                             debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
+                            parent_task_contexts = existing_task.each_parent_task.
+                                find_all { |t| t.kind_of?(Syskit::TaskContext) }
+                            parent_task_contexts.each do |t|
+                                t.remove_child(existing_task)
+                            end
                             new_task.should_configure_after(existing_task.stop_event)
                         end
                         existing_task = new_task
