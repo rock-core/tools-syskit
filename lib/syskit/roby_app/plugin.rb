@@ -328,10 +328,7 @@ module Syskit
             # Start a process server on the local machine, and register it in
             # Syskit.process_servers under the 'localhost' name
             def self.start_local_process_server(
-                    options = Hash.new,
-                    port = Orocos::RemoteProcesses::DEFAULT_PORT)
-
-                options, _ = Kernel.filter_options options, :redirect => true
+                    port = Orocos::RemoteProcesses::DEFAULT_PORT, redirect: true)
                 if Syskit.conf.process_servers['localhost']
                     raise ArgumentError, "there is already a process server called 'localhost' running"
                 end
@@ -339,10 +336,14 @@ module Syskit
                 if !File.exists?(Roby.app.log_dir)
                     FileUtils.mkdir_p(Roby.app.log_dir)
                 end
-                @server_pid = Utilrb.spawn 'orocos_process_server', "--port=#{port}", "--debug",
-                    :redirect => (if options[:redirect] then 'local_process_server.txt' end),
-                    :working_directory => Roby.app.log_dir
 
+                spawn_options = Hash[chdir: Roby.app.log_dir, pgroup: true]
+                if redirect
+                    spawn_options[:err] = :out
+                    spawn_options[:out] = File.join(Roby.app.log_dir, 'local_process_server.txt')
+                end
+
+                @server_pid  = Kernel.spawn 'orocos_process_server', "--port=#{port}", "--debug", spawn_options
                 @server_port = port
                 nil
             end
