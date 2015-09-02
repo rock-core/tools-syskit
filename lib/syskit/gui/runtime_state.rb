@@ -122,11 +122,14 @@ module Syskit
                     deselect_job
                 end
                 syskit_log_stream.on_update do |cycle_index, cycle_time|
-                    update_tasks_info
-                    job_expanded_status.update_time(cycle_index, cycle_time)
-                    job_expanded_status.add_tasks_info(all_tasks, all_job_info)
                     emit updated(cycle_index, Qt::DateTime.new(cycle_time))
-                    job_expanded_status.update_chronicle
+
+                    if syskit_log_stream.init_done?
+                        job_expanded_status.update_time(cycle_index, cycle_time)
+                        update_tasks_info
+                        job_expanded_status.add_tasks_info(all_tasks, all_job_info)
+                        job_expanded_status.update_chronicle
+                    end
                     syskit_log_stream.clear_integrated
                 end
             end
