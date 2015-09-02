@@ -118,11 +118,15 @@ module Syskit
                     syskit_log_stream.close
                 end
                 @syskit_log_stream = Roby::Interface::Async::Log.new(syskit.remote_name, port: port)
+                syskit_log_stream.on_reachable do
+                    deselect_job
+                end
                 syskit_log_stream.on_update do |cycle_index, cycle_time|
                     update_tasks_info
                     job_expanded_status.update_time(cycle_index, cycle_time)
                     job_expanded_status.add_tasks_info(all_tasks, all_job_info)
                     emit updated(cycle_index, Qt::DateTime.new(cycle_time))
+                    job_expanded_status.update_chronicle
                     syskit_log_stream.clear_integrated
                 end
             end
@@ -260,6 +264,15 @@ module Syskit
                 end
                 connect(job_status, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SIGNAL('fileOpenClicked(const QUrl&)'))
+            end
+
+            def deselect_job
+                @current_job = nil
+                job_expanded_status.deselect
+                all_tasks.clear
+                all_job_info.clear
+                update_tasks_info
+                job_expanded_status.add_tasks_info(all_tasks, all_job_info)
             end
 
             def select_job(job_status)

@@ -23,6 +23,13 @@ module Syskit
 
             signals 'fileOpenClicked(const QUrl&)'
 
+            def deselect
+                disconnect(self, SLOT('exceptionEvent()'))
+                @job_status = nil
+                ui_chronicle.clear_tasks_info
+                update_exceptions([])
+            end
+
             def select(job_status)
                 disconnect(self, SLOT('exceptionEvent()'))
                 @job_status = job_status
@@ -33,12 +40,16 @@ module Syskit
 
             def add_tasks_info(tasks_info, job_info)
                 ui_chronicle.add_tasks_info(tasks_info, job_info)
+            end
+
+            def update_chronicle
+                ui_chronicle.update_current_tasks
+                ui_chronicle.update
                 children_size_updated
             end
 
             def update_time(cycle_index, cycle_time)
-                ui_chronicle.setCurrentTime(cycle_time)
-                children_size_updated
+                ui_chronicle.update_current_time(cycle_time)
             end
 
             def exceptionEvent
