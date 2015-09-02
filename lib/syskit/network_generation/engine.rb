@@ -1170,8 +1170,8 @@ module Syskit
                 end
 
                 if options[:save_plans]
-                    output_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
-                    info "saved generated plan into #{output_path}"
+                    dataflow_path, hierarchy_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
+                    info "saved generated plan into #{dataflow_path} and #{hierarchy_path}"
                 end
                 work_plan.commit_transaction
 
@@ -1188,9 +1188,10 @@ module Syskit
                         log_pp(:fatal, e)
                         fatal "Engine#resolve failed"
                         begin
-                            output_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
-                            fatal "the generated plan has been saved into #{output_path}"
-                            fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
+                            dataflow_path, hierarchy_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
+                            fatal "the generated plan has been saved"
+                            fatal "use dot -Tsvg #{dataflow_path} > #{output_path}.svg to convert the dataflow to SVG"
+                            fatal "use dot -Tsvg #{hierarchy_path} > #{output_path}.svg to convert to SVG"
                         rescue Exception => e
                             Roby.log_exception_with_backtrace(e, self, :fatal)
                         end
@@ -1248,14 +1249,19 @@ module Syskit
             end
 
             @@dot_index = 0
-            def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, options = Hash.new)
-                options, dot_options = Kernel.filter_options options,
-                    :prefix => nil, :suffix => nil
-                output_path = File.join(dir, "orocos-engine-plan-#{options[:prefix]}%04i#{options[:suffix]}.dot" % [@@dot_index += 1])
-                File.open(output_path, 'w') do |io|
+            def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, prefix: nil, suffix: nil, **dot_options)
+                dot_index = (@@dot_index += 1)
+                dataflow_path = File.join(dir, "syskit-plan-#{prefix}%04i#{suffix}.%s.dot" %
+                                          [dot_index, 'dataflow'])
+                hierarchy_path = File.join(dir, "syskit-plan-#{prefix}%04i#{suffix}.%s.dot" %
+                                           [dot_index, 'hierarchy'])
+                File.open(dataflow_path, 'w') do |io|
                     io.write Graphviz.new(plan).dataflow(dot_options)
                 end
-                output_path
+                File.open(hierarchy_path, 'w') do |io|
+                    io.write Graphviz.new(plan).hierarchy(dot_options)
+                end
+                return dataflow_path, hierarchy_path
             end
 
             # Generate a svg file representing the current state of the
