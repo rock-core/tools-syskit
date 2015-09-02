@@ -161,8 +161,11 @@ module Syskit
                 if task.kind_of?(Composition) && target_task.kind_of?(Composition)
                     task_children   = task.merged_relations(:each_child, true, false).to_set
                     target_children = target_task.merged_relations(:each_child, true, false).to_set
-                    if task_children != target_children || task_children.any? { |t| t.respond_to?(:proxied_data_services) }
+                    if task_children != target_children
                         info "rejected: compositions with different children"
+                        return false
+                    elsif task_children.any? { |t| t.respond_to?(:proxied_data_services) }
+                        info "rejected: compositions still have unresolved children"
                         return false
                     end
 
