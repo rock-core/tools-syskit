@@ -350,7 +350,8 @@ module Syskit
 
                     # Get the set of candidates. We are checking if the tasks in
                     # this set can be replaced by +task+
-                    candidates = plan.find_local_tasks(task.model.concrete_model)
+                    candidates = plan.find_local_tasks(task.model.concrete_model).
+                        not_abstract
                     info do
                         info "#{candidates.to_a.size} candidates for #{task}, matching model"
                         info "  #{task.model.concrete_model}"
