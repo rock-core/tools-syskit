@@ -49,11 +49,9 @@ module Syskit
                 connect runtime_state, SIGNAL('connection_state_changed(bool)') do |flag|
                     connection_state_changed(flag)
                 end
-                connect runtime_state, SIGNAL('updated(int, QDateTime)') do |cycle_index, cycle_time|
+                connect runtime_state, SIGNAL('progress(QString)') do |message|
                     state = connection_state.current_state.to_s
-                    cycle_time = cycle_time.to_time
-                    time_s = "#{cycle_time.strftime('%H:%M:%S')}.#{'%.03i' % [cycle_time.tv_usec / 1000]}"
-                    connection_state.update_text("%s - @%i %s" % [state, cycle_index, time_s])
+                    connection_state.update_text("%s - %s" % [state, message])
                 end
 
                 model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)

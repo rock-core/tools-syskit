@@ -121,10 +121,14 @@ module Syskit
                 syskit_log_stream.on_reachable do
                     deselect_job
                 end
+                syskit_log_stream.on_init_progress do |rx, expected|
+                    emit progress("loading %02i" % [Float(rx) / expected * 100])
+                end
                 syskit_log_stream.on_update do |cycle_index, cycle_time|
-                    emit updated(cycle_index, Qt::DateTime.new(cycle_time))
-
                     if syskit_log_stream.init_done?
+                        time_s = "#{cycle_time.strftime('%H:%M:%S')}.#{'%.03i' % [cycle_time.tv_usec / 1000]}"
+                        emit progress("@%i %s" % [cycle_index, time_s])
+
                         job_expanded_status.update_time(cycle_index, cycle_time)
                         update_tasks_info
                         job_expanded_status.add_tasks_info(all_tasks, all_job_info)
@@ -134,7 +138,7 @@ module Syskit
                 end
             end
 
-            signals 'updated(int, QDateTime)'
+            signals 'progress(QString)'
             signals 'connection_state_changed(bool)'
 
             def remote_name
