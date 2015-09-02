@@ -387,7 +387,7 @@ module Syskit
                     elsif !args.empty?
                         raise ArgumentError, "expected zero arguments, got #{args.size}"
                     end
-                    return robot.devices[devname]
+                    return robot.devices[devname].to_instance_requirements.dup
                 end
                 super
             end

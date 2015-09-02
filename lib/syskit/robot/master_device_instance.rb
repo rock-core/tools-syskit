@@ -280,10 +280,6 @@ module Syskit
                 self
             end
 
-            def if_already_present
-                requirements.if_already_present
-                self
-            end
 
             # Returns the InstanceRequirements object that can be used to
             # represent this device
