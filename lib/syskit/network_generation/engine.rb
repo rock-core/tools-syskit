@@ -1203,8 +1203,8 @@ module Syskit
                         begin
                             dataflow_path, hierarchy_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
                             fatal "the generated plan has been saved"
-                            fatal "use dot -Tsvg #{dataflow_path} > #{output_path}.svg to convert the dataflow to SVG"
-                            fatal "use dot -Tsvg #{hierarchy_path} > #{output_path}.svg to convert to SVG"
+                            fatal "use dot -Tsvg #{dataflow_path} > #{dataflow_path}.svg to convert the dataflow to SVG"
+                            fatal "use dot -Tsvg #{hierarchy_path} > #{hierarchy_path}.svg to convert to SVG"
                         rescue Exception => e
                             Roby.log_exception_with_backtrace(e, self, :fatal)
                         end
