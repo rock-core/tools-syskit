@@ -422,9 +422,7 @@ module Syskit
                     parents = t.each_parent_task.to_a
                     debug { "#{t}: #{parents.size} parents" }
                     if parents.size > 1
-                        for p in parents
-                            result << p
-                        end
+                        result.merge(parents)
                     end
                 end
                 result
