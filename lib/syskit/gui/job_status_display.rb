@@ -4,8 +4,10 @@ module Syskit
         class JobStatusDisplay < Qt::Widget
             attr_reader :job
 
+            attr_reader :ui_job_actions
             attr_reader :ui_start
             attr_reader :ui_kill
+            attr_reader :ui_drop
             attr_reader :ui_state
             attr_reader :exceptions
             attr_reader :notifications
@@ -19,6 +21,7 @@ module Syskit
 
                 create_ui
                 connect_to_hooks
+                hide_job_actions
             end
 
             INTERMEDIATE_TERMINAL_STATES = [
@@ -30,24 +33,46 @@ module Syskit
             def create_ui
                 @ui_state = JobStateLabel.new name: "##{job.job_id} #{job.action_name}"
                 ui_state.update_state(job.state.upcase)
-                ui_state.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::MinimumExpanding)
-                @ui_kill = Qt::PushButton.new("Kill", self)
-                ui_kill.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::Minimum)
-                @ui_start = Qt::PushButton.new("Restart", self)
-                ui_start.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::Minimum)
 
-                vlayout = Qt::VBoxLayout.new(self)
-                hlayout = Qt::HBoxLayout.new
-                vlayout.add_layout hlayout
-
+                @ui_job_actions = Qt::Widget.new(self)
+                hlayout    = Qt::HBoxLayout.new(ui_job_actions)
+                hlayout.add_widget(@ui_kill   = Qt::PushButton.new("Kill", self))
+                hlayout.add_widget(@ui_drop   = Qt::PushButton.new("Drop", self))
+                hlayout.add_widget(@ui_start  = Qt::PushButton.new("Restart", self))
                 hlayout.set_contents_margins(0, 0, 0, 0)
-                hlayout.add_widget ui_state, 1
-                hlayout.add_widget ui_start
-                hlayout.add_widget ui_kill
 
                 @ui_notifications = Qt::Label.new("", self)
                 ui_notifications.hide
-                vlayout.add_widget(ui_notifications)
+
+                vlayout = Qt::VBoxLayout.new(self)
+                vlayout.add_widget ui_state
+                vlayout.add_widget ui_job_actions
+                vlayout.add_widget ui_notifications
+            end
+
+            def show_job_actions
+                ui_job_actions.show
+                s = size
+                s.height = size_hint.height
+                self.size = s
+            end
+
+            def hide_job_actions
+                ui_job_actions.hide
+                s = size
+                s.height = size_hint.height
+                self.size = s
+            end
+
+
+            def enterEvent(event)
+                super
+                show_job_actions
+            end
+
+            def leaveEvent(event)
+                super
+                hide_job_actions
             end
 
             def mousePressEvent(event)
@@ -65,6 +90,9 @@ module Syskit
                 ui_start.connect(SIGNAL('clicked()')) do
                     job.restart
                 end
+                ui_drop.connect(SIGNAL('clicked()')) do
+                    job.drop
+                end
                 ui_kill.connect(SIGNAL('clicked()')) do
                     job.kill
                 end
@@ -79,6 +107,7 @@ module Syskit
                     end
 
                     if Roby::Interface.terminal_state?(state)
+                        ui_drop.hide
                         ui_kill.hide
                         ui_start.text = "Start Again"
                     end
