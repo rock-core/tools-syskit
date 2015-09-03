@@ -996,6 +996,14 @@ module Syskit
 
                 merged_tasks = reconfigure_tasks_on_static_port_modification(merged_tasks)
 
+                debug do
+                    debug "#{merged_tasks.size} tasks merged during deployment"
+                    merged_tasks.each do |t|
+                        debug "  #{t}"
+                    end
+                    break
+                end
+
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
                 merge_seeds = merge_solver.merge_tasks_next_step_hierarchy(merged_tasks)
