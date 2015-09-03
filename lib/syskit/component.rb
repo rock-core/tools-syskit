@@ -499,7 +499,7 @@ module Syskit
                 if model != singleton_class
                     @model = singleton_class
                     model.name = self.class.name
-                    model.concrete_model = self.class
+                    model.concrete_model = self.class.concrete_model
                     model.private_specialization = true
                     model.private_model
                     self.class.setup_submodel(model)

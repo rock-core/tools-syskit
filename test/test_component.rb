@@ -16,6 +16,13 @@ describe Syskit::Component do
             task.specialize
             assert_same task_m, task.concrete_model
         end
+        it "ensures that the task's concrete model is the original model's concrete model" do
+            task_m = self.task_m.specialize
+            task = task_m.new
+            task.specialize
+            assert_same self.task_m, task.concrete_model
+            assert_same self.task_m, task.model.concrete_model
+        end
         it "should ensure that the task's model's concrete model is still the original model" do
             task.specialize
             assert_same task_m, task.model.concrete_model
