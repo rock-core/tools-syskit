@@ -7,7 +7,7 @@ module Syskit
             attr_reader :ui_chronicle
 
             def initialize(parent = nil)
-                super
+                super(parent, auto_resize: false)
 
                 @ui_exception_view = Roby::GUI::ExceptionView.new
                 connect(ui_exception_view, SIGNAL('fileOpenClicked(const QUrl&)'),
