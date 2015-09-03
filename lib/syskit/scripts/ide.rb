@@ -1,6 +1,7 @@
 require 'syskit/gui/ide'
 require 'roby/standalone'
 require 'syskit/scripts/common'
+require 'vizkit'
 
 load_all = false
 parser = OptionParser.new do |opt|
@@ -30,16 +31,15 @@ Roby.app.auto_load_all = load_all
 Roby.app.auto_load_models = direct_files.empty?
 Roby.app.additional_model_files.concat(direct_files)
 
-app = Qt::Application.new(ARGV)
-
 Syskit::Scripts.run do
+    Orocos.initialize
     Roby.app.syskit_engine.prepare
     main = Syskit::GUI::IDE.new
     main.window_title = "Syskit IDE - #{Roby.app.app_name}"
 
     main.restore_from_settings
     main.show
-    $qApp.exec
+    Vizkit.exec
     main.save_to_settings
     main.settings.sync
 end

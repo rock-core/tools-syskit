@@ -35,6 +35,14 @@ module Syskit
             # Job information for tasks in the rebuilt plan
             attr_reader :all_job_info
 
+            # The name service which allows us to resolve Rock task contexts
+            attr_reader :name_service
+            # A task inspector widget we use to display the task states
+            attr_reader :ui_task_inspector
+            # The list of task names of the task currently displayed by the task
+            # inspector
+            attr_reader :current_orocos_tasks
+
             class ActionListDelegate < Qt::StyledItemDelegate
                 OUTER_MARGIN = 5
                 INTERLINE    = 3
@@ -80,8 +88,11 @@ module Syskit
             # @param [Integer] poll_period how often should the syskit interface
             #   be polled (milliseconds). Set to nil if the polling is already
             #   done externally
-            def initialize(parent:nil, syskit: Roby::Interface::Async::Interface.new, poll_period: 10)
+            def initialize(parent: nil, syskit: Roby::Interface::Async::Interface.new, poll_period: 10)
                 super(parent)
+
+                orocos_corba_nameservice = Orocos::CORBA::NameService.new(syskit.remote_name)
+                @name_service = Orocos::Async::NameService.new(orocos_corba_nameservice)
 
                 if poll_period
                     poll_syskit_interface(syskit, poll_period)
@@ -91,6 +102,7 @@ module Syskit
 
                 @syskit = syskit
                 @current_job = nil
+                @current_orocos_tasks = Set.new
                 @all_tasks = Set.new
                 @all_job_info = Hash.new
                 syskit.on_reachable do
@@ -168,6 +180,20 @@ module Syskit
                         end
                     end
                 end
+                update_orocos_tasks
+            end
+
+            def update_orocos_tasks
+                orocos_tasks = all_tasks.map { |t| t.arguments[:orocos_name] }.compact.to_set
+                removed = current_orocos_tasks - orocos_tasks
+                new     = orocos_tasks - current_orocos_tasks
+                removed.each do |task_name|
+                    ui_task_inspector.remove_task(task_name)
+                end
+                new.each do |task_name|
+                    ui_task_inspector.add_task(name_service.proxy(task_name))
+                end
+                @current_orocos_tasks = orocos_tasks
             end
 
             def create_ui
@@ -180,12 +206,17 @@ module Syskit
                 splitter = Qt::Splitter.new
                 splitter.add_widget job_summary
                 splitter.add_widget(@job_expanded_status = ExpandedJobStatus.new)
+                splitter.add_widget(@ui_task_inspector = Vizkit.default_loader.TaskInspector)
+                job_expanded_status.set_size_policy(Qt::SizePolicy::MinimumExpanding, Qt::SizePolicy::MinimumExpanding)
                 main_layout.add_widget splitter
+                w = splitter.size.width
+                splitter.sizes = [Integer(w * 0.25), Integer(w * 0.50), Integer(w * 0.25)]
             end
 
             def create_ui_new_job
                 new_job_layout = Qt::HBoxLayout.new
                 label   = Qt::Label.new("New Job", self)
+                label.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::Minimum)
                 @action_combo = Qt::ComboBox.new(self)
                 action_combo.item_delegate = ActionListDelegate.new(self)
                 new_job_layout.add_widget label
@@ -268,7 +299,6 @@ module Syskit
             # @param [Roby::Interface::Async::JobMonitor] job
             def monitor_job(job)
                 job_status = JobStatusDisplay.new(job)
-                job_status.set_size_policy(Qt::SizePolicy::Minimum, Qt::SizePolicy::MinimumExpanding)
                 job_status_list.add_widget job_status
                 job_status.connect(SIGNAL('clicked()')) do
                     select_job(job_status)
