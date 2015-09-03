@@ -250,7 +250,11 @@ module Syskit
                 syskit_poll.connect(SIGNAL('timeout()')) do
                     syskit.poll
                     if syskit_log_stream
-                        syskit_log_stream.poll
+                        if syskit_log_stream.poll(max: 0.05) == Roby::Interface::Async::Log::STATE_PENDING_DATA
+                            syskit_poll.interval = 0
+                        else
+                            syskit_poll.interval = period
+                        end
                     end
                 end
                 syskit_poll.start(period)
