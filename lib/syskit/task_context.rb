@@ -562,7 +562,7 @@ module Syskit
                 end
 
                 TaskContext.needs_reconfiguration.delete(orocos_name)
-                TaskContext.configured[orocos_name] = [orocos_task.model,
+                TaskContext.configured[orocos_name] = [model,
                                                        self.conf.dup,
                                                        self.each_required_dynamic_service.to_set]
             end

@@ -39,7 +39,7 @@ module Syskit
         # cause the relevant tasks to be reconfigured in the next re-deployment
         def mark_changed_configuration_as_not_reusable(changed)
             engine.execute do
-                TaskContext.configured.each do |task_name, (syskit_model, current_conf)|
+                TaskContext.configured.each do |task_name, (syskit_model, current_conf, _)|
                     changed_conf = changed[syskit_model.concrete_model]
 
                     if changed_conf && current_conf.any? { |section_name| changed_conf.include?(section_name) }
