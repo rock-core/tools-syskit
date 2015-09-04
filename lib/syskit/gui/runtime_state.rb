@@ -29,6 +29,9 @@ module Syskit
             attr_reader :action_combo
             # The job that is currently selected
             attr_reader :current_job
+            # The connection state, which gives access to the global Syskit
+            # state
+            attr_reader :connection_state
 
             # All known tasks
             attr_reader :all_tasks
@@ -43,6 +46,16 @@ module Syskit
             # inspector
             attr_reader :current_orocos_tasks
 
+            class GlobalStateLabel < StateLabel
+                def mousePressEvent(event)
+                    event.accept
+                end
+                def mouseReleaseEvent(event)
+                    emit clicked
+                    event.accept
+                end
+                signals :clicked
+            end
             class ActionListDelegate < Qt::StyledItemDelegate
                 OUTER_MARGIN = 5
                 INTERLINE    = 3
@@ -98,9 +111,9 @@ module Syskit
                     poll_syskit_interface(syskit, poll_period)
                 end
 
+                @syskit = syskit
                 create_ui
 
-                @syskit = syskit
                 @current_job = nil
                 @current_orocos_tasks = Set.new
                 @all_tasks = Set.new
@@ -112,9 +125,11 @@ module Syskit
                         next if action.advanced?
                         action_combo.add_item(action.name, Qt::Variant.new(action.doc))
                     end
+                    connection_state.update_state 'CONNECTED'
                     emit connection_state_changed(true)
                 end
                 syskit.on_unreachable do
+                    connection_state.update_state 'UNREACHABLE'
                     emit connection_state_changed(false)
                 end
                 syskit.on_job do |job|
@@ -201,6 +216,18 @@ module Syskit
                 job_summary_layout = Qt::VBoxLayout.new(job_summary)
                 job_summary_layout.add_layout(@new_job_layout  = create_ui_new_job)
                 job_summary_layout.add_widget(@job_status_list = WidgetList.new(self))
+
+                @connection_state = GlobalStateLabel.new(name: remote_name)
+                connection_state.declare_state 'CONNECTED', :green
+                connection_state.declare_state 'UNREACHABLE', :red
+                connect self, SIGNAL('progress(QString)') do |message|
+                    state = connection_state.current_state.to_s
+                    connection_state.update_text("%s - %s" % [state, message])
+                end
+                job_status_list.add_widget connection_state
+                connection_state.connect(SIGNAL('clicked()')) do
+                    deselect_job
+                end
 
                 main_layout = Qt::VBoxLayout.new(self)
                 splitter = Qt::Splitter.new
