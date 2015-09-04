@@ -5,13 +5,29 @@ module Syskit
             # Overloaded to automatically call {#deploy_subject_syskit_model}
             def setup
                 super
-                deploy_subject_syskit_model
+                @deployed_subject_syskit_model = deploy_subject_syskit_model
             end
 
             # Define a deployment for the task model under test
             def deploy_subject_syskit_model
-                @deploy_subject_syskit_model =
-                    use_deployment subject_syskit_model.model.concrete_model => 'task_under_test'
+                task_context_m = self.class.subject_syskit_model.concrete_model
+                if task_context_m.orogen_model.abstract?
+                    # This task context is abstract, i.e. does not have a
+                    # default deployment, and therefore cannot be deployed. Stub
+                    # it if we are in stub mode, skip the test otherwise
+
+                    if !app.simulation?
+                        raise RuntimeError, "cannot deploy the abstract task context model #{task_context_m} in live mode"
+                    end
+                    task_context_m.abstract = false
+
+                    process_name = OroGen::Spec::Project.default_deployment_name(task_context_m.orogen_model.name)
+                    syskit_stub_deployment_model(nil, process_name) do
+                        task process_name, task_context_m.orogen_model
+                    end
+                end
+
+                use_deployment(task_context_m => 'task_under_test').first
             end
 
             # Returns the task model under test
@@ -72,6 +88,8 @@ module Syskit
                     rescue ::Exception => e
                         test.skip("#{test.__full_name__} cannot run: #{e.message}")
                     end
+                elsif orogen_model.abstract?
+                    test.skip("#{test.__full_name__} cannot run: #{orogen_model.name} is abstract and we're in live mode")
                 else
                     project_name = orogen_model.project.name
                     if !Orocos.default_pkgconfig_loader.has_project?(project_name)
