@@ -13,6 +13,8 @@ module Syskit
                 declare_state Roby::Interface::JOB_FAILED.upcase, :red
                 declare_state Roby::Interface::JOB_FINISHED.upcase, :grey
                 declare_state Roby::Interface::JOB_FINALIZED.upcase, :grey
+
+                declare_state Roby::Interface::JOB_DROPPED.upcase, :grey
             end
         end
     end
