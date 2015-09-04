@@ -615,15 +615,15 @@ module Syskit
             #   nil otherwise.
             def resolve_deployment_ambiguity(candidates, task)
                 if task.orocos_name
-                    debug "#{task} requests orocos_name to be #{task.orocos_name}"
+                    debug { "#{task} requests orocos_name to be #{task.orocos_name}" }
                     resolved = candidates.find { |_, _, task_name| task_name == task.orocos_name }
                     if !resolved
-                        debug "cannot find requested orocos name #{task.orocos_name}"
+                        debug { "cannot find requested orocos name #{task.orocos_name}" }
                     end
                     return resolved
                 end
                 hints = task.deployment_hints
-                debug "#{task}.deployment_hints: #{hints.map(&:to_s).join(", ")}"
+                debug { "#{task}.deployment_hints: #{hints.map(&:to_s).join(", ")}" }
                 # Look to disambiguate using deployment hints
                 resolved = candidates.find_all do |_, deployment_model, task_name|
                     task.deployment_hints.any? do |rx|
@@ -632,9 +632,9 @@ module Syskit
                 end
                 if resolved.size != 1
                     info do
-                        info "ambiguous deployment for #{task} (#{task.model})"
+                        info { "ambiguous deployment for #{task} (#{task.model})" }
                         candidates.each do |machine, deployment_model, task_name|
-                            info "  #{task_name} of #{deployment_model.short_name} on #{machine}"
+                            info { "  #{task_name} of #{deployment_model.short_name} on #{machine}" }
                         end
                         break
                     end
