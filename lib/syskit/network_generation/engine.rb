@@ -627,7 +627,7 @@ module Syskit
                 # Look to disambiguate using deployment hints
                 resolved = candidates.find_all do |_, deployment_model, task_name|
                     task.deployment_hints.any? do |rx|
-                        rx === task_name
+                        rx == deployment_model || rx === task_name
                     end
                 end
                 if resolved.size != 1
