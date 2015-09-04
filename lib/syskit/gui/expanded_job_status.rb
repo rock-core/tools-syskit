@@ -14,6 +14,7 @@ module Syskit
                         self, SIGNAL('fileOpenClicked(const QUrl&)'))
                 @ui_chronicle = Roby::LogReplay::ChronicleWidget.new
                 ui_chronicle.show_mode = :in_range
+                ui_chronicle.reverse_sort = true
                 ui_chronicle.vertical_scroll_bar_policy = Qt::ScrollBarAlwaysOff
                 add_widget ui_exception_view
                 ui_exception_view.hide
