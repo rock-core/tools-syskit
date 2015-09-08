@@ -26,6 +26,7 @@ module Syskit
 
             INTERMEDIATE_TERMINAL_STATES = [
                 Roby::Interface::JOB_SUCCESS.upcase.to_s,
+                Roby::Interface::JOB_DROPPED.upcase.to_s,
                 Roby::Interface::JOB_FAILED.upcase.to_s,
                 Roby::Interface::JOB_PLANNING_FAILED.upcase.to_s
             ]
@@ -106,7 +107,9 @@ module Syskit
                         ui_state.update_state(state.upcase)
                     end
 
-                    if Roby::Interface.terminal_state?(state)
+                    if state == Roby::Interface::JOB_DROPPED
+                        ui_drop.hide
+                    elsif Roby::Interface.terminal_state?(state)
                         ui_drop.hide
                         ui_kill.hide
                         ui_start.text = "Start Again"
