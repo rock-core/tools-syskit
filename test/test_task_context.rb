@@ -755,5 +755,18 @@ describe Syskit::TaskContext do
             assert !task_p.transaction_modifies_static_ports?
         end
     end
+
+    describe "specialized models" do
+        it "has an isolated orogen model" do
+            task_m = Syskit::TaskContext.new_submodel
+            task   = task_m.new
+            assert_same task.model.orogen_model, task_m.orogen_model
+            task.specialize
+            assert_same task.model.orogen_model.superclass, task_m.orogen_model
+            task.model.orogen_model.output_port 'p', '/double'
+            assert !task_m.orogen_model.has_port?('p')
+            assert task.model.orogen_model.has_port?('p')
+        end
+    end
 end
 

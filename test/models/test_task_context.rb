@@ -14,6 +14,16 @@ describe Syskit::Models::TaskContext do
         end
     end
 
+    describe "specialized models" do
+        it "has an isolated orogen model" do
+            model = Syskit::TaskContext.new_submodel
+            spec_m = model.specialize
+            assert_same spec_m.orogen_model.superclass, model.orogen_model
+            spec_m.orogen_model.output_port 'p', '/double'
+            assert !model.orogen_model.has_port?('p')
+        end
+    end
+
     describe "#new_submodel" do
         it "allows to set up the orogen interface in the setup block" do
             model = Syskit::TaskContext.new_submodel do
