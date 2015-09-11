@@ -151,6 +151,19 @@ module Syskit::GUI
                 end
             end
 
+            def first_paragraph(string)
+                paragraph = String.new
+                string.each_line do |line|
+                    line = line.chomp
+                    if line.empty?
+                        return paragraph
+                    else
+                        paragraph << " " << line
+                    end
+                end
+                paragraph
+            end
+
             def compute_toplevel_links(model, options)
                 explicit_selections = mapping_to_links(
                     model.dependency_injection.explicit,
@@ -169,6 +182,10 @@ module Syskit::GUI
                 end
                 definitions = mapping_to_links(
                     definitions, false, options[:interactive])
+                definitions.each do |obj|
+                    doc = first_paragraph(obj.object.doc || "")
+                    obj.format = "%s: #{doc}"
+                end
 
                 devices = Hash.new
                 model.robot.each_device.sort_by(&:name).each do |dev|
@@ -184,11 +201,6 @@ module Syskit::GUI
                         el.object = el.object.to_instance_requirements
                         el.rendering_options[:method] = instanciation_method
                     end
-                end
-
-                definitions.each do |obj|
-                    doc = (obj.object.doc || "").split("\n")
-                    obj.format = "%s: #{doc.first}"
                 end
 
                 return explicit_selections, default_selections, definitions, devices
