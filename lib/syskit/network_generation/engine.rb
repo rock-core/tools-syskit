@@ -370,11 +370,6 @@ module Syskit
                     # #static_garbage_collect to cleanup #work_plan.
                     work_plan.add_permanent_task(task)
 
-                    fullfilled_task_m, fullfilled_modules, fullfilled_args = req.fullfilled_model
-                    fullfilled_args = fullfilled_args.map_value do |arg_name, _|
-                        task.arguments[arg_name]
-                    end
-                    task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
                     required_instances[req_task] = task
                     add_timepoint 'compute_system_network', 'instanciate', req.to_s
                 end
@@ -563,11 +558,7 @@ module Syskit
                     task.each_master_device do |dev|
                         device_name = dev.full_name
                         if old_task = devices[device_name]
-			    if !old_task.can_merge?(task)
-				raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}, and the tasks refuse to be merged"
-			    else
-				raise SpecError, "device #{device_name} is assigned to both #{old_task} and #{task}, but the tasks have mismatching inputs"
-			    end
+                            raise ConflictingDeviceAllocation.new(dev, task, old_task)
                         else
                             devices[device_name] = task
                         end
@@ -624,26 +615,26 @@ module Syskit
             #   nil otherwise.
             def resolve_deployment_ambiguity(candidates, task)
                 if task.orocos_name
-                    debug "#{task} requests orocos_name to be #{task.orocos_name}"
+                    debug { "#{task} requests orocos_name to be #{task.orocos_name}" }
                     resolved = candidates.find { |_, _, task_name| task_name == task.orocos_name }
                     if !resolved
-                        debug "cannot find requested orocos name #{task.orocos_name}"
+                        debug { "cannot find requested orocos name #{task.orocos_name}" }
                     end
                     return resolved
                 end
                 hints = task.deployment_hints
-                debug "#{task}.deployment_hints: #{hints.map(&:to_s).join(", ")}"
+                debug { "#{task}.deployment_hints: #{hints.map(&:to_s).join(", ")}" }
                 # Look to disambiguate using deployment hints
                 resolved = candidates.find_all do |_, deployment_model, task_name|
                     task.deployment_hints.any? do |rx|
-                        rx === task_name
+                        rx == deployment_model || rx === task_name
                     end
                 end
                 if resolved.size != 1
-                    debug do
-                        debug "ambiguous deployment for #{task} (#{task.model})"
+                    info do
+                        info { "ambiguous deployment for #{task} (#{task.model})" }
                         candidates.each do |machine, deployment_model, task_name|
-                            debug "  #{task_name} of #{deployment_model.short_name} on #{machine}"
+                            info { "  #{task_name} of #{deployment_model.short_name} on #{machine}" }
                         end
                         break
                     end
@@ -991,11 +982,11 @@ module Syskit
                     elsif existing_deployment_tasks.size != 1
                         raise InternalError, "more than one task for #{deploment_task.process_name} present in the plan: #{existing_deployment_tasks}"
                     else
+                        selected_deployment = existing_deployment_tasks.first
                         new_merged_tasks = adapt_existing_deployment(
                             deployment_task,
-                            existing_deployment_tasks.first)
+                            selected_deployment)
                         merged_tasks.merge(new_merged_tasks)
-                        selected_deployment = existing_deployment_tasks.first
                     end
                     if finishing = finishing_deployments[selected_deployment.process_name]
                         selected_deployment.should_start_after finishing.stop_event
@@ -1004,6 +995,14 @@ module Syskit
                 end
 
                 merged_tasks = reconfigure_tasks_on_static_port_modification(merged_tasks)
+
+                debug do
+                    debug "#{merged_tasks.size} tasks merged during deployment"
+                    merged_tasks.each do |t|
+                        debug "  #{t}"
+                    end
+                    break
+                end
 
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
@@ -1068,6 +1067,11 @@ module Syskit
                         debug { "  creating #{new_task} for #{task} (#{task.orocos_name})" }
                         if existing_task
                             debug { "  #{new_task} needs to wait for #{existing_task} to finish before reconfiguring" }
+                            parent_task_contexts = existing_task.each_parent_task.
+                                find_all { |t| t.kind_of?(Syskit::TaskContext) }
+                            parent_task_contexts.each do |t|
+                                t.remove_child(existing_task)
+                            end
                             new_task.should_configure_after(existing_task.stop_event)
                         end
                         existing_task = new_task
@@ -1179,8 +1183,8 @@ module Syskit
                 end
 
                 if options[:save_plans]
-                    output_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
-                    info "saved generated plan into #{output_path}"
+                    dataflow_path, hierarchy_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
+                    info "saved generated plan into #{dataflow_path} and #{hierarchy_path}"
                 end
                 work_plan.commit_transaction
 
@@ -1197,9 +1201,10 @@ module Syskit
                         log_pp(:fatal, e)
                         fatal "Engine#resolve failed"
                         begin
-                            output_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
-                            fatal "the generated plan has been saved into #{output_path}"
-                            fatal "use dot -Tsvg #{output_path} > #{output_path}.svg to convert to SVG"
+                            dataflow_path, hierarchy_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
+                            fatal "the generated plan has been saved"
+                            fatal "use dot -Tsvg #{dataflow_path} > #{dataflow_path}.svg to convert the dataflow to SVG"
+                            fatal "use dot -Tsvg #{hierarchy_path} > #{hierarchy_path}.svg to convert to SVG"
                         rescue Exception => e
                             Roby.log_exception_with_backtrace(e, self, :fatal)
                         end
@@ -1257,14 +1262,19 @@ module Syskit
             end
 
             @@dot_index = 0
-            def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, options = Hash.new)
-                options, dot_options = Kernel.filter_options options,
-                    :prefix => nil, :suffix => nil
-                output_path = File.join(dir, "orocos-engine-plan-#{options[:prefix]}%04i#{options[:suffix]}.dot" % [@@dot_index += 1])
-                File.open(output_path, 'w') do |io|
+            def self.autosave_plan_to_dot(plan, dir = Roby.app.log_dir, prefix: nil, suffix: nil, **dot_options)
+                dot_index = (@@dot_index += 1)
+                dataflow_path = File.join(dir, "syskit-plan-#{prefix}%04i#{suffix}.%s.dot" %
+                                          [dot_index, 'dataflow'])
+                hierarchy_path = File.join(dir, "syskit-plan-#{prefix}%04i#{suffix}.%s.dot" %
+                                           [dot_index, 'hierarchy'])
+                File.open(dataflow_path, 'w') do |io|
                     io.write Graphviz.new(plan).dataflow(dot_options)
                 end
-                output_path
+                File.open(hierarchy_path, 'w') do |io|
+                    io.write Graphviz.new(plan).hierarchy(dot_options)
+                end
+                return dataflow_path, hierarchy_path
             end
 
             # Generate a svg file representing the current state of the

@@ -172,19 +172,19 @@ module Syskit
             # should never look into the task's neighborhood
             def can_merge?(task)
                 if !super
-                    debug { "cannot merge #{task} into #{self}: super returned false" }
+                    info "rejected: Component#can_merge? super returned false"
                     return
                 end
 
                 # Cannot merge if we are not reusable
                 if !reusable?
-                    debug { "rejecting #{self}.merge(#{task}) as receiver is not reusable" }
+                    info "rejected: receiver is not reusable"
                     return
                 end
                 # We can not replace a non-abstract task with an
                 # abstract one
                 if !task.abstract? && abstract?
-                    debug { "rejecting #{self}.merge(#{task}): cannot merge a non-abstract task into an abstract one" }
+                    info "rejected: cannot merge a non-abstract task into an abstract one"
                     return
                 end
                 return true
@@ -499,7 +499,7 @@ module Syskit
                 if model != singleton_class
                     @model = singleton_class
                     model.name = self.class.name
-                    model.concrete_model = self.class
+                    model.concrete_model = self.class.concrete_model
                     model.private_specialization = true
                     model.private_model
                     self.class.setup_submodel(model)

@@ -62,11 +62,20 @@ module Syskit
             end
 
             def to_s
-                "device(#{device_model.short_name}, :as => #{full_name})"
+                "device(#{device_model}, as: #{full_name})"
             end
 
             def full_name
                 name
+            end
+
+            # Whether this device should be hidden from the user interfaces
+            attr_predicate :advanced?, true
+
+            # Sets {#advanced?}
+            def advanced
+                @advanced = true
+                self
             end
 
             # @deprecated
@@ -271,10 +280,6 @@ module Syskit
                 self
             end
 
-            def if_already_present
-                requirements.if_already_present
-                self
-            end
 
             # Returns the InstanceRequirements object that can be used to
             # represent this device

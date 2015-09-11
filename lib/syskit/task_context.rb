@@ -710,7 +710,7 @@ module Syskit
             on :aborted do |event|
 	        ::Robot.info "#{event.task} has been aborted"
                 begin
-                    if execution_agent && !execution_agent.finishing?
+                    if execution_agent && execution_agent.running? && !execution_agent.finishing?
                         orocos_task.stop(false)
                     end
                 rescue Exception

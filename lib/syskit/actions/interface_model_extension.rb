@@ -18,13 +18,14 @@ module Syskit
             def use_profile(profile)
                 @current_description = nil
                 main_profile.use_profile(profile)
-                profile.robot.devices.each do |name, dev|
-                    action_name = "#{name}_dev"
+                profile.robot.each_master_device do |dev|
+                    action_name = "#{dev.name}_dev"
                     if !actions[action_name]
                         req = dev.to_instance_requirements
                         profile.inject_di_context(req)
-                        actions[action_name] = Models::Action.new(self, req, "device from profile #{profile.name}")
+                        actions[action_name] = Models::Action.new(self, req, dev.doc || "device from profile #{profile.name}")
                         actions[action_name].name = action_name
+                        actions[action_name].advanced = dev.advanced?
                         define_method(action_name) do
                             model.find_action_by_name(action_name).as_plan
                         end
@@ -33,10 +34,12 @@ module Syskit
 
                 profile.definitions.each do |name, req|
                     action_name = "#{name}_def"
+                    advanced    = req.advanced?
 
                     req = profile.resolved_definition(name)
-                    action_model = Models::Action.new(self, req, "definition from profile #{profile.name}")
+                    action_model = Models::Action.new(self, req, req.doc || "definition from profile #{profile.name}")
                     action_model.name = action_name
+                    action_model.advanced = advanced
 
                     task_model = req.component_model
                     root_model = [Syskit::TaskContext, Syskit::Composition, Syskit::Component].find { |m| task_model <= m }

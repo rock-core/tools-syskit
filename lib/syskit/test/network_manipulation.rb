@@ -82,7 +82,7 @@ module Syskit
                 rescue Exception => e
                     begin
                         plan.execution_engine.process_events_synchronous do
-                            requirement_tasks.each { |t| t.failed_event.emit }
+                            requirement_tasks.each { |t| t.failed_event.emit(e) }
                         end
                     rescue Roby::PlanningFailedError
                         # Emitting failed_event will cause the engine to raise
