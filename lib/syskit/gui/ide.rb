@@ -4,6 +4,7 @@ require 'syskit/gui/model_browser'
 require 'syskit/gui/state_label'
 require 'syskit/gui/runtime_state'
 require 'shellwords'
+
 module Syskit
     module GUI
         # The main Syskit IDE window
@@ -39,11 +40,9 @@ module Syskit
                 layout.add_widget tab_widget
                 tab_widget.add_tab model_browser, "Browse"
                 idx = tab_widget.add_tab runtime_state, "Runtime"
-                @connection_state = StateLabel.new(
-                    name: runtime_state.remote_name,
-                    extra_style: 'margin-left: 2px; margin-top: 2px; font-size: 10pt;')
-                connection_state.declare_state 'CONNECTED', :green
-                connection_state.declare_state 'UNREACHABLE', :red
+                @connection_state = GlobalStateLabel.new(
+                    actions: runtime_state.global_actions.values,
+                    name: runtime_state.remote_name)
 
                 tab_widget.set_corner_widget(connection_state, Qt::TopLeftCorner)
                 connect runtime_state, SIGNAL('connection_state_changed(bool)') do |flag|

@@ -4,6 +4,8 @@ require 'roby/interface/async/log'
 require 'syskit/gui/job_status_display'
 require 'syskit/gui/widget_list'
 require 'syskit/gui/expanded_job_status'
+require 'syskit/gui/global_state_label'
+require 'syskit/gui/app_start_dialog'
 
 module Syskit
     module GUI
@@ -46,16 +48,12 @@ module Syskit
             # inspector
             attr_reader :current_orocos_tasks
 
-            class GlobalStateLabel < StateLabel
-                def mousePressEvent(event)
-                    event.accept
-                end
-                def mouseReleaseEvent(event)
-                    emit clicked
-                    event.accept
-                end
-                signals :clicked
-            end
+            # Returns a list of actions that can be performed on the Roby
+            # instance
+            #
+            # @return [Array<Qt::Action>]
+            attr_reader :global_actions
+
             class ActionListDelegate < Qt::StyledItemDelegate
                 OUTER_MARGIN = 5
                 INTERLINE    = 3
@@ -114,6 +112,20 @@ module Syskit
                 @syskit = syskit
                 create_ui
 
+                @global_actions = Hash.new
+                action = global_actions[:start]   = Qt::Action.new("Start", self)
+                connect action, SIGNAL('triggered()') do
+                    app_start
+                end
+                action = global_actions[:restart] = Qt::Action.new("Restart", self)
+                connect action, SIGNAL('triggered()') do
+                    app_restart
+                end
+                action = global_actions[:quit]    = Qt::Action.new("Quit", self)
+                connect action, SIGNAL('triggered()') do
+                    app_quit
+                end
+
                 @current_job = nil
                 @current_orocos_tasks = Set.new
                 @all_tasks = Set.new
@@ -125,10 +137,18 @@ module Syskit
                         next if action.advanced?
                         action_combo.add_item(action.name, Qt::Variant.new(action.doc))
                     end
+                    global_actions[:start].visible = false
+                    global_actions[:restart].visible = true
+                    global_actions[:quit].visible = true
                     connection_state.update_state 'CONNECTED'
                     emit connection_state_changed(true)
                 end
                 syskit.on_unreachable do
+                    if remote_name == 'localhost'
+                        global_actions[:start].visible = true
+                    end
+                    global_actions[:restart].visible = false
+                    global_actions[:quit].visible = false
                     connection_state.update_state 'UNREACHABLE'
                     emit connection_state_changed(false)
                 end
@@ -170,6 +190,29 @@ module Syskit
 
             def remote_name
                 syskit.remote_name
+            end
+
+            def app_start
+                robot_name, start_controller = AppStartDialog.exec(Roby.app.robots.names, self)
+                if robot_name
+                    extra_args = Array.new
+                    if !robot_name.empty?
+                        extra_args << "-r#{robot_name}"
+                    end
+                    if start_controller
+                        extra_args << "-c"
+                    end
+                    Kernel.spawn Gem.ruby, '-S', 'syskit', 'run', *extra_args,
+                        pgroup: true
+                end
+            end
+
+            def app_quit
+                syskit.quit
+            end
+
+            def app_restart
+                syskit.restart
             end
 
             def update_tasks_info
