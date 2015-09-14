@@ -339,7 +339,9 @@ module Syskit
                 job_expanded_status.deselect
                 all_tasks.clear
                 all_job_info.clear
-                update_tasks_info
+                if syskit_log_stream
+                    update_tasks_info
+                end
                 job_expanded_status.add_tasks_info(all_tasks, all_job_info)
             end
 
