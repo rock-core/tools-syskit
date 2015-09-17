@@ -9,6 +9,7 @@ module Syskit
         class ModelBrowser < MetaRuby::GUI::ModelBrowser
             View = Struct.new :root_model, :renderer, :name, :priority
             AVAILABLE_VIEWS = [
+                View.new(Syskit::RubyTaskContext, ModelViews::RubyTaskContext, 'Ruby Task Contexts', 1),
                 View.new(Syskit::TaskContext, ModelViews::TaskContext, 'Task Contexts', 1),
                 View.new(Syskit::Composition, ModelViews::Composition, 'Compositions', 1),
                 View.new(Syskit::DataService, ModelViews::DataService, 'Data Services', 0),
