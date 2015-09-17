@@ -1,7 +1,8 @@
 require 'syskit/gui/component_network_view'
 module Syskit::GUI
     module ModelViews
-        Roby::TaskStructure.relation 'SpecializationCompatibilityGraph', :child_name => :compatible_specialization, :dag => false
+        Roby::TaskStructure.relation 'SpecializationCompatibilityGraph',
+            child_name: :compatible_specialization, dag: false
 
         # Visualization of a composition model
         #
@@ -100,29 +101,27 @@ module Syskit::GUI
                     end
                 end
 
-                display_options = {
-                    :accessor => :each_compatible_specialization,
-                    :dot_edge_mark => '--',
-                    :dot_graph_type => 'graph',
-                    :graphviz_tool => 'fdp',
-                    :highlights => current_specializations,
-                    :toned_down => incompatible_specializations.values,
-                    :annotations => [],
-                    :id => 'specializations'
-                }
+                display_options = Hash[
+                    accessor: :each_compatible_specialization,
+                    dot_edge_mark: '--',
+                    dot_graph_type: 'graph',
+                    graphviz_tool: 'fdp',
+                    highlights: current_specializations,
+                    toned_down: incompatible_specializations.values,
+                    annotations: [],
+                    id: 'specializations'
+                ]
                 page.push_plan('Specializations', 'relation_to_dot',
                                          plan, display_options)
             end
 
-            def render(model, options = Hash.new)
-                options, super_options = Kernel.filter_options options,
-                    :doc => true
-                if options[:doc] && model.doc
+            def render(model, doc: true, **options)
+                if doc && model.doc
                     page.push nil, page.main_doc(model.doc)
                 end
 
-                super(model, super_options)
-                task_model_view.render(model, :doc => false)
+                super(model, **options)
+                task_model_view.render(model, doc: false)
                 if task
                     render_data_services(task)
                 end

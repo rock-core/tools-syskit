@@ -133,13 +133,13 @@ module Syskit
                     Scripts.resume_profiling
                     Scripts.tic
                     engine = Syskit::NetworkGeneration::Engine.new(plan)
-                    engine.resolve(:requirement_tasks => requirement_tasks,
-                                   :compute_policies => compute_policies,
-                                   :compute_deployments => compute_deployments,
-                                   :validate_generated_network => validate_network,
-                                   :validate_deployed_network => validate_network,
-                                   :validate_final_network => validate_network,
-                                   :on_error => :commit)
+                    engine.resolve(requirement_tasks: requirement_tasks,
+                                   compute_policies: compute_policies,
+                                   compute_deployments: compute_deployments,
+                                   validate_generated_network: validate_network,
+                                   validate_deployed_network: validate_network,
+                                   validate_final_network: validate_network,
+                                   on_error: :commit)
                     plan.static_garbage_collect do |task|
                         plan.remove_object(task)
                     end
