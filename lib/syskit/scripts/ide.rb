@@ -14,6 +14,8 @@ Loads the models from this bundle and allows to browse them. If a file is given,
         load_all = true
     end
 end
+options = Hash.new
+Roby::Application.host_options(parser, options)
 Syskit::Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
@@ -34,7 +36,7 @@ Roby.app.additional_model_files.concat(direct_files)
 Syskit::Scripts.run do
     Orocos.initialize
     Roby.app.syskit_engine.prepare
-    main = Syskit::GUI::IDE.new
+    main = Syskit::GUI::IDE.new(host: options[:host] || 'localhost')
     main.window_title = "Syskit IDE - #{Roby.app.app_name}"
 
     main.restore_from_settings
