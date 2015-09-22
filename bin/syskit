@@ -7,12 +7,13 @@ require 'rock/bundle'
 # Reset to the Roby default
 Roby.app.public_logs = false
 
+ORIGINAL_ARGV = ARGV.dup
 mode = ARGV.shift
 
 SYSKIT_MODES = ['browse', 'instanciate', 'doc', 'ide']
-ROBY_MODES = ['run', 'test']
+ROBY_MODES = ['init', 'run', 'shell', 'test', 'gen', 'quit', 'restart']
 if not mode || mode == "--help" || mode == "-h"
-    puts "usage: syskit [#{SYSKIT_MODES.join("|")}] <mode-arguments>"
+    puts "usage: syskit [#{SYSKIT_MODES.join("|")}|#{ROBY_MODES.join("|")}] <mode-arguments>"
     puts "Run 'syskit <mode> --help' for more information"
 else
     if SYSKIT_MODES.include?(mode)
