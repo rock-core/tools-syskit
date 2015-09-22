@@ -352,20 +352,19 @@ module Syskit
             #   server on which this deployment should be started
             #
             # @return [Array<Deployment>]
-            def use_deployment(*names)
-                if !names.last.kind_of?(Hash)
-                    names << Hash.new
+            def use_deployment(*names, on: 'localhost', **run_options)
+                deployment_spec = Hash.new
+                if names.last.kind_of?(Hash)
+                    deployment_spec = names.pop
                 end
-                options, run_options = Kernel.filter_options names.pop,
-                    :on => 'localhost'
-                process_server_name = options[:on]
+
+                process_server_name = on
                 process_server_config =
                     if app.simulation?
                         sim_process_server(process_server_name)
                     else
                         process_server_config_for(process_server_name)
                     end
-                run_options[:loader] = app.default_loader
 
                 deployments_by_name = Hash.new
                 names = names.map do |n|
@@ -375,7 +374,7 @@ module Syskit
                     else n
                     end
                 end
-                run_options = run_options.map_key do |k|
+                deployment_spec = deployment_spec.map_key do |k|
                     if k.respond_to?(:orogen_model)
                         deployments_by_name[k.orogen_model.name] = k
                         k.orogen_model
@@ -383,7 +382,7 @@ module Syskit
                     end
                 end
 
-                new_deployments, _ = Orocos::Process.parse_run_options(*names, run_options)
+                new_deployments, _ = Orocos::Process.parse_run_options(*names, deployment_spec, loader: app.default_loader, **run_options)
                 new_deployments.map do |deployment_name, mappings, name, spawn_options|
                     model = deployments_by_name[deployment_name] ||
                         app.using_deployment(deployment_name)
@@ -568,19 +567,14 @@ module Syskit
             #   {#local_only?} is set
             # @raise [ArgumentError] if there is already a process server
             #   registered with that name
-            def connect_to_orocos_process_server(name, host, options = Hash.new)
-                options = Kernel.validate_options options,
-                    :port => Orocos::RemoteProcesses::DEFAULT_PORT,
-                    :log_dir => 'logs',
-                    :result_dir => 'results'
-
+            def connect_to_orocos_process_server(name, host, port: Orocos::RemoteProcesses::DEFAULT_PORT, log_dir: 'logs', result_dir: 'results')
                 if only_load_models? || (app.simulation? && app.single?)
                     client = ModelOnlyServer.new(app.default_loader)
                     register_process_server(name, client, app.log_dir)
                     return client
                 elsif app.single?
                     client = Orocos::RemoteProcesses::Client.new(
-                        'localhost', options[:port], :root_loader => app.default_loader)
+                        'localhost', port, root_loader: app.default_loader)
                     register_process_server(name, client, app.log_dir)
                     return client
                 end
@@ -591,7 +585,6 @@ module Syskit
                     raise ArgumentError, "we are already connected to a process server called #{name}"
                 end
 
-                port = options[:port]
                 if host =~ /^(.*):(\d+)$/
                     host = $1
                     port = Integer($2)
@@ -603,9 +596,9 @@ module Syskit
 
                 client = Orocos::RemoteProcesses::Client.new(
                     host, port, :root_loader => app.default_loader)
-                client.save_log_dir(options[:log_dir], options[:result_dir])
-                client.create_log_dir(options[:log_dir], Roby.app.time_tag)
-                register_process_server(name, client, options[:log_dir])
+                client.save_log_dir(log_dir, result_dir)
+                client.create_log_dir(log_dir, Roby.app.time_tag)
+                register_process_server(name, client, log_dir)
                 client
             end
 
