@@ -2,6 +2,7 @@ require 'Qt'
 require 'open3'
 require 'syskit/gui/model_browser'
 require 'syskit/gui/state_label'
+require 'syskit/gui/testing'
 require 'syskit/gui/runtime_state'
 require 'shellwords'
 
@@ -15,6 +16,7 @@ module Syskit
             attr_reader :model_browser
             attr_reader :runtime_state
             attr_reader :connection_state
+            attr_reader :test_gui
 
             COLOR_INIT = "rgb(51, 181, 229)"
             COLOR_CONNECTED = "rgb(153, 204, 0)"
@@ -22,7 +24,7 @@ module Syskit
             CONNECTION_STATE_STYLE = "QLabel { font-size: 10pt; background-color: %s; }"
             CONNECTION_STATE_TEXT = "<b>%s</b>: %s"
 
-            def initialize(parent = nil, host: 'localhost')
+            def initialize(parent = nil, host: 'localhost', runtime: false)
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
@@ -32,6 +34,9 @@ module Syskit
                 syskit = Roby::Interface::Async::Interface.new(host)
                 @runtime_state = RuntimeState.new(syskit: syskit)
                 @btn_reload_models = Qt::PushButton.new("Reload Models", self)
+                @test_gui = Testing.new
+                test_gui.resize(800, 600)
+                test_gui.show
 
                 connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SLOT('fileOpenClicked(const QUrl&)'))
@@ -41,7 +46,7 @@ module Syskit
                 layout.add_widget btn_reload_models
                 layout.add_widget tab_widget
                 tab_widget.add_tab model_browser, "Browse"
-                idx = tab_widget.add_tab runtime_state, "Runtime"
+                runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
                 @connection_state = GlobalStateLabel.new(
                     actions: runtime_state.global_actions.values,
                     name: runtime_state.remote_name)
@@ -63,6 +68,13 @@ module Syskit
                     Roby.app.reload_models
                     model_browser.update_exceptions
                     model_browser.reload
+                    test_gui.reloaded
+                end
+
+                if runtime
+                    tab_widget.current_index = runtime_idx
+                else
+                    testing.add_test_slaves
                 end
             end
 
