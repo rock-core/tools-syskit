@@ -656,17 +656,25 @@ describe Syskit::TaskContext do
     end
 
     describe "#deployment_hints" do
-        it "should add the hints from its attached devices if there are some" do
-            device_hint, component_hint = flexmock, flexmock
-            task_m = Syskit::TaskContext.new_submodel
-            device_m = Syskit::Device.new_submodel
-            task_m.driver_for device_m, as: 'test'
-            dev = robot.device(device_m, as: 'test').
-                prefer_deployed_tasks(device_hint)
+        describe "the behaviour for device drivers" do
+            let(:component_hint) { flexmock }
+            let(:device_hint) { flexmock }
+            let(:task) do
+                device_m = Syskit::Device.new_submodel
+                task_m = Syskit::TaskContext.new_submodel
+                task_m.driver_for device_m, as: 'test'
+                dev = robot.device(device_m, as: 'test').prefer_deployed_tasks(device_hint)
+                task_m.new("test_dev" => dev)
+            end
 
-            task = task_m.new("test_dev" => dev)
-            task.requirements.deployment_hints << component_hint
-            assert_equal [component_hint, device_hint].to_set, task.deployment_hints.to_set
+            it "uses the hints from its own requirements if there are some" do
+                task.requirements.deployment_hints << component_hint
+                assert_equal [component_hint], task.deployment_hints.to_a
+            end
+
+            it "uses the hints from its attached devices if there are none in the requirements" do
+                assert_equal [device_hint], task.deployment_hints.to_a
+            end
         end
     end
 
