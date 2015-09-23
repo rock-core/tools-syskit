@@ -959,20 +959,21 @@ module Syskit
                 used_deployments.each do |deployment_task|
                     existing_candidates = work_plan.find_local_tasks(deployment_task.model).
                         not_finishing.not_finished.to_set
-                    debug do
-                        debug "  looking to reuse a deployment for #{deployment_task.process_name} (#{deployment_task})"
-                        debug "  #{existing_candidates.size} candidates:"
-                        existing_candidates.each do |candidate_task|
-                            debug "    #{candidate_task}"
-                        end
-                        break
-                    end
 
                     # Check for the corresponding task in the plan
                     existing_deployment_tasks = (existing_candidates & existing_deployments).
                         find_all do |t|
                             t.process_name == deployment_task.process_name
                         end
+
+                    debug do
+                        debug "  looking to reuse a deployment for #{deployment_task.process_name} (#{deployment_task})"
+                        debug "  #{existing_deployment_tasks.size} candidates:"
+                        existing_deployment_tasks.each do |candidate_task|
+                            debug "    #{candidate_task}"
+                        end
+                        break
+                    end
 
                     selected_deployment = nil
                     if existing_deployment_tasks.empty?
@@ -1059,7 +1060,7 @@ module Syskit
                             if !existing_task
                                 "  task #{task.orocos_name} has not yet been deployed"
                             else
-                                "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment"
+                                "  task #{task.orocos_name} has been deployed, but I can't merge with the existing deployment (#{existing_task})"
                             end
                         end
 
