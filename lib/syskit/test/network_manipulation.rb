@@ -221,6 +221,7 @@ module Syskit
                 end
 
                 syskit_stub_deployment_model(task_m, as)
+                model.deployment_hints.clear
                 model.prefer_deployed_tasks(as)
             end
 
@@ -367,7 +368,7 @@ module Syskit
                 plan.add_permanent(sync_ev = Roby::EventGenerator.new)
                 component.should_configure_after(sync_ev)
 
-                if component.kind_of?(Syskit::Composition) && recursive
+                if recursive
                     component.each_child do |child_task|
                         syskit_start_execution_agents(child_task, recursive: true)
                     end
@@ -388,43 +389,62 @@ module Syskit
                 end
             end
 
-            # Set this component instance up
-            def syskit_configure(component, recursive: true)
-                syskit_start_execution_agents(component, recursive: true)
-
-                # Protect the component against startup and startup
-                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+            def syskit_prepare_configure(component, tasks, sync_ev, recursive: true)
                 component.should_start_after(sync_ev)
-
-                if component.kind_of?(Syskit::Composition) && recursive
-                    component.each_child do |child_task|
-                        if !child_task.setup?
-                            syskit_configure(child_task, recursive: true)
-                        end
-                    end
-                end
-
                 component.freeze_delayed_arguments
 
-                # Might already have been configured while waiting for the ready
-                # event
-                if !component.setup?
-                    if !component.ready_for_setup?
-                        component.ready_for_setup?
-                    end
+                tasks << component
 
-                    component.setup
-                    component.is_setup!
+                if recursive
+                    component.each_child do |child_task|
+                        syskit_prepare_configure(child_task, tasks, sync_ev, recursive: true)
+                    end
                 end
+            end
+
+            class NoConfigureFixedPoint < RuntimeError; end
+
+            # Set this component instance up
+            def syskit_configure(component, recursive: true)
+                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+                syskit_start_execution_agents(component, recursive: true)
+
+                tasks = Set.new
+                syskit_prepare_configure(component, tasks, sync_ev, recursive: true)
+
+                pending = tasks.dup
+                while !pending.empty?
+                    current_state = pending.size
+                    pending.delete_if do |t|
+                        if !t.setup? && t.ready_for_setup?
+                            t.setup
+                            t.is_setup!
+                            true
+                        else
+                            t.setup?
+                        end
+                    end
+                    if current_state == pending.size
+                        raise NoConfigureFixedPoint, "cannot configure #{pending.map(&:to_s).join(", ")}"
+                    end
+                end
+
                 component
+
             ensure
-                if sync_ev
-                    plan.remove_object(sync_ev)
-                end
+                plan.remove_object(sync_ev)
             end
 
             # Start this component
             def syskit_start(component, recursive: true)
+                if recursive
+                    component.each_child do |child|
+                        if !child.running?
+                            syskit_start(child, recursive: true)
+                        end
+                    end
+                end
+
                 if !component.starting? && !component.running?
                     if !component.setup?
                         raise "#{component} is not set up, call #syskit_configure first"
@@ -436,13 +456,6 @@ module Syskit
                     assert_event_emission component.start_event
                 end
 
-                if recursive
-                    component.each_child do |child|
-                        if !child.running?
-                            syskit_start(child, recursive: true)
-                        end
-                    end
-                end
                 component
             end
 
