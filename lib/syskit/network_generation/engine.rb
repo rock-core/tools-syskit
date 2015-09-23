@@ -370,6 +370,14 @@ module Syskit
                     # #static_garbage_collect to cleanup #work_plan.
                     work_plan.add_permanent_task(task)
 
+                    fullfilled_task_m, fullfilled_modules, fullfilled_args = req.fullfilled_model
+                    fullfilled_args = fullfilled_args.each_key.inject(Hash.new) do |h, arg_name|
+                        if task.arguments.set?(arg_name)
+                            h[arg_name] = task.arguments[arg_name]
+                        end
+                        h
+                    end
+                    task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
                     required_instances[req_task] = task
                     add_timepoint 'compute_system_network', 'instanciate', req.to_s
                 end
