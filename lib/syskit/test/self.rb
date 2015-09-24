@@ -1,6 +1,5 @@
-require 'minitest/autorun'
-require 'syskit/test/base'
 require 'roby/test/self'
+require 'syskit/test/base'
 require 'syskit/test/network_manipulation'
 
 module Syskit
