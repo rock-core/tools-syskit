@@ -35,8 +35,6 @@ module Syskit
                 @runtime_state = RuntimeState.new(syskit: syskit)
                 @btn_reload_models = Qt::PushButton.new("Reload Models", self)
                 @test_gui = Testing.new
-                test_gui.resize(800, 600)
-                test_gui.show
 
                 connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SLOT('fileOpenClicked(const QUrl&)'))
@@ -46,6 +44,7 @@ module Syskit
                 layout.add_widget btn_reload_models
                 layout.add_widget tab_widget
                 tab_widget.add_tab model_browser, "Browse"
+                tab_widget.add_tab test_gui, "Testing"
                 runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
                 @connection_state = GlobalStateLabel.new(
                     actions: runtime_state.global_actions.values,
@@ -73,8 +72,6 @@ module Syskit
 
                 if runtime
                     tab_widget.current_index = runtime_idx
-                else
-                    testing.add_test_slaves
                 end
             end
 

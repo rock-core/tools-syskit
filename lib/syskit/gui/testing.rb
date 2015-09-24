@@ -50,6 +50,12 @@ module Syskit
             # The count of slaves that are doing discovery
             attr_reader :test_count
 
+            # The label we use to display the test state
+            attr_reader :status_label
+
+            # The button that allows to start tests on and off
+            attr_reader :start_stop_button
+
             def initialize(parent = nil, app: Roby.app, poll_period: 0.1)
                 super(parent)
                 @app = app
@@ -61,6 +67,7 @@ module Syskit
                 @process_sync = ConditionVariable.new
                 @discovery_count = 0
                 @test_count = 0
+                @running = false
 
                 @manager = Autorespawn::Manager.new(name: Hash[models: ['syskit-ide']])
                 @server  = Roby::App::TestServer.start(Process.pid)
@@ -72,18 +79,38 @@ module Syskit
                 end
                 add_hooks
 
+                start_stop_button.connect(SIGNAL('clicked()')) do
+                    if running?
+                        stop
+                    else start
+                    end
+                end
+
                 @poll_timer = Qt::Timer.new
                 poll_timer.connect(SIGNAL('timeout()')) do
+                    if running?
+                        manager.poll
+                    end
                     process_pending_work
-                    manager.poll
                 end
                 poll_timer.start(Integer(poll_period * 1000))
+
+                add_test_slaves
+                notify_status_changed
             end
 
             def create_ui
                 layout = Qt::VBoxLayout.new(self)
+
+                status_bar = Qt::HBoxLayout.new
+                status_bar.add_widget(@start_stop_button = Qt::PushButton.new("Start", self))
+                status_bar.add_widget(@status_label = StateLabel.new(parent: self), 1)
+                status_label.declare_state("STOPPED", :blue)
+                status_label.declare_state("RUNNING", :green)
+                layout.add_layout(status_bar)
+
                 splitter = Qt::Splitter.new(self)
-                layout.add_widget(splitter)
+                layout.add_widget(splitter, 1)
                 splitter.add_widget(@test_list_ui = Qt::ListView.new(self))
                 test_list_ui.model = item_model
                 test_list_ui.edit_triggers = Qt::AbstractItemView::NoEditTriggers
@@ -99,10 +126,57 @@ module Syskit
                 test_result_ui.html = "<html><ul>#{items.join("\n")}</ul></html>"
             end
 
-            def clear
-                if manager
-                    manager.clear
+            def running?
+                @running
+            end
+
+            def start
+                return if running?
+                start_stop_button.text = "Stop"
+                @running = true
+                notify_status_changed
+                emit started
+            end
+
+            def stop
+                manager.kill
+                process_pending_work
+                start_stop_button.text = "Start"
+                @running = false
+                notify_status_changed
+                emit stopped
+            end
+            slots 'start()', 'stop()'
+            signals 'started()', 'stopped()'
+            signals 'statsChanged()'
+
+            Stats = Struct.new :test_count, :executed_test_count, :run_count, :failure_count, :assertions_count
+            def stats
+                stats = Stats.new(manager.slave_count, 0, 0, 0, 0)
+                slaves.each_value do |_, slave|
+                    stats.executed_test_count += 1 if slave.has_tested?
+                    stats.run_count += slave.run_count
+                    stats.failure_count += slave.failure_count
+                    stats.assertions_count += slave.assertions_count
                 end
+                stats
+            end
+
+            def notify_status_changed
+                stats = self.stats
+                state_name = if running? then 'RUNNING'
+                             else 'STOPPED'
+                             end
+                status_label.update_state(
+                    state_name, text: "#{stats.test_count} tests, #{stats.executed_test_count} tests executed, #{stats.run_count} runs, #{stats.failure_count} failures and #{stats.assertions_count} assertions")
+                emit statsChanged
+            end
+
+            # Call this after reloading the app so that the list of tests gets
+            # refreshed as well
+            def reloaded
+                manager.clear
+                add_test_slaves
             end
 
             class SubprocessItem < Qt::StandardItem
@@ -152,6 +226,10 @@ module Syskit
                     test_results.each(&block)
                 end
 
+                def run_count
+                    test_results.size
+                end
+
                 def slave_object_id
                     data(SLAVE_OBJECT_ID_ROLE).to_long_long
                 end
@@ -174,6 +252,7 @@ module Syskit
 
                 def start
                     self.background = Qt::Brush.new(Qt::Color.new(RUNNING_BACKGROUND))
+                    clear
                 end
 
                 def finished
@@ -324,12 +403,14 @@ module Syskit
                 manager.on_slave_new do |slave|
                     queue_work do
                         register_slave(slave)
+                        notify_status_changed
                     end
                 end
                 manager.on_slave_start do |slave|
                     queue_work do
                         register_slave_pid(slave)
                         item_from_slave(slave).start
+                        notify_status_changed
                     end
                 end
                 manager.on_slave_finished do |slave|
@@ -339,47 +420,41 @@ module Syskit
                     end
                 end
                 server.on_exception do |pid, exception|
-                    process do
+                    queue_work do
                         item_from_pid(pid).add_exception(exception)
                     end
                 end
                 server.on_discovery_start do |pid|
-                    process do
+                    queue_work do
                         @discovery_count += 1
                         item_from_pid(pid).discovery_start
                     end
                 end
                 server.on_discovery_finished do |pid|
-                    process do
+                    queue_work do
                         @discovery_count -= 1
                         item_from_pid(pid).discovery_finished
                     end
                 end
                 server.on_test_start do |pid|
-                    process do
+                    queue_work do
                         @test_count += 1
                         item_from_pid(pid).test_start
                     end
                 end
                 server.on_test_result do |pid, file, test_case_name, test_name, failures, assertions, time|
-                    process do
+                    queue_work do
                         item_from_pid(pid).
                             add_test_result(file, test_case_name, test_name, failures, assertions, time)
+                        notify_status_changed
                     end
                 end
                 server.on_test_finished do |pid|
-                    process do
+                    queue_work do
                         @test_count -= 1
                         item_from_pid(pid).test_finished
                     end
                 end
-            end
-
-            # Call this after reloading the app so that the list of tests gets
-            # refreshed as well
-            def reloaded
-                clear
-                add_test_slaves
             end
 
             def add_test_slaves
