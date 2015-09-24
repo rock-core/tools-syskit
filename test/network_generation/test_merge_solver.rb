@@ -341,24 +341,21 @@ describe Syskit::NetworkGeneration::MergeSolver do
             solver.direct_merge_mappings([task0, task1].to_set)
         end
         it "merges every merge candidate for which resolve_single_merge return true" do
-            flexmock(plan).should_receive(:find_local_tasks).with([task_model]).
-                and_return([target_task])
+            flexmock(solver).should_receive(:resolve_single_merge).with(target_task, task).and_return(false)
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(true)
             graph, cycles = solver.direct_merge_mappings([task, target_task].to_value_set)
             assert graph.linked?(task, target_task)
             assert cycles.empty?
         end
         it "adds the merge candidates for which resolve_single_merge return nil to the cycle candidates" do
-            flexmock(plan).should_receive(:find_local_tasks).with([task_model]).
-                and_return([target_task])
+            flexmock(solver).should_receive(:resolve_single_merge).with(target_task, task).and_return(false)
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(nil)
             graph, cycles = solver.direct_merge_mappings([task, target_task].to_value_set)
             assert !graph.linked?(target_task, task)
             assert_equal [[task, target_task]], cycles
         end
         it "does not take into account possible candidates that are not in the provided set" do
-            flexmock(plan).should_receive(:find_local_tasks).with([task_model]).
-                and_return([target_task])
+            plan.add(task_model.new)
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(true)
             graph, cycles = solver.direct_merge_mappings([task].to_value_set)
             assert graph.empty?

@@ -39,7 +39,7 @@ describe Syskit::Robot::RobotDefinition do
         end
         it "creates an object of the type given to its :class option" do
             klass = flexmock
-            klass.should_receive(:new).once.and_return(obj = Object.new)
+            klass.should_receive(:new).once.and_return(obj = flexmock(doc: nil))
             assert_same obj, robot.device(device_m, using: driver_m, as: 'dev', class: klass)
         end
         it "raises if no name has been given" do

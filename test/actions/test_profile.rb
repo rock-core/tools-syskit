@@ -138,11 +138,11 @@ describe Syskit::Actions::Profile do
     end
 
     describe "#method_missing" do
-        attr_reader :profile, :dev_m
+        attr_reader :profile, :dev_m, :driver_m
         before do
             @profile = Syskit::Actions::Profile.new
             @dev_m = Syskit::Device.new_submodel
-            driver_m = Syskit::TaskContext.new_submodel
+            @driver_m = Syskit::TaskContext.new_submodel
             driver_m.driver_for dev_m, as: 'driver'
         end
         it "gives access to tags" do
@@ -181,7 +181,8 @@ describe Syskit::Actions::Profile do
 
         it "gives access to devices" do
             device = profile.robot.device dev_m, as: 'test'
-            assert_same device, profile.test_dev
+            assert_same driver_m.driver_srv, profile.test_dev.base_model
+            assert_same device, profile.test_dev.arguments['driver_dev']
         end
         it "raises NoMethodError for unknown devices" do
             assert_raises(NoMethodError) do
