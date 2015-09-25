@@ -1,5 +1,5 @@
+require 'roby'
 require 'syskit/gui/ide'
-require 'roby/standalone'
 require 'syskit/scripts/common'
 require 'vizkit'
 
