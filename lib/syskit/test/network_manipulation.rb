@@ -104,9 +104,6 @@ module Syskit
                     Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
                     Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                 end
-                if Roby.app.test_show_timings?
-                    merge_timepoints(syskit_engine)
-                end
 
                 root_tasks = root_tasks.map(&:task)
                 if root_tasks.size == 1
