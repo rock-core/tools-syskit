@@ -567,7 +567,14 @@ module Syskit
             #   {#local_only?} is set
             # @raise [ArgumentError] if there is already a process server
             #   registered with that name
-            def connect_to_orocos_process_server(name, host, port: Orocos::RemoteProcesses::DEFAULT_PORT, log_dir: 'logs', result_dir: 'results')
+            def connect_to_orocos_process_server(
+                name, host, port: Orocos::RemoteProcesses::DEFAULT_PORT,
+                log_dir: nil, result_dir: nil)
+
+                if log_dir || result_dir
+                    Syskit.warn "specifying log and/or result dir for remote process servers is deprecated. Use 'syskit process_server' instead of 'orocos_process_server' which will take the log dir information from the environment/configuration"
+                end
+
                 if only_load_models? || (app.simulation? && app.single?)
                     client = ModelOnlyServer.new(app.default_loader)
                     register_process_server(name, client, app.log_dir)
@@ -595,9 +602,8 @@ module Syskit
                 end
 
                 client = Orocos::RemoteProcesses::Client.new(
-                    host, port, :root_loader => app.default_loader)
-                client.save_log_dir(log_dir, result_dir)
-                client.create_log_dir(log_dir, Roby.app.time_tag)
+                    host, port, root_loader: app.default_loader)
+                client.create_log_dir(log_dir, Roby.app.time_tag, Hash['parent' => Roby.app.log_metadata])
                 register_process_server(name, client, log_dir)
                 client
             end
@@ -611,7 +617,7 @@ module Syskit
             #   to conform to the API of {Orocos::Remotes::Client}
             # @param [String] log_dir the path to the server's log directory
             # @return [ProcessServerConfig]
-            def register_process_server(name, client, log_dir)
+            def register_process_server(name, client, log_dir = nil)
                 if process_servers[name]
                     raise ArgumentError, "there is already a process server registered as #{name}, call #remove_process_server first"
                 end
