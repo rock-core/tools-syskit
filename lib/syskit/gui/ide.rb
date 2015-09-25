@@ -16,7 +16,7 @@ module Syskit
             attr_reader :model_browser
             attr_reader :runtime_state
             attr_reader :connection_state
-            attr_reader :test_gui
+            attr_reader :testing
 
             COLOR_INIT = "rgb(51, 181, 229)"
             COLOR_CONNECTED = "rgb(153, 204, 0)"
@@ -29,12 +29,12 @@ module Syskit
 
                 @layout = Qt::VBoxLayout.new(self)
                 @tab_widget = Qt::TabWidget.new(self)
+                @testing = Testing.new
                 @model_browser = ModelBrowser.new
 
                 syskit = Roby::Interface::Async::Interface.new(host)
                 @runtime_state = RuntimeState.new(syskit: syskit)
                 @btn_reload_models = Qt::PushButton.new("Reload Models", self)
-                @test_gui = Testing.new
 
                 connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SLOT('fileOpenClicked(const QUrl&)'))
@@ -43,8 +43,12 @@ module Syskit
 
                 layout.add_widget btn_reload_models
                 layout.add_widget tab_widget
-                tab_widget.add_tab model_browser, "Browse"
-                tab_widget.add_tab test_gui, "Testing"
+                browse_container = Qt::Widget.new
+                browse_container_layout = Qt::VBoxLayout.new(browse_container)
+                browse_container_layout.add_layout(testing.create_status_bar_ui)
+                browse_container_layout.add_widget(model_browser)
+                tab_widget.add_tab browse_container, "Browse"
+                tab_widget.add_tab testing, "Testing"
                 runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
                 @connection_state = GlobalStateLabel.new(
                     actions: runtime_state.global_actions.values,
@@ -67,7 +71,7 @@ module Syskit
                     Roby.app.reload_models
                     model_browser.update_exceptions
                     model_browser.reload
-                    test_gui.reloaded
+                    testing.reloaded
                 end
 
                 if runtime

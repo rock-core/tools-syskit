@@ -50,12 +50,6 @@ module Syskit
             # The count of slaves that are doing discovery
             attr_reader :test_count
 
-            # The label we use to display the test state
-            attr_reader :status_label
-
-            # The button that allows to start tests on and off
-            attr_reader :start_stop_button
-
             def initialize(parent = nil, app: Roby.app, poll_period: 0.1)
                 super(parent)
                 @app = app
@@ -79,13 +73,6 @@ module Syskit
                 end
                 add_hooks
 
-                start_stop_button.connect(SIGNAL('clicked()')) do
-                    if running?
-                        stop
-                    else start
-                    end
-                end
-
                 @poll_timer = Qt::Timer.new
                 poll_timer.connect(SIGNAL('timeout()')) do
                     if running?
@@ -96,17 +83,40 @@ module Syskit
                 poll_timer.start(Integer(poll_period * 1000))
 
                 add_test_slaves
-                notify_status_changed
+                emit statsChanged
+            end
+
+            def create_status_bar_ui
+                status_bar = Qt::HBoxLayout.new
+                status_bar.add_widget(start_stop_button = Qt::PushButton.new("Start", self))
+                connect SIGNAL('started()') do
+                    start_stop_button.text = "Stop"
+                end
+                connect SIGNAL('stopped()') do
+                    start_stop_button.text = "Start"
+                end
+
+                start_stop_button.connect(SIGNAL('clicked()')) do
+                    if running?
+                        stop
+                    else start
+                    end
+                end
+
+                status_bar.add_widget(status_label = StateLabel.new(parent: self), 1)
+                status_label.declare_state("STOPPED", :blue)
+                status_label.declare_state("RUNNING", :green)
+                connect SIGNAL('statsChanged()') do
+                    update_status_label(status_label)
+                end
+
+                return status_bar
             end
 
             def create_ui
                 layout = Qt::VBoxLayout.new(self)
 
-                status_bar = Qt::HBoxLayout.new
-                status_bar.add_widget(@start_stop_button = Qt::PushButton.new("Start", self))
-                status_bar.add_widget(@status_label = StateLabel.new(parent: self), 1)
-                status_label.declare_state("STOPPED", :blue)
-                status_label.declare_state("RUNNING", :green)
+                status_bar = create_status_bar_ui
                 layout.add_layout(status_bar)
 
                 splitter = Qt::Splitter.new(self)
@@ -132,18 +142,16 @@ module Syskit
 
             def start
                 return if running?
-                start_stop_button.text = "Stop"
                 @running = true
-                notify_status_changed
+                emit statsChanged
                 emit started
             end
 
             def stop
                 manager.kill
                 process_pending_work
-                start_stop_button.text = "Start"
                 @running = false
-                notify_status_changed
+                emit statsChanged
                 emit stopped
             end
             slots 'start()', 'stop()'
@@ -162,14 +170,13 @@ module Syskit
                 stats
             end
 
-            def notify_status_changed
+            def update_status_label(status_label)
                 stats = self.stats
                 state_name = if running? then 'RUNNING'
                              else 'STOPPED'
                              end
                 status_label.update_state(
                     state_name, text: "#{stats.test_count} tests, #{stats.executed_test_count} tests executed, #{stats.run_count} runs, #{stats.failure_count} failures and #{stats.assertions_count} assertions")
-                emit statsChanged
             end
 
             # Call this after reloading the app so that the list of tests gets
@@ -403,14 +410,14 @@ module Syskit
                 manager.on_slave_new do |slave|
                     queue_work do
                         register_slave(slave)
-                        notify_status_changed
+                        emit statsChanged
                     end
                 end
                 manager.on_slave_start do |slave|
                     queue_work do
                         register_slave_pid(slave)
                         item_from_slave(slave).start
-                        notify_status_changed
+                        emit statsChanged
                     end
                 end
                 manager.on_slave_finished do |slave|
@@ -446,7 +453,7 @@ module Syskit
                     queue_work do
                         item_from_pid(pid).
                             add_test_result(file, test_case_name, test_name, failures, assertions, time)
-                        notify_status_changed
+                        emit statsChanged
                     end
                 end
                 server.on_test_finished do |pid|
