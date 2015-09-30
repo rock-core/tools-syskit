@@ -401,7 +401,53 @@ module Syskit
                 end
             end
 
-            class NoConfigureFixedPoint < RuntimeError; end
+            class NoConfigureFixedPoint < RuntimeError
+                attr_reader :tasks
+                attr_reader :info
+                Info = Struct.new :missing_arguments, :precedence, :missing
+
+                def initialize(tasks)
+                    @tasks = tasks
+                    @info = Hash.new
+                    tasks.each do |t|
+                        precedence = t.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
+                        missing = precedence.find_all { |ev| !ev.happened? }
+                        info[t] = Info.new(
+                            t.list_unset_arguments,
+                            precedence, missing)
+                    end
+                end
+                def pretty_print(pp)
+                    pp.text "cannot find an ordering to configure #{tasks.size} tasks"
+                    tasks.each do |t|
+                        pp.breakable
+                        t.pretty_print(pp)
+
+                        info = self.info[t]
+                        pp.nest(2) do
+                            pp.breakable
+                            if info.missing_arguments.empty?
+                                pp.text "is fully instanciated"
+                            else
+                                pp.text "missing_arguments: #{info.missing_arguments.join(", ")}"
+                            end
+
+                            pp.breakable
+                            if info.precedence.empty?
+                                pp.text "has no should_configure_after constraint"
+                            else
+                                pp.text "is waiting for #{info.missing.size} events to happen before continuing, among #{info.precedence.size}"
+                                pp.nest(2) do
+                                    info.missing.each do |ev|
+                                        pp.breakable
+                                        ev.pretty_print(ev)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
 
             # Set this component instance up
             def syskit_configure(component, recursive: true)
@@ -424,7 +470,7 @@ module Syskit
                         end
                     end
                     if current_state == pending.size
-                        raise NoConfigureFixedPoint, "cannot configure #{pending.map(&:to_s).join(", ")}"
+                        raise NoConfigureFixedPoint.new(pending), "cannot configure #{pending.map(&:to_s).join(", ")}"
                     end
                 end
 
