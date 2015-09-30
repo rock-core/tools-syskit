@@ -501,7 +501,11 @@ module Syskit
                 end
                 server.on_exception do |pid, exception|
                     queue_work do
-                        item_from_pid(pid).add_exception(exception)
+                        item = item_from_pid(pid)
+                        item.add_exception(exception)
+                        if selected_item == item
+                            update_item_details
+                        end
                     end
                 end
                 server.on_discovery_start do |pid|
@@ -524,8 +528,11 @@ module Syskit
                 end
                 server.on_test_result do |pid, file, test_case_name, test_name, failures, assertions, time|
                     queue_work do
-                        item_from_pid(pid).
-                            add_test_result(file, test_case_name, test_name, failures, assertions, time)
+                        item = item_from_pid(pid)
+                        item.add_test_result(file, test_case_name, test_name, failures, assertions, time)
+                        if !selected_item || (selected_item == item)
+                            update_item_details
+                        end
                         emit statsChanged
                     end
                 end
