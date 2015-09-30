@@ -555,7 +555,7 @@ module Syskit
                     end
                 end
 
-                models_per_file.each do |path, models|
+                models_per_file.sort_by(&:first).each do |path, models|
                     process_id = Hash[path: path, models: models.map(&:name).sort]
                     slave = manager.add_slave(
                         Gem.ruby, '-S', 'roby', 'autotest', '--server', server.server_id.to_s, path,
