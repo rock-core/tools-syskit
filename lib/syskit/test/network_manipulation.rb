@@ -394,7 +394,9 @@ module Syskit
 
                 if recursive
                     component.each_child do |child_task|
-                        syskit_prepare_configure(child_task, tasks, sync_ev, recursive: true)
+                        if child_task.respond_to?(:setup?)
+                            syskit_prepare_configure(child_task, tasks, sync_ev, recursive: true)
+                        end
                     end
                 end
             end
