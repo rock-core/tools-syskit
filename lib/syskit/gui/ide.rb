@@ -103,7 +103,7 @@ module Syskit
 
             def restore_from_settings(settings = self.settings)
                 self.size = settings.value("MainWindow/size", Qt::Variant.new(Qt::Size.new(800, 600))).to_size
-                %w{model_browser}.each do |child_object_name|
+                %w{model_browser testing}.each do |child_object_name|
                     settings.begin_group(child_object_name)
                     begin
                         send(child_object_name).restore_from_settings(settings)
@@ -114,7 +114,7 @@ module Syskit
             end
             def save_to_settings(settings = self.settings)
                 settings.set_value("MainWindow/size", Qt::Variant.new(size))
-                %w{model_browser}.each do |child_object_name|
+                %w{model_browser testing}.each do |child_object_name|
                     settings.begin_group(child_object_name)
                     begin
                         send(child_object_name).save_to_settings(settings)

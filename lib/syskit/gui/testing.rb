@@ -103,6 +103,16 @@ module Syskit
 
             signals 'fileOpenClicked(const QUrl&)'
 
+            def save_to_settings(settings)
+            end
+
+            def restore_from_settings(settings)
+                parallel = settings.value('parallel_level')
+                if !parallel.null?
+                    manager.parallel_level = parallel.to_int
+                end
+            end
+
             def create_status_bar_ui
                 status_bar = Qt::HBoxLayout.new
                 status_bar.add_widget(start_stop_button = Qt::PushButton.new("Start", self))
