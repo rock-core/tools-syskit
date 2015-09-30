@@ -205,14 +205,15 @@ module Syskit
             signals 'started()', 'stopped()'
             signals 'statsChanged()'
 
-            Stats = Struct.new :test_count, :executed_test_count, :run_count, :failure_count, :assertions_count
+            Stats = Struct.new :test_count, :executed_test_count, :run_count, :failure_count, :assertions_count, :skip_count
             def stats
-                stats = Stats.new(manager.slave_count, 0, 0, 0, 0)
+                stats = Stats.new(manager.slave_count, 0, 0, 0, 0, 0)
                 slaves.each_value do |_, slave|
                     stats.executed_test_count += 1 if slave.has_tested?
                     stats.run_count += slave.run_count
                     stats.failure_count += slave.failure_count
                     stats.assertions_count += slave.assertions_count
+                    stats.skip_count += slave.skip_count
                 end
                 stats
             end
@@ -223,7 +224,7 @@ module Syskit
                              else 'STOPPED'
                              end
                 status_label.update_state(
-                    state_name, text: "#{stats.test_count} tests, #{stats.executed_test_count} tests executed, #{stats.run_count} runs, #{stats.failure_count} failures and #{stats.assertions_count} assertions")
+                    state_name, text: "#{stats.test_count} tests, #{stats.executed_test_count} tests executed, #{stats.run_count} runs, #{stats.skip_count} skips, #{stats.failure_count} failures and #{stats.assertions_count} assertions")
             end
 
             # Call this after reloading the app so that the list of tests gets
@@ -241,14 +242,21 @@ module Syskit
                     blue: Qt::Color.new(51, 181, 229),
                     green: Qt::Color.new(153, 204, 0),
                     grey: Qt::Color.new(128, 128, 128),
-                    red: Qt::Color.new(255, 68, 68)]
+                    red: Qt::Color.new(255, 68, 68),
+                    orange: Qt::Color.new(255, 209, 101)]
+
+                def self.html_color(name)
+                    color = COLORS[name]
+                    "rgb(%i,%i,%i)" % [color.red, color.green, color.blue]
+                end
 
                 NEW_SLAVE_BACKGROUND = COLORS[:blue]
+                SKIP_BACKGROUND      = COLORS[:orange]
                 RUNNING_BACKGROUND   = COLORS[:green]
                 SUCCESS_BACKGROUND   = COLORS[:grey]
                 FAILED_BACKGROUND    = COLORS[:red]
 
-                TestResult = Struct.new :file, :test_case_name, :test_name, :failures, :assertions, :time
+                TestResult = Struct.new :file, :test_case_name, :test_name, :skip_count, :failure_count, :failures, :assertions, :time
 
                 attr_reader :slave
                 attr_reader :name
@@ -257,6 +265,7 @@ module Syskit
 
                 attr_reader :assertions_count
                 attr_reader :failure_count
+                attr_reader :skip_count
 
                 def initialize(app, slave)
                     super()
@@ -312,6 +321,8 @@ module Syskit
                 def finished
                     if has_failures? || has_exceptions?
                         self.background = Qt::Brush.new(Qt::Color.new(FAILED_BACKGROUND))
+                    elsif has_skips?
+                        self.background = Qt::Brush.new(Qt::Color.new(SKIP_BACKGROUND))
                     elsif has_tested?
                         self.background = Qt::Brush.new(Qt::Color.new(SUCCESS_BACKGROUND))
                     else
@@ -341,6 +352,10 @@ module Syskit
                 def test_finished
                 end
 
+                def has_skips?
+                    skip_count > 0
+                end
+
                 def has_failures?
                     failure_count > 0
                 end
@@ -354,9 +369,17 @@ module Syskit
                 end
 
                 def add_test_result(file, test_case_name, test_name, failures, assertions, time)
-                    @failure_count += failures.size
+                    skip_count, failure_count = 0, 0
+                    failures.each do |e|
+                        if e.kind_of?(Minitest::Skip)
+                            skip_count += 1
+                        else failure_count += 1
+                        end
+                    end
+                    @skip_count += skip_count
+                    @failure_count += failure_count
                     @assertions_count += assertions
-                    test_results << TestResult.new(file, test_case_name, test_name, failures, assertions, time)
+                    test_results << TestResult.new(file, test_case_name, test_name, skip_count, failure_count, failures, assertions, time)
                     update_text
                 end
 
@@ -366,6 +389,7 @@ module Syskit
 
                 def clear
                     @failure_count = 0
+                    @skip_count = 0
                     @assertions_count = 0
                     @test_results = Array.new
                     @exceptions = Array.new
