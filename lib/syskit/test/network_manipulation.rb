@@ -479,26 +479,76 @@ module Syskit
             ensure
                 plan.remove_object(sync_ev)
             end
+            
+            class NoStartFixedPoint < RuntimeError
+                attr_reader :tasks
 
+                def initialize(tasks)
+                    @tasks = tasks
+                end
+
+                def pretty_print(pp)
+                    pp.text "cannot find an ordering to start #{tasks.size} tasks"
+                    tasks.each do |t|
+                        pp.breakable
+                        t.pretty_print(pp)
+                    end
+                end
+            end
+
+            def syskit_prepare_start(component, tasks, recursive: true)
+                tasks << component
+
+                if recursive
+                    component.each_child do |child_task|
+                        if child_task.respond_to?(:setup?)
+                            syskit_prepare_start(child_task, tasks, recursive: true)
+                        end
+                    end
+                end
+            end
             # Start this component
             def syskit_start(component, recursive: true)
-                if recursive
-                    component.each_child do |child|
-                        if !child.running?
-                            syskit_start(child, recursive: true)
+                tasks = Set.new
+                syskit_prepare_start(component, tasks, recursive: recursive)
+
+                pending = tasks.dup
+                while !pending.empty?
+                    current_state = pending.size
+                    pending.delete_if do |t|
+                        if t.starting? || t.running?
+                            true
+                        elsif t.executable?
+                            if !t.setup?
+                                raise "#{t} is not set up, call #syskit_configure first"
+                            end
+                            t.start!
+                            true
+                        end
+                    end
+
+                    if current_state == pending.size
+                        try_again = tasks.any? do |t|
+                            if t.starting?
+                                assert_event_emission t.start_event
+                                true
+                            end
+                        end
+
+                        if !try_again
+                            raise NoStartFixedPoint.new(pending), "cannot start #{pending.map(&:to_s).join(", ")}"
                         end
                     end
                 end
 
-                if !component.starting? && !component.running?
-                    if !component.setup?
-                        raise "#{component} is not set up, call #syskit_configure first"
+                tasks.each do |t|
+                    if t.starting?
+                        assert_event_emission t.start_event
                     end
-                    component.start!
                 end
 
-                if !component.running?
-                    assert_event_emission component.start_event
+                if t = tasks.find { |t| !t.running? }
+                    raise "#{t} #{t.starting?} #{t.running?} #{t.finished?}"
                 end
 
                 component
