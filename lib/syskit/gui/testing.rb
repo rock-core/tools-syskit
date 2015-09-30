@@ -28,6 +28,8 @@ module Syskit
             attr_reader :item_model
             attr_reader :test_list_ui
             attr_reader :test_result_ui
+            attr_reader :test_result_page
+            attr_reader :exception_rendering
 
             # The timer used to call {#manager}.poll periodically
             attr_reader :poll_timer
@@ -50,6 +52,9 @@ module Syskit
             # The count of slaves that are doing discovery
             attr_reader :test_count
 
+            # The currently selected item
+            attr_reader :selected_item
+
             def initialize(parent = nil, app: Roby.app, poll_period: 0.1)
                 super(parent)
                 @app = app
@@ -67,6 +72,14 @@ module Syskit
                 @server  = Roby::App::TestServer.start(Process.pid)
                 @item_model = Qt::StandardItemModel.new(self)
                 create_ui
+                @test_result_page = MetaRuby::GUI::HTML::Page.new(test_result_ui.page)
+                @exception_rendering = Roby::GUI::ExceptionRendering.new(test_result_page)
+                test_result_page.enable_exception_rendering(exception_rendering)
+                exception_rendering.add_excluded_pattern(/\/lib\/minitest(?:\.rb:|\/)/)
+                exception_rendering.add_excluded_pattern(/\/lib\/autorespawn(?:\.rb:|\/)/)
+
+                connect test_result_page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SIGNAL('fileOpenClicked(const QUrl&)')
+
                 test_list_ui.connect(SIGNAL('clicked(const QModelIndex&)')) do |index|
                     item = item_model.item_from_index(index)
                     display_item_details(item)
@@ -85,6 +98,8 @@ module Syskit
                 add_test_slaves
                 emit statsChanged
             end
+
+            signals 'fileOpenClicked(const QUrl&)'
 
             def create_status_bar_ui
                 status_bar = Qt::HBoxLayout.new
@@ -128,12 +143,44 @@ module Syskit
             end
 
             def display_item_details(item)
+                @selected_item = item
+                test_result_page.clear
                 items = item.each_test_result.map do |r|
-                    text = "#{r.test_case_name}::#{r.test_name}: #{r.failures.size} failures, #{r.assertions} assertions in %.3fs" % [r.time]
-                    text = MetaRuby::GUI::HTML.escape_html(text)
-                    "<li>#{text}</li>"
+                    name = "#{r.test_case_name}::#{r.test_name}"
+                    info = "#{r.skip_count} skips, #{r.failure_count} failures and #{r.assertions} assertions executed in %.3fs" % [r.time]
+
+                    color = if r.failure_count > 0 then :red
+                            elsif r.skip_count > 0 then :orange
+                            else :green
+                            end
+                    color = SubprocessItem.html_color(color)
+                    style = "padding: .1em; background-color: #{color}"
+                    test_result_page.push(nil, "<div class=\"test_result\" style=\"#{style}\">#{MetaRuby::GUI::HTML.escape_html(name)}: #{MetaRuby::GUI::HTML.escape_html(info)}</div>")
+                    all_exceptions = r.failures.flat_map do |e|
+                        discover_exceptions_from_failure(e)
+                    end.uniq
+                    all_exceptions.each do |e|
+                        test_result_page.push_exception(nil, e)
+                    end
                 end
-                test_result_ui.html = "<html><ul>#{items.join("\n")}</ul></html>"
+            end
+
+            def discover_exceptions_from_failure(failure)
+                if failure.kind_of?(Minitest::UnexpectedError)
+                    return discover_exceptions_from_failure(failure.exception)
+                end
+
+                result = [failure]
+                if failure.respond_to?(:original_exceptions)
+                    result.concat failure.original_exceptions.flat_map { |e| discover_exceptions_from_failure(e) }
+                end
+                result.uniq
+            end
+
+            def update_item_details
+                if selected_item
+                    display_item_details(selected_item)
+                end
             end
 
             def running?

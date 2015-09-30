@@ -40,6 +40,8 @@ module Syskit
                         self, SLOT('fileOpenClicked(const QUrl&)'))
                 connect(runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SLOT('fileOpenClicked(const QUrl&)'))
+                connect(testing, SIGNAL('fileOpenClicked(const QUrl&)'),
+                        self, SLOT('fileOpenClicked(const QUrl&)'))
 
                 layout.add_widget btn_reload_models
                 layout.add_widget tab_widget
