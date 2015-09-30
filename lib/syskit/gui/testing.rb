@@ -406,7 +406,7 @@ module Syskit
                 if info = slaves[slave.object_id]
                     return info[1]
                 else
-                    raise ArgumentError, "#{slave} is not registered"
+                    Kernel.raise ArgumentError, "#{slave} is not registered"
                 end
             end
 
@@ -417,7 +417,7 @@ module Syskit
                 if slave = pid_to_slave[pid]
                     return slave
                 else
-                    raise ArgumentError, "no slave registered for PID #{pid}"
+                    Kernel.raise ArgumentError, "no slave registered for PID #{pid}"
                 end
             end
 
@@ -450,7 +450,7 @@ module Syskit
             # @param [Integer] pid
             def deregister_slave_pid(pid)
                 if !(slave = pid_to_slave.delete(pid))
-                    raise ArgumentError, "no slave registered for PID #{pid}"
+                    Kernel.raise ArgumentError, "no slave registered for PID #{pid}"
                 end
             end
 
