@@ -455,7 +455,7 @@ module Syskit
                 syskit_start_execution_agents(component, recursive: true)
 
                 tasks = Set.new
-                syskit_prepare_configure(component, tasks, sync_ev, recursive: true)
+                syskit_prepare_configure(component, tasks, sync_ev, recursive: recursive)
 
                 pending = tasks.dup
                 while !pending.empty?
