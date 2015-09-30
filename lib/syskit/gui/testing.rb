@@ -460,7 +460,7 @@ module Syskit
             # @param [Integer] pid
             def deregister_slave_pid(pid)
                 if !(slave = pid_to_slave.delete(pid))
-                    Kernel.raise ArgumentError, "no slave registered for PID #{pid}"
+                    Roby.warn "no slave registered for PID #{pid}"
                 end
             end
 
