@@ -5,6 +5,7 @@ require 'vizkit'
 
 load_all = false
 runtime_mode = false
+test_mode = false
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD
 Usage: ide [file] [options]
@@ -13,6 +14,10 @@ Loads the models from this bundle and allows to browse them. If a file is given,
 
     opt.on '--all', '-a', "Load all models from all active bundles instead of only the ones from the current" do
         load_all = true
+    end
+
+    opt.on '-t', '--test', 'Start with tests already running' do
+        test_mode = true
     end
 
     opt.on '--runtime', 'Start in runtime mode' do
@@ -41,7 +46,7 @@ Roby.app.additional_model_files.concat(direct_files)
 Syskit::Scripts.run do
     Orocos.initialize
     Roby.app.syskit_engine.prepare
-    main = Syskit::GUI::IDE.new(host: options[:host] || 'localhost', runtime: runtime_mode)
+    main = Syskit::GUI::IDE.new(host: options[:host] || 'localhost', runtime: runtime_mode, tests: test_mode)
     main.window_title = "Syskit IDE - #{Roby.app.app_name}"
 
     main.restore_from_settings

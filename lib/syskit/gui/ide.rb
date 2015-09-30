@@ -24,7 +24,7 @@ module Syskit
             CONNECTION_STATE_STYLE = "QLabel { font-size: 10pt; background-color: %s; }"
             CONNECTION_STATE_TEXT = "<b>%s</b>: %s"
 
-            def initialize(parent = nil, host: 'localhost', runtime: false)
+            def initialize(parent = nil, host: 'localhost', runtime: false, tests: false)
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
@@ -76,6 +76,10 @@ module Syskit
 
                 if runtime
                     tab_widget.current_index = runtime_idx
+                end
+
+                if tests
+                    testing.start
                 end
             end
 
