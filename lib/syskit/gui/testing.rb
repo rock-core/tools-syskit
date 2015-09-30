@@ -84,13 +84,15 @@ module Syskit
                     item = item_model.item_from_index(index)
                     display_item_details(item)
                 end
+                test_list_ui.connect(SIGNAL('doubleClicked(const QModelIndex&)')) do |index|
+                    item = item_model.item_from_index(index)
+                    manager.queue(item.slave)
+                end
                 add_hooks
 
                 @poll_timer = Qt::Timer.new
                 poll_timer.connect(SIGNAL('timeout()')) do
-                    if running?
-                        manager.poll
-                    end
+                    manager.poll(autospawn: running?)
                     process_pending_work
                 end
                 poll_timer.start(Integer(poll_period * 1000))
