@@ -220,11 +220,12 @@ module Syskit
             signals 'started()', 'stopped()'
             signals 'statsChanged()'
 
-            Stats = Struct.new :test_count, :executed_test_count, :run_count, :failure_count, :assertions_count, :skip_count
+            Stats = Struct.new :test_count, :executed_count, :executed_test_count, :run_count, :failure_count, :assertions_count, :skip_count
             def stats
-                stats = Stats.new(manager.slave_count, 0, 0, 0, 0, 0)
+                stats = Stats.new(manager.slave_count, 0, 0, 0, 0, 0, 0)
                 slaves.each_value do |_, slave|
                     stats.executed_test_count += 1 if slave.has_tested?
+                    stats.executed_count += 1 if slave.executed?
                     stats.run_count += slave.run_count
                     stats.failure_count += slave.failure_count
                     stats.assertions_count += slave.assertions_count
@@ -239,7 +240,7 @@ module Syskit
                              else 'STOPPED'
                              end
                 status_label.update_state(
-                    state_name, text: "#{stats.test_count} tests, #{stats.executed_test_count} tests executed, #{stats.run_count} runs, #{stats.skip_count} skips, #{stats.failure_count} failures and #{stats.assertions_count} assertions")
+                    state_name, text: "#{stats.executed_count} of #{stats.test_count} test files executed, #{stats.run_count} runs, #{stats.skip_count} skips, #{stats.failure_count} failures and #{stats.assertions_count} assertions")
             end
 
             # Call this after reloading the app so that the list of tests gets
@@ -291,6 +292,7 @@ module Syskit
                     clear
 
                     @has_tested = false
+                    @executed = false
                     @slave = slave
                     name = (slave.name[:path] || '<Unknown>')
                     if base_path = app.find_base_path_for(name)
@@ -331,7 +333,12 @@ module Syskit
                     self.background = Qt::Brush.new(Qt::Color.new(NEW_SLAVE_BACKGROUND))
                 end
 
+                def executed?
+                    @executed
+                end
+
                 def start
+                    @executed = true
                     self.background = Qt::Brush.new(Qt::Color.new(RUNNING_BACKGROUND))
                     clear
                 end
