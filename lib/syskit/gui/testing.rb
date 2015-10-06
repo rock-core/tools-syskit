@@ -157,7 +157,10 @@ module Syskit
             def display_item_details(item)
                 @selected_item = item
                 test_result_page.clear
-                items = item.each_test_result.map do |r|
+                item.exceptions.each do |e|
+                    test_result_page.push_exception(nil, e)
+                end
+                item.each_test_result do |r|
                     name = "#{r.test_case_name}::#{r.test_name}"
                     info = "#{r.skip_count} skips, #{r.failure_count} failures and #{r.assertions} assertions executed in %.3fs" % [r.time]
 
@@ -279,6 +282,9 @@ module Syskit
                 attr_reader :failure_count
                 attr_reader :skip_count
 
+                # The count of exceptions
+                def exception_count; exceptions.size end
+
                 def initialize(app, slave)
                     super()
 
@@ -344,7 +350,7 @@ module Syskit
 
                 def update_text
                     if has_tested?
-                        self.text = "#{name}\n#{test_results.size} tests, #{failure_count} failures, #{assertions_count} assertions"
+                        self.text = "#{name}\n#{test_results.size} runs, #{exception_count} exceptions, #{failure_count} failures and #{assertions_count} assertions"
                     else
                         self.text = name
                     end
@@ -397,6 +403,7 @@ module Syskit
 
                 def add_exception(e)
                     exceptions << e
+                    update_text
                 end
 
                 def clear
