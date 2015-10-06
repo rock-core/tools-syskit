@@ -294,7 +294,7 @@ module Syskit
                     @has_tested = false
                     @executed = false
                     @slave = slave
-                    name = (slave.name[:path] || '<Unknown>')
+                    name = (slave.name[:path] || "Robot: #{app.robot_name}")
                     if base_path = app.find_base_path_for(name)
                         name = File.basename(base_path) + ":" + name[(base_path.size + 1)..-1]
                     end
