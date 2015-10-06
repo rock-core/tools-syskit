@@ -583,6 +583,7 @@ module Syskit
                     process_id = Hash[path: path, models: models.map(&:name).sort]
                     slave = manager.add_slave(
                         Gem.ruby, '-S', 'roby', 'autotest', '--server', server.server_id.to_s, path,
+                        '-r', app.robot_name,
                         name: process_id)
                     slave.register_files([Pathname.new(path)])
                 end
