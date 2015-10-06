@@ -10,7 +10,7 @@ Roby.app.public_logs = false
 ORIGINAL_ARGV = ARGV.dup
 mode = ARGV.shift
 
-SYSKIT_MODES = ['browse', 'instanciate', 'doc', 'ide']
+SYSKIT_MODES = ['browse', 'instanciate', 'doc', 'ide', 'process_server']
 ROBY_MODES = ['init', 'run', 'shell', 'test', 'gen', 'quit', 'restart']
 if not mode || mode == "--help" || mode == "-h"
     puts "usage: syskit [#{SYSKIT_MODES.join("|")}|#{ROBY_MODES.join("|")}] <mode-arguments>"

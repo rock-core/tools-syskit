@@ -53,12 +53,6 @@ describe Syskit::Component do
             assert !task.specialize
             assert_same current_model, task.model
         end
-        it "should not include the specialized model in the list of fullfilled models" do
-            task_m = Syskit::TaskContext.new_submodel
-            plan.add(task = task_m.new)
-            task.specialize
-            assert_equal [task_m], task.fullfilled_model.first
-        end
 
         describe "once specialized" do
             it "yields ports from the specialized model" do
@@ -83,6 +77,32 @@ describe Syskit::Component do
                 task.specialize
                 assert_equal task.test_srv.out_port.model.component_model.component_model, task.model
             end
+        end
+    end
+
+    describe "#fullfilled_model" do
+        it "does not include the specialized model in the list of fullfilled models" do
+            task_m = Syskit::TaskContext.new_submodel
+            task = task_m.new
+            task.specialize
+            assert_equal [task_m], task.fullfilled_model.first
+            specialized_m = task_m.specialize
+            assert_equal [task_m], specialized_m.new.fullfilled_model.first
+        end
+    end
+
+    describe "#provided_models" do
+        it "includes the task models" do
+            task_m = Syskit::Component.new_submodel
+            assert_equal [task_m], task_m.new.provided_models
+        end
+        it "does not return #model if it is a specialization" do
+            task_m = Syskit::Component.new_submodel
+            task = task_m.new
+            task.specialize
+            assert_equal [task_m], task.provided_models
+            specialized_m = task_m.specialize
+            assert_equal [task_m], specialized_m.new.provided_models
         end
     end
 

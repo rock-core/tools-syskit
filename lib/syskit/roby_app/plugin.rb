@@ -109,8 +109,12 @@ module Syskit
                     syskit_model
                 end
 
+
                 if file = load_component_extension(orogen.name)
-                    tasks.each { |t| t.extension_file = file }
+                    tasks.each do |t|
+                        t.definition_location = [[file,0,nil]]
+                        t.extension_file = file
+                    end
                 end
 
                 orogen

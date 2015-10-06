@@ -721,15 +721,6 @@ module Syskit
                 end
                 task.requirements.merge(task_requirements)
 
-                fullfilled_task_m, fullfilled_modules, fullfilled_args = self.fullfilled_model
-                fullfilled_args = fullfilled_args.each_key.inject(Hash.new) do |h, arg_name|
-                    if task.arguments.set?(arg_name)
-                        h[arg_name] = task.arguments[arg_name]
-                    end
-                    h
-                end
-                task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
-
                 if required_host && task.respond_to?(:required_host=)
                     task.required_host = required_host
                 end

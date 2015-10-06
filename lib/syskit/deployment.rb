@@ -5,8 +5,8 @@ end
 module Syskit
         class << self
             # (see RobyApp::Configuration#register_process_server)
-            def register_process_server(name, client, log_dir)
-                Syskit.conf.register_process_server(name, client, log_dir)
+            def register_process_server(name, client, log_dir = nil)
+                Syskit.conf.register_process_server(name, client, log_dir = nil)
             end
         end
 
@@ -158,12 +158,17 @@ module Syskit
                 end
 
                 spawn_options = spawn_options.merge(
-                    :working_directory => log_dir, 
-                    :output => "%m-%p.txt", 
-                    :wait => false,
-                    :cmdline_args => options)
+                    output: "%m-%p.txt", 
+                    wait: false,
+                    cmdline_args: options)
 
-                Deployment.info { "starting deployment #{process_name} using #{model.deployment_name} on #{host} with #{spawn_options} and mappings #{name_mappings}" }
+                if log_dir
+                    spawn_options = spawn_options.merge(working_directory: log_dir)
+                end
+
+                Deployment.info do
+                    "starting deployment #{process_name} using #{model.deployment_name} on #{host} with #{spawn_options} and mappings #{name_mappings}"
+                end
 
                 @orocos_process = process_server_config.client.start(
                     process_name, model.orogen_model, name_mappings, spawn_options)

@@ -10,10 +10,10 @@ module Syskit::GUI
             def initialize(page)
                 super
                 @interface_options = Hash[
-                    :mode => 'dataflow',
-                    :title => 'Interface',
-                    :annotations => ['task_info', 'port_details'].to_set,
-                    :zoom => 1]
+                    mode: 'dataflow',
+                    title: 'Interface',
+                    annotations: ['task_info', 'port_details'].to_set,
+                    zoom: 1]
             end
 
             def render(model, doc: true, **push_options)

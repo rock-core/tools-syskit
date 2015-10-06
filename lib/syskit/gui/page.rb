@@ -5,29 +5,28 @@ require 'metaruby/gui/html/button'
 module Syskit
     module GUI
         module PageExtension
-            # Adds a PlanDisplay widget with the given title and parameters
-            def push_plan(title, id, plan, options)
-                view_options, options = Kernel.filter_options options,
-                    :buttons => [],
-                    :id => id,
-                    :zoom => 1,
-                    :mode => id,
-                    :external_objects => nil
-                mode = view_options.delete(:mode)
+            # Adds a plan representation on the page
+            #
+            # @param [String] title the title that should be added to the
+            #   section
+            # @param [String] kind either dataflow or hierarchy
+            # @param [Roby::Plan] plan
+            def push_plan(title, kind, plan, buttons: [],
+                          zoom: 1, id: kind, external_objects: nil,
+                          **options)
 
-                svg_io = Tempfile.open(mode)
+                svg_io = Tempfile.open(kind)
                 begin
                     Syskit::Graphviz.new(plan, self).
-                        to_file(mode, 'svg', svg_io, options)
+                        to_file(kind, 'svg', svg_io, options)
                     svg_io.flush
                     svg_io.rewind
                     svg = svg_io.read
-                    svg = svg.encode 'utf-8', :invalid => :replace
+                    svg = svg.encode 'utf-8', invalid: :replace
                 rescue DotCrashError, DotFailedError => e
                     svg = e.message
                 end
 
-                zoom = view_options.delete :zoom
                 begin
                     if match = /svg width=\"(\d+)(\w+)\" height=\"(\d+)(\w+)\"/.match(svg)
                         width, w_unit, height, h_unit = *match.captures
@@ -35,14 +34,16 @@ module Syskit
                     end
                 rescue ArgumentError
                 end
-                if pattern = view_options.delete(:external_objects)
-                    file = pattern % view_options[:id] + ".svg"
+
+                if pattern = external_objects
+                    file = pattern % kind + ".svg"
                     File.open(file, 'w') do |io|
                         io.write(svg)
                     end
-                    push(title, "<object data=\"#{file}\" type=\"image/svg+xml\"></object>", view_options)
+                    push(title, "<object data=\"#{file}\" type=\"image/svg+xml\"></object>",
+                         id: id, buttons: buttons)
                 else
-                    push(title, svg, view_options)
+                    push(title, svg, id: id, buttons: buttons)
                 end
                 emit :updated
             end

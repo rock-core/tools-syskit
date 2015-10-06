@@ -1,6 +1,5 @@
-require 'minitest/autorun'
-require 'syskit/test/base'
 require 'roby/test/self'
+require 'syskit/test/base'
 require 'syskit/test/network_manipulation'
 
 module Syskit
@@ -29,7 +28,7 @@ module Syskit
             Roby.app.app_dir = nil
             Roby.app.search_path.clear
             ENV['ROBY_PLUGIN_PATH'] = File.expand_path(File.join(File.dirname(__FILE__), '..', 'roby_app', 'register_plugin.rb'))
-            Roby.app.using 'syskit'
+            Roby.app.using 'syskit', force: true
             Syskit.conf.export_types = false
             Syskit.conf.disables_local_process_server = true
             Syskit.conf.only_load_models = true

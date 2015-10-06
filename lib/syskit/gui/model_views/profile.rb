@@ -27,9 +27,9 @@ module Syskit::GUI
                 if v = sel[key_index]
                     k += " " * (longest_key_line - k.size)
                     if key_index == 0
-                        k += " => #{v}"
+                        k += ": #{v}"
                     else
-                        k += "    #{v}"
+                        k += "  #{v}"
                     end
                 else
                     k
@@ -61,10 +61,7 @@ module Syskit::GUI
             end.flatten
         end
 
-        def self.render_instance_requirements(page, req, options = Hash.new)
-            options = Kernel.validate_options options,
-                :resolve_dependency_injection => false
-
+        def self.render_instance_requirements(page, req, resolve_dependency_injection: false)
             # First, render the main model
             component_model = [req.component_model]
             req_component = req.to_component_model
@@ -82,11 +79,11 @@ module Syskit::GUI
                 formatted = [component_model.map { |m| page.link_to(m) }.join(",")]
             end
             if !req.arguments.empty?
-                arguments = req.arguments.map { |key, value| "#{key} => #{value}" }
+                arguments = req.arguments.map { |key, value| "#{key}: #{value}" }
                 formatted[0] += ".with_arguments(#{MetaRuby::GUI::HTML.escape_html(arguments.join(", "))})"
             end
 
-            if options[:resolve_dependency_injection]
+            if resolve_dependency_injection
                 selections = req.resolved_dependency_injection
                 if !selections.empty?
                     formatted_selections = render_instance_requirements_selections(page, selections)
@@ -142,8 +139,8 @@ module Syskit::GUI
 
                     if with_value
                         text = ModelViews.render_mapping(page, key, object)
-                        key_text, value_text = text.first.split(" => ")
-                        text[0] = "%s => #{value_text}"
+                        key_text, value_text = text.first.split(": ")
+                        text[0] = "%s: #{value_text}"
                         Element.new(object, "<pre>#{text.join("\n")}</pre>", id, key_text, Hash.new(buttons: []), Hash.new)
                     else
                         Element.new(object, "%s", id, key, Hash.new(buttons: []), Hash.new)
@@ -206,11 +203,9 @@ module Syskit::GUI
                 return explicit_selections, default_selections, definitions, devices
             end
 
-            def render(model, options = Hash.new)
-                options, push_options = Kernel.filter_options options, :interactive => true
-
+            def render(model, interactive: true, **push_options)
                 explicit_selections, default_selections, definitions, devices =
-                    compute_toplevel_links(model, options)
+                    compute_toplevel_links(model, interactive: interactive)
 
                 ComponentNetworkBaseView.html_defined_in(page, model, with_require: true)
                 render_links("Explicit Selection", explicit_selections)
@@ -219,8 +214,9 @@ module Syskit::GUI
                 render_links("Devices", devices)
                 page.save
 
-                if !options[:interactive]
-                    render_all_elements(explicit_selections + default_selections + definitions + devices, options.merge(push_options))
+                if !interactive
+                    render_all_elements(explicit_selections + default_selections + definitions + devices,
+                        interactive: false, **push_options)
                 end
             end
         end

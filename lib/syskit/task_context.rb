@@ -250,16 +250,16 @@ module Syskit
 
             def deployment_hints
                 hints = requirements.deployment_hints.to_set.dup
+                return hints if !hints.empty?
+
                 if respond_to?(:each_master_device)
                     each_master_device do |dev|
                         hints |= dev.requirements.deployment_hints.to_set
                     end
                 end
+                return hints if !hints.empty?
 
-                if hints.empty?
-                    return super
-                else return hints
-                end
+                super
             end
 
             def operation(name)

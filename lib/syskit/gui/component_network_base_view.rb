@@ -226,14 +226,19 @@ module Syskit
 
             signals 'updated()'
 
-            def push_plan(id, plan, options = Hash.new)
-                options, push_options = Kernel.filter_options options, interactive: true
-                config = send("#{id}_options").merge(push_options)
-                if !options[:interactive]
+            # Adds or updates a plan representation on the HTML page
+            #
+            # @param [String] kind either 'dataflow' or 'hierarchy'
+            # @param [Roby::Plan] plan
+            # @param [Boolean] interactive whether the display is going to be
+            #   interactive
+            def push_plan(kind, plan, interactive: true, **push_options)
+                config = send("#{kind}_options").merge(push_options)
+                if !interactive
                     config.delete(:buttons)
                 end
                 title = config.delete(:title)
-                page.push_plan(title, id, plan, config)
+                page.push_plan(title, config.delete(:mode) || kind, plan, config)
             end
         end
     end

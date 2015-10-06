@@ -668,6 +668,33 @@ describe Syskit::NetworkGeneration::Engine do
             cmp, _ = deploy_task(composition_model)
             assert_equal Hash[['out', 'out'] => Hash.new], cmp.child_child[cmp, Syskit::Flows::DataFlow]
         end
+
+        it "sets a task's fullfilled model only for the arguments that are explicitely set in the toplevel requirements" do
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg0
+            task = syskit_stub_and_deploy(task_m.with_arguments(arg0: flexmock(evaluate_delayed_argument: 10)))
+            assert_equal Hash[], task.explicit_fullfilled_model.last
+        end
+
+        it "sets a task's fullfilled model only from the toplevel requirements" do
+            # This tests checks that it is possible to have a toplevel task
+            # (i.e. an explicitely required task) whose configuration is let
+            # loose, and then let the rest of the network "decide" the actual
+            # configuration
+            #
+            # It catches a bug in the setting of #fullfilled_model, that was
+            # moved to InstanceRequirements#instanciate but really should be in
+            # Engine#instanciate as the "requirements" due to e.g. composition
+            # membership is set through the relation graph.
+            task_m = Syskit::TaskContext.new_submodel
+            task_m.argument :arg0
+            task_m.argument :arg1
+            task = syskit_stub_and_deploy(task_m.with_arguments(arg0: 10))
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add(task_m, as: 'test').with_arguments(arg1: 20)
+            cmp = syskit_deploy(cmp_m)
+            assert_equal Hash[arg0: 10], task.explicit_fullfilled_model.last
+        end
     end
 
     describe "#allocate_devices" do

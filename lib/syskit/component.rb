@@ -218,8 +218,8 @@ module Syskit
                 end
 
                 # Merge the fullfilled model if set explicitely
-                explicit_merged_fullfilled_model = merged_task.instance_variable_get(:@fullfilled_model)
-                explicit_this_fullfilled_model = @fullfilled_model
+                explicit_merged_fullfilled_model = merged_task.explicit_fullfilled_model
+                explicit_this_fullfilled_model   = explicit_fullfilled_model
                 if explicit_this_fullfilled_model && explicit_merged_fullfilled_model
                     self.fullfilled_model = Roby::TaskStructure::Dependency.merge_fullfilled_model(
                         explicit_merged_fullfilled_model,

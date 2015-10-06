@@ -734,11 +734,12 @@ module Syskit
                 klass
             end
 
-            def each_fullfilled_model
-                return enum_for(:each_fullfilled_model) if !block_given?
-                super do |m|
-                    yield(m) if !m.respond_to?(:private_specialization?) || !m.private_specialization?
+            def implicit_fullfilled_model
+                if !@implicit_fullfilled_model
+                    @implicit_fullfilled_model =
+                        super.find_all { |m| !m.respond_to?(:private_specialization?) || !m.private_specialization? }
                 end
+                @implicit_fullfilled_model
             end
 
             # Makes sure this is a private specialized model

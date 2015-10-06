@@ -104,9 +104,6 @@ module Syskit
                     Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
                     Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
                 end
-                if Roby.app.test_show_timings?
-                    merge_timepoints(syskit_engine)
-                end
 
                 root_tasks = root_tasks.map(&:task)
                 if root_tasks.size == 1
@@ -221,6 +218,7 @@ module Syskit
                 end
 
                 syskit_stub_deployment_model(task_m, as)
+                model.deployment_hints.clear
                 model.prefer_deployed_tasks(as)
             end
 
@@ -367,7 +365,7 @@ module Syskit
                 plan.add_permanent(sync_ev = Roby::EventGenerator.new)
                 component.should_configure_after(sync_ev)
 
-                if component.kind_of?(Syskit::Composition) && recursive
+                if recursive
                     component.each_child do |child_task|
                         syskit_start_execution_agents(child_task, recursive: true)
                     end
@@ -388,61 +386,171 @@ module Syskit
                 end
             end
 
-            # Set this component instance up
-            def syskit_configure(component, recursive: true)
-                syskit_start_execution_agents(component, recursive: true)
-
-                # Protect the component against startup and startup
-                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+            def syskit_prepare_configure(component, tasks, sync_ev, recursive: true)
                 component.should_start_after(sync_ev)
-
-                if component.kind_of?(Syskit::Composition) && recursive
-                    component.each_child do |child_task|
-                        if !child_task.setup?
-                            syskit_configure(child_task, recursive: true)
-                        end
-                    end
-                end
-
                 component.freeze_delayed_arguments
 
-                # Might already have been configured while waiting for the ready
-                # event
-                if !component.setup?
-                    if !component.ready_for_setup?
-                        component.ready_for_setup?
-                    end
+                tasks << component
 
-                    component.setup
-                    component.is_setup!
-                end
-                component
-            ensure
-                if sync_ev
-                    plan.remove_object(sync_ev)
+                if recursive
+                    component.each_child do |child_task|
+                        if child_task.respond_to?(:setup?)
+                            syskit_prepare_configure(child_task, tasks, sync_ev, recursive: true)
+                        end
+                    end
                 end
             end
 
-            # Start this component
-            def syskit_start(component, recursive: true)
-                if !component.starting? && !component.running?
-                    if !component.setup?
-                        raise "#{component} is not set up, call #syskit_configure first"
+            class NoConfigureFixedPoint < RuntimeError
+                attr_reader :tasks
+                attr_reader :info
+                Info = Struct.new :missing_arguments, :precedence, :missing
+
+                def initialize(tasks)
+                    @tasks = tasks
+                    @info = Hash.new
+                    tasks.each do |t|
+                        precedence = t.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
+                        missing = precedence.find_all { |ev| !ev.happened? }
+                        info[t] = Info.new(
+                            t.list_unset_arguments,
+                            precedence, missing)
                     end
-                    component.start!
                 end
+                def pretty_print(pp)
+                    pp.text "cannot find an ordering to configure #{tasks.size} tasks"
+                    tasks.each do |t|
+                        pp.breakable
+                        t.pretty_print(pp)
 
-                if !component.running?
-                    assert_event_emission component.start_event
-                end
+                        info = self.info[t]
+                        pp.nest(2) do
+                            pp.breakable
+                            if info.missing_arguments.empty?
+                                pp.text "is fully instanciated"
+                            else
+                                pp.text "missing_arguments: #{info.missing_arguments.join(", ")}"
+                            end
 
-                if recursive
-                    component.each_child do |child|
-                        if !child.running?
-                            syskit_start(child, recursive: true)
+                            pp.breakable
+                            if info.precedence.empty?
+                                pp.text "has no should_configure_after constraint"
+                            else
+                                pp.text "is waiting for #{info.missing.size} events to happen before continuing, among #{info.precedence.size}"
+                                pp.nest(2) do
+                                    info.missing.each do |ev|
+                                        pp.breakable
+                                        ev.pretty_print(ev)
+                                    end
+                                end
+                            end
                         end
                     end
                 end
+            end
+
+            # Set this component instance up
+            def syskit_configure(component, recursive: true)
+                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+                syskit_start_execution_agents(component, recursive: true)
+
+                tasks = Set.new
+                syskit_prepare_configure(component, tasks, sync_ev, recursive: recursive)
+
+                pending = tasks.dup
+                while !pending.empty?
+                    current_state = pending.size
+                    pending.delete_if do |t|
+                        if !t.setup? && t.ready_for_setup?
+                            t.setup
+                            t.is_setup!
+                            true
+                        else
+                            t.setup?
+                        end
+                    end
+                    if current_state == pending.size
+                        raise NoConfigureFixedPoint.new(pending), "cannot configure #{pending.map(&:to_s).join(", ")}"
+                    end
+                end
+
+                component
+
+            ensure
+                plan.remove_object(sync_ev)
+            end
+            
+            class NoStartFixedPoint < RuntimeError
+                attr_reader :tasks
+
+                def initialize(tasks)
+                    @tasks = tasks
+                end
+
+                def pretty_print(pp)
+                    pp.text "cannot find an ordering to start #{tasks.size} tasks"
+                    tasks.each do |t|
+                        pp.breakable
+                        t.pretty_print(pp)
+                    end
+                end
+            end
+
+            def syskit_prepare_start(component, tasks, recursive: true)
+                tasks << component
+
+                if recursive
+                    component.each_child do |child_task|
+                        if child_task.respond_to?(:setup?)
+                            syskit_prepare_start(child_task, tasks, recursive: true)
+                        end
+                    end
+                end
+            end
+            # Start this component
+            def syskit_start(component, recursive: true)
+                tasks = Set.new
+                syskit_prepare_start(component, tasks, recursive: recursive)
+
+                pending = tasks.dup
+                while !pending.empty?
+                    current_state = pending.size
+                    pending.delete_if do |t|
+                        if t.starting? || t.running?
+                            true
+                        elsif t.executable?
+                            if !t.setup?
+                                raise "#{t} is not set up, call #syskit_configure first"
+                            end
+                            t.start!
+                            true
+                        end
+                    end
+
+                    if current_state == pending.size
+                        try_again = tasks.any? do |t|
+                            if t.starting?
+                                assert_event_emission t.start_event
+                                true
+                            end
+                        end
+
+                        if !try_again
+                            raise NoStartFixedPoint.new(pending), "cannot start #{pending.map(&:to_s).join(", ")}"
+                        end
+                    end
+                end
+
+                tasks.each do |t|
+                    if t.starting?
+                        assert_event_emission t.start_event
+                    end
+                end
+
+                if t = tasks.find { |t| !t.running? }
+                    raise "#{t} #{t.starting?} #{t.running?} #{t.finished?}"
+                end
+
                 component
             end
 

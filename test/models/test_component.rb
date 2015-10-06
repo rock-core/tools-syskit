@@ -480,6 +480,14 @@ describe Syskit::Models::Component do
         end
     end
 
+    describe "#fullfilled_model" do
+        it "does not return itself it it is a private specialization" do
+            task_m = Syskit::Component.new_submodel
+            specialized_m = task_m.specialize
+            assert !specialized_m.fullfilled_model.include?(specialized_m)
+        end
+    end
+
     describe "#provides" do
         it "raises if no service name is given" do
             service = Syskit::DataService.new_submodel
