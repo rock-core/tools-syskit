@@ -344,6 +344,22 @@ module Syskit
                 end
             end
 
+            # Declare tasks that are going to be started by some other process,
+            # but whose tasks are going to be integrated in the syskit network
+            def use_unmanaged_task(mappings)
+                mappings.map do |task_model, name|
+                    orogen_model = task_model.orogen_model
+                    deployment_model = Deployment.new_submodel(name: "Deployment::RubyTasks::#{name}") do
+                        task name, orogen_model
+                    end
+
+                    configured_deployment = Models::ConfiguredDeployment.
+                        new('unmanaged_tasks', deployment_model, Hash[name => name], name, Hash.new)
+                    register_configured_deployment(configured_deployment)
+                    configured_deployment
+                end
+            end
+
             # Add the given deployment (referred to by its process name, that is
             # the name given in the oroGen file) to the set of deployments the
             # engine can use.

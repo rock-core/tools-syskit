@@ -207,6 +207,9 @@ module Syskit
                     'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(app.default_loader), app.log_dir)
 
                 Syskit.conf.register_process_server(
+                    'unmanaged_tasks', UnmanagedTasksManager.new, app.log_dir)
+
+                Syskit.conf.register_process_server(
                    'ros', Orocos::ROS::ProcessManager.new(app.ros_loader), app.log_dir)
 
                 ENV['ORO_LOGFILE'] = File.join(app.log_dir, "orocos.orocosrb-#{::Process.pid}.txt")
