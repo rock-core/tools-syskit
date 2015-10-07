@@ -348,6 +348,14 @@ module Syskit
             # but whose tasks are going to be integrated in the syskit network
             def use_unmanaged_task(mappings)
                 mappings.map do |task_model, name|
+                    if task_model.respond_to?(:to_str)
+                        task_model_name = task_model
+                        task_model = Syskit::TaskContext.find_model_from_orogen_name(task_model_name)
+                        if !task_model
+                            raise ArgumentError, "#{task_model_name} is not a known oroGen model name"
+                        end
+                    end
+                        
                     orogen_model = task_model.orogen_model
                     deployment_model = Deployment.new_submodel(name: "Deployment::RubyTasks::#{name}") do
                         task name, orogen_model
