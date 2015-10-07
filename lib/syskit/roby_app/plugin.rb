@@ -443,10 +443,14 @@ module Syskit
 
             def self.roby_engine_propagation_handlers
                 handlers = Hash.new
-                handlers[:update_deployment_states] = [Runtime.method(:update_deployment_states), :type => :external_events]
-                handlers[:update_task_states] = [Runtime.method(:update_task_states), :type => :external_events]
-                handlers[:update] = [Runtime::ConnectionManagement.method(:update), :type => :propagation, :late => true]
-                handlers[:apply_requirement_modifications] = [Runtime.method(:apply_requirement_modifications), :type => :propagation, :late => true]
+                handlers[:update_deployment_states] = [
+                    Runtime.method(:update_deployment_states), type: :external_events]
+                handlers[:update_task_states] = [
+                    Runtime.method(:update_task_states), type: :external_events]
+                handlers[:update] = [
+                    Runtime::ConnectionManagement.method(:update), type: :propagation, late: true]
+                handlers[:apply_requirement_modifications] = [
+                    Runtime.method(:apply_requirement_modifications), type: :propagation, late: true]
                 handlers
             end
 

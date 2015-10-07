@@ -46,9 +46,9 @@ module Syskit
             @robot = Syskit::Robot::RobotDefinition.new
 
             @syskit_handler_ids = Array.new
-            @syskit_handler_ids << engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_deployment_states))
-            @syskit_handler_ids << engine.add_propagation_handler(:type => :external_events, &Runtime.method(:update_task_states))
-            @syskit_handler_ids << engine.add_propagation_handler(:type => :propagation, :late => true, &Runtime::ConnectionManagement.method(:update))
+            @syskit_handler_ids << engine.add_propagation_handler(type: :external_events, &Runtime.method(:update_deployment_states))
+            @syskit_handler_ids << engine.add_propagation_handler(type: :external_events, &Runtime.method(:update_task_states))
+            @syskit_handler_ids << engine.add_propagation_handler(type: :propagation, late: true, &Runtime::ConnectionManagement.method(:update))
 
             if !Syskit.conf.disables_local_process_server?
                 Syskit::RobyApp::Plugin.connect_to_local_process_server
