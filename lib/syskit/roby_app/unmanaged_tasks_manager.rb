@@ -132,7 +132,7 @@ module Syskit
                         end
                         terminated_processes << process
                     else
-                        raise ArgumentError, "#{process} was in dead queue, but does not seem to be part of #{self}"
+                        raise ArgumentError, "#{process}(name: #{process.name}) was in dead queue, but does not seem to be part of #{self} (#{processes.keys.sort.join(", ")})"
                     end
                 end
                 terminated_processes
