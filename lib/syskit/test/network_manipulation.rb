@@ -180,7 +180,7 @@ module Syskit
             # @param [InstanceRequirements] task_m the task context model
             # @param [String] as the deployment name
             def syskit_stub_task_context(model, as: syskit_default_stub_name(model), devices: true)
-                model = syskit_stub_component(model, devices: devices)
+                model = model.to_instance_requirements
 
                 task_m = model.model
                 if task_m.respond_to?(:proxied_data_services)
@@ -208,6 +208,7 @@ module Syskit
                     task_m = task_m.new_submodel(name: "#{task_m.name}-stub")
                 end
                 model.add_models([task_m])
+                model = syskit_stub_component(model, devices: devices)
 
                 concrete_task_m = task_m.concrete_model
                 protect_configuration_manager(concrete_task_m)
