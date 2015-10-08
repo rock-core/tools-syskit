@@ -665,6 +665,8 @@ module Syskit
             def reload_deployments_for(process_server_name)
                 pending_deployments = clear_deployments_for(process_server_name)
                 pending_deployments.each do |d|
+                    next if !d.model.orogen_model.project.name
+
                     app.using_task_library(d.model.orogen_model.project.name)
                     model = app.using_deployment(d.model.orogen_model.name)
                     d = Models::ConfiguredDeployment.new(
