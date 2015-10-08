@@ -155,6 +155,11 @@ module Syskit
                 end
 
                 @kill_thread = Thread.new do
+                    if monitor_thread
+                        monitor_thread.raise Interrupt
+                        monitor_thread.join
+                    end
+
                     deployed_tasks.each_value do |task|
                         begin
                             if task.rtt_state == :RUNNING

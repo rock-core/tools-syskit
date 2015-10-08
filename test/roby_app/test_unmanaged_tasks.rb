@@ -63,6 +63,18 @@ module Syskit
                 end
             end
 
+            it "stopping the process causes the monitor thread to quit" do
+                task = syskit_deploy(task_model)
+                assert_event_emission(task.start_event) do
+                    create_unmanaged_task
+                end
+                process_task = task.execution_agent
+                assert_event_emission(task.stop_event) do
+                    task.stop!
+                end
+                assert !process_task.orocos_process.monitor_thread.alive?
+            end
+
             it "aborts the task if it becomes unavailable" do
                 task = syskit_deploy(task_model)
                 assert_event_emission(task.start_event) do
