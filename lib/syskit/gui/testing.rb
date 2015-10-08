@@ -94,6 +94,9 @@ module Syskit
                 poll_timer.connect(SIGNAL('timeout()')) do
                     manager.poll(autospawn: running?)
                     process_pending_work
+                    if @selected_item
+                        update_selected_item_state
+                    end
                 end
                 poll_timer.start(Integer(poll_period * 1000))
 
@@ -153,10 +156,25 @@ module Syskit
                 test_list_ui.edit_triggers = Qt::AbstractItemView::NoEditTriggers
                 splitter.add_widget(@test_result_ui = Qt::WebView.new(self))
             end
+            
+            def update_selected_item_state
+                item = @selected_item
+                if runtime = item.runtime
+                    if item.finished?
+                        test_result_page.push nil, "Ran for %.01fs" % [runtime], id: 'status'
+                    elsif runtime = item.runtime
+                        test_result_page.push nil, "Running %.01fs" % [runtime], id: 'status'
+                    end
+                else
+                    test_result_page.push nil, "Never ran", id: 'status'
+                end
+            end
 
             def display_item_details(item)
                 @selected_item = item
                 test_result_page.clear
+                update_selected_item_state
+
                 item.exceptions.each do |e|
                     test_result_page.push_exception(nil, e)
                 end
@@ -279,6 +297,7 @@ module Syskit
                 attr_reader :test_results
                 attr_reader :exceptions
 
+                attr_reader :start_time
                 attr_reader :assertions_count
                 attr_reader :failure_count
                 attr_reader :skip_count
@@ -337,13 +356,28 @@ module Syskit
                     @executed
                 end
 
+                def finished?
+                    !!@runtime
+                end
+
                 def start
+                    @start_time = Time.now
+                    @runtime = nil
                     @executed = true
                     self.background = Qt::Brush.new(Qt::Color.new(RUNNING_BACKGROUND))
                     clear
                 end
 
+                def runtime
+                    if @runtime
+                        @runtime
+                    elsif start_time
+                        Time.now - start_time
+                    end
+                end
+
                 def finished
+                    @runtime = runtime
                     if has_failures? || has_exceptions?
                         self.background = Qt::Brush.new(Qt::Color.new(FAILED_BACKGROUND))
                     elsif has_skips?
@@ -513,14 +547,22 @@ module Syskit
                 manager.on_slave_start do |slave|
                     queue_work do
                         register_slave_pid(slave)
-                        item_from_slave(slave).start
+                        item = item_from_slave(slave)
+                        item.start
+                        if selected_item == item
+                            update_item_details
+                        end
                         emit statsChanged
                     end
                 end
                 manager.on_slave_finished do |slave|
                     queue_work do
                         deregister_slave_pid(slave.pid)
-                        item_from_slave(slave).finished
+                        item = item_from_slave(slave)
+                        item.finished
+                        if selected_item == item
+                            update_item_details
+                        end
                     end
                 end
                 server.on_exception do |pid, exception|
