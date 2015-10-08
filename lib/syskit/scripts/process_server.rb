@@ -44,7 +44,7 @@ class ProcessServer < Orocos::RemoteProcesses::Server
     end
 
     def start_process(name, deployment_name, name_mappings, options)
-        options = [working_directory: app.log_dir].merge(options)
+        options = Hash[working_directory: app.log_dir].merge(options)
         super(name, deployment_name, name_mappings, options)
     end
 end
