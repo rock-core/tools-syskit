@@ -627,7 +627,7 @@ module Syskit
 
                 client = Orocos::RemoteProcesses::Client.new(
                     host, port, root_loader: app.default_loader)
-                client.create_log_dir(log_dir, Roby.app.time_tag, Hash['parent' => Roby.app.log_metadata])
+                client.create_log_dir(log_dir, Roby.app.time_tag, Hash['parent' => Roby.app.app_metadata])
                 register_process_server(name, client, log_dir)
                 client
             end
