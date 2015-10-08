@@ -249,6 +249,8 @@ module Syskit
                     stats.assertions_count += slave.assertions_count
                     stats.skip_count += slave.skip_count
                 end
+                # Remove the "self" slave
+                stats.executed_count -= 1
                 stats
             end
 
