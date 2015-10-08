@@ -199,7 +199,7 @@ module Syskit
                             if task.rtt_state == :STOPPED
                                 task.cleanup
                             end
-                        rescue Orocos::NotFound
+                        rescue Orocos::ComError
                         end
                     end
                     dead!
