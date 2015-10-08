@@ -120,7 +120,7 @@ module Syskit
             def wait_termination(timeout = nil)
                 # Verify that the monitor threads are in a good state
                 processes.each_value do |process|
-                    process.verify_monitor
+                    process.verify_threads_state
                 end
 
                 terminated_processes = Array.new

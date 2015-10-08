@@ -3,6 +3,8 @@ module Syskit
         # A class API-compatible with Orocos::Process that represents tasks that
         # are not started by the Syskit instance
         class UnmanagedProcess < Orocos::ProcessBase
+            class TerminateThread < RuntimeError; end
+
             # The {UnmanagedTasksManager} object which created this
             #
             # If non-nil, the object's #dead_deployment will be called when self
@@ -48,6 +50,13 @@ module Syskit
             #
             # It is spawned the first time {#wait_running} returns true
             attr_reader :monitor_thread
+
+            # @api private
+            #
+            # The thread that performs the termination of the tasks
+            #
+            # It is spawned when {#kill} is called
+            attr_reader :kill_thread
 
             # Creates a new object managing the tasks that represent a single unmanaged process
             #
@@ -119,12 +128,27 @@ module Syskit
             # If the monitor thread terminated unexpectedly, it will raise the
             # exception that terminated it, or a RuntimeError if no exceptions
             # have been raised (which should not be possible)
-            def verify_monitor
-                return if !monitor_thread
+            def verify_threads_state
+                if monitor_thread
+                    if !monitor_thread.alive? && alive?
+                        begin
+                            monitor_thread.value
+                        rescue Exception => e
+                            raise e, "the monitor thread for #{self} died with: #{e.message}", e.backtrace
+                        end
+                        raise RuntimeError, "the monitor thread for #{self} died, but not from an exception"
+                    end
+                end
 
-                if !monitor_thread.alive? && alive?
-                    monitor_thread.value
-                    raise RuntimeError, "the monitor thread for #{process} died, but not from an exception"
+                if kill_thread
+                    if !kill_thread.alive? && alive?
+                        begin
+                            kill_thread.value
+                        rescue Exception => e
+                            raise e, "the kill thread for #{self} died with: #{e.message}", e.backtrace
+                        end
+                        raise RuntimeError, "the kill thread for #{self} died, but not from an exception"
+                    end
                 end
             end
 
@@ -143,21 +167,28 @@ module Syskit
                 end
             end
 
+            def terminate_and_join_thread(thread)
+                thread.raise TerminateThread
+                begin
+                    thread.join
+                rescue TerminateThread
+                end
+            end
+
             # "Kill" this process
             #
             # It shuts down the tasks that are part of it
             def kill(wait = true)
                 if !alive?
-                    @spawn_thread.raise Interrupt
-                    @spawn_thread.join
+                    terminate_and_join_thread(@spawn_thread)
                     @alive.make_false # just to make sure
                     return
                 end
 
+                @monitor_thread, monitor_thread = nil, @monitor_thread
                 @kill_thread = Thread.new do
                     if monitor_thread
-                        monitor_thread.raise Interrupt
-                        monitor_thread.join
+                        terminate_and_join_thread(monitor_thread)
                     end
 
                     deployed_tasks.each_value do |task|

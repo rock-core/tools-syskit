@@ -69,10 +69,11 @@ module Syskit
                     create_unmanaged_task
                 end
                 process_task = task.execution_agent
+                monitor_thread = process_task.orocos_process.monitor_thread
                 assert_event_emission(task.stop_event) do
                     task.stop!
                 end
-                assert !process_task.orocos_process.monitor_thread.alive?
+                assert !monitor_thread.alive?
             end
 
             it "aborts the task if it becomes unavailable" do
@@ -80,11 +81,13 @@ module Syskit
                 assert_event_emission(task.start_event) do
                     create_unmanaged_task
                 end
+                agent = task.execution_agent
                 inhibit_fatal_messages do
                     assert_event_emission(task.aborted_event) do
                         delete_unmanaged_task
                     end
                 end
+                assert agent.failed?
             end
         end
     end
