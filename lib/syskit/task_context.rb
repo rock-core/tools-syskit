@@ -852,24 +852,45 @@ module Syskit
                         connections.each_key do |source_port, sink_port|
                             if find_input_port(sink_port).static?
                                 return true if !source_task.transaction_proxy?
-
                                 sources = (new_connections_to_static[sink_port] ||= Set.new)
                                 sources << [source_task.orocos_name, source_port]
                             end
                         end
                     end
 
+                    each_sink do |sink_task|
+                        connections = self[sink_task, Flows::DataFlow]
+                        connections.each_key do |source_port, sink_port|
+                            if find_output_port(source_port).static?
+                                return true if !sink_task.transaction_proxy?
+                                sinks = (new_connections_to_static[source_port] ||= Set.new)
+                                sinks << [sink_task.orocos_name, sink_port]
+                            end
+                        end
+                    end
+
                     current_connections_to_static = Hash.new
-                    __getobj__.each_source do |source_task|
-                        # We ignore connections to tasks that are not present in
-                        # the transaction, as they are left as-is by Roby by
-                        # definition
-                        next if !plan.has_proxy_for?(source_task)
-                        connections = source_task[__getobj__, Flows::DataFlow]
+                    orocos_task.each_parent_vertex(Syskit::ActualDataFlow) do |source_task|
+                        # Transactions neither touch ActualDataFlow nor the
+                        # task-to-orocos_task mapping. It's safe to check it
+                        # straight.
+                        connections = source_task[orocos_task, Syskit::ActualDataFlow]
                         connections.each_key do |source_port, sink_port|
                             if find_input_port(sink_port).static?
                                 sources = (current_connections_to_static[sink_port] ||= Set.new)
-                                sources << [source_task.orocos_name, source_port]
+                                sources << [source_task.name, source_port]
+                            end
+                        end
+                    end
+                    orocos_task.each_child_vertex(Syskit::ActualDataFlow) do |sink_task|
+                        # Transactions neither touch ActualDataFlow nor the
+                        # task-to-orocos_task mapping. It's safe to check it
+                        # straight.
+                        connections = orocos_task[sink_task, Syskit::ActualDataFlow]
+                        connections.each_key do |source_port, sink_port|
+                            if find_output_port(source_port).static?
+                                sinks = (current_connections_to_static[source_port] ||= Set.new)
+                                sinks << [sink_task.name, sink_port]
                             end
                         end
                     end

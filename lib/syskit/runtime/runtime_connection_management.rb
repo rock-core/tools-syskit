@@ -151,51 +151,43 @@ module Syskit
                     find { |t| t.setup? && (t.orocos_task == orocos_task) }
             end
 
-            def new_connections_require_network_update?(connections)
-                connections.each do |(source_task, sink_task), mappings|
-                    if source_task.running?
-                        mappings.each_key do |source_port, _|
-                            if port = source_task.model.find_output_port(source_port)
-                                return true if !port || port.static?
-                            end
-                        end
-                    end
-                    if sink_task.running?
-                        mappings.each_key do |_, sink_port|
-                            if port = sink_task.model.find_input_port(sink_port)
-                                return true if !port || port.static?
-                            end
-                        end
-                    end
-                end
-                false
-            end
-
             def removed_connections_require_network_update?(connections)
                 unneeded_tasks = nil
                 handle_modified_task = lambda do |orocos_task|
-                    if syskit_task = find_setup_syskit_task_context_from_orocos_task(orocos_task)
-                        unneeded_tasks ||= plan.unneeded_tasks
-                        if !unneeded_tasks.include?(syskit_task)
-                            return true
-                        end
+                    if !(syskit_task = find_setup_syskit_task_context_from_orocos_task(orocos_task))
+                        return false
+                    elsif !syskit_task.setup?
+                        return false
+                    end
+
+                    unneeded_tasks ||= plan.unneeded_tasks
+                    if !unneeded_tasks.include?(syskit_task)
+                        return true
                     end
                 end
 
                 connections.each do |(source_task, sink_task), mappings|
                     source_task_modified = mappings.any? do |source_port, sink_port|
                         port = source_task.model.find_output_port(source_port)
-                        (!port || port.static?)
+                        if port && port.static?
+                            ConnectionManagement.debug { "#{source_task} has an outgoing connection removed from #{source_port} and the port is static" }
+                            true 
+                        end
                     end
                     if source_task_modified && handle_modified_task[source_task]
+                        ConnectionManagement.debug { "#{source_task} has connection modifications that require a deployment and it is not going to be garbage collected, redeploying" }
                         return true
                     end
 
                     sink_task_modified = mappings.any? do |_, sink_port|
                         port = sink_task.model.find_input_port(sink_port)
-                        (!port || port.static?)
+                        if port && port.static?
+                            ConnectionManagement.debug { "#{sink_task} has a connection removed from #{sink_port} and the port is static" }
+                            true 
+                        end
                     end
                     if sink_task_modified && handle_modified_task[sink_task]
+                        ConnectionManagement.debug { "#{sink_task} has connection modifications that require a deployment and it is not going to be garbage collected, redeploying" }
                         return true
                     end
                 end
@@ -244,7 +236,7 @@ module Syskit
                     end
                 end
 
-                if new_connections_require_network_update?(new) || removed_connections_require_network_update?(removed)
+                if removed_connections_require_network_update?(removed)
                     plan.syskit_engine.force_update!
                     throw :cancelled
                 end

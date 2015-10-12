@@ -24,63 +24,85 @@ describe Syskit::Runtime::ConnectionManagement do
     end
 
     describe "#update" do
-        attr_reader :source_task, :sink_task
-        before do
-            @source_task = syskit_stub_and_deploy("source") do
-                output_port 'out', '/double'
-                output_port 'state', '/int'
-            end
-            @sink_task = syskit_stub_and_deploy("sink") do
-                output_port 'state', '/int'
-                input_port 'in', '/double'
-            end
-            syskit_start_execution_agents(source_task)
-            syskit_start_execution_agents(sink_task)
-        end
-
-        it "should connect tasks only once they have been set up" do
-            source_task.connect_to(sink_task)
-            FlexMock.use(source_task.orocos_task.port('out')) do |mock|
-                mock.should_receive(:connect_to).never
-                Syskit::Runtime::ConnectionManagement.update(plan)
+        describe "interaction between connections and task states" do
+            attr_reader :source_task, :sink_task
+            before do
+                @source_task = syskit_stub_and_deploy("source") do
+                    output_port 'out', '/double'
+                    output_port 'state', '/int'
+                end
+                @sink_task = syskit_stub_and_deploy("sink") do
+                    output_port 'state', '/int'
+                    input_port 'in', '/double'
+                end
+                syskit_start_execution_agents(source_task)
+                syskit_start_execution_agents(sink_task)
             end
 
-            FlexMock.use(source_task.orocos_task.port('out')) do |mock|
-                mock.should_receive(:connect_to).once
-                syskit_configure(source_task)
-                syskit_configure(sink_task)
-                Syskit::Runtime::ConnectionManagement.update(plan)
+            it "should connect tasks only once they have been set up" do
+                source_task.connect_to(sink_task)
+                FlexMock.use(source_task.orocos_task.port('out')) do |mock|
+                    mock.should_receive(:connect_to).never
+                    Syskit::Runtime::ConnectionManagement.update(plan)
+                end
+
+                FlexMock.use(source_task.orocos_task.port('out')) do |mock|
+                    mock.should_receive(:connect_to).once
+                    syskit_configure(source_task)
+                    syskit_configure(sink_task)
+                    Syskit::Runtime::ConnectionManagement.update(plan)
+                end
             end
-        end
 
-        # This is really a system test. We simulate having pending new and
-        # removed connections that are queued because some tasks are not set up,
-        # and then kill the tasks involved. The resulting operation should work
-        # fine (i.e. not creating the dead connections)
-        it "should ignore pending new connections that involve a dead task" do
-            source_task.connect_to(sink_task)
-            Syskit::Runtime::ConnectionManagement.update(plan)
-            source_task.execution_agent.stop!
-            # This is normally done by Runtime.update_deployment_states
-            source_task.execution_agent.cleanup_dead_connections
-            Syskit::Runtime::ConnectionManagement.update(plan)
-        end
-
-        it "should ignore pending removed connections that involve a dead task" do
-            source_task.connect_to(sink_task)
-            syskit_configure(source_task)
-            syskit_configure(sink_task)
-            Syskit::Runtime::ConnectionManagement.update(plan)
-
-            source_task.disconnect_ports(sink_task, [['out', 'in']])
-            FlexMock.use(Syskit::Runtime::ConnectionManagement) do |mock|
-                mock.new_instances.should_receive(:apply_connection_changes).at_least.once.and_throw(:cancelled)
+            # This is really a system test. We simulate having pending new and
+            # removed connections that are queued because some tasks are not set up,
+            # and then kill the tasks involved. The resulting operation should work
+            # fine (i.e. not creating the dead connections)
+            it "should ignore pending new connections that involve a dead task" do
+                source_task.connect_to(sink_task)
                 Syskit::Runtime::ConnectionManagement.update(plan)
                 source_task.execution_agent.stop!
                 # This is normally done by Runtime.update_deployment_states
                 source_task.execution_agent.cleanup_dead_connections
+                Syskit::Runtime::ConnectionManagement.update(plan)
             end
+
+            it "should ignore pending removed connections that involve a dead task" do
+                source_task.connect_to(sink_task)
+                syskit_configure(source_task)
+                syskit_configure(sink_task)
+                Syskit::Runtime::ConnectionManagement.update(plan)
+
+                source_task.disconnect_ports(sink_task, [['out', 'in']])
+                FlexMock.use(Syskit::Runtime::ConnectionManagement) do |mock|
+                    mock.new_instances.should_receive(:apply_connection_changes).at_least.once.and_throw(:cancelled)
+                    Syskit::Runtime::ConnectionManagement.update(plan)
+                    source_task.execution_agent.stop!
+                    # This is normally done by Runtime.update_deployment_states
+                    source_task.execution_agent.cleanup_dead_connections
+                end
+                Syskit::Runtime::ConnectionManagement.update(plan)
+            end
+        end
+
+        it "triggers a deployment if a connection to a static port is removed on an already setup task" do
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port('in', '/double').
+                    static
+                output_port 'out', '/double'
+            end
+            source = syskit_stub_and_deploy(task_m.with_conf('source'))
+            sink   = syskit_stub_and_deploy(task_m.with_conf('sink'))
+            source.out_port.connect_to sink.in_port
+            syskit_configure_and_start(source)
+            syskit_configure_and_start(sink)
+            source.out_port.disconnect_from sink.in_port
+
+            sink_srv = sink.as_service
             Syskit::Runtime::ConnectionManagement.update(plan)
+            assert plan.syskit_engine.forced_update?
+            plan.syskit_engine.resolve
+            refute_equal sink, sink_srv.to_task
         end
 
         it "detects and applies removed connections between ports, even if the two underlying tasks still have connections" do
@@ -107,3 +129,4 @@ describe Syskit::Runtime::ConnectionManagement do
         end
     end
 end
+
