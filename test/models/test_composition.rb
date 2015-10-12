@@ -41,11 +41,11 @@ describe Syskit::Models::Composition do
             submodel = Syskit::Composition.new_submodel
             subsubmodel = submodel.new_submodel
 
-            assert Syskit::Component.submodels.include?(submodel)
-            assert Syskit::Component.submodels.include?(subsubmodel)
-            assert Syskit::Composition.submodels.include?(submodel)
-            assert Syskit::Composition.submodels.include?(subsubmodel)
-            assert submodel.submodels.include?(subsubmodel)
+            assert Syskit::Component.has_submodel?(submodel)
+            assert Syskit::Component.has_submodel?(subsubmodel)
+            assert Syskit::Composition.has_submodel?(submodel)
+            assert Syskit::Composition.has_submodel?(subsubmodel)
+            assert submodel.has_submodel?(subsubmodel)
         end
 
         it "does not register the submodels on provided services" do
@@ -54,8 +54,8 @@ describe Syskit::Models::Composition do
             submodel.provides ds, as: 'srv'
             subsubmodel = submodel.new_submodel
 
-            assert !ds.submodels.include?(subsubmodel)
-            assert submodel.submodels.include?(subsubmodel)
+            assert !ds.has_submodel?(subsubmodel)
+            assert submodel.has_submodel?(subsubmodel)
         end
 
         it "registers specializations from the parent model to the child model" do
@@ -94,23 +94,23 @@ describe Syskit::Models::Composition do
             m11 = m1.new_submodel
 
             m1.clear_submodels
-            assert !m1.submodels.include?(m11)
-            assert Syskit::Component.submodels.include?(m1)
-            assert Syskit::Composition.submodels.include?(m1)
-            assert Syskit::Component.submodels.include?(m2)
-            assert Syskit::Composition.submodels.include?(m2)
-            assert !Syskit::Component.submodels.include?(m11)
-            assert !Syskit::Composition.submodels.include?(m11)
+            assert !m1.has_submodel?(m11)
+            assert Syskit::Component.has_submodel?(m1)
+            assert Syskit::Composition.has_submodel?(m1)
+            assert Syskit::Component.has_submodel?(m2)
+            assert Syskit::Composition.has_submodel?(m2)
+            assert !Syskit::Component.has_submodel?(m11)
+            assert !Syskit::Composition.has_submodel?(m11)
 
             m11 = m1.new_submodel
             Syskit::Composition.clear_submodels
-            assert !m1.submodels.include?(m11)
-            assert !Syskit::Component.submodels.include?(m1)
-            assert !Syskit::Composition.submodels.include?(m1)
-            assert !Syskit::Component.submodels.include?(m2)
-            assert !Syskit::Composition.submodels.include?(m2)
-            assert !Syskit::Component.submodels.include?(m11)
-            assert !Syskit::Composition.submodels.include?(m11)
+            assert !m1.has_submodel?(m11)
+            assert !Syskit::Component.has_submodel?(m1)
+            assert !Syskit::Composition.has_submodel?(m1)
+            assert !Syskit::Component.has_submodel?(m2)
+            assert !Syskit::Composition.has_submodel?(m2)
+            assert !Syskit::Component.has_submodel?(m11)
+            assert !Syskit::Composition.has_submodel?(m11)
         end
     end
 

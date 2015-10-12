@@ -65,11 +65,11 @@ describe Syskit::Models::TaskContext do
             submodel = Syskit::TaskContext.new_submodel
             subsubmodel = submodel.new_submodel
 
-            assert Syskit::Component.submodels.include?(submodel)
-            assert Syskit::Component.submodels.include?(subsubmodel)
-            assert Syskit::TaskContext.submodels.include?(submodel)
-            assert Syskit::TaskContext.submodels.include?(subsubmodel)
-            assert submodel.submodels.include?(subsubmodel)
+            assert Syskit::Component.has_submodel?(submodel)
+            assert Syskit::Component.has_submodel?(subsubmodel)
+            assert Syskit::TaskContext.has_submodel?(submodel)
+            assert Syskit::TaskContext.has_submodel?(subsubmodel)
+            assert submodel.has_submodel?(subsubmodel)
         end
 
         it "does not register the new models as children of the provided services" do
@@ -78,8 +78,8 @@ describe Syskit::Models::TaskContext do
             submodel.provides ds, as: 'srv'
             subsubmodel = submodel.new_submodel
 
-            assert !ds.submodels.include?(subsubmodel)
-            assert submodel.submodels.include?(subsubmodel)
+            assert !ds.has_submodel?(subsubmodel)
+            assert submodel.has_submodel?(subsubmodel)
         end
 
         it "registers the oroGen model to syskit model mapping" do
@@ -95,8 +95,8 @@ describe Syskit::Models::TaskContext do
             m2 = Syskit::TaskContext.new_submodel
             m11 = m1.new_submodel
             m1.clear_submodels
-            assert Syskit::Component.submodels.include?(m2)
-            assert Syskit::TaskContext.submodels.include?(m2)
+            assert Syskit::Component.has_submodel?(m2)
+            assert Syskit::TaskContext.has_submodel?(m2)
         end
 
         it "deregisters the models on its parent classes as well" do
@@ -104,27 +104,27 @@ describe Syskit::Models::TaskContext do
             m11 = m1.new_submodel
             m1.clear_submodels
 
-            assert !m1.submodels.include?(m11)
-            assert !Syskit::Component.submodels.include?(m11)
-            assert !Syskit::TaskContext.submodels.include?(m11)
+            assert !m1.has_submodel?(m11)
+            assert !Syskit::Component.has_submodel?(m11)
+            assert !Syskit::TaskContext.has_submodel?(m11)
         end
 
         it "does not deregisters the receiver" do
             m1 = Syskit::TaskContext.new_submodel
             m11 = m1.new_submodel
             m1.clear_submodels
-            assert Syskit::Component.submodels.include?(m1)
-            assert Syskit::TaskContext.submodels.include?(m1)
+            assert Syskit::Component.has_submodel?(m1)
+            assert Syskit::TaskContext.has_submodel?(m1)
         end
 
         it "deregisters models on its child classs" do
             m1 = OroGen::RTT::TaskContext.new_submodel
-            assert OroGen::RTT::TaskContext.submodels.include?(m1)
+            assert OroGen::RTT::TaskContext.has_submodel?(m1)
             m11 = m1.new_submodel
             OroGen::RTT::TaskContext.clear_submodels
-            assert !m1.submodels.include?(m11)
-            assert !Syskit::Component.submodels.include?(m1)
-            assert !Syskit::TaskContext.submodels.include?(m1)
+            assert !m1.has_submodel?(m11)
+            assert !Syskit::Component.has_submodel?(m1)
+            assert !Syskit::TaskContext.has_submodel?(m1)
         end
 
         it "removes the corresponding orogen to syskit model mapping" do

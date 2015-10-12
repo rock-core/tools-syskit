@@ -61,7 +61,7 @@ class TC_AbstractPlaceholders < Minitest::Test
     def test_proxy_tasks_are_registered_as_submodels
 	task_model = TaskContext.new_submodel
 	proxy_model = Syskit.proxy_task_model_for([data_service_type('A'), task_model])
-        assert task_model.submodels.include?(proxy_model)
+        assert task_model.has_submodel?(proxy_model)
     end
 
     def test_proxy_task_returns_same_model

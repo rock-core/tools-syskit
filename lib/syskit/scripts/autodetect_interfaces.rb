@@ -16,7 +16,7 @@ end
 
 layout = Hash.new { |h, k| h[k] = Array.new }
 
-tasks = TaskContext.submodels.dup
+tasks = TaskContext.each_submodel.to_a
 while !tasks.empty?
     result = Array.new
 

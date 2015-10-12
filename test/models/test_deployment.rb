@@ -21,9 +21,9 @@ class TC_Models_Deployment < Minitest::Test
         submodel = Deployment.new_submodel
         subsubmodel = submodel.new_submodel
 
-        assert Deployment.submodels.include?(submodel)
-        assert Deployment.submodels.include?(subsubmodel)
-        assert submodel.submodels.include?(subsubmodel)
+        assert Deployment.has_submodel?(submodel)
+        assert Deployment.has_submodel?(subsubmodel)
+        assert submodel.has_submodel?(subsubmodel)
     end
 
     def test_define_from_orogen
@@ -56,17 +56,17 @@ class TC_Models_Deployment < Minitest::Test
         m11 = m1.new_submodel
 
         m1.clear_submodels
-        assert !m1.submodels.include?(m11)
-        assert Deployment.submodels.include?(m1)
-        assert Deployment.submodels.include?(m2)
-        assert !Deployment.submodels.include?(m11)
+        assert !m1.has_submodel?(m11)
+        assert Deployment.has_submodel?(m1)
+        assert Deployment.has_submodel?(m2)
+        assert !Deployment.has_submodel?(m11)
 
         m11 = m1.new_submodel
         Deployment.clear_submodels
-        assert !m1.submodels.include?(m11)
-        assert !Deployment.submodels.include?(m1)
-        assert !Deployment.submodels.include?(m2)
-        assert !Deployment.submodels.include?(m11)
+        assert !m1.has_submodel?(m11)
+        assert !Deployment.has_submodel?(m1)
+        assert !Deployment.has_submodel?(m2)
+        assert !Deployment.has_submodel?(m11)
     end
 end
 
