@@ -20,9 +20,9 @@ module Syskit
             # a DependencyInjection object
             attr_reader :selections
             protected :selections
-            # A DI context that should be used to instanciate this task
-            attr_reader :dependency_injection_context
-            protected :dependency_injection_context
+            # The overall DI context (i.e. "globals")
+            attr_reader :context_selections
+            protected :context_selections
             # The set of pushed selections
             #
             # @see push_selections
@@ -61,7 +61,7 @@ module Syskit
                 @arguments = Hash.new
                 @selections = DependencyInjection.new
                 @pushed_selections = DependencyInjection.new
-                @dependency_injection_context = DependencyInjectionContext.new
+                @context_selections = DependencyInjection.new
                 @deployment_hints = Set.new
                 @specialization_hints = Set.new
                 @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), [])
@@ -81,7 +81,7 @@ module Syskit
                 @pushed_selections = old.pushed_selections.dup
                 @deployment_hints = old.deployment_hints.dup
                 @specialization_hints = old.specialization_hints.dup
-                @dependency_injection_context = old.dependency_injection_context.dup
+                @context_selections = old.context_selections.dup
             end
 
             def initialize_copy(old)
@@ -363,10 +363,11 @@ module Syskit
                 end
                 @selections.merge(other_spec.selections)
                 @pushed_selections.merge(other_spec.pushed_selections)
+                @context_selections.merge(other_spec.context_selections)
 
                 @deployment_hints |= other_spec.deployment_hints
                 @specialization_hints |= other_spec.specialization_hints
-                @dependency_injection_context.concat(other_spec.dependency_injection_context)
+
                 @di = nil
                 # Call modules that could have been included in the class to
                 # extend it
@@ -677,8 +678,11 @@ module Syskit
             # @param [DependencyInjection] di the new DI information
             # @return [void]
             def push_dependency_injection(di)
-                dependency_injection_context.push(di)
                 @di = nil
+                merger = DependencyInjectionContext.new
+                merger.push context_selections
+                merger.push di
+                @context_selections = merger.current_state
             end
 
             # Returns the DI object used by this instance requirements task
@@ -687,7 +691,7 @@ module Syskit
             def resolved_dependency_injection
                 if !@di
                     context = DependencyInjectionContext.new
-                    context.concat(dependency_injection_context)
+                    context.push(context_selections)
                     # Add a barrier for the names that our models expect. This is
                     # required to avoid recursively reusing names (which was once
                     # upon a time, and is a very confusing feature)
