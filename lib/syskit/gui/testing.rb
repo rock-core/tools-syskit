@@ -324,7 +324,6 @@ module Syskit
 
                     self.text = name
                     self.background = Qt::Brush.new(Qt::Color.new(NEW_SLAVE_BACKGROUND))
-                    self.slave_object_id = slave.object_id
                 end
 
                 def each_test_result(&block)
@@ -333,14 +332,6 @@ module Syskit
 
                 def run_count
                     test_results.size
-                end
-
-                def slave_object_id
-                    data(SLAVE_OBJECT_ID_ROLE).to_long_long
-                end
-
-                def slave_object_id=(id)
-                    set_data(Qt::Variant.new(id), SLAVE_OBJECT_ID_ROLE)
                 end
 
                 def slave_pid=(pid)
