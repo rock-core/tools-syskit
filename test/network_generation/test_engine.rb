@@ -695,6 +695,37 @@ describe Syskit::NetworkGeneration::Engine do
             cmp = syskit_deploy(cmp_m)
             assert_equal Hash[arg0: 10], task.explicit_fullfilled_model.last
         end
+
+        it "synchronizes the startup of communication busses and their supported devices" do
+            combus_m = Syskit::ComBus.new_submodel message_type: '/int'
+            combus_driver_m = Syskit::TaskContext.new_submodel { dynamic_output_port /.*/, '/int' }
+            combus_driver_m.provides combus_m, as: 'driver'
+
+            device_m = Syskit::Device.new_submodel
+            device_driver_m = Syskit::TaskContext.new_submodel { input_port 'bus_in', '/int' }
+            device_driver_m.provides combus_m.client_in_srv, as: 'bus'
+            device_driver_m.provides device_m, as: 'driver'
+
+            bus = robot.com_bus combus_m, as: 'bus'
+            dev = robot.device device_m, as: 'dev'
+            dev.attach_to(bus)
+
+            syskit_stub_deployment_model(device_driver_m)
+            syskit_stub_deployment_model(combus_driver_m)
+            dev_driver = syskit_stub_and_deploy(dev)
+            bus_driver = plan.find_tasks(combus_driver_m).with_parent(dev_driver).first
+            plan.add_mission(dev_driver)
+            syskit_start_execution_agents(bus_driver)
+            syskit_start_execution_agents(dev_driver)
+
+            bus_driver.orocos_task.create_output_port 'dev', '/int'
+            flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered.pass_thru
+            flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered.pass_thru
+            flexmock(dev_driver.orocos_task, "dev").should_receive(:configure).once.globally.ordered.pass_thru
+            plan.engine.scheduler.enabled = true
+            assert_event_emission bus_driver.start_event
+            assert_event_emission dev_driver.start_event
+        end
     end
 
     describe "#allocate_devices" do

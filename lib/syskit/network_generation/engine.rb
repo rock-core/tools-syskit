@@ -412,7 +412,7 @@ module Syskit
                         com_bus_task = com_bus_task.component
                         com_bus_task.attach(task)
                         task.depends_on com_bus_task
-                        task.should_start_after com_bus_task.start_event
+                        task.should_configure_after com_bus_task.start_event
                     end
                 end
                 nil
