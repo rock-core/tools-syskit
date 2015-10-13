@@ -470,8 +470,10 @@ module Syskit
                         if options[:direction] == 'inout'
                             provides combus_m.bus_srv, 'from_bus' => combus_m.output_name_for(name),
                                 'to_bus' => in_name
+                            component_model.orogen_model.find_port(in_name).needs_reliable_connection
                         elsif options[:direction] == 'in'
                             provides combus_m.bus_in_srv, 'to_bus' => in_name
+                            component_model.orogen_model.find_port(in_name).needs_reliable_connection
                         elsif options[:direction] == 'out'
                             provides combus_m.bus_out_srv, 'from_bus' => combus_m.output_name_for(name)
                         else raise ArgumentError, "invalid :direction option given, expected 'in', 'out' or 'inout' and got #{options[:direction]}"
