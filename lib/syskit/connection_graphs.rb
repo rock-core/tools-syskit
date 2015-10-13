@@ -79,6 +79,8 @@ module Syskit
             # Raises Roby::ModelViolation if the connection already exists with
             # an incompatible policy
             def add_connections(source_task, sink_task, mappings) # :nodoc:
+                force_update = mappings.delete(:force_update)
+
                 if mappings.empty?
                     raise ArgumentError, "the connection set is empty"
                 end
@@ -88,9 +90,14 @@ module Syskit
                         if old_options.empty? then new_options
                         elsif new_options.empty? then old_options
                         elsif old_options != new_options
-                            raise Roby::ModelViolation, "cannot override connection setup with #connect_to (#{old_options} != #{new_options})"
+                            if force_update
+                                new_options
+                            else
+                                raise Roby::ModelViolation, "cannot override connection setup with #connect_to (#{old_options} != #{new_options})"
+                            end
+                        else
+                            old_options
                         end
-                        old_options
                     end
                     source_task[sink_task, self] = mappings
                 else
@@ -740,11 +747,14 @@ module Syskit
             #
             # If the +only_static+ flag is set to true, only ports that require
             # static connections will be considered
-            def all_inputs_connected?
+            def all_inputs_connected?(only_static: false)
                 each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     # Our source may not be initialized at all
                     if !source_task.orocos_task
                         return false
+                    end
+                    if only_static && !concrete_model.find_input_port(sink_port)
+                        next
                     end
 
                     return false if !ActualDataFlow.linked?(source_task.orocos_task, orocos_task)
