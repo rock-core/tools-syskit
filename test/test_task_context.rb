@@ -710,8 +710,8 @@ describe Syskit::TaskContext do
         flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered(:setup).pass_thru
         flexmock(dev_driver.orocos_task, "dev").should_receive(:start).once.globally.ordered.pass_thru
         plan.engine.scheduler.enabled = true
-        process_events
-        process_events
+        assert_event_emission bus_driver.start_event
+        assert_event_emission dev_driver.start_event
     end
 
     describe "#transaction_modifies_static_ports?" do
