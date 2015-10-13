@@ -495,6 +495,7 @@ module Syskit
 
                 pending = tasks.dup
                 while !pending.empty?
+                    Syskit::Runtime::ConnectionManagement.update(component.plan)
                     current_state = pending.size
                     pending.delete_if do |t|
                         if !t.setup? && t.ready_for_setup?

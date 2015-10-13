@@ -367,6 +367,8 @@ module Syskit
             def ready_for_setup?(state = nil)
                 if !super()
                     return false
+                elsif !all_inputs_connected?(only_static: true)
+                    return false
                 elsif !orogen_model || !orocos_task
                     return false
                 end
@@ -409,7 +411,11 @@ module Syskit
             # If true, #configure must be called on this task before it is
             # started. This flag is reset after #configure has been called
             def needs_reconfiguration?
-                TaskContext.needs_reconfiguration.include?(orocos_name)
+                TaskContext.needs_reconfiguration?(orocos_name)
+            end
+
+            def self.needs_reconfiguration?(orocos_name)
+                needs_reconfiguration.include?(orocos_name)
             end
 
             # Make sure that #configure will be called on this task before it
