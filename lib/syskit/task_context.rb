@@ -876,13 +876,13 @@ module Syskit
                     end
 
                     current_connections_to_static = Hash.new
-                    orocos_task.each_parent_vertex(Syskit::ActualDataFlow) do |source_task|
+                    orocos_task.each_parent_vertex(ActualDataFlow) do |source_task|
                         # Transactions neither touch ActualDataFlow nor the
                         # task-to-orocos_task mapping. It's safe to check it
                         # straight.
-                        connections = source_task[orocos_task, Syskit::ActualDataFlow]
+                        connections = source_task[orocos_task, ActualDataFlow]
                         connections.each_key do |source_port, sink_port|
-                            if find_input_port(sink_port).static?
+                            if ActualDataFlow.static?(orocos_task, sink_port)
                                 sources = (current_connections_to_static[sink_port] ||= Set.new)
                                 sources << [source_task.name, source_port]
                             end
@@ -894,7 +894,7 @@ module Syskit
                         # straight.
                         connections = orocos_task[sink_task, Syskit::ActualDataFlow]
                         connections.each_key do |source_port, sink_port|
-                            if find_output_port(source_port).static?
+                            if ActualDataFlow.static?(orocos_task, source_port)
                                 sinks = (current_connections_to_static[source_port] ||= Set.new)
                                 sinks << [sink_task.name, sink_port]
                             end

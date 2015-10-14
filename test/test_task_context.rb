@@ -502,7 +502,7 @@ describe Syskit::TaskContext do
                 end
                 orocos_tasks = [source_task.orocos_task, task.orocos_task]
 
-                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => Hash.new])
+                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
                 assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
 
                 Syskit::TaskContext.configured['task'] = nil
@@ -528,7 +528,7 @@ describe Syskit::TaskContext do
                 end
                 orocos_tasks = [task.orocos_task, sink_task.orocos_task]
 
-                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => Hash.new])
+                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
                 assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
 
                 Syskit::TaskContext.configured['task'] = nil

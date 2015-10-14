@@ -140,6 +140,11 @@ module Syskit
                     find { |t| t.setup? && (t.orocos_task == orocos_task) }
             end
 
+            # Checks whether the removal of some connections require to run the
+            # Syskit deployer right away
+            #
+            # @param [{(Orocos::TaskContext,Orocos::TaskContext) => {[String,String] => Hash}}] removed
+            #   the connections, specified between the actual tasks (NOT their Roby representations)
             def removed_connections_require_network_update?(connections)
                 unneeded_tasks = nil
                 handle_modified_task = lambda do |orocos_task|
@@ -154,33 +159,24 @@ module Syskit
                 end
 
                 connections.each do |(source_task, sink_task), mappings|
-                    source_task_modified = mappings.any? do |source_port, sink_port|
-                        port = source_task.model.find_output_port(source_port)
-                        if port && port.static?
-                            ConnectionManagement.debug { "#{source_task} has an outgoing connection removed from #{source_port} and the port is static" }
-                            true 
+                    mappings.each do |source_port, sink_port|
+                        if ActualDataFlow.static?(source_task, source_port) && handle_modified_task[source_task]
+                            debug { "#{source_task} has an outgoing connection removed from #{source_port} and the port is static" }
+                            return true
+                        elsif ActualDataFlow.static?(sink_task, sink_port) && handle_modified_task[sink_task]
+                            debug { "#{sink_task} has an outgoing connection removed from #{sink_port} and the port is static" }
+                            return true
                         end
-                    end
-                    if source_task_modified && handle_modified_task[source_task]
-                        ConnectionManagement.debug { "#{source_task} has connection modifications that require a deployment and it is not going to be garbage collected, redeploying" }
-                        return true
-                    end
-
-                    sink_task_modified = mappings.any? do |_, sink_port|
-                        port = sink_task.model.find_input_port(sink_port)
-                        if port && port.static?
-                            ConnectionManagement.debug { "#{sink_task} has a connection removed from #{sink_port} and the port is static" }
-                            true 
-                        end
-                    end
-                    if sink_task_modified && handle_modified_task[sink_task]
-                        ConnectionManagement.debug { "#{sink_task} has connection modifications that require a deployment and it is not going to be garbage collected, redeploying" }
-                        return true
                     end
                 end
                 false
             end
             
+            # Remove port-to-port connections
+            #
+            # @param [{(Orocos::TaskContext,Orocos::TaskContext) => {[String,String] => Hash}}] removed
+            #   the connections, specified between the actual tasks (NOT their Roby representations)
+            # @return [[Syskit::TaskContext]] the list of tasks whose connections have been modified
             def apply_connection_removal(removed)
                 modified = Set.new
                 # Remove connections first
@@ -223,6 +219,12 @@ module Syskit
                             syskit_sink_task.removed_input_port_connection(source_task, source_port, sink_port)
                         end
 
+                        if ActualDataFlow.static?(source_task, source_port)
+                            TaskContext.needs_reconfiguration << source_task.name
+                        end
+                        if ActualDataFlow.static?(sink_task, sink_port)
+                            TaskContext.needs_reconfiguration << sink_task.name
+                        end
                         ActualDataFlow.remove_connections(source_task, sink_task,
                                           [[source_port, sink_port]])
 
@@ -253,6 +255,11 @@ module Syskit
                 modified
             end
 
+            # Actually create new connections
+            #
+            # @param [{(Syskit::TaskContext,Syskit::TaskContext) => {[String,String] => Hash}}] removed
+            #   the connections, specified between the Syskit tasks
+            # @return [[Syskit::TaskContext]] the list of tasks whose connections have been modified
             def apply_connection_additions(new)
                 # And create the new ones
                 pending_tasks = Set.new
@@ -290,7 +297,7 @@ module Syskit
 
                             ActualDataFlow.add_connections(
                                 from_task.orocos_task, to_task.orocos_task,
-                                [from_port, to_port] => policy,
+                                [from_port, to_port] => [policy, from_syskit_port.static?, to_syskit_port.static?],
                                 force_update: true)
 
                         rescue Orocos::ComError
