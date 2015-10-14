@@ -140,8 +140,8 @@ module Syskit
             def syskit_stub_deployment_model(task_model = nil, name = nil, &block)
                 if task_model
                     task_model = task_model.to_component_model
-                    name ||= task_model.name
                 end
+                name ||= syskit_default_stub_name(task_model)
                 deployment_model = Deployment.new_submodel(name: name) do
                     if task_model
                         task(name, task_model.orogen_model)
