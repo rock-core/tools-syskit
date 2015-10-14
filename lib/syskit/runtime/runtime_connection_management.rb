@@ -239,22 +239,6 @@ module Syskit
                         if syskit_sink_task && !syskit_sink_task.executable?
                             modified << syskit_sink_task
                         end
-
-                        # The following test is meant to make sure that we
-                        # cleanup input ports after crashes. CORBA connections
-                        # will properly cleanup the output port-to-corba part
-                        # automatically, but never the corba-to-input port
-                        #
-                        # It will break code that connects to input ports
-                        # externally. This is not a common case however.
-                        # begin
-                        #     if !ActualDataFlow.has_in_connections?(sink_task, sink_port)
-                        #         debug { "calling #disconnect_all on the input port #{sink_task.name}:#{sink_port} since it has no input connections anymore" }
-                        #         sink.disconnect_all
-                        #     end
-                        # rescue Orocos::NotFound
-                        # rescue CORBA::ComError
-                        # end
                     end
                 end
                 modified
