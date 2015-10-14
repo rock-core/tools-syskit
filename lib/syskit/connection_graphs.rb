@@ -132,7 +132,73 @@ module Syskit
 
         Roby::Log.define_hook :updated_actual_data_flow
 
+        # The graph that represents the connections on the actual ports
+        #
+        # I.e. this is the set of connections that really exist between our
+        # components
         class ActualDataFlowGraph < ConnectionGraph
+            # Information about which ports are static and which are not. This
+            # information is critical during disconnection to force
+            # reconfiguration of the associated tasks
+            #
+            # @return [Hash<(Orocos::TaskContext,String),Boolean>]
+            attr_reader :static_info
+
+            def initialize(*)
+                super
+                @static_info = Hash.new
+            end
+
+            # Registers a connection between two tasks
+            #
+            # @param [Orocos::TaskContext] source_task the task of the source
+            #   port
+            # @param [Orocos::TaskContext] sink_task the task of the sink
+            #   port
+            # @param [Hash] mappings the connections themselves
+            # @option mappings [Boolean] force_update (false) whether the method
+            #   should raise if the connection tries to be updated with a new
+            #   incompatible policy, or whether it should be updated
+            # @raise [Roby::ModelViolation] if the connection already exists
+            #   with an incompatible policy
+            #
+            # Each element in the connection mappings represent one connection.
+            # It is of the form
+            #
+            #    [source_port_name, sink_port_name] => [policy, source_static, sink_static]
+            #
+            # where policy is a connection policy hash, and
+            # source_static/sink_static are booleans indicating whether the
+            # source (resp. sink) ports are static per {Port#static?}.
+            #
+            def add_connections(source_task, sink_task, mappings) # :nodoc:
+                force_update = mappings.delete(:force_update)
+                mappings = mappings.map_value do |(source_port, sink_port), info|
+                    if info.size != 3
+                        raise ArgumentError, "ActualDataFlowGraph#add_connections expects the mappings to be of the form (source_port,sink_port) => [policy, source_static, sink_static]"
+                    end
+                    policy, source_static, sink_static = *info
+                    static_info[[source_task, source_port]] = source_static
+                    static_info[[sink_task, sink_port]] = sink_static
+                    policy
+                end
+                super(source_task, sink_task, mappings.merge(force_update: force_update))
+            end
+
+            # Whether the given port is static (per {Port#static?}
+            #
+            # @param [Orocos::TaskContext] task
+            # @param [String] port
+            # @raise [ArgumentError] if the (task, port) pair is not registered
+            def static?(task, port)
+                static_info.fetch([task, port])
+            rescue KeyError
+                raise ArgumentError, "no port #{port} on a task called #{task} is registered on #{self}"
+            end
+
+            # Hook called when connections are created, removed or updated
+            #
+            # This hook is overloaded to log the modification
             def updated_connections(source_task, sink_task, connections) # :nodoc:
                 Roby::Log.log(:updated_actual_data_flow) { [source_task.name, sink_task.name, connections] }
                 super
