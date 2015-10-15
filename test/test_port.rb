@@ -38,6 +38,20 @@ describe Syskit::Port do
                 with(in_task, ['out', 'in'] => policy)
             out_task.out_port.connect_to in_task.in_port, policy
         end
+        it "raises if the two ports have different types" do
+            policy = Hash.new
+            out_task = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+            end
+            plan.add(out_task = out_task.new)
+            in_task = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/int'
+            end
+            plan.add(in_task = in_task.new)
+            assert_raises(Syskit::WrongPortConnectionTypes) do
+                out_task.out_port.connect_to in_task.in_port, policy
+            end
+        end
         it "passes through Syskit.connect if the argument is not a port" do
             policy = Hash.new
             flexmock(Syskit).should_receive(:connect).once.
