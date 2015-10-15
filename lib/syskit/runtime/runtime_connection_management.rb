@@ -7,7 +7,6 @@ module Syskit
 
             attr_reader :plan
 
-            attr_predicate :dry_run?, true
 
             def scheduler
                 plan.execution_engine.scheduler
@@ -17,9 +16,8 @@ module Syskit
                 @plan = plan
             end
 
-            def self.update(plan, dry_run = false)
+            def self.update(plan)
                 manager = ConnectionManagement.new(plan)
-                manager.dry_run = dry_run
                 manager.update
             end
 
@@ -73,10 +71,6 @@ module Syskit
             # +to_port+ are the names of the ports that have to be disconnected
             # (i.e. strings)
             def compute_connection_changes(tasks)
-                if dry_run?
-                    return [], []
-                end
-
                 not_running = tasks.find_all { |t| !t.orocos_task }
                 if !not_running.empty?
                     debug do
