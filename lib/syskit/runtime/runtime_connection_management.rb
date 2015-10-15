@@ -150,8 +150,6 @@ module Syskit
                 handle_modified_task = lambda do |orocos_task|
                     if !(syskit_task = find_setup_syskit_task_context_from_orocos_task(orocos_task))
                         return false
-                    elsif !syskit_task.setup?
-                        return false
                     end
 
                     unneeded_tasks ||= plan.unneeded_tasks
