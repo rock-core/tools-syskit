@@ -98,19 +98,29 @@ module Syskit
                         resolved = model.task_activities.map do |t|
                             [t.name, name_service.get(t.name)]
                         end
+                        resolved = Hash[resolved]
                         @alive.make_true
-                        return Hash[resolved]
+                        return resolved
                     rescue Orocos::NotFound, Orocos::ComError
                     end
                     sleep 0.1
                 end
+                raise
             end
 
             # Waits to have access to the underlying tasks
             #
             # This is a no-op as the tasks get resolved in #spawn
             def wait_running(timeout)
-                return if !@spawn_thread.join(timeout)
+                return true if ready?
+                return false if !@spawn_thread
+
+                begin
+                    return if !@spawn_thread.join(timeout)
+                rescue TerminateThread
+                    @alive.make_false
+                    return
+                end
 
                 @deployed_tasks = @spawn_thread.value
                 if !alive?
@@ -180,8 +190,14 @@ module Syskit
             # It shuts down the tasks that are part of it
             def kill(wait = true)
                 if !alive?
-                    terminate_and_join_thread(@spawn_thread)
-                    @alive.make_false # just to make sure
+                    @spawn_thread, spawn_thread = nil, @spawn_thread
+                    @kill_thread = Thread.new do
+                        terminate_and_join_thread(spawn_thread)
+                        dead!
+                    end
+                    if wait
+                        @kill_thread.join
+                    end
                     return
                 end
 
@@ -223,8 +239,9 @@ module Syskit
             end
 
             def dead!
-                process_manager.dead_deployment(self)
                 @alive.make_false
+                @deployed_tasks = nil
+                process_manager.dead_deployment(self)
             end
 
             # Returns true if the tasks have been successfully discovered

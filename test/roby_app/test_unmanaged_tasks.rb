@@ -51,6 +51,16 @@ module Syskit
                 syskit_deploy(task_model)
             end
 
+            it "allows to kill a started deployment that was not ready" do
+                task = syskit_deploy(task_model)
+                assert_event_emission(task.execution_agent.start_event) do
+                    task.execution_agent.start!
+                end
+                assert_event_emission(task.execution_agent.stop_event) do
+                    task.execution_agent.stop!
+                end
+            end
+
             it "configures and starts the task when it becomes available" do
                 task = syskit_deploy(task_model)
                 process_events
