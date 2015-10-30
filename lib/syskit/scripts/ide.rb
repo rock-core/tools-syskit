@@ -4,7 +4,7 @@ require 'syskit/scripts/common'
 require 'vizkit'
 
 load_all = false
-runtime_mode = false
+runtime_mode = nil
 test_mode = false
 parser = OptionParser.new do |opt|
     opt.banner = <<-EOD
@@ -18,6 +18,10 @@ Loads the models from this bundle and allows to browse them. If a file is given,
 
     opt.on '-t', '--test', 'Start with tests already running' do
         test_mode = true
+    end
+
+    opt.on '--no-runtime', 'Do not attempt to connect to a running syskit instance' do
+        runtime_mode = false
     end
 
     opt.on '--runtime', 'Start in runtime mode' do

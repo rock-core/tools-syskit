@@ -24,7 +24,7 @@ module Syskit
             CONNECTION_STATE_STYLE = "QLabel { font-size: 10pt; background-color: %s; }"
             CONNECTION_STATE_TEXT = "<b>%s</b>: %s"
 
-            def initialize(parent = nil, host: 'localhost', runtime: false, tests: false)
+            def initialize(parent = nil, host: 'localhost', runtime: nil, tests: false)
                 super(parent)
 
                 @layout = Qt::VBoxLayout.new(self)
@@ -33,12 +33,9 @@ module Syskit
                 @model_browser = ModelBrowser.new
 
                 syskit = Roby::Interface::Async::Interface.new(host)
-                @runtime_state = RuntimeState.new(syskit: syskit)
                 @btn_reload_models = Qt::PushButton.new("Reload Models", self)
 
                 connect(model_browser, SIGNAL('fileOpenClicked(const QUrl&)'),
-                        self, SLOT('fileOpenClicked(const QUrl&)'))
-                connect(runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SLOT('fileOpenClicked(const QUrl&)'))
                 connect(testing, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SLOT('fileOpenClicked(const QUrl&)'))
@@ -51,18 +48,10 @@ module Syskit
                 browse_container_layout.add_widget(model_browser)
                 tab_widget.add_tab browse_container, "Browse"
                 tab_widget.add_tab testing, "Testing"
-                runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
-                @connection_state = GlobalStateLabel.new(
-                    actions: runtime_state.global_actions.values,
-                    name: runtime_state.remote_name)
 
-                tab_widget.set_corner_widget(connection_state, Qt::TopLeftCorner)
-                connect runtime_state, SIGNAL('connection_state_changed(bool)') do |flag|
-                    connection_state_changed(flag)
-                end
-                connect runtime_state, SIGNAL('progress(QString)') do |message|
-                    state = connection_state.current_state.to_s
-                    connection_state.update_text("%s - %s" % [state, message])
+                if runtime != false
+                    create_runtime_state_ui(syskit)
+                    runtime_idx = tab_widget.add_tab runtime_state, "Runtime"
                 end
 
                 model_browser.model_selector.filter_box.set_focus(Qt::OtherFocusReason)
@@ -82,6 +71,24 @@ module Syskit
 
                 if tests
                     testing.start
+                end
+            end
+
+            def create_runtime_state_ui(syskit)
+                @runtime_state = RuntimeState.new(syskit: syskit)
+                connect(runtime_state, SIGNAL('fileOpenClicked(const QUrl&)'),
+                        self, SLOT('fileOpenClicked(const QUrl&)'))
+                @connection_state = GlobalStateLabel.new(
+                    actions: runtime_state.global_actions.values,
+                    name: runtime_state.remote_name)
+
+                tab_widget.set_corner_widget(connection_state, Qt::TopLeftCorner)
+                connect runtime_state, SIGNAL('connection_state_changed(bool)') do |flag|
+                    connection_state_changed(flag)
+                end
+                connect runtime_state, SIGNAL('progress(QString)') do |message|
+                    state = connection_state.current_state.to_s
+                    connection_state.update_text("%s - %s" % [state, message])
                 end
             end
 
