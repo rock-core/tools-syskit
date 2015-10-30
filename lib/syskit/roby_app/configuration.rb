@@ -245,10 +245,10 @@ module Syskit
 
             # In normal operations, a local proces server called 'localhost' is
             # automatically started on the local machine. If this predicate is
-            # set to true, using self.orocos_disables_local_process_server = true), then
+            # set to true, using self.disables_local_process_server = true), then
             # this will be disabled
             #
-            # See also #orocos_process_server
+            # @see connect_to_orocos_process_server Plugin#start_local_process_server
             attr_predicate :disables_local_process_server?, true
 
             # If true, all deployments declared with use_deployment or
