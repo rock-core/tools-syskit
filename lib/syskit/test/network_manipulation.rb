@@ -73,7 +73,7 @@ module Syskit
                 requirement_tasks = placeholder_tasks.map(&:planning_task)
 
                 plan.execution_engine.process_events_synchronous do
-                    requirement_tasks.each { |t| t.start_event.emit }
+                    requirement_tasks.each { |t| t.start! }
                 end
 
                 syskit_engine.enable_updates
@@ -92,7 +92,7 @@ module Syskit
                 end
 
                 plan.execution_engine.process_events_synchronous do
-                    requirement_tasks.each { |t| t.success_event.emit }
+                    requirement_tasks.each { |t| t.success_event.emit if !t.finished? }
                 end
                 placeholder_tasks.each do |task|
                     plan.remove_object(task)
