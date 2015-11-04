@@ -38,17 +38,12 @@ module Syskit
             # The OroGen loader
             attr_reader :loader
 
-            # A thread-safe queue that is used for the task monitors to tell
-            # that a task looks dead
-            attr_reader :dead_queue
-
             def initialize(loader: Roby.app.default_loader,
                            name_service: Orocos::CORBA.name_service)
                 @loader = loader
                 @processes = Hash.new
                 @name_service = name_service
                 @deployments = Hash.new
-                @dead_queue = Queue.new
             end
 
             def disconnect
@@ -118,24 +113,22 @@ module Syskit
             # Returns a hash that maps deployment names to the Status
             # object that represents their exit status.
             def wait_termination(timeout = nil)
-                # Verify that the monitor threads are in a good state
-                processes.each_value do |process|
-                    process.verify_threads_state
-                end
+                # Verify that the monitor threads are in a good state, and
+                # gather the ones that are actually dead
+                dead_processes = Set.new
+                processes.delete_if do |_, process|
+                    begin
+                        process.verify_threads_state
+                    rescue Exception
+                        dead_processes << process
+                    end
 
-                terminated_processes = Array.new
-                while !dead_queue.empty?
-                    process = dead_queue.pop
-                    if registered_process = processes.delete(process.name)
-                        if registered_process != process
-                            raise ArgumentError, "#{process} is not part of #{self}"
-                        end
-                        terminated_processes << process
-                    else
-                        raise ArgumentError, "#{process}(name: #{process.name}) was in dead queue, but does not seem to be part of #{self} (#{processes.keys.sort.join(", ")})"
+                    if process.dead?
+                        dead_processes << process
+                        true
                     end
                 end
-                terminated_processes
+                dead_processes
             end
 
             # Requests to stop the given deployment
@@ -146,10 +139,6 @@ module Syskit
                 if w = processes[world_name]
                     w.kill
                 end
-            end
-
-            def dead_deployment(process)
-                dead_queue << process
             end
         end
     end

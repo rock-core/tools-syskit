@@ -83,7 +83,32 @@ module Syskit
                 assert_event_emission(task.stop_event) do
                     task.stop!
                 end
+                assert !process_task.orocos_process.kill_thread.alive?
+                assert !process_task.orocos_process.monitor_thread.alive?
+                assert process_task.orocos_process.dead?
                 assert !monitor_thread.alive?
+            end
+
+            it "aborts the execution agent if the spawn thread fails in unexpected ways" do
+                task = syskit_deploy(task_model)
+                assert_event_emission(task.execution_agent.start_event)
+                inhibit_fatal_messages do
+                    assert_event_emission(task.execution_agent.stop_event) do
+                        task.execution_agent.orocos_process.spawn_thread.raise RuntimeError
+                    end
+                end
+            end
+
+            it "aborts the execution agent if the monitor thread fails in unexpected ways" do
+                task = syskit_deploy(task_model)
+                assert_event_emission(task.execution_agent.ready_event) do
+                    create_unmanaged_task
+                end
+                inhibit_fatal_messages do
+                    assert_event_emission(task.execution_agent.stop_event) do
+                        task.execution_agent.orocos_process.monitor_thread.raise RuntimeError
+                    end
+                end
             end
 
             it "aborts the task if it becomes unavailable" do
@@ -92,13 +117,45 @@ module Syskit
                     create_unmanaged_task
                 end
                 agent = task.execution_agent
-                inhibit_fatal_messages do
-                    assert_event_emission(task.aborted_event) do
-                        delete_unmanaged_task
-                    end
+                assert_event_emission(task.aborted_event) do
+                    delete_unmanaged_task
+                    # Synchronize on the monitor thread explicitely, otherwise
+                    # the RTT state read might kick in first and bypass the
+                    # whole purpose of the test
+                    task.execution_agent.orocos_process.monitor_thread.join
+                    assert task.execution_agent.orocos_process.dead?
                 end
                 assert agent.failed?
+            end
+
+            it "cleans up the tasks when killed" do
+                task = syskit_deploy(task_model)
+                assert_event_emission(task.start_event) do
+                    create_unmanaged_task
+                end
+                assert_equal :RUNNING, unmanaged_task.rtt_state
+                assert_event_emission(task.stop_event) do
+                    task.execution_agent.stop!
+                end
+                assert_equal :PRE_OPERATIONAL, unmanaged_task.rtt_state
+            end
+
+            # This is really a heisentest .... previous versions of
+            # UnmanagedProcess would fail when this happened but the current
+            # implementation should be completely imprevious
+            it "handles concurrently having the monitor fail and #kill being called" do
+                task = syskit_deploy(task_model)
+                assert_event_emission(task.start_event) do
+                    create_unmanaged_task
+                end
+                inhibit_fatal_messages do
+                    assert_event_emission(task.stop_event) do
+                        delete_unmanaged_task
+                        task.execution_agent.orocos_process.kill
+                    end
+                end
             end
         end
     end
 end
+
