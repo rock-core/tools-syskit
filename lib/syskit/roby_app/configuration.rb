@@ -357,7 +357,7 @@ module Syskit
                     end
                         
                     orogen_model = task_model.orogen_model
-                    deployment_model = Deployment.new_submodel(name: "Deployment::RubyTasks::#{name}") do
+                    deployment_model = Deployment.new_submodel(name: "Deployment::Unmanaged::#{name}") do
                         task name, orogen_model
                     end
 
