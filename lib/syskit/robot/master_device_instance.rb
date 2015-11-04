@@ -289,6 +289,21 @@ module Syskit
                 result
             end
 
+            # Create an action model that represent an instanciation of this
+            # device
+            #
+            # @param [Profile] profile the underlying profile that define the
+            #   instanciation context
+            # @return [Actions::Model::Action]
+            def to_action_model(profile)
+                req = to_instance_requirements
+                profile.inject_di_context(req)
+                action_model = Actions::Models::Action.
+                    new(profile, req, doc || "device from profile #{profile.name}")
+                action_model.name = "#{name}_dev"
+                action_model
+            end
+
             def as_plan; to_instance_requirements.as_plan end
 
             def each_fullfilled_model(&block)

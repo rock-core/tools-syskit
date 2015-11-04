@@ -19,8 +19,11 @@ module Syskit
                     self.name = name
                 end
 
-                def to_action_model
-                    profile.resolved_definition(name).to_action_model(profile, "defined in #{profile}")
+                def to_action_model(profile = self.profile)
+                    action_model = profile.resolved_definition(name).
+                        to_action_model(profile, doc || "defined in #{profile}")
+                    action_model.advanced = advanced?
+                    action_model
                 end
             end
 
@@ -345,19 +348,14 @@ module Syskit
             def each_action
                 return enum_for(__method__) if !block_given?
 
-                robot.devices.each_value do |dev|
-                    req = dev.to_instance_requirements
-                    inject_di_context(req)
-                    action_model = Models::Action.new(self, req, "device from profile #{name}")
-                    action_model.name = "#{dev.name}_dev"
+                robot.each_master_device do |dev|
+                    action_model = dev.to_action_model(self)
                     yield(action_model)
                 end
 
                 definitions.each do |name, req|
                     action_name = "#{name}_def"
-
-                    req = resolved_definition(name)
-                    action_model = req.to_action_model(self, "defined in profile #{self}")
+                    action_model = req.to_action_model(self)
                     action_model.name = action_name
                     yield(action_model)
                 end

@@ -84,7 +84,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             profile.define('test', task_m)
             actions.use_profile(profile)
             act = actions.new(plan)
-            plan.add(task = act.test_def(arg0: 10))
+            plan.add(task = act.test_def(arg0: 10).as_plan)
             assert_equal Hash[arg0: 10], task.planning_task.requirements.arguments
         end
 
@@ -113,7 +113,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             actions.use_profile(profile)
 
             actions = self.actions.new(plan)
-            plan.add(act = actions.def_def(arg0: 10))
+            plan.add(act = actions.def_def(arg0: 10).as_plan)
             assert_equal 10, act.arg0
         end
     end
@@ -130,7 +130,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             profile.define('test', task_m)
             actions.use_profile(profile)
             task = actions.new(plan).test_def(*arguments)
-            plan.add(task)
+            plan.add(task = task.as_plan)
             return task_m, task
         end
 
@@ -147,7 +147,7 @@ describe Syskit::Actions::InterfaceModelExtension do
             subprofile.define('test', task_m)
 
             actions.use_profile(subprofile)
-            task = actions.new(plan).test_def
+            task = actions.new(plan).test_def.as_plan
             plan.add(task)
             assert_equal task_m, task.planning_task.requirements.model
         end
@@ -170,9 +170,66 @@ describe Syskit::Actions::InterfaceModelExtension do
             end
             profile.define('test', task_m)
             actions.use_profile(profile)
-            task = actions.new(plan).test_def
+            task = actions.new(plan).test_def.as_plan
             plan.add(task)
             assert_equal Hash[], task.planning_task.requirements.arguments
+        end
+    end
+
+    describe "overloading of definitions by actions" do
+        attr_reader :actions, :profile
+        before do
+            @actions = Roby::Actions::Interface.new_submodel
+            @profile = Syskit::Actions::Profile.new(nil)
+        end
+
+        it "allows overloading a profile-defined action with a method-based one" do
+            task_m = Syskit::TaskContext.new_submodel
+            profile.define('test', task_m)
+            actions.use_profile(profile)
+            recorder = flexmock
+            recorder.should_receive(:called).once
+            actions.class_eval do
+                describe 'test'
+                define_method(:test_def) { recorder.called; super() }
+            end
+            plan.add(actions.new(plan).test_def)
+        end
+
+        it "provides an easy way to change the requirements in the overloaded action methods" do
+            srv_m = Syskit::DataService.new_submodel(name: 'Srv')
+            task_m = Syskit::TaskContext.new_submodel(name: 'Task')
+            task_m.provides srv_m, as: 'test'
+            deployed_task_m = syskit_stub(task_m)
+            cmp_m = Syskit::Composition.new_submodel(name: 'Cmp')
+            cmp_m.add srv_m, as: 'test'
+
+            profile.define('test', cmp_m)
+            actions.use_profile(profile)
+            actions.class_eval do
+                describe 'test'
+                define_method(:test_def) do
+                    super().use('test' => deployed_task_m)
+                end
+            end
+            cmp = syskit_deploy(actions.new(plan).test_def)
+            assert_kind_of task_m, cmp.test_child
+        end
+    end
+
+    describe "#robot" do
+        it "registers the new devices as actions" do
+            dev_m = Syskit::Device.new_submodel
+            driver_m = Syskit::TaskContext.new_submodel
+            driver_m.driver_for dev_m, as: 'test'
+
+            actions = Roby::Actions::Interface.new_submodel
+            actions.robot do
+                device dev_m, as: 'test'
+            end
+            action_m = actions.find_action_by_name('test_dev')
+            assert action_m
+            assert_equal driver_m.test_srv, action_m.to_instance_requirements.model
         end
     end
 end

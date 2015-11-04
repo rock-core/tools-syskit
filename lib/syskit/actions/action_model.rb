@@ -19,6 +19,22 @@ module Syskit
                 Actions::Action.new(self, arguments)
             end
 
+            # Returns a resolved (i.e. complete) requirement object for the
+            # equivalent of this action on the given profile
+            #
+            # @return [InstanceRequirements]
+            def resolve_definition_on(profile)
+                if name =~ /^(.*)_dev$/
+                    profile.robot.find_device($1).to_instance_requirements
+                elsif name =~ /^(.*)_def$/
+                    profile.resolved_definition($1)
+                end
+            end
+
+            def rebind(profile, force: true)
+                super
+            end
+
             def plan_pattern(arguments = Hash.new)
                 job_id, arguments = Kernel.filter_options arguments, :job_id
                 req = requirements.dup
