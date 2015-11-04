@@ -361,6 +361,36 @@ module Syskit
                 end
             end
 
+            def syskit_start_all_execution_agents
+                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+
+                agents = plan.each_task.map do |t|
+                    if t.respond_to?(:should_configure_after)
+                        t.should_configure_after(sync_ev)
+                    end
+                    if t.execution_agent && !t.execution_agent.ready?
+                        t.execution_agent
+                    end
+                end.compact
+                
+                agents.each do |agent|
+                    # Protect the component against configuration and 
+                    if !agent.running?
+                        agent.start!
+                    end
+                end
+
+                agents.each do |agent|
+                    if !agent.ready?
+                        assert_event_emission agent.ready_event
+                    end
+                end
+            ensure
+                if sync_ev
+                    plan.remove_object(sync_ev)
+                end
+            end
+
             def syskit_start_execution_agents(component, recursive: true)
                 # Protect the component against configuration and startup
                 plan.add_permanent(sync_ev = Roby::EventGenerator.new)
@@ -405,7 +435,7 @@ module Syskit
             class NoConfigureFixedPoint < RuntimeError
                 attr_reader :tasks
                 attr_reader :info
-                Info = Struct.new :missing_arguments, :precedence, :missing
+                Info = Struct.new :ready_for_setup, :missing_arguments, :precedence, :missing
 
                 def initialize(tasks)
                     @tasks = tasks
@@ -414,6 +444,7 @@ module Syskit
                         precedence = t.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
                         missing = precedence.find_all { |ev| !ev.happened? }
                         info[t] = Info.new(
+                            t.ready_for_setup?,
                             t.list_unset_arguments,
                             precedence, missing)
                     end
@@ -426,6 +457,8 @@ module Syskit
 
                         info = self.info[t]
                         pp.nest(2) do
+                            pp.breakable
+                            pp.text "ready_for_setup? #{info.ready_for_setup}"
                             pp.breakable
                             if info.missing_arguments.empty?
                                 pp.text "is fully instanciated"
@@ -453,7 +486,9 @@ module Syskit
             # Set this component instance up
             def syskit_configure(component, recursive: true)
                 plan.add_permanent(sync_ev = Roby::EventGenerator.new)
-                syskit_start_execution_agents(component, recursive: true)
+                # We need all execution agents to be started to connect (and
+                # therefore configur) the tasks
+                syskit_start_all_execution_agents
 
                 tasks = Set.new
                 syskit_prepare_configure(component, tasks, sync_ev, recursive: recursive)
