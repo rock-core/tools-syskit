@@ -30,7 +30,7 @@ module Syskit
                             t.setup 
                             t.is_setup!
                         rescue Exception => e
-                            t.event(:start).emit_failed(e)
+                            t.start_event.emit_failed(e)
                         end
                         next
                     end
@@ -60,7 +60,7 @@ module Syskit
                     end
 
                 rescue Orocos::CORBA::ComError => e
-                    t.emit :aborted, e
+                    t.aborted_event.emit e
                 end
             end
         end
