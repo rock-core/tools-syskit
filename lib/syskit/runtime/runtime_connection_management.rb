@@ -369,19 +369,19 @@ module Syskit
                 end
 
                 early_removal, late_removal = removed.partition do |(source_task, sink_task), _|
-                    source_running = begin source_task.running?
+                    source_running = begin source_task.rtt_state == :RUNNING
                                      rescue Orocos::ComError
                                      end
-                    sink_running   = begin sink_task.running?
+                    sink_running   = begin sink_task.rtt_state == :RUNNING
                                      rescue Orocos::ComError
                                      end
                     !source_running || !sink_running
                 end
                 early_additions, late_additions = additions_ready.partition do |(source_task, sink_task), _|
-                    source_running = begin source_task.orocos_task.running?
+                    source_running = begin source_task.orocos_task.rtt_state == :RUNNING
                                      rescue Orocos::ComError
                                      end
-                    sink_running   = begin sink_task.orocos_task.running?
+                    sink_running   = begin sink_task.orocos_task.rtt_state == :RUNNING
                                      rescue Orocos::ComError
                                      end
                     if !source_running || !sink_running
