@@ -33,6 +33,8 @@ module Syskit
                             t.start_event.emit_failed(e)
                         end
                         next
+                    else
+                        plan.execution_engine.scheduler.report_holdoff "did not configure, not ready for setup", t
                     end
                 end
 
