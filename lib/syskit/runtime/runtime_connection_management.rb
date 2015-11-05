@@ -335,11 +335,35 @@ module Syskit
                             (!to_task.setup? && !to_task.concrete_model.find_input_port(to_port))
                     end
                     if !hold.empty?
-                        puts "holding on #{hold}"
+                        debug do
+                            debug "holding #{hold.size} connections from "
+                            log_pp :debug, from_task
+                            debug "  setup?: #{from_task.setup?}"
+                            log_pp :debug, to_task
+                            debug "  setup?: #{to_task.setup?}"
+
+                            hold.each do |(from_port, to_port), policy|
+                                debug "  #{from_port} => #{to_port} [#{policy}]"
+                                if !from_task.setup? && !from_task.concrete_model.find_output_port(from_port)
+                                    debug "    #{from_port} has not been created yet"
+                                end
+                                if !to_task.setup? && !to_task.concrete_model.find_output_port(to_port)
+                                    debug "    #{to_port} has not been created yet"
+                                end
+                            end
+                            break
+                        end
                         additions_held[[from_task, to_task]] = Hash[hold]
                     end
+
                     if !ready.empty?
-                        puts "ready #{ready}"
+                        debug do
+                            debug "ready on #{from_task} => #{to_task}"
+                            ready.each do |(from_port, to_port), policy|
+                                debug "  #{from_port} => #{to_port} [#{policy}]"
+                            end
+                            break
+                        end
                         additions_ready[[from_task, to_task]] = Hash[ready]
                     end
                 end
@@ -360,7 +384,18 @@ module Syskit
                     sink_running   = begin sink_task.orocos_task.running?
                                      rescue Orocos::ComError
                                      end
-                    !source_running || !sink_running
+                    if !source_running || !sink_running
+                        debug { "early adding connections from #{source_task} to #{sink_task}" }
+                        true
+                    else
+                        debug do
+                            debug "late adding connections from #{source_task} to #{sink_task}"
+                            debug "  #{source_task.orocos_task} running: #{source_task.orocos_task.running?}"
+                            debug "  #{sink_task.orocos_task} running: #{sink_task.orocos_task.running?}"
+                            break
+                        end
+                        false
+                    end
                 end
 
                 modified_tasks = apply_connection_removal(early_removal)

@@ -814,18 +814,42 @@ module Syskit
             # If the +only_static+ flag is set to true, only ports that require
             # static connections will be considered
             def all_inputs_connected?(only_static: false)
+                logger = Runtime::ConnectionManagement
                 each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     # Our source may not be initialized at all
                     if !source_task.orocos_task
+                        logger.debug do
+                            logger.debug "missing input connection because the source task is not ready on port #{sink_port} of"
+                            logger.log_pp :debug, self
+                            logger.log_nest(2) do
+                                logger.debug "connection expected to port #{source_port} of"
+                                logger.log_pp :debug, source_task
+                            end
+                            break
+                        end
                         return false
                     end
                     if only_static && !concrete_model.find_input_port(sink_port)
                         next
                     end
 
-                    return false if !ActualDataFlow.linked?(source_task.orocos_task, orocos_task)
-                    mappings = source_task.orocos_task[orocos_task, ActualDataFlow]
-                    return false if !mappings.has_key?([source_port, sink_port])
+                    is_connected =
+                        ActualDataFlow.linked?(source_task.orocos_task, orocos_task) &&
+                        source_task.orocos_task[orocos_task, ActualDataFlow].
+                            has_key?([source_port, sink_port])
+
+                    if !is_connected
+                        logger.debug do
+                            logger.debug "missing input connection on port #{sink_port} of"
+                            logger.log_pp :debug, self
+                            logger.log_nest(2) do
+                                logger.debug "  connection expected to port #{source_port} of"
+                                logger.log_pp :debug, source_task
+                            end
+                            break
+                        end
+                        return false 
+                    end
                 end
                 true
             end
