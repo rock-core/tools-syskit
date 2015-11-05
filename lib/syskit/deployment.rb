@@ -3,6 +3,18 @@ module Deployments
 end
 
 module Syskit
+    module TaskContextPeekStateInterdiction
+        def peek_current_state
+            Syskit.fatal "#peek_current_state called on #{self}"
+            caller.each do |line|
+                Syskit.fatal "  #{line}"
+            end
+            super
+        end
+    end
+
+    Orocos::TaskContext.prepend TaskContextPeekStateInterdiction
+
         class << self
             # (see RobyApp::Configuration#register_process_server)
             def register_process_server(name, client, log_dir = nil)
