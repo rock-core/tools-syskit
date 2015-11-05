@@ -43,6 +43,10 @@ module Syskit
                 ui_chronicle.add_tasks_info(tasks_info, job_info)
             end
 
+            def scheduler_state=(state)
+                ui_chronicle.scheduler_state = state
+            end
+
             def update_chronicle
                 ui_chronicle.update_current_tasks
                 ui_chronicle.update

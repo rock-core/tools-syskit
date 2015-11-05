@@ -179,6 +179,7 @@ module Syskit
                         job_expanded_status.update_time(cycle_index, cycle_time)
                         update_tasks_info
                         job_expanded_status.add_tasks_info(all_tasks, all_job_info)
+                        job_expanded_status.scheduler_state = syskit_log_stream.scheduler_state
                         job_expanded_status.update_chronicle
                     end
                     syskit_log_stream.clear_integrated
