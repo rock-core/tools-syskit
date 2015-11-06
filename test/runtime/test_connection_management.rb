@@ -401,5 +401,27 @@ describe Syskit::Runtime::ConnectionManagement do
             assert !source_task.orocos_task.out2.connected?
         end
     end
+
+    it "removes dangling connections" do
+        begin
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port('in', '/double').static
+                output_port 'out', '/double'
+            end
+            source = Orocos::RubyTasks::TaskContext.from_orogen_model 'source', task_m.orogen_model
+            sink   = Orocos::RubyTasks::TaskContext.from_orogen_model 'sink', task_m.orogen_model
+
+            source.out.connect_to sink.in
+            Syskit::ActualDataFlow.add_connections(source, sink, Hash[['out', 'in'] => [Hash.new, false, false]])
+            Syskit::Runtime::ConnectionManagement.update(plan)
+            assert !source.out.connected?
+            assert !source.in.connected?
+            assert !Syskit::ActualDataFlow.include?(source)
+            assert !Syskit::ActualDataFlow.include?(sink)
+        ensure
+            source.dispose if source
+            sink.dispose if sink
+        end
+    end
 end
 

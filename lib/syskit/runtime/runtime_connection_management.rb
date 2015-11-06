@@ -418,6 +418,42 @@ module Syskit
                 return Hash.new, Hash.new
             end
 
+            # @api private
+            #
+            # Compute the set of connections we should remove to account for
+            # orocos tasks whose supporting syskit task has been removed, but
+            # are still connected
+            #
+            # The result is formatted as the rest of the connection hashes, that
+            # is keys are (source_task, sink_task) and values are Array<(source_port,
+            # task_port)>. Note that source_task and sink_task are
+            # Orocos::TaskContext, and it is guaranteed that one of them has no
+            # equivalent in the Syskit graphs (meaning that no keys in the
+            # return value can be found in the return value of
+            # {#compute_connection_changes})
+            #
+            # @return [Hash]
+            def dangling_task_cleanup
+                removed = Hash.new
+
+                present_tasks = plan.find_tasks(TaskContext).map(&:orocos_task).to_set
+                dangling_tasks = ActualDataFlow.enum_for(:each_vertex).find_all do |orocos_task|
+                    !present_tasks.include?(orocos_task)
+                end
+                dangling_tasks.each do |parent_t|
+                    parent_t.each_child_vertex(ActualDataFlow) do |child_t|
+                        if !present_tasks.include?(child_t)
+                            # NOTE: since the two tasks have been removed,
+                            # they cannot be within the 'removed' set
+                            # already
+                            mappings = parent_t[child_t, ActualDataFlow]
+                            removed[[parent_t, child_t]] = mappings.keys.to_set
+                        end
+                    end
+                end
+                removed
+            end
+
             def update
                 tasks = Flows::DataFlow.modified_tasks
 
@@ -459,53 +495,21 @@ module Syskit
                     end
 
                     new, removed = compute_connection_changes(main_tasks)
-                    # Make also sure we have no dangling orocos_task within the
-                    # ActualDataFlow graph
-                    present_tasks = plan.find_tasks(TaskContext).map(&:orocos_task).to_set
-                    dangling_tasks = ActualDataFlow.enum_for(:each_vertex).find_all do |orocos_task|
-                        !present_tasks.include?(orocos_task)
-                    end
-                    dangling_tasks.each do |parent_t|
-                        parent_t.each_child_vertex(ActualDataFlow) do |child_t|
-                            if !present_tasks.include?(child_t)
-                                # NOTE: since the two tasks have been removed,
-                                # they cannot be within the 'removed' set
-                                # already
-                                mappings = parent_t[child_t, ActualDataFlow]
-                                removed[[parent_t, child_t]] = mappings.keys.to_set
-                            end
-                        end
-                    end
-
                     if new
-                        debug do
-                            debug "  new connections:"
-                            new.each do |(from_task, to_task), mappings|
-                                debug "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
-                                debug "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
-                                mappings.each do |(from_port, to_port), policy|
-                                    debug "      #{from_port}:#{to_port} #{policy}"
-                                end
-                            end
-                            debug "  removed connections:"
-                            debug "  disable debug display because it is unstable in case of process crashes"
-                            #removed.each do |(from_task, to_task), mappings|
-                            #    Engine.info "    #{from_task} (#{from_task.running? ? 'running' : 'stopped'}) =>"
-                            #    Engine.info "       #{to_task} (#{to_task.running? ? 'running' : 'stopped'})"
-                            #    mappings.each do |from_port, to_port|
-                            #        Engine.info "      #{from_port}:#{to_port}"
-                            #    end
-                            #end
-                                
-                            break
-                        end
-
                         Flows::DataFlow.pending_changes = [main_tasks, new, removed]
                         Flows::DataFlow.modified_tasks.clear
                         Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_set)
                     else
                         debug "cannot compute changes, keeping the tasks queued"
                     end
+                end
+
+                # Yes, we can do that. See documentation of
+                # {#dangling_task_cleanup}
+                dangling = dangling_task_cleanup
+                if !dangling.empty?
+                    Flows::DataFlow.pending_changes ||= [[], Hash.new, Hash.new]
+                    Flows::DataFlow.pending_changes[2].merge!(dangling)
                 end
 
                 if Flows::DataFlow.pending_changes
