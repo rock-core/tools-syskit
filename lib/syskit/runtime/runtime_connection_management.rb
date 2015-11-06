@@ -318,21 +318,31 @@ module Syskit
                 end
             end
 
-            # Apply all connection changes on the system. The principle is to
-            # use a transaction-based approach: i.e. either we apply everything
-            # or nothing.
-            #
-            # See #compute_connection_changes for the format of +new+ and
-            # +removed+
-            #
-            # Returns a false value if it could not apply the changes and a true
-            # value otherwise.
-            def apply_connection_changes(new, removed)
-                if removed_connections_require_network_update?(removed)
-                    plan.syskit_engine.force_update!
-                    return new, removed
-                end
+            def partition_early_late(connections, states, kind, mapping)
+                connections.partition do |(source_task, sink_task), _|
+                    states[source_task] ||= begin mapping[source_task].rtt_state
+                                            rescue Orocos::ComError
+                                            end
+                    states[sink_task]   ||= begin mapping[sink_task].rtt_state
+                                            rescue Orocos::ComError
+                                            end
 
+                    if (states[source_task] == :RUNNING) || (states[sink_task] == :RUNNING)
+                        debug { "early #{kind} connections from #{source_task} to #{sink_task}" }
+                        true
+                    else
+                        debug do
+                            debug "late #{kind} connections from #{source_task} to #{sink_task}"
+                            debug "  source state: #{states[source_task]}"
+                            debug "  sink state: #{states[sink_task]}"
+                            break
+                        end
+                        false
+                    end
+                end
+            end
+
+            def new_connections_partition_held_ready(new)
                 additions_held, additions_ready = Hash.new, Hash.new
                 new.each do |(from_task, to_task), mappings|
                     hold, ready = mappings.partition do |(from_port, to_port), policy|
@@ -372,36 +382,31 @@ module Syskit
                         additions_ready[[from_task, to_task]] = Hash[ready]
                     end
                 end
+                return additions_held, additions_ready
+            end
 
-                early_removal, late_removal = removed.partition do |(source_task, sink_task), _|
-                    source_running = begin source_task.rtt_state == :RUNNING
-                                     rescue Orocos::ComError
-                                     end
-                    sink_running   = begin sink_task.rtt_state == :RUNNING
-                                     rescue Orocos::ComError
-                                     end
-                    !source_running || !sink_running
+            # Apply all connection changes on the system. The principle is to
+            # use a transaction-based approach: i.e. either we apply everything
+            # or nothing.
+            #
+            # See #compute_connection_changes for the format of +new+ and
+            # +removed+
+            #
+            # Returns a false value if it could not apply the changes and a true
+            # value otherwise.
+            def apply_connection_changes(new, removed)
+                if removed_connections_require_network_update?(removed)
+                    plan.syskit_engine.force_update!
+                    return new, removed
                 end
-                early_additions, late_additions = additions_ready.partition do |(source_task, sink_task), _|
-                    source_running = begin source_task.orocos_task.rtt_state == :RUNNING
-                                     rescue Orocos::ComError
-                                     end
-                    sink_running   = begin sink_task.orocos_task.rtt_state == :RUNNING
-                                     rescue Orocos::ComError
-                                     end
-                    if !source_running || !sink_running
-                        debug { "early adding connections from #{source_task} to #{sink_task}" }
-                        true
-                    else
-                        debug do
-                            debug "late adding connections from #{source_task} to #{sink_task}"
-                            debug "  #{source_task.orocos_task} running: #{source_task.orocos_task.running?}"
-                            debug "  #{sink_task.orocos_task} running: #{sink_task.orocos_task.running?}"
-                            break
-                        end
-                        false
-                    end
-                end
+
+                additions_held, additions_ready = new_connections_partition_held_ready(new)
+
+                task_states = Hash.new
+                early_removal, late_removal     =
+                    partition_early_late(removed, task_states, 'disconnection', proc { |v| v })
+                early_additions, late_additions =
+                    partition_early_late(additions_ready, task_states, 'connection', proc(&:orocos_task))
 
                 modified_tasks = apply_connection_removal(early_removal)
                 modified_tasks |= apply_connection_additions(early_additions)

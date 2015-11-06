@@ -130,13 +130,11 @@ describe Syskit::Runtime::ConnectionManagement do
 
             describe "handling of static ports" do
                 it "triggers a redeployment if #removed_connections_require_network_update? returns true" do
-                    expected =
-                        Syskit::Flows::DataFlow.pending_changes = 
+                    expected = Syskit::Flows::DataFlow.pending_changes = 
                         [flexmock, flexmock(:empty? => false), flexmock(:empty? => false)]
 
                     manager = Syskit::Runtime::ConnectionManagement.new(plan)
-                    flexmock(manager).
-                        should_receive(:removed_connections_require_network_update?).
+                    flexmock(manager).should_receive(:removed_connections_require_network_update?).
                         and_return(true)
                     manager.update
                     assert plan.syskit_engine.forced_update?
@@ -360,8 +358,7 @@ describe Syskit::Runtime::ConnectionManagement do
 
         it "triggers a deployment if a connection to a static port is removed on an already setup task" do
             task_m = Syskit::TaskContext.new_submodel do
-                input_port('in', '/double').
-                    static
+                input_port('in', '/double').static
                 output_port 'out', '/double'
             end
             source = syskit_stub_and_deploy(task_m.with_conf('source'))
@@ -422,6 +419,37 @@ describe Syskit::Runtime::ConnectionManagement do
             source.dispose if source
             sink.dispose if sink
         end
+    end
+    
+    it "raises if an expected input port is not present on a configured task" do
+        source_m  = Syskit::TaskContext.new_submodel { output_port('out', '/double') }
+        sink_m    = Syskit::TaskContext.new_submodel
+        source = syskit_stub_deploy_and_configure(source_m)
+        sink   = syskit_stub_deploy_and_configure(sink_m)
+        sink.specialize
+        sink.model.orogen_model.input_port 'in', '/double'
+        source.out_port.connect_to sink.in_port
+        e = assert_adds_roby_localized_error(Syskit::PortNotFound) do
+            Syskit::Runtime::ConnectionManagement.update(plan)
+        end
+        assert_equal sink, e.failed_task
+        assert_equal 'in', e.port_name
+        assert_equal :input, e.port_kind
+    end
+    it "raises if an expected output port is not present on a configured task" do
+        source_m  = Syskit::TaskContext.new_submodel
+        sink_m    = Syskit::TaskContext.new_submodel { input_port('in', '/double') }
+        source = syskit_stub_deploy_and_configure(source_m)
+        sink   = syskit_stub_deploy_and_configure(sink_m)
+        source.specialize
+        source.model.orogen_model.output_port 'out', '/double'
+        source.out_port.connect_to sink.in_port
+        e = assert_adds_roby_localized_error(Syskit::PortNotFound) do
+            Syskit::Runtime::ConnectionManagement.update(plan)
+        end
+        assert_equal source, e.failed_task
+        assert_equal 'out', e.port_name
+        assert_equal :output, e.port_kind
     end
 end
 
