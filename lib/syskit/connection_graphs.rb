@@ -118,6 +118,8 @@ module Syskit
                 end
                 if current_mappings.empty?
                     unlink(source_task, sink_task)
+                    remove(source_task) if leaf?(source_task) && root?(source_task)
+                    remove(sink_task)   if leaf?(sink_task)   && root?(sink_task)
                 else
                     # To make the relation system call #update_info
                     source_task[sink_task, self] = current_mappings
