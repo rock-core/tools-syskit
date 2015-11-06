@@ -32,6 +32,9 @@ module Syskit
             Syskit.conf.export_types = false
             Syskit.conf.disables_local_process_server = true
             Syskit.conf.only_load_models = true
+            null_io = File.open('/dev/null', 'w')
+            Syskit.logger = Logger.new(null_io)
+            Syskit.logger.level = Logger::DEBUG
 
             super
 
