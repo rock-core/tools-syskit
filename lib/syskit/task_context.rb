@@ -853,25 +853,17 @@ module Syskit
 
                 def transaction_modifies_static_ports?
                     new_connections_to_static = Hash.new
-                    each_source do |source_task|
-                        connections = source_task[self, Flows::DataFlow]
-                        connections.each_key do |source_port, sink_port|
-                            if find_input_port(sink_port).static?
-                                return true if !source_task.transaction_proxy?
-                                sources = (new_connections_to_static[sink_port] ||= Set.new)
-                                sources << [source_task.orocos_name, source_port]
-                            end
+                    each_concrete_input_connection do |source_task, source_port, sink_port, policy|
+                        if find_input_port(sink_port).static?
+                            sources = (new_connections_to_static[sink_port] ||= Set.new)
+                            sources << [source_task.orocos_name, source_port]
                         end
                     end
 
-                    each_sink do |sink_task|
-                        connections = self[sink_task, Flows::DataFlow]
-                        connections.each_key do |source_port, sink_port|
-                            if find_output_port(source_port).static?
-                                return true if !sink_task.transaction_proxy?
-                                sinks = (new_connections_to_static[source_port] ||= Set.new)
-                                sinks << [sink_task.orocos_name, sink_port]
-                            end
+                    each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
+                        if find_output_port(source_port).static?
+                            sinks = (new_connections_to_static[source_port] ||= Set.new)
+                            sinks << [sink_task.orocos_name, sink_port]
                         end
                     end
 

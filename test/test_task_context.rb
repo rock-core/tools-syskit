@@ -766,26 +766,58 @@ describe Syskit::TaskContext do
                 source_task_p.out_port.disconnect_from sink_task_p.in_port
                 assert task_p.transaction_modifies_static_ports?
             end
+
         end
+
 
         describe "handling of static input ports" do
             handling_of_static_ports(input: true)
 
             it "returns true if a static input port is connected to new tasks" do
+                configure_tasks
                 transaction.add(new_task = source_task.model.new)
-                task_p = transaction[sink_task]
-                new_task.out_port.connect_to task_p.in_port
-                assert task_p.transaction_modifies_static_ports?
+                new_task.out_port.connect_to sink_task_p.in_port
+                assert sink_task_p.transaction_modifies_static_ports?
+            end
+
+            it "uses concrete input connections to determine the new connections" do
+                cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add source_task.model, as: 'test'
+                cmp_m.export cmp_m.test_child.out_port, as: 'out'
+                cmp = syskit_stub_and_deploy(cmp_m.use('test' => source_task))
+
+                cmp.out_port.connect_to sink_task.in_port
+                configure_tasks
+                new_cmp = cmp_m.use('test' => source_task_p).instanciate(transaction)
+                cmp_p = transaction[cmp]
+                cmp_p.out_port.disconnect_from sink_task_p.in_port
+                new_cmp.out_port.connect_to sink_task_p.in_port
+                assert !sink_task_p.transaction_modifies_static_ports?
             end
         end
         describe "handling of static output ports" do
             handling_of_static_ports(input: false)
 
             it "returns true if a static output port is connected to new tasks" do
+                configure_tasks
                 transaction.add(new_task = sink_task.model.new)
-                task_p = transaction[source_task]
-                task_p.out_port.connect_to new_task.in_port
-                assert task_p.transaction_modifies_static_ports?
+                source_task_p.out_port.connect_to new_task.in_port
+                assert source_task_p.transaction_modifies_static_ports?
+            end
+
+            it "uses concrete output connections to determine the new connections" do
+                cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add sink_task.model, as: 'test'
+                cmp_m.export cmp_m.test_child.in_port, as: 'in'
+                cmp = syskit_stub_and_deploy(cmp_m.use('test' => sink_task))
+
+                source_task.out_port.connect_to cmp.in_port
+                configure_tasks
+                new_cmp = cmp_m.use('test' => sink_task_p).instanciate(transaction)
+                cmp_p = transaction[cmp]
+                source_task.out_port.disconnect_from cmp.in_port
+                source_task_p.out_port.connect_to new_cmp.in_port
+                assert !source_task_p.transaction_modifies_static_ports?
             end
         end
     end
