@@ -208,6 +208,24 @@ describe Syskit::NetworkGeneration::Engine do
                 linked?(task.stop_event, new_task.start_event))
         end
 
+        it "does not reconfigure already-configured tasks whose static input ports have not been modified" do
+            task = syskit_stub_deploy_and_configure("Task", as: 'task') { input_port('in', '/double').static }
+            flexmock(task).should_receive(:transaction_proxy?).and_return(true)
+            flexmock(task).should_receive(:transaction_modifies_static_ports?).once.and_return(false)
+            syskit_engine.reconfigure_tasks_on_static_port_modification([task])
+            tasks = work_plan.find_local_tasks(Syskit::TaskContext).
+                with_arguments(orocos_name: task.orocos_name).to_a
+            assert_equal [task], tasks
+        end
+
+        it "does not reconfigure not-setup tasks" do
+            task = syskit_stub_and_deploy("Task", as: 'task') { input_port('in', '/double').static }
+            syskit_engine.reconfigure_tasks_on_static_port_modification([task])
+            tasks = work_plan.find_local_tasks(Syskit::TaskContext).
+                with_arguments(orocos_name: task.orocos_name).to_a
+            assert_equal [task], tasks
+        end
+
         describe "when child of a composition" do
             it "ensures that the existing deployment will be garbage collected" do
                 task_m = Syskit::TaskContext.new_submodel
@@ -256,14 +274,6 @@ describe Syskit::NetworkGeneration::Engine do
                 # And the old tasks should be ready to garbage-collect
                 assert_equal [child].to_set, plan.static_garbage_collect.to_set
             end
-        end
-
-        it "does not reconfigure not-setup tasks" do
-            task = syskit_stub_and_deploy("Task", as: 'task') { input_port('in', '/double').static }
-            syskit_engine.reconfigure_tasks_on_static_port_modification([task])
-            tasks = work_plan.find_local_tasks(Syskit::TaskContext).
-                with_arguments(orocos_name: task.orocos_name).to_a
-            assert_equal [task], tasks
         end
     end
 
