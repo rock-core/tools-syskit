@@ -96,15 +96,17 @@ describe Syskit::Models::Port do
         it "returns true even if the types differ" do
             assert !srv_out.int_port.can_connect_to?(srv_in.dbl_port)
         end
-        it "tries to resolve the ports to component ports" do
-            component_in_port  = flexmock
+        it "resolves self to component port and delegate to the resolved port's can_connect_to? method" do
             component_out_port = flexmock
-            component_out_port.should_receive(:can_connect_to?).with(component_in_port).once.
+            component_out_port.should_receive(:can_connect_to?).with(srv_in.int_port).once.
                 and_return(true)
             flexmock(srv_out.int_port).should_receive(:try_to_component_port).and_return(component_out_port)
-            flexmock(srv_in.int_port).should_receive(:try_to_component_port).and_return(component_in_port)
 
             assert srv_out.int_port.can_connect_to?(srv_in.int_port)
+        end
+        it "resolves the sink to component port before testing for compatibility" do
+            flexmock(srv_in.dbl_port).should_receive(:try_to_component_port).and_return(srv_in.int_port)
+            assert srv_out.int_port.can_connect_to?(srv_in.dbl_port)
         end
     end
 end

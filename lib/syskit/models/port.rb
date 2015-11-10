@@ -114,26 +114,25 @@ module Syskit
             end
 
             # Tests whether self is connected to the provided port
-            def connected_to?(in_port)
-                out_port = self.try_to_component_port
-                if out_port == self
-                    in_port = in_port.try_to_component_port
-                    component_model.connected?(out_port, in_port)
+            def connected_to?(sink_port)
+                source_port = self.try_to_component_port
+                if source_port == self
+                    sink_port = sink_port.try_to_component_port
+                    component_model.connected?(source_port, sink_port)
                 else
-                    out_port.connected_to?(in_port)
+                    source_port.connected_to?(sink_port)
                 end
             end
 
             # Tests whether this port can be connceted to the provided input
             # port
-            def can_connect_to?(in_port)
-                out_port = try_to_component_port
-                in_port  = in_port.try_to_component_port
-
-                if out_port != self
-                    return out_port.can_connect_to?(in_port)
+            def can_connect_to?(sink_port)
+                source_port = self.try_to_component_port
+                if source_port == self
+                    sink_port  = sink_port.try_to_component_port
+                    output? && sink_port.input? && type == sink_port.type
                 else
-                    output? && in_port.input? && type == in_port.type
+                    source_port.can_connect_to?(sink_port)
                 end
             end
 
