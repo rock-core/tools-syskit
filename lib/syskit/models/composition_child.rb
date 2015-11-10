@@ -83,20 +83,29 @@ module Syskit
                 Syskit.connect(self, sink, policy)
             end
 
-            # Tests whether the two ports are connected
+            # Test whether the given port object is a port of self
+            #
+            # @param [Port] port
+            def self_port?(port)
+                port.component_model == self
+            end
+
+            # @api private
+            #
+            # Tests whether two ports are connected
             #
             # This is a delegated call from Port#connected_to?. Always use the
             # former unless you know what you are doing
-            def connected?(in_port, out_port)
-                if !out_port.component_model.respond_to?(:composition_model)
-                    return false
-                elsif composition_model != out_port.component_model.composition_model
+            def connected?(source_port, sink_port)
+                if !self_port?(source_port)
+                    raise ArgumentError, "source port #{source_port} in connected? is not a port of #{self}"
+                elsif !composition_model.child_port?(sink_port)
                     return false
                 end
 
                 cmp_connections = composition_model.
-                    explicit_connections[[child_name, out_port.component_model.child_name]]
-                cmp_connections.has_key?([in_port.name,out_port.name])
+                    explicit_connections[[child_name, sink_port.component_model.child_name]]
+                cmp_connections.has_key?([source_port.name,sink_port.name])
             end
 
             # (see Component#connect_ports)

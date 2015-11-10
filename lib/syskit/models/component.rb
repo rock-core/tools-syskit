@@ -701,6 +701,13 @@ module Syskit
                 super
             end
 
+            # Test if the given port is a port of self
+            #
+            # @param [Port] port
+            def self_port?(port)
+                port.component_model == self
+            end
+
             # If true, this model is used internally as specialization of
             # another component model (as e.g. to represent dynamic service
             # instantiation). Otherwise, it is an actual component model.
