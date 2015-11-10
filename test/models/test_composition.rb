@@ -211,6 +211,13 @@ describe Syskit::Models::Composition do
                         as: 'srv_in'
                 end
             end
+            it "raises ArgumentError if given a port that is not a port of a child of the composition" do
+                task_m = Syskit::TaskContext.new_submodel { output_port 'out', '/double' }
+                cmp_m  = Syskit::Composition.new_submodel
+                assert_raises(ArgumentError) do
+                    cmp_m.export task_m.out_port, as: 'test'
+                end
+            end
         end
 
         describe "#find_exported_output" do

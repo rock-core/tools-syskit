@@ -409,14 +409,22 @@ module Syskit
             #       connect test.output2 => c.input
             #    end
             #
-            def export(port, options = Hash.new)
-                options = Kernel.validate_options options, :as => port.name
-                name = options[:as].to_str
+            def export(port, as: port.name)
+                name = as.to_str
                 if existing = (self.find_exported_input(name) || self.find_exported_output(name))
                     if port.to_component_port != existing
                         raise ArgumentError, "#{port} is already exported as #{name} on #{short_name}, cannot override with #{port}."
                     end
                     return
+                end
+
+                if !port.respond_to?(:to_component_port)
+                    raise TypeError, "#{port} does not seem to be a port (#{port.class})"
+                end
+
+                port_component_model = port.to_component_port.component_model
+                if !port_component_model.respond_to?(:composition_model) || port_component_model.composition_model != self
+                    raise ArgumentError, "one can only export of this composition's children"
                 end
 
                 case port
@@ -425,7 +433,7 @@ module Syskit
                 when OutputPort
                     exported_outputs[name] = port.to_component_port
                 else
-                    raise TypeError, "invalid port #{port.port} of type #{port.port.class}"
+                    raise TypeError, "invalid attempt to export port #{port} of type #{port.class}"
                 end
                 find_port(name)
             end
