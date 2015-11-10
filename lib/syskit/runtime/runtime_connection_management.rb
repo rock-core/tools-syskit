@@ -327,18 +327,14 @@ module Syskit
                                             rescue Orocos::ComError
                                             end
 
-                    if (states[source_task] == :RUNNING) || (states[sink_task] == :RUNNING)
-                        debug { "early #{kind} connections from #{source_task} to #{sink_task}" }
-                        true
-                    else
-                        debug do
-                            debug "late #{kind} connections from #{source_task} to #{sink_task}"
-                            debug "  source state: #{states[source_task]}"
-                            debug "  sink state: #{states[sink_task]}"
-                            break
-                        end
-                        false
+                    early = (states[source_task] != :RUNNING) || (states[sink_task] != :RUNNING)
+                    debug do
+                        debug "#{early ? 'early' : 'late'} #{kind} connections from #{source_task} to #{sink_task}"
+                        debug "  source state: #{states[source_task]}"
+                        debug "  sink state: #{states[sink_task]}"
+                        break
                     end
+                    early
                 end
             end
 

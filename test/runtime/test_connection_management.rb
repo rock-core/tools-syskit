@@ -236,27 +236,37 @@ describe Syskit::Runtime::ConnectionManagement do
                     assert_event_emission source_task.start_event
                 end
 
-                it "only connects ports to/from non-running tasks until the tasks are set up" do
-                    sink_task.specialize
-                    def sink_task.configure
-                        orocos_task.create_input_port 'in2', '/double'
+                it "does not connect ports between two running tasks until the rest of the network is ready" do
+                    syskit_configure_and_start(source_task)
+                    syskit_configure_and_start(sink_task)
+                    pre_operational_task = syskit_stub_and_deploy("pre_operational") do
+                        output_port 'state', '/int'
+                        input_port 'in', '/double'
                     end
-                    sink_task.model.orogen_model.input_port 'in2', '/double'
+                    pre_operational_task.specialize
+                    def pre_operational_task.configure
+                        orocos_task.create_output_port 'in2', '/double'
+                    end
+                    pre_operational_task.model.orogen_model.input_port 'in2', '/double'
+                    syskit_start_execution_agents(pre_operational_task)
+
                     source_task.out_port.connect_to sink_task.in_port
-                    source_task.out_port.connect_to sink_task.in2_port
-                    flexmock(source_task.orocos_task.out).
-                        should_receive(:connect_to).
-                        with(sink_task.orocos_task.in, any).
-                        once.globally.ordered
-                    flexmock(sink_task.orocos_task, 'task').
+                    source_task.out_port.connect_to pre_operational_task.in2_port
+
+                    flexmock(pre_operational_task.orocos_task).
                         should_receive(:configure).
                         once.globally.ordered.
                         pass_thru
                     flexmock(source_task.orocos_task.out).
                         should_receive(:connect_to).
-                        with(->(p) { p.name == "in2" }, any).once.globally.ordered
+                        with(sink_task.orocos_task.in, any).
+                        once.globally.ordered(:connections)
+                    flexmock(source_task.orocos_task.out).
+                        should_receive(:connect_to).
+                        with(->(port) { port.name == 'in2' }, any).
+                        once.globally.ordered(:connections)
 
-                    assert_event_emission source_task.start_event
+                    assert_event_emission pre_operational_task.start_event
                 end
             end
 
