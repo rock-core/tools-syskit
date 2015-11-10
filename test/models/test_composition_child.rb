@@ -28,6 +28,25 @@ describe Syskit::Models::CompositionChild do
         end
     end
 
+    describe "#resolve" do
+        let(:child_m) do
+            task_m = Syskit::Component.new_submodel
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: 'task'
+        end
+
+        it "resolves the task with try_resolve" do
+            flexmock(child_m).should_receive(:try_resolve).
+                with(root = flexmock).and_return(result = flexmock)
+            assert_equal result, child_m.resolve(root)
+        end
+        it "raises ArgumentError if the task cannot be resolved" do
+            flexmock(child_m).should_receive(:try_resolve).
+                with(root = flexmock).and_return(nil)
+            assert_raises(ArgumentError) { child_m.resolve(root) }
+        end
+    end
+
     describe "#connect_ports" do
         it "refuses to connect ports from different models" do
             srv_m = Syskit::DataService.new_submodel
