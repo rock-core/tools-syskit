@@ -1,8 +1,16 @@
-ENV['SYSKIT_ENABLE_COVERAGE'] = '0'
-if !ENV['SYSKIT_ENABLE_COVERAGE']
-    ENV['SYSKIT_ENABLE_COVERAGE'] = '2'
-end
 require 'syskit/test/self'
+
+if ENV['TEST_ENABLE_COVERAGE'] == '1' || rand > 0.5
+    null_io = File.open('/dev/null', 'w')
+    current_formatter = Syskit.logger.formatter
+    Syskit.warn "running tests with logger in DEBUG mode"
+    Syskit.logger = Logger.new(null_io)
+    Syskit.logger.level = Logger::DEBUG
+    Syskit.logger.formatter = current_formatter
+else
+    Syskit.warn "running tests with logger in FATAL mode"
+    Syskit.logger.level = Logger::FATAL + 1
+end
 
 require './test/suite_models'
 require './test/suite_robot'
@@ -29,13 +37,3 @@ require './test/test_instance_requirements_task'
 require './test/test_typelib_marshalling'
 
 require './test/test_exceptions'
-
-Syskit.logger = Logger.new(File.open("/dev/null", 'w'))
-Syskit.logger.level = Logger::DEBUG
-
-# OK Coverage for now:
-#   models/base
-#   base
-#   models/data_service
-#   models/deployment
-#   models/component
