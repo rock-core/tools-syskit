@@ -1,6 +1,3 @@
-if !ENV['SYSKIT_ENABLE_COVERAGE']
-    ENV['SYSKIT_ENABLE_COVERAGE'] = '2'
-end
 require 'syskit/test/self'
 
 require './test/coordination/test_data_monitoring_error'

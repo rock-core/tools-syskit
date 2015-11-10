@@ -1,6 +1,3 @@
-if !ENV['SYSKIT_ENABLE_COVERAGE']
-    ENV['SYSKIT_ENABLE_COVERAGE'] = '1'
-end
 require 'syskit/test/self'
 
 require './test/models/test_configured_deployment'

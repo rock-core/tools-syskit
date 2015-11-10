@@ -1,51 +1,8 @@
-require 'minitest/spec'
-require 'flexmock/minitest'
-
-# simplecov must be loaded FIRST. Only the files required after it gets loaded
-# will be profiled !!!
-if ENV['SYSKIT_ENABLE_COVERAGE'] == '1' || ENV['SYSKIT_ENABLE_COVERAGE'] == '2'
-    begin
-        require 'simplecov'
-        SimpleCov.start
-        if ENV['SYSKIT_ENABLE_COVERAGE'] == '2'
-            require 'syskit'
-            Syskit.warn "coverage has been automatically enabled, which has a noticeable effect on runtime"
-            Syskit.warn "Set SYSKIT_ENABLE_COVERAGE=0 in your shell to disable"
-        end
-
-    rescue LoadError
-        require 'syskit'
-        Syskit.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
-    rescue Exception => e
-        require 'syskit'
-        Syskit.warn "coverage is disabled: #{e.message}"
-    end
-end
+require 'roby/test/common'
 
 require 'syskit'
-require 'roby'
-require 'roby/test/common'
 require 'roby/schedulers/temporal'
 require 'orocos/ruby_process_server'
-
-if ENV['SYSKIT_ENABLE_PRY'] != '0'
-    begin
-        require 'pry'
-    rescue Exception
-        Syskit.warn "debugging is disabled because the 'pry' gem cannot be loaded"
-    end
-end
-
-if ENV['SYSKIT_ENABLE_PROFILING'] && ENV['SYSKIT_ENABLE_PROFILING'] != '1'
-    require 'stackprof'
-    StackProf.start
-    Minitest.after_run do
-        Syskit.info "dumping profiling results in syskit-tests.dump"
-        StackProf.stop
-        StackProf.results('syskit-tests.dump')
-    end
-end
-
 
 module Syskit
     module Test
