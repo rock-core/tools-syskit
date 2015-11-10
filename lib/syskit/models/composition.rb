@@ -386,6 +386,14 @@ module Syskit
                 result
             end
 
+            # Tests whether the given port is a port of one of this
+            # composition's children
+            def child_port?(port)
+                port_component_model = port.to_component_port.component_model
+                port_component_model.respond_to?(:composition_model) &&
+                        port_component_model.composition_model == self
+            end
+
             # Export the given port to the boundary of the composition (it
             # becomes a composition port). By default, the composition port has
             # the same name than the exported port. This name can be overriden
@@ -418,13 +426,8 @@ module Syskit
                     return
                 end
 
-                if !port.respond_to?(:to_component_port)
-                    raise TypeError, "#{port} does not seem to be a port (#{port.class})"
-                end
-
-                port_component_model = port.to_component_port.component_model
-                if !port_component_model.respond_to?(:composition_model) || port_component_model.composition_model != self
-                    raise ArgumentError, "one can only export of this composition's children"
+                if !child_port?(port)
+                    raise ArgumentError, "#{port} is not a port of one of #{self}'s children"
                 end
 
                 case port

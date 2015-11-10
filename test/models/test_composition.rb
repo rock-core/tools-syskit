@@ -963,5 +963,32 @@ describe Syskit::Models::Composition do
             assert_equal Hash[bla: 10], cmp_m.test_child.arguments
         end
     end
+
+    describe "#child_port?" do
+        attr_reader :cmp_m, :task_m
+        before do
+            srv_m = Syskit::DataService.new_submodel { output_port 'out', '/double' }
+            @task_m = Syskit::TaskContext.new_submodel { output_port 'out', '/double' }
+            task_m.provides srv_m, as: 'test'
+            @cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: 'test'
+        end
+        it "returns true for a port that is a port of one of this composition's children" do
+            assert cmp_m.child_port?(cmp_m.test_child.out_port)
+        end
+        it "returns true for a port that is a port of one of this composition's children's services" do
+            assert cmp_m.child_port?(cmp_m.test_child.test_srv.out_port)
+        end
+        it "returns false for a port of a standalone task model" do
+            task_m = Syskit::TaskContext.new_submodel { output_port 'out', '/double' }
+            assert !cmp_m.child_port?(task_m.out_port)
+        end
+        it "returns false for a port of a different composition's child" do
+            cmp2_m = Syskit::Composition.new_submodel
+            cmp2_m.add task_m, as: 'test'
+            assert !cmp_m.child_port?(cmp2_m.test_child.out_port)
+            assert !cmp_m.child_port?(cmp2_m.test_child.test_srv.out_port)
+        end
+    end
 end
 
