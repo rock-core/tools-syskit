@@ -7,15 +7,15 @@ module Syskit
         # be used to represent a port on a subclass of TaskContext while
         # Syskit::Port would represent it for an object of that subclass.
         class Port
-            # [ComponentModel] The component model this port is part of
+            # @return [ComponentModel] The component model this port is part of
             attr_reader :component_model
-            # [Orocos::Spec::Port] The port model
+            # @return [Orocos::Spec::Port] The port model
             attr_reader :orogen_model
-            # [String] The port name on +component_model+. It can be
-            # different from orogen_model.name, as the port could be imported from
-            # another component
+            # @return [String] The port name on +component_model+. It can be
+            #   different from orogen_model.name, as the port could be imported
+            #   from another component
             attr_accessor :name
-            # [Model<Typelib::Type>] the typelib type of this port
+            # @return [Model<Typelib::Type>] the typelib type of this port
             attr_reader :type
 
             # @param [#instanciate] component_model the component model
@@ -33,18 +33,22 @@ module Syskit
                 end
             end
 
+            # Whether this port and the argument represent the same port
             def same_port?(other)
                 other.kind_of?(Port) && (other.component_model <=> component_model) &&
                     other.orogen_model == orogen_model
             end
 
+            # Whether this port and the argument are the same port
             def ==(other)
                 other.kind_of?(self.class) && other.component_model == component_model &&
                 other.orogen_model == orogen_model &&
                 other.name == name
             end
 
-            # Change the component model
+            # Return a new port attached to another component model
+            #
+            # @return [Port]
             def attach(model)
                 new_model = dup
                 new_model.instance_variable_set(:@component_model, model)
@@ -70,6 +74,8 @@ module Syskit
             # of Component and not a data service)
             #
             # @return [Port]
+            # @raise [ArgumentError] if self cannot be resolved into a component
+            #   port
             def to_component_port
                 if component_model.respond_to?(:self_port_to_component_port)
                     component_model.self_port_to_component_port(self)
@@ -78,6 +84,10 @@ module Syskit
             end
 
             # Connects this port to the other given port, using the given policy
+            #
+            # @raise [WrongPortConnectionTypes]
+            # @raise [WrongPortConnectionDirection]
+            # @raise [SelfConnection]
             def connect_to(in_port, policy = Hash.new)
                 out_port = self.to_component_port
                 if out_port == self
