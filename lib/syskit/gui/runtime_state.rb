@@ -1,4 +1,5 @@
 require 'syskit'
+require 'yaml'
 require 'roby/interface/async'
 require 'roby/interface/async/log'
 require 'syskit/gui/job_status_display'
@@ -298,26 +299,66 @@ module Syskit
             end
 
             class NewJobDialog < Qt::Dialog
+                signals 'arguments_received(QString)'
+                slots 'read_arguments()'
+
                 attr_reader :editor
 
-                def initialize(parent = nil, text = '')
+                def initialize(parent = nil, text = '', action_name = '', syskit = nil)
                     super(parent)
                     layout = Qt::VBoxLayout.new(self)
                     @editor = Qt::TextEdit.new(self)
+                    @editor.tabChangesFocus = true
+                    go_button = Qt::PushButton.new(tr("Go"))
+                    go_button.default = true
                     layout.add_widget editor
+                    layout.add_widget go_button
                     self.text = text
+                    connect go_button, SIGNAL('clicked()'), self, SLOT(:read_arguments)
+                    syskit.connect_to_ui(self) do
+                        job = send("#{action_name}!")
+                        widget.connect(SIGNAL("arguments_received(QString)")) do |*args|
+                            parse(args.shift).each do |k, v|
+                                job.arguments[k] = v
+                            end
+                            job.restart
+                            widget.dispose
+                        end
+                        job!
+                     end
                 end
 
-                def self.exec(parent, text)
-                    new(parent, text).exec
+                def parse(text)
+                    hash = YAML::load text
+                    hash = to_sym_recursive(hash)
+                    hash
+                end
+
+                def to_sym_recursive(hash)
+                    hash = hash.inject({})do |memo,(k,v)|
+                        if v.is_a?(Hash)
+                            v = to_sym_recursive(v)
+                        end
+                        memo[k.to_sym] = v
+                        memo
+                    end
+                    hash
+                end
+
+                def read_arguments
+                    emit arguments_received(text)
+                end
+
+                def self.exec(parent, text, action_name, syskit)
+                    new(parent, text, action_name, syskit).exec
                 end
 
                 def text=(text)
-                    editor.plain_text = text
+                    editor.plainText = text
                 end
 
                 def text
-                    editor.plain_text
+                    editor.plainText
                 end
             end
 
@@ -331,13 +372,11 @@ module Syskit
                     syskit.client.send("#{action_name}!", Hash.new)
                 else
                     formatted_action = Array.new
-                    formatted_action << "#{action_name}("
                     action_model.arguments.each do |arg|
-                        formatted_action << "  # #{arg.doc}"
-                        formatted_action << "  #{arg.name}: #{arg.default},"
+                        formatted_action << "# #{arg.doc}\n"
+                        formatted_action << "'#{arg.name}': #{arg.default}"
                     end
-                    formatted_action << ")"
-                    NewJobDialog.exec(self, formatted_action.join("\n"))
+                    NewJobDialog.exec(self, formatted_action.join(), action_name, syskit)
                 end
             end
 
