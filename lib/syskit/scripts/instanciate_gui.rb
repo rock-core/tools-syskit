@@ -14,7 +14,7 @@ Scripts.common_options(parser, true)
 remaining = parser.parse(ARGV)
 
 # We don't need the process server, win some startup time
-Roby.app.using_plugins 'syskit'
+Roby.app.using 'syskit'
 Roby.app.single
 Syskit.conf.only_load_models = true
 Syskit.conf.disables_local_process_server = true

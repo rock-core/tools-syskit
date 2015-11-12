@@ -239,7 +239,7 @@ require 'syskit/roby_app'
 
             def self.setup
                 tic = Time.now
-                Roby.app.using_plugins 'syskit'
+                Roby.app.using 'syskit'
                 if debug
                     Roby.app.filter_backtraces = false
                 end
