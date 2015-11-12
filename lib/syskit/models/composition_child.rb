@@ -9,7 +9,7 @@ module Syskit
             # [String] the name of this child on {#composition_model}
             attr_reader :child_name
             # The set of models that this child should fullfill. It is a
-            # ValueSet which contains at most one Component model and any number
+            # Set which contains at most one Component model and any number
             # of data service models 
             attr_accessor :dependency_options
             # [InstanceSelection] information needed to update the composition's
@@ -25,7 +25,7 @@ module Syskit
             # no selection exists for it
             attr_predicate :optional?
 
-            def initialize(composition_model, child_name, models = ValueSet.new, dependency_options = Hash.new,
+            def initialize(composition_model, child_name, models = Set.new, dependency_options = Hash.new,
                           parent_model = nil)
                 @composition_model, @child_name = composition_model, child_name
                 super(models)

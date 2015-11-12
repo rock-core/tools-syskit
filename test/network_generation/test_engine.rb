@@ -282,10 +282,10 @@ describe Syskit::NetworkGeneration::Engine do
             service_model = Syskit::DataService.new_submodel(name: 'Srv')
             parent_model = Syskit::TaskContext.new_submodel(name: 'ParentTask')
             task_model = parent_model.new_submodel(name: 'Task') { provides service_model, as: 'srv' }
-            provided_models = [service_model, parent_model, task_model].to_value_set
+            provided_models = [service_model, parent_model, task_model].to_set
             syskit_stub_deployment_model(task_model, 'task')
             
-            assert_equal provided_models.to_value_set, syskit_engine.compute_deployed_models.to_value_set
+            assert_equal provided_models.to_set, syskit_engine.compute_deployed_models.to_set
         end
         it "should be able to discover compositions that are enabled because of deployed tasks" do
             service_model = Syskit::DataService.new_submodel(name: 'Srv')
@@ -294,8 +294,8 @@ describe Syskit::NetworkGeneration::Engine do
                 add service_model, as: 'child'
             end
             syskit_stub_deployment_model(task_model, 'task')
-            assert_equal [service_model, task_model, composition_model].to_value_set,
-                syskit_engine.compute_deployed_models.to_value_set
+            assert_equal [service_model, task_model, composition_model].to_set,
+                syskit_engine.compute_deployed_models.to_set
         end
         it "should be able to discover compositions that are enabled because of other compositions" do
             service_model = Syskit::DataService.new_submodel(name: 'Srv')
@@ -309,8 +309,8 @@ describe Syskit::NetworkGeneration::Engine do
                 add composition_service_model, as: 'child'
             end
             syskit_stub_deployment_model(task_model, 'task')
-            assert_equal [service_model, task_model, composition_model, composition_service_model, next_composition_model].to_value_set,
-                syskit_engine.compute_deployed_models.to_value_set
+            assert_equal [service_model, task_model, composition_model, composition_service_model, next_composition_model].to_set,
+                syskit_engine.compute_deployed_models.to_set
         end
         it "should add a composition only if all its children are available" do
             service_model = Syskit::DataService.new_submodel(name: 'Srv')
@@ -321,8 +321,8 @@ describe Syskit::NetworkGeneration::Engine do
                 add composition_service_model, as: 'other_child'
             end
             syskit_stub_deployment_model(task_model, 'task')
-            assert_equal [service_model, task_model].to_value_set,
-                syskit_engine.compute_deployed_models.to_value_set
+            assert_equal [service_model, task_model].to_set,
+                syskit_engine.compute_deployed_models.to_set
         end
     end
 

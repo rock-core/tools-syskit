@@ -129,7 +129,7 @@ module Syskit
                 end
             end
 
-            result = ValueSet.new
+            result = Set.new
             result << klass if klass
             a_modules.concat(b_modules).each do |m|
                 do_include = true
