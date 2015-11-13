@@ -82,5 +82,28 @@ describe Syskit::Runtime::ConnectionManagement do
             end
             Syskit::Runtime::ConnectionManagement.update(plan)
         end
+
+        it "detects and applies removed connections between ports, even if the two underlying tasks still have connections" do
+            source_task = syskit_stub_deploy_and_configure("source") do
+                output_port 'out1', '/double'
+                output_port 'out2', '/double'
+                output_port 'state', '/int'
+            end
+            sink_task = syskit_stub_deploy_and_configure("sink") do
+                input_port 'in1', '/double'
+                input_port 'in2', '/double'
+                output_port 'state', '/int'
+            end
+            source_task.out1_port.connect_to sink_task.in1_port
+            source_task.out2_port.connect_to sink_task.in2_port
+            Syskit::Runtime::ConnectionManagement.update(plan)
+            assert source_task.orocos_task.out1.connected?
+            assert source_task.orocos_task.out2.connected?
+
+            source_task.out2_port.disconnect_from sink_task.in2_port
+            Syskit::Runtime::ConnectionManagement.update(plan)
+            assert source_task.orocos_task.out1.connected?
+            assert !source_task.orocos_task.out2.connected?
+        end
     end
 end
