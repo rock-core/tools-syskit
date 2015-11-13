@@ -144,7 +144,12 @@ module Syskit
                             warn "deployment #{deployment.process_name} has no logger (#{logger_task_name})"
                             next
                         end
+
+                    # Disconnect current log connections, we're going to
+                    # reestablish the ones we want later on
+                    logger_task.remove_relations(Syskit::Flows::DataFlow)
                     logger_task.default_logger = true
+
                     # Make sure that the tasks are started after the logger was
                     # started
                     deployment.each_executed_task do |t|
