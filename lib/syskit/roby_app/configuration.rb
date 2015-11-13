@@ -479,14 +479,6 @@ module Syskit
                 process_server_config_for(name).client
             end
 
-            # Returns the log dir for the given process server
-            #
-            # @param [String] name the process server name
-            # @raise [ArgumentError] if no such process server exists
-            def log_dir_for(name)
-                process_server_config_for(name).log_dir
-            end
-
             # True if this application should not try to contact other
             # machines/servers
             attr_predicate :local_only?, true
