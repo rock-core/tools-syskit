@@ -98,6 +98,11 @@ module Syskit
                 return if !logger_model
                 logger_model.include LoggerConfigurationSupport
 
+                fallback_policy = Hash[
+                    type: :buffer,
+                    size: Syskit.conf.logs.default_logging_buffer_size
+                ]
+
                 engine.deployment_tasks.each do |deployment|
                     next if !deployment.plan
 
@@ -119,18 +124,11 @@ module Syskit
                         end
 
                         connections = Hash.new
-
-                        all_ports = []
-
                         t.each_output_port do |p|
-                            all_ports << [p.name, p]
-                        end
-
-                        all_ports.each do |port_name, p|
                             next if !deployment.log_port?(p)
 
-                            log_port_name = "#{t.orocos_name}.#{port_name}"
-                            connections[[port_name, log_port_name]] = { :fallback_policy => { :type => :buffer, :size => Syskit.conf.default_logging_buffer_size } }
+                            log_port_name = "#{t.orocos_name}.#{p.name}"
+                            connections[[p.name, log_port_name]] = Hash[fallback_policy: fallback_policy]
                             required_logging_ports << [log_port_name, t, p]
                         end
                         required_connections << [t, connections]
