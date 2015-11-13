@@ -11,6 +11,20 @@ module Syskit
                 @attached_devices = Set.new
             end
 
+            def instanciate(plan, context = DependencyInjectionContext.new, **options)
+                service = super
+                task = service.to_task
+                if !device_model.lazy_dispatch?
+                    messages_direction = device_model.messages_direction
+                    each_attached_device do |dev|
+                        task.require_dynamic_service(
+                            device_model.dynamic_service_name,
+                            as: dev.name, direction: messages_direction)
+                    end
+                end
+                service
+            end
+
             def through(&block)
                 instance_eval(&block)
             end
