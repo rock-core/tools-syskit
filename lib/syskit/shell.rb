@@ -154,23 +154,31 @@ module Syskit
         command :redeploy, 'redeploys the current network',
             'It is mostly used to apply the configuration loaded with reload_config'
 
-        # Enables the given log group
-        def enable_logging_of(string)
-            Syskit.conf.enable_log_group(string)
+        def enable_log_group(string)
+            Syskit.conf.logs.enable_log_group(string)
             redeploy
             nil
         end
         command :enable_logging_of, 'enables a log group',
-            :name => "the log group name"
+            name: "the log group name"
 
-        # Disables the given log group
-        def disable_logging_of(string)
-            Syskit.conf.disable_log_group(string)
+        # @deprecated use enable_log_group instead
+        def enable_logging_of(string)
+            enable_log_group(string)
+        end
+
+        def disable_log_group(string)
+            Syskit.conf.logs.disable_log_group(string)
             redeploy
             nil
         end
-        command :disable_logging_of, 'disables a log group',
-            :name => "the log group name"
+        command :disable_log_group, 'disables a log group',
+            name: "the log group name"
+
+        # @deprecated use disable_log_group instead
+        def disable_logging_of(string)
+            disable_log_group(string)
+        end
     end
 end
 
