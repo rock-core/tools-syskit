@@ -25,7 +25,7 @@ module Syskit
             # @param [String] sink_port_name the desired port name on the logger
             # @param [TaskContext] the task context that is being logged
             # @param [OutputPort] the port that is being logged
-            def createLoggingPort(sink_port_name, logged_task, logged_port)
+            def create_logging_port(sink_port_name, logged_task, logged_port)
                 return if logged_ports.include?([sink_port_name, logged_port.type.name])
 
                 logged_port_type = logged_port.model.orocos_type_name
@@ -70,7 +70,7 @@ module Syskit
 
                 each_input_connection do |source_task, source_port_name, sink_port_name, policy|
                     source_port = source_task.find_output_port(source_port_name)
-                    createLoggingPort(sink_port_name, source_task, source_port)
+                    create_logging_port(sink_port_name, source_task, source_port)
                 end
             end
 
@@ -88,15 +88,29 @@ module Syskit
                 @logger_dynamic_port = ports.first
             end
 
+            def self.setup_logger_model(logger_model)
+                if !(logger_model <= LoggerConfigurationSupport)
+                    logger_model.include LoggerConfigurationSupport
+                    logger_model.stub do
+                        def createLoggingPort(port_name, port_type, metadata)
+                            create_input_port(port_name, port_type)
+                            true
+                        end
+                    end
+                end
+            end
+
             # Configures each running deployment's logger, based on the
             # information in +port_dynamics+
             #
             # The "configuration" means that we create the necessary connections
             # between each component's port and the logger
             def self.add_logging_to_network(engine, work_plan)
+                return if !engine.dataflow_dynamics
+
                 logger_model = TaskContext.find_model_from_orogen_name 'logger::Logger'
                 return if !logger_model
-                logger_model.include LoggerConfigurationSupport
+                setup_logger_model(logger_model)
 
                 fallback_policy = Hash[
                     type: :buffer,
@@ -163,7 +177,7 @@ module Syskit
                         # Otherwise, Logger#configure will take care of it for
                         # us
                         required_logging_ports.each do |port_name, logged_task, logged_port|
-                            logger_task.createLoggingPort(port_name, logged_task, logged_port)
+                            logger_task.create_logging_port(port_name, logged_task, logged_port)
                         end
                     end
                     required_connections.each do |task, connections|
