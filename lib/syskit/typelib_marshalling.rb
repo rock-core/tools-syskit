@@ -71,6 +71,7 @@ module Syskit
         Typelib::Type.include TypeExtension
         Typelib::Type.extend TypeModelExtension
         Roby::Distributed::RemoteObjectManager.include DRobyPeerExtension
+        Roby::Distributed::DumbManager.extend DRobyPeerExtension
         Roby::Log.extend DRobyPeerExtension
     end
 end
