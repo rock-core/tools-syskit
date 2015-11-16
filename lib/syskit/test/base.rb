@@ -92,17 +92,6 @@ module Syskit
             end
         end
 
-        def assert_raises(exception, &block)
-            super(exception) do
-                begin
-                    yield
-                rescue Exception => e
-                    PP.pp(e, "")
-                    raise
-                end
-            end
-        end
-
         def run_engine(timeout, poll_period = 0.1)
             start_time = Time.now
             cycle_start = Time.now
