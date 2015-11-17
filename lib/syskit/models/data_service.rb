@@ -394,6 +394,36 @@ module Syskit
                 @override_policy = true
             end
 
+            # Returns whether this bus clients receive messages from the bus
+            def client_to_bus?
+                !!client_out_srv
+            end
+
+            # Retursn whether this bus clients send messages to the bus
+            def bus_to_client?
+                !!client_in_srv
+            end
+
+            # Messages directions from the point of view of the bus
+            #
+            # It returns a string that represents whether the bus gets messages
+            # from the client ('in'), send messages to the client ('out') or
+            # both ('inout')
+            #
+            # It is the string that needs to be passed when instantiating the
+            # bus dynamic service 
+            def messages_direction
+                if client_to_bus? && bus_to_client?
+                    'inout'
+                elsif client_to_bus?
+                    'in'
+                elsif bus_to_client?
+                    'out'
+                else
+                    raise ArgumentError, "#{self} has neither inputs nor outputs to its clients"
+                end
+            end
+
             attr_reader :bus_base_srv
             attr_reader :bus_in_srv
             attr_reader :bus_out_srv
@@ -403,36 +433,40 @@ module Syskit
             attr_reader :client_out_srv
             attr_reader :client_srv
 
+            attr_predicate :lazy_dispatch?, true
+
             # Creates a new submodel of this communication bus model
             #
             # @param [Hash] options the configuration options. See
             #   DataServiceModel#provides for the list of options from data
             #   services
-            # @option options [Boolean] :override_policy if true (the default),
+            # @param [Boolean] lazy_dispatch whether the dynamic services used
+            #   to attach the devices should be all instanciated at the beginning
+            #   (the default) or only on-demand
+            # @param [Boolean] override_policy if true (the default),
             #   the communication bus handling will mark the associated component's
             #   input ports as needs_reliable_connection so that relevant
             #   policies are chosen.
-            # @option options [String] :message_type the type name of the
+            # @param [String] message_type the type name of the
             #   type that is used by this combus to communicate with the
             #   components it supports
             def new_submodel(options = Hash.new, &block)
                 super(options, &block)
             end
 
-            def setup_submodel(model, options = Hash.new, &block)
-                bus_options, options = Kernel.filter_options options,
-                    :override_policy => override_policy?, :message_type => message_type
-                super(model, options, &block)
+            def setup_submodel(model, lazy_dispatch: false, override_policy: override_policy?, message_type: self.message_type, **options, &block)
+                super(model, **options, &block)
 
-                model.override_policy = bus_options[:override_policy]
-                if !bus_options[:message_type] && !model.message_type
+                model.lazy_dispatch   = lazy_dispatch
+                model.override_policy = override_policy
+                if !message_type && !model.message_type
                     raise ArgumentError, "com bus types must either have a message_type or provide another com bus type that does"
-                elsif bus_options[:message_type] && model.message_type
-                    if model.message_type != bus_options[:message_type]
-                        raise ArgumentError, "cannot override message types. The current message type of #{name} is #{message_type}, which might come from another provided com bus"
+                elsif message_type && model.message_type
+                    if message_type != model.message_type
+                        raise ArgumentError, "cannot override message types. The current message type of #{model.name} is #{model.message_type}, which might come from another provided com bus"
                     end
                 elsif !model.message_type
-                    model.message_type = bus_options[:message_type]
+                    model.message_type = message_type
                 end
 
                 model.attached_device_configuration_module.include(attached_device_configuration_module)
@@ -453,31 +487,31 @@ module Syskit
             end
 
             def included(mod)
-                if mod <= Syskit::Component
-                    # declare the relevant dynamic service
-                    combus_m = self
-                    dyn_name = dynamic_service_name
-                    bus_srv  = bus_base_srv
-                    mod.dynamic_service bus_base_srv, :as => dynamic_service_name do
-                        options = Kernel.validate_options self.options, :direction => nil
-                        in_name =
-                            if in_srv = mod.find_data_service_from_type(combus_m.bus_in_srv)
-                                in_srv.port_mappings_for_task['to_bus']
-                            else
-                                combus_m.input_name_for(name)
-                            end
+                return if !(mod <= Syskit::Component)
 
-                        if options[:direction] == 'inout'
-                            provides combus_m.bus_srv, 'from_bus' => combus_m.output_name_for(name),
-                                'to_bus' => in_name
-                            component_model.orogen_model.find_port(in_name).needs_reliable_connection
-                        elsif options[:direction] == 'in'
-                            provides combus_m.bus_in_srv, 'to_bus' => in_name
-                            component_model.orogen_model.find_port(in_name).needs_reliable_connection
-                        elsif options[:direction] == 'out'
-                            provides combus_m.bus_out_srv, 'from_bus' => combus_m.output_name_for(name)
-                        else raise ArgumentError, "invalid :direction option given, expected 'in', 'out' or 'inout' and got #{options[:direction]}"
+                # declare the relevant dynamic service
+                combus_m = self
+                dyn_name = dynamic_service_name
+                bus_srv  = bus_base_srv
+                mod.dynamic_service bus_base_srv, as: dynamic_service_name do
+                    options = Kernel.validate_options self.options, direction: nil
+                    in_name =
+                        if in_srv = mod.find_data_service_from_type(combus_m.bus_in_srv)
+                            in_srv.port_mappings_for_task['to_bus']
+                        else
+                            combus_m.input_name_for(name)
                         end
+
+                    if options[:direction] == 'inout'
+                        provides combus_m.bus_srv, 'from_bus' => combus_m.output_name_for(name),
+                            'to_bus' => in_name
+                        component_model.orogen_model.find_port(in_name).needs_reliable_connection
+                    elsif options[:direction] == 'in'
+                        provides combus_m.bus_in_srv, 'to_bus' => in_name
+                        component_model.orogen_model.find_port(in_name).needs_reliable_connection
+                    elsif options[:direction] == 'out'
+                        provides combus_m.bus_out_srv, 'from_bus' => combus_m.output_name_for(name)
+                    else raise ArgumentError, "invalid :direction option given, expected 'in', 'out' or 'inout' and got #{options[:direction]}"
                     end
                 end
             end
@@ -612,7 +646,7 @@ module Syskit
             # 'message_type' option must be used to specify what data type is
             # used to represent the bus messages:
             #
-            #   com_bus 'can', :message_type => '/can/Message'
+            #   com_bus 'can', message_type: '/can/Message'
             #
             # The returned value is an instance of DataServiceModel, in which
             # ComBus is included.

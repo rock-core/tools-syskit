@@ -102,7 +102,7 @@ module Syskit
             # send)
             #
             # @return [BoundDataService,nil]
-            attr_reader :combus_in_srv
+            attr_reader :combus_client_in_srv
 
             # The data service of {#task_model} that is used to send data to
             # the attached com bus for this device. If nil, the task is not
@@ -110,7 +110,7 @@ module Syskit
             # receives)
             #
             # @return [BoundDataService,nil]
-            attr_reader :combus_out_srv
+            attr_reader :combus_client_out_srv
 
             # Attaches this device on the given communication bus
 	    #
@@ -120,7 +120,7 @@ module Syskit
 	    # @option options [String] :out the name of the service on the device
 	    #   driver task context that should be used to send data to the
 	    #   communication bus. It is needed only if there is an ambiguity
-            def attach_to(com_bus, options = Hash.new)
+            def attach_to(com_bus, client_in_srv: nil, client_out_srv: nil, **options)
                 if com_bus.respond_to?(:to_str)
                     com_bus, com_bus_name = robot.find_device(com_bus), com_bus
                     if !com_bus
@@ -128,17 +128,34 @@ module Syskit
                     end
                 end
 
-                client_in_srv = com_bus.model.client_in_srv
-                client_out_srv = com_bus.model.client_out_srv
+                if srv_name = options.delete(:in)
+                    Roby.warn_deprecated "the in: option of MasterDeviceInstance#attach_to has been renamed to client_in_srv"
+                    client_in_srv = srv_name
+                end
+                if srv_name = options.delete(:out)
+                    Roby.warn_deprecated "the out: option of MasterDeviceInstance#attach_to has been renamed to client_out_srv"
+                    client_out_srv = srv_name
+                end
+                if !options.empty?
+                    raise ArgumentError, "unexpected options #{options}"
+                end
 
-		options = Kernel.validate_options options,
-		    :in => nil, :out => nil
+                if com_bus.model.bus_to_client?
+                    client_in_srv_m  = com_bus.model.client_in_srv
+                    @combus_client_in_srv  = find_combus_client_srv(client_in_srv_m, client_in_srv)
+                    if !combus_client_in_srv
+                        raise ArgumentError, "#{driver_model.to_component_model.short_name} does not provide an input service to connect to the com bus, and was expected to"
+                    end
+                end
 
-                @combus_in_srv  = find_combus_client_srv(com_bus.model.client_in_srv, options[:in])
-                @combus_out_srv = find_combus_client_srv(com_bus.model.client_out_srv, options[:out])
-		if !combus_out_srv && !combus_in_srv
-		    raise ArgumentError, "#{driver_model.to_component_model.short_name} provides neither an input nor an output service for combus #{com_bus.name}. It should provide #{com_bus.model.client_in_srv.short_name} for input-only, #{com_bus.model.client_out_srv.short_name} for output-only or #{com_bus.model.client_srv.short_name} for bidirectional connections"
-		end
+                if com_bus.model.client_to_bus?
+                    client_out_srv_m  = com_bus.model.client_out_srv
+                    @combus_client_out_srv  = find_combus_client_srv(client_out_srv_m, client_out_srv)
+                    if !combus_client_out_srv
+                        raise ArgumentError, "#{driver_model.to_component_model.short_name} does not provide an output service to connect to the com bus, and was expected to"
+                    end
+                end
+
                 com_busses << com_bus
                 com_bus.attached_devices << self
                 com_bus.model.apply_attached_device_configuration_extensions(self)

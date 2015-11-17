@@ -184,23 +184,30 @@ module Syskit
             # Attaches the given task to the communication bus
             def attach(task)
                 model.each_com_bus_driver_service do |combus_srv|
+                    combus_m = combus_srv.model
+
                     # Do we have a device for this bus ?
                     next if !(combus = find_device_attached_to(combus_srv))
                     task.each_master_device do |dev|
                         next if !dev.attached_to?(combus)
-                        client_in_srv  = dev.combus_in_srv
-                        client_out_srv = dev.combus_out_srv
+                        client_in_srv  = dev.combus_client_in_srv
+                        client_out_srv = dev.combus_client_out_srv
 
-                        if client_in_srv && client_out_srv
-                            bus_srv = require_dynamic_service(combus_srv.model.dynamic_service_name, :as => dev.name, :direction => 'inout')
-                            bus_srv.connect_to client_in_srv.bind(task)
+                        if !combus_m.lazy_dispatch?
+                            if !(bus_srv = find_data_service(dev.name))
+                                raise ArgumentError, "combus task #{self} was expected to have a service named #{dev.name} to connect to the device of the same name, but has none"
+                            end
+                        else
+                            bus_srv = require_dynamic_service(
+                                combus_m.dynamic_service_name,
+                                as: dev.name, direction: combus_m.messages_direction)
+                        end
+
+                        if combus_m.client_to_bus?
                             client_out_srv.bind(task).connect_to bus_srv
-                        elsif client_in_srv
-                            bus_out_srv = require_dynamic_service(combus_srv.model.dynamic_service_name, :as => dev.name, :direction => 'out')
-                            bus_out_srv.connect_to client_in_srv.bind(task)
-                        elsif client_out_srv
-                            bus_in_srv = require_dynamic_service(combus_srv.model.dynamic_service_name, :as => dev.name, :direction => 'in')
-                            client_out_srv.bind(task).connect_to bus_in_srv
+                        end
+                        if combus_m.bus_to_client?
+                            bus_srv.connect_to client_in_srv.bind(task)
                         end
                     end
                 end
