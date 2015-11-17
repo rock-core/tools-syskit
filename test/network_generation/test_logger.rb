@@ -77,7 +77,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
         it "should not setup the underlying orocos task if it is not already setup" do
             logger = deployment.task 'deployment_Logger'
             flexmock(logger).should_receive(:setup?).and_return(false)
-            flexmock(logger).should_receive(:createLoggingPort).never
+            flexmock(logger).should_receive(:create_logging_port).never
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
         end
@@ -85,9 +85,9 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
         it "should setup the underlying orocos task if the logger is already setup" do
             logger = deployment.task 'deployment_Logger'
             flexmock(logger).should_receive(:setup?).and_return(true)
-            flexmock(logger).should_receive(:createLoggingPort).
+            flexmock(logger).should_receive(:create_logging_port).
                 with('task.out1', task, task.out1_port).once
-            flexmock(logger).should_receive(:createLoggingPort).
+            flexmock(logger).should_receive(:create_logging_port).
                 with('task.out2', task, task.out2_port).once
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
@@ -101,9 +101,9 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             Syskit::NetworkGeneration::LoggerConfigurationSupport.
                 add_logging_to_network(syskit_engine, plan)
 
-            flexmock(logger).should_receive(:createLoggingPort).
+            flexmock(logger).should_receive(:create_logging_port).
                 with('task.out1', task, task.out1_port).once
-            flexmock(logger).should_receive(:createLoggingPort).
+            flexmock(logger).should_receive(:create_logging_port).
                 with('task.out2', task, task.out2_port).once
             flexmock(Orocos.conf).should_receive(:apply)
             deployment.start!
