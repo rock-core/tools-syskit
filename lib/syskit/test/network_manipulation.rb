@@ -474,7 +474,7 @@ module Syskit
                                 pp.nest(2) do
                                     info.missing.each do |ev|
                                         pp.breakable
-                                        ev.pretty_print(ev)
+                                        ev.pretty_print(pp)
                                     end
                                 end
                             end
