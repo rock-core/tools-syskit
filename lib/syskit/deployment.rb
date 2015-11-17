@@ -164,6 +164,8 @@ module Syskit
 
                 if log_dir
                     spawn_options = spawn_options.merge(working_directory: log_dir)
+                else
+                    spawn_options.delete(:working_directory)
                 end
 
                 Deployment.info do
