@@ -152,26 +152,26 @@ describe Syskit::ComBus do
                 @combus_task = combus.instanciate(plan).to_task
             end
             def mock_bus_direction(client_to_bus: false, bus_to_client: false)
-                flexmock(combus_m).should_receive(:client_to_bus?).and_return(client_to_bus)
-                flexmock(combus_m).should_receive(:bus_to_client?).and_return(bus_to_client)
+                flexmock(device).should_receive(:client_to_bus?).and_return(client_to_bus)
+                flexmock(device).should_receive(:bus_to_client?).and_return(bus_to_client)
             end
             it "creates a service on the combus task for each attached device" do
                 flexmock(combus_driver_m).new_instances.should_receive(:require_dynamic_service).
-                    with('com_bus', as: 'DEV', direction: 'inout').once.pass_thru
+                    with('com_bus', as: 'DEV', client_to_bus: true, bus_to_client: true).once.pass_thru
                 combus_task = combus.instanciate(plan).to_task
                 assert_equal combus_m::BusSrv, combus_task.find_data_service('DEV').model.model
             end
             it "does not create an input service on the combus task if messages flow only from the bus to the client" do
                 mock_bus_direction(bus_to_client: true, client_to_bus: false)
                 flexmock(combus_driver_m).new_instances.should_receive(:require_dynamic_service).
-                    with('com_bus', as: 'DEV', direction: 'out').once.pass_thru
+                    with('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: false).once.pass_thru
                 combus_task = combus.instanciate(plan).to_task
                 assert_equal combus_m::BusOutSrv, combus_task.find_data_service('DEV').model.model
             end
             it "does not create an output service on the combus task if messages flow only from the client to the bus" do
                 mock_bus_direction(bus_to_client: false, client_to_bus: true)
                 flexmock(combus_driver_m).new_instances.should_receive(:require_dynamic_service).
-                    with('com_bus', as: 'DEV', direction: 'in').once.pass_thru
+                    with('com_bus', as: 'DEV', bus_to_client: false, client_to_bus: true).once.pass_thru
                 combus_task = combus.instanciate(plan).to_task
                 assert_equal combus_m::BusInSrv, combus_task.find_data_service('DEV').model.model
             end
@@ -187,31 +187,31 @@ describe Syskit::ComBus do
                 @device_task = device.instanciate(plan).to_task
             end
             def mock_bus_direction(client_to_bus: false, bus_to_client: false)
-                flexmock(combus_m).should_receive(:client_to_bus?).and_return(client_to_bus)
-                flexmock(combus_m).should_receive(:bus_to_client?).and_return(bus_to_client)
+                flexmock(device).should_receive(:client_to_bus?).and_return(client_to_bus)
+                flexmock(device).should_receive(:bus_to_client?).and_return(bus_to_client)
             end
             it "creates a service on the combus task" do
                 flexmock(combus_task).should_receive(:require_dynamic_service).
-                    with('com_bus', as: 'DEV', direction: 'inout').once.pass_thru
+                    with('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: true).once.pass_thru
                 combus_task.attach(device_task)
             end
             it "does not create an input service on the combus task if messages flow only from the bus to the client" do
                 mock_bus_direction(bus_to_client: true, client_to_bus: false)
                 flexmock(combus_task).should_receive(:require_dynamic_service).
-                    with('com_bus', as: 'DEV', direction: 'out').once.pass_thru
+                    with('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: false).once.pass_thru
                 combus_task.attach(device_task)
             end
             it "does not create an output service on the combus task if messages flow only from the client to the bus" do
-                mock_bus_direction(client_to_bus: true, bus_to_client: false)
+                mock_bus_direction(bus_to_client: false, client_to_bus: true)
                 flexmock(combus_task).should_receive(:require_dynamic_service).
-                    with('com_bus', as: 'DEV', direction: 'in').once.pass_thru
+                    with('com_bus', as: 'DEV', bus_to_client: false, client_to_bus: true).once.pass_thru
                 combus_task.attach(device_task)
             end
             it "uses the bus model's #dynamic_service_name to set up the dynamic service" do
                 flexmock(combus_m).should_receive(:dynamic_service_name).and_return('dyn_srv').by_default
-                srv = combus_task.require_dynamic_service('com_bus', as: 'DEV', direction: 'inout')
+                srv = combus_task.require_dynamic_service('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: true)
                 flexmock(combus_task).should_receive(:require_dynamic_service).
-                    with('dyn_srv', as: 'DEV', direction: 'inout').once.and_return(srv)
+                    with('dyn_srv', as: 'DEV', bus_to_client: true, client_to_bus: true).once.and_return(srv)
                 combus_task.attach(device_task)
             end
             it "ignores devices that are not attached to the bus" do

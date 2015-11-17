@@ -404,26 +404,6 @@ module Syskit
                 !!client_in_srv
             end
 
-            # Messages directions from the point of view of the bus
-            #
-            # It returns a string that represents whether the bus gets messages
-            # from the client ('in'), send messages to the client ('out') or
-            # both ('inout')
-            #
-            # It is the string that needs to be passed when instantiating the
-            # bus dynamic service 
-            def messages_direction
-                if client_to_bus? && bus_to_client?
-                    'inout'
-                elsif client_to_bus?
-                    'in'
-                elsif bus_to_client?
-                    'out'
-                else
-                    raise ArgumentError, "#{self} has neither inputs nor outputs to its clients"
-                end
-            end
-
             attr_reader :bus_base_srv
             attr_reader :bus_in_srv
             attr_reader :bus_out_srv
@@ -494,7 +474,7 @@ module Syskit
                 dyn_name = dynamic_service_name
                 bus_srv  = bus_base_srv
                 mod.dynamic_service bus_base_srv, as: dynamic_service_name do
-                    options = Kernel.validate_options self.options, direction: nil
+                    options = Kernel.validate_options self.options, client_to_bus: nil, bus_to_client: nil
                     in_name =
                         if in_srv = mod.find_data_service_from_type(combus_m.bus_in_srv)
                             in_srv.port_mappings_for_task['to_bus']
@@ -502,16 +482,23 @@ module Syskit
                             combus_m.input_name_for(name)
                         end
 
-                    if options[:direction] == 'inout'
+                    begin
+                        client_to_bus, bus_to_client =
+                            options.fetch(:client_to_bus), options.fetch(:bus_to_client)
+                    rescue KeyError
+                        raise ArgumentError, "you must provide both the client_to_bus and bus_to_client option when instanciating the a com bus dynamic service"
+                    end
+
+                    if client_to_bus && bus_to_client
                         provides combus_m.bus_srv, 'from_bus' => combus_m.output_name_for(name),
                             'to_bus' => in_name
                         component_model.orogen_model.find_port(in_name).needs_reliable_connection
-                    elsif options[:direction] == 'in'
+                    elsif client_to_bus
                         provides combus_m.bus_in_srv, 'to_bus' => in_name
                         component_model.orogen_model.find_port(in_name).needs_reliable_connection
-                    elsif options[:direction] == 'out'
+                    elsif bus_to_client
                         provides combus_m.bus_out_srv, 'from_bus' => combus_m.output_name_for(name)
-                    else raise ArgumentError, "invalid :direction option given, expected 'in', 'out' or 'inout' and got #{options[:direction]}"
+                    else raise ArgumentError, "at least one of bus_to_client or client_to_bus must be true"
                     end
                 end
             end

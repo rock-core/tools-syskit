@@ -467,36 +467,46 @@ describe ComBus do
             driver_m.driver_for combus_m, as: 'combus_driver'
         end
         it "instanciates an input bus service if requested one" do
-            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', direction: 'in')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', bus_to_client: false, client_to_bus: true)
             assert_same combus_m.bus_in_srv, srv.model.model
         end
         it "provides the mapping of from_bus to input_name_for if requested an input service" do
             flexmock(combus_m).should_receive(:input_name_for).with('dev').and_return('in_DEV')
-            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', direction: 'in')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', bus_to_client: false, client_to_bus: true)
             assert_equal Hash['to_bus' => 'in_DEV'], srv.model.port_mappings_for_task
         end
         it "instanciates an output bus service if requested one" do
-            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', direction: 'out')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: false)
             assert_same combus_m.bus_out_srv, srv.model.model
         end
         it "provides the mapping of from_bus to output_name_for if requested an output service" do
             flexmock(combus_m).should_receive(:output_name_for).with('dev').and_return('out_DEV')
-            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', direction: 'out')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: false)
             assert_equal Hash['from_bus' => 'out_DEV'], srv.model.port_mappings_for_task
         end
         it "instanciates bidirectional service if requested one" do
-            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', direction: 'inout')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: true)
             assert_same combus_m.bus_srv, srv.model.model
         end
         it "provides the proper mappings if requested a bidirectional service" do
             flexmock(combus_m).should_receive(:output_name_for).with('dev').and_return('out_DEV')
             flexmock(combus_m).should_receive(:input_name_for).with('dev').and_return('in_DEV')
-            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', direction: 'inout')
+            srv = driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', bus_to_client: true, client_to_bus: true)
             assert_equal Hash['from_bus' => 'out_DEV', 'to_bus' => 'in_DEV'], srv.model.port_mappings_for_task
         end
-        it "raises if the :direction option is invalid" do
+        it "raises if the bus_to_client option is not provided" do
             assert_raises(ArgumentError) do
-                driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', direction: 'bla')
+                driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', client_to_bus: true)
+            end
+        end
+        it "raises if the client_to_bus option is not provided" do
+            assert_raises(ArgumentError) do
+                driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', bus_to_client: true)
+            end
+        end
+        it "raises if both bus_to_client and client_to_bus options are false" do
+            assert_raises(ArgumentError) do
+                driver_m.new.require_dynamic_service('dyn_srv', as: 'dev', bus_to_client: false, client_to_bus: false)
             end
         end
     end

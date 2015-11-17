@@ -680,12 +680,12 @@ describe Syskit::TaskContext do
 
     it "should synchronize the startup of communication busses and their supported devices" do
         combus_m = Syskit::ComBus.new_submodel message_type: '/int'
-        combus_driver_m = Syskit::TaskContext.new_submodel do
+        combus_driver_m = Syskit::TaskContext.new_submodel(name: 'BusDriver') do
             dynamic_output_port /.*/, '/int'
         end
         combus_driver_m.provides combus_m, as: 'driver'
         device_m = Syskit::Device.new_submodel
-        device_driver_m = Syskit::TaskContext.new_submodel do
+        device_driver_m = Syskit::TaskContext.new_submodel(name: 'Driver') do
             input_port 'bus_in', '/int'
         end
         device_driver_m.provides combus_m.client_in_srv, as: 'bus'
@@ -693,7 +693,7 @@ describe Syskit::TaskContext do
 
         bus = robot.com_bus combus_m, as: 'bus'
         dev = robot.device device_m, as: 'dev'
-        dev.attach_to(bus)
+        dev.attach_to(bus, client_to_bus: false)
 
         engine.scheduler.enabled = false
 

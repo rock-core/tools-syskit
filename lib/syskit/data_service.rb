@@ -200,13 +200,13 @@ module Syskit
                         else
                             bus_srv = require_dynamic_service(
                                 combus_m.dynamic_service_name,
-                                as: dev.name, direction: combus_m.messages_direction)
+                                as: dev.name, client_to_bus: dev.client_to_bus?, bus_to_client: dev.bus_to_client?)
                         end
 
-                        if combus_m.client_to_bus?
+                        if dev.client_to_bus?
                             client_out_srv.bind(task).connect_to bus_srv
                         end
-                        if combus_m.bus_to_client?
+                        if dev.bus_to_client?
                             bus_srv.connect_to client_in_srv.bind(task)
                         end
                     end

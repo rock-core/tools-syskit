@@ -38,12 +38,60 @@ describe Syskit::Robot::MasterDeviceInstance do
         end
 
         describe "#attach_to" do
-            it "should find combus_in_srv automatically if the task provides the requested service" do
+            it "finds a combus_client_in_srv automatically if the task provides only one client_in_srv" do
                 driver_m.orogen_model.input_port 'combus_in', '/double'
                 driver_m.provides combus_m.client_in_srv, as: 'combus_in'
-                dev.attach_to(bus)
+                dev.attach_to(bus, client_to_bus: false)
+                assert_equal dev.combus_client_in_srv, driver_m.combus_in_srv
+            end
+            it "raises ArgumentError if more than one client-to-bus service is available and no name is explicitely given" do
+                driver_m.orogen_model.input_port 'combus_in', '/double'
+                driver_m.provides combus_m.client_in_srv, as: 'combus_in'
+                driver_m.provides combus_m.client_in_srv, as: 'combus2_in'
+                assert_raises(ArgumentError) do
+                    dev.attach_to(bus, client_to_bus: false)
+                end
+            end
+            it "uses the client_to_bus option to disambiguate the service" do
+                driver_m.orogen_model.input_port 'combus_in', '/double'
+                driver_m.provides combus_m.client_in_srv, as: 'combus_in'
+                driver_m.provides combus_m.client_in_srv, as: 'combus2_in'
+                dev.attach_to(bus, client_to_bus: false, bus_to_client: 'combus2_in')
+                assert_equal dev.combus_client_in_srv, driver_m.combus2_in_srv
+            end
+            it "raises ArgumentError if the expected bus-to-client service is not available" do
+                driver_m.orogen_model.input_port 'combus_in', '/double'
+                driver_m.provides combus_m.client_in_srv, as: 'combus_in'
+                dev.attach_to(bus, client_to_bus: false)
+                assert_equal dev.combus_client_in_srv, driver_m.combus_in_srv
+            end
 
-                assert_equal dev.combus_in_srv, driver_m.combus_in_srv
+            it "finds a combus_client_out_srv automatically if the task provides only one client_out_srv" do
+                driver_m.orogen_model.output_port 'combus_out', '/double'
+                driver_m.provides combus_m.client_out_srv, as: 'combus_out'
+                dev.attach_to(bus, bus_to_client: false)
+                assert_equal dev.combus_client_out_srv, driver_m.combus_out_srv
+            end
+            it "raises ArgumentError if more than one client-to-bus service is available and no name is explicitely given" do
+                driver_m.orogen_model.output_port 'combus_out', '/double'
+                driver_m.provides combus_m.client_out_srv, as: 'combus_out'
+                driver_m.provides combus_m.client_out_srv, as: 'combus2_out'
+                assert_raises(ArgumentError) do
+                    dev.attach_to(bus, bus_to_client: false)
+                end
+            end
+            it "uses the client_to_bus option to disambiguate the service" do
+                driver_m.orogen_model.output_port 'combus_out', '/double'
+                driver_m.provides combus_m.client_out_srv, as: 'combus_out'
+                driver_m.provides combus_m.client_out_srv, as: 'combus2_out'
+                dev.attach_to(bus, bus_to_client: false, client_to_bus: 'combus2_out')
+                assert_equal dev.combus_client_out_srv, driver_m.combus2_out_srv
+            end
+            it "raises ArgumentError if the expected bus-to-client service is not available" do
+                driver_m.orogen_model.output_port 'combus_out', '/double'
+                driver_m.provides combus_m.client_out_srv, as: 'combus_out'
+                dev.attach_to(bus, bus_to_client: false)
+                assert_equal dev.combus_client_out_srv, driver_m.combus_out_srv
             end
             it "should raise if the driver has no I/O available for the combus" do
                 assert_raises(ArgumentError) { dev.attach_to(bus) }
@@ -57,7 +105,7 @@ describe Syskit::Robot::MasterDeviceInstance do
             end
 
             it "should return true if the device is attached to the given combus" do
-                dev.attach_to(bus)
+                dev.attach_to(bus, client_to_bus: false)
                 assert dev.attached_to?(bus)
             end
             it "should return false if the device is not attached to a combus with the given name" do

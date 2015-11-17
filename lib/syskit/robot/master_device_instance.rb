@@ -112,15 +112,31 @@ module Syskit
             # @return [BoundDataService,nil]
             attr_reader :combus_client_out_srv
 
+            # Whether this device sends messages to the bus it is attached to
+            #
+            # It will return false if not attached to a bus
+            def client_to_bus?
+                !!combus_client_out_srv
+            end
+
+            # Whether this device sends messages to the bus it is attached to
+            #
+            # It will return false if not attached to a bus
+            def bus_to_client?
+                !!combus_client_in_srv
+            end
+
             # Attaches this device on the given communication bus
 	    #
-	    # @option options [String] :in the name of the service on the device
-	    #   driver task context that should be used to get data from the
-	    #   communication bus. It is needed only if there is an ambiguity
-	    # @option options [String] :out the name of the service on the device
-	    #   driver task context that should be used to send data to the
-	    #   communication bus. It is needed only if there is an ambiguity
-            def attach_to(com_bus, client_in_srv: nil, client_out_srv: nil, **options)
+            # @param [Boolean,String] bus_to_client whether the device expects a
+            #   connection from the bus. It can be set to a string, in which
+            #   case the string is used as the name of the service on the
+            #   client's device driver that should be used for connection
+            # @param [Boolean,String] client_to_bus whether the device expects a
+            #   connection to the bus. It can be set to a string, in which
+            #   case the string is used as the name of the service on the client
+            #   device driver that should be used for connection
+            def attach_to(com_bus, bus_to_client: true, client_to_bus: true, **options)
                 if com_bus.respond_to?(:to_str)
                     com_bus, com_bus_name = robot.find_device(com_bus), com_bus
                     if !com_bus
@@ -129,30 +145,46 @@ module Syskit
                 end
 
                 if srv_name = options.delete(:in)
-                    Roby.warn_deprecated "the in: option of MasterDeviceInstance#attach_to has been renamed to client_in_srv"
-                    client_in_srv = srv_name
+                    Roby.warn_deprecated "the in: option of MasterDeviceInstance#attach_to has been renamed to bus_to_client"
+                    bus_to_client = srv_name
                 end
                 if srv_name = options.delete(:out)
-                    Roby.warn_deprecated "the out: option of MasterDeviceInstance#attach_to has been renamed to client_out_srv"
-                    client_out_srv = srv_name
+                    Roby.warn_deprecated "the out: option of MasterDeviceInstance#attach_to has been renamed to client_to_bus"
+                    client_to_bus = srv_name
                 end
                 if !options.empty?
                     raise ArgumentError, "unexpected options #{options}"
                 end
 
-                if com_bus.model.bus_to_client?
+                if bus_to_client && com_bus.model.bus_to_client?
+                    client_in_srv =
+                        if bus_to_client.respond_to?(:to_str)
+                            bus_to_client
+                        end
                     client_in_srv_m  = com_bus.model.client_in_srv
-                    @combus_client_in_srv  = find_combus_client_srv(client_in_srv_m, client_in_srv)
+                    @combus_client_in_srv  =
+                        begin find_combus_client_srv(client_in_srv_m, client_in_srv)
+                        rescue AmbiguousServiceSelection
+                            raise ArgumentError, "#{driver_model.to_component_model} provides more than one input service to connect to the com bus, select one explicitely with the bus_to_client option"
+                        end
                     if !combus_client_in_srv
-                        raise ArgumentError, "#{driver_model.to_component_model.short_name} does not provide an input service to connect to the com bus, and was expected to"
+                        raise ArgumentError, "#{driver_model.to_component_model} does not provide an input service to connect to the com bus, and was expected to"
                     end
                 end
 
-                if com_bus.model.client_to_bus?
+                if client_to_bus && com_bus.model.client_to_bus?
+                    client_out_srv =
+                        if client_to_bus.respond_to?(:to_str)
+                            client_to_bus
+                        end
                     client_out_srv_m  = com_bus.model.client_out_srv
-                    @combus_client_out_srv  = find_combus_client_srv(client_out_srv_m, client_out_srv)
+                    @combus_client_out_srv  =
+                        begin find_combus_client_srv(client_out_srv_m, client_out_srv)
+                        rescue AmbiguousServiceSelection
+                            raise ArgumentError, "#{driver_model.to_component_model} provides more than one output service to connect to the com bus, select one explicitely with the client_to_bus option"
+                        end
                     if !combus_client_out_srv
-                        raise ArgumentError, "#{driver_model.to_component_model.short_name} does not provide an output service to connect to the com bus, and was expected to"
+                        raise ArgumentError, "#{driver_model.to_component_model} does not provide an output service to connect to the com bus, and was expected to"
                     end
                 end
 
