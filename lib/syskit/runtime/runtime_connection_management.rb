@@ -128,6 +128,11 @@ module Syskit
                             new_connections[ports] = new_policy
                         end
                     end
+                    old_mapping.each_key do |ports|
+                        if !new_mapping.has_key?(ports)
+                            removed_connections << ports
+                        end
+                    end
 
                     if !new_connections.empty?
                         new[[source_task, sink_task]] = new_connections

@@ -34,6 +34,11 @@ module Syskit
             # constants
             attr_predicate :export_types?, true
 
+            # Data logging configuration
+            #
+            # @return [LoggingConfiguration]
+            attr_reader :logs
+
             # Controls whether the orogen types should be exported as Ruby
             # constants
             #
@@ -47,12 +52,10 @@ module Syskit
                 super()
 
                 @app = app
+                @logs = LoggingConfiguration.new
                 @process_servers = Hash.new
                 @load_component_extensions = true
-                @log_enabled = true
-                @conf_log_enabled = true
                 @redirect_local_process_server = true
-                @default_logging_buffer_size = 25
                 @reject_ambiguous_deployments = true
                 @auto_configure = true
                 @only_load_models = nil
@@ -66,17 +69,7 @@ module Syskit
                 @buffer_size_margin = 0.1
                 @use_only_model_pack = false
 
-                @log_groups = { nil => LogGroup.new(false) }
-
                 self.export_types = true
-
-                registry = Typelib::Registry.new
-                Typelib::Registry.add_standard_cxx_types(registry)
-                registry.each do |t|
-                    if t < Typelib::NumericType
-                        main_group.names << t.name
-                    end
-                end
             end
 
             def create_subfield(name)
@@ -92,40 +85,27 @@ module Syskit
                 @deployed_tasks = Hash.new
             end
 
-            # The default buffer size that should be used when setting up a
-            # logger connection
-            #
-            # Defaults to 25
-            #
-            # @return [Integer]
-            attr_accessor :default_logging_buffer_size
-
-            # The set of currently defined log groups
-            #
-            # It is a mapping from the log group name to the corresponding
-            # LogGroup instance
-            attr_reader :log_groups
-
-            # The main log filter
-            #
-            # See #log_group
-            def main_group
-                log_groups[nil]
+            # @deprecated access {#logs} for logging configuration
+            def default_logging_buffer_size
+                Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
+                logs.default_logging_buffer_size
             end
 
-            # Create a new log group with the given name
-            #
-            # A log groups are sets of filters that are used to match
-            # deployments, tasks or specific ports. These filters can be enabled
-            # or disabled using their name with #enable_log_group and
-            # #disable_log_group
+            # @deprecated access {#logs} for logging configuration
+            def default_logging_buffer_size=(size)
+                Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
+                logs.default_logging_buffer_size=size
+            end
+
+            # @deprecated access {#logs} for logging configuration
             def log_group(name, &block)
-                group = LogGroup.new
-                group.load(&block)
-                log_groups[name.to_str] = group
+                Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
+                logs.create_group(name) do |group|
+                    group.instance_eval(&block)
+                end
             end
 
-            # Exclude +object+ from the logging system
+            # Permanently exclude object from the logging system
             #
             # +object+ can be
             # * a deployment model, in which case no task  in this deployment
@@ -140,77 +120,44 @@ module Syskit
                 main_group.add(object, subname)
             end
 
-            # Turns logging on for the named group. The modification will only
-            # be applied at the next network generation.
-            #
-            # Groups are declared with {#log_group}
-            #
-            # @raise [ArgumentError] if no group with this name exists
+
+            # @deprecated access {#logs} for logging configuration
             def enable_log_group(name)
-	        name = name.to_s
-	        if !log_groups.has_key?(name)
-		    raise ArgumentError, "no such log group #{name}. Available groups are: #{log_groups.keys.join(", ")}"
-		end
-                log_groups[name].enabled = true
+                Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
+                logs.enable_group(name)
             end
 
-            # Turns logging off for the named group. The modification will only
-            # be applied at the next network generation.
-            #
-            # Groups are declared with {#log_group}
-            #
-            # @raise [ArgumentError] if no group with this name exists
+            # @deprecated access {#logs} for logging configuration
             def disable_log_group(name)
-	        name = name.to_s
-	        if !log_groups.has_key?(name)
-		    raise ArgumentError, "no such log group #{name}. Available groups are: #{log_groups.keys.join(", ")}"
-		end
-                log_groups[name].enabled = false
+                Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
+                logs.disable_group(name)
             end
-
             # If true, the output of the local process server will be saved in
             # log_dir/local_process_server.txt
             attr_predicate :redirect_local_process_server?, true
 
-            # Signifies whether orocos logging is enabled at all or not. If
-            # false, no logging will take place. If true, logging is enabled to
-            # the extent of the log configuration done with enable/disable log
-            # groups (#enable_log_group) and single ports (#exclude_from_log)
-            attr_predicate :log_enabled?
-            # See #log_enabled?
-            def enable_logging; @log_enabled = true end
-            # See #log_enabled?
-            def disable_logging; @log_enabled = false end
 
-            # If true, changes to the values in properties are being logged by
-            # the framework. If false, they are not.
-            #
-            # Currently, properties are logged in a properties.0.log file
-            attr_predicate :conf_log_enabled?
-            # See #conf_log_enabled?
-            def enable_conf_logging; @conf_log_enabled = true end
-            # See #conf_log_enabled?
-            def disable_conf_logging; @conf_log_enabled = false end
-
-            # Returns true if +deployment+ is completely excluded from logging
-            def deployment_excluded_from_log?(deployment)
-                if !log_enabled?
-                    true
-                else
-                    matches = log_groups.find_all { |_, group| group.matches_deployment?(deployment) }
-                    !matches.empty? && matches.all? { |_, group| !group.enabled? }
-                end
+            # @deprecated access {#logs} for logging configuration
+            def enable_logging
+                Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
+                logs.enable_port_logging
+            end
+            # @deprecated access {#logs} for logging configuration
+            def disable_logging
+                Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
+                logs.disable_port_logging
             end
 
-            # Returns true if the port with name +port_name+ of task model
-            # +task_model+ in deployment +deployment+ should be logged or not
-            def port_excluded_from_log?(deployment, port)
-                if !log_enabled?
-                    true
-                else
-                    matches = log_groups.find_all { |_, group| group.matches_port?(deployment, port) }
-                    !matches.empty? && matches.all? { |_, group| !group.enabled? }
-                end
+            # @deprecated access {#logs} for logging configuration
+            def enable_conf_logging
+                Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
+                logs.enable_conf_logging
+            end
+
+            # @deprecated access {#logs} for logging configuration
+            def disable_conf_logging
+                Roby.warn_deprecated "logging configuration has been moved to Syskit.conf.logs (of type LoggingConfiguration)"
+                logs.disable_conf_logging
             end
 
             # If multiple deployments are available for a task, and this task is
@@ -530,14 +477,6 @@ module Syskit
             #   server API
             def process_server_for(name)
                 process_server_config_for(name).client
-            end
-
-            # Returns the log dir for the given process server
-            #
-            # @param [String] name the process server name
-            # @raise [ArgumentError] if no such process server exists
-            def log_dir_for(name)
-                process_server_config_for(name).log_dir
             end
 
             # True if this application should not try to contact other

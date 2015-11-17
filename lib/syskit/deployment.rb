@@ -193,11 +193,12 @@ module Syskit
             # @param [Syskit::Port] port
             # @return [Boolean]
             def log_port?(port)
-                result = !Syskit.conf.port_excluded_from_log?(self, port)
-                if !result
+                if Syskit.conf.logs.port_excluded_from_log?(port)
+                    false
+                else
                     Syskit.info "not logging #{port.component}.#{port.name}"
+                    true
                 end
-                result
             end
 
             poll do
