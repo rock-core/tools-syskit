@@ -113,7 +113,7 @@ module Syskit
             # @yieldparam [LoggingGroup] group the group that is being created
             #   or updated
             # @raise [ArgumentError] if the group name already exists
-            def create_group(name, enabled: true, &block)
+            def create_group(name, enabled: true)
                 if groups[name.to_str]
                     raise ArgumentError, "there is already a group registered under the name #{name}, use #update_group if you mean to update it"
                 end
