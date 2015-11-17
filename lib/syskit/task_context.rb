@@ -460,7 +460,7 @@ module Syskit
                 end
 
                 ::Robot.info "cleaning up #{self}"
-                orocos_task.cleanup
+                orocos_task.cleanup(false)
 
                 # {#cleanup} is meant to clear dynamic ports, clear the
                 # ActualDataFlow graph accordingly

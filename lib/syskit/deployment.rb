@@ -270,7 +270,7 @@ module Syskit
                     if task_handles
                         task_handles.each_value do |t|
                             if t.rtt_state == :STOPPED
-                                t.cleanup
+                                t.cleanup(false)
                             end
                         end
                     end
