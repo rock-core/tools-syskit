@@ -461,5 +461,23 @@ describe Syskit::Runtime::ConnectionManagement do
         assert_equal 'out', e.port_name
         assert_equal :output, e.port_kind
     end
+
+    describe "#partition_early_late" do
+        subject { Syskit::Runtime::ConnectionManagement.new(plan) }
+        it "returns a hash for the late connections" do
+            connections = Hash[[source = flexmock, sink = flexmock] => Hash.new]
+            states = Hash[source => :RUNNING, sink => :RUNNING]
+            early, late = subject.partition_early_late(connections, states, '', ->(t) { t })
+            assert_kind_of Hash, late
+        end
+
+        it "passes connections between running tasks in the late hash" do 
+            connections = Hash[[source = flexmock, sink = flexmock] => Hash.new]
+            states = Hash[source => :RUNNING, sink => :RUNNING]
+            early, late = subject.partition_early_late(connections, states, '', ->(t) { t })
+            assert early.empty?
+            assert_equal connections, late
+        end
+    end
 end
 
