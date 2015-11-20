@@ -196,10 +196,10 @@ module Syskit
                         deployed_tasks.each_value do |task|
                             begin
                                 if task.rtt_state == :RUNNING
-                                    task.stop
+                                    task.stop(false)
                                 end
                                 if task.rtt_state == :STOPPED
-                                    task.cleanup
+                                    task.cleanup(false)
                                 end
                             rescue Orocos::ComError
                             end
