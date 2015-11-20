@@ -15,6 +15,10 @@ module Syskit
             #   if there is no currently selected job
             attr_reader :ui_chronicle
 
+            # @return [JobStatusDisplay] the summary widget for the currently
+            #   selected job, or nil if no job is selected
+            attr_reader :job_status
+
             def initialize(parent = nil)
                 super(parent, auto_resize: false)
 
