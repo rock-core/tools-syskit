@@ -1,5 +1,6 @@
 module Syskit
     module GUI
+        # Base class for the labels that represent an object and its states
         class StateLabel < Qt::Label
             COLORS = Hash[
                 blue: "rgb(51, 181, 229)",
@@ -78,10 +79,25 @@ module Syskit
                 update_state :INIT
             end
 
+            # Declare that the given state should be ignored
+            #
+            # The display will not be changed when the state changes to an
+            # ignored state
+            #
+            # @param [String] state_name the name of the state that should be
+            #   ignored
             def ignore_state(state_name)
                 states[state_name.to_s] = nil
             end
 
+            # @api private
+            #
+            # Helper to handle a color argument
+            #
+            # @param [String] color the color name (in {COLORS}) or a
+            #   stylesheet color (e.g. rgb(20, 30, 50)). Anything that is not a
+            #   key in {COLOR} is interpreted as a stylesheet color
+            # @return [String] a stylesheet color
             def handle_color_argument(color)
                 if c = COLORS[color]
                     COLORS[color]
@@ -90,16 +106,37 @@ module Syskit
                 end
             end
 
+            # Associate a state name and a color
+            #
+            # @param [String] state_name the state name
+            # @param [String] color the color. It can either be a color name in
+            #   {COLOR} or a Qt stylesheet color (e.g. 'rgb(20, 30, 50)'). Any
+            #   string that is not a color name will be interpreted as a
+            #   stylesheet color (i.e. no validation is made)
             def declare_state(state_name, color)
                 states[state_name.to_s] = handle_color_argument(color)
                 self
             end
 
+            # Declare a color for non-declared states
+            #
+            # If unset (the default), a non-declared state will be interpreted
+            # as an error. Otherwise, this color will be chosen
             def declare_default_color(color)
                 self.default_color = handle_color_argument(color)
                 self
             end
 
+            # Returns the color that should be used for a given state
+            #
+            # @param [String] state the state name
+            # @return [String] the Qt stylesheet color as defined with
+            #   {#declare_state} or, if the state has not been declared, by
+            #   {#declare_default_color}
+            #
+            # @raise [ArgumentError] if the state has not been declared with
+            #   {#declare_state} and no defeault color has been set with
+            #   {#declare_default_color}
             def color_from_state(state)
                 state = state.to_s
                 if states.has_key?(state)
@@ -110,6 +147,11 @@ module Syskit
             end
 
             # Update to reflect a state change
+            #
+            # @param [String] state the state name
+            # @param [String] text the text to be displayed for this state
+            #   change
+            # @param [String] color the color to use for this state
             def update_state(state, text: state.to_s, color: color_from_state(state))
                 return if !color
                 update_style(color)
@@ -117,12 +159,22 @@ module Syskit
                 @current_state = state.to_s
             end
 
+            # Update the label's style to use the given color
+            #
+            # @param [String] color a Qt stylesheet color (e.g. rgb(20,30,50))
             def update_style(color = current_color)
                 @current_color = color
                 color = handle_color_argument(color)
                 self.style_sheet = STYLE % [color, extra_style]
             end
             
+            # Update the displayed text
+            #
+            # If {#name} is set, the resulting text is name: text, otherwise
+            # just text
+            #
+            # The text is displayed using the {#current_color} and
+            # {#extra_style}
             def update_text(text = current_text)
                 text = text.to_str
                 @current_text = text

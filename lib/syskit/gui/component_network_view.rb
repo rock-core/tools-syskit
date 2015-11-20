@@ -6,10 +6,29 @@ module Syskit
         #
         # It displays the task hierarchy as well as the dataflow network
         class ComponentNetworkView < ComponentNetworkBaseView
+            # @!method view_partial_plans?
+            # @!method view_partial_plans=(flag)
+            #
+            # Whether the plan should be displayed regardless of errors during
+            # deployment or not. It defaults to true.
             attr_predicate :view_partial_plans?, true
+
+            # Default rendering options for {ComponentNetworkBaseView#push_plan}
+            # for the dataflow graph
             attr_reader :dataflow_options
+
+            # Default rendering options for {ComponentNetworkBaseView#push_plan}
+            # for the hierarchy graph
             attr_reader :hierarchy_options
+
+            # The plan object that holds the network we render
+            #
+            # @return [Roby::Plan]
             attr_reader :plan
+
+            # The toplevel task for the model we render
+            #
+            # @return [Syskit::Component]
             attr_reader :task
 
             def initialize(page)
@@ -62,6 +81,24 @@ module Syskit
                 hierarchy_options[:buttons] = buttons
             end
 
+            # Render a model on this view
+            #
+            # @param [Model<Component>] model
+            # @param [Symbol] method how to render the model. It either is
+            #   :instanciate_model
+            #   (#{ComponentNetworkBaseView#instanciate_model}) or
+            #   :compute_system_network (#{ComponentNetworkBaseView#compute_system_network})
+            # @param [Boolean] show_requirements whether
+            #   model.to_instance_requirements should be rendered as well
+            # @param [Hash] instanciate_options options to be passed to
+            #   {ComponentNetworkBaseView#instanciate_model} if 'method' is
+            #   :intsanciate_model
+            # @param [Hash] dataflow additional arguments for the rendering of the
+            #   dataflow grap in {#render_plan}
+            # @param [Hash] hierarchy additional arguments for the rendering of the
+            #   hierarchy graph in {#render_plan}
+            # @param [Hash] render_options additional options for the rendering
+            #   of both graphs in {#render_plan}
             def render(model,
                        method: :instanciate_model,
                        name: nil,
@@ -122,6 +159,18 @@ module Syskit
                 options
             end
 
+            # Renders {#plan}
+            #
+            # This renders the plan's hierarchy and dataflow
+            #
+            # @param [Hash] hierarchy options to pass to
+            #   {ComponentNetworkBaseView#push_plan} in addition to 'options'
+            #   and {#hierarchy_options}
+            # @param [Hash] dataflow options to pass to
+            #   {ComponentNetworkBaseView#push_plan} in addition to 'options'
+            #   and {#dataflow_options}
+            # @param [Hash] options options that should be passed to
+            # {#push_plan} for both the hierarchy and dataflow graphs
             def render_plan(hierarchy: Hash.new, dataflow: Hash.new, **options)
                 all_annotations = Syskit::Graphviz.available_annotations.to_set
 

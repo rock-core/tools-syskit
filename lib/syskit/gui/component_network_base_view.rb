@@ -2,13 +2,26 @@ module Syskit
     module GUI
         # Base functionality to display plans that contain component networks
         class ComponentNetworkBaseView < Qt::Object
+            # The last model given to {#render}
             attr_reader :current_model
+
+            # The page on which the rendered HTML is pushed
+            #
+            # @return [Page]
             attr_reader :page
+
             # The last generated plan
             attr_reader :plan
 
             Button = MetaRuby::GUI::HTML::Button
 
+            # Generate a list of buttons to show or hide annotations
+            #
+            # @param [String] namespace the button namespace, i.e. a string that
+            #   is prefixed before the button ID. The final button ID is
+            #   #{namespace}/annotations/#{annotation_name}
+            # @param [Array<String>] the list of annotations
+            # @param [Set<String>] the set of annotations that are initially shown
             def self.make_annotation_buttons(namespace, annotations, defaults)
                 annotations.sort.map do |ann_name|
                     Button.new("#{namespace}/annotations/#{ann_name}",
@@ -18,16 +31,40 @@ module Syskit
                 end
             end
 
+            # Generate common list of buttons
+            #
+            # @param [String] namespace the button namespace, i.e. a string that
+            #   is prefixed before the button ID. The final button ID are
+            #   #{namespace}/#{button_name} (e.g. #{namespace}/zoom)
             def self.common_graph_buttons(namespace)
                 [Button.new("#{namespace}/zoom", text: "Zoom +"),
                  Button.new("#{namespace}/unzoom", text: "Zoom -"),
                  Button.new("#{namespace}/save", text: "Save SVG")]
             end
 
+            # Generate the list of buttons that allows to display or hide
+            # task annotations as enumerated by {Graphviz.available_task_annotations}
+            #
+            # @param [String] namespace the button namespace, i.e. a string that
+            #   is prefixed before the button ID. The final button ID is
+            #   #{namespace}/annotations/#{annotation_name}
+            # @param [Set<String>] the set of annotations that are initially shown
+            #
+            # @see Graphviz.available_task_annotations
             def self.task_annotation_buttons(namespace, defaults)
                 make_annotation_buttons(namespace, Graphviz.available_task_annotations, defaults)
             end
 
+            # Generate the list of buttons that allows to display or hide
+            # graph annotations, as enumerated by
+            # {Graphviz.available_graph_annotations}
+            #
+            # @param [String] namespace the button namespace, i.e. a string that
+            #   is prefixed before the button ID. The final button ID is
+            #   #{namespace}/annotations/#{annotation_name}
+            # @param [Set<String>] the set of annotations that are initially shown
+            #
+            # @see Graphviz.available_graph_annotations
             def self.graph_annotation_buttons(namespace, defaults)
                 make_annotation_buttons(namespace, Graphviz.available_graph_annotations, defaults)
             end
@@ -37,14 +74,23 @@ module Syskit
                 @page = page
             end
 
+            # Enable this HTML renderer
+            #
+            # This is usually not called directly, it is used by
+            # {MetaRuby::GUI::ModelBrowser}
             def enable
                 connect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
             end
 
+            # Disable this HTML renderer
+            #
+            # This is usually not called directly, it is used by
+            # {MetaRuby::GUI::ModelBrowser}
             def disable
                 disconnect(page, SIGNAL('buttonClicked(const QString&,bool)'), self, SLOT('buttonClicked(const QString&,bool)'))
             end
 
+            # Template used in {#render_data_services} if the with_names argument is false
             DATA_SERVICE_WITHOUT_NAMES_TEMPLATE = <<-EOD
             <table>
             <% services.each do |service_name, provided_services| %>
@@ -62,6 +108,7 @@ module Syskit
             </table>
             EOD
 
+            # Template used in {#render_data_services} if the with_names argument is true
             DATA_SERVICE_WITH_NAMES_TEMPLATE = <<-EOD
             <table>
             <% services.each do |service_name, provided_services| %>
@@ -82,6 +129,14 @@ module Syskit
             def clear
             end
 
+            # Compute the system network for a model
+            #
+            # @param [Model<Component>] model the model whose representation is
+            #   needed
+            # @param [Roby::Plan,nil] main_plan the plan in which we need to
+            #   generate the network, if nil a new plan object is created
+            # @return [Roby::Task] the toplevel task that represents the
+            #   deployed model
             def compute_system_network(model, main_plan = nil)
                 main_plan ||= Roby::Plan.new
                 main_plan.add(original_task = model.as_plan)
@@ -97,6 +152,16 @@ module Syskit
                 end
             end
 
+            # Instanciate a model
+            #
+            # @param [Model<Component>] model the model whose instanciation is
+            #   needed
+            # @param [Roby::Plan,nil] main_plan the plan in which we need to
+            #   generate the network, if nil a new plan object is created
+            # @param [Hash] options options to be passed to
+            #   {Syskit::InstanceRequirements#instanciate}
+            # @return [Roby::Task] the toplevel task that represents the
+            #   deployed model
             def instanciate_model(model, main_plan = nil, options = Hash.new)
                 main_plan ||= Roby::Plan.new
                 requirements = model.to_instance_requirements
@@ -108,6 +173,9 @@ module Syskit
                 task
             end
 
+            # List the services provided by a component
+            #
+            # @param [Component] task the component
             def list_services(task)
                 services = []
                 task.model.each_data_service.sort_by(&:first).each do |service_name, service|
@@ -132,6 +200,11 @@ module Syskit
                 services
             end
 
+            # Render the data services of task into HTML
+            #
+            # @param [Component] task the component
+            # @param [Boolean] with_names whether the output should contain the
+            #   service names or not
             def render_data_services(task, with_names = true)
                 services = list_services(task)
                 if services.empty?
@@ -147,6 +220,11 @@ module Syskit
                 page.push("Provided Services", html, id: 'provided_services')
             end
 
+            # Find the file, line number and method name where a model was defined
+            #
+            # @param [Model<Component>] model
+            # @return [(String,Integer,String),nil] the definition place or nil
+            #   if one cannot be determined
             def self.find_definition_place(model)
                 model.definition_location.find do |file, _, method|
                     return if method == :require || method == :using_task_library
@@ -154,6 +232,16 @@ module Syskit
                 end
             end
 
+            # Render the snippet that represents the definition place of a model
+            #
+            # @param [#push] the page on which the HTML should be pushed
+            # @param [Model<Component>] the model
+            # @param [Boolean] with_require whether a require '...' line
+            #   should be rendered as well
+            # @param definition_location the model's definition location. If
+            #   nil, it will be determined by calling {.find_definition_place}
+            # @param [String] format a format string (usable with {String#%}
+            #   used to render the definition place in HTML
             def self.html_defined_in(page, model, with_require: true, definition_location: nil, format: "<b>Defined in</b> %s")
                 path, lineno = *definition_location || find_definition_place(model)
                 if path
@@ -176,6 +264,13 @@ module Syskit
                 @current_model = model
             end
 
+            # Save a SVG fragment to a file
+            #
+            # This basically saves the content of a fragment to a file. It does
+            # not validate that the data passed to {Page#push} is actually SVG
+            # content.
+            #
+            # @param [String] id the fragment id as given to {Page#push}
             def save_svg(id)
                 page.fragments.each do |f|
                     if f.id == id
@@ -190,6 +285,11 @@ module Syskit
                 end
             end
 
+            # @api private
+            #
+            # Slot called when a HTML button is clicked by the user
+            #
+            # It handles the common component view buttons
             def buttonClicked(button_id, new_state)
                 button_id =~ /\/(\w+)(.*)/
                 namespace, button_id = $1, $2

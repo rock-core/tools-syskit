@@ -1,9 +1,21 @@
 require 'syskit/gui/model_browser'
 module Syskit
     module GUI
+        # Main widget for model browsing
         class Browse < Qt::Widget
+            # The widget's main layout
+            #
+            # @return [Qt::Layout]
             attr_reader :main_layout
+
+            # The button that triggers model reloading
+            #
+            # @return [Qt::PushButton]
             attr_reader :btn_reload_models
+
+            # The model browser object
+            #
+            # @return [ModelBrowser]
             attr_reader :model_browser
 
             def initialize(parent = nil)
@@ -23,10 +35,9 @@ module Syskit
                     model_browser.update_exceptions
                     model_browser.reload
                 end
-
-                model_browser
             end
 
+            # Select the current model using its module
             def select_by_module(mod)
                 model_browser.select_by_module(mod)
             end
