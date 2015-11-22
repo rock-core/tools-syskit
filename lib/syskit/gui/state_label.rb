@@ -141,7 +141,9 @@ module Syskit
                 state = state.to_s
                 if states.has_key?(state)
                     return states[state]
-                elsif !(color = default_color)
+                elsif color = default_color
+                    color
+                else
                     raise ArgumentError, "unknown state #{state} and no default color defined"
                 end
             end
