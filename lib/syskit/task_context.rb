@@ -622,7 +622,7 @@ module Syskit
                     end
 
                 elsif orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
-                    if interrupt?
+                    if interrupt_event.pending?
                         emit :interrupt
                     elsif finishing?
                         emit :stop
@@ -648,7 +648,7 @@ module Syskit
 		    elsif execution_agent && !execution_agent.finishing?
 		        orocos_task.stop(false)
 		    end
-                rescue Orocos::CORBA::ComError
+                rescue Orocos::ComError
                     # We actually aborted
 		    emit :interrupt
                     emit :aborted

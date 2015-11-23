@@ -170,6 +170,26 @@ describe Syskit::TaskContext do
             task.start!
             assert !task.running?
         end
+        it "fails to start if orocos_task#start raises Orocos::ComError" do
+            orocos_task.should_receive(:start).and_raise(Orocos::ComError)
+            assert_raises(Orocos::ComError) do
+                assert_event_becomes_unreachable task.start_event do
+                    task.start!
+                end
+            end
+            assert task.failed_to_start?
+            assert_kind_of Orocos::ComError, task.failure_reason.original_exception
+        end
+        it "fails to start if orocos_task#start raises Orocos::StateTransitionFailed" do
+            orocos_task.should_receive(:start).and_raise(Orocos::StateTransitionFailed)
+            assert_raises(Orocos::StateTransitionFailed) do
+                assert_event_becomes_unreachable task.start_event do
+                    task.start!
+                end
+            end
+            assert task.failed_to_start?
+            assert_kind_of Orocos::StateTransitionFailed, task.failure_reason.original_exception
+        end
     end
 
     describe "#state_event" do
@@ -184,6 +204,41 @@ describe Syskit::TaskContext do
     end
 
     describe "stop_event" do
+        it "is not emitted by the interruption command" do
+            task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
+            task.stop!
+            assert !task.stop_event.happened?
+            assert task.finishing?
+        end
+        it "emits interrupt and aborted if orocos_task#stop raises ComError" do
+            task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
+            flexmock(task.orocos_task).should_receive(:stop).and_raise(Orocos::ComError)
+            plan.unmark_mission(task)
+            assert_event_emission task.aborted_event do
+                assert_raises(Orocos::ComError) do
+                    task.stop!
+                end
+            end
+            assert task.interrupt_event.happened?
+        end
+        it "emits interrupt if orocos_task#stop raises StateTransitionFailed but the task is in a stopped state" do
+            task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
+            flexmock(task.orocos_task).should_receive(:stop).and_return do
+                Orocos::TaskContext.instance_method(:stop).call(task.orocos_task, false)
+                raise Orocos::StateTransitionFailed
+            end
+            plan.unmark_mission(task)
+            assert_event_emission task.interrupt_event do
+                task.stop!
+            end
+        end
+        it "is stopped when the stop event is received" do
+            task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
+            plan.unmark_mission(task)
+            assert_event_emission task.stop_event do
+                task.stop!
+            end
+        end
         it "disconnects the state readers once emitted" do
             task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
             task.create_state_reader
@@ -192,7 +247,7 @@ describe Syskit::TaskContext do
         end
     end
 
-    describe "#handle_state_change" do
+    describe "#handle_state_changes" do
         attr_reader :task, :task_m, :orocos_task
         before do
             @task_m = Syskit::TaskContext.new_submodel do

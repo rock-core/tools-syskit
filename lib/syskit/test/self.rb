@@ -27,6 +27,7 @@ module Syskit
             @old_pkg_config = ENV['PKG_CONFIG_PATH'].dup
             Roby.app.app_dir = nil
             Roby.app.search_path.clear
+            Roby.app.filter_backtraces = false
             ENV['ROBY_PLUGIN_PATH'] = File.expand_path(File.join(File.dirname(__FILE__), '..', 'roby_app', 'register_plugin.rb'))
             Roby.app.using 'syskit', force: true
             Syskit.conf.export_types = false
