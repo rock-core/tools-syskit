@@ -138,6 +138,16 @@ describe Syskit::Models::CompositionChild do
             assert_equal cmp.test_child.test_child.test0_srv, cmp_m.test_child.test_child.bind(cmp.test_child.test_child)
         end
     end
+    
+    describe "as hash keys" do
+        it "is not the same than another child with the same model" do
+            composition_m = Syskit::Composition.new_submodel
+            srv_m = Syskit::DataService.new_submodel
+            test1 = composition_m.add srv_m, as: 'test1'
+            test2 = composition_m.add srv_m, as: 'test2'
+            assert !Hash[test1 => 10].has_key?(test2)
+        end
+    end
 end
 
 describe Syskit::Models::InvalidCompositionChildPort do

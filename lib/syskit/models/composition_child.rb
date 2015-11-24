@@ -39,6 +39,11 @@ module Syskit
                 @overload_info = nil
             end
 
+            def eql?(other)
+                other.respond_to?(:child_name) && other.child_name == child_name &&
+                    super
+            end
+
             # Tries to resolve the task that corresponds to self, using +task+ as
             # the root composition
             #
