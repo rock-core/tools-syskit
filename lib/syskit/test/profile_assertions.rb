@@ -48,7 +48,7 @@ module Syskit
                         raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, other)), message
                     elsif !tags_from_other.empty?
                         other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
-                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{definition.name} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
+                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{odefinition.namether_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
                     end
                     plan.unmark_mission(task)
                     plan.execution_engine.garbage_collect
