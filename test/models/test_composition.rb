@@ -754,6 +754,14 @@ describe Syskit::Models::Composition do
     end
 
     describe "#specialize" do
+        it "returns a private specialization of the model if called without arguments" do
+            composition_m = Syskit::Composition.new_submodel(name: 'Test')
+            specialized_model = composition_m.specialize
+            assert specialized_model.private_specialization?
+            assert_same composition_m, specialized_model.superclass
+            assert specialized_model.name.start_with?('Test')
+        end
+
         it "converts child objects to names before calling the specialization manager" do
             srv_m = Syskit::DataService.new_submodel
             composition_m = Syskit::Composition.new_submodel do
