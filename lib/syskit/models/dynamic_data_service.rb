@@ -142,7 +142,7 @@ module Syskit
 
                 # Unlike #data_service, we need to add the service's interface
                 # to our own
-                Syskit::Models.merge_orogen_task_context_models(component_model.orogen_model, [service_model.orogen_model], port_mappings)
+                component_model.merge_service_model(service_model, port_mappings)
                 port_mappings
             end
 
