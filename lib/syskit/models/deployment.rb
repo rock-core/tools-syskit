@@ -36,7 +36,7 @@ module Syskit
             end
 
             def instanciate(plan, arguments = Hash.new)
-                plan.add_task(task = new(arguments))
+                plan.add(task = new(arguments))
                 task
             end
 

@@ -490,7 +490,7 @@ module Syskit
             end
 
             def self.prepare(app)
-                @handler_ids = plug_engine_in_roby(Roby.engine)
+                @handler_ids = plug_engine_in_roby(app.execution_engine)
             end
 
 
@@ -535,7 +535,7 @@ module Syskit
                 end
 
                 if @handler_ids
-                    unplug_engine_from_roby(@handler_ids.values, Roby.engine)
+                    unplug_engine_from_roby(@handler_ids.values, app.execution_engine)
                     @handler_ids = nil
                 end
 

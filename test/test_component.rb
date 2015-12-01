@@ -538,6 +538,10 @@ class TC_Component < Minitest::Test
     DataService = Syskit::DataService
     TaskContext = Syskit::TaskContext
 
+    def dataflow_graph
+        plan.task_relation_graph_for(Syskit::Flows::DataFlow)
+    end
+
     def test_get_bound_data_service_using_servicename_srv_syntax
         service_model = DataService.new_submodel
         component_model = TaskContext.new_submodel
@@ -583,16 +587,16 @@ class TC_Component < Minitest::Test
         assert_raises(ArgumentError) do
             source_task.connect_ports(sink_task, ['out', 'does_not_exist'] => {type: :buffer, size: 20 })
         end
-        assert(!Syskit::Flows::DataFlow.include?(source_task))
-        assert(!Syskit::Flows::DataFlow.include?(sink_task))
+        assert(!dataflow_graph.has_vertex?(source_task))
+        assert(!dataflow_graph.has_vertex?(sink_task))
 
         assert_raises(ArgumentError) do
             source_task.connect_ports(sink_task, ['does_not_exist', 'out'] => {type: :buffer, size: 20 })
         end
-        assert(!Syskit::Flows::DataFlow.include?(source_task))
-        assert(!Syskit::Flows::DataFlow.include?(sink_task))
-        assert(!Syskit::Flows::DataFlow.include?(source_task))
-        assert(!Syskit::Flows::DataFlow.include?(sink_task))
+        assert(!dataflow_graph.has_vertex?(source_task))
+        assert(!dataflow_graph.has_vertex?(sink_task))
+        assert(!dataflow_graph.has_vertex?(source_task))
+        assert(!dataflow_graph.has_vertex?(sink_task))
     end
 
     def test_disconnect_ports

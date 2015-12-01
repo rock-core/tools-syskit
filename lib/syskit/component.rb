@@ -134,7 +134,7 @@ module Syskit
                 return false if !fully_instanciated?
 
                 start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).all? do |event|
-                    event.happened?
+                    event.emitted?
                 end
             end
 

@@ -188,7 +188,7 @@ module Syskit
                     process_name, model.orogen_model, name_mappings, spawn_options)
 
                 Deployment.all_deployments[@orocos_process] = self
-                emit :start
+                start_event.emit
             end
 
             def log_dir
@@ -219,7 +219,7 @@ module Syskit
                 next if ready?
 
                 if orocos_process.wait_running(0)
-                    emit :ready
+                    ready_event.emit
 
                     @task_handles = Hash.new
                     each_parent_object(Roby::TaskStructure::ExecutionAgent) do |task|
@@ -295,17 +295,17 @@ module Syskit
             # finished.
             def dead!(result)
                 if !result
-                    emit :failed
+                    failed_event.emit
                 elsif history.find(&:terminal?)
                     # Do nothing. A terminal event already happened, so we don't
                     # need to tell what kind of end this is for the system
-                    emit :stop
+                    stop_event.emit
                 elsif result.success?
-                    emit :success
+                    success_event.emit
                 elsif result.signaled?
-                    emit :signaled, result
+                    signaled_event.emit result
                 else
-                    emit :failed, result
+                    failed_event.emit result
                 end
 
                 Deployment.all_deployments.delete(orocos_process)
@@ -334,14 +334,14 @@ module Syskit
                 # so can be nil here
                 all_orocos_tasks = task_handles.values.to_set
                 all_orocos_tasks.each do |task|
-                    task.each_parent_vertex(ActualDataFlow) do |parent_task|
+                    ActualDataFlow.each_in_neighbour(task) do |parent_task|
                         if parent_task.process
                             next if !parent_task.process.running?
                             roby_task = Deployment.all_deployments[parent_task.process]
                             next if roby_task.finishing? || roby_task.finished?
                         end
 
-                        mappings = parent_task[task, ActualDataFlow]
+                        mappings = ActualDataFlow.edge_info(parent_task, task)
                         mappings.each do |(source_port, sink_port), policy|
                             begin
                                 parent_task.port(source_port).disconnect_from(task.port(sink_port, false))
@@ -353,11 +353,11 @@ module Syskit
 
                     # NOTE: we cannot do the same for child tasks as RTT does
                     # not support selective disconnection over CORBA
-                    ActualDataFlow.remove(task)
-                    RequiredDataFlow.remove(task)
+                    ActualDataFlow.remove_vertex(task)
+                    RequiredDataFlow.remove_vertex(task)
                 end
 
-                if pending = Flows::DataFlow.pending_changes
+                if pending = relation_graph_for(Flows::DataFlow).pending_changes
                     _, _, removed, _ = *pending
                     removed.delete_if { |(source, sink), _| all_orocos_tasks.include?(source) || all_orocos_tasks.include?(sink) }
                 end

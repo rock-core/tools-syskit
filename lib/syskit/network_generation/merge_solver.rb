@@ -30,8 +30,7 @@ module Syskit
             def initialize(plan, &block)
                 @plan = plan
                 @merging_candidates_queries = Hash.new
-		@task_replacement_graph = BGL::Graph.new
-                @task_replacement_graph.name = "#{self}.task_replacement_graph"
+		@task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 @resolved_replacements = Hash.new
 
                 if block_given?
@@ -59,14 +58,14 @@ module Syskit
 
                 if replacement = @resolved_replacements[task]
                     # Verify that this is still a leaf in the replacement graph
-                    if replacement.leaf?(task_replacement_graph)
+                    if task_replacement_graph.leaf?(replacement)
                         return replacement
                     end
                     @resolved_replacements.delete(task)
                 end
 
-                task_replacement_graph.each_dfs(task, BGL::Graph::TREE) do |_, to, _|
-                    if to.leaf?(task_replacement_graph)
+                task_replacement_graph.depth_first_visit(task) do |to|
+                    if task_replacement_graph.leaf?(to)
                         @resolved_replacements[task] = to
                         return to
                     end
@@ -80,7 +79,7 @@ module Syskit
             # @param [Roby::Task] new_task the task that replaced old_task
             # @return [void]
             def register_replacement(old_task, new_task)
-                task_replacement_graph.link(old_task, new_task, nil)
+                task_replacement_graph.add_edge(old_task, new_task, nil)
             end
 
             # Merge task into target_task, i.e. applies target_task.merge(task)
@@ -370,10 +369,11 @@ module Syskit
             #   merge is so far not possible only for input mismatching reasons.
             #   These are therefore candidates for dataflow loop resolution.
             def direct_merge_mappings(task_set)
-                applied_merges = BGL::Graph.new
+                applied_merges = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 cycle_candidates = []
                 task_set  = task_set.to_set
-                processing_queue = task_set.sort_by { |t| Flows::DataFlow.in_degree(t) }
+                dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
+                processing_queue = task_set.sort_by { |t| dataflow_graph.in_degree(t) }
 
                 while !processing_queue.empty?
                     task = processing_queue.shift
@@ -389,7 +389,7 @@ module Syskit
                         info "  #{task.model.concrete_model}"
                         break
                     end
-                    candidates = candidates.sort_by { |t| Flows::DataFlow.in_degree(t) }
+                    candidates = candidates.sort_by { |t| dataflow_graph.in_degree(t) }
                         
                     candidates.find do |target_task|
                         next if task == target_task ||
@@ -406,7 +406,7 @@ module Syskit
                         log_nest(2) do
                             if result = resolve_single_merge(task, target_task)
                                 debug "-> merged"
-                                applied_merges.link(task, target_task, nil)
+                                applied_merges.add_edge(task, target_task, nil)
                                 merge(task, target_task)
                                 processing_queue << target_task
                                 true
@@ -487,7 +487,7 @@ module Syskit
                     end
                 end
                 possible_cycles = possible_cycles.compact
-                applied_merges = BGL::Graph.new
+                applied_merges = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
 
                 # Find one cycle to solve. Once we found one, we
                 # give the hand to the normal merge processing
@@ -512,7 +512,7 @@ module Syskit
                     if can_merge
                         info "  -> merging"
                         merge(task, target_task)
-                        applied_merges.link(task, target_task, nil)
+                        applied_merges.add_edge(task, target_task, nil)
                         break
                     else
                         info "  -> rejected"
@@ -591,7 +591,7 @@ module Syskit
                         end
                         candidates.clear
                         possible_cycles |= cycle_candidates.to_set
-                        debug "    the applied merges graph has #{applied_merges.size} vertices"
+                        debug "    the applied merges graph has #{applied_merges.num_vertices} vertices"
                         debug "    #{cycle_candidates.size} new possible cycles"
                         debug "    #{possible_cycles.size} known possible cycles"
 
@@ -599,11 +599,11 @@ module Syskit
                             # No merge found so far, try resolving some cycles
                             applied_merges, possible_cycles =
                                 process_possible_cycles(possible_cycles)
-                            debug "    the applied merges graph has #{applied_merges.size} vertices"
+                            debug "    the applied merges graph has #{applied_merges.num_vertices} vertices"
                         end
 
                         next_step_seeds = applied_merges.vertices.
-                            find_all { |task| task.leaf?(applied_merges) }.
+                            find_all { |task| applied_merges.leaf?(task) }.
                             to_set                         
                         candidates = merge_tasks_next_step_dataflow(next_step_seeds)
                         merged_tasks.merge(next_step_seeds)

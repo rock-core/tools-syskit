@@ -160,7 +160,7 @@ describe Syskit::Coordination::DataMonitoringTable do
             end
         end
         assert component.success?
-        composition.emit :success
+        composition.success_event.emit
     end
 
     it "can use whole component networks as data sources" do

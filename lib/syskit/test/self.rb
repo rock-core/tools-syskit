@@ -39,24 +39,38 @@ module Syskit
             if !Orocos.initialized?
                 Orocos.initialize
             end
-            engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
+            execution_engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
             Syskit::NetworkGeneration::Engine.keep_internal_data_structures = true
 
             @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
             @robot = Syskit::Robot::RobotDefinition.new
 
-            @syskit_handler_ids = Array.new
-            @syskit_handler_ids << engine.add_propagation_handler(type: :external_events, &Runtime.method(:update_deployment_states))
-            @syskit_handler_ids << engine.add_propagation_handler(type: :external_events, &Runtime.method(:update_task_states))
-            @syskit_handler_ids << engine.add_propagation_handler(type: :propagation, late: true, &Runtime::ConnectionManagement.method(:update))
+            @syskit_handler_ids = Hash.new
+            @syskit_handler_ids[:deployment_states] = execution_engine.
+                add_propagation_handler(type: :external_events,
+                                        &Runtime.method(:update_deployment_states))
+            @syskit_handler_ids[:task_states] = execution_engine.
+                add_propagation_handler(type: :external_events,
+                                        &Runtime.method(:update_task_states))
+            plug_connection_management
 
             if !Syskit.conf.disables_local_process_server?
                 Syskit::RobyApp::Plugin.connect_to_local_process_server
             end
 
-            Syskit.conf.register_process_server('stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
+            Syskit.conf.register_process_server(
+                'stubs', Orocos::RubyTasks::ProcessManager.new(Roby.app.default_loader), "")
 
+        end
+
+        def plug_connection_management
+            @syskit_handler_ids[:connection_management] ||= execution_engine.
+                add_propagation_handler(type: :propagation, late: true,
+                                        &Runtime::ConnectionManagement.method(:update))
+        end
+        def unplug_connection_management
+            execution_engine.remove_propagation_handler(@syskit_handler_ids.delete(:connection_management))
         end
 
         def teardown
@@ -67,10 +81,9 @@ module Syskit
             super
 
         ensure
-            if @syskit_handler_ids && engine
-                Syskit::RobyApp::Plugin.unplug_engine_from_roby(@syskit_handler_ids, engine)
+            if @syskit_handler_ids && execution_engine
+                Syskit::RobyApp::Plugin.unplug_engine_from_roby(@syskit_handler_ids.values, execution_engine)
             end
-
         end
 
         def assert_is_proxy_model_for(models, result)

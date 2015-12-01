@@ -725,7 +725,7 @@ module Syskit
                     used_deployments << selected
                     deployment_task =
                         (deployment_tasks[[machine, configured_deployment]] ||= configured_deployment.new(:on => machine))
-                    work_plan.add_task(deployment_task)
+                    work_plan.add(deployment_task)
                     deployed_task = deployment_task.task(task_name)
                     debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
                     merge_solver.merge(task, deployed_task)
@@ -1249,6 +1249,8 @@ module Syskit
                 required_instances.each do |req_task, task|
                     if task.transaction_proxy?
                         raise InternalError, "instance definition #{instance} contains a transaction proxy: #{instance.task}"
+                    elsif !task.plan
+                        raise InternalError, "instance definition #{task} has been removed from plan"
                     end
                 end
 
@@ -1331,7 +1333,7 @@ module Syskit
                 pp.text "-- Connections"
                 pp.nest(4) do
                     pp.breakable
-                    Flows::DataFlow.each_edge do |from, to, info|
+                    work_plan.task_relation_graph_for(Flows::DataFlow).each_edge do |from, to, info|
                         pp.text "#{from}"
                         pp.breakable
                         pp.text "  => #{to} (#{info})"

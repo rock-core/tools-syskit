@@ -8,11 +8,11 @@ module Syskit
                 begin
                     plan.syskit_engine.resolve
                     tasks.each do |t|
-                        t.emit :success
+                        t.success_event.emit
                     end
                 rescue ::Exception => e
                     tasks.each do |t|
-                        t.emit(:failed, e)
+                        t.failed_event.emit(e)
                     end
                 end
             end

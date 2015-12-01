@@ -192,49 +192,39 @@ module Syskit
 
             # Helper for #added_child_object and #removing_child_object
             #
-            # It adds the task to Flows::DataFlow.modified_tasks whenever the
+            # It adds the task to {Flows::DataFlow#modified_tasks} whenever the
             # DataFlow relations is changed in a way that could require changing
             # the underlying Orocos components connections.
             def dataflow_change_handler(child, mappings) # :nodoc:
-                return if !plan || !plan.real_plan.executable?
-
-                if child.kind_of?(TaskContext)
-                    Flows::DataFlow.modified_tasks << child
-                else
-                    mappings ||= self[child, Flows::DataFlow]
-                    mappings.each_key do |source_port, sink_port|
-                        if real_port = resolve_port(source_port)
-                            real_task = real_port.component
-                            if real_task && !real_task.transaction_proxy? # can be nil if the child has been removed
-                                Flows::DataFlow.modified_tasks << real_task
-                            end
-                        end
-                    end
+                # The case where 'child' is already a task context is already
+                # taken care of by 
+                mappings.each_key do |source_port, sink_port|
+                    component = find_port(source_port).to_actual_port.component
+                    relation_graph_for(Flows::DataFlow).modified_tasks << component
                 end
             end
 
             # Called when a new child is added to this composition.
             #
-            # It updates Flows::DataFlow.modified_tasks so that the engine can
+            # It updates {Flows::DataFlow#modified_tasks} so that the engine can
             # update the underlying task's connections
-            def added_child_object(child, relations, mappings) # :nodoc:
-                super if defined? super
+            def added_sink(child, mappings) # :nodoc:
+                super
+                dataflow_change_handler(child, mappings)
+            end
 
-                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
-                    dataflow_change_handler(child, mappings)
-                end
+            def updated_sink(child, mappings)
+                super
+                dataflow_change_handler(child, mappings)
             end
 
             # Called when a child is removed from this composition.
             #
-            # It updates Flows::DataFlow.modified_tasks so that the engine can
+            # It updates {Flows::DataFlow#modified_tasks} so that the engine can
             # update the underlying task's connections
-            def removing_child_object(child, relations) # :nodoc:
-                super if defined? super
-
-                if !transaction_proxy? && !child.transaction_proxy? && relations.include?(Flows::DataFlow)
-                    dataflow_change_handler(child, nil)
-                end
+            def removing_sink(child) # :nodoc:
+                super
+                dataflow_change_handler(child, self[child, Flows::DataFlow])
             end
 
             # Generates the InstanceRequirements object that represents +self+

@@ -39,12 +39,14 @@ module Syskit
                     end
                     data_monitoring_table.new(
                         task, table_arguments,
-                        :on_replace => :copy,
-                        :parent => coordination_context)
-                    super if defined? super
+                        on_replace: :copy,
+                        parent: coordination_context)
+                    super
                 end
             end
         end
     end
 end
-Roby::Coordination::Models::TaskWithDependencies.include Syskit::Coordination::Models::TaskExtension
+Roby::Coordination::Models::TaskWithDependencies.class_eval do
+    prepend Syskit::Coordination::Models::TaskExtension
+end

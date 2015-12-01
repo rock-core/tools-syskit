@@ -167,7 +167,7 @@ module Syskit
             # It creates a new task from the component model using
             # Component.new, adds it to the plan and returns it.
             def instanciate(plan, context = DependencyInjectionContext.new, task_arguments: Hash.new, **arguments)
-                plan.add_task(task = new(task_arguments))
+                plan.add(task = new(task_arguments))
                 task
             end
 

@@ -269,7 +269,7 @@ describe Syskit::Deployment do
         end
         it "deregisters all supported task contexts from the TaskContext.configured set" do
             Syskit::TaskContext.configured['mapped_task_name'] = Object.new
-            deployment_task.emit :start
+            deployment_task.start_event.emit
             deployment_task.dead!(nil)
             assert !Syskit::TaskContext.configured.include?('mapped_task_name')
         end

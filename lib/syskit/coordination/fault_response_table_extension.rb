@@ -35,4 +35,6 @@ module Syskit
         end
     end
 end
-Roby::Coordination::FaultResponseTable.include Syskit::Coordination::FaultResponseTableExtension
+Roby::Coordination::FaultResponseTable.class_eval do
+    prepend Syskit::Coordination::FaultResponseTableExtension
+end

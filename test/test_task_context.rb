@@ -127,9 +127,9 @@ describe Syskit::TaskContext do
 
         after do
             if task.start_event.pending?
-                task.emit :start
+                task.start_event.emit
             end
-            task.emit :stop if task.running?
+            task.stop_event.emit if task.running?
         end
 
         it "should start the underlying task" do
@@ -207,7 +207,7 @@ describe Syskit::TaskContext do
         it "is not emitted by the interruption command" do
             task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
             task.stop!
-            assert !task.stop_event.happened?
+            assert !task.stop_event.emitted?
             assert task.finishing?
         end
         it "emits interrupt and aborted if orocos_task#stop raises ComError" do
@@ -219,7 +219,7 @@ describe Syskit::TaskContext do
                     task.stop!
                 end
             end
-            assert task.interrupt_event.happened?
+            assert task.interrupt_event.emitted?
         end
         it "emits interrupt if orocos_task#stop raises StateTransitionFailed but the task is in a stopped state" do
             task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
@@ -243,7 +243,7 @@ describe Syskit::TaskContext do
             task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
             task.create_state_reader
             flexmock(task.state_reader).should_receive(:disconnect).once
-            task.emit :stop
+            task.stop_event.emit
         end
     end
 
@@ -253,6 +253,7 @@ describe Syskit::TaskContext do
             @task_m = Syskit::TaskContext.new_submodel do
                 input_port "in", "/double"
                 output_port "out", "/double"
+                reports :blabla
             end
             @task = syskit_stub_deploy_and_configure(task_m)
             @orocos_task = flexmock(task.orocos_task)
@@ -261,48 +262,48 @@ describe Syskit::TaskContext do
             orocos_task.should_receive(:fatal_error_state?).by_default
             orocos_task.should_receive(:runtime_state?).by_default
             orocos_task.should_receive(:error_state?).by_default
-            flexmock(task).should_receive(:emit).with(:stop).pass_thru
+            flexmock(task.stop_event).should_receive(:emit).pass_thru
             task.start!
         end
 
         after do
             if task.start_event.pending?
-                task.emit :start
+                task.start_event.emit
             end
-            task.emit :stop if task.running?
+            task.stop_event.emit if task.running?
         end
 
         it "does nothing if no runtime state has been received" do
-            flexmock(task).should_receive(:emit).with(:start).never
+            flexmock(task.start_event).should_receive(:emit).never
             flexmock(task).should_receive(:orogen_state).and_return(:exception)
             orocos_task.should_receive(:runtime_state?).with(:exception).and_return(false)
             task.handle_state_changes
             assert !task.running?
         end
         it "emits start as soon as a runtime state has been received" do
-            flexmock(task).should_receive(:emit).with(:start).once.pass_thru
+            flexmock(task.start_event).should_receive(:emit).once.pass_thru
             flexmock(task).should_receive(:orogen_state).and_return(:blabla)
             orocos_task.should_receive(:runtime_state?).with(:blabla).and_return(true)
             flexmock(task).should_receive(:state_event).with(:blabla).and_return(:success)
-            flexmock(task).should_receive(:emit).with(:success).once
+            flexmock(task.success_event).should_receive(:emit).once
             task.handle_state_changes
             assert task.running?
         end
         it "emits the event that is mapped to the state" do
-            flexmock(task).should_receive(:emit).with(:start).once.pass_thru
-            flexmock(task).should_receive(:orogen_state).and_return(:blabla)
-            orocos_task.should_receive(:runtime_state?).with(:blabla).and_return(true)
-            flexmock(task).should_receive(:state_event).with(:blabla).and_return(:blabla_event)
-            flexmock(task).should_receive(:emit).with(:blabla_event).once.ordered
+            flexmock(task.start_event).should_receive(:emit).once.pass_thru
+            flexmock(task).should_receive(:orogen_state).and_return(state = flexmock)
+            orocos_task.should_receive(:runtime_state?).with(state).and_return(true)
+            flexmock(task).should_receive(:state_event).with(state).and_return(:blabla)
+            flexmock(task.blabla_event).should_receive(:emit).once.ordered
             task.handle_state_changes
         end
         it "does not emit running if the last state was not an error state" do
-            flexmock(task).should_receive(:emit).with(:start).once.pass_thru
+            flexmock(task.start_event).should_receive(:emit).once.pass_thru
             orocos_task.should_receive(:runtime_state?).with(:RUNNING).and_return(true)
             flexmock(task).should_receive(:orogen_state).and_return(:RUNNING)
             flexmock(task).should_receive(:last_orogen_state).and_return(:BLA)
             orocos_task.should_receive(:error_state?).with(:BLA).once.and_return(false)
-            flexmock(task).should_receive(:emit).with(:running).never
+            flexmock(task.running_event).should_receive(:emit).never
             task.handle_state_changes
         end
     end
@@ -342,7 +343,7 @@ describe Syskit::TaskContext do
                 task.state_reader.disconnect
                 orocos_task = task.orocos_task
                 assert_raises(Roby::MissionFailedError) { task.update_orogen_state }
-                assert task.aborted_event.happened?
+                assert task.aborted_event.emitted?
                 assert_equal :STOPPED, orocos_task.rtt_state
             end
             it "sets orogen_state with the new state" do
@@ -558,12 +559,12 @@ describe Syskit::TaskContext do
                 orocos_tasks = [source_task.orocos_task, task.orocos_task]
 
                 Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
-                assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
+                assert Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
 
                 Syskit::TaskContext.configured['task'] = nil
                 flexmock(task.orocos_task).should_receive(:cleanup).once
                 assert task.prepare_for_setup(:STOPPED)
-                assert !Syskit::ActualDataFlow.linked?(*orocos_tasks)
+                assert !Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
             end
         end
         describe "handling of dynamic output ports" do
@@ -584,12 +585,12 @@ describe Syskit::TaskContext do
                 orocos_tasks = [task.orocos_task, sink_task.orocos_task]
 
                 Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
-                assert Syskit::ActualDataFlow.linked?(*orocos_tasks)
+                assert Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
 
                 Syskit::TaskContext.configured['task'] = nil
                 flexmock(task.orocos_task).should_receive(:cleanup).once
                 assert task.prepare_for_setup(:STOPPED)
-                assert !Syskit::ActualDataFlow.linked?(*orocos_tasks)
+                assert !Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
             end
         end
     end
@@ -750,7 +751,7 @@ describe Syskit::TaskContext do
         dev = robot.device device_m, as: 'dev'
         dev.attach_to(bus, client_to_bus: false)
 
-        engine.scheduler.enabled = false
+        execution_engine.scheduler.enabled = false
 
         # Now, deploy !
         syskit_stub_deployment_model(combus_driver_m, 'bus_task')
@@ -764,7 +765,7 @@ describe Syskit::TaskContext do
         flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:setup).pass_thru
         flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered(:setup).pass_thru
         flexmock(dev_driver.orocos_task, "dev").should_receive(:start).once.globally.ordered.pass_thru
-        plan.engine.scheduler.enabled = true
+        execution_engine.scheduler.enabled = true
         assert_event_emission bus_driver.start_event
         assert_event_emission dev_driver.start_event
     end

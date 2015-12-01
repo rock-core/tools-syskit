@@ -1,8 +1,8 @@
 module Syskit
-    module PlanExtension
+    module ExecutablePlanExtension
         attr_accessor :syskit_engine
     end
-    Roby::Plan.include PlanExtension
+    Roby::ExecutablePlan.include ExecutablePlanExtension
 end
 
 

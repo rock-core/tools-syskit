@@ -106,7 +106,7 @@ module Syskit
             out_port = self.to_component_port
             if out_port == self
                 in_port = in_port.to_component_port
-                Flows::DataFlow.linked?(component, in_port.component) &&
+                component.child_object?(in_port.component, Flows::DataFlow) &&
                     component[in_port.component, Flows::DataFlow].has_key?([out_port.name, in_port.name])
             else
                 out_port.connected_to?(in_port)

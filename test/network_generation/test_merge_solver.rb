@@ -400,14 +400,14 @@ describe Syskit::NetworkGeneration::MergeSolver do
             flexmock(solver).should_receive(:resolve_single_merge).with(target_task, task).and_return(false)
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(true)
             graph, cycles = solver.direct_merge_mappings([task, target_task].to_set)
-            assert graph.linked?(task, target_task)
+            assert graph.has_edge?(task, target_task)
             assert cycles.empty?
         end
         it "adds the merge candidates for which resolve_single_merge return nil to the cycle candidates" do
             flexmock(solver).should_receive(:resolve_single_merge).with(target_task, task).and_return(false)
             flexmock(solver).should_receive(:resolve_single_merge).with(task, target_task).and_return(nil)
             graph, cycles = solver.direct_merge_mappings([task, target_task].to_set)
-            assert !graph.linked?(target_task, task)
+            assert !graph.has_edge?(target_task, task)
             assert_equal [[task, target_task]], cycles
         end
         it "does not take into account possible candidates that are not in the provided set" do

@@ -7,7 +7,7 @@ module Syskit
             #
             # @see Roby::Transaction#apply_modifications_to_plan
             def apply_modifications_to_plan
-                super if defined? super
+                super
 
                 # We add the data monitoring tables to the underlying plan. We
                 # have to make sure to only add tables that are not tied to a
@@ -27,5 +27,7 @@ module Syskit
     end
 end
 
-Roby::Transaction.include Syskit::Coordination::TransactionExtension
+Roby::Transaction.class_eval do
+    prepend Syskit::Coordination::TransactionExtension
+end
 

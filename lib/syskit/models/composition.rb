@@ -154,7 +154,7 @@ module Syskit
             # Internal helper to add a child to the composition
             def add_child(name, child_models, dependency_options)
                 name = name.to_str
-                dependency_options = Roby::TaskStructure::DependencyGraphClass.
+                dependency_options = Roby::TaskStructure::Dependency.
                     validate_options(dependency_options)
 
                 # We do NOT check for an already existing definition. The reason
@@ -174,7 +174,7 @@ module Syskit
                 if child_models.object_id != child_model.object_id
                     child_model.merge(child_models)
                 end
-                dependency_options = Roby::TaskStructure::DependencyGraphClass.
+                dependency_options = Roby::TaskStructure::Dependency.
                     merge_dependency_options(child_model.dependency_options, dependency_options)
                 child_model.dependency_options.clear
                 child_model.dependency_options.merge!(dependency_options)
@@ -808,11 +808,11 @@ module Syskit
                     dependent_arguments[:conf] = child_task.arguments[:conf]
                 end
 
-                dependency_options = Roby::TaskStructure::DependencyGraphClass.
+                dependency_options = Roby::TaskStructure::Dependency.
                     validate_options(child_m.dependency_options)
-                default_options = Roby::TaskStructure::DependencyGraphClass.
+                default_options = Roby::TaskStructure::Dependency.
                     validate_options(:model => [dependent_models, dependent_arguments], :roles => [child_name].to_set)
-                dependency_options = Roby::TaskStructure::DependencyGraphClass.merge_dependency_options(
+                dependency_options = Roby::TaskStructure::Dependency.merge_dependency_options(
                     dependency_options, default_options)
                 if !dependency_options[:success]
                     dependency_options = { :success => [], :failure => [:stop] }.
@@ -870,7 +870,7 @@ module Syskit
                 end
 
                 # First of all, add the task for +self+
-                plan.add_task(self_task = new(task_arguments))
+                plan.add(self_task = new(task_arguments))
                 conf = if self_task.has_argument?(:conf)
                            self_task.conf(self_task.arguments[:conf])
                        else Hash.new

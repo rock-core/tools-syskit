@@ -33,7 +33,7 @@ module Syskit
             end
 
             # Run Syskit's deployer (i.e. engine) on the current plan
-            def syskit_deploy(*to_instanciate, syskit_engine: nil, **resolve_options, &block)
+            def syskit_deploy(*to_instanciate, add_mission: true, syskit_engine: nil, **resolve_options, &block)
                 syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
                 syskit_engine.disable_updates
 
@@ -53,7 +53,7 @@ module Syskit
                     else
                         action_tasks.each do |t|
                             tracker = t.as_service
-                            assert_any_event(t.planning_task.success_event) do
+                            assert_event_emission(t.planning_task.success_event) do
                                 t.planning_task.start!
                             end
                             to_instanciate << tracker.task
@@ -66,7 +66,10 @@ module Syskit
                     if act.respond_to?(:to_action)
                         act = act.to_action
                     end
-                    plan.add_mission(task = act.as_plan)
+                    plan.add(task = act.as_plan)
+                    if add_mission
+                        plan.add_mission(task)
+                    end
                     task
                 end.compact
                 root_tasks = placeholder_tasks.map(&:as_service)
@@ -442,7 +445,7 @@ module Syskit
                     @info = Hash.new
                     tasks.each do |t|
                         precedence = t.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
-                        missing = precedence.find_all { |ev| !ev.happened? }
+                        missing = precedence.find_all { |ev| !ev.emitted? }
                         info[t] = Info.new(
                             t.ready_for_setup?,
                             t.list_unset_arguments,

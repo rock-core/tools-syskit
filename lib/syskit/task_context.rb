@@ -339,7 +339,7 @@ module Syskit
 
                 if state_reader
                     if !state_reader.connected?
-                        emit :aborted
+                        aborted_event.emit
                         return
                     end
 
@@ -467,7 +467,7 @@ module Syskit
                 to_remove = Hash.new
                 to_remove.merge!(dynamic_input_port_connections)
                 to_remove.merge!(dynamic_output_port_connections)
-                Flows::DataFlow.modified_tasks << self
+                relation_graph_for(Flows::DataFlow).modified_tasks << self
                 to_remove.each do |(source_task, sink_task), connections|
                     ActualDataFlow.remove_connections(source_task, sink_task, connections)
                 end
@@ -497,8 +497,8 @@ module Syskit
                     end
                 end
 
-                orocos_task.each_parent_vertex(ActualDataFlow) do |source_task|
-                    mappings = source_task[orocos_task, ActualDataFlow]
+                ActualDataFlow.each_in_neighbour(orocos_task) do |source_task|
+                    mappings = ActualDataFlow.edge_info(source_task, orocos_task)
                     to_remove[[source_task, orocos_task]] = mappings.each_key.find_all do |from_port, to_port|
                         dynamic_ports.include?(to_port)
                     end
@@ -528,8 +528,8 @@ module Syskit
                     end
                 end
 
-                orocos_task.each_child_vertex(ActualDataFlow) do |sink_task|
-                    mappings = orocos_task[sink_task, ActualDataFlow]
+                ActualDataFlow.each_out_neighbour(orocos_task) do |sink_task|
+                    mappings = ActualDataFlow.edge_info(orocos_task, sink_task)
                     to_remove[[orocos_task, sink_task]] = mappings.each_key.find_all do |from_port, to_port|
                         dynamic_ports.include?(from_port)
                     end
@@ -610,7 +610,7 @@ module Syskit
                 if !@got_running_state
                     if orocos_task.runtime_state?(orogen_state)
                         @got_running_state = true
-                        emit :start
+                        start_event.emit
                     else
                         return
                     end
@@ -618,20 +618,20 @@ module Syskit
 
                 if orogen_state == :RUNNING 
                     if last_orogen_state && orocos_task.error_state?(last_orogen_state)
-                        emit :running
+                        running_event.emit
                     end
 
                 elsif orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
                     if interrupt_event.pending?
-                        emit :interrupt
+                        interrupt_event.emit
                     elsif finishing?
-                        emit :stop
+                        stop_event.emit
                     else
-                        emit :success
+                        success_event.emit
                     end
                 else
-                    if event = state_event(orogen_state)
-                        emit event
+                    if event_name = state_event(orogen_state)
+                        event(event_name).emit
                     else
                         raise ArgumentError, "#{self} reports state #{orogen_state}, but I don't have an event for this state transition"
                     end
@@ -643,15 +643,15 @@ module Syskit
 	        ::Robot.info "interrupting #{name}"
                 begin
 		    if !orocos_task # already killed
-		        emit :interrupt
-		        emit :aborted
+                        interrupt_event.emit
+                        aborted_event.emit
 		    elsif execution_agent && !execution_agent.finishing?
 		        orocos_task.stop(false)
 		    end
                 rescue Orocos::ComError
                     # We actually aborted
-		    emit :interrupt
-                    emit :aborted
+                    interrupt_event.emit
+                    aborted_event.emit
                 rescue Orocos::StateTransitionFailed
                     # Use #rtt_state as it has no problem with asynchronous
                     # communication, unlike the port-based state updates.
@@ -844,11 +844,11 @@ module Syskit
                     end
 
                     current_connections_to_static = Hash.new
-                    orocos_task.each_parent_vertex(ActualDataFlow) do |source_task|
+                    ActualDataFlow.each_in_neighbour(orocos_task) do |source_task|
                         # Transactions neither touch ActualDataFlow nor the
                         # task-to-orocos_task mapping. It's safe to check it
                         # straight.
-                        connections = source_task[orocos_task, ActualDataFlow]
+                        connections = ActualDataFlow.edge_info(source_task, orocos_task)
                         connections.each_key do |source_port, sink_port|
                             if ActualDataFlow.static?(orocos_task, sink_port)
                                 sources = (current_connections_to_static[sink_port] ||= Set.new)
@@ -856,11 +856,11 @@ module Syskit
                             end
                         end
                     end
-                    orocos_task.each_child_vertex(Syskit::ActualDataFlow) do |sink_task|
+                    ActualDataFlow.each_out_neighbour(orocos_task) do |sink_task|
                         # Transactions neither touch ActualDataFlow nor the
                         # task-to-orocos_task mapping. It's safe to check it
                         # straight.
-                        connections = orocos_task[sink_task, Syskit::ActualDataFlow]
+                        connections = ActualDataFlow.edge_info(orocos_task, sink_task)
                         connections.each_key do |source_port, sink_port|
                             if ActualDataFlow.static?(orocos_task, source_port)
                                 sinks = (current_connections_to_static[source_port] ||= Set.new)
@@ -871,6 +871,19 @@ module Syskit
 
                     current_connections_to_static != new_connections_to_static
                 end
+            end
+
+            def added_sink(sink, policy)
+                super
+                relation_graph_for(Flows::DataFlow).modified_tasks << self
+            end
+            def updated_sink(sink, policy)
+                super
+                relation_graph_for(Flows::DataFlow).modified_tasks << self
+            end
+            def removed_sink(source)
+                super
+                relation_graph_for(Flows::DataFlow).modified_tasks << self
             end
         end
 end

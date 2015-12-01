@@ -7,6 +7,7 @@ module Syskit
 
             attr_reader :plan
 
+            attr_reader :dataflow_graph
 
             def scheduler
                 plan.execution_engine.scheduler
@@ -14,6 +15,7 @@ module Syskit
 
             def initialize(plan)
                 @plan = plan
+                @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
             end
 
             def self.update(plan)
@@ -26,25 +28,28 @@ module Syskit
             # remove all tasks that have to be updated and add their connections
             # again
             def update_required_dataflow_graph(tasks)
-                seen = Set.new
+                tasks = tasks.to_set
 
                 # Remove first all tasks. Otherwise, removing some tasks will
                 # also remove the new edges we just added
                 for t in tasks
-                    RequiredDataFlow.remove(t)
+                    RequiredDataFlow.remove_vertex(t)
                 end
 
                 # Create the new connections
+                # 
+                # We're only updating on a partial set of tasks ... so we do
+                # have to enumerate both output and input connections. We can
+                # however avoid doulbing work by avoiding the update of sink
+                # tasks that are part of the set
                 for t in tasks
                     t.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                        next if seen.include?(source_task)
                         RequiredDataFlow.add_connections(source_task, t, [source_port, sink_port] => policy)
                     end
                     t.each_concrete_output_connection do |source_port, sink_port, sink_task, policy|
-                        next if seen.include?(sink_task)
+                        next if tasks.include?(sink_task)
                         RequiredDataFlow.add_connections(t, sink_task, [source_port, sink_port] => policy)
                     end
-                    seen << t
                 end
             end
 
@@ -89,12 +94,12 @@ module Syskit
 
                 new = Hash.new
                 new_edges.each do |source_task, sink_task|
-                    new[[source_task, sink_task]] = source_task[sink_task, RequiredDataFlow]
+                    new[[source_task, sink_task]] = RequiredDataFlow.edge_info(source_task, sink_task)
                 end
 
                 removed = Hash.new
                 removed_edges.each do |source_task, sink_task|
-                    removed[[source_task, sink_task]] = source_task[sink_task, ActualDataFlow].keys.to_set
+                    removed[[source_task, sink_task]] = ActualDataFlow.edge_info(source_task, sink_task).keys.to_set
                 end
 
                 # We have to work on +updated+. The graphs are between tasks,
@@ -107,8 +112,8 @@ module Syskit
                 # most cases one removes all connections from two components to
                 # recreate other ones between other components
                 updated_edges.each do |source_task, sink_task|
-                    new_mapping = source_task[sink_task, RequiredDataFlow]
-                    old_mapping = source_task.orocos_task[sink_task.orocos_task, ActualDataFlow]
+                    new_mapping = RequiredDataFlow.edge_info(source_task, sink_task)
+                    old_mapping = ActualDataFlow.edge_info(source_task.orocos_task, sink_task.orocos_task)
 
                     new_connections     = Hash.new
                     removed_connections = Set.new
@@ -275,7 +280,7 @@ module Syskit
                             to_task.adding_input_port_connection(from_syskit_port, to_syskit_port, policy)
 
                             begin
-                                current_policy = from_task.orocos_task[to_task.orocos_task, ActualDataFlow][[from_port, to_port]]
+                                current_policy = ActualDataFlow.edge_info(from_task.orocos_task, to_task.orocos_task)[[from_port, to_port]]
                             rescue ArgumentError
                             end
 
@@ -293,9 +298,9 @@ module Syskit
                             # The task will be aborted. Simply ignore
                         rescue Orocos::InterfaceObjectNotFound => e
                             if e.task == from_task.orocos_task && e.name == from_port
-                                plan.engine.add_error(PortNotFound.new(from_task, from_port, :output))
+                                plan.execution_engine.add_error(PortNotFound.new(from_task, from_port, :output))
                             else
-                                plan.engine.add_error(PortNotFound.new(to_task, to_port, :input))
+                                plan.execution_engine.add_error(PortNotFound.new(to_task, to_port, :input))
                             end
 
                         end
@@ -365,10 +370,17 @@ module Syskit
             def new_connections_partition_held_ready(new)
                 additions_held, additions_ready = Hash.new, Hash.new
                 new.each do |(from_task, to_task), mappings|
-                    hold, ready = mappings.partition do |(from_port, to_port), policy|
-                        (!from_task.setup? && !from_task.concrete_model.find_output_port(from_port)) ||
-                            (!to_task.setup? && !to_task.concrete_model.find_input_port(to_port))
+                    if !from_task.execution_agent.ready? || !to_task.execution_agent.ready?
+                        hold, ready = mappings, Hash.new
+                    elsif from_task.setup? && to_task.setup?
+                        hold, ready = Hash.new, mappings
+                    else
+                        hold, ready = mappings.partition do |(from_port, to_port), policy|
+                            (!from_task.setup? && !from_task.concrete_model.find_output_port(from_port)) ||
+                                (!to_task.setup? && !to_task.concrete_model.find_input_port(to_port))
+                        end
                     end
+
                     if !hold.empty?
                         debug do
                             debug "holding #{hold.size} connections from "
@@ -380,10 +392,10 @@ module Syskit
                             hold.each do |(from_port, to_port), policy|
                                 debug "  #{from_port} => #{to_port} [#{policy}]"
                                 if !from_task.setup? && !from_task.concrete_model.find_output_port(from_port)
-                                    debug "    #{from_port} has not been created yet"
+                                    debug "    output port #{from_port} has not been created yet"
                                 end
-                                if !to_task.setup? && !to_task.concrete_model.find_output_port(to_port)
-                                    debug "    #{to_port} has not been created yet"
+                                if !to_task.setup? && !to_task.concrete_model.find_input_port(to_port)
+                                    debug "    input port #{to_port} has not been created yet"
                                 end
                             end
                             break
@@ -462,16 +474,16 @@ module Syskit
                 removed = Hash.new
 
                 present_tasks = plan.find_tasks(TaskContext).map(&:orocos_task).to_set
-                dangling_tasks = ActualDataFlow.enum_for(:each_vertex).find_all do |orocos_task|
+                dangling_tasks = ActualDataFlow.each_vertex.find_all do |orocos_task|
                     !present_tasks.include?(orocos_task)
                 end
                 dangling_tasks.each do |parent_t|
-                    parent_t.each_child_vertex(ActualDataFlow) do |child_t|
+                    ActualDataFlow.each_out_neighbour(parent_t) do |child_t|
                         if !present_tasks.include?(child_t)
                             # NOTE: since the two tasks have been removed,
                             # they cannot be within the 'removed' set
                             # already
-                            mappings = parent_t[child_t, ActualDataFlow]
+                            mappings = ActualDataFlow.edge_info(parent_t, child_t)
                             removed[[parent_t, child_t]] = mappings.keys.to_set
                         end
                     end
@@ -479,12 +491,14 @@ module Syskit
                 removed
             end
 
-            def update
-                tasks = Flows::DataFlow.modified_tasks
+            def active_task?(t)
+                t.plan && !t.finished? && t.execution_agent && !t.execution_agent.finished? && !t.execution_agent.ready_to_die? 
+            end
 
-                tasks.delete_if do |t|
-                    t.finished?
-                end
+            def update
+                tasks = dataflow_graph.modified_tasks
+                tasks.delete_if { |t| !active_task?(t) }
+                debug "connection: updating, #{tasks.size} tasks modified in dataflow graph"
 
                 # The modifications to +tasks+ might have removed all input
                 # connection. Make sure that in this case, executable? has been
@@ -499,31 +513,23 @@ module Syskit
                 end
 
                 if !tasks.empty?
-                    if Flows::DataFlow.pending_changes
-                        tasks.merge(Flows::DataFlow.pending_changes.first)
+                    if dataflow_graph.pending_changes
+                        tasks.merge(dataflow_graph.pending_changes.first)
                     end
-                    tasks.delete_if { |t| !t.plan }
-                    main_tasks, proxy_tasks = tasks.partition { |t| t.plan == plan }
-                    main_tasks = main_tasks.to_set
-                    main_tasks.delete_if do |t|
-                        !t.execution_agent ||
-                            t.execution_agent.ready_to_die? ||
-                            t.execution_agent.finished?
-                    end
+                    tasks.delete_if { |t| !active_task?(t) }
 
                     debug do
                         debug "computing data flow update from modified tasks"
-                        for t in main_tasks
+                        for t in tasks
                             debug "  #{t}"
                         end
                         break
                     end
 
-                    new, removed = compute_connection_changes(main_tasks)
+                    new, removed = compute_connection_changes(tasks)
                     if new
-                        Flows::DataFlow.pending_changes = [main_tasks, new, removed]
-                        Flows::DataFlow.modified_tasks.clear
-                        Flows::DataFlow.modified_tasks.merge(proxy_tasks.to_set)
+                        dataflow_graph.pending_changes = [tasks, new, removed]
+                        dataflow_graph.modified_tasks.clear
                     else
                         debug "cannot compute changes, keeping the tasks queued"
                     end
@@ -533,22 +539,26 @@ module Syskit
                 # {#dangling_task_cleanup}
                 dangling = dangling_task_cleanup
                 if !dangling.empty?
-                    Flows::DataFlow.pending_changes ||= [[], Hash.new, Hash.new]
-                    Flows::DataFlow.pending_changes[2].merge!(dangling)
+                    dataflow_graph.pending_changes ||= [[], Hash.new, Hash.new]
+                    dataflow_graph.pending_changes[2].merge!(dangling)
                 end
 
-                if Flows::DataFlow.pending_changes
-                    main_tasks, new, removed = Flows::DataFlow.pending_changes
+                if dataflow_graph.pending_changes
+                    main_tasks, new, removed = dataflow_graph.pending_changes
+                    main_tasks.delete_if { |t| !active_task?(t) }
+                    new.delete_if do |(source_task, sink_task), _|
+                        !active_task?(source_task) || !active_task?(sink_task)
+                    end
 
                     debug "applying pending changes from the data flow graph"
                     new, removed = apply_connection_changes(new, removed)
                     if new.empty? && removed.empty?
-                        Flows::DataFlow.pending_changes = nil
+                        dataflow_graph.pending_changes = nil
                     else
-                        Flows::DataFlow.pending_changes = [main_tasks, new, removed]
+                        dataflow_graph.pending_changes = [main_tasks, new, removed]
                     end
 
-                    if !Flows::DataFlow.pending_changes
+                    if !dataflow_graph.pending_changes
                         debug "successfully applied pending changes"
                     else
                         debug "failed to apply pending changes"

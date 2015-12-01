@@ -6,7 +6,7 @@ describe Syskit::NetworkGeneration::Engine do
 
     before do
         create_simple_composition_model
-        plan.engine.scheduler.enabled = false
+        plan.execution_engine.scheduler.enabled = false
         @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
     end
 
@@ -48,7 +48,7 @@ describe Syskit::NetworkGeneration::Engine do
         end
         it "adds to the plan requirements from InstanceRequirementsTask tasks that successfully finished" do
             planning_task.start!
-            planning_task.emit :success
+            planning_task.success_event.emit
             flexmock(requirements).should_receive(:instanciate).
                 and_return(instanciated_task = simple_component_model.new).once
             syskit_engine.instanciate
@@ -58,7 +58,7 @@ describe Syskit::NetworkGeneration::Engine do
             planning_task.start!
             
             inhibit_fatal_messages do
-                begin planning_task.emit :failed
+                begin planning_task.failed_event.emit
                 rescue Roby::PlanningFailedError
                 end
             end
@@ -204,8 +204,8 @@ describe Syskit::NetworkGeneration::Engine do
             tasks.delete(task)
             new_task = tasks.first
 
-            assert(Roby::EventStructure::SyskitConfigurationPrecedence.
-                linked?(task.stop_event, new_task.start_event))
+            assert_child_of task.stop_event, new_task.start_event, 
+                Roby::EventStructure::SyskitConfigurationPrecedence
         end
 
         it "does not reconfigure already-configured tasks whose static input ports have not been modified" do
@@ -386,7 +386,7 @@ describe Syskit::NetworkGeneration::Engine do
                 with(on: 'machine').
                 and_return(deployment_task = flexmock(Roby::Task.new))
             # Add it to the work plan
-            flexmock(syskit_engine.work_plan).should_receive(:add_task).once.with(deployment_task).ordered
+            flexmock(syskit_engine.work_plan).should_receive(:add).once.with(deployment_task).ordered
             # Create the task
             deployment_task.should_receive(:task).with('task').and_return(deployed_task = flexmock).ordered
             # And finally replace the task with the deployed task
@@ -563,23 +563,11 @@ describe Syskit::NetworkGeneration::Engine do
     end
 
     describe "synthetic tests" do
-        def deploy_task(requirements)
-            plan.add_permanent(original_task = requirements.as_plan)
-            task = original_task.as_service
-            task.planning_task.start!
-            syskit_engine.resolve
-            task.planning_task.emit :success
-            return task.task, original_task, task.planning_task
-        ensure
-            plan.unmark_permanent(original_task)
-        end
-
         it "deploys a mission as mission" do
             task_model = Syskit::TaskContext.new_submodel
             deployment = syskit_stub_deployment_model(task_model, 'task')
             plan.add_mission(original_task = task_model.as_plan)
-            deployed, original_task, planning_task = deploy_task(original_task)
-            refute_same deployed, original_task
+            deployed = syskit_deploy(original_task, add_mission: false)
             assert plan.mission?(deployed)
         end
 
@@ -587,8 +575,7 @@ describe Syskit::NetworkGeneration::Engine do
             task_model = Syskit::TaskContext.new_submodel
             deployment = syskit_stub_deployment_model(task_model, 'task')
             plan.add_permanent(original_task = task_model.as_plan)
-            deployed, original_task, planning_task = deploy_task(original_task)
-            refute_same deployed, original_task
+            deployed = syskit_deploy(original_task, add_mission: false)
             assert plan.permanent?(deployed)
         end
 
@@ -599,12 +586,12 @@ describe Syskit::NetworkGeneration::Engine do
             end
             deployment = syskit_stub_deployment_model(task_model, 'task')
 
-            deployed, original, planning_task = deploy_task(composition_model)
+            deployed = syskit_deploy(composition_model)
             # This deregisters the task from the list of requirements in the
             # syskit engine
-            plan.remove_object(planning_task)
+            plan.remove_object(deployed.planning_task)
 
-            new_deployed, new_original = deploy_task(composition_model.use('child' => task_model.with_conf('non_default')))
+            new_deployed, new_original = syskit_deploy(composition_model.use('child' => task_model.with_conf('non_default')))
             plan.add_mission(new_deployed) # we use static_garbage_collect below
 
             assert_equal(['non_default'], new_deployed.child_child.conf)
@@ -616,14 +603,16 @@ describe Syskit::NetworkGeneration::Engine do
             task_model = Syskit::TaskContext.new_submodel
             deployment = syskit_stub_deployment_model(task_model, 'task')
 
-            deployed_task, original_task, planning_task = deploy_task(task_model)
-            plan.unmark_permanent(deployed_task)
-            deployed_reconf, original_reconf, _ = deploy_task(task_model.with_conf('non_default'))
+            deployed_task = syskit_deploy(task_model)
+            planning_task = deployed_task.planning_task
+            plan.unmark_mission(deployed_task)
+            deployed_reconf = syskit_deploy(task_model.with_conf('non_default'))
             plan.add_mission(deployed_reconf)
 
             assert_equal [deployed_task.stop_event],
                 deployed_reconf.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
-            assert_equal([planning_task, deployed_task, original_task, original_reconf].to_set, plan.static_garbage_collect.to_set)
+            plan.useful_tasks
+            assert_equal([planning_task, deployed_task].to_set, plan.static_garbage_collect.to_set)
             assert(['non_default'], deployed_reconf.conf)
         end
 
@@ -634,12 +623,12 @@ describe Syskit::NetworkGeneration::Engine do
             end
             deployment = syskit_stub_deployment_model(task_model, 'task')
 
-            cmp, original_cmp = deploy_task(composition_model.use('child' => task_model))
+            cmp, original_cmp = syskit_deploy(composition_model.use('child' => task_model))
             child = cmp.child_child.to_task
             child.do_not_reuse
             plan.remove_object(cmp.planning_task)
 
-            new_cmp, original_new = deploy_task(composition_model.use('child' => task_model))
+            new_cmp, original_new = syskit_deploy(composition_model.use('child' => task_model))
             new_child = new_cmp.child_child
 
             assert_equal [child.stop_event],
@@ -647,23 +636,20 @@ describe Syskit::NetworkGeneration::Engine do
         end
 
         it "does not change anything if asked to deploy the same composition twice" do
-            begin
-                task_model = Syskit::TaskContext.new_submodel
-                composition_model = Syskit::Composition.new_submodel do
-                    add task_model, as: 'child'
-                end
-                deployment = syskit_stub_deployment_model(task_model, 'task')
-
-                deploy_task(composition_model.use('child' => task_model))
-                plan.engine.garbage_collect
-                plan_copy, mappings = plan.deep_copy
-
-                syskit_engine.resolve
-                plan.engine.garbage_collect
-                assert plan.same_plan?(plan_copy, mappings)
-            ensure
-                plan_copy.clear if plan_copy
+            task_model = Syskit::TaskContext.new_submodel
+            composition_model = Syskit::Composition.new_submodel do
+                add task_model, as: 'child'
             end
+            deployment = syskit_stub_deployment_model(task_model, 'task')
+
+            syskit_deploy(composition_model.use('child' => task_model))
+            plan.execution_engine.garbage_collect
+            plan_copy, mappings = plan.deep_copy
+
+            syskit_engine.resolve
+            plan.execution_engine.garbage_collect
+            diff = plan.find_plan_difference(plan_copy, mappings)
+            assert !diff, "#{diff}"
         end
 
         it "applies connections from compositions to the final plan" do
@@ -675,7 +661,7 @@ describe Syskit::NetworkGeneration::Engine do
                 export child_child.out_port
             end
             deployment = syskit_stub_deployment_model(task_model, 'task')
-            cmp, _ = deploy_task(composition_model)
+            cmp, _ = syskit_deploy(composition_model)
             assert_equal Hash[['out', 'out'] => Hash.new], cmp.child_child[cmp, Syskit::Flows::DataFlow]
         end
 
@@ -732,7 +718,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered.pass_thru
             flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered.pass_thru
             flexmock(dev_driver.orocos_task, "dev").should_receive(:configure).once.globally.ordered.pass_thru
-            plan.engine.scheduler.enabled = true
+            plan.execution_engine.scheduler.enabled = true
             assert_event_emission bus_driver.start_event
             assert_event_emission dev_driver.start_event
         end
@@ -797,13 +783,13 @@ describe Syskit::NetworkGeneration::Engine do
             @task = cmp.test_child
         end
         it "sets missing devices from its selections" do
-            engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)
+            engine = Syskit::NetworkGeneration::Engine.new(Roby::ExecutablePlan.new)
             task.requirements.push_dependency_injection(Syskit::DependencyInjection.new(dev_m => device))
             engine.allocate_devices(task)
             assert_equal device, task.find_device_attached_to(task.driver_srv)
         end
         it "sets missing devices from the selections in its parent(s)" do
-            engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)
+            engine = Syskit::NetworkGeneration::Engine.new(Roby::ExecutablePlan.new)
             cmp.requirements.merge(cmp_m.use(dev_m => device))
             engine.allocate_devices(task)
             assert_equal device, task.find_device_attached_to(task.driver_srv)
@@ -812,7 +798,7 @@ describe Syskit::NetworkGeneration::Engine do
             dev2 = robot.device dev_m, as: 'd2'
             task.arguments['driver_dev'] = dev2
             cmp.requirements.merge(cmp_m.use(dev_m => device))
-            engine = Syskit::NetworkGeneration::Engine.new(Roby::Plan.new)
+            engine = Syskit::NetworkGeneration::Engine.new(Roby::ExecutablePlan.new)
             engine.allocate_devices(task)
             assert_equal dev2, task.find_device_attached_to(task.driver_srv)
         end
