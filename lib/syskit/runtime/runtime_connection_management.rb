@@ -318,8 +318,30 @@ module Syskit
                 end
             end
 
+            # Partition a set of connections between the ones that can be
+            # performed right now, and those that must wait for the involved
+            # tasks' state to change
+            #
+            # @param connections the connections, specified as
+            #            (source_task, sink_task) => Hash[
+            #               (source_port, sink_port) => policy,
+            #               ...]
+            #
+            #   note that the source and sink task type are unspecified.
+            #
+            # @param [Hash<Object,Symbol>] a cache of the task states, as a
+            #   mapping from a source/sink task object as used in the
+            #   connections hash to the state name
+            # @param [String] the kind of operation that will be done. It is
+            #   purely used to display debugging information
+            # @param [#[]] an object that maps the objects used as tasks in
+            #   connections and states to an object that responds to
+            #   {#rtt_state}, to evaluate the object's state.
+            # @return [Array,Hash] the set of connections that can be performed
+            #   right away, and the set of connections that require a state change
+            #   in the tasks
             def partition_early_late(connections, states, kind, mapping)
-                connections.partition do |(source_task, sink_task), _|
+                early, late = connections.partition do |(source_task, sink_task), _|
                     states[source_task] ||= begin mapping[source_task].rtt_state
                                             rescue Orocos::ComError
                                             end
@@ -336,8 +358,10 @@ module Syskit
                     end
                     early
                 end
+                return early, Hash[late]
             end
 
+            # Partition new connections between 
             def new_connections_partition_held_ready(new)
                 additions_held, additions_ready = Hash.new, Hash.new
                 new.each do |(from_task, to_task), mappings|
@@ -409,7 +433,7 @@ module Syskit
 
                 if !additions_held.empty?
                     mark_connected_pending_tasks_as_executable(modified_tasks)
-                    additions = additions_held.merge(Hash[late_additions]) { |key, mappings1, mappings2| mappings1.merge(mappings2) }
+                    additions = additions_held.merge(late_additions) { |key, mappings1, mappings2| mappings1.merge(mappings2) }
                     return additions, late_removal
                 end
 

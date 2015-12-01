@@ -37,6 +37,7 @@ module Syskit
             # Seriously. Keep it in your tests.
             def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "#{action_or_profile} is not self contained", **instanciate_options)
                 Actions(action_or_profile).each do |act|
+                    self.assertions += 1
                     syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
                     task = syskit_deploy(act, syskit_engine: syskit_engine, compute_policies: false, compute_deployments: false, validate_generated_network: false, **instanciate_options)
                     still_abstract = plan.find_local_tasks(Syskit::Component).
@@ -47,7 +48,7 @@ module Syskit
                         raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, other)), message
                     elsif !tags_from_other.empty?
                         other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
-                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{definition.name} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
+                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{odefinition.namether_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
                     end
                     plan.unmark_mission(task)
                     plan.execution_engine.garbage_collect
@@ -102,6 +103,7 @@ module Syskit
                 if actions.empty?
                     actions = subject_syskit_model
                 end
+                self.assertions += 1
                 syskit_deploy(Actions(actions),
                                  compute_policies: false,
                                  compute_deployments: false)
@@ -153,6 +155,7 @@ module Syskit
                 if actions.empty?
                     actions = subject_syskit_model
                 end
+                self.assertions += 1
                 syskit_deploy(Actions(actions),
                                  compute_policies: true,
                                  compute_deployments: true)
@@ -181,6 +184,7 @@ module Syskit
                 if actions.empty?
                     actions = subject_syskit_model
                 end
+                self.assertions += 1
                 assert_can_deploy_together(*Actions(actions))
                 plan.find_tasks(Syskit::TaskContext).each do |task_context|
                     syskit_configure(task_context)

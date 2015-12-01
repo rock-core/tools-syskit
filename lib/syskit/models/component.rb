@@ -1010,6 +1010,28 @@ module Syskit
             def selected_for(requirements)
                 InstanceSelection.new(nil, self.to_instance_requirements, requirements.to_instance_requirements)
             end
+
+            def merge_service_model(service_model, port_mappings)
+                service_model.each_input_port do |p|
+                    self_name = port_mappings[p.name] || p.name
+                    self_p = find_input_port(self_name)
+                    if !self_p
+                        raise InvalidPortMapping, "#{self} cannot dynamically create ports"
+                    elsif p.type != self_p.type
+                        raise InvalidPortMapping, "#{self} already has a port named #{self_name} of type #{self_p.type}, cannot dynamically map #{p} onto it"
+                    end
+                end
+
+                service_model.each_output_port do |p|
+                    self_name = port_mappings[p.name] || p.name
+                    self_p = find_output_port(self_name)
+                    if !self_p
+                        raise InvalidPortMapping, "#{self} cannot dynamically create ports"
+                    elsif p.type != self_p.type
+                        raise InvalidPortMapping, "#{self} already has a port named #{self_name} of type #{self_p.type}, cannot dynamically map #{p} onto it"
+                    end
+                end
+            end
         end
     end
 

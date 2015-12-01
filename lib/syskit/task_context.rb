@@ -573,14 +573,8 @@ module Syskit
                                                        self.each_required_dynamic_service.to_set]
             end
 
-            ##
-            # :method: start_event
-            #
             # Returns the start event object for this task
 
-            ##
-            # :method: start!
-            #
             # Optionally configures and then start the component. The start
             # event will be emitted when the it has successfully been
             # configured and started.
@@ -628,7 +622,7 @@ module Syskit
                     end
 
                 elsif orogen_state == :STOPPED || orogen_state == :PRE_OPERATIONAL
-                    if interrupt?
+                    if interrupt_event.pending?
                         emit :interrupt
                     elsif finishing?
                         emit :stop
@@ -644,9 +638,6 @@ module Syskit
                 end
             end
 
-            ##
-            # :method: interrupt!
-            #
             # Interrupts the execution of this task context
             event :interrupt do |context|
 	        ::Robot.info "interrupting #{name}"
@@ -657,7 +648,7 @@ module Syskit
 		    elsif execution_agent && !execution_agent.finishing?
 		        orocos_task.stop(false)
 		    end
-                rescue Orocos::CORBA::ComError
+                rescue Orocos::ComError
                     # We actually aborted
 		    emit :interrupt
                     emit :aborted
@@ -676,9 +667,6 @@ module Syskit
 
             forward :interrupt => :failed
 
-            ##
-            # :method: running_event
-            #
             # Returns the running event object for this task. This event gets
             # emitted whenever the component goes into the Running state, either
             # because it has just been started or because it left a runtime
@@ -686,26 +674,17 @@ module Syskit
             event :running
             forward :start => :running
 
-            ##
-            # :method: runtime_error_event
-            #
             # Returns the runtime error event object for this task. This event
             # gets emitted whenever the component goes into a runtime error
             # state.
             event :runtime_error
 
-            ##
-            # :method: exception_event
-            #
             # Returns the exception error event object for this task. This event
             # gets emitted whenever the component goes into an exception
             # state.
             event :exception
             forward :exception => :failed
 
-            ##
-            # :method: fatal_error_event
-            #
             # Returns the fatal error event object for this task. This event
             # gets emitted whenever the component goes into a fatal error state.
             #
@@ -724,9 +703,6 @@ module Syskit
                 @orocos_task = nil
             end
 
-            ##
-            # :method: stop!
-            #
             # Interrupts the execution of this task context
             event :stop do |context|
                 interrupt!

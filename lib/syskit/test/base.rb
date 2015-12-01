@@ -37,15 +37,11 @@ module Syskit
         end
 
         def assert_event_command_failed(expected_code_error = nil)
-            begin
+            e = assert_raises(Roby::CommandFailed) do
                 yield
-                flunk("expected Roby::CommandFailed, but no exception was raised")
-            rescue Roby::CommandFailed => e
-                if !e.error.kind_of?(expected_code_error)
-                    flunk("expected a Roby::CommandFailed wrapping #{expected_code_error}, but \"#{e.error}\" (#{e.error.class}) was raised")
-                end
-            rescue Exception => e
-                flunk("expected Roby::CommandFailed, but #{e} was raised")
+            end
+            if expected_code_error && !e.error.kind_of?(expected_code_error)
+                flunk("expected a Roby::CommandFailed wrapping #{expected_code_error}, but \"#{e.error}\" (#{e.error.class}) was raised")
             end
         end
 

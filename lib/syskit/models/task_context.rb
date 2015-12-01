@@ -217,6 +217,16 @@ module Syskit
                 end
                 @configuration_manager
             end
+
+            # Merge the service model into self
+            #
+            # This is mainly used during dynamic service instantiation, to
+            # update the underlying ports and trigger model based on the
+            # service's orogen model
+            def merge_service_model(service_model, port_mappings)
+                Syskit::Models.merge_orogen_task_context_models(
+                    orogen_model, [service_model.orogen_model], port_mappings)
+            end
         end
     end
 end

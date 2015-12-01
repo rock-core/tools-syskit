@@ -11,6 +11,14 @@ module Syskit
             #   section
             # @param [String] kind either dataflow or hierarchy
             # @param [Roby::Plan] plan
+            # @param [Array] buttons a list of [MetaRuby::GUI::HTML::Button] to
+            #   be rendered on top of the plan to interact with it
+            # @param [Float] zoom the zooming factor for the rendered SVG
+            # @param [String] id the fragment id
+            # @param [String] external_objects if given, the rendered SVG is
+            #   saved in a file whose name is generated using #{external_objects % kind}.svg
+            # @param [Hash] options additional options to pass to
+            #   {Graphviz#to_file}
             def push_plan(title, kind, plan, buttons: [],
                           zoom: 1, id: kind, external_objects: nil,
                           **options)
