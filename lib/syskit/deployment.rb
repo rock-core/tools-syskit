@@ -13,7 +13,7 @@ module Syskit
         end
     end
 
-    Orocos::TaskContext.prepend TaskContextPeekStateInterdiction
+    Orocos::TaskContext.send :prepend, TaskContextPeekStateInterdiction
 
         class << self
             # (see RobyApp::Configuration#register_process_server)
