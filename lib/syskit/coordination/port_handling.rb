@@ -33,7 +33,7 @@ module Syskit
                     elsif port = find_port(port_name)
                         return port
                     else
-                        raise NoMethodError.new("#{self} has no port called #{port_name}", m)
+                        raise NoMethodError.new("#{self} has no port called #{port_name}, known ports are: #{model.model.each_port.map(&:name).sort.join(", ")}" , m)
                     end
                 end
                 super
