@@ -561,12 +561,16 @@ module Syskit
                 result
             end
 
+            def children_names
+                each_child.map { |name, _| name }
+            end
+
             # The list of names that will be used by this model as keys in a
             # DependencyInjection object,
             #
             # For compositions, this is the list of children names
             def dependency_injection_names
-                each_child.map { |name, _| name }
+                children_names
             end
 
             def find_child_model_and_task(child_name, context)

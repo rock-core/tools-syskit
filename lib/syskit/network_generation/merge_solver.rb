@@ -159,23 +159,55 @@ module Syskit
                 # If both tasks are compositions, merge only if +task+
                 # has the same child set than +target+
                 if task.kind_of?(Composition) && target_task.kind_of?(Composition)
-                    task_children   = task.merged_relations(:each_child, true, false).to_set
-                    target_children = target_task.merged_relations(:each_child, true, false).to_set
+                    dependency_graph = Roby::TaskStructure::Dependency
+                    task_children_names = task.model.children_names.to_set
+                    task_children   = task.merged_relations(:each_child, true, false).map do |child_task|
+                        roles = task[child_task, dependency_graph][:roles].to_set & task_children_names
+                        if !roles.empty?
+                            [roles, child_task]
+                        end
+                    end.compact.to_set
+                    target_task_children_names = target_task.model.children_names.to_set
+                    target_children = target_task.merged_relations(:each_child, true, false).map do |child_task|
+                        roles = target_task[child_task, dependency_graph][:roles].to_set & target_task_children_names
+                        if !roles.empty?
+                            [roles, child_task]
+                        end
+                    end.compact.to_set
                     if task_children != target_children
-                        info "rejected: compositions with different children"
+                        info "rejected: compositions with different children or children in different roles"
                         return false
                     elsif task_children.any? { |t| t.respond_to?(:proxied_data_services) }
                         info "rejected: compositions still have unresolved children"
                         return false
                     end
 
-                    task_children.each do |child_task|
-                        task_roles = task[child_task, Roby::TaskStructure::Dependency][:roles]
-                        target_roles = target_task[child_task, Roby::TaskStructure::Dependency][:roles]
-                        if task_roles != target_roles
-                            info "rejected: compositions have same children but in different roles"
-                            return false
+                    # Now verify that the exported ports are the same
+                    task_exports = Set.new
+                    task.each_input_connection do |source_task, source_port, sink_port, _|
+                        if task.find_output_port(sink_port)
+                            task_exports << [source_task, source_port, sink_port]
                         end
+                    end
+                    task.each_output_connection do |source_port, sink_task, sink_port, _|
+                        if task.find_input_port(source_port)
+                            task_exports << [source_port, sink_task, sink_port]
+                        end
+                    end
+                    target_task_exports = Set.new
+                    target_task.each_input_connection do |source_task, source_port, sink_port, _|
+                        if target_task.find_output_port(sink_port)
+                            target_task_exports << [source_task, source_port, sink_port]
+                        end
+                    end
+                    target_task.each_output_connection do |source_port, sink_task, sink_port, _|
+                        if target_task.find_input_port(source_port)
+                            target_task_exports << [source_port, sink_task, sink_port]
+                        end
+                    end
+                    if task_exports != target_task_exports
+                        info "rejected: compositions with different exports"
+                        return false
                     end
                 end
 
@@ -237,7 +269,7 @@ module Syskit
                     # for task
                     (source_task, source_port), policy = inputs[sink_port].first
                     if source_port != target_source_port
-                        debug { "rejected: sink #{sink_port} is connected to a port named #{target_source_port} resp. #{source_port}" }
+                        debug { "rejected: sink #{sink_port} is connected to a port named #{source_port} resp. #{target_source_port}" }
                         return
                     end
                     if !policy.empty? && !target_policy.empty? && (Syskit.update_connection_policy(policy, target_policy) != target_policy)

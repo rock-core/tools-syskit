@@ -62,42 +62,98 @@ describe Syskit::NetworkGeneration::MergeSolver do
             flexmock(solver).should_receive(:resolve_input_matching).with(task, target_task).and_return([]).once
             assert_same true, solver.resolve_single_merge(task, target_task)
         end
-        it "returns true for compositions without children" do
-            plan.add(c0 = simple_composition_model.new)
-            plan.add(c1 = simple_composition_model.new)
-            assert solver.resolve_single_merge(c0, c1)
-        end
-        it "returns true for compositions that have the same children" do
-            plan.add(t = simple_component_model.new)
-            plan.add(c0 = simple_composition_model.new)
-            c0.depends_on(t)
-            plan.add(c1 = simple_composition_model.new)
-            c1.depends_on(t)
-            assert solver.resolve_single_merge(c0, c1)
-        end
-        it "returns false for compositions that have different children" do
-            plan.add(t0 = simple_component_model.new)
-            plan.add(c0 = simple_composition_model.new)
-            plan.add(t1 = simple_component_model.new)
-            plan.add(c1 = simple_composition_model.new)
-            c0.depends_on(t0, role: 'child')
-            c1.depends_on(t1, role: 'child')
-            assert_same false, solver.resolve_single_merge(c0, c1)
-        end
-        it "returns false for compositions that have the same child task but in different roles" do
-            plan.add(t = simple_component_model.new)
-            plan.add(c0 = simple_composition_model.new)
-            c0.depends_on(t, role: 'child0')
-            plan.add(c1 = simple_composition_model.new)
-            c1.depends_on(t, role: 'child1')
-            assert_same false, solver.resolve_single_merge(c0, c1)
-        end
         it "returns false for tasks that have execution agents" do
             plan.add(t1 = simple_component_model.new)
             plan.add(t2 = simple_composition_model.new)
             flexmock(t1).should_receive(:execution_agent).and_return(true)
             assert_same false, solver.resolve_single_merge(t1, t2)
             assert_same false, solver.resolve_single_merge(t2, t1)
+        end
+        describe "compositions" do
+            attr_reader :task_m, :cmp_m
+            before do
+                @task_m = Syskit::TaskContext.new_submodel
+                @cmp_m  = Syskit::Composition.new_submodel
+                cmp_m.add task_m, as: 'child'
+            end
+
+            it "returns true for compositions without children" do
+                plan.add(c0 = cmp_m.new)
+                plan.add(c1 = cmp_m.new)
+                assert solver.resolve_single_merge(c0, c1)
+            end
+            it "returns true for compositions that have the same children" do
+                plan.add(t = task_m.new)
+                plan.add(c0 = cmp_m.new)
+                c0.depends_on(t, role: 'child')
+                plan.add(c1 = cmp_m.new)
+                c1.depends_on(t, role: 'child')
+                assert solver.resolve_single_merge(c0, c1)
+            end
+            it "returns false for compositions that have different children" do
+                plan.add(t0 = task_m.new)
+                plan.add(c0 = cmp_m.new)
+                plan.add(t1 = task_m.new)
+                plan.add(c1 = cmp_m.new)
+                c0.depends_on(t0, role: 'child')
+                c1.depends_on(t1, role: 'child')
+                assert_same false, solver.resolve_single_merge(c0, c1)
+            end
+            it "returns false for compositions that have the same children but the exported output ports differ" do
+                srv_m = Syskit::DataService.new_submodel do
+                    output_port 'out', '/double'
+                end
+                task_m = Syskit::TaskContext.new_submodel do
+                    output_port 'out1', '/double'
+                    provides srv_m, as: 'test1', 'out' => 'out1'
+                    output_port 'out2', '/double'
+                    provides srv_m, as: 'test2', 'out' => 'out2'
+                end
+                cmp_m  = Syskit::Composition.new_submodel do
+                    add srv_m, as: 'test'
+                    export test_child.out_port
+                end
+
+                plan.add(child = task_m.new)
+                cmp1 = cmp_m.use('test' => child.test1_srv).instanciate(plan)
+                cmp2 = cmp_m.use('test' => child.test2_srv).instanciate(plan)
+
+                assert_same false, solver.resolve_single_merge(cmp1, cmp2)
+                assert_same false, solver.resolve_single_merge(cmp2, cmp1)
+            end
+            it "returns false for compositions that have the same children but the exported input ports differ" do
+                srv_m = Syskit::DataService.new_submodel do
+                    input_port 'in', '/double'
+                end
+                task_m = Syskit::TaskContext.new_submodel do
+                    input_port 'in1', '/double'
+                    provides srv_m, as: 'test1', 'in' => 'in1'
+                    input_port 'in2', '/double'
+                    provides srv_m, as: 'test2', 'in' => 'in2'
+                end
+                cmp_m  = Syskit::Composition.new_submodel do
+                    add srv_m, as: 'test'
+                    export test_child.in_port
+                end
+
+                plan.add(child = task_m.new)
+                cmp1 = cmp_m.use('test' => child.test1_srv).instanciate(plan)
+                cmp2 = cmp_m.use('test' => child.test2_srv).instanciate(plan)
+
+                assert_same false, solver.resolve_single_merge(cmp1, cmp2)
+                assert_same false, solver.resolve_single_merge(cmp2, cmp1)
+            end
+            it "returns true for compositions that differ only on children whose role is not part of the model" do
+                plan.add(child = task_m.new)
+                plan.add(task  = task_m.new)
+                plan.add(c0 = cmp_m.new)
+                plan.add(c1 = cmp_m.new)
+                c0.depends_on(child, role: 'child')
+                c1.depends_on(child, role: 'child')
+                c0.depends_on task
+                assert_same true, solver.resolve_single_merge(c0, c1)
+                assert_same true, solver.resolve_single_merge(c1, c0)
+            end
         end
     end
     
@@ -360,6 +416,39 @@ describe Syskit::NetworkGeneration::MergeSolver do
             graph, cycles = solver.direct_merge_mappings([task].to_value_set)
             assert graph.empty?
             assert cycles.empty?
+        end
+    end
+
+    describe "functional tests" do
+        describe "merging compositions" do
+            attr_reader :plan, :srv_m, :task_m, :cmp_m
+            before do
+                @plan = Roby::Plan.new
+                @srv_m = Syskit::DataService.new_submodel do
+                    output_port 'out', '/double'
+                end
+                @task_m = Syskit::TaskContext.new_submodel do
+                    output_port 'out1', '/double'
+                    output_port 'out2', '/double'
+                end
+                task_m.provides srv_m, 'out' => 'out1', as: 'out1'
+                task_m.provides srv_m, 'out' => 'out2', as: 'out2'
+                @cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add srv_m, as: 'test'
+                cmp_m.export cmp_m.test_child.out_port
+            end
+            it "does not merge two compositions of the same model using two different services of the same task" do
+                cmp1 = cmp_m.use(task_m.out1_srv).instanciate(plan)
+                cmp2 = cmp_m.use(task_m.out2_srv).instanciate(plan)
+                solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
+                flexmock(solver).should_receive(:merge).
+                    with(Syskit::TaskContext, Syskit::TaskContext).
+                    pass_thru
+                flexmock(solver).should_receive(:merge).
+                    with(Syskit::Composition, Syskit::Composition).never
+                solver.merge_identical_tasks
+                plan.clear
+            end
         end
     end
 end
