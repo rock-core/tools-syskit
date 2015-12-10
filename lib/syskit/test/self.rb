@@ -67,7 +67,7 @@ module Syskit
             super
 
         ensure
-            if @syskit_handler_ids
+            if @syskit_handler_ids && engine
                 Syskit::RobyApp::Plugin.unplug_engine_from_roby(@syskit_handler_ids, engine)
             end
 
