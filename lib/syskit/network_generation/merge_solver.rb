@@ -159,23 +159,27 @@ module Syskit
                 # If both tasks are compositions, merge only if +task+
                 # has the same child set than +target+
                 if task.kind_of?(Composition) && target_task.kind_of?(Composition)
-                    task_children   = task.merged_relations(:each_child, true, false).to_set
-                    target_children = target_task.merged_relations(:each_child, true, false).to_set
+                    dependency_graph = Roby::TaskStructure::Dependency
+                    task_children_names = task.model.children_names.to_set
+                    task_children   = task.merged_relations(:each_child, true, false).map do |child_task|
+                        roles = task[child_task, dependency_graph][:roles].to_set & task_children_names
+                        if !roles.empty?
+                            [roles, child_task]
+                        end
+                    end.compact.to_set
+                    target_task_children_names = target_task.model.children_names.to_set
+                    target_children = target_task.merged_relations(:each_child, true, false).map do |child_task|
+                        roles = target_task[child_task, dependency_graph][:roles].to_set & target_task_children_names
+                        if !roles.empty?
+                            [roles, child_task]
+                        end
+                    end.compact.to_set
                     if task_children != target_children
-                        info "rejected: compositions with different children"
+                        info "rejected: compositions with different children or children in different roles"
                         return false
                     elsif task_children.any? { |t| t.respond_to?(:proxied_data_services) }
                         info "rejected: compositions still have unresolved children"
                         return false
-                    end
-
-                    task_children.each do |child_task|
-                        task_roles = task[child_task, Roby::TaskStructure::Dependency][:roles]
-                        target_roles = target_task[child_task, Roby::TaskStructure::Dependency][:roles]
-                        if task_roles != target_roles
-                            info "rejected: compositions have same children but in different roles"
-                            return false
-                        end
                     end
                 end
 
