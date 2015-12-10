@@ -736,6 +736,29 @@ describe Syskit::NetworkGeneration::Engine do
             assert_event_emission bus_driver.start_event
             assert_event_emission dev_driver.start_event
         end
+
+        describe "merging compositions" do
+            it "does not merge compositions with an already deployed one that differs only by the underlying task's service" do
+                plan = Roby::Plan.new
+                srv_m = Syskit::DataService.new_submodel do
+                    output_port 'out', '/double'
+                end
+                task_m = Syskit::TaskContext.new_submodel do
+                    output_port 'out1', '/double'
+                    output_port 'out2', '/double'
+                end
+                task_m.provides srv_m, 'out' => 'out1', as: 'out1'
+                task_m.provides srv_m, 'out' => 'out2', as: 'out2'
+                cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add srv_m, as: 'test'
+                cmp_m.export cmp_m.test_child.out_port
+
+                syskit_stub_deployment_model(task_m, 'deployed-task')
+                cmp1 = syskit_deploy(cmp_m.use(task_m.out1_srv))
+                cmp2 = syskit_deploy(cmp_m.use(task_m.out2_srv))
+                refute_same cmp1, cmp2
+            end
+        end
     end
 
     describe "#allocate_devices" do
