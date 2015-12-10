@@ -165,7 +165,7 @@ module Syskit
                     # Make sure that the tasks are started after the logger was
                     # started
                     deployment.each_executed_task do |t|
-                        if t.pending?
+                        if t.pending? && t != logger_task
                             t.should_start_after logger_task.start_event
                         end
                     end
