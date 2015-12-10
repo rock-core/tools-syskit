@@ -362,5 +362,38 @@ describe Syskit::NetworkGeneration::MergeSolver do
             assert cycles.empty?
         end
     end
+
+    describe "functional tests" do
+        describe "merging compositions" do
+            attr_reader :plan, :srv_m, :task_m, :cmp_m
+            before do
+                @plan = Roby::Plan.new
+                @srv_m = Syskit::DataService.new_submodel do
+                    output_port 'out', '/double'
+                end
+                @task_m = Syskit::TaskContext.new_submodel do
+                    output_port 'out1', '/double'
+                    output_port 'out2', '/double'
+                end
+                task_m.provides srv_m, 'out' => 'out1', as: 'out1'
+                task_m.provides srv_m, 'out' => 'out2', as: 'out2'
+                @cmp_m = Syskit::Composition.new_submodel
+                cmp_m.add srv_m, as: 'test'
+                cmp_m.export cmp_m.test_child.out_port
+            end
+            it "does not merge two compositions of the same model using two different services of the same task" do
+                cmp1 = cmp_m.use(task_m.out1_srv).instanciate(plan)
+                cmp2 = cmp_m.use(task_m.out2_srv).instanciate(plan)
+                solver = Syskit::NetworkGeneration::MergeSolver.new(plan)
+                flexmock(solver).should_receive(:merge).
+                    with(Syskit::TaskContext, Syskit::TaskContext).
+                    pass_thru
+                flexmock(solver).should_receive(:merge).
+                    with(Syskit::Composition, Syskit::Composition).never
+                solver.merge_identical_tasks
+                plan.clear
+            end
+        end
+    end
 end
 

@@ -940,8 +940,18 @@ module Syskit
                 end
 
                 (all_tasks - used_tasks).each do |t|
-                    debug { "  #{t} is not used in the new network, clearing its dataflow relations" }
-                    t.remove_relations(Syskit::Flows::DataFlow)
+                    sources = t.enum_for(:each_parent_object, Syskit::Flows::DataFlow).to_a
+                    sources.each do |source_t|
+                        connections = source_t[t, Syskit::Flows::DataFlow].dup
+                        connections.delete_if do |(source_port, sink_port), policy|
+                            !(source_t.find_output_port(source_port) && t.find_output_port(sink_port)) &&
+                                !(source_t.find_input_port(source_port) && t.find_input_port(sink_port))
+                        end
+                        source_t[t, Syskit::Flows::DataFlow] = connections
+                        if connections.empty?
+                            source_t.remove_child_object(t, Syskit::Flows::DataFlow)
+                        end
+                    end
                 end
 
                 finishing_deployments, existing_deployments =
