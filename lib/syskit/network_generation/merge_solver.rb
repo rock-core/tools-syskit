@@ -181,6 +181,34 @@ module Syskit
                         info "rejected: compositions still have unresolved children"
                         return false
                     end
+
+                    # Now verify that the exported ports are the same
+                    task_exports = Set.new
+                    task.each_input_connection do |source_task, source_port, sink_port, _|
+                        if task.find_output_port(sink_port)
+                            task_exports << [source_task, source_port, sink_port]
+                        end
+                    end
+                    task.each_output_connection do |source_port, sink_task, sink_port, _|
+                        if task.find_input_port(source_port)
+                            task_exports << [source_port, sink_task, sink_port]
+                        end
+                    end
+                    target_task_exports = Set.new
+                    target_task.each_input_connection do |source_task, source_port, sink_port, _|
+                        if target_task.find_output_port(sink_port)
+                            target_task_exports << [source_task, source_port, sink_port]
+                        end
+                    end
+                    target_task.each_output_connection do |source_port, sink_task, sink_port, _|
+                        if target_task.find_input_port(source_port)
+                            target_task_exports << [source_port, sink_task, sink_port]
+                        end
+                    end
+                    if task_exports != target_task_exports
+                        info "rejected: compositions with different exports"
+                        return false
+                    end
                 end
 
                 # Finally, check if the inputs match
