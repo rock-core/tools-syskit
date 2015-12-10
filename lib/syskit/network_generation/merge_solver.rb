@@ -241,7 +241,7 @@ module Syskit
                     # for task
                     (source_task, source_port), policy = inputs[sink_port].first
                     if source_port != target_source_port
-                        debug { "rejected: sink #{sink_port} is connected to a port named #{target_source_port} resp. #{source_port}" }
+                        debug { "rejected: sink #{sink_port} is connected to a port named #{source_port} resp. #{target_source_port}" }
                         return
                     end
                     if !policy.empty? && !target_policy.empty? && (Syskit.update_connection_policy(policy, target_policy) != target_policy)
