@@ -390,7 +390,7 @@ describe Syskit::NetworkGeneration::Engine do
             # Create the task
             deployment_task.should_receive(:task).with('task').and_return(deployed_task = flexmock).ordered
             # And finally replace the task with the deployed task
-            flexmock(syskit_engine.merge_solver).should_receive(:merge).once.with(task, deployed_task)
+            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group).once.with(task => deployed_task)
             syskit_engine.update_deployed_models
             syskit_engine.deploy_system_network
         end
@@ -404,7 +404,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments)
             flexmock(syskit_engine.work_plan).should_receive(:add)
-            flexmock(syskit_engine.merge_solver).should_receive(:merge)
+            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group)
 
             # Create on the right host
             flexmock(deployment_models[0]).should_receive(:new).once.
@@ -429,7 +429,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments)
             flexmock(syskit_engine.work_plan).should_receive(:add)
-            flexmock(syskit_engine.merge_solver).should_receive(:merge)
+            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group)
 
             flexmock(Roby::Queries::Query).new_instances.should_receive(:to_a).and_return([task0, task1])
             # Create on the right host
@@ -455,7 +455,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments)
             flexmock(syskit_engine.work_plan).should_receive(:add)
-            flexmock(syskit_engine.merge_solver).should_receive(:merge)
+            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group)
 
             flexmock(deployment_models[0]).should_receive(:new).once.
                 and_return(deployment_task0 = flexmock(Roby::Task.new))
@@ -477,7 +477,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments)
             flexmock(syskit_engine.work_plan).should_receive(:add)
-            flexmock(syskit_engine.merge_solver).should_receive(:merge)
+            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group)
 
             flexmock(deployment_models[0]).should_receive(:new).once.
                 and_return(deployment_task0 = flexmock(Roby::Task.new))
@@ -492,7 +492,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments)
             flexmock(syskit_engine.work_plan).should_receive(:add).never
-            flexmock(syskit_engine.merge_solver).should_receive(:merge).never
+            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group).never
 
             flexmock(task0).should_receive(:execution_agent).and_return(true)
             flexmock(deployment_models[0]).should_receive(:new).never
@@ -520,16 +520,16 @@ describe Syskit::NetworkGeneration::Engine do
 
         def should_not_create_new_task
             flexmock(existing_deployment_task).should_receive(:task).never
-            flexmock(syskit_engine.merge_solver).should_receive(:merge).once.
-                with(task, existing_task)
+            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group).once.
+                with(task => existing_task)
         end
 
         def should_create_new_task
             new_task = task_model.new
             flexmock(existing_deployment_task).should_receive(:task).once.
                 with('task', any).and_return(new_task)
-            flexmock(syskit_engine.merge_solver).should_receive(:merge).once.
-                with(task, new_task)
+            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group).once.
+                with(task => new_task)
             flexmock(new_task).should_receive(:should_configure_after).by_default
             new_task
         end
@@ -591,8 +591,8 @@ describe Syskit::NetworkGeneration::Engine do
             # syskit engine
             plan.remove_object(deployed.planning_task)
 
-            new_deployed, new_original = syskit_deploy(composition_model.use('child' => task_model.with_conf('non_default')))
-            plan.add_mission(new_deployed) # we use static_garbage_collect below
+            new_deployed = syskit_deploy(
+                composition_model.use('child' => task_model.with_conf('non_default')))
 
             assert_equal(['non_default'], new_deployed.child_child.conf)
             assert_equal [deployed.child_child.stop_event],

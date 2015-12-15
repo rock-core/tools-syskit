@@ -728,7 +728,7 @@ module Syskit
                     work_plan.add(deployment_task)
                     deployed_task = deployment_task.task(task_name)
                     debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
-                    merge_solver.merge(task, deployed_task)
+                    merge_solver.apply_merge_group(task => deployed_task)
                     debug { "  => #{deployed_task}" }
                 end
 
@@ -1025,8 +1025,7 @@ module Syskit
 
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
-                merge_seeds = merge_solver.merge_tasks_next_step_hierarchy(merged_tasks)
-                merge_solver.merge_identical_tasks(merge_seeds)
+                merge_solver.merge_identical_tasks
                 result
             end
 
@@ -1042,7 +1041,7 @@ module Syskit
                         debug { "#{t} was selected as deployment, but it would require modifications on static ports, spawning a new deployment" }
                         
                         new_task = t.execution_agent.task(t.orocos_name, t.concrete_model)
-                        merge_solver.merge(t, new_task, remove: false)
+                        merge_solver.apply_merge_group(t => new_task)
                         new_task.should_configure_after t.stop_event
                         final_deployed_tasks.delete(t)
                         final_deployed_tasks << new_task
@@ -1098,7 +1097,7 @@ module Syskit
                         existing_task = new_task
                     end
 
-                    merge_solver.merge(task, existing_task)
+                    merge_solver.apply_merge_group(task => existing_task)
                     applied_merges << existing_task
                     debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
                 end

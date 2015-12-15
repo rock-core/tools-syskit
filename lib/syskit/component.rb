@@ -239,12 +239,6 @@ module Syskit
                     duplicate_missing_services_from(merged_task)
                 end
 
-                # Call included plugins if there are some
-                super if defined? super
-
-                # Finally, remove +merged_task+ from the data flow graph and use
-                # #replace_task to replace it completely
-                plan.replace_task(merged_task, self)
                 nil
             end
 

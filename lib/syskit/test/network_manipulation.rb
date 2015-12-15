@@ -103,9 +103,18 @@ module Syskit
 
                 if Roby.app.public_logs?
                     filename = name.gsub("/", "_")
-                    dataflow, hierarchy = filename + "-dataflow.svg", filename + "-hierarchy.svg"
-                    Graphviz.new(plan).to_file('dataflow', 'svg', File.join(Roby.app.log_dir, dataflow))
-                    Graphviz.new(plan).to_file('hierarchy', 'svg', File.join(Roby.app.log_dir, hierarchy))
+                    dataflow_base, hierarchy_base = filename + "-dataflow", filename + "-hierarchy"
+                    dataflow = File.join(Roby.app.log_dir, "#{dataflow_base}.svg")
+                    hierarchy = File.join(Roby.app.log_dir, "#{hierarchy_base}.svg")
+                    while File.file?(dataflow) || File.file?(hierarchy)
+                        i ||= 1
+                        dataflow = File.join(Roby.app.log_dir, "#{dataflow_base}.#{i}.svg")
+                        hierarchy = File.join(Roby.app.log_dir, "#{hierarchy_base}.#{i}.svg")
+                        i = i + 1
+                    end
+
+                    Graphviz.new(plan).to_file('dataflow', 'svg', dataflow)
+                    Graphviz.new(plan).to_file('hierarchy', 'svg', hierarchy)
                 end
 
                 root_tasks = root_tasks.map(&:task)

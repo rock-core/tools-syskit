@@ -13,8 +13,17 @@ module Syskit
             # The plan on which this solver applies
             attr_reader :plan
 
+            # The dataflow graph for {#plan}
+            attr_reader :dataflow_graph
+
             # A graph that holds all replacements done during resolution
 	    attr_reader :task_replacement_graph
+
+            # The list of merges that are known to be invalid, as (merged_task,
+            # task)
+            #
+            # @return [Set<(Syskit::Component,Syskit::Component)>]
+            attr_reader :invalid_merges
 
             class << self
                 # If true, this is a directory path into which SVGs are generated
@@ -27,22 +36,21 @@ module Syskit
             end
             @tracing_options = { :remove_compositions => true }
 
-            def initialize(plan, &block)
+            def initialize(plan)
+                raise if block_given?
+
                 @plan = plan
+                @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                 @merging_candidates_queries = Hash.new
 		@task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 @resolved_replacements = Hash.new
-
-                if block_given?
-                    singleton_class.class_eval do
-                        define_method(:merged_tasks, &block)
-                    end
-                end
+                @invalid_merges = Set.new
             end
 
             def clear
                 @task_replacement_graph.clear
                 @resolved_replacements.clear
+                @invalid_merges.clear
             end
 
             # Returns the task that is used in place of the given task
@@ -82,34 +90,44 @@ module Syskit
                 task_replacement_graph.add_edge(old_task, new_task, nil)
             end
 
-            # Merge task into target_task, i.e. applies target_task.merge(task)
-            # and updates the merge solver's data structures in the process
-            def merge(task, target_task, remove: true)
-                if task == target_task
-                    raise "trying to merge a task onto itself: #{task}"
+            # Apply a set of merges computed by {#resolve_merge}
+            def apply_merge_group(merged_task_to_task)
+                debug do
+                    merged_task_to_task.each do |merged_task, task|
+                        debug "merging"
+                        log_nest(2) do
+                            log_pp :debug, merged_task
+                        end
+                        debug "into"
+                        log_nest(2) do
+                            log_pp :debug, task
+                        end
+                    end
+                    break
                 end
 
-                debug { "    #{target_task}.merge(#{task})" }
-                if MergeSolver.tracing_directory
-                    Engine.autosave_plan_to_dot(plan,
-                            MergeSolver.tracing_directory,
-                            MergeSolver.tracing_options.merge(:highlights => [task, target_task].to_set, :suffix => "0"))
+                merged_task_to_task.each do |merged_task, task|
+                    if merged_task == task
+                        raise "trying to merge a task onto itself: #{merged_task}"
+                    end
+                    if task.respond_to?(:merge)
+                        task.merge(merged_task)
+                    end
                 end
 
-                if target_task.respond_to?(:merge)
-                    target_task.merge(task)
-                else
-                    plan.replace_task(task, target_task)
+                merged_event_to_event = Hash.new
+                merged_task_to_task.each do |merged_task, task|
+                    merged_task.each_event do |ev|
+                        merged_event_to_event[ev] = task.event(ev.symbol)
+                    end
                 end
-                if remove
-                    plan.remove_object(task)
-                end
-                register_replacement(task, target_task)
+                plan.replace_subplan(merged_task_to_task, merged_event_to_event)
 
-                if MergeSolver.tracing_directory
-                    Engine.autosave_plan_to_dot(plan,
-                            MergeSolver.tracing_directory,
-                            MergeSolver.tracing_options.merge(:highlights => [task, target_task].to_set, :suffix => "1"))
+                merged_task_to_task.each do |merged_task, task|
+                    if !merged_task.transaction_proxy?
+                        plan.remove_object(merged_task)
+                    end
+                    register_replacement(merged_task, task)
                 end
             end
 
@@ -122,16 +140,16 @@ module Syskit
 
             # Tests whether task.merge(target_task) is a valid operation
             #
-            # @param [Roby::Task] task
-            # @param [Roby::Task] target_task
+            # @param [Syskit::TaskContext] task
+            # @param [Syskit::TaskContext] target_task
             #
-            # @return [false,nil,true] if false, the merge is not possible. If
+            # @return [false,true] if false, the merge is not possible. If
             #   true, it is possible. If nil, the only thing that makes the
             #   merge impossible are missing inputs, and these tasks might
             #   therefore be merged if there was a dataflow cycle
-            def resolve_single_merge(task, target_task)
+            def may_merge_task_contexts?(merged_task, task)
                 can_merge = log_nest(2) do
-                    target_task.can_merge?(task)
+                    task.can_merge?(merged_task)
                 end
 
                 # Ask the task about intrinsic merge criteria.
@@ -143,83 +161,212 @@ module Syskit
                 end
 
                 # A transaction proxy can only be the merged-into task
-                if task.transaction_proxy?
+                if merged_task.transaction_proxy?
                     info "rejected: merged task is a transaction proxy"
                     return false
                 end
 
                 # Merges involving a deployed task can only involve a
                 # non-deployed task as well
-                if task.execution_agent && target_task.execution_agent
+                if task.execution_agent && merged_task.execution_agent
                     info "rejected: deployment attribute mismatches"
                     return false
                 end
 
-                # If both tasks are compositions, merge only if +task+
-                # has the same child set than +target+
-                if task.kind_of?(Composition) && target_task.kind_of?(Composition)
-                    dependency_graph = Roby::TaskStructure::Dependency
-                    task_children_names = task.model.children_names.to_set
-                    task_children   = task.merged_relations(:each_child, true, false).map do |child_task|
-                        roles = task[child_task, dependency_graph][:roles].to_set & task_children_names
-                        if !roles.empty?
-                            [roles, child_task]
-                        end
-                    end.compact.to_set
-                    target_task_children_names = target_task.model.children_names.to_set
-                    target_children = target_task.merged_relations(:each_child, true, false).map do |child_task|
-                        roles = target_task[child_task, dependency_graph][:roles].to_set & target_task_children_names
-                        if !roles.empty?
-                            [roles, child_task]
-                        end
-                    end.compact.to_set
-                    if task_children != target_children
-                        info "rejected: compositions with different children or children in different roles"
-                        return false
-                    elsif task_children.any? { |t| t.respond_to?(:proxied_data_services) }
-                        info "rejected: compositions still have unresolved children"
-                        return false
-                    end
+                true
+            end
 
-                    # Now verify that the exported ports are the same
-                    task_exports = Set.new
-                    task.each_input_connection do |source_task, source_port, sink_port, _|
-                        if task.find_output_port(sink_port)
-                            task_exports << [source_task, source_port, sink_port]
-                        end
-                    end
-                    task.each_output_connection do |source_port, sink_task, sink_port, _|
-                        if task.find_input_port(source_port)
-                            task_exports << [source_port, sink_task, sink_port]
-                        end
-                    end
-                    target_task_exports = Set.new
-                    target_task.each_input_connection do |source_task, source_port, sink_port, _|
-                        if target_task.find_output_port(sink_port)
-                            target_task_exports << [source_task, source_port, sink_port]
-                        end
-                    end
-                    target_task.each_output_connection do |source_port, sink_task, sink_port, _|
-                        if target_task.find_input_port(source_port)
-                            target_task_exports << [source_port, sink_task, sink_port]
-                        end
-                    end
-                    if task_exports != target_task_exports
-                        info "rejected: compositions with different exports"
-                        return false
-                    end
+            def each_component_merge_candidate(task)
+                # Get the set of candidates. We are checking if the tasks in
+                # this set can be replaced by +task+
+                candidates = plan.find_local_tasks(task.model.concrete_model).
+                    to_a
+                debug do
+                    debug "#{candidates.to_a.size - 1} candidates for #{task}, matching model"
+                    debug "  #{task.model.concrete_model}"
+                    break
                 end
 
-                # Finally, check if the inputs match
-                mismatching_inputs = resolve_input_matching(task, target_task)
-                if !mismatching_inputs
-                    info "rejected: their inputs are incompatible"
+                candidates.each do |merged_task|
+                    next if task == merged_task 
+
+                    debug "  #{merged_task}"
+                    if merged_task.respond_to?(:proxied_data_services)
+                        debug "    data service proxy"
+                        next
+                    elsif !merged_task.plan 
+                        debug "    removed from plan"
+                        next
+                    elsif invalid_merges.include?([merged_task, task])
+                        debug "    already evaluated as an invalid merge"
+                        next
+                    end
+                    yield(merged_task)
+                end
+            end
+
+            def each_task_context_merge_candidate(task)
+                each_component_merge_candidate(task) do |merged_task|
+                    if may_merge_task_contexts?(merged_task, task)
+                        debug "  may merge"
+                        yield(merged_task)
+                    else
+                        debug "  invalid merge: may_merge_task_contexts? returned false"
+                        invalid_merges << [merged_task, task]
+                    end
+                end
+            end
+
+            # Merge the task contexts
+            def merge_task_contexts
+                debug "merging task contexts"
+
+                queue = plan.find_local_tasks(Syskit::TaskContext).not_abstract.sort_by do |t|
+                    dataflow_graph.in_degree(t)
+                end
+
+                invalid_merges.clear
+                while !queue.empty?
+                    task = queue.shift
+                    # 'task' could have been merged already, ignore it
+                    next if !task.plan
+
+                    each_task_context_merge_candidate(task) do |merged_task|
+                        # Try to resolve the merge
+                        can_merge, mappings =
+                            resolve_merge(merged_task, task, merged_task => task)
+
+                        if can_merge
+                            apply_merge_group(mappings)
+                        else
+                            invalid_merges.merge(mappings.to_a)
+                        end
+                    end
+                end
+            end
+
+            def enumerate_composition_exports(task)
+                task_exports = Set.new
+                task.each_input_connection do |source_task, source_port, sink_port, _|
+                    if task.find_output_port(sink_port)
+                        task_exports << [source_task, source_port, sink_port]
+                    end
+                end
+                task.each_output_connection do |source_port, sink_task, sink_port, _|
+                    if task.find_input_port(source_port)
+                        task_exports << [source_port, sink_task, sink_port]
+                    end
+                end
+                task_exports
+            end
+
+            def may_merge_compositions?(merged_task, task)
+                if !may_merge_task_contexts?(merged_task, task)
                     return false
-                elsif mismatching_inputs.empty?
-                    return true
-                else
-                    return nil
                 end
+
+                dependency_graph = Roby::TaskStructure::Dependency
+                task_children_names = merged_task.model.children_names.to_set
+                task_children   = merged_task.merged_relations(:each_child, true, false).map do |child_task|
+                    roles = merged_task[child_task, dependency_graph][:roles].to_set & task_children_names
+                    if !roles.empty?
+                        [roles, child_task]
+                    end
+                end.compact.to_set
+                task_children_names = task.model.children_names.to_set
+                target_children = task.merged_relations(:each_child, true, false).map do |child_task|
+                    roles = task[child_task, dependency_graph][:roles].to_set & task_children_names
+                    if !roles.empty?
+                        [roles, child_task]
+                    end
+                end.compact.to_set
+                if task_children != target_children
+                    info "rejected: compositions with different children or children in different roles"
+                    return false
+                elsif task_children.any? { |t| t.respond_to?(:proxied_data_services) }
+                    info "rejected: compositions still have unresolved children"
+                    return false
+                end
+
+                # Now verify that the exported ports are the same
+                task_exports = enumerate_composition_exports(task)
+                merged_task_exports = enumerate_composition_exports(merged_task)
+                if merged_task_exports != task_exports
+                    info "rejected: compositions with different exports"
+                    return false
+                end
+
+                true
+            end
+
+            def each_composition_merge_candidate(task)
+                each_component_merge_candidate(task) do |merged_task|
+                    if may_merge_compositions?(merged_task, task)
+                        yield(merged_task)
+                    else
+                        invalid_merges << [merged_task, task]
+                    end
+                end
+            end
+
+            def merge_compositions
+                debug "merging compositions"
+
+                seeds = plan.find_local_tasks(Syskit::TaskContext).not_abstract
+                queue = seeds.flat_map do |task_context|
+                    task_context.each_parent_task.find_all { |t| t.kind_of?(Composition) }.to_a
+                end
+
+                while !queue.empty?
+                    composition = queue.shift
+                    next if !composition.plan
+                    
+                    each_composition_merge_candidate(composition) do |merged_composition|
+                        apply_merge_group(merged_composition => composition)
+                        queue.concat(
+                            composition.each_parent_task.find_all { |t| t.kind_of?(Composition) }.to_a)
+                    end
+                end
+            end
+
+            def resolve_merge(merged_task, task, mappings)
+                mismatched_inputs = log_nest(2) { resolve_input_matching(merged_task, task) }
+                if !mismatched_inputs
+                    # Incompatible inputs
+                    return false, mappings
+                end
+
+                mismatched_inputs.each do |sink_port, merged_source_task, source_task|
+                    info do
+                        info "  looking to pair the inputs of port #{sink_port} of"
+                        info "    #{merged_source_task}"
+                        info "    -- and --"
+                        info "    #{source_task}"
+                        break
+                    end
+
+                    if mappings[merged_source_task] == source_task
+                        info "  are already paired in the merge resolution: matching"
+                        next
+                    elsif !may_merge_task_contexts?(merged_source_task, source_task)
+                        info "  rejected: may not be merged"
+                        return false, mappings
+                    end
+
+                    can_merge, mappings = log_nest(2) do
+                        resolve_merge(merged_source_task, source_task,
+                                      mappings.merge(merged_source_task => source_task))
+                    end
+
+                    if can_merge
+                        info "  resolved"
+                    else
+                        info "  rejected: cannot find mapping to merge both tasks"
+                        return false, mappings
+                    end
+                end
+
+                return true, mappings
             end
 
             # Returns the set of inputs that differ in two given components,
@@ -233,25 +380,21 @@ module Syskit
             #   not match even after a merge cycle resolution pass.
             #   Otherwise, the set of mismatching inputs is returned, in which
             #   each mismatch is a tuple (port_name,source_port,task_source,target_source).
-            def resolve_input_matching(task, target_task)
-                # Now check that the connections are compatible
-                #
-                # We search for connections that use the same input port, and
-                # verify that they are coming from the same output
-                inputs = Hash.new { |h, k| h[k] = Hash.new }
-                task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
-                    inputs[sink_port][[source_task, source_port]] = policy
+            def resolve_input_matching(merged_task, task)
+                m_inputs = Hash.new { |h, k| h[k] = Hash.new }
+                merged_task.each_concrete_input_connection do |m_source_task, m_source_port, sink_port, m_policy|
+                    m_inputs[sink_port][[m_source_task, m_source_port]] = m_policy
                 end
 
                 mismatched_inputs = []
-                target_task.each_concrete_input_connection do |target_source_task, target_source_port, sink_port, target_policy|
+                task.each_concrete_input_connection do |source_task, source_port, sink_port, policy|
                     # If +self+ has no connection on +sink_port+, it is valid
-                    if !inputs.has_key?(sink_port)
+                    if !m_inputs.has_key?(sink_port)
                         next
                     end
 
-                    if policy = inputs[sink_port][[target_source_task, target_source_port]]
-                        if !policy.empty? && !target_policy.empty? && (Syskit.update_connection_policy(policy, target_policy) != target_policy)
+                    if m_policy = m_inputs[sink_port][[source_task, source_port]]
+                        if !m_policy.empty? && !policy.empty? && (Syskit.update_connection_policy(m_policy, policy) != policy)
                             debug { "rejected: incompatible policies on #{sink_port}" }
                             return
                         end
@@ -260,168 +403,25 @@ module Syskit
 
                     # Different connections, check whether we could multiplex
                     # them
-                    if (port_model = task.model.find_input_port(sink_port)) && port_model.multiplexes?
+                    if (port_model = merged_task.model.find_input_port(sink_port)) && port_model.multiplexes?
                         next
                     end
 
                     # If we are not multiplexing, there can be only one source
-                    # for task
-                    (source_task, source_port), policy = inputs[sink_port].first
-                    if source_port != target_source_port
-                        debug { "rejected: sink #{sink_port} is connected to a port named #{source_port} resp. #{target_source_port}" }
+                    # for merged_task
+                    (m_source_task, m_source_port), m_policy = m_inputs[sink_port].first
+                    if m_source_port != source_port
+                        debug { "rejected: sink #{sink_port} is connected to a port named #{m_source_port} resp. #{source_port}" }
                         return
                     end
-                    if !policy.empty? && !target_policy.empty? && (Syskit.update_connection_policy(policy, target_policy) != target_policy)
+                    if !m_policy.empty? && !policy.empty? && (Syskit.update_connection_policy(m_policy, policy) != policy)
                         debug { "rejected: incompatible policies on #{sink_port}" }
                         return
                     end
 
-                    mismatched_inputs << [sink_port, source_port, source_task, target_source_task]
+                    mismatched_inputs << [sink_port, m_source_task, source_task]
                 end
                 mismatched_inputs
-            end
-
-            def update_cycle_mapping(mappings, task, target_task)
-                task_m   = mappings[task] || [task].to_set
-                target_m = mappings[target_task] || [target_task].to_set
-                m = task_m | target_m
-                m.each do |t|
-                    mappings[t] = m
-                end
-            end
-
-            # Checks if target_task.merge(task) could be done, but taking into
-            # account possible dataflow cycles that might exist.
-            #
-            # It is assumed that resolve_single_merge has already been called to check
-            # the sanity of target_task.merge(task), i.e. that the only thing
-            # that forbids the merge so far are the inputs
-            #
-            # @param [Array<(Roby::Task,Roby::Task)>] cycle_candidates 
-            #   (task, target_task) pairs that can't be merged only because of
-            #   mismatching inputs. This is built by calling
-            #   {#resolve_single_merge}
-            # @param [Roby::Task] task
-            # @param [Roby::Task] target_task
-            # @param [{Roby::Task => Roby::Task}] mappings the set of known mappings
-            #   from the targets to the tasks
-            # @return [{Roby::Task => Roby::Task},nil] the set of merges that should
-            #   be applied to resolve the cycle or nil if no cycles could be
-            #   resolved.
-            def resolve_cycle_candidate(cycle_candidates, task, target_task, mappings = Hash.new)
-                update_cycle_mapping(mappings, task, target_task)
-
-                mismatched_inputs = log_nest(2) { resolve_input_matching(task, target_task) }
-                if !mismatched_inputs
-                    # Incompatible inputs
-                    return
-                end
-
-                mismatched_inputs.each do |sink_port, source_port, source_task, target_source_task|
-                    info do
-                        info "  looking to pair the inputs of port #{sink_port}, connected to source port #{source_port} of resp."
-                        info "    #{source_task}"
-                        info "    -- and --"
-                        info "    #{target_source_task}"
-                        break
-                    end
-
-                    # Since we recursively call #can_merge_cycle?, we might
-                    # already have found a mapping for target_source_task. Take
-                    # that into account
-                    if known_mappings = mappings[target_source_task]
-                        if known_mappings.include?(source_task)
-                            info "  are already paired in the cycle merge: matching"
-                            next
-                        end
-                    end
-
-                    if !cycle_candidates.include?([source_task, target_source_task])
-                        info "  rejected: not a cycle"
-                        return
-                    end
-
-
-                    resolved_cycle = log_nest(2) do
-                        resolve_cycle_candidate(
-                            cycle_candidates, source_task, target_source_task, mappings)
-                    end
-
-                    if resolved_cycle
-                        info "  resolved as a cycle"
-                    else
-                        info "  rejected: not a cycle, cannot find mapping to merge both tasks"
-                        return
-                    end
-                end
-                true
-            end
-
-            # Find merge candidates and returns them as a graph
-            #
-            # In the returned graph, an edge 'a' => 'b' means that we can use a
-            # to replace b, i.e. a.merge(b) is valid
-            #
-            # @param [Set<Roby::Task>] task_set the set of tasks for which
-            #   we need the merge graph
-            # @return [(BGL::Graph,Array<(Roby::Task,Roby::Task)>)] the merge
-            #   graph, and a list of (task, target_task) pairs in which the
-            #   merge is so far not possible only for input mismatching reasons.
-            #   These are therefore candidates for dataflow loop resolution.
-            def direct_merge_mappings(task_set)
-                applied_merges = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
-                cycle_candidates = []
-                task_set  = task_set.to_set
-                dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
-                processing_queue = task_set.sort_by { |t| dataflow_graph.in_degree(t) }
-
-                while !processing_queue.empty?
-                    task = processing_queue.shift
-                    # 'task' could have been merged already, ignore it
-                    next if !plan.include?(task)
-
-                    # Get the set of candidates. We are checking if the tasks in
-                    # this set can be replaced by +task+
-                    candidates = plan.find_local_tasks(task.model.concrete_model).
-                        not_abstract
-                    info do
-                        info "#{candidates.to_a.size} candidates for #{task}, matching model"
-                        info "  #{task.model.concrete_model}"
-                        break
-                    end
-                    candidates = candidates.sort_by { |t| dataflow_graph.in_degree(t) }
-                        
-                    candidates.find do |target_task|
-                        next if task == target_task ||
-                            target_task.respond_to?(:proxied_data_services) ||
-                            !task_set.include?(target_task)
-
-                        debug do
-                            debug "considering the merge of "
-                            debug "  #{task}"
-                            debug "into"
-                            debug "  #{target_task}"
-                            break
-                        end
-                        log_nest(2) do
-                            if result = resolve_single_merge(task, target_task)
-                                debug "-> merged"
-                                applied_merges.add_edge(task, target_task, nil)
-                                merge(task, target_task)
-                                processing_queue << target_task
-                                true
-                            elsif result.nil?
-                                debug "-> adding to cycle candidates"
-                                cycle_candidates << [task, target_task]
-                                false
-                            else
-                                debug "-> cannot merge"
-                                false
-                            end
-                        end
-                    end
-                end
-                return applied_merges, cycle_candidates
             end
 
             # Returns the merge graph for all tasks in {#plan}
@@ -431,208 +431,9 @@ module Syskit
                 direct_merge_mappings(all_tasks)
             end
 
-            # Given a set of tasks that got merged, return the next set of
-            # candidates that should be examined, following only dataflow
-            # relations
-            def merge_tasks_next_step_dataflow(task_set) # :nodoc:
-                result = Set.new
-                for t in task_set
-                    sinks = t.each_concrete_output_connection.map do |_, _, sink_task, _|
-                        sink_task
-                    end
-                    result.merge(sinks.to_set) if sinks.size > 1
-                end
-                result
-            end
-
-            # Given a set of tasks that got merged, return the next set of
-            # candidates that should be examined, following only dataflow
-            # relations
-            def merge_tasks_next_step_hierarchy(task_set) # :nodoc:
-                result = Set.new
-                for t in task_set
-                    parents = t.each_parent_task.to_a
-                    debug { "#{t}: #{parents.size} parents" }
-                    if parents.size > 1
-                        result.merge(parents)
-                    end
-                end
-                result
-            end
-
-            # Processes cycles
-            #
-            # It stops as soon as one cycle got resolved. The corresponding cycle seeds
-            # get added to the merge graph.
-            #
-            # @param [Set<(Component,Component)>] possible_cycles possible cycle seeds
-            # @return [Set<(Component,Component)>] cycle seeds that have not been processed
-            def process_possible_cycles(possible_cycles)
-                debug "  -- Looking for merges in dataflow cycles"
-
-                # possible_cycles actually stores all the known
-                # possible matches since the last outer loop. Some
-                # of these pairs might have been merged into other
-                # tasks, and some of them might not be current.
-                # Filter.
-                possible_cycles = possible_cycles.map do |task, target_task|
-                    task, target_task = replacement_for(task), replacement_for(target_task)
-                    next if task == target_task
-
-                    result = resolve_single_merge(task, target_task)
-                    if result.nil?
-                        [task, target_task]
-                    elsif result
-                        raise InternalError, "#{target_task}.merge(#{task}) can be done as-is, it should not be possible at this stage"
-                    end
-                end
-                possible_cycles = possible_cycles.compact
-                applied_merges = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
-
-                # Find one cycle to solve. Once we found one, we
-                # give the hand to the normal merge processing
-                while !possible_cycles.empty?
-                    # We remove the cycles as we try to process them
-                    # as they are used to filter out impossible
-                    # merges (and therefore will speed up the calls
-                    # to #resolve_cycle_candidate)
-                    target_task, task = possible_cycles.shift
-                    info do
-                        info "looking to resolve cycle between"
-                        info "  #{task}"
-                        info "  -- and --"
-                        info "  #{target_task}"
-                        break
-                    end
-
-                    can_merge = log_nest(4) do
-                        resolve_cycle_candidate(possible_cycles, target_task, task)
-                    end
-
-                    if can_merge
-                        info "  -> merging"
-                        merge(task, target_task)
-                        applied_merges.add_edge(task, target_task, nil)
-                        break
-                    else
-                        info "  -> rejected"
-                    end
-                end
-                return applied_merges, possible_cycles.to_set
-            end
-
-            # Merges tasks that are equivalent in the current plan
-            #
-            # It is a BFS that follows the data flow. I.e., it computes the set
-            # of tasks that can be merged and then will look at the children of
-            # these tasks and so on and so forth.
-            #
-            # The step is given by #merge_tasks_next_step
-            def merge_identical_tasks(candidates = plan.find_local_tasks(Syskit::TaskContext))
-                debug do
-                    debug ""
-                    debug "----------------------------------------------------"
-                    debug "Merging identical tasks"
-                    break
-                end
-
-                candidates = candidates.to_set
-
-                debug do
-                    debug "-- Initial candidates"
-                    candidates.each do |t|
-                        debug "    #{t}"
-                    end
-                    break
-                end
-
-                # The first pass of the algorithm looks that the tasks that have
-                # the same inputs, checks if they can be merged and do so if
-                # they can.
-                #
-                # The algorithm is seeded by the tasks that already have the
-                # same inputs and the ones that have no inputs. It then
-                # propagates to the children of the merged tasks and so on.
-
-                possible_cycles = Set.new
-                merged_tasks = Set.new
-                pass_idx = 0
-                while !candidates.empty?
-                    pass_idx += 1
-                    add_timepoint 'merge', 'pass', "start", pass_idx
-                    merged_tasks.clear
-
-                    while !candidates.empty? || !possible_cycles.empty?
-                        candidates.delete_if do |task|
-                            # We never replace a transaction proxy. We only use them to
-                            # replace new tasks in the transaction
-                            if task.transaction_proxy?
-                                debug { "cannot replace #{task}: is a transaction proxy" }
-                                true
-                            end
-                            # Don't do service allocation at this stage. It should be
-                            # done at the specification stage already
-                            if task.respond_to?(:proxied_data_services)
-                                debug { "cannot replace #{task}: is a data service proxy" }
-                                true
-                            end
-                        end
-
-                        debug do
-                            debug "-- #{candidates.size} merge candidates"
-                            candidates.each do |t|
-                                debug "    #{t}"
-                            end
-                            break
-                        end
-                        debug "  -- Raw merge candidates"
-                        applied_merges, cycle_candidates = log_nest(4) do
-                            direct_merge_mappings(candidates)
-                        end
-                        candidates.clear
-                        possible_cycles |= cycle_candidates.to_set
-                        debug "    the applied merges graph has #{applied_merges.num_vertices} vertices"
-                        debug "    #{cycle_candidates.size} new possible cycles"
-                        debug "    #{possible_cycles.size} known possible cycles"
-
-                        if applied_merges.empty?
-                            # No merge found so far, try resolving some cycles
-                            applied_merges, possible_cycles =
-                                process_possible_cycles(possible_cycles)
-                            debug "    the applied merges graph has #{applied_merges.num_vertices} vertices"
-                        end
-
-                        next_step_seeds = applied_merges.vertices.
-                            find_all { |task| applied_merges.leaf?(task) }.
-                            to_set                         
-                        candidates = merge_tasks_next_step_dataflow(next_step_seeds)
-                        merged_tasks.merge(next_step_seeds)
-                        debug do
-                            debug "  #{merged_tasks.size} merged tasks so far in this pass"
-                            debug "  -- Merged tasks during this pass"
-                            next_step_seeds.each { |t| debug "    #{t}" }
-                            debug "  -- Candidates for next pass"
-                            candidates.each { |t| debug "    #{t}" }
-                            break
-                        end
-
-                        # This is just to make the job of the Ruby GC easier
-                        applied_merges.clear
-                        cycle_candidates.clear
-                    end
-
-                    debug "  -- Parents"
-                    debug "  #{merged_tasks.size} tasks have been merged"
-                    candidates = merge_tasks_next_step_hierarchy(merged_tasks)
-                    add_timepoint 'merge', 'pass', "done", pass_idx
-                end
-
-                debug do
-                    debug "done merging identical tasks"
-                    debug "----------------------------------------------------"
-                    debug ""
-                    break
-                end
+            def merge_identical_tasks
+                merge_task_contexts
+                merge_compositions
             end
 
             def display_merge_graph(title, merge_graph)
