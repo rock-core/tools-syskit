@@ -69,6 +69,9 @@ require 'syskit/coordination'
 require 'syskit/models/composition_child'
 
 # Algorithms
+require 'syskit/connection_graph'
+require 'syskit/actual_data_flow_graph'
+require 'syskit/data_flow'
 require 'syskit/connection_graphs'
 require 'syskit/exceptions'
 require 'syskit/network_generation'
