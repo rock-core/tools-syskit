@@ -16,6 +16,9 @@ module Syskit
             # The dataflow graph for {#plan}
             attr_reader :dataflow_graph
 
+            # The dataflow graph for {#plan}
+            attr_reader :dependency_graph
+
             # A graph that holds all replacements done during resolution
 	    attr_reader :task_replacement_graph
 
@@ -41,6 +44,7 @@ module Syskit
 
                 @plan = plan
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
+                @dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
                 @merging_candidates_queries = Hash.new
 		@task_replacement_graph = Roby::Relations::BidirectionalDirectedAdjacencyGraph.new
                 @resolved_replacements = Hash.new
@@ -196,7 +200,7 @@ module Syskit
                 candidates.each do |merged_task|
                     next if task == merged_task 
 
-                    debug "  #{merged_task}"
+                    debug { "  #{merged_task}" }
                     if merged_task.respond_to?(:proxied_data_services)
                         debug "    data service proxy"
                         next
@@ -227,9 +231,9 @@ module Syskit
             def merge_task_contexts
                 debug "merging task contexts"
 
-                queue = plan.find_local_tasks(Syskit::TaskContext).not_abstract.sort_by do |t|
+                queue = plan.find_local_tasks(Syskit::TaskContext).sort_by do |t|
                     dataflow_graph.in_degree(t)
-                end
+                end.reverse
 
                 invalid_merges.clear
                 while !queue.empty?
@@ -266,30 +270,45 @@ module Syskit
                 task_exports
             end
 
+            def composition_children_by_role(task)
+                result = Hash.new
+                task_children_names = task.model.children_names.to_set
+                task_children   = task.merged_relations(:each_child, true, false).map do |child_task|
+                    dependency_graph.edge_info(task, child_task)[:roles].each do |r|
+                        if task_children_names.include?(r)
+                            result[r] = child_task
+                        end
+                    end
+                end
+                result
+            end
+
             def may_merge_compositions?(merged_task, task)
                 if !may_merge_task_contexts?(merged_task, task)
                     return false
                 end
 
-                dependency_graph = Roby::TaskStructure::Dependency
-                task_children_names = merged_task.model.children_names.to_set
-                task_children   = merged_task.merged_relations(:each_child, true, false).map do |child_task|
-                    roles = merged_task[child_task, dependency_graph][:roles].to_set & task_children_names
-                    if !roles.empty?
-                        [roles, child_task]
+                merged_task_children = composition_children_by_role(merged_task)
+                task_children        = composition_children_by_role(task)
+                merged_children = merged_task_children.merge(task_children) do |role, merged_task_child, task_child|
+                    if merged_task_child == task_child
+                        merged_task_child
+                    else
+                        info "rejected: compositions with different children or children in different roles"
+                        debug do
+                            debug "  in role #{role},"
+                            log_nest(2) do
+                                log_pp(:debug, merged_task_child)
+                            end
+                            log_nest(2) do
+                                log_pp(:debug, task_child)
+                            end
+                        end
+                        return false
                     end
-                end.compact.to_set
-                task_children_names = task.model.children_names.to_set
-                target_children = task.merged_relations(:each_child, true, false).map do |child_task|
-                    roles = task[child_task, dependency_graph][:roles].to_set & task_children_names
-                    if !roles.empty?
-                        [roles, child_task]
-                    end
-                end.compact.to_set
-                if task_children != target_children
-                    info "rejected: compositions with different children or children in different roles"
-                    return false
-                elsif task_children.any? { |t| t.respond_to?(:proxied_data_services) }
+                end
+
+                if merged_children.each_value.any? { |t| t.respond_to?(:proxied_data_services) }
                     info "rejected: compositions still have unresolved children"
                     return false
                 end
@@ -318,19 +337,30 @@ module Syskit
             def merge_compositions
                 debug "merging compositions"
 
-                seeds = plan.find_local_tasks(Syskit::TaskContext).not_abstract
-                queue = seeds.flat_map do |task_context|
-                    task_context.each_parent_task.find_all { |t| t.kind_of?(Composition) }.to_a
+                queue   = Array.new
+                topsort = Array.new
+                degrees = Hash.new
+                dependency_graph.each_vertex do |task|
+                    d = dependency_graph.out_degree(task)
+                    queue << task if d == 0
+                    degrees[task] = d
                 end
 
                 while !queue.empty?
-                    composition = queue.shift
+                    task = queue.shift
+                    if task.kind_of?(Syskit::Composition)
+                        topsort << task
+                    end
+                    dependency_graph.each_in_neighbour(task) do |parent|
+                        d = (degrees[parent] -= 1)
+                        queue << parent if d == 0
+                    end
+                end
+
+                topsort.each do |composition|
                     next if !composition.plan
-                    
                     each_composition_merge_candidate(composition) do |merged_composition|
                         apply_merge_group(merged_composition => composition)
-                        queue.concat(
-                            composition.each_parent_task.find_all { |t| t.kind_of?(Composition) }.to_a)
                     end
                 end
             end
