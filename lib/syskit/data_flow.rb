@@ -25,9 +25,54 @@ module Syskit
         # {Composition#updated_sink}
         attr_reader :modified_tasks
 
+        # If non-nil, this holds the set of concrete connections for this data
+        # flow graph. It MUST be maintained by some external entity, and as such
+        # is set only in contexts where the set of modifications to the graph is
+        # known (e.g. {NetworkGeneration::MergeSolver}
+        #
+        # @return [ConnectionGraph,nil]
+        attr_reader :concrete_connection_graph
+
         def initialize(*args, **options)
             super
             @modified_tasks = Set.new
+        end
+
+        def enable_concrete_connection_graph(compute: true)
+            @concrete_connection_graph =
+                if compute
+                    compute_concrete_connection_graph
+                else
+                    ConnectionGraph.new
+                end
+        end
+
+        # @api private
+        #
+        # Computes the concrete connection graph from the DataFlow information
+        def compute_concrete_connection_graph
+            current_graph, @concrete_connection_graph = @concrete_connection_graph, nil
+            graph = ConnectionGraph.new
+            each_vertex do |task|
+                next if !task.kind_of?(Syskit::TaskContext)
+
+                task_to_task = Hash.new
+                each_concrete_in_connection(task) do |source_task, source_port, sink_port, policy|
+                    port_to_port = (task_to_task[source_task] ||= Hash.new)
+                    port_to_port[[source_port, sink_port]] = policy
+                end
+
+                task_to_task.each do |source_task, mappings|
+                    graph.add_edge(source_task, task, mappings)
+                end
+            end
+            graph
+        ensure
+            @concrete_connection_graph = current_graph
+        end
+
+        def disable_concrete_connection_graph
+            @concrete_connection_graph = nil
         end
 
         # Called by the relation graph management to update the DataFlow
@@ -79,6 +124,10 @@ module Syskit
         def each_concrete_in_connection(task, port = nil)
             return enum_for(__method__, task, port) if !block_given?
 
+            if concrete_connection_graph
+                return concrete_connection_graph.each_in_connection(task, port, &proc)
+            end
+
             each_in_connection(task, port) do |source_task, source_port, sink_port, policy|
                 # Follow the forwardings while +sink_task+ is a composition
                 if source_task.kind_of?(Composition)
@@ -127,6 +176,10 @@ module Syskit
         #   each_output_connection
         def each_concrete_out_connection(task, port = nil)
             return enum_for(__method__, task, port) if !block_given?
+
+            if concrete_connection_graph
+                return concrete_connection_graph.each_out_connection(task, port, &proc)
+            end
 
             each_out_connection(task, port) do |source_port, sink_port, sink_task, policy|
                 # Follow the forwardings while +sink_task+ is a composition

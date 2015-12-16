@@ -123,6 +123,12 @@ module Syskit
                 end
                 plan.replace_subplan(merged_task_to_task, merged_event_to_event)
 
+                if concrete_graph = dataflow_graph.concrete_connection_graph
+                    merged_task_to_task.each do |old, new|
+                        concrete_graph.replace_vertex(old, new)
+                    end
+                end
+
                 merged_task_to_task.each do |merged_task, task|
                     if !merged_task.transaction_proxy?
                         plan.remove_object(merged_task)
@@ -432,8 +438,11 @@ module Syskit
             end
 
             def merge_identical_tasks
+                dataflow_graph.enable_concrete_connection_graph
                 merge_task_contexts
                 merge_compositions
+            ensure
+                dataflow_graph.disable_concrete_connection_graph
             end
 
             def display_merge_graph(title, merge_graph)
