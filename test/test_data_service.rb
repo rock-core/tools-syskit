@@ -147,31 +147,24 @@ describe Syskit::ComBus do
 
     describe "#instanciate" do
         describe "lazy_attach not set" do
-            attr_reader :combus_task
-            before do
-                @combus_task = combus.instanciate(plan).to_task
-            end
             def mock_bus_direction(client_to_bus: false, bus_to_client: false)
                 flexmock(device).should_receive(:client_to_bus?).and_return(client_to_bus)
                 flexmock(device).should_receive(:bus_to_client?).and_return(bus_to_client)
             end
             it "creates a service on the combus task for each attached device" do
-                flexmock(combus_driver_m).new_instances.should_receive(:require_dynamic_service).
-                    with('com_bus', as: 'DEV', client_to_bus: true, bus_to_client: true).once.pass_thru
+                flexmock(combus).should_receive(:require_dynamic_service_for_device).
+                    with(combus_driver_m, device).once.pass_thru
                 combus_task = combus.instanciate(plan).to_task
+                assert_kind_of combus_driver_m, combus_task
                 assert_equal combus_m::BusSrv, combus_task.find_data_service('DEV').model.model
             end
             it "does not create an input service on the combus task if messages flow only from the bus to the client" do
                 mock_bus_direction(bus_to_client: true, client_to_bus: false)
-                flexmock(combus_driver_m).new_instances.should_receive(:require_dynamic_service).
-                    with('com_bus', as: 'DEV', bus_to_client: true, client_to_bus: false).once.pass_thru
                 combus_task = combus.instanciate(plan).to_task
                 assert_equal combus_m::BusOutSrv, combus_task.find_data_service('DEV').model.model
             end
             it "does not create an output service on the combus task if messages flow only from the client to the bus" do
                 mock_bus_direction(bus_to_client: false, client_to_bus: true)
-                flexmock(combus_driver_m).new_instances.should_receive(:require_dynamic_service).
-                    with('com_bus', as: 'DEV', bus_to_client: false, client_to_bus: true).once.pass_thru
                 combus_task = combus.instanciate(plan).to_task
                 assert_equal combus_m::BusInSrv, combus_task.find_data_service('DEV').model.model
             end

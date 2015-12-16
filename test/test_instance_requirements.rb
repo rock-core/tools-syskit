@@ -325,7 +325,7 @@ describe Syskit::InstanceRequirements do
     describe "#instanciate" do
         it "merges self with unselected services into the task's instance requirements" do
             task_m = Syskit::TaskContext.new_submodel
-            plan.add(task = task_m.new)
+            task = task_m.new
             ir = Syskit::InstanceRequirements.new([task_m])
             ir_component_model = Syskit::InstanceRequirements.new([task_m])
             flexmock(ir).should_receive(:to_component_model).and_return(ir_component_model)
@@ -340,6 +340,7 @@ describe Syskit::InstanceRequirements do
             cmp_m = Syskit::Composition.new_submodel
             cmp_m.add task_m, as: 'test'
             ir = cmp_m.use('test' => task)
+            assert !ir.can_use_template?
             cmp = ir.instanciate(plan)
             assert_equal Syskit::InstanceRequirements.new([task_m]), cmp.requirements.resolved_dependency_injection.explicit['test']
             assert_same task, cmp.test_child

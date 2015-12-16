@@ -198,9 +198,7 @@ module Syskit
                                 raise ArgumentError, "combus task #{self} was expected to have a service named #{dev.name} to connect to the device of the same name, but has none"
                             end
                         else
-                            bus_srv = require_dynamic_service(
-                                combus_m.dynamic_service_name,
-                                as: dev.name, client_to_bus: dev.client_to_bus?, bus_to_client: dev.bus_to_client?)
+                            bus_srv = combus.require_dynamic_service_for_device(self, dev)
                         end
 
                         if dev.client_to_bus?

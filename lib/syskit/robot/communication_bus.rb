@@ -16,12 +16,24 @@ module Syskit
                 task = service.to_task
                 if !device_model.lazy_dispatch?
                     each_attached_device do |dev|
-                        task.require_dynamic_service(
-                            device_model.dynamic_service_name,
-                            as: dev.name, bus_to_client: dev.bus_to_client?, client_to_bus: dev.client_to_bus?)
+                        require_dynamic_service_for_device(task, dev)
                     end
                 end
                 service
+            end
+
+
+            # Create the dynamic service on the combus driver task that is
+            # necessary to connect to the given device
+            #
+            # @param [Component] combus_task the driver task for self
+            # @param [Device] device the device that should be interfaced
+            #   through the service
+            # @return [BoundDataService] the created service
+            def require_dynamic_service_for_device(combus_task, device)
+                combus_task.require_dynamic_service(
+                    device_model.dynamic_service_name,
+                    as: device.name, bus_to_client: device.bus_to_client?, client_to_bus: device.client_to_bus?)
             end
 
             def through(&block)

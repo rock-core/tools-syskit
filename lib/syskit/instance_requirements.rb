@@ -45,6 +45,17 @@ module Syskit
             # @return [Dynamics]
             attr_reader :dynamics
 
+            # The cached instanciated reqirement
+            #
+            # @return [nil,Roby::TemplatePlan]
+            attr_reader :template
+
+            # Whether instanciating this object can use a template plan
+            #
+            # Template plans cannot be used if the dependency injection
+            # explicitely refers to a task
+            attr_predicate :can_use_template?, true
+
             Dynamics = Struct.new :task, :ports do
                 dsl_attribute 'period' do |value|
                     task.add_trigger('period', Float(value), 1)
@@ -65,6 +76,7 @@ module Syskit
                 @deployment_hints = Set.new
                 @specialization_hints = Set.new
                 @dynamics = Dynamics.new(NetworkGeneration::PortDynamics.new('Requirements'), [])
+                @can_use_template = true
             end
 
             # HACK: allows CompositionChild#to_instance_requirements to return a
@@ -73,6 +85,8 @@ module Syskit
             # HACK: the proper fix would be to make the IR an attribute of
             # HACK: CompositionChild instead of a superclass
             def do_copy(old)
+                @di = nil
+                @template = old.template
                 @abstract = old.abstract?
                 @model = old.model
                 @base_model = old.base_model
@@ -82,6 +96,7 @@ module Syskit
                 @deployment_hints = old.deployment_hints.dup
                 @specialization_hints = old.specialization_hints.dup
                 @context_selections = old.context_selections.dup
+                @can_use_template = old.can_use_template?
             end
 
             def initialize_copy(old)
@@ -101,8 +116,22 @@ module Syskit
 
             # Add new models to the set of required ones
             def add_models(new_models)
+                invalidate_template
                 @base_model = base_model.merge(Syskit.proxy_task_model_for(new_models))
                 narrow_model
+            end
+
+            def invalidate_dependency_injection
+                @di = nil
+                invalidate_template
+            end
+
+            def invalidate_template
+                @template = nil
+            end
+
+            class TemplatePlan < Roby::TemplatePlan
+                attr_accessor :root_task
             end
 
             # Map all selections registered in the use flags
@@ -117,7 +146,8 @@ module Syskit
                 pushed_selections.map! do |value|
                     yield(value)
                 end
-                @di = nil
+                invalidate_dependency_injection
+                invalidate_template
                 self
             end
 
@@ -368,7 +398,9 @@ module Syskit
                 @deployment_hints |= other_spec.deployment_hints
                 @specialization_hints |= other_spec.specialization_hints
 
-                @di = nil
+                invalidate_dependency_injection
+                invalidate_template
+
                 # Call modules that could have been included in the class to
                 # extend it
                 super if defined? super
@@ -420,11 +452,12 @@ module Syskit
             #
             # See also Composition#instanciate
             def use(*mappings)
-                @di = nil
-
                 if !(model <= Syskit::Composition)
                     raise ArgumentError, "#use is available only for compositions, got #{base_model.short_name}"
                 end
+
+                invalidate_dependency_injection
+                invalidate_template
 
                 mappings.delete_if do |sel|
                     if sel.kind_of?(DependencyInjection)
@@ -434,6 +467,12 @@ module Syskit
                 end
 
                 explicit, defaults = DependencyInjection.partition_use_arguments(*mappings)
+                explicit.each_value do |v|
+                    if v.kind_of?(Roby::Task) || v.kind_of?(BoundDataService)
+                        @can_use_template = false
+                    end
+                end
+
                 debug do
                     debug "adding use mappings to #{self}"
                     if !explicit.empty?
@@ -499,7 +538,9 @@ module Syskit
             end
 
             def push_selections
-                @di = nil
+                invalidate_dependency_injection
+                invalidate_template
+
                 merger = DependencyInjectionContext.new
                 merger.push pushed_selections
                 merger.push selections
@@ -512,6 +553,7 @@ module Syskit
             #
             # @return [self]
             def abstract
+                invalidate_template
                 @abstract = true
                 self
             end
@@ -523,6 +565,7 @@ module Syskit
             #
             # @return [self]
             def not_abstract
+                invalidate_template
                 @abstract = false
                 self
             end
@@ -545,11 +588,13 @@ module Syskit
             #
             # @return [self]
             def if_already_present
+                invalidate_template
                 abstract
             end
 
             # Specifies new arguments that must be set to the instanciated task
             def with_arguments(arguments)
+                invalidate_template
                 @arguments.merge!(arguments)
                 self
             end
@@ -563,6 +608,7 @@ module Syskit
             # Specifies that the task that is represented by this requirement
             # should use the given configuration
             def with_conf(*conf)
+                invalidate_template
                 @arguments[:conf] = conf
                 self
             end
@@ -570,6 +616,7 @@ module Syskit
             # @deprecated use {#prefer_deployed_tasks} instead
             def use_deployments(*patterns)
                 Roby.warn_deprecated "InstanceRequirements#use_deployments is deprecated. Use #prefer_deployed_tasks instead"
+                invalidate_template
                 prefer_deployed_tasks(*patterns)
             end
 
@@ -586,6 +633,7 @@ module Syskit
             # @param [#===] patterns objects that can match strings (usually
             #   regular expressions)
             def prefer_deployed_tasks(*patterns)
+                invalidate_template
                 @deployment_hints |= patterns.to_set
                 self
             end
@@ -604,6 +652,7 @@ module Syskit
                     raise ArgumentError, "#{self} does not represent a composition, cannot use #prefer_specializations"
                 end
 
+                invalidate_template
                 @specialization_hints << specialization_selectors
                 self
             end
@@ -640,7 +689,9 @@ module Syskit
                 end
 
                 if @model != model
-                    @di = nil
+                    invalidate_dependency_injection
+                    invalidate_template
+
                     @model = model
                 end
                 return model
@@ -652,6 +703,7 @@ module Syskit
             # that all the corresponding tasks are running on that process
             # server
             def on_server(name)
+                invalidate_template
                 @required_host = name
             end
 
@@ -678,7 +730,9 @@ module Syskit
             # @param [DependencyInjection] di the new DI information
             # @return [void]
             def push_dependency_injection(di)
-                @di = nil
+                invalidate_dependency_injection
+                invalidate_template
+
                 merger = DependencyInjectionContext.new
                 merger.push context_selections
                 merger.push di
@@ -705,17 +759,40 @@ module Syskit
                 @di
             end
 
+            def instanciate_from_template(plan, arguments = Hash.new)
+                if !@template
+                    template = TemplatePlan.new
+                    template.root_task = instanciate(template, use_template: false, clear_arguments: true).
+                        to_task
+                    merge_solver = NetworkGeneration::MergeSolver.new(template)
+                    merge_solver.merge_identical_tasks
+                    template.root_task = merge_solver.replacement_for(template.root_task)
+                    @template = template
+                end
+
+                mappings = @template.deep_copy_to(plan)
+                root = mappings[@template.root_task]
+                root.assign_arguments(self.arguments.merge(arguments))
+                return model.bind(root)
+            end
+
             # Create a concrete task for this requirement
-            def instanciate(plan, context = Syskit::DependencyInjectionContext.new, arguments = Hash.new)
+            def instanciate(plan, context = Syskit::DependencyInjectionContext.new, task_arguments: Hash.new, specialization_hints: Hash.new, use_template: true, clear_arguments: false)
+                if context.empty? && specialization_hints.empty? && use_template && can_use_template?
+                    from_cache = true
+                    return instanciate_from_template(plan, task_arguments)
+                end
+
                 task_model = self.proxy_task_model
 
                 context.save
                 context.push(resolved_dependency_injection)
 
-                arguments = Kernel.normalize_options arguments
-                arguments[:task_arguments] = self.arguments.merge(arguments[:task_arguments] || Hash.new)
-                arguments[:specialization_hints] = specialization_hints | (arguments[:specialization_hints] || Set.new)
-                task = task_model.instanciate(plan, context, arguments)
+                if !clear_arguments
+                    task_arguments = self.arguments.merge(task_arguments)
+                end
+                specialization_hints = self.specialization_hints | specialization_hints
+                task = task_model.instanciate(plan, context, task_arguments: task_arguments, specialization_hints: specialization_hints)
                 task_requirements = to_component_model
                 task_requirements.map_use_selections! do |sel|
                     if sel && !Models.is_model?(sel)
@@ -734,7 +811,8 @@ module Syskit
             rescue InstanciationError => e
                 e.instanciation_chain << self
                 raise
-            ensure context.restore
+            ensure
+                context.restore if !from_cache
             end
 
             def each_fullfilled_model(&block)

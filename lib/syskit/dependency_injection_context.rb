@@ -169,6 +169,10 @@ module Syskit
                 stack << StackLevel.new(new_state, spec)
             end
 
+            def empty?
+                stack.size == 1
+            end
+
             # Adds a new dependency injection context on the stack
             def push(spec)
                 if spec.empty?
