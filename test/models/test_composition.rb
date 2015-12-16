@@ -338,10 +338,10 @@ describe Syskit::Models::Composition do
 
             # Make sure the forwarding is set up with the relevant port mapping
             # applied
-            component.new_instances.should_receive(:forward_ports).
+            component.new_instances.should_receive(:forward_output_ports).
                 with(composition, ['out', 'srv_out']=>{}).
                 once
-            composition.new_instances.should_receive(:forward_ports).
+            composition.new_instances.should_receive(:forward_input_ports).
                 with(component, ['srv_in', 'in']=>{}).
                 once
 

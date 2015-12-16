@@ -30,7 +30,7 @@ module Syskit
     # Since compositions are still in this graph, source_port_name and
     # sink_port_name can be either outputs or inputs. In all the other
     # graphs, they are guaranteed to be output ports resp. input ports.
-    class ConnectionGraph < ::Roby::Relations::BidirectionalDirectedAdjacencyGraph
+    class ConnectionGraph < Roby::Relations::Graph
         # Needed for Roby's marshalling (so that we can dump the connection
         # graph as a constant)
         attr_accessor :name
@@ -38,7 +38,7 @@ module Syskit
         # Tests if +port+, which has to be an output port, is connected
         def has_out_connections?(task, port)
             each_out_neighbour(task) do |child_task|
-                if edge_info(task, child_task).any? { |source_port, _| source_port == port }
+                if edge_info(task, child_task).each_key.any? { |source_port, _| source_port == port }
                     return true
                 end
             end
@@ -48,7 +48,7 @@ module Syskit
         # Tests if +port+, which has to be an input port, is connected
         def has_in_connections?(task, port)
             each_in_neighbour(task) do |parent_task|
-                if edge_info(parent_task, task).any? { |_, target_port| target_port == port }
+                if edge_info(parent_task, task).each_key.any? { |_, target_port| target_port == port }
                     return true
                 end
             end
@@ -64,41 +64,21 @@ module Syskit
             edge_info(source_task, sink_task).has_key?([source_port, sink_port])
         end
 
-        # Create new connections between +source_task+ and +sink_task+.
-        #
-        # +mappings+ is a map from port name pairs to the connection policy
-        # that should be used:
-        #
-        #    [output_port_name, input_port_name] => policy
-        #
-        # Raises Roby::ModelViolation if the connection already exists with
-        # an incompatible policy
         def add_connections(source_task, sink_task, mappings) # :nodoc:
-            force_update = mappings.delete(:force_update)
+            add_edge(source_task, sink_task, mappings)
+        end
 
+        def add_edge(source_task, sink_task, mappings)
             if mappings.empty?
                 raise ArgumentError, "the connection set is empty"
             end
-            if has_edge?(source_task, sink_task)
-                current_mappings = edge_info(source_task, sink_task)
-                mappings = current_mappings.merge(mappings) do |(from, to), old_options, new_options|
-                    if old_options.empty? then new_options
-                    elsif new_options.empty? then old_options
-                    elsif old_options != new_options
-                        if force_update
-                            new_options
-                        else
-                            raise Roby::ModelViolation, "cannot override connection setup with #connect_to (#{old_options} != #{new_options})"
-                        end
-                    else
-                        old_options
-                    end
-                end
-                set_edge_info(source_task, sink_task, mappings)
-            else
-                add_edge(source_task, sink_task, mappings)
+            super
+        end
+
+        def merge_info(source, sink, current_mappings, additional_mappings)
+            current_mappings.merge(additional_mappings) do
+                raise ArgumentError, "cannot override policy information by default"
             end
-            updated_connections(source_task, sink_task, mappings)
         end
 
         # Removes the given set of connections between +source_task+ and
@@ -107,27 +87,90 @@ module Syskit
         # +mappings+ is an array of port name pairs [output_port_name,
         # input_port_name]
         def remove_connections(source_task, sink_task, mappings) # :nodoc:
-            current_mappings = edge_info(source_task, sink_task)
+            current_mappings = edge_info(source_task, sink_task).dup
             mappings.each do |source_port, sink_port|
                 current_mappings.delete([source_port, sink_port])
             end
             if current_mappings.empty?
-                remove_edge(source_task, sink_task)
+                remove_relation(source_task, sink_task)
                 remove_vertex(source_task) if leaf?(source_task) && root?(source_task)
                 remove_vertex(sink_task)   if leaf?(sink_task)   && root?(sink_task)
             else
                 # To make the relation system call #update_info
                 set_edge_info(source_task, sink_task, current_mappings)
             end
-            updated_connections(source_task, sink_task, current_mappings)
         end
 
-        def updated_connections(source_task, sink_task, connections)
-            super if defined? super
+        # Yield or enumerates incoming connections
+        #
+        # @param [Component] component the component whose connections we want
+        #   to enumerate
+        # @param [#name,String,nil] port if non-nil, the port for
+        #   which we want to enumerate the connections (in which case
+        #   the sink_port yield parameter is guaranteed to be this name).
+        #   Otherwise, all ports are enumerated.
+        #
+        # @yield each connections
+        # @yieldparam [Syskit::TaskContext] source_task the source task in
+        #   the connection
+        # @yieldparam [String] source_port the source port name on source_task
+        # @yieldparam [String] sink_port the sink port name on self. If
+        #   the port argument is non-nil, it is guaranteed to be the
+        #   same.
+        # @yieldparam [Hash] policy the connection policy
+        #
+        # @see each_concrete_input_connection each_concrete_output_connection
+        #   each_output_connection
+        def each_in_connection(task, port = nil)
+            return enum_for(__method__, task, port) if !block_given?
+            if port.respond_to? :name
+                port = port.name
+            end
+
+            each_in_neighbour(task) do |source_task|
+                edge_info(source_task, task).each do |(source_port, sink_port), policy|
+                    if !port || (sink_port == port)
+                        yield(source_task, source_port, sink_port, policy)
+                    end
+                end
+            end
+        end
+
+        # Yield or enumerates the connections that exist from the output
+        # ports of self.
+        #
+        # @param [Component] source_task the task whose connections are being
+        #   enumerated
+        # @param [#name,String,nil] port if non-nil, the port for
+        #   which we want to enumerate the connections (in which case
+        #   the source_port yield parameter is guaranteed to be this name).
+        #   Otherwise, all ports are enumerated.
+        #
+        # @yield each connections
+        # @yieldparam [String] source_port the source port name on self. If
+        #   the port argument is non-nil, it is guaranteed to be the
+        #   same.
+        # @yieldparam [String] sink_port the sink port name on sink_task.
+        # @yieldparam [Syskit::Component] sink_task the sink task in
+        #   the connection
+        # @yieldparam [Hash] policy the connection policy
+        #
+        def each_out_connection(task, port = nil)
+            return enum_for(__method__, task, port) if !block_given?
+            if port.respond_to? :name
+                port = port.name
+            end
+
+            each_out_neighbour(task) do |sink_task|
+                edge_info(task, sink_task).each do |(source_port, sink_port), policy|
+                    if !port || (port == source_port)
+                        yield(source_port, sink_port, sink_task, policy)
+                    end
+                end
+            end
+            self
         end
     end
-
-    Roby::Log.define_hook :updated_actual_data_flow
 
     # The graph that represents the connections on the actual ports
     #
@@ -179,7 +222,12 @@ module Syskit
                 static_info[[sink_task, sink_port]] = sink_static
                 policy
             end
-            super(source_task, sink_task, mappings.merge(force_update: force_update))
+            if !force_update || !has_edge?(source_task, sink_task)
+                super(source_task, sink_task, mappings)
+            else
+                set_edge_info(source_task, sink_task,
+                              edge_info(source_task, sink_task).merge!(mappings))
+            end
         end
 
         # Whether the given port is static (per {Port#static?}
@@ -191,14 +239,6 @@ module Syskit
             static_info.fetch([task, port])
         rescue KeyError
             raise ArgumentError, "no port #{port} on a task called #{task} is registered on #{self}"
-        end
-
-        # Hook called when connections are created, removed or updated
-        #
-        # This hook is overloaded to log the modification
-        def updated_connections(source_task, sink_task, connections) # :nodoc:
-            Roby::Log.log(:updated_actual_data_flow) { [source_task.name, sink_task.name, connections] }
-            super
         end
     end
 
@@ -370,259 +410,25 @@ module Syskit
     Flows = Roby::RelationSpace(Component)
 
     # (see ConnectionGraph)
-    Flows.relation :DataFlow, child_name: :sink, parent_name: :source, dag: false, weak: true
-
-    # Methods that are mixed-in Syskit::Component to help with connection
-    # management
-    module Flows::DataFlow::Extension
-        # Makes sure that +self+ has an output port called +name+. It will
-        # instanciate a dynamic port if needed.
+    Flows.relation :DataFlow, child_name: :sink, parent_name: :source, dag: false, weak: true,
+        graph: ConnectionGraph
+    
+    class Flows::DataFlow
+        # Create new connections between +source_task+ and +sink_task+.
         #
-        # Raises ArgumentError if no such port can ever exist on +self+
-        def ensure_has_output_port(name)
-            if !model.find_output_port(name)
-                raise ArgumentError, "#{self} has no output port called #{name}"
-            end
-        end
-
-        # Makes sure that +self+ has an input port called +name+. It will
-        # instanciate a dynamic port if needed.
+        # +mappings+ is a map from port name pairs to the connection policy
+        # that should be used:
         #
-        # Raises ArgumentError if no such port can ever exist on +self+
-        def ensure_has_input_port(name)
-            if !model.find_input_port(name)
-                raise ArgumentError, "#{self} has no input port called #{name}"
-            end
-        end
-
-        # Forward an input port of a composition to one of its children, or
-        # an output port of a composition's child to its parent composition.
+        #    [output_port_name, input_port_name] => policy
         #
-        # +mappings+ is a hash of the form
-        #
-        #   source_port_name => sink_port_name
-        #
-        # If the +self+ composition is the parent of +target_task+, then
-        # source_port_name must be an input port of +self+ and
-        # sink_port_name an input port of +target_task+.
-        #
-        # If +self+ is a child of the +target_task+ composition, then
-        # source_port_name must be an output port of +self+ and
-        # sink_port_name an output port of +target_task+.
-        #
-        # Raises ArgumentError if one of the specified ports do not exist,
-        # or if +target_task+ and +self+ are not related in the Dependency
-        # relation.
-        def forward_ports(target_task, mappings)
-            if self.child_object?(target_task, Roby::TaskStructure::Dependency)
-                if !fullfills?(Composition)
-                    raise ArgumentError, "#{self} is not a composition"
-                end
-
-                mappings.each do |(from, to), options|
-                    ensure_has_input_port(from)
-                    target_task.ensure_has_input_port(to)
-                end
-
-            elsif target_task.child_object?(self, Roby::TaskStructure::Dependency)
-                if !target_task.fullfills?(Composition)
-                    raise ArgumentError, "#{self} is not a composition"
-                end
-
-                mappings.each do |(from, to), options|
-                    ensure_has_output_port(from)
-                    target_task.ensure_has_output_port(to)
-                end
-            else
-                raise ArgumentError, "#{target_task} and #{self} are not related in the Dependency relation"
-            end
-
-            add_sink(target_task, mappings)
-        end
-
-        # Returns true if +port_name+ is connected
-        def connected?(port_name)
-            each_sink do |sink_task, mappings|
-                if mappings.any? { |(from, to), _| from == port_name }
-                    return true
-                end
-            end
-            each_source do |source_task|
-                mappings = source_task[self, Flows::DataFlow]
-                if mappings.any? { |(from, to), _| to == port_name }
-                    return true
-                end
-            end
-            false
-        end
-
-        # Tests if +port_name+ is connected to +other_port+ on +other_task+
-        def connected_to?(port_name, other_task, other_port)
-            if child_object?(other_task, Flows::DataFlow)
-                self[other_task, Flows::DataFlow].each_key do |from, to|
-                    return true if from == port_name && to == other_port
-                end
-            end
-            if other_task.child_object?(self, Flows::DataFlow)
-                other_task[self, Flows::DataFlow].each_key do |from, to|
-                    return true if from == other_port && to == port_name
-                end
-            end
-            false
-        end
-
-        # Connect a set of ports between +self+ and +target_task+.
-        #
-        # +mappings+ describes the connections. It is a hash of the form
-        #   
-        #   [source_port_name, sink_port_name] => connection_policy
-        #
-        # where source_port_name is a port of +self+ and sink_port_name a
-        # port of +target_task+
-        #
-        # Raises ArgumentError if one of the ports do not exist.
-        def connect_ports(target_task, mappings)
+        # Raises Roby::ModelViolation if the connection already exists with
+        # an incompatible policy
+        def add_connections(source_task, sink_task, mappings) # :nodoc:
             mappings.each do |(out_port, in_port), options|
-                ensure_has_output_port(out_port)
-                target_task.ensure_has_input_port(in_port)
+                source_task.ensure_has_output_port(out_port)
+                sink_task.ensure_has_input_port(in_port)
             end
-
-            add_sink(target_task, mappings)
-        end
-
-        def disconnect_ports(target_task, mappings)
-            if !child_object?(target_task, Flows::DataFlow)
-                raise ArgumentError, "no such connections #{mappings} for #{self} => #{target_task}"
-            end
-
-            connections = self[target_task, Flows::DataFlow].dup
-
-            result = Hash.new
-            mappings.delete_if do |port_pair|
-                if !port_pair.respond_to?(:to_ary)
-                    raise ArgumentError, "invalid connection description #{mappings.inspect}, expected a list of pairs of port names"
-                end
-                result[port_pair] = connections.delete(port_pair)
-            end
-            if !mappings.empty?
-                raise ArgumentError, "no such connections #{mappings.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")} for #{self} => #{target_task}. Existing connections are: #{connections.map { |pair| "#{pair[0]} => #{pair[1]}" }.join(", ")}"
-            end
-            self[target_task, Flows::DataFlow] = connections
-            result
-        end
-
-        def disconnect_port(port_name)
-            if port_name.respond_to?(:name)
-                port_name = port_name.name
-            end
-
-            each_source do |parent_task|
-                current = parent_task[self, Flows::DataFlow]
-                current.delete_if { |(from, to), pol| to == port_name }
-                parent_task[self, Flows::DataFlow] = current
-            end
-            each_sink do |child_task|
-                current = self[child_task, Flows::DataFlow]
-                current.delete_if { |(from, to), pol| from == port_name }
-                self[child_task, Flows::DataFlow] = current
-            end
-        end
-
-        # Calls either #connect_ports or #forward_ports, depending on its
-        # arguments
-        #
-        # It calls #forward_ports only if one of [target_task, self] is a
-        # composition and the other is part of this composition. Otherwise,
-        # calls #connect_ports
-        def connect_or_forward_ports(target_task, mappings)
-            if !kind_of?(Composition) && !target_task.kind_of?(Composition)
-                return connect_ports(target_task, mappings)
-            end
-
-            connections = Hash.new
-            forwards   = Hash.new
-            mappings.each do |(out_port_name, in_port_name), policy|
-                source_has_output = has_output_port?(out_port_name)
-                target_has_input  = target_task.has_input_port?(in_port_name)
-                if source_has_output && target_has_input
-                    connections[[out_port_name, in_port_name]] = policy
-                    next
-                end
-
-                if kind_of?(Composition)
-                    source_has_input = has_input_port?(out_port_name)
-                    if source_has_input
-                        forwards[[out_port_name, in_port_name]] = policy
-                        next
-                    elsif !source_has_output
-                        raise ArgumentError, "#{out_port_name} is neither an output port nor an exported input of #{self}"
-                    end
-                elsif !source_has_output
-                    raise ArgumentError, "#{out_port_name} is not an output port of #{self}"
-                end
-
-                if target_task.kind_of?(Composition)
-                    target_has_output = target_task.has_output_port?(in_port_name)
-                    if target_has_output
-                        forwards[[out_port_name, in_port_name]] = policy
-                        next
-                    elsif !target_has_input
-                        raise ArgumentError, "#{out_port_name} is neither an input port nor an exported output of #{self}"
-                    end
-                elsif !target_has_input
-                    raise ArgumentError, "#{out_port_name} is not an input port of #{self}"
-                end
-
-                raise ArgumentError, "invalid connection #{self}.#{out_port_name} => #{target_task}.#{in_port_name}"
-            end
-
-            if !connections.empty?
-                connect_ports(target_task, connections)
-            end
-            if !forwards.empty?
-                forward_ports(target_task, forwards)
-            end
-        end
-
-        # Yield or enumerates the connections that exist towards the input
-        # ports of self.
-        #
-        # @param [#name,String,nil] required_port if non-nil, the port for
-        #   which we want to enumerate the connections (in which case
-        #   the sink_port yield parameter is guaranteed to be this name).
-        #   Otherwise, all ports are enumerated.
-        #
-        # @yield each connections
-        # @yieldparam [Syskit::TaskContext] source_task the source task in
-        #   the connection
-        # @yieldparam [String] source_port the source port name on source_task
-        # @yieldparam [String] sink_port the sink port name on self. If
-        #   the required_port argument is non-nil, it is guaranteed to be the
-        #   same.
-        # @yieldparam [Hash] policy the connection policy
-        #
-        # @see each_concrete_input_connection each_concrete_output_connection
-        #   each_output_connection
-        def each_input_connection(required_port = nil)
-            if !block_given?
-                return enum_for(:each_input_connection, required_port)
-            end
-
-            if required_port.respond_to? :name
-                required_port = required_port.name
-            end
-
-            each_source do |source_task|
-                source_task[self, Flows::DataFlow].each do |(source_port, sink_port), policy|
-                    if required_port 
-                        if sink_port == required_port
-                            yield(source_task, source_port, sink_port, policy)
-                        end
-                    else
-                        yield(source_task, source_port, sink_port, policy)
-                    end
-                end
-            end
+            super
         end
 
         # Yield or enumerates the connections that exist towards the input
@@ -631,7 +437,7 @@ module Syskit
         # followed until a concrete port (a port on an actual
         # Syskit::TaskContext) is found.
         #
-        # @param [#name,String,nil] required_port if non-nil, the port for
+        # @param [#name,String,nil] port if non-nil, the port for
         #   which we want to enumerate the connections (in which case
         #   the sink_port yield parameter is guaranteed to be this name).
         #   Otherwise, all ports are enumerated.
@@ -641,21 +447,19 @@ module Syskit
         #   the connection
         # @yieldparam [String] source_port the source port name on source_task
         # @yieldparam [String] sink_port the sink port name on self. If
-        #   the required_port argument is non-nil, it is guaranteed to be the
+        #   the port argument is non-nil, it is guaranteed to be the
         #   same.
         # @yieldparam [Hash] policy the connection policy
         #
         # @see each_input_connection each_concrete_output_connection
         #   each_output_connection
-        def each_concrete_input_connection(required_port = nil, &block)
-            if !block_given?
-                return enum_for(:each_concrete_input_connection, required_port)
-            end
+        def each_concrete_in_connection(task, port = nil)
+            return enum_for(__method__, task, port) if !block_given?
 
-            each_input_connection(required_port) do |source_task, source_port, sink_port, policy|
+            each_in_connection(task, port) do |source_task, source_port, sink_port, policy|
                 # Follow the forwardings while +sink_task+ is a composition
                 if source_task.kind_of?(Composition)
-                    source_task.each_concrete_input_connection(source_port) do |source_task, source_port, _, connection_policy|
+                    each_concrete_in_connection(source_task, source_port) do |source_task, source_port, _, connection_policy|
                         begin
                             this_policy = Syskit.update_connection_policy(policy, connection_policy)
                         rescue ArgumentError => e
@@ -674,20 +478,6 @@ module Syskit
                 end
             end
             self
-        end
-
-        # Tests if an input port or any input ports is connected to an
-        # actual task (ignoring composition exports)
-        #
-        # @param [#name,String,nil] required_port if non-nil, only
-        #   connections involving this port will be tested against.
-        #   Otherwise, the method tests for any inbound connection to
-        #   self
-        # @return [Boolean] true if the given port, or the task, is
-        #   connected to something by an inbound connection
-        def has_concrete_input_connection?(required_port)
-            each_concrete_input_connection(required_port) { return true }
-            false
         end
 
         # Yield or enumerates the connections that exist from the output
@@ -712,15 +502,13 @@ module Syskit
         #
         # @see each_concrete_input_connection each_input_connection
         #   each_output_connection
-        def each_concrete_output_connection(required_port = nil)
-            if !block_given?
-                return enum_for(:each_concrete_output_connection, required_port)
-            end
+        def each_concrete_out_connection(task, required_port = nil)
+            return enum_for(__method__, task, required_port) if !block_given?
 
-            each_output_connection(required_port) do |source_port, sink_port, sink_task, policy|
+            each_out_connection(task, required_port) do |source_port, sink_port, sink_task, policy|
                 # Follow the forwardings while +sink_task+ is a composition
                 if sink_task.kind_of?(Composition)
-                    sink_task.each_concrete_output_connection(sink_port) do |_, sink_port, sink_task, connection_policy|
+                    each_concrete_out_connection(sink_task, sink_port) do |_, sink_port, sink_task, connection_policy|
                         begin
                             this_policy = Syskit.update_connection_policy(policy, connection_policy)
                         rescue ArgumentError => e
@@ -739,6 +527,162 @@ module Syskit
             end
             self
         end
+    end
+
+
+    # Methods that are mixed-in Syskit::Component to help with connection
+    # management
+    module Flows::DataFlow::Extension
+        # Makes sure that +self+ has an output port called +name+. It will
+        # instanciate a dynamic port if needed.
+        #
+        # Raises ArgumentError if no such port can ever exist on +self+
+        def ensure_has_output_port(name)
+            if !model.find_output_port(name)
+                raise ArgumentError, "#{self} has no output port called #{name}"
+            end
+        end
+
+        # Makes sure that +self+ has an input port called +name+. It will
+        # instanciate a dynamic port if needed.
+        #
+        # Raises ArgumentError if no such port can ever exist on +self+
+        def ensure_has_input_port(name)
+            if !model.find_input_port(name)
+                raise ArgumentError, "#{self} has no input port called #{name}"
+            end
+        end
+
+        # Forward an input of self to an input port of another task
+        def forward_input_ports(task, mappings)
+            if !fullfills?(Composition)
+                raise ArgumentError, "#{self} is not a composition"
+            end
+
+            mappings.each do |(from, to), options|
+                ensure_has_input_port(from)
+                task.ensure_has_input_port(to)
+            end
+            add_sink(task, mappings)
+        end
+
+        def forward_output_ports(task, mappings)
+            if !task.fullfills?(Composition)
+                raise ArgumentError, "#{self} is not a composition"
+            end
+
+            mappings.each do |(from, to), options|
+                ensure_has_output_port(from)
+                task.ensure_has_output_port(to)
+            end
+            add_sink(task, mappings)
+        end
+
+        # Returns true if +port_name+ is connected
+        def connected?(port_name)
+            dataflow_graph = relation_graph_for(Flows::DataFlow)
+            dataflow_graph.has_out_connections?(self, port_name) ||
+                dataflow_graph.has_in_connections?(self, port_name)
+        end
+
+
+        # Tests if +port_name+ is connected to +other_port+ on +other_task+
+        def connected_to?(port_name, other_task, other_port)
+            relation_graph_for(Flows::DataFlow).
+                connected?(self, port_name, other_task, other_port)
+        end
+
+        # Connect a set of ports between +self+ and +target_task+.
+        #
+        # +mappings+ describes the connections. It is a hash of the form
+        #   
+        #   [source_port_name, sink_port_name] => connection_policy
+        #
+        # where source_port_name is a port of +self+ and sink_port_name a
+        # port of +target_task+
+        #
+        # Raises ArgumentError if one of the ports do not exist.
+        def connect_ports(sink_task, mappings)
+            mappings.each do |(out_port, in_port), options|
+                ensure_has_output_port(out_port)
+                sink_task.ensure_has_input_port(in_port)
+            end
+            add_sink(sink_task, mappings)
+        end
+
+        def disconnect_ports(sink_task, mappings)
+            mappings.each do |out_port, in_port|
+                ensure_has_output_port(out_port)
+                sink_task.ensure_has_input_port(in_port)
+            end
+            relation_graph_for(Flows::DataFlow).
+                remove_connections(self, sink_task, mappings)
+        end
+
+        def disconnect_port(port_name)
+            if port_name.respond_to?(:name)
+                port_name = port_name.name
+            end
+
+            each_source do |parent_task|
+                current = parent_task[self, Flows::DataFlow]
+                current.delete_if { |(from, to), pol| to == port_name }
+                parent_task[self, Flows::DataFlow] = current
+            end
+            each_sink do |child_task|
+                current = self[child_task, Flows::DataFlow]
+                current.delete_if { |(from, to), pol| from == port_name }
+                self[child_task, Flows::DataFlow] = current
+            end
+        end
+
+        # Yield or enumerates the connections that exist towards the input
+        # ports of self.
+        #
+        # @param [#name,String,nil] required_port if non-nil, the port for
+        #   which we want to enumerate the connections (in which case
+        #   the sink_port yield parameter is guaranteed to be this name).
+        #   Otherwise, all ports are enumerated.
+        #
+        # @yield each connections
+        # @yieldparam [Syskit::TaskContext] source_task the source task in
+        #   the connection
+        # @yieldparam [String] source_port the source port name on source_task
+        # @yieldparam [String] sink_port the sink port name on self. If
+        #   the required_port argument is non-nil, it is guaranteed to be the
+        #   same.
+        # @yieldparam [Hash] policy the connection policy
+        #
+        # @see each_concrete_input_connection each_concrete_output_connection
+        #   each_output_connection
+        def each_input_connection(required_port = nil, &block)
+            relation_graph_for(Flows::DataFlow).
+                each_in_connection(self, required_port, &block)
+        end
+
+        def each_concrete_input_connection(required_port = nil, &block)
+            relation_graph_for(Flows::DataFlow).
+                each_concrete_in_connection(self, required_port, &block)
+        end
+
+        # Tests if an input port or any input ports is connected to an
+        # actual task (ignoring composition exports)
+        #
+        # @param [#name,String,nil] required_port if non-nil, only
+        #   connections involving this port will be tested against.
+        #   Otherwise, the method tests for any inbound connection to
+        #   self
+        # @return [Boolean] true if the given port, or the task, is
+        #   connected to something by an inbound connection
+        def has_concrete_input_connection?(required_port)
+            each_concrete_input_connection(required_port) { return true }
+            false
+        end
+
+        def each_concrete_output_connection(required_port = nil, &block)
+            relation_graph_for(Flows::DataFlow).
+                each_concrete_out_connection(self, required_port, &block)
+        end
 
         # Tests if an output port or any output ports is connected to an
         # actual task (ignoring composition exports)
@@ -754,46 +698,15 @@ module Syskit
             false
         end
 
-        # Yield or enumerates the connections that exist from the output
-        # ports of self.
+        # Yield or enumerates the connections that exist from the output ports
+        # of self.
         #
-        # @param [#name,String,nil] required_port if non-nil, the port for
-        #   which we want to enumerate the connections (in which case
-        #   the source_port yield parameter is guaranteed to be this name).
-        #   Otherwise, all ports are enumerated.
-        #
-        # @yield each connections
-        # @yieldparam [String] source_port the source port name on self. If
-        #   the required_port argument is non-nil, it is guaranteed to be the
-        #   same.
-        # @yieldparam [String] sink_port the sink port name on sink_task.
-        # @yieldparam [Syskit::Component] sink_task the sink task in
-        #   the connection
-        # @yieldparam [Hash] policy the connection policy
-        #
-        # @see each_concrete_input_connection each_input_connection
-        #   each_concrete_output_connection
-        def each_output_connection(required_port = nil)
-            if !block_given?
-                return enum_for(:each_output_connection, required_port)
-            end
-
-            if required_port.respond_to? :name
-                required_port = required_port.name
-            end
-
-            each_sink do |sink_task, connections|
-                connections.each do |(source_port, sink_port), policy|
-                    if required_port
-                        if required_port == source_port
-                            yield(source_port, sink_port, sink_task, policy)
-                        end
-                    else
-                        yield(source_port, sink_port, sink_task, policy)
-                    end
-                end
-            end
-            self
+        # @param (see ConnectionGraph#each_out_connection)
+        # @yield (see ConnectionGraph#each_out_connection)
+        # @yieldparam (see ConnectionGraph#each_out_connection)
+        def each_output_connection(required_port = nil, &block)
+            relation_graph_for(Flows::DataFlow).
+                each_out_connection(self, required_port, &block)
         end
 
         # Returns true if all the declared connections to the inputs of +task+ have been applied.
