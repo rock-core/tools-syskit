@@ -287,6 +287,38 @@ describe Syskit::Models::Composition do
             assert_equal Hash[['test','child_cmp'] => Hash.new], test_srv_task[child_cmp_task, Syskit::Flows::DataFlow]
             assert_equal Hash[['child_cmp','cmp'] => Hash.new], child_cmp_task[cmp_task, Syskit::Flows::DataFlow]
         end
+
+        it "updates the exported ports on overload" do
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'out', '/double'
+            end
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+                provides srv_m, as: 'test'
+            end
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, as: 'test'
+            cmp_m.export cmp_m.test_child.out_port
+            cmp_m.overload 'test', task_m
+            assert_equal cmp_m.test_child.out_port, cmp_m.find_exported_output('out')
+        end
+
+        it "updates the exported ports in submodels" do
+            srv_m = Syskit::DataService.new_submodel do
+                output_port 'out', '/double'
+            end
+            task_m = Syskit::TaskContext.new_submodel do
+                output_port 'out', '/double'
+                provides srv_m, as: 'test'
+            end
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add srv_m, as: 'test'
+            cmp_m.export cmp_m.test_child.out_port
+
+            submodel = cmp_m.new_submodel
+            submodel.overload 'test', task_m
+            assert_equal submodel.test_child.out_port, submodel.find_exported_output('out')
+        end
     end
 
     describe "#find_children_models_and_tasks" do

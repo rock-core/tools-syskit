@@ -196,6 +196,21 @@ module Syskit
                     break
                 end
                 children[name] = child_model
+
+                @exported_outputs = exported_outputs.map_value do |_, port|
+                    if port.component_model.child_name == name
+                        child_model.find_port(port.name)
+                    else port
+                    end
+                end
+                @exported_inputs = exported_inputs.map_value do |_, port|
+                    if port.component_model.child_name == name
+                        child_model.find_port(port.name)
+                    else port
+                    end
+                end
+
+                child_model
             end
 
             # Overloads an existing child with a new model and/or options
