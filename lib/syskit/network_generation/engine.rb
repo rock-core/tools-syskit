@@ -346,6 +346,7 @@ module Syskit
             #
             # @return [void]
             def instanciate(req_tasks = nil)
+                add_timepoint 'compute_system_network', 'instanciate', 'start'
                 main_selection = compute_main_dependency_injection
                 add_timepoint 'compute_system_network', 'instanciate', "compute_main_dependency_injection"
 
@@ -362,7 +363,7 @@ module Syskit
                 end
 
                 add_timepoint 'compute_system_network', 'instanciate', "instanciate_requirements"
-                req_tasks.each do |req_task|
+                req_tasks.each_with_index do |req_task, i|
                     req = req_task.requirements
                     task = req.instanciate(work_plan, main_selection).
                         to_task
@@ -379,7 +380,7 @@ module Syskit
                     end
                     task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
                     required_instances[req_task] = task
-                    add_timepoint 'compute_system_network', 'instanciate', req.to_s
+                    add_timepoint 'compute_system_network', 'instanciate', "task-#{i}"
                 end
                 work_plan.each_task do |task|
                     if task.respond_to?(:each_master_driver_service)
@@ -438,6 +439,7 @@ module Syskit
                 link_to_busses
                 add_timepoint 'compute_system_network', 'link_to_busses'
                 merge_solver.merge_identical_tasks
+                add_timepoint 'compute_system_network', 'merge'
 
                 # Now remove the optional, non-resolved children of compositions
                 work_plan.find_local_tasks(Syskit::Component).abstract.each do |task|
@@ -457,8 +459,7 @@ module Syskit
                         end
                     end
                 end
-
-                add_timepoint 'compute_system_network', 'merge'
+                add_timepoint 'compute_system_network', 'remove-optional'
 
                 # Finally, select 'default' as configuration for all
                 # remaining tasks that do not have a 'conf' argument set
@@ -495,12 +496,13 @@ module Syskit
 
                 if options[:validate_abstract_network]
                     validate_abstract_network(work_plan, options)
-                    add_timepoint 'validate_abstract_network'
+                    add_timepoint 'compute_system_network', 'validate_abstract_network'
                 end
                 if options[:validate_generated_network]
                     validate_generated_network(work_plan, options)
-                    add_timepoint 'validate_generated_network'
+                    add_timepoint 'compute_system_network', 'validate_generated_network'
                 end
+                add_timepoint 'compute_system_network', 'done'
             end
 
             # Verifies that the task allocation is complete
@@ -919,12 +921,15 @@ module Syskit
             # Given the network with deployed tasks, this method looks at how we
             # could adapt the running network to the new one
             def finalize_deployed_tasks
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'start'
                 debug "finalizing deployed tasks"
 
                 used_deployments = work_plan.find_local_tasks(Deployment).to_set
                 used_tasks       = work_plan.find_local_tasks(Component).to_set
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'used_tasks'
 
                 all_tasks = work_plan.find_tasks(Component).to_set
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'import_all_tasks_from_plan'
                 all_tasks.delete_if do |t|
                     if !t.reusable?
                         debug { "  clearing the relations of the finished task #{t}" }
@@ -962,6 +967,7 @@ module Syskit
                     h[task.process_name] = task
                     h
                 end
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'existing_and_finished_deployments'
 
                 debug do
                     debug "  Mapping deployments in the network to the existing ones"
@@ -1012,8 +1018,10 @@ module Syskit
                     end
                     result << selected_deployment
                 end
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'select_deployments'
 
                 merged_tasks = reconfigure_tasks_on_static_port_modification(merged_tasks)
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'reconfigure_tasks_on_static_port_modification'
 
                 debug do
                     debug "#{merged_tasks.size} tasks merged during deployment"
@@ -1026,6 +1034,9 @@ module Syskit
                 # This is required to merge the already existing compositions
                 # with the ones in the plan
                 merge_solver.merge_identical_tasks
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'merge'
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'done'
+
                 result
             end
 
@@ -1135,6 +1146,7 @@ module Syskit
             def resolve(options = Hash.new)
                 @timepoints = []
 	    	return if disabled?
+                add_timepoint 'start'
 
                 @forced_update = false
 
@@ -1162,34 +1174,37 @@ module Syskit
                 # The mapping from this deployed network to the running
                 # tasks is done in #finalize_deployed_tasks
                 if options[:compute_deployments]
+                    add_timepoint 'deployment', 'start'
                     deploy_system_network
-                    add_timepoint 'deploy_system_network'
+                    add_timepoint 'deployment', 'deploy_system_network'
 
                     # Now that we have a deployed network, we can compute the
                     # connection policies and the port dynamics
                     if options[:compute_policies]
                         @dataflow_dynamics = DataFlowDynamics.new(work_plan)
                         @port_dynamics = dataflow_dynamics.compute_connection_policies
-                        add_timepoint 'compute_connection_policies'
+                        add_timepoint 'deployment', 'compute_connection_policies'
                     end
 
                     # Finally, we map the deployed network to the currently
                     # running tasks
-                    add_timepoint 'compute_deployment', 'start'
                     @deployment_tasks = finalize_deployed_tasks
-                    add_timepoint 'compute_deployment', 'done'
 
                     if @dataflow_dynamics
                         @dataflow_dynamics.apply_merges(merge_solver)
+                        add_timepoint 'deployment', 'apply_merged_to_dataflow_dynamics'
                     end
                     Engine.deployment_postprocessing.each do |block|
                         block.call(self, work_plan)
-                        add_timepoint 'deployment_postprocessing', block.to_s
+                        add_timepoint 'deployment', 'deployment_postprocessing', block.to_s
                     end
+                    add_timepoint 'deployment', 'done'
                 end
 
                 apply_merge_to_stored_instances
+                add_timepoint 'apply_merge_to_stored_instances'
                 fix_toplevel_tasks
+                add_timepoint 'fix_toplevel_tasks'
 
                 Engine.final_network_postprocessing.each do |block|
                     block.call(self, work_plan)
@@ -1200,6 +1215,7 @@ module Syskit
                 # and compute the connection policies
                 if options[:garbage_collect] && options[:validate_final_network]
                     validate_final_network(work_plan, options)
+                    add_timepoint 'validate_final_network'
                 end
 
                 if options[:save_plans]
@@ -1207,6 +1223,7 @@ module Syskit
                     info "saved generated plan into #{dataflow_path} and #{hierarchy_path}"
                 end
                 work_plan.commit_transaction
+                add_timepoint 'commit_transaction'
 
                 # Reset the oroGen model on all already-running tasks
                 real_plan.find_tasks(Syskit::TaskContext).each do |task|
@@ -1214,6 +1231,7 @@ module Syskit
                         task.orocos_task.model = task.model.orogen_model
                     end
                 end
+                add_timepoint 'done'
 
             rescue Exception => e
                 if !work_plan.finalized? && (work_plan != real_plan) # we started processing, look at what the user wants to do with the partial transaction
