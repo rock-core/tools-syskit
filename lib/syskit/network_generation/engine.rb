@@ -588,18 +588,86 @@ module Syskit
                 return resolved.first
             end
 
+            def find_suitable_deployment_for(task)
+                # task.model would be wrong here as task.model could be the
+                # singleton class (if there are dynamic services)
+                candidates = task_context_deployment_candidates[task.model]
+                if !candidates || candidates.empty?
+                    candidates = task_context_deployment_candidates[task.concrete_model]
+                    if !candidates || candidates.empty?
+                        debug { "no deployments found for #{task} (#{task.concrete_model})" }
+                        return
+                    end
+                end
+
+                if candidates.size > 1
+                    debug { "multiple deployments available for #{task} (#{task.concrete_model}), trying to resolve" }
+                    selected = log_nest(2) do
+                        resolve_deployment_ambiguity(candidates, task)
+                    end
+                    if selected
+                        return *selected
+                    else
+                        debug { "deployment of #{task} (#{task.concrete_model}) is ambiguous" }
+                        return
+                    end
+                else
+                    return *candidates.first
+                end
+            end
+
+            def select_deployments(tasks)
+                used_deployments = Set.new
+                missing_deployments = Set.new
+                selected_deployments = Hash.new
+
+                all_tasks = work_plan.find_local_tasks(TaskContext).to_a
+                all_tasks.each do |task|
+                    next if task.execution_agent
+                    if !(selected = find_suitable_deployment_for(task))
+                        missing_deployments << task
+                    elsif used_deployments.include?(selected)
+                        debug do
+                            machine, configured_deployment, task_name = *selected
+                            "#{task} resolves to #{configured_deployment}.#{task_name} on #{machine} for its deployment, but it is already used"
+                        end
+                        missing_deployments << task
+                    else
+                        used_deployments << selected
+                        selected_deployments[task] = selected
+                    end
+                end
+                return selected_deployments, missing_deployments
+            end
+
+            def apply_selected_deployments(selected_deployments)
+                deployment_tasks = Hash.new
+                selected_deployments.each do |task, selected|
+                    machine, configured_deployment, task_name = *selected
+
+                    deployment_task =
+                        (deployment_tasks[[machine, configured_deployment]] ||= configured_deployment.new(on: machine))
+                    work_plan.add(deployment_task)
+                    deployed_task = deployment_task.task(task_name)
+                    debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
+                    merge_solver.apply_merge_group(task => deployed_task)
+                    debug { "  => #{deployed_task}" }
+                end
+            end
+
             # Called after compute_system_network to map the required component
             # network to deployments
             #
             # We are still purely within {#work_plan}, the mapping to
             # {#real_plan} is done by calling {#finalize_deployed_tasks}
             def deploy_system_network
-                deployed_models = task_context_deployment_candidates
+                add_timepoint 'deploy_system_network', 'start'
+
                 debug do
                     debug "Deploying the system network"
                     debug "Available deployments"
                     log_nest(2) do
-                        deployed_models.each do |model, deployments|
+                        task_context_deployment_candidates.each do |model, deployments|
                             if !deployments
                                 debug "#{model}: no deployments"
                             elsif deployments.size == 1
@@ -617,64 +685,23 @@ module Syskit
                     break
                 end
 
-                used_deployments = Set.new
-
-                missing_deployments = []
-                deployment_tasks = Hash.new
                 all_tasks = work_plan.find_local_tasks(TaskContext).to_a
-                all_tasks.each do |task|
-                    next if task.execution_agent # This is already deployed
-
-                    # task.model would be wrong here as task.model could be the
-                    # singleton class (if there are dynamic services)
-                    candidates = deployed_models[task.model]
-                    if !candidates || candidates.empty?
-                        candidates = deployed_models[task.concrete_model]
-                        if !candidates || candidates.empty?
-                            debug { "no deployments found for #{task} (#{task.concrete_model.short_name})" }
-                            missing_deployments << task
-                            next
-                        end
-                    end
-
-                    if candidates.size > 1
-                        debug { "multiple deployments available for #{task} (#{task.concrete_model.short_name}), trying to resolve" }
-                        selected = log_nest(2) do
-                            resolve_deployment_ambiguity(candidates, task)
-                        end
-                        if !selected
-                            debug { "deployment of #{task} (#{task.concrete_model.short_name}) is ambiguous" }
-                            missing_deployments << task
-                            next
-                        end
-                    else
-                        selected = candidates.first
-                    end
-
-                    machine, configured_deployment, task_name = *selected
-                    if used_deployments.include?(selected)
-                        # Already used somewhere else, don't reallocate
-                        debug { "#{task} resolves to #{configured_deployment.short_name}.#{task_name} for its deployment, but it is already used" }
-                        missing_deployments << task
-                        next
-                    end
-                    
-                    used_deployments << selected
-                    deployment_task =
-                        (deployment_tasks[[machine, configured_deployment]] ||= configured_deployment.new(:on => machine))
-                    work_plan.add(deployment_task)
-                    deployed_task = deployment_task.task(task_name)
-                    debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
-                    merge_solver.apply_merge_group(task => deployed_task)
-                    debug { "  => #{deployed_task}" }
+                selected_deployments, missing_deployments = select_deployments(all_tasks)
+                if !missing_deployments.empty?
+                    return missing_deployments
                 end
+                add_timepoint 'deploy_system_network', 'select_deployments'
+
+                apply_selected_deployments(selected_deployments)
+                add_timepoint 'deploy_system_network', 'apply_selected_deployments'
 
                 if options[:validate_deployed_network]
                     validate_deployed_network
-                    add_timepoint 'validate_deployed_network'
+                    add_timepoint 'deploy_system_network', 'validate_deployed_network'
                 end
 
-                missing_deployments
+                add_timepoint 'deploy_system_network', 'done'
+                Set.new
             end
 
             # Sanity checks to verify that the result of #deploy_system_network

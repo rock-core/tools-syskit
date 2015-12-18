@@ -374,6 +374,8 @@ describe Syskit::NetworkGeneration::Engine do
                 task_models[0] => [['machine', deployment_models[0], 'task']],
                 task_models[1] => [['other_machine', deployment_models[1], 'other_task']]
             ]
+            deployment_models[0].orogen_model.task 'task', task_models[0].orogen_model
+            deployment_models[1].orogen_model.task 'other_task', task_models[1].orogen_model
             flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
                 and_return(deployments).by_default
             syskit_engine.prepare(validate_deployed_network: false, validate_final_network: false)
@@ -414,7 +416,7 @@ describe Syskit::NetworkGeneration::Engine do
             deployment_task.should_receive(:task).with('other_task').once
             # And finally replace the task with the deployed task
             syskit_engine.update_deployed_models
-            assert_equal [], syskit_engine.deploy_system_network
+            assert_equal Set.new, syskit_engine.deploy_system_network
         end
         it "instanciates the same deployment twice if on two different machines" do
             syskit_engine.work_plan.add(task0 = task_models[0].new(orocos_name: 'task'))
@@ -443,47 +445,22 @@ describe Syskit::NetworkGeneration::Engine do
             deployment_task1.should_receive(:task).with('other_task').once
             # And finally replace the task with the deployed task
             syskit_engine.update_deployed_models
-            assert_equal [], syskit_engine.deploy_system_network
+            assert_equal Set.new, syskit_engine.deploy_system_network
         end
         it "does not allocate the same task twice" do
             syskit_engine.work_plan.add(task0 = task_models[0].new)
             syskit_engine.work_plan.add(task1 = task_models[0].new)
-
-            deployments = Hash[
-                task_models[0] => [['machine', deployment_models[0], 'task']]
-            ]
-            flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
-                and_return(deployments)
-            flexmock(syskit_engine.work_plan).should_receive(:add)
-            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group)
-
-            flexmock(deployment_models[0]).should_receive(:new).once.
-                and_return(deployment_task0 = flexmock(Roby::Task.new))
-            deployment_task0.should_receive(:task).with('task').once
-            syskit_engine.update_deployed_models
-
-            missing = syskit_engine.deploy_system_network.to_a
-            # We don't control which of the two tasks got deployed
+            all_tasks = [task0, task1]
+            selected, missing = syskit_engine.select_deployments(all_tasks)
             assert_equal 1, missing.size
             assert [task0, task1].include?(missing.first)
         end
         it "does not resolve ambiguities by considering already allocated tasks" do
             syskit_engine.work_plan.add(task0 = task_models[0].new(orocos_name: 'task'))
             syskit_engine.work_plan.add(task1 = task_models[0].new)
-
-            deployments = Hash[
-                task_models[0] => [['machine', deployment_models[0], 'task'], ['machine', deployment_models[0], 'other_task']]
-            ]
-            flexmock(syskit_engine).should_receive(:compute_task_context_deployment_candidates).
-                and_return(deployments)
-            flexmock(syskit_engine.work_plan).should_receive(:add)
-            flexmock(syskit_engine.merge_solver).should_receive(:apply_merge_group)
-
-            flexmock(deployment_models[0]).should_receive(:new).once.
-                and_return(deployment_task0 = flexmock(Roby::Task.new))
-            deployment_task0.should_receive(:task).with('task').once
-            syskit_engine.update_deployed_models
-            assert_equal [task1], syskit_engine.deploy_system_network.to_a
+            all_tasks = [task0, task1]
+            selected, missing = syskit_engine.select_deployments(all_tasks)
+            assert_equal [task1], missing.to_a
         end
         it "does not consider already deployed tasks" do
             syskit_engine.work_plan.add(task0 = task_models[0].new)
@@ -497,7 +474,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(task0).should_receive(:execution_agent).and_return(true)
             flexmock(deployment_models[0]).should_receive(:new).never
             syskit_engine.update_deployed_models
-            assert_equal [], syskit_engine.deploy_system_network
+            assert_equal Set.new, syskit_engine.deploy_system_network
         end
     end
 
