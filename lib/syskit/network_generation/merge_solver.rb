@@ -40,8 +40,6 @@ module Syskit
             @tracing_options = { :remove_compositions => true }
 
             def initialize(plan)
-                raise if block_given?
-
                 @plan = plan
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                 @dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
@@ -143,8 +141,8 @@ module Syskit
 
             # Create a new solver on the given plan and perform
             # {#merge_identical_tasks}
-            def self.merge_identical_tasks(plan, &block)
-                solver = MergeSolver.new(plan, &block)
+            def self.merge_identical_tasks(plan)
+                solver = MergeSolver.new(plan)
                 solver.merge_identical_tasks
             end
 
