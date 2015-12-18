@@ -287,12 +287,10 @@ module Syskit
 
                 still_abstract.each do |task|
                     if task.respond_to?(:proxied_data_services)
-                        candidates = task.proxied_data_services.inject(nil) do |set, m|
-                            m_candidates = (engine.service_allocation_candidates[m] || Set.new).to_set
-                            set ||= m_candidates
-                            set & m_candidates
+                        per_service_candidates = task.proxied_data_services.map do |m|
+                            engine.deployed_models.find_all { |deployed_m| deployed_m.fullfills?(m) }.to_set
                         end
-                        candidates ||= Set.new
+                        candidates = per_service_candidates.inject { |a, b| a & b } || Set.new
                     else
                         candidates = engine.work_plan.find_local_tasks(task.concrete_model).not_abstract.to_set
                     end

@@ -123,21 +123,7 @@ module Syskit
                 @use_automatic_selection = true
 
                 @main_automatic_selection = DependencyInjection.new
-
-                @service_allocation_candidates = Hash.new
             end
-
-            # The set of selections computed based on what is actually available
-            # on this system
-            #
-            # It can be disabled by setting #use_automatic_selection to false
-            attr_reader :main_automatic_selection
-
-            # A mapping from data service models to concrete models
-            # (compositions and/or task models) that implement it
-            #
-            # This is used for error message generation / debugging purposes
-            attr_reader :service_allocation_candidates
 
             # Returns the set of deployments that are available for this network
             # generation
@@ -207,19 +193,7 @@ module Syskit
 
             def update_deployed_models
                 @deployed_models = compute_deployed_models
-                @deployed_component_models = deployed_models.find_all { |m| m <= Component }
                 @task_context_deployment_candidates = compute_task_context_deployment_candidates
-
-                # Fill in the service_allocation_candidates mapping
-                service_allocation_candidates.clear
-                @deployed_component_models.each do |component_m|
-                    component_m.each_fullfilled_model do |fullfilled_m|
-                        if fullfilled_m <= DataService
-                            service_allocation_candidates[fullfilled_m] ||= Set.new
-                            service_allocation_candidates[fullfilled_m] << component_m
-                        end
-                    end
-                end
             end
 
             # Must be called everytime the system model changes. It updates the
@@ -235,10 +209,6 @@ module Syskit
                 end
 
                 update_deployed_models
-
-                # And compute the default selections
-                @main_automatic_selection = DependencyInjection.new
-                main_automatic_selection.add_defaults(@deployed_component_models)
 
                 @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @required_instances = Hash.new
@@ -268,38 +238,6 @@ module Syskit
                     @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                     @required_instances.clear if @required_instances
                 end
-            end
-
-            # If true, the engine will compute for each service the set of
-            # concrete task models that provides it. If that set is one element,
-            # it will automatically add it to the set of default selection.
-            #
-            # If false, this mechanism is ignored
-            #
-            # It is true by default
-            attr_predicate :use_automatic_selection?, true
-
-            # Computes the dependency injection object that contains the devices
-            # and the main automatic selection (if use_automatic_selection? is
-            # true)
-            #
-            # @return [DependencyInjectionContext]
-            def compute_main_dependency_injection
-                main_selection = DependencyInjectionContext.new
-
-                # Push the automatically-computed selections if it is required
-                if use_automatic_selection?
-                    main_selection.push(main_automatic_selection)
-                end
-
-                debug do
-                    debug "Resolved main selection"
-                    log_nest(2) do
-                        log_pp(:debug, main_selection)
-                    end
-                    break
-                end
-                main_selection
             end
 
             def find_selected_device_in_hierarchy(argument_name, leaf_task, requirements)
@@ -347,9 +285,6 @@ module Syskit
             # @return [void]
             def instanciate(req_tasks = nil)
                 add_timepoint 'compute_system_network', 'instanciate', 'start'
-                main_selection = compute_main_dependency_injection
-                add_timepoint 'compute_system_network', 'instanciate', "compute_main_dependency_injection"
-
                 if !req_tasks
                     req_tasks = real_plan.find_local_tasks(InstanceRequirementsTask).
                         find_all do |req_task|
@@ -365,7 +300,7 @@ module Syskit
                 add_timepoint 'compute_system_network', 'instanciate', "instanciate_requirements"
                 req_tasks.each_with_index do |req_task, i|
                     req = req_task.requirements
-                    task = req.instanciate(work_plan, main_selection).
+                    task = req.instanciate(work_plan).
                         to_task
                     # We add all these tasks as permanent tasks, to use
                     # #static_garbage_collect to cleanup #work_plan.
