@@ -322,6 +322,11 @@ module Syskit
                         allocate_devices(task)
                     end
                 end
+                add_timepoint 'compute_system_network', 'instanciate', 'postprocessing'
+                Engine.instanciation_postprocessing.each do |block|
+                    block.call(self, work_plan)
+                end
+                add_timepoint 'compute_system_network', 'instanciate', 'done'
             end
 
             # Creates communication busses and links the tasks to them
@@ -360,12 +365,7 @@ module Syskit
             def compute_system_network(req_tasks = nil, **options)
                 add_timepoint 'compute_system_network', 'start'
                 instanciate(req_tasks)
-                Engine.instanciation_postprocessing.each do |block|
-                    block.call(self, work_plan)
-                end
-                add_timepoint 'compute_system_network', 'instanciate'
                 merge_solver.merge_identical_tasks
-
                 add_timepoint 'compute_system_network', 'merge'
                 Engine.instanciated_network_postprocessing.each do |block|
                     block.call(self, work_plan)
@@ -871,36 +871,41 @@ module Syskit
                         t.remove_relations(Syskit::Flows::DataFlow)
                         t.remove_relations(Roby::TaskStructure::Dependency)
                         true
-                    elsif t.transaction_proxy?
-                        if t.abstract?
-                            work_plan.remove_object(t)
-                            true
-                        end
+                    elsif t.transaction_proxy? && t.abstract?
+                        work_plan.remove_object(t)
+                        true
                     end
                 end
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'all_tasks_cleanup'
 
-                (all_tasks - used_tasks).each do |t|
-                    sources = t.enum_for(:each_parent_object, Syskit::Flows::DataFlow).to_a
-                    sources.each do |source_t|
-                        connections = source_t[t, Syskit::Flows::DataFlow].dup
+                # Remove connections that are not forwarding connections (e.g.
+                # composition exports)
+                dataflow_graph = work_plan.task_relation_graph_for(Syskit::Flows::DataFlow)
+                all_tasks.each do |t|
+                    next if used_tasks.include?(t)
+                    dataflow_graph.in_neighbours(t).dup.each do |source_t|
+                        connections = dataflow_graph.edge_info(source_t, t).dup
                         connections.delete_if do |(source_port, sink_port), policy|
                             !(source_t.find_output_port(source_port) && t.find_output_port(sink_port)) &&
                                 !(source_t.find_input_port(source_port) && t.find_input_port(sink_port))
                         end
-                        source_t[t, Syskit::Flows::DataFlow] = connections
-                        if connections.empty?
-                            source_t.remove_child_object(t, Syskit::Flows::DataFlow)
+                        if !connections.empty?
+                            dataflow_graph.set_edge_info(source_t, t, connections)
+                        else
+                            dataflow_graph.remove_edge(source_t, t)
                         end
                     end
                 end
+                add_timepoint 'deployment', 'finalize_deployed_tasks', 'dataflow_graph_cleanup'
 
-                finishing_deployments, existing_deployments =
-                    work_plan.find_tasks(Syskit::Deployment).not_finished.
-                    partition { |t| t.finishing? }
-                existing_deployments = existing_deployments.to_set - used_deployments
-                finishing_deployments = finishing_deployments.inject(Hash.new) do |h, task|
-                    h[task.process_name] = task
-                    h
+                deployments = work_plan.find_tasks(Syskit::Deployment).not_finished
+                finishing_deployments, existing_deployments = Hash.new, Set.new
+                deployments.each do |task|
+                    if task.finishing?
+                        finishing_deployments[task.process_name] = task
+                    elsif !used_deployments.include?(task)
+                        existing_deployments << task
+                    end
                 end
                 add_timepoint 'deployment', 'finalize_deployed_tasks', 'existing_and_finished_deployments'
 
