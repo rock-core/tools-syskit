@@ -198,7 +198,7 @@ module Syskit
             def syskit_stub_task_context(model, as: syskit_default_stub_name(model), devices: true)
                 model = model.to_instance_requirements
 
-                task_m = model.model.to_component_model
+                task_m = model.model.to_component_model.concrete_model
                 if task_m.respond_to?(:proxied_data_services)
                     superclass = if task_m.superclass <= Syskit::TaskContext
                                      task_m.superclass
