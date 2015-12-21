@@ -118,9 +118,10 @@ module Syskit
                 end
 
                 merged_event_to_event = Hash.new
+                event_resolver = ->(e) { merged_task_to_task[e.task].event(e.symbol) }
                 merged_task_to_task.each do |merged_task, task|
                     merged_task.each_event do |ev|
-                        merged_event_to_event[ev] = task.event(ev.symbol)
+                        merged_event_to_event[ev] = [nil, event_resolver]
                     end
                 end
                 plan.replace_subplan(merged_task_to_task, merged_event_to_event)
