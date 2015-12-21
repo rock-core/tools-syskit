@@ -322,9 +322,10 @@ module Syskit
                         allocate_devices(task)
                     end
                 end
-                add_timepoint 'compute_system_network', 'instanciate', 'postprocessing'
+                add_timepoint 'compute_system_network', 'instanciate', 'device_allocation'
                 Engine.instanciation_postprocessing.each do |block|
                     block.call(self, work_plan)
+                    add_timepoint 'compute_system_network', 'instanciate', 'postprocessing', block.to_s
                 end
                 add_timepoint 'compute_system_network', 'instanciate', 'done'
             end
@@ -661,7 +662,7 @@ module Syskit
             # We are still purely within {#work_plan}, the mapping to
             # {#real_plan} is done by calling {#finalize_deployed_tasks}
             def deploy_system_network
-                add_timepoint 'deploy_system_network', 'start'
+                add_timepoint 'deployment', 'deploy_system_network', 'start'
 
                 debug do
                     debug "Deploying the system network"
@@ -690,17 +691,17 @@ module Syskit
                 if !missing_deployments.empty?
                     return missing_deployments
                 end
-                add_timepoint 'deploy_system_network', 'select_deployments'
+                add_timepoint 'deployment', 'deploy_system_network', 'select_deployments'
 
                 apply_selected_deployments(selected_deployments)
-                add_timepoint 'deploy_system_network', 'apply_selected_deployments'
+                add_timepoint 'deployment', 'deploy_system_network', 'apply_selected_deployments'
 
                 if options[:validate_deployed_network]
                     validate_deployed_network
-                    add_timepoint 'deploy_system_network', 'validate_deployed_network'
+                    add_timepoint 'deployment', 'deploy_system_network', 'validate_deployed_network'
                 end
 
-                add_timepoint 'deploy_system_network', 'done'
+                add_timepoint 'deployment', 'deploy_system_network', 'done'
                 Set.new
             end
 
