@@ -381,6 +381,15 @@ describe Syskit::NetworkGeneration::Engine do
             syskit_engine.prepare(validate_deployed_network: false, validate_final_network: false)
         end
 
+        it "applies the known deployments before returning the missing ones" do
+            syskit_engine = flexmock(self.syskit_engine)
+            syskit_engine.should_receive(:select_deployments).
+                and_return([selected = flexmock(:empty? => false), missing = flexmock(:empty? => false)])
+            syskit_engine.should_receive(:apply_selected_deployments).
+                with(selected).once
+            assert_equal missing, syskit_engine.deploy_system_network
+        end
+
         it "creates the necessary deployment task and uses #task to get the deployed task context" do
             syskit_engine.work_plan.add(task = task_models[0].new)
             # Create on the right host

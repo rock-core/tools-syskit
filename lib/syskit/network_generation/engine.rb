@@ -602,18 +602,19 @@ module Syskit
                 end
 
                 if candidates.size > 1
-                    debug { "multiple deployments available for #{task} (#{task.concrete_model}), trying to resolve" }
+                    debug { "#{candidates.size} deployments available for #{task} (#{task.concrete_model}), trying to resolve" }
                     selected = log_nest(2) do
                         resolve_deployment_ambiguity(candidates, task)
                     end
                     if selected
-                        return *selected
+                        debug { "  selected #{selected}" }
+                        return selected
                     else
-                        debug { "deployment of #{task} (#{task.concrete_model}) is ambiguous" }
+                        debug { "  deployment of #{task} (#{task.concrete_model}) is ambiguous" }
                         return
                     end
                 else
-                    return *candidates.first
+                    return candidates.first
                 end
             end
 
@@ -688,9 +689,6 @@ module Syskit
 
                 all_tasks = work_plan.find_local_tasks(TaskContext).to_a
                 selected_deployments, missing_deployments = select_deployments(all_tasks)
-                if !missing_deployments.empty?
-                    return missing_deployments
-                end
                 add_timepoint 'deployment', 'deploy_system_network', 'select_deployments'
 
                 apply_selected_deployments(selected_deployments)
@@ -702,7 +700,7 @@ module Syskit
                 end
 
                 add_timepoint 'deployment', 'deploy_system_network', 'done'
-                Set.new
+                return missing_deployments
             end
 
             # Sanity checks to verify that the result of #deploy_system_network
