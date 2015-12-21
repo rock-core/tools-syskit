@@ -271,7 +271,7 @@ module Syskit
             def composition_children_by_role(task)
                 result = Hash.new
                 task_children_names = task.model.children_names.to_set
-                task_children   = task.merged_relations(:each_child, true, false).map do |child_task|
+                task_children   = task.each_out_neighbour_merged(Roby::TaskStructure::Dependency, intrusive: true).map do |child_task|
                     dependency_graph.edge_info(task, child_task)[:roles].each do |r|
                         if task_children_names.include?(r)
                             result[r] = child_task
