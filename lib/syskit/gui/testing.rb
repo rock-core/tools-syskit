@@ -94,8 +94,12 @@ module Syskit
                 poll_timer.connect(SIGNAL('timeout()')) do
                     manager.poll(autospawn: running?)
                     process_pending_work
-                    if @selected_item
-                        update_selected_item_state
+                    if item = @selected_item
+                        runtime = @selected_item.runtime
+                        if runtime != @selected_item_runtime
+                            update_selected_item_state
+                            @selected_item_runtime = runtime
+                        end
                     end
                 end
                 poll_timer.start(Integer(poll_period * 1000))
@@ -172,6 +176,7 @@ module Syskit
 
             def display_item_details(item)
                 @selected_item = item
+                @selected_item_runtime = nil
                 test_result_page.clear
                 update_selected_item_state
 
