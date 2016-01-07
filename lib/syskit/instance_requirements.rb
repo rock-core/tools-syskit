@@ -759,10 +759,10 @@ module Syskit
                 @di
             end
 
-            def instanciate_from_template(plan, arguments = Hash.new)
+            def instanciate_from_template(plan)
                 if !@template
                     template = TemplatePlan.new
-                    template.root_task = instanciate(template, use_template: false, clear_arguments: true).
+                    template.root_task = instanciate(template, use_template: false).
                         to_task
                     merge_solver = NetworkGeneration::MergeSolver.new(template)
                     merge_solver.merge_identical_tasks
@@ -771,16 +771,14 @@ module Syskit
                 end
 
                 mappings = @template.deep_copy_to(plan)
-                root = mappings[@template.root_task]
-                root.assign_arguments(self.arguments.merge(arguments))
-                return model.bind(root)
+                return model.bind(mappings[@template.root_task])
             end
 
             # Create a concrete task for this requirement
-            def instanciate(plan, context = Syskit::DependencyInjectionContext.new, task_arguments: Hash.new, specialization_hints: Hash.new, use_template: true, clear_arguments: false)
-                if context.empty? && specialization_hints.empty? && use_template && can_use_template?
+            def instanciate(plan, context = Syskit::DependencyInjectionContext.new, task_arguments: Hash.new, specialization_hints: Hash.new, use_template: true)
+                if context.empty? && task_arguments.empty? && specialization_hints.empty? && use_template && can_use_template?
                     from_cache = true
-                    return instanciate_from_template(plan, task_arguments)
+                    return instanciate_from_template(plan)
                 end
 
                 task_model = self.proxy_task_model
@@ -788,9 +786,7 @@ module Syskit
                 context.save
                 context.push(resolved_dependency_injection)
 
-                if !clear_arguments
-                    task_arguments = self.arguments.merge(task_arguments)
-                end
+                task_arguments = self.arguments.merge(task_arguments)
                 specialization_hints = self.specialization_hints | specialization_hints
                 task = task_model.instanciate(plan, context, task_arguments: task_arguments, specialization_hints: specialization_hints)
                 task_requirements = to_component_model
