@@ -18,7 +18,9 @@ module Syskit
                 end
             end
 
-            def protect_configuration_manager(model)
+            # Ensure that any modification made to a model's configuration
+            # manager are undone at teardown
+            def syskit_protect_configuration_manager(model)
                 manager = model.configuration_manager
                 model.configuration_manager = manager.dup
                 @__test_overriden_configurations << [model, manager]
@@ -223,17 +225,20 @@ module Syskit
                 model.add_models([task_m])
                 model = syskit_stub_component(model, devices: devices)
 
-                concrete_task_m = task_m.concrete_model
-                protect_configuration_manager(concrete_task_m)
-                if conf = model.arguments[:conf]
-                    conf.each do |conf_name|
-                        concrete_task_m.configuration_manager.add(conf_name, Hash.new, merge: true)
-                    end
-                end
+                syskit_stub_conf(task_m, *model.arguments[:conf])
 
                 syskit_stub_deployment_model(task_m, as)
                 model.deployment_hints.clear
                 model.prefer_deployed_tasks(as)
+            end
+
+            # Create empty configuration sections for the given task model
+            def syskit_stub_conf(task_m, *conf)
+                concrete_task_m = task_m.concrete_model
+                syskit_protect_configuration_manager(concrete_task_m)
+                conf.each do |conf_name|
+                    concrete_task_m.configuration_manager.add(conf_name, Hash.new, merge: true)
+                end
             end
 
             # @api private
