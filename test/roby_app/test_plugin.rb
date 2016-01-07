@@ -2,17 +2,6 @@ require 'syskit/test/self'
 require 'orocos/remote_processes/server'
 
 describe Syskit::RobyApp::Plugin do
-    describe "#enable" do
-        it "makes Roby.syskit_engine return app.plan.syskit_engine" do
-            assert Roby.app.plan.syskit_engine
-            assert_equal Roby.app.plan.syskit_engine, Roby.syskit_engine
-        end
-        it "makes Roby.app.syskit_engine return app.plan.syskit_engine" do
-            assert Roby.app.plan.syskit_engine
-            assert_equal Roby.app.plan.syskit_engine, Roby.app.syskit_engine
-        end
-    end
-
     describe "remote model loading" do
         def create_process_server(name)
             set_log_level Orocos::RemoteProcesses::Server, Logger::FATAL

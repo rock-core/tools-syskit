@@ -12,8 +12,6 @@ module Syskit
         include Test::Base
         include Test::NetworkManipulation
 
-        # The syskit engine
-        attr_reader :syskit_engine
         # A RobotDefinition object that allows to create new device models
         # easily
         attr_reader :robot
@@ -43,7 +41,6 @@ module Syskit
 
             Syskit::NetworkGeneration::Engine.keep_internal_data_structures = true
 
-            @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
             @robot = Syskit::Robot::RobotDefinition.new
 
             @syskit_handler_ids = Hash.new
@@ -75,9 +72,6 @@ module Syskit
 
         def teardown
             ENV['PKG_CONFIG_PATH'] = @old_pkg_config
-            if syskit_engine
-                syskit_engine.finalize
-            end
             super
 
         ensure
@@ -119,13 +113,6 @@ module Syskit
 
         def data_service_type(name, &block)
             DataService.new_submodel(:name => name, &block)
-        end
-
-        def method_missing(m, *args, &block)
-            if syskit_engine.respond_to?(m)
-                syskit_engine.send(m, *args, &block)
-            else super
-            end
         end
     end
     end

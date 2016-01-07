@@ -4,6 +4,8 @@ require './test/fixtures/simple_composition_model'
 describe Syskit::NetworkGeneration::Engine do
     include Syskit::Fixtures::SimpleCompositionModel
 
+    attr_reader :syskit_engine
+
     before do
         create_simple_composition_model
         plan.execution_engine.scheduler.enabled = false

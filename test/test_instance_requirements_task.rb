@@ -14,14 +14,14 @@ describe Syskit::InstanceRequirementsTask do
         plan.add(task = Roby::Task.new)
         task.planned_by(req_task = Syskit::InstanceRequirementsTask.new)
         req_task.requirements = Syskit::InstanceRequirements.new([])
-        flexmock(syskit_engine).should_receive(:resolve).once
+        flexmock(Syskit::NetworkGeneration::Engine).should_receive(:resolve).once
         req_task.start!
     end
 
     it "finishes with failure if the network resolution failed" do
         plan.add(task = Roby::Task.new)
         task.planned_by(req_task = Syskit::InstanceRequirementsTask.new)
-        flexmock(syskit_engine).should_receive(:resolve).and_raise(ArgumentError)
+        flexmock(Syskit::NetworkGeneration::Engine).should_receive(:resolve).and_raise(ArgumentError)
         req_task.requirements = Syskit::InstanceRequirements.new([])
         Roby.logger.level = Logger::FATAL
         assert_raises(Roby::PlanningFailedError) { req_task.start! }
@@ -32,7 +32,7 @@ describe Syskit::InstanceRequirementsTask do
         plan.add(task = Roby::Task.new)
         task.planned_by(req_task = Syskit::InstanceRequirementsTask.new)
         req_task.requirements = Syskit::InstanceRequirements.new([])
-        flexmock(syskit_engine).should_receive(:resolve)
+        flexmock(Syskit::NetworkGeneration::Engine).should_receive(:resolve)
         req_task.start!
         assert req_task.success?
     end

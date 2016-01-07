@@ -35,34 +35,6 @@ require 'syskit/roby_app'
                 tic
             end
 
-            def self.add_service(service_name)
-                if service_name =~ /^\w+(:\w+(,\w+)*)?$/
-                    service_name = Scripts.resolve_service_name(service_name)
-                    Roby.app.syskit_engine.add service_name
-                else
-                    Kernel.eval_dsl(service_name, Roby.syskit_engine,
-                            Syskit.constant_search_path,
-                            !Roby.app.filter_backtraces?)
-                end
-            end
-
-            def self.resolve_service_name(service)
-                service_name, *service_conf = *service.split(':')
-                service_conf =
-                    if service_conf.size > 1
-                        raise ArgumentError, "found more than one colon in #{service}"
-                    elsif !service_conf.empty?
-                        service_conf.first.split(',')
-                    end
-
-                engine = Roby.app.syskit_engine
-                instance = engine.resolve_name(service_name)
-                if service_conf
-                    instance.use_conf(*service_conf)
-                end
-                instance
-            end
-
             def self.use_rprof(file_path)
                 require 'ruby-prof'
                 @rprof_file_path = file_path

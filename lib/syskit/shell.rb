@@ -53,7 +53,7 @@ module Syskit
         class ShellDeploymentRestart < Roby::Task
             event :start, :controlable => true
             event :stop do |context|
-                plan.syskit_engine.resolve
+                NetworkGeneration::Engine.resolve(plan)
                 emit :stop
             end
         end
@@ -147,7 +147,7 @@ module Syskit
         # configuration(s)
         def redeploy
             engine.execute do
-                plan.syskit_engine.force_update!
+                NetworkGeneration::Engine.resolve(plan)
             end
             nil
         end

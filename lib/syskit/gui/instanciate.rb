@@ -145,7 +145,7 @@ module Syskit
                     end
                     Scripts.toc_tic "computed deployment in %.3f seconds"
                     if display_timepoints
-                        pp Roby.app.syskit_engine.format_timepoints
+                        pp engine.format_timepoints
                     end
                     Scripts.pause_profiling
                 end

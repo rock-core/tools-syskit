@@ -37,7 +37,6 @@ app = Qt::Application.new(ARGV)
 settings = Qt::Settings.new('syskit', '')
 
 Scripts.run do
-    Roby.app.syskit_engine.prepare
     main = Syskit::GUI::Browse.new
 
     # Select the model given on the command line (if any)

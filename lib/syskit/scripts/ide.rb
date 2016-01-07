@@ -49,7 +49,6 @@ Roby.app.additional_model_files.concat(direct_files)
 
 Syskit::Scripts.run do
     Orocos.initialize
-    Roby.app.syskit_engine.prepare
     main = Syskit::GUI::IDE.new(host: options[:host] || 'localhost', runtime: runtime_mode, tests: test_mode)
     main.window_title = "Syskit IDE - #{Roby.app.app_name}"
 

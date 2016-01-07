@@ -2,6 +2,7 @@ require 'syskit/test/self'
 require './test/fixtures/simple_composition_model'
 
 describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
+    attr_reader :syskit_engine
     attr_reader :task, :task_m, :deployment_m, :deployment, :dataflow_dynamics
     before do
         Roby.app.using_task_library 'logger'
@@ -16,6 +17,7 @@ describe Syskit::NetworkGeneration::LoggerConfigurationSupport do
             add_default_logger
         end
         @deployment = syskit_stub_deployment('deployment', deployment_m)
+        @syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
         flexmock(deployment).should_receive(:log_port?).and_return(true).by_default
         flexmock(syskit_engine).should_receive(:deployment_tasks).and_return([deployment])
 

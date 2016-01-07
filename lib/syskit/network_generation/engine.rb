@@ -53,32 +53,6 @@ module Syskit
             end
             @keep_internal_data_structures = false
 
-	    # Completely disable #resolve. This can be used to make sure that
-	    # the engine will not touch the plan
-	    #
-	    # Set with disable_updates and reset with enable_updates
-	    attr_predicate :disabled?
-
-	    # Set the disabled flag
-	    #
-	    # See #disabled?
-	    def disable_updates; @disabled = true end
-
-	    # Resets the disabled flag
-	    #
-	    # See #disabled?
-	    def enable_updates; @disabled = false end
-
-            # Force running {#resolve} the next chance we have to
-            #
-            # @see Runtime.apply_requirement_modifications
-            def force_update!; @forced_update = true end
-
-            # Whether we should run {#resolve} the next have we have the chance
-            #
-            # @see #force_update! Runtime.apply_requirement_modifications
-            def forced_update?; @forced_update end
-
             # The set of tasks that represent the running deployments
             attr_reader :deployment_tasks
 
@@ -115,9 +89,6 @@ module Syskit
             def initialize(plan)
                 @real_plan = plan
                 @work_plan = plan
-                real_plan.syskit_engine = self
-
-                @forced_update = false
 
                 @merge_solver = NetworkGeneration::MergeSolver.new(real_plan)
                 @use_automatic_selection = true
@@ -1086,6 +1057,10 @@ module Syskit
                 @work_plan = Roby::Transaction.new(real_plan)
             end
 
+            def self.resolve(plan, **options)
+                new(plan).resolve(**options)
+            end
+
             # Generate the deployment according to the current requirements, and
             # merges it into the current plan
             #
@@ -1111,7 +1086,6 @@ module Syskit
             #   drop the currently generated plan)
             def resolve(options = Hash.new)
                 @timepoints = []
-	    	return if disabled?
                 add_timepoint 'start'
 
                 @forced_update = false

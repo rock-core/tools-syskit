@@ -48,12 +48,6 @@ module Syskit
                 @default_orogen_project ||= OroGen::Spec::Project.new(default_loader)
             end
 
-            def syskit_engine
-                if plan && plan.respond_to?(:syskit_engine)
-                    plan.syskit_engine
-                end
-            end
-
             # @return [Hash<String,OroGen::Spec::Project>] the set of projects
             #   loaded so far
             attribute(:loaded_orogen_projects) { Hash.new }
@@ -200,8 +194,6 @@ module Syskit
 
                 Orocos.configuration_log_name = File.join(app.log_dir, 'properties')
                 Orocos.disable_sigchld_handler = true
-                # Engine registers itself as plan.syskit_engine
-                NetworkGeneration::Engine.new(app.plan || Roby::Plan.new)
 
                 Syskit.conf.register_process_server(
                     'ruby_tasks', Orocos::RubyTasks::ProcessManager.new(app.default_loader), app.log_dir)
@@ -465,9 +457,18 @@ module Syskit
                 handler_ids
             end
 
-            def self.unplug_engine_from_roby(handler_ids, roby_engine)
-                handler_ids.each do |handler_id|
+            def self.unplug_engine_from_roby(handler_ids = @handler_ids, roby_engine)
+                handler_ids.delete_if do |handler_id|
                     roby_engine.remove_propagation_handler(handler_id)
+                    true
+                end
+            end
+
+            def self.unplug_handler_from_roby(roby_engine, *handlers)
+                if @handler_ids
+                    handlers.each do |h|
+                        roby_engine.remove_propagation_handler(@handler_ids.delete(h))
+                    end
                 end
             end
 
@@ -576,7 +577,6 @@ module Syskit
             def self.enable
                 ::Robot.include Syskit::RobyApp::RobotExtension
                 ::Roby.conf.syskit = Syskit.conf
-                ::Roby.extend Syskit::RobyApp::Toplevel
 
                 OroGen.load_orogen_plugins('syskit')
                 Roby.app.filter_out_patterns << Regexp.new(Regexp.quote(OroGen::OROGEN_LIB_DIR))

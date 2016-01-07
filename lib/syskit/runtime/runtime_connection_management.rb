@@ -428,7 +428,7 @@ module Syskit
             # value otherwise.
             def apply_connection_changes(new, removed)
                 if removed_connections_require_network_update?(removed)
-                    plan.syskit_engine.force_update!
+                    plan.syskit_force_update!
                     return new, removed
                 end
 
@@ -548,6 +548,11 @@ module Syskit
                     main_tasks.delete_if { |t| !active_task?(t) }
                     new.delete_if do |(source_task, sink_task), _|
                         !active_task?(source_task) || !active_task?(sink_task)
+                    end
+                    if removed_connections_require_network_update?(removed)
+                        dataflow_graph.pending_changes = [main_tasks, new, removed]
+                        Syskit::NetworkGeneration::Engine.resolve(plan)
+                        return update
                     end
 
                     debug "applying pending changes from the data flow graph"

@@ -34,9 +34,6 @@ module Syskit
 
             # Run Syskit's deployer (i.e. engine) on the current plan
             def syskit_deploy(*to_instanciate, add_mission: true, syskit_engine: nil, **resolve_options, &block)
-                syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
-                syskit_engine.disable_updates
-
                 # For backward-compatibility
                 to_instanciate = to_instanciate.flatten
 
@@ -79,9 +76,9 @@ module Syskit
                     requirement_tasks.each { |t| t.start! }
                 end
 
-                syskit_engine.enable_updates
                 begin
-                    syskit_engine.resolve(**Hash[on_error: :commit].merge(resolve_options))
+                    syskit_engine ||= Syskit::NetworkGeneration::Engine.new(plan)
+                    syskit_engine.resolve(**(Hash[on_error: :commit].merge(resolve_options)))
                 rescue Exception => e
                     begin
                         plan.execution_engine.process_events_synchronous do
