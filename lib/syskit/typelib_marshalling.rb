@@ -1,11 +1,5 @@
 module Syskit
     module TypelibMarshalling
-        # @return [Typelib::Registry] the registry used for
-        #   marshalling/demarshalling. Usually Orocos.registry.
-        def self.reference_registry
-            Orocos.registry
-        end
-
         # Module used to allow droby-marshalling of Typelib values
         #
         # The manipulated registry is Orocos.registry
@@ -23,13 +17,11 @@ module Syskit
             end
 
             def droby_dump(peer)
-                DRoby.new(to_byte_array, Roby::Distributed.format(self.class, peer))
+                DRoby.new(to_byte_array, peer.dump(self.class))
             end
         end
 
         # Module used to allow droby-marshalling of Typelib types
-        #
-        # The manipulated registry is {TypelibMarshalling.reference_registry}
         module TypeModelExtension
             # Class used to transfer the definition of a type
             class DRoby
@@ -41,20 +33,18 @@ module Syskit
                 def proxy(peer)
                     if xml
                         reg = Typelib::Registry.from_xml(xml)
-                        TypelibMarshalling.reference_registry.merge(reg)
+                        peer.object_manager.typelib_registry.merge(reg)
                     end
-                    TypelibMarshalling.reference_registry.get(name)
+                    peer.object_manager.typelib_registry.get(name)
                 end
             end
 
             def droby_dump(peer)
-                if !peer || !peer.registry.include?(name)
+                peer_registry = peer.object_manager.typelib_registry
+                if !peer_registry.include?(name)
                     reg = registry.minimal(name)
                     xml = reg.to_xml
-
-                    if peer
-                        peer.registry.merge(reg)
-                    end
+                    peer_registry.merge(reg)
                 end
                 DRoby.new(name, xml)
             end
@@ -63,16 +53,14 @@ module Syskit
         # Extension for all peer-compatible classes. It allows to store which
         # type representations have already been sent, removing the need to send
         # them again
-        module DRobyPeerExtension
+        module DRobyObjectManagerExtension
             # A typelib registry that contains the definition of all types sent to 
             attribute(:registry) { Typelib::Registry.new }
         end
 
         Typelib::Type.include TypeExtension
-        Typelib::Type.extend TypeModelExtension
-        Roby::Distributed::RemoteObjectManager.include DRobyPeerExtension
-        Roby::Distributed::DumbManager.extend DRobyPeerExtension
-        Roby::Log.extend DRobyPeerExtension
+        Typelib::Type.extend  TypeModelExtension
+        Roby::DRoby::ObjectManager.include DRobyObjectManagerExtension
     end
 end
 

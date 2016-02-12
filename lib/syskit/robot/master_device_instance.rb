@@ -365,7 +365,7 @@ module Syskit
                 end
             end
             def droby_dump(peer)
-                DRoby.new(name, device_model.droby_dump(peer), driver_model.droby_dump(peer))
+                DRoby.new(name, peer.dump(device_model), peer.dump(driver_model))
             end
         end
     end

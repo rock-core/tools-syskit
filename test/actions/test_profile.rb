@@ -200,7 +200,7 @@ describe Syskit::Actions::Profile do
     it "should be usable through droby" do
         SyskitProfileTest.profile 'Test' do
         end
-        verify_is_droby_marshallable_object(SyskitProfileTest::Test)
+        assert_droby_compatible(SyskitProfileTest::Test)
     end
 
     it "gets its cached dependency injection object invalidated when the robot is modified" do

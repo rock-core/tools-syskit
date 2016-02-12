@@ -1,4 +1,3 @@
-require 'roby/log/dot'
 module Syskit
         # Used by the to_dot* methods for color allocation
         attr_reader :current_color

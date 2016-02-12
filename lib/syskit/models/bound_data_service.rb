@@ -334,7 +334,9 @@ module Syskit
                     end
                 end
             end
-            def droby_dump(peer); DRoby.new(name, component_model.droby_dump(peer), master.droby_dump(peer), model.droby_dump(peer)) end
+            def droby_dump(peer)
+                DRoby.new(name, peer.dump(component_model), peer.dump(master), peer.dump(model))
+            end
         end
     end
 end

@@ -149,7 +149,9 @@ module Syskit
                     BoundDataService.new(peer.local_object(component), peer.local_object(model))
                 end
             end
-            def droby_dump(peer); DRoby.new(component.droby_dump(peer), model.droby_dump(peer)) end
+            def droby_dump(peer)
+                DRoby.new(peer.dump(component), peer.dump(model))
+            end
         end
 end
 

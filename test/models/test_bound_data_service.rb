@@ -62,17 +62,10 @@ describe Syskit::Models::BoundDataService do
             @srv_m  = task_m.srv_srv
         end
 
-        it "should be identity when done locally" do
-            dump = srv_m.droby_dump(nil)
-            loaded = Marshal.load(Marshal.dump(dump))
-            assert_same srv_m, loaded.proxy(Roby::Distributed::DumbManager)
-        end
         it "should create a new service object when done on an anonymous model" do
-            dump = srv_m.droby_dump(nil)
-            flexmock(task_m).should_receive(:find_data_service).and_return(nil)
+            dump = srv_m.droby_dump(Roby::DRoby::Marshal.new)
             loaded = Marshal.load(Marshal.dump(dump))
-            loaded = loaded.proxy(Roby::Distributed::DumbManager)
-            assert_same task_m, loaded.component_model
+            loaded = loaded.proxy(Roby::DRoby::Marshal.new)
             assert_equal 'srv', loaded.name
         end
     end

@@ -243,8 +243,8 @@ module Test_DataServiceModel
 
     def test_it_can_be_droby_marshalled_and_unmarshalled
         model = data_service_type("A")
-        loaded = Marshal.load(Marshal.dump(model.droby_dump(nil)))
-        loaded = loaded.proxy(Roby::Distributed::DumbManager)
+        loaded = Marshal.load(Marshal.dump(model.droby_dump(Roby::DRoby::Marshal.new)))
+        loaded = loaded.proxy(Roby::DRoby::Marshal.new)
         assert_equal model.name, loaded.name
     end
 end

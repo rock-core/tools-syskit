@@ -390,7 +390,7 @@ module Syskit
                 super
             end
 
-            include Roby::Distributed::DRobyConstant::Dump
+            include Roby::DRoby::V5::DRobyConstant::Dump
         end
 
         module ProfileDefinitionDSL
