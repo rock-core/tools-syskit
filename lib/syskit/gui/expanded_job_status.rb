@@ -1,4 +1,5 @@
-require 'roby/log/gui/chronicle'
+require 'roby/gui/chronicle_widget'
+
 module Syskit
     module GUI
         # Detailed view on a job
@@ -10,7 +11,7 @@ module Syskit
             # @return [Roby::GUI::ExceptionView] display of the exceptions that
             #   are related to this task
             attr_reader :ui_exception_view
-            # @return [Roby::LogReplay::ChronicleView] the chronicle displaying
+            # @return [Roby::GUI::ChronicleWidget] the chronicle displaying
             #   the task states for the currently selected job, or for all tasks
             #   if there is no currently selected job
             attr_reader :ui_chronicle
@@ -25,7 +26,7 @@ module Syskit
                 @ui_exception_view = Roby::GUI::ExceptionView.new
                 connect(ui_exception_view, SIGNAL('fileOpenClicked(const QUrl&)'),
                         self, SIGNAL('fileOpenClicked(const QUrl&)'))
-                @ui_chronicle = Roby::LogReplay::ChronicleWidget.new
+                @ui_chronicle = Roby::GUI::ChronicleWidget.new
                 ui_chronicle.show_mode = :in_range
                 ui_chronicle.reverse_sort = true
                 ui_chronicle.vertical_scroll_bar_policy = Qt::ScrollBarAlwaysOff
