@@ -371,6 +371,13 @@ describe Device do
     end
 
     describe "#provides" do
+        it "does not change #supermodel" do
+            srv = Device.new_submodel
+            assert_equal Device, srv.supermodel
+            srv.provides DataService.new_submodel
+            assert_equal Device, srv.supermodel
+        end
+
         it "refuses to provide a ComBus" do
             srv = Device.new_submodel
             combus = ComBus.new_submodel message_type: '/int'
@@ -534,6 +541,22 @@ describe ComBus do
             child_model  = ComBus.new_submodel { provides parent_model }
             assert_equal [child_model, parent_model, ComBus, Device, DataService], 
                 child_model.each_fullfilled_model.to_a
+        end
+    end
+
+    describe "#provides" do
+        it "does not change #supermodel when given a data service" do
+            srv = ComBus.new_submodel message_type: '/int'
+            assert_equal ComBus, srv.supermodel
+            srv.provides DataService.new_submodel
+            assert_equal ComBus, srv.supermodel
+        end
+
+        it "does not change #supermodel when given a device" do
+            srv = ComBus.new_submodel message_type: '/int'
+            assert_equal ComBus, srv.supermodel
+            srv.provides Device.new_submodel
+            assert_equal ComBus, srv.supermodel
         end
     end
 
