@@ -138,10 +138,10 @@ module Test_DataServiceModel
     end
 
     def test_provides_detects_port_collisions_even_if_they_have_the_same_type
-        base_m = DataService.new_submodel do
+        base_m = new_submodel do
             output_port 'out', '/double'
         end
-        provided_m = DataService.new_submodel do
+        provided_m = new_submodel do
             output_port 'out', '/double'
         end
 
@@ -229,22 +229,23 @@ module Test_DataServiceModel
     end
 
     def test_create_proxy_task
-        model = data_service_type("A")
+        model = new_submodel(name: "A")
         task = model.create_proxy_task
         assert task.abstract?
         assert_kind_of model.proxy_task_model, task
     end
 
     def test_instanciate
-        model = data_service_type("A")
+        model = new_submodel(name: "A")
         task = model.instanciate(plan)
         assert_kind_of model.proxy_task_model, task
     end
 
     def test_it_can_be_droby_marshalled_and_unmarshalled
-        model = data_service_type("A")
+        model = new_submodel(name: "A")
         loaded = Marshal.load(Marshal.dump(model.droby_dump(Roby::DRoby::Marshal.new)))
         loaded = loaded.proxy(Roby::DRoby::Marshal.new)
+        assert(loaded <= service_type)
         assert_equal model.name, loaded.name
     end
 end

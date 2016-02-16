@@ -82,5 +82,8 @@ require 'syskit/instance_requirements_task'
 require 'syskit/graphviz'
 require 'syskit/typelib_marshalling'
 
-# Ros support
+# ROS support
 require 'syskit/ros'
+
+# Marshalling/demarshalling
+require 'syskit/droby/enable'
