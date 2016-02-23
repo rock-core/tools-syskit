@@ -184,7 +184,7 @@ module Syskit
             
             # Remove port-to-port connections
             #
-            # @param [{(Orocos::TaskContext,Orocos::TaskContext) => {[String,String] => Hash}}] removed
+            # @param [{(Orocos::TaskContext,Orocos::TaskContext) => [[String,String]]}] removed
             #   the connections, specified between the actual tasks (NOT their Roby representations)
             # @return [[Syskit::TaskContext]] the list of tasks whose connections have been modified
             def apply_connection_removal(removed)
@@ -420,15 +420,7 @@ module Syskit
                 return additions_held, additions_ready
             end
 
-            # Apply all connection changes on the system. The principle is to
-            # use a transaction-based approach: i.e. either we apply everything
-            # or nothing.
-            #
-            # See #compute_connection_changes for the format of +new+ and
-            # +removed+
-            #
-            # Returns a false value if it could not apply the changes and a true
-            # value otherwise.
+            # Apply the connection changes that can be applied
             def apply_connection_changes(new, removed)
                 additions_held, additions_ready = new_connections_partition_held_ready(new)
 
