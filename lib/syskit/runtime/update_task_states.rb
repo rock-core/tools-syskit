@@ -39,7 +39,7 @@ module Syskit
                             t.executable = nil
                             plan.execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", t
                         else
-                            plan.execution_engine.scheduler.report_action "configured", t
+                            plan.execution_engine.scheduler.report_action "configured, but some connections are pending", t
                         end
 
                         next

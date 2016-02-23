@@ -177,7 +177,7 @@ module Syskit
                     describe "handling of static ports" do
                         it "triggers a redeployment if #removed_connections_require_network_update? returns true" do
                             expected = dataflow_graph.pending_changes = 
-                                [flexmock(delete_if: nil), flexmock(delete_if: nil, :empty? => false), flexmock(:empty? => false)]
+                                [Set.new, flexmock(:base, Hash.new, empty?: false), flexmock(:base, Hash.new, empty?: false)]
 
                             manager = ConnectionManagement.new(plan)
                             flexmock(manager).should_receive(:removed_connections_require_network_update?).

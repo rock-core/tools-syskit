@@ -321,6 +321,7 @@ module Syskit
 
                     else
                         scheduler.report_holdoff "some inputs are not yet connected, Syskit maintains its state to non-executable", t
+                        scheduler.report_action "some inputs are not yet connected, Syskit maintains its state to non-executable", t
                     end
                 end
             end
@@ -348,7 +349,7 @@ module Syskit
             #   right away, and the set of connections that require a state change
             #   in the tasks
             def partition_early_late(connections, states, kind, mapping)
-                early, late = connections.partition do |(source_task, sink_task), _|
+                early, late = connections.partition do |(source_task, sink_task), port_pairs|
                     states[source_task] ||= begin mapping[source_task].rtt_state
                                             rescue Orocos::ComError
                                             end
@@ -358,7 +359,7 @@ module Syskit
 
                     early = (states[source_task] != :RUNNING) || (states[sink_task] != :RUNNING)
                     debug do
-                        debug "#{early ? 'early' : 'late'} #{kind} connections from #{source_task} to #{sink_task}"
+                        debug "#{port_pairs.size} #{early ? 'early' : 'late'} #{kind} connections from #{source_task} to #{sink_task}"
                         debug "  source state: #{states[source_task]}"
                         debug "  sink state: #{states[sink_task]}"
                         break
@@ -394,10 +395,10 @@ module Syskit
                             hold.each do |(from_port, to_port), policy|
                                 debug "  #{from_port} => #{to_port} [#{policy}]"
                                 if !from_task.setup? && !from_task.concrete_model.find_output_port(from_port)
-                                    debug "    output port #{from_port} has not been created yet"
+                                    debug "    output port #{from_port} is dynamic and the task is not yet configured"
                                 end
                                 if !to_task.setup? && !to_task.concrete_model.find_input_port(to_port)
-                                    debug "    input port #{to_port} has not been created yet"
+                                    debug "    input port #{to_port} is dynamic and the task is not yet configured"
                                 end
                             end
                             break
@@ -438,9 +439,9 @@ module Syskit
 
                 task_states = Hash.new
                 early_removal, late_removal     =
-                    partition_early_late(removed, task_states, 'disconnection', proc { |v| v })
+                    partition_early_late(removed, task_states, 'removed', proc { |v| v })
                 early_additions, late_additions =
-                    partition_early_late(additions_ready, task_states, 'connection', proc(&:orocos_task))
+                    partition_early_late(additions_ready, task_states, 'added', proc(&:orocos_task))
 
                 modified_tasks = apply_connection_removal(early_removal)
                 modified_tasks |= apply_connection_additions(early_additions)
@@ -548,7 +549,9 @@ module Syskit
 
                 if dataflow_graph.pending_changes
                     main_tasks, new, removed = dataflow_graph.pending_changes
+                    debug "#{main_tasks.size} tasks in pending"
                     main_tasks.delete_if { |t| !active_task?(t) }
+                    debug "#{main_tasks.size} tasks after inactive removal"
                     new.delete_if do |(source_task, sink_task), _|
                         !active_task?(source_task) || !active_task?(sink_task)
                     end
@@ -569,7 +572,16 @@ module Syskit
                     if !dataflow_graph.pending_changes
                         debug "successfully applied pending changes"
                     else
-                        debug "failed to apply pending changes"
+                        debug do
+                            debug "some connection changes could not be applied in this pass"
+                            main_tasks, new, removed = dataflow_graph.pending_changes
+                            additions = new.inject(0) { |count, (_, ports)| count + ports.size }
+                            removals  = removed.inject(0) { |count, (_, ports)| count + ports.size }
+                            debug "  #{additions} new connections pending"
+                            debug "  #{removals} removed connections pending"
+                            debug "  involving #{main_tasks.size} tasks"
+                            break
+                        end
                     end
                 end
             end
