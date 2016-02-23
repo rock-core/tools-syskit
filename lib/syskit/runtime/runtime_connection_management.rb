@@ -430,11 +430,6 @@ module Syskit
             # Returns a false value if it could not apply the changes and a true
             # value otherwise.
             def apply_connection_changes(new, removed)
-                if removed_connections_require_network_update?(removed)
-                    plan.syskit_force_update!
-                    return new, removed
-                end
-
                 additions_held, additions_ready = new_connections_partition_held_ready(new)
 
                 task_states = Hash.new
