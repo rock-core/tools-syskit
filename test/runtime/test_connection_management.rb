@@ -455,6 +455,25 @@ module Syskit
                     assert source_task.orocos_task.out1.connected?
                     assert !source_task.orocos_task.out2.connected?
                 end
+
+                it "carries the tasks over to the next cycle if there are pending connections" do
+                    source_task = syskit_stub_deploy_and_configure("source")
+                    sink_task = syskit_stub_deploy_and_configure("sink")
+
+                    manager = ConnectionManagement.new(plan)
+                    flexmock(manager).should_receive(:compute_connection_changes).
+                        with(Set[source_task]).once.ordered.and_return([Hash.new, Hash.new])
+                    flexmock(manager).should_receive(:compute_connection_changes).
+                        with(Set[source_task, sink_task]).once.ordered.and_return([Hash.new, Hash.new])
+                    flexmock(manager).should_receive(:apply_connection_changes).
+                        and_return([flexmock(:base, Hash.new, empty?: false), flexmock(:base, Hash.new, empty?: false)])
+                    dataflow_graph = plan.task_relation_graph_for(Syskit::Flows::DataFlow)
+                    dataflow_graph.modified_tasks << source_task
+
+                    manager.update
+                    dataflow_graph.modified_tasks << sink_task
+                    manager.update
+                end
             end
 
             it "removes dangling connections" do

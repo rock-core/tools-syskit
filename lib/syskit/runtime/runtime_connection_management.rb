@@ -505,9 +505,10 @@ module Syskit
 
                 if !tasks.empty?
                     if dataflow_graph.pending_changes
-                        tasks.merge(dataflow_graph.pending_changes.first)
+                        pending_tasks = dataflow_graph.pending_changes.first
+                        pending_tasks.delete_if { |t| !active_task?(t) }
+                        tasks.merge(pending_tasks)
                     end
-                    tasks.delete_if { |t| !active_task?(t) }
 
                     debug do
                         debug "computing data flow update from modified tasks"
@@ -519,7 +520,7 @@ module Syskit
 
                     new, removed = compute_connection_changes(tasks)
                     if new
-                        dataflow_graph.pending_changes = [tasks, new, removed]
+                        dataflow_graph.pending_changes = [tasks.dup, new, removed]
                         dataflow_graph.modified_tasks.clear
                     else
                         debug "cannot compute changes, keeping the tasks queued"
