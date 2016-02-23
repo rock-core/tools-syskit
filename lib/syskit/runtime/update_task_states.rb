@@ -6,7 +6,10 @@ module Syskit
             query = plan.find_tasks(Syskit::TaskContext).not_finished
             for t in query
                 # The task's deployment is not started yet
-                next if !t.orocos_task
+                if !t.orocos_task
+                    plan.execution_engine.scheduler.report_holdoff "did not configure, execution agent not started yet", t
+                    next
+                end
 
                 if !t.execution_agent
                     raise NotImplementedError, "#{t} is not yet finished but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
@@ -32,6 +35,13 @@ module Syskit
                         rescue Exception => e
                             t.start_event.emit_failed(e)
                         end
+                        if t.all_inputs_connected?
+                            t.executable = nil
+                            plan.execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", t
+                        else
+                            plan.execution_engine.scheduler.report_action "configured", t
+                        end
+
                         next
                     else
                         plan.execution_engine.scheduler.report_holdoff "did not configure, not ready for setup", t

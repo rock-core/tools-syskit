@@ -317,6 +317,8 @@ module Syskit
                     if t.setup? && t.all_inputs_connected?
                         t.executable = nil
                         debug { "#{t} has all its inputs connected, set executable to nil and executable? = #{t.executable?}" }
+                        scheduler.report_action "all inputs connected, marking as executable", t
+
                     else
                         scheduler.report_holdoff "some inputs are not yet connected, Syskit maintains its state to non-executable", t
                     end
@@ -509,6 +511,7 @@ module Syskit
                 tasks.each do |t|
                     if t.setup? && !t.executable? && t.plan == plan && t.all_inputs_connected?
                         t.executable = nil
+                        scheduler.report_action "all inputs connected, marking as executable", t
                     end
                 end
 
