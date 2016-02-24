@@ -100,10 +100,6 @@ module Syskit
                     plan.remove_object(task)
                 end
 
-                syskit_engine.format_timepoints.each do |*name, duration|
-                    puts "%.3f %s" % [duration, name.join(" ")]
-                end
-
                 if Roby.app.public_logs?
                     filename = name.gsub("/", "_")
                     dataflow_base, hierarchy_base = filename + "-dataflow", filename + "-hierarchy"

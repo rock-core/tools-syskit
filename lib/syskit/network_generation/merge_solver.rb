@@ -6,9 +6,9 @@ module Syskit
         # This is the core of the system deployment algorithm implemented in
         # Engine
         class MergeSolver
-            include Utilrb::Timepoints
             extend Logger::Hierarchy
             include Logger::Hierarchy
+            include Roby::DRoby::EventLogging
 
             # The plan on which this solver applies
             attr_reader :plan
@@ -39,8 +39,13 @@ module Syskit
             end
             @tracing_options = { :remove_compositions => true }
 
-            def initialize(plan)
+            # The {Roby::DRoby::EventLogger} object on which we log performance
+            # information
+            attr_reader :event_logger
+
+            def initialize(plan, event_logger: plan.event_logger)
                 @plan = plan
+                @event_logger = event_logger
                 @dataflow_graph = plan.task_relation_graph_for(Flows::DataFlow)
                 @dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
                 @merging_candidates_queries = Hash.new
@@ -467,11 +472,17 @@ module Syskit
             end
 
             def merge_identical_tasks
+                log_timepoint_group_start 'syskit-merge-solver'
                 dataflow_graph.enable_concrete_connection_graph
-                merge_task_contexts
-                merge_compositions
+                log_timepoint_group 'merge_task_contexts' do
+                    merge_task_contexts
+                end
+                log_timepoint_group 'merge_compositions' do
+                    merge_compositions
+                end
             ensure
                 dataflow_graph.disable_concrete_connection_graph
+                log_timepoint_group_end 'syskit-merge-solver'
             end
 
             def display_merge_graph(title, merge_graph)
