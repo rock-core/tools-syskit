@@ -19,6 +19,7 @@ require './test/suite_network_generation'
 require './test/suite_actions'
 require './test/suite_runtime'
 require './test/suite_coordination'
+require './test/suite_droby'
 
 require './test/test_abstract_placeholders'
 require './test/test_bound_data_service'
@@ -36,6 +37,6 @@ require './test/test_data_flow'
 require './test/test_dependency_injection'
 require './test/test_dependency_injection_context'
 require './test/test_instance_requirements_task'
-require './test/test_typelib_marshalling'
 
 require './test/test_exceptions'
+

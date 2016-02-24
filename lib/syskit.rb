@@ -80,7 +80,6 @@ require 'syskit/instance_requirements_task'
 
 # App support
 require 'syskit/graphviz'
-require 'syskit/typelib_marshalling'
 
 # ROS support
 require 'syskit/ros'

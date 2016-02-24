@@ -34,6 +34,60 @@ module Syskit
                         Roby::DRoby::V5::DRobyModel.dump_provided_models_of(peer, self))
                 end
             end
+
+            # Module used to allow droby-marshalling of Typelib values
+            #
+            # The manipulated registry is Orocos.registry
+            module TypelibTypeDumper
+                # Marshalling representation of a typelib value
+                class DRoby
+                    attr_reader :byte_array
+                    attr_reader :type
+                    def initialize(byte_array, type)
+                        @byte_array, @type = byte_array, type
+                    end
+                    def proxy(peer)
+                        peer.local_object(type).from_buffer(byte_array)
+                    end
+                end
+
+                def droby_dump(peer)
+                    DRoby.new(to_byte_array, peer.dump(self.class))
+                end
+            end
+
+            module ObjectManagerExtension
+                attribute(:typelib_registry) { Typelib::Registry.new }
+            end
+
+            # Module used to allow droby-marshalling of Typelib types
+            module TypelibTypeModelDumper
+                # Class used to transfer the definition of a type
+                class DRoby
+                    attr_reader :name, :xml
+                    def initialize(name, xml)
+                        @name = name
+                        @xml = xml
+                    end
+                    def proxy(peer)
+                        if xml
+                            reg = Typelib::Registry.from_xml(xml)
+                            peer.object_manager.typelib_registry.merge(reg)
+                        end
+                        peer.object_manager.typelib_registry.get(name)
+                    end
+                end
+
+                def droby_dump(peer)
+                    peer_registry = peer.object_manager.typelib_registry
+                    if !peer_registry.include?(name)
+                        reg = registry.minimal(name)
+                        xml = reg.to_xml
+                        peer_registry.merge(reg)
+                    end
+                    DRoby.new(name, xml)
+                end
+            end
         end
     end
 end
