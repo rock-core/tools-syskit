@@ -439,13 +439,13 @@ module Syskit
             def self.roby_engine_propagation_handlers
                 handlers = Hash.new
                 handlers[:update_deployment_states] = [
-                    Runtime.method(:update_deployment_states), type: :external_events]
+                    Runtime.method(:update_deployment_states), type: :external_events, description: 'syskit:update_deployment_states']
                 handlers[:update_task_states] = [
-                    Runtime.method(:update_task_states), type: :external_events]
+                    Runtime.method(:update_task_states), type: :external_events, description: 'syskit:update_task_states']
                 handlers[:update] = [
-                    Runtime::ConnectionManagement.method(:update), type: :propagation, late: true]
+                    Runtime::ConnectionManagement.method(:update), type: :propagation, late: true, description: 'syskit:connection_management_update']
                 handlers[:apply_requirement_modifications] = [
-                    Runtime.method(:apply_requirement_modifications), type: :propagation, late: true]
+                    Runtime.method(:apply_requirement_modifications), type: :propagation, late: true, description: 'syskit:apply_requirement_modifications']
                 handlers
             end
 
