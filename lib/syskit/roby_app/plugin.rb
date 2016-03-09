@@ -269,7 +269,9 @@ module Syskit
                         app.find_files_in_dirs("models", "profiles", "ROBOT", :path => search_path, :all => true, :order => :specific_last, :pattern => /\.rb$/)
                    all_files.each do |path|
                         begin
-                            app.require(path)
+                            if app.robot_name?(File.basename(path))
+                                app.require(path)
+                            end
                         rescue OroGen::NotFound => e
                             if Syskit.conf.ignore_missing_orogen_projects_during_load?
                                 ::Robot.warn "ignored file #{path}: #{e.message}"
