@@ -632,6 +632,16 @@ module Syskit
                         name: process_id)
                     slave.register_files([Pathname.new(path)])
                 end
+
+
+                app.find_dirs('test', 'suite_lib.rb', order: :specific_first, all: true).each do |path|
+                    process_id = Hash[path: path]
+                    slave = manager.add_slave(
+                        Gem.ruby, '-S', 'roby', 'autotest', '--server', server.server_id.to_s, path,
+                        '-r', app.robot_name,
+                        name: 'lib')
+                    slave.register_files([Pathname.new(path)])
+                end
             end
         end
     end
