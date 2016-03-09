@@ -918,6 +918,48 @@ module Syskit
                 existing_deployment.pretty_print(pp)
             end
         end
+
+        # Raised during dataflow propagation if {#done_port_info} has already
+        # been called on a port that is being modified
+        class ModifyingFinalizedPortInfo < ArgumentError
+            attr_reader :task, :port_name, :done_at
+            def initialize(task, port_name, done_at)
+                @task = task
+                @port_name = port_name
+                @done_at = done_at
+            end
+
+            def pretty_print(pp)
+                pp.text "trying to change port information for #{task}.#{port_name} after done_port_info has been called"
+                pp.breakable
+                if done_at
+                    pp.text "done_port_info called at"
+                    done_at.each do |line|
+                        pp.breakable
+                        pp.text "  #{line}"
+                    end
+                else
+                    pp.text "turn on debugging to get a full backtrace of where done_port_info was called"
+                end
+            end
+        end
+
+        class DataflowPropagationError < Roby::ExceptionBase
+            attr_reader :task, :port_name
+            def initialize(exception, task, port_name)
+                @task = task
+                @port_name = port_name
+                super([exception])
+            end
+
+            def pretty_print(pp)
+                pp.text "error propagating information on port #{port_name} of"
+                pp.nest(2) do
+                    pp.breakable
+                    task.pretty_print(pp)
+                end
+            end
+        end
 end
 
 

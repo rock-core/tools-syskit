@@ -242,7 +242,7 @@ module Syskit
                                 begin
                                     add_port_info(task, port_name, port_info(*info))
                                 rescue Exception => e
-                                    raise e, "while propagating information from port #{info} to #{port_name} on #{task}, #{e.message}", e.backtrace
+                                    raise DataflowPropagationError.new(e, task, port_name), "while propagating information from port #{info} to #{port_name} on #{task}, #{e.message}"
                                 end
                             end
                             if complete
@@ -308,14 +308,8 @@ module Syskit
             # information with the new object.
             def add_port_info(task, port_name, info)
                 if done_ports[task].include?(port_name)
-                    debug do
-                        debug "done_port_info(#{task}, #{port_name}) called at"
-                        @done_at[[task, port_name]].each do |line|
-                            debug "  #{line}"
-                        end
-                        break
-                    end
-                    raise ArgumentError, "trying to change port information for #{task}.#{port_name} after done_port_info has been called"
+                    done_at = @done_at[[task, port_name]] if @done_at
+                    raise ModifyingFinalizedPortInfo.new(task, port_name, done_at), "trying to change port information for #{task}.#{port_name} after done_port_info has been called"
                 end
 
                 if !has_information_for_port?(task, port_name)
