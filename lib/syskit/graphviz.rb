@@ -662,6 +662,7 @@ module Syskit
 
                     values = values.map { |v| v.tr("<>", "[]") }
                     values = values.map { |v| v.tr("{}", "[]") }
+                    values = values.map { |v| v.tr(":", "_") }
 
                    "<TR><TD ROWSPAN=\"#{values.size()}\" VALIGN=\"TOP\" ALIGN=\"RIGHT\">#{category}</TD><TD ALIGN=\"LEFT\">#{values.first}</TD></TR>\n" +
                    values[1..-1].map { |v| "<TR><TD ALIGN=\"LEFT\">#{v}</TD></TR>" }.join("\n")
