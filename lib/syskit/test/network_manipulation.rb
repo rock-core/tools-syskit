@@ -431,7 +431,7 @@ module Syskit
                 end
             end
 
-            def syskit_prepare_configure(component, tasks, sync_ev, recursive: true)
+            def syskit_prepare_configure(component, tasks, sync_ev, recursive: true, except: Set.new)
                 component.should_start_after(sync_ev)
                 component.freeze_delayed_arguments
 
@@ -439,8 +439,10 @@ module Syskit
 
                 if recursive
                     component.each_child do |child_task|
-                        if child_task.respond_to?(:setup?)
-                            syskit_prepare_configure(child_task, tasks, sync_ev, recursive: true)
+                        if except.include?(child_task)
+                            next
+                        elsif child_task.respond_to?(:setup?)
+                            syskit_prepare_configure(child_task, tasks, sync_ev, recursive: true, except: except)
                         end
                     end
                 end
@@ -498,16 +500,17 @@ module Syskit
             end
 
             # Set this component instance up
-            def syskit_configure(component, recursive: true)
+            def syskit_configure(component, recursive: true, except: Set.new)
                 plan.add_permanent_event(sync_ev = Roby::EventGenerator.new)
                 # We need all execution agents to be started to connect (and
                 # therefore configur) the tasks
                 syskit_start_all_execution_agents
 
                 tasks = Set.new
-                syskit_prepare_configure(component, tasks, sync_ev, recursive: recursive)
+                except  = except.to_set
+                syskit_prepare_configure(component, tasks, sync_ev, recursive: recursive, except: except)
 
-                pending = tasks.dup
+                pending = tasks.dup.to_set
                 while !pending.empty?
                     Syskit::Runtime::ConnectionManagement.update(component.plan)
                     current_state = pending.size
@@ -547,21 +550,24 @@ module Syskit
                 end
             end
 
-            def syskit_prepare_start(component, tasks, recursive: true)
+            def syskit_prepare_start(component, tasks, recursive: true, except: Set.new)
                 tasks << component
 
                 if recursive
                     component.each_child do |child_task|
-                        if child_task.respond_to?(:setup?)
-                            syskit_prepare_start(child_task, tasks, recursive: true)
+                        if except.include?(child_task)
+                            next
+                        elsif child_task.respond_to?(:setup?)
+                            syskit_prepare_start(child_task, tasks, recursive: true, except: except)
                         end
                     end
                 end
             end
             # Start this component
-            def syskit_start(component, recursive: true)
+            def syskit_start(component, recursive: true, except: Set.new)
                 tasks = Set.new
-                syskit_prepare_start(component, tasks, recursive: recursive)
+                except = except.to_set
+                syskit_prepare_start(component, tasks, recursive: recursive, except: except)
 
                 pending = tasks.dup
                 while !pending.empty?
@@ -691,9 +697,9 @@ module Syskit
             #
             # @param (see syskit_stub)
             # @return [Syskit::Component]
-            def syskit_configure_and_start(component = subject_syskit_model, recursive: true)
-                component = syskit_configure(component, recursive: recursive)
-                syskit_start(component, recursive: recursive)
+            def syskit_configure_and_start(component = subject_syskit_model, recursive: true, except: Set.new)
+                component = syskit_configure(component, recursive: recursive, except: except)
+                syskit_start(component, recursive: recursive, except: except)
             end
         end
     end
