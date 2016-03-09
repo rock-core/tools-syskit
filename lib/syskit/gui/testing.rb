@@ -615,8 +615,12 @@ module Syskit
                     next if m.respond_to?(:has_ancestor?) && m.has_ancestor?(Roby::Event)
                     next if m.respond_to?(:private_specialization?) && m.private_specialization?
                     next if !m.name
+
                     if path = app.test_file_for(m)
-                        models_per_file[path] << m
+                        suffix = File.basename(File.dirname(path))
+                        if !app.robot_name?(suffix) || suffix == app.robot_type
+                            models_per_file[path] << m
+                        end
                     end
                 end
 
