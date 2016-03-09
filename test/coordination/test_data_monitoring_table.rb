@@ -143,7 +143,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         component = syskit_stub_deploy_configure_and_start(component_m)
         composition = composition_m.use('test' => component.test2_srv).instanciate(plan)
         composition.depends_on composition.test_child, success: :success, remove_when_done: true
-        plan.add_permanent(composition)
+        plan.add_permanent_task(composition)
 
         table = table_m.new(composition)
         process_events
@@ -198,7 +198,7 @@ describe Syskit::Coordination::DataMonitoringTable do
         # We want the fault table to emit 'success', don't make it an error
         composition.depends_on composition.test_child,
             success: :success, remove_when_done: true
-        plan.add_mission(composition)
+        plan.add_mission_task(composition)
         process_events
 
         component = composition.test_child

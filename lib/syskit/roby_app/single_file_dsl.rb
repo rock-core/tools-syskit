@@ -10,6 +10,9 @@ module Syskit
             def add_mission(req)
                 Roby.app.permanent_requirements << req
             end
+            def add_mission_task(req)
+                Roby.app.permanent_requirements << req
+            end
             def profile
                 if block_given?
                     global_profile.instance_eval(&proc)

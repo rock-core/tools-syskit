@@ -106,7 +106,7 @@ module Syskit
                     it "returns false if the modified task is to be garbage-collected" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task).
                             and_return(source_task)
-                        plan.unmark_mission(source_task)
+                        plan.unmark_mission_task(source_task)
                         assert !management.removed_connections_require_network_update?(
                             Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]])
                     end
@@ -133,7 +133,7 @@ module Syskit
                     it "returns false if the modified task is to be garbage-collected" do
                         flexmock(management).should_receive(:find_setup_syskit_task_context_from_orocos_task).
                             and_return(sink_task)
-                        plan.unmark_mission(sink_task)
+                        plan.unmark_mission_task(sink_task)
                         assert !management.removed_connections_require_network_update?(
                             Hash[[source_task.orocos_task, sink_task.orocos_task] => [['out', 'in']]])
                     end
@@ -214,9 +214,9 @@ module Syskit
                                         sink_task.orocos_task,
                                         ['out', 'in'] => [Hash.new, source_static, sink_static])
                                     if source_static
-                                        plan.remove_object(sink_task)
+                                        plan.remove_task(sink_task)
                                     else
-                                        plan.remove_object(source_task)
+                                        plan.remove_task(source_task)
                                     end
                                     dataflow_graph.modified_tasks << source_task << sink_task
                                     ConnectionManagement.update(plan)
@@ -233,9 +233,9 @@ module Syskit
                                         sink_task.orocos_task,
                                         ['out', 'in'] => [Hash.new, source_static, sink_static])
                                     if source_static
-                                        plan.remove_object(source_task)
+                                        plan.remove_task(source_task)
                                     else
-                                        plan.remove_object(sink_task)
+                                        plan.remove_task(sink_task)
                                     end
                                     dataflow_graph.modified_tasks << source_task << sink_task
                                     ConnectionManagement.update(plan)
@@ -251,8 +251,8 @@ module Syskit
                                         source_task.orocos_task,
                                         sink_task.orocos_task,
                                         ['out', 'in'] => [Hash.new, source_static, sink_static])
-                                    plan.remove_object(source_task)
-                                    plan.remove_object(sink_task)
+                                    plan.remove_task(source_task)
+                                    plan.remove_task(sink_task)
                                     dataflow_graph.modified_tasks << source_task << sink_task
                                     ConnectionManagement.update(plan)
                                 end
@@ -334,7 +334,7 @@ module Syskit
                             end
 
                             it "handles an old task still present in the plan while the new task's connection is added, both tasks not setup" do
-                                plan.unmark_mission(source_task)
+                                plan.unmark_mission_task(source_task)
                                 plan.add(new_source_task = source_task.execution_agent.task(source_task.orocos_name))
                                 new_source_task.out_port.connect_to sink_task.in_port, type: :data
                                 ConnectionManagement.update(plan)
@@ -344,8 +344,8 @@ module Syskit
 
                             it "handles an old task still present in the plan while the new task's connection is added, the old task being running" do
                                 syskit_configure_and_start(source_task)
-                                plan.unmark_mission(source_task)
-                                plan.add_mission(new_source_task = source_task.execution_agent.task(source_task.orocos_name))
+                                plan.unmark_mission_task(source_task)
+                                plan.add_mission_task(new_source_task = source_task.execution_agent.task(source_task.orocos_name))
                                 new_source_task.conf = ['default']
                                 new_source_task.should_configure_after(source_task.stop_event)
                                 new_source_task.out_port.connect_to sink_task.in_port, type: :data
@@ -365,7 +365,7 @@ module Syskit
                             end
 
                             it "handles an old task still present in the plan while the new task's connection is added, both tasks not setup" do
-                                plan.unmark_mission(sink_task)
+                                plan.unmark_mission_task(sink_task)
                                 plan.add(new_sink_task = sink_task.execution_agent.task(sink_task.orocos_name))
                                 source_task.out_port.connect_to new_sink_task.in_port, type: :data
                                 ConnectionManagement.update(plan)
@@ -375,8 +375,8 @@ module Syskit
 
                             it "handles an old task still present in the plan while the new task's connection is added, the old task being running" do
                                 syskit_configure_and_start(sink_task)
-                                plan.unmark_mission(sink_task)
-                                plan.add_mission(new_sink_task = sink_task.execution_agent.task(sink_task.orocos_name))
+                                plan.unmark_mission_task(sink_task)
+                                plan.add_mission_task(new_sink_task = sink_task.execution_agent.task(sink_task.orocos_name))
                                 new_sink_task.conf = ['default']
                                 new_sink_task.should_configure_after(sink_task.stop_event)
                                 source_task.out_port.connect_to new_sink_task.in_port, type: :data

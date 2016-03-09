@@ -67,7 +67,7 @@ module Syskit
                     end
                     plan.add(task = act.as_plan)
                     if add_mission
-                        plan.add_mission(task)
+                        plan.add_mission_task(task)
                     end
                     task
                 end.compact
@@ -97,7 +97,7 @@ module Syskit
                     requirement_tasks.each { |t| t.success_event.emit if !t.finished? }
                 end
                 placeholder_tasks.each do |task|
-                    plan.remove_object(task)
+                    plan.remove_task(task)
                 end
 
                 if Roby.app.public_logs?
@@ -172,7 +172,7 @@ module Syskit
             # model as well
             def syskit_stub_deployment(name = "deployment", deployment_model = nil, &block)
                 deployment_model ||= syskit_stub_deployment_model(nil, name, &block)
-                plan.add_permanent(task = deployment_model.new(process_name: name, on: 'stubs'))
+                plan.add_permanent_task(task = deployment_model.new(process_name: name, on: 'stubs'))
                 task
             end
 
@@ -376,7 +376,7 @@ module Syskit
             end
 
             def syskit_start_all_execution_agents
-                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+                plan.add_permanent_event(sync_ev = Roby::EventGenerator.new)
 
                 agents = plan.each_task.map do |t|
                     if t.respond_to?(:should_configure_after)
@@ -401,13 +401,13 @@ module Syskit
                 end
             ensure
                 if sync_ev
-                    plan.remove_object(sync_ev)
+                    plan.remove_free_event(sync_ev)
                 end
             end
 
             def syskit_start_execution_agents(component, recursive: true)
                 # Protect the component against configuration and startup
-                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+                plan.add_permanent_event(sync_ev = Roby::EventGenerator.new)
                 component.should_configure_after(sync_ev)
 
                 if recursive
@@ -427,7 +427,7 @@ module Syskit
                 end
             ensure
                 if sync_ev
-                    plan.remove_object(sync_ev)
+                    plan.remove_free_event(sync_ev)
                 end
             end
 
@@ -499,7 +499,7 @@ module Syskit
 
             # Set this component instance up
             def syskit_configure(component, recursive: true)
-                plan.add_permanent(sync_ev = Roby::EventGenerator.new)
+                plan.add_permanent_event(sync_ev = Roby::EventGenerator.new)
                 # We need all execution agents to be started to connect (and
                 # therefore configur) the tasks
                 syskit_start_all_execution_agents
@@ -528,7 +528,7 @@ module Syskit
                 component
 
             ensure
-                plan.remove_object(sync_ev)
+                plan.remove_free_event(sync_ev)
             end
             
             class NoStartFixedPoint < RuntimeError

@@ -207,7 +207,7 @@ module Syskit
                 work_plan.find_tasks(logger_model).
                     not_finished.
                     to_a.each do |t|
-                        work_plan.add_permanent(t)
+                        work_plan.add_permanent_task(t)
                     end
             end
         end

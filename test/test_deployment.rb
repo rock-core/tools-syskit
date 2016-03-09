@@ -117,8 +117,8 @@ describe Syskit::Deployment do
         after do
             if deployment_task.running?
                 deployment_task.each_executed_task do |task|
-                    plan.unmark_permanent(task)
-                    plan.unmark_mission(task)
+                    plan.unmark_permanent_task(task)
+                    plan.unmark_mission_task(task)
                 end
                 deployment_task.dead!(nil)
             end
@@ -189,7 +189,7 @@ describe Syskit::Deployment do
                 end.new(orocos_name: 'mapped_task_name')
 
                 task.executed_by deployment_task
-                plan.add_permanent(task)
+                plan.add_permanent_task(task)
                 flexmock(deployment_task).should_receive(:initialize_running_task).once.
                     with(task, orocos_task)
                 process_events
@@ -205,7 +205,7 @@ describe Syskit::Deployment do
                 flexmock(Orocos.name_service).should_receive(:get).never
 
                 task.executed_by deployment_task
-                plan.add_permanent(task)
+                plan.add_permanent_task(task)
                 flexmock(deployment_task).should_receive(:initialize_running_task).once.
                     with(task, orocos_task)
                 process_events
@@ -298,19 +298,19 @@ describe Syskit::Deployment do
                 register_deployment_model(deployment_m.orogen_model)
         end
         it "can start tasks defined on a ruby process server" do
-            plan.add_permanent(deployment = deployment_m.new(on: 'test'))
+            plan.add_permanent_task(deployment = deployment_m.new(on: 'test'))
             deployment.start!
             task = deployment.task('task')
             assert task.orocos_task
             assert 'task', task.orocos_task.name
         end
         it "sets the orocos_task attribute to a RubyTaskContext" do
-            plan.add_permanent(deployment = deployment_m.new(on: 'test'))
+            plan.add_permanent_task(deployment = deployment_m.new(on: 'test'))
             deployment.start!
             assert_kind_of Orocos::RubyTasks::TaskContext, deployment.task('task').orocos_task
         end
         it "makes sure that the Ruby tasks are disposed when the deployment is stopped" do
-            plan.add_permanent(deployment = deployment_m.new(on: 'test'))
+            plan.add_permanent_task(deployment = deployment_m.new(on: 'test'))
             deployment.start!
             flexmock(deployment.task('task').orocos_task).should_receive(:dispose).once.pass_thru
             deployment.stop!

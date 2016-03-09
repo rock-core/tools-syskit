@@ -56,7 +56,7 @@ describe Syskit::Actions::Models::Action do
         end
         it "adds the task to the interface's plan" do
             task = action_m.run(interface, test: 10)
-            assert plan.include?(task)
+            assert plan.has_task?(task)
         end
         it "adds the arguments to the underlying instance requirement object" do
             task = action_m.run(interface, test: 10)

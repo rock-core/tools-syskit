@@ -19,7 +19,7 @@ describe Syskit::NetworkGeneration::Engine do
         attr_reader :planning_task
         attr_reader :requirements
         before do
-            plan.add_mission(@original_task = simple_component_model.as_plan)
+            plan.add_mission_task(@original_task = simple_component_model.as_plan)
             @planning_task = original_task.planning_task
             @requirements = planning_task.requirements
             syskit_stub_deployment_model(simple_component_model)
@@ -32,7 +32,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(requirements).should_receive(:instanciate).
                 and_return(instanciated_task = simple_component_model.new)
             syskit_engine.instanciate
-            assert work_plan.permanent?(instanciated_task)
+            assert work_plan.permanent_task?(instanciated_task)
         end
         it "saves the mapping from requirement task in real_plan to instanciated task in work_plan" do
             planning_task.start!
@@ -46,7 +46,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(requirements).should_receive(:instanciate).
                 and_return(instanciated_task = simple_component_model.new).once
             syskit_engine.instanciate
-            assert work_plan.include? instanciated_task
+            assert work_plan.has_task? instanciated_task
         end
         it "adds to the plan requirements from InstanceRequirementsTask tasks that successfully finished" do
             planning_task.start!
@@ -54,7 +54,7 @@ describe Syskit::NetworkGeneration::Engine do
             flexmock(requirements).should_receive(:instanciate).
                 and_return(instanciated_task = simple_component_model.new).once
             syskit_engine.instanciate
-            assert work_plan.include? instanciated_task
+            assert work_plan.has_task? instanciated_task
         end
         it "ignores InstanceRequirementsTask tasks that failed" do
             planning_task.start!
@@ -66,7 +66,7 @@ describe Syskit::NetworkGeneration::Engine do
             end
             flexmock(requirements).should_receive(:instanciate).never
             syskit_engine.instanciate
-            plan.remove_object(planning_task) # for a silent teardown
+            plan.remove_task(planning_task) # for a silent teardown
         end
         it "ignores InstanceRequirementsTask tasks that are pending" do
             flexmock(requirements).should_receive(:instanciate).never
@@ -81,7 +81,7 @@ describe Syskit::NetworkGeneration::Engine do
             requirements = cmp_m.use(device)
 
             original_task = requirements.as_plan
-            plan.add_permanent(original_task)
+            plan.add_permanent_task(original_task)
             original_task.planning_task.start!
             syskit_engine.instanciate
             cmp = syskit_engine.required_instances[original_task.planning_task]
@@ -93,7 +93,7 @@ describe Syskit::NetworkGeneration::Engine do
             end
             req = Syskit::InstanceRequirements.new([task_m]).
                 with_arguments(arg: 10)
-            plan.add_permanent(original = req.as_plan)
+            plan.add_permanent_task(original = req.as_plan)
             original.planning_task.start!
             syskit_engine.instanciate
             task = syskit_engine.required_instances[original.planning_task]
@@ -109,7 +109,7 @@ describe Syskit::NetworkGeneration::Engine do
             end
             req = Syskit::InstanceRequirements.new([task_m]).
                 with_arguments(arg: 10)
-            plan.add_permanent(original = req.as_plan)
+            plan.add_permanent_task(original = req.as_plan)
             original.planning_task.start!
             syskit_engine.instanciate
             task = syskit_engine.required_instances[original.planning_task]
@@ -137,11 +137,11 @@ describe Syskit::NetworkGeneration::Engine do
 
             def compute_system_network(*requirements)
                 tasks = requirements.map do |req|
-                    plan.add_mission(task = req.as_plan)
+                    plan.add_mission_task(task = req.as_plan)
                     task
                 end
                 subject.compute_system_network(tasks.map(&:planning_task), validate_generated_network: false)
-                tasks.each { |task| plan.remove_object(task) if plan.include?(task) }
+                tasks.each { |task| plan.remove_task(task) if plan.has_task?(task) }
 
                 cmp = plan.find_tasks(cmp_m).to_a
                 assert_equal 1, cmp.size
@@ -164,7 +164,7 @@ describe Syskit::NetworkGeneration::Engine do
             it "enables the use of the abstract flag in InstanceRequirements to use an optional dep only if it is instanciated by other means" do
                 cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract))
                 assert !cmp.has_role?('test')
-                plan.remove_object(cmp)
+                plan.remove_task(cmp)
                 cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract), task_m)
                 assert cmp.has_role?('test')
             end
@@ -180,7 +180,7 @@ describe Syskit::NetworkGeneration::Engine do
             @planning_task = original_task.planning_task
             syskit_engine.create_work_plan_transaction
             syskit_engine.prepare
-            syskit_engine.work_plan.add_permanent(@final_task = simple_component_model.new)
+            syskit_engine.work_plan.add_permanent_task(@final_task = simple_component_model.new)
             syskit_engine.required_instances[original_task.planning_task] = final_task
             syskit_stub_deployment_model(simple_component_model)
         end
@@ -554,17 +554,17 @@ describe Syskit::NetworkGeneration::Engine do
         it "deploys a mission as mission" do
             task_model = Syskit::TaskContext.new_submodel
             deployment = syskit_stub_deployment_model(task_model, 'task')
-            plan.add_mission(original_task = task_model.as_plan)
+            plan.add_mission_task(original_task = task_model.as_plan)
             deployed = syskit_deploy(original_task, add_mission: false)
-            assert plan.mission?(deployed)
+            assert plan.mission_task?(deployed)
         end
 
         it "deploys a permanent task as permanent" do
             task_model = Syskit::TaskContext.new_submodel
             deployment = syskit_stub_deployment_model(task_model, 'task')
-            plan.add_permanent(original_task = task_model.as_plan)
+            plan.add_permanent_task(original_task = task_model.as_plan)
             deployed = syskit_deploy(original_task, add_mission: false)
-            assert plan.permanent?(deployed)
+            assert plan.permanent_task?(deployed)
         end
 
         it "reconfigures a child task if needed" do
@@ -577,7 +577,7 @@ describe Syskit::NetworkGeneration::Engine do
             deployed = syskit_deploy(composition_model)
             # This deregisters the task from the list of requirements in the
             # syskit engine
-            plan.remove_object(deployed.planning_task)
+            plan.remove_task(deployed.planning_task)
 
             new_deployed = syskit_deploy(
                 composition_model.use('child' => task_model.with_conf('non_default')))
@@ -593,9 +593,9 @@ describe Syskit::NetworkGeneration::Engine do
 
             deployed_task = syskit_deploy(task_model)
             planning_task = deployed_task.planning_task
-            plan.unmark_mission(deployed_task)
+            plan.unmark_mission_task(deployed_task)
             deployed_reconf = syskit_deploy(task_model.with_conf('non_default'))
-            plan.add_mission(deployed_reconf)
+            plan.add_mission_task(deployed_reconf)
 
             assert_equal [deployed_task.stop_event],
                 deployed_reconf.start_event.parent_objects(Roby::EventStructure::SyskitConfigurationPrecedence).to_a
@@ -614,7 +614,7 @@ describe Syskit::NetworkGeneration::Engine do
             cmp, original_cmp = syskit_deploy(composition_model.use('child' => task_model))
             child = cmp.child_child.to_task
             child.do_not_reuse
-            plan.remove_object(cmp.planning_task)
+            plan.remove_task(cmp.planning_task)
 
             new_cmp, original_new = syskit_deploy(composition_model.use('child' => task_model))
             new_child = new_cmp.child_child
@@ -698,7 +698,7 @@ describe Syskit::NetworkGeneration::Engine do
             syskit_stub_deployment_model(combus_driver_m)
             dev_driver = syskit_stub_and_deploy(dev)
             bus_driver = plan.find_tasks(combus_driver_m).with_parent(dev_driver).first
-            plan.add_mission(dev_driver)
+            plan.add_mission_task(dev_driver)
             syskit_start_execution_agents(bus_driver)
             syskit_start_execution_agents(dev_driver)
 

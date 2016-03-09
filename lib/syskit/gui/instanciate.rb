@@ -121,11 +121,11 @@ module Syskit
                         if !(planner = task.planning_task) || !planner.respond_to?(:requirements)
                             raise ArgumentError, "#{action_name} is not an action created from a Syskit definition or device"
                         end
-                        plan.add_mission(task)
+                        plan.add_mission_task(task)
                         task
                     end
                     permanent.each do |req|
-                        plan.add_mission(task = req.as_plan)
+                        plan.add_mission_task(task = req.as_plan)
                         requirement_tasks << task
                     end
                     requirement_tasks = requirement_tasks.map(&:planning_task)
@@ -141,7 +141,7 @@ module Syskit
                                    validate_final_network: validate_network,
                                    on_error: :commit)
                     plan.static_garbage_collect do |task|
-                        plan.remove_object(task)
+                        plan.remove_task(task)
                     end
                     Scripts.toc_tic "computed deployment in %.3f seconds"
                     if display_timepoints

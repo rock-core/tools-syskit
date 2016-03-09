@@ -50,7 +50,7 @@ module Syskit
                         other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
                         raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
                     end
-                    plan.unmark_mission(task)
+                    plan.unmark_mission_task(task)
                     plan.execution_engine.garbage_collect
                 end
             end
@@ -77,7 +77,7 @@ module Syskit
             def assert_can_instanciate(action_or_profile = subject_syskit_model)
                 Actions(action_or_profile).each do |act|
                     task = assert_can_instanciate_together(act)
-                    plan.unmark_mission(task)
+                    plan.unmark_mission_task(task)
                     plan.execution_engine.garbage_collect
                 end
             end
@@ -132,7 +132,7 @@ module Syskit
             def assert_can_deploy(action_or_profile = subject_syskit_model)
                 Actions(action_or_profile).each do |act|
                     task = assert_can_deploy_together(act)
-                    plan.unmark_mission(task)
+                    plan.unmark_mission_task(task)
                     plan.execution_engine.garbage_collect
                 end
             end

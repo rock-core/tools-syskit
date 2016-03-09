@@ -213,7 +213,7 @@ describe Syskit::TaskContext do
         it "emits interrupt and aborted if orocos_task#stop raises ComError" do
             task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
             flexmock(task.orocos_task).should_receive(:stop).and_raise(Orocos::ComError)
-            plan.unmark_mission(task)
+            plan.unmark_mission_task(task)
             assert_event_emission task.aborted_event do
                 assert_raises(Orocos::ComError) do
                     task.stop!
@@ -227,14 +227,14 @@ describe Syskit::TaskContext do
                 Orocos::TaskContext.instance_method(:stop).call(task.orocos_task, false)
                 raise Orocos::StateTransitionFailed
             end
-            plan.unmark_mission(task)
+            plan.unmark_mission_task(task)
             assert_event_emission task.interrupt_event do
                 task.stop!
             end
         end
         it "is stopped when the stop event is received" do
             task = syskit_stub_deploy_configure_and_start(Syskit::TaskContext.new_submodel)
-            plan.unmark_mission(task)
+            plan.unmark_mission_task(task)
             assert_event_emission task.stop_event do
                 task.stop!
             end

@@ -148,7 +148,7 @@ module Syskit
             ensure
                 if engine && engine.work_plan.respond_to?(:commit_transaction)
                     engine.work_plan.commit_transaction
-                    main_plan.remove_object(original_task)
+                    main_plan.remove_task(original_task)
                 end
             end
 

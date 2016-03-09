@@ -28,7 +28,7 @@ describe Syskit::Actions::InterfaceModelExtension do
 
             flexmock(req).should_receive(:as_plan).and_return(task = Roby::Task.new)
             act = actions.def_def.instanciate(plan)
-            assert [task], plan.known_tasks.to_a
+            assert [task], plan.tasks.to_a
         end
 
         it "should make task arguments that do not have a default a required argument of the action model" do

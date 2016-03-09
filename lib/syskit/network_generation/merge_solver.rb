@@ -139,7 +139,7 @@ module Syskit
 
                 merged_task_to_task.each do |merged_task, task|
                     if !merged_task.transaction_proxy?
-                        plan.remove_object(merged_task)
+                        plan.remove_task(merged_task)
                     end
                     register_replacement(merged_task, task)
                 end

@@ -240,7 +240,7 @@ module Syskit
                     toplevel_object.extend SingleFileDSL
                     Roby.once do
                         app.permanent_requirements.each do |req|
-                            Roby.plan.add_mission(req.as_plan)
+                            Roby.plan.add_mission_task(req.as_plan)
                         end
                     end
                 end

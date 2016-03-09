@@ -378,7 +378,7 @@ module Syskit
                         debug { "  removing #{obj}" }
                         # Remove tasks that we just added and are not
                         # useful anymore
-                        work_plan.remove_object(obj)
+                        work_plan.remove_task(obj)
                     end
                     log_timepoint 'static_garbage_collect'
                 end
@@ -386,7 +386,7 @@ module Syskit
                 # And get rid of the 'permanent' marking we use to be able to
                 # run static_garbage_collect
                 work_plan.each_task do |task|
-                    work_plan.unmark_permanent(task)
+                    work_plan.unmark_permanent_task(task)
                 end
 
                 Engine.system_network_postprocessing.each do |block|
@@ -830,9 +830,9 @@ module Syskit
             # Also updates the permanent and mission flags for these tasks.
             def fix_toplevel_tasks
                 required_instances.each do |req_task, actual_task|
-                    placeholder_task = work_plan[req_task.planned_task]
-                    req_task         = work_plan[req_task]
-                    actual_task      = work_plan.may_wrap(actual_task)
+                    placeholder_task = work_plan.wrap_task(req_task.planned_task)
+                    req_task         = work_plan.wrap_task(req_task)
+                    actual_task      = work_plan.wrap_task(actual_task)
 
                     if placeholder_task != actual_task
                         work_plan.replace(placeholder_task, actual_task)
@@ -887,7 +887,7 @@ module Syskit
                         t.remove_relations(Roby::TaskStructure::Dependency)
                         true
                     elsif t.transaction_proxy? && t.abstract?
-                        work_plan.remove_object(t)
+                        work_plan.remove_task(t)
                         true
                     end
                 end
@@ -1066,7 +1066,7 @@ module Syskit
                     applied_merges << existing_task
                     debug { "  using #{existing_task} for #{task} (#{task.orocos_name})" }
                 end
-                work_plan.remove_object(deployment_task)
+                work_plan.remove_task(deployment_task)
                 applied_merges
             end
 
