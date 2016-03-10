@@ -25,7 +25,7 @@ module Syskit
 
                 queries = table_m.each_attachment_point.to_a
                 if queries.empty?
-                    queries << table_m.task_model.match.not_abstract
+                    queries << table_m.task_model.query.not_abstract
                 end
 
                 table_record = AttachedDataMonitoringTable.new table_m, arguments, Set.new, Hash.new
