@@ -631,39 +631,22 @@ module Syskit
             end
 
             def add_test_slaves
-                models_per_file = Hash.new { |h, k| h[k] = Set.new }
-                app.each_model do |m|
-                    next if m.respond_to?(:has_ancestor?) && m.has_ancestor?(Roby::Event)
-                    next if m.respond_to?(:private_specialization?) && m.private_specialization?
-                    next if !m.name
-
-                    if path = app.test_file_for(m)
-                        suffix = File.basename(File.dirname(path))
-                        if !app.robot_name?(suffix) || suffix == app.robot_type
-                            models_per_file[path] << m
-                        end
+                tests = app.each_test_file.map do |path, models|
+                    process_id = Hash[path: path]
+                    if !models.empty?
+                        process_id[:models] = models.map(&:name).sort
                     end
+                    [path, process_id]
                 end
-
-                models_per_file.sort_by(&:first).each do |path, models|
-                    process_id = Hash[path: path, models: models.map(&:name).sort]
+                tests.sort_by(&:first).each do |path, process_id|
                     slave = manager.add_slave(
                         Gem.ruby, '-S', 'roby', 'autotest', '--server', server.server_id.to_s, path,
                         '-r', app.robot_name,
                         name: process_id)
                     slave.register_files([Pathname.new(path)])
                 end
-
-
-                app.find_dirs('test', 'suite_lib.rb', order: :specific_first, all: true).each do |path|
-                    process_id = Hash[path: path]
-                    slave = manager.add_slave(
-                        Gem.ruby, '-S', 'roby', 'autotest', '--server', server.server_id.to_s, path,
-                        '-r', app.robot_name,
-                        name: 'lib')
-                    slave.register_files([Pathname.new(path)])
-                end
             end
         end
     end
 end
+
