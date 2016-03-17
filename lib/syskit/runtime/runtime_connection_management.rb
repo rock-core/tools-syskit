@@ -215,11 +215,23 @@ module Syskit
                             end
 
                         rescue Orocos::NotFound => e
-                            warn "error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
-                            warn "I am assuming that the disconnection is actually effective, since one port does not exist anymore"
+                            terminating_deployments =
+                                plan.find_tasks(Syskit::Deployment).finishing.
+                                flat_map { |d| d.task_handles.values }
+
+                            if !terminating_deployments.include?(source_task) && !terminating_deployments.include?(sink_task)
+                                warn "error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
+                                warn "I am assuming that the disconnection is actually effective, since one port does not exist anymore"
+                            end
                         rescue Orocos::ComError => e
-                            warn "Communication error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
-                            warn "I am assuming that the source component is dead and that therefore the connection is actually effective"
+                            terminating_deployments =
+                                plan.find_tasks(Syskit::Deployment).finishing.
+                                flat_map { |d| d.task_handles.values }
+
+                            if !terminating_deployments.include?(source_task) && !terminating_deployments.include?(sink_task)
+                                warn "Communication error while disconnecting #{source_task}:#{source_port} => #{sink_task}:#{sink_port}: #{e.message}"
+                                warn "I am assuming that the source component is dead and that therefore the connection is actually effective"
+                            end
                         end
 
                         if syskit_source_task
