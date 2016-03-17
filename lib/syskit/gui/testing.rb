@@ -164,10 +164,11 @@ module Syskit
             def update_selected_item_state
                 item = @selected_item
                 if runtime = item.runtime
+                    status_text = item.status_text.join("<br/>")
                     if item.finished?
-                        test_result_page.push nil, "Ran for %.01fs" % [runtime], id: 'status'
+                        test_result_page.push nil, "Ran for %.01fs: %s" % [runtime, status_text], id: 'status'
                     elsif runtime = item.runtime
-                        test_result_page.push nil, "Running %.01fs" % [runtime], id: 'status'
+                        test_result_page.push nil, "Running %.01fs: %s" % [runtime, status_text], id: 'status'
                     end
                 else
                     test_result_page.push nil, "Never ran", id: 'status'
@@ -310,6 +311,8 @@ module Syskit
                 attr_reader :failure_count
                 attr_reader :skip_count
 
+                attr_reader :slave_exit_status
+
                 # The count of exceptions
                 def exception_count; exceptions.size end
 
@@ -375,9 +378,10 @@ module Syskit
                     end
                 end
 
-                def finished
+                def finished(slave_exit_status)
+                    @slave_exit_status = slave_exit_status
                     @runtime = runtime
-                    if has_failures? || has_exceptions?
+                    if has_failures? || has_exceptions? || slave_failed?
                         self.background = Qt::Brush.new(Qt::Color.new(FAILED_BACKGROUND))
                     elsif has_skips?
                         self.background = Qt::Brush.new(Qt::Color.new(SKIP_BACKGROUND))
@@ -386,14 +390,27 @@ module Syskit
                     else
                         self.background = Qt::Brush.new(Qt::Color.new(NEW_SLAVE_BACKGROUND))
                     end
+                    update_text
+                end
+
+                def status_text
+                    text = []
+                    if has_tested?
+                        text << "#{test_results.size} runs, #{exception_count} exceptions, #{failure_count} failures and #{assertions_count} assertions"
+                    end
+
+                    if slave_exit_status && !slave_exit_status.success?
+                        if slave_exit_status.signaled?
+                            text << "Test process terminated with signal #{slave_exit_status.termsig}"
+                        else
+                            text << "Test process finished with exist code #{slave_exit_status.exitstatus}"
+                        end
+                    end
+                    text
                 end
 
                 def update_text
-                    if has_tested?
-                        self.text = "#{name}\n#{test_results.size} runs, #{exception_count} exceptions, #{failure_count} failures and #{assertions_count} assertions"
-                    else
-                        self.text = name
-                    end
+                    self.text = ([name] + status_text).join("\n")
                 end
 
                 def discovery_start
@@ -408,6 +425,10 @@ module Syskit
                 end
 
                 def test_finished
+                end
+
+                def slave_failed?
+                    slave_exit_status && !slave_exit_status.success?
                 end
 
                 def has_skips?
@@ -558,7 +579,7 @@ module Syskit
                     queue_work do
                         deregister_slave_pid(slave.pid)
                         item = item_from_slave(slave)
-                        item.finished
+                        item.finished(slave.status)
                         if selected_item == item
                             update_item_details
                         end
