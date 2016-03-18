@@ -306,6 +306,8 @@ module Syskit
             # Call this after reloading the app so that the list of tests gets
             # refreshed as well
             def reloaded
+                slaves.clear
+                pid_to_slave.clear
                 item_model.clear
                 manager.clear
                 add_test_slaves
