@@ -25,12 +25,6 @@ module Syskit
             #
             # This is only valid during resolution
             attr_reader :required_instances
-            # A list of data service or component models for which a deployment
-            # exists. It includes compositions that have all their children
-            # deployed as well
-            #
-            # It is only valid during resolution
-            attr_reader :deployed_models
             # A mapping from task context models to deployment models that
             # contain such a task.
             # @return [Hash{Model<TaskContext>=>Model<Deployment>}]
@@ -81,10 +75,6 @@ module Syskit
             end
             @default_logging_buffer_size = 25
 
-            # The set of options last given to #instanciate. It is used by
-            # plugins to configure their behaviours
-            attr_accessor :options
-
             attr_reader :event_logger
 
             def initialize(plan, event_logger: plan.event_logger)
@@ -93,9 +83,11 @@ module Syskit
                 @event_logger = event_logger
 
                 @merge_solver = NetworkGeneration::MergeSolver.new(real_plan)
-                @use_automatic_selection = true
+                @required_instances = Hash.new
+            end
 
-                @main_automatic_selection = DependencyInjection.new
+            def update_task_context_deployment_candidates
+                @task_context_deployment_candidates = compute_task_context_deployment_candidates
             end
 
             # Returns the set of deployments that are available for this network
@@ -164,27 +156,6 @@ module Syskit
                 deployed_models
             end
 
-            def update_deployed_models
-                @deployed_models = compute_deployed_models
-                @task_context_deployment_candidates = compute_task_context_deployment_candidates
-            end
-
-            # Must be called everytime the system model changes. It updates the
-            # values that are cached to speed up the instanciation process
-            def prepare(options = Hash.new)
-                options = validate_resolve_options(options)
-                self.options = options
-
-                Engine.model_postprocessing.each do |block|
-                    block.call
-                end
-
-                update_deployed_models
-
-                @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
-                @required_instances = Hash.new
-            end
-            
             # Resets the state of the solver to be ready for another call to
             # #resolve
             #
@@ -240,6 +211,21 @@ module Syskit
                 end
             end
 
+            # Computes the set of requirement tasks that should be used for
+            # deployment within the given plan
+            def discover_requirement_tasks_from_plan(plan)
+                req_tasks = plan.find_local_tasks(InstanceRequirementsTask).
+                    find_all do |req_task|
+                    !req_task.failed? && !req_task.pending? &&
+                        req_task.planned_task && !req_task.planned_task.finished?
+                end
+                not_needed = plan.unneeded_tasks
+                req_tasks.delete_if do |t|
+                    not_needed.include?(t)
+                end
+                req_tasks
+            end
+
             # Create on {#work_plan} the task instances that are currently
             # required in {#real_plan}
             #
@@ -247,21 +233,9 @@ module Syskit
             # of redundancies after this call
             #
             # @return [void]
-            def instanciate(req_tasks = nil)
-                if !req_tasks
-                    req_tasks = real_plan.find_local_tasks(InstanceRequirementsTask).
-                        find_all do |req_task|
-                            !req_task.failed? && !req_task.pending? &&
-                                req_task.planned_task && !req_task.planned_task.finished?
-                        end
-                    not_needed = real_plan.unneeded_tasks
-                    req_tasks.delete_if do |t|
-                        not_needed.include?(t)
-                    end
-                end
-
+            def instanciate(requirement_tasks = discover_requirement_tasks_from_plan(real_plan))
                 log_timepoint "instanciate_requirements"
-                req_tasks.each_with_index do |req_task, i|
+                requirement_tasks.each_with_index do |req_task, i|
                     req = req_task.requirements
                     task = req.instanciate(work_plan).
                         to_task
@@ -325,9 +299,11 @@ module Syskit
             # Compute in #plan the network needed to fullfill the requirements
             #
             # This network is neither validated nor tied to actual deployments
-            def compute_system_network(req_tasks = nil, **options)
+            def compute_system_network(requirement_tasks, garbage_collect: true,
+                                       validate_abstract_network: true,
+                                       validate_generated_network: true)
                 log_timepoint_group 'instanciate' do
-                    instanciate(req_tasks)
+                    instanciate(requirement_tasks)
                 end
 
                 merge_solver.merge_identical_tasks
@@ -369,11 +345,9 @@ module Syskit
                     end
                 log_timepoint 'default_conf'
 
-                options = self.options.merge(options)
-
                 # Cleanup the remainder of the tasks that are of no use right
                 # now (mostly devices)
-                if options[:garbage_collect]
+                if garbage_collect
                     work_plan.static_garbage_collect do |obj|
                         debug { "  removing #{obj}" }
                         # Remove tasks that we just added and are not
@@ -394,19 +368,19 @@ module Syskit
                 end
                 log_timepoint 'postprocessing'
 
-                if options[:validate_abstract_network]
-                    validate_abstract_network(work_plan, options)
+                if validate_abstract_network
+                    validate_abstract_network(work_plan)
                     log_timepoint 'validate_abstract_network'
                 end
-                if options[:validate_generated_network]
-                    validate_generated_network(work_plan, options)
+                if validate_generated_network
+                    validate_generated_network(work_plan)
                     log_timepoint 'validate_generated_network'
                 end
             end
 
-            def compute_deployed_network(compute_policies: true)
+            def compute_deployed_network(compute_policies: true, validate_deployed_network: true)
                 log_timepoint_group 'deploy_system_network' do
-                    deploy_system_network
+                    deploy_system_network(validate: validate_deployed_network)
                 end
 
                 # Now that we have a deployed network, we can compute the
@@ -511,13 +485,13 @@ module Syskit
             #
             # It performs the tests that are only needed on an abstract network,
             # i.e. on a network in which some tasks are still abstract
-            def validate_abstract_network(plan, options = Hash.new)
+            def validate_abstract_network(plan)
                 self.class.verify_no_multiplexing_connections(plan)
                 super if defined? super
             end
 
             # Validates the network generated by {#compute_system_network}
-            def validate_generated_network(plan, options = Hash.new)
+            def validate_generated_network(plan)
                 verify_task_allocation(plan)
                 self.class.verify_device_allocation(plan)
                 super if defined? super
@@ -657,7 +631,9 @@ module Syskit
             #
             # We are still purely within {#work_plan}, the mapping to
             # {#real_plan} is done by calling {#finalize_deployed_tasks}
-            def deploy_system_network
+            def deploy_system_network(validate: true)
+                update_task_context_deployment_candidates
+
                 debug do
                     debug "Deploying the system network"
                     debug "Available deployments"
@@ -687,7 +663,7 @@ module Syskit
                 apply_selected_deployments(selected_deployments)
                 log_timepoint 'apply_selected_deployments'
 
-                if options[:validate_deployed_network]
+                if validate
                     validate_deployed_network
                     log_timepoint 'validate_deployed_network'
                 end
@@ -844,31 +820,6 @@ module Syskit
                         actual_task.add_planning_task req_task
                     end
                 end
-            end
-
-            def validate_resolve_options(options)
-                options = Kernel.validate_options options,
-                    :requirement_tasks   => nil,
-                    :compute_policies    => true,
-                    :compute_deployments => true,
-                    :garbage_collect => true,
-                    :export_plan_on_error => nil,
-                    :save_plans => false,
-                    :validate_abstract_network => true,
-                    :validate_generated_network => true,
-                    :validate_deployed_network => true,
-                    :validate_final_network => true,
-                    :forced_removes => false,
-                    :on_error => :save # internal flag
-
-                if !options[:export_plan_on_error].nil?
-                    options[:on_error] =
-                        if options[:export_plan_on_error] then :save
-                        else false
-                        end
-                end
-
-                options
             end
 
             # Given the network with deployed tasks, this method looks at how we
@@ -1074,6 +1025,7 @@ module Syskit
 
             def create_work_plan_transaction
                 @work_plan = Roby::Transaction.new(real_plan)
+                @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
             end
 
             def self.resolve(plan, **options)
@@ -1103,31 +1055,32 @@ module Syskit
             #   the plan, allowing to display it anyway (for debugging of models
             #   for instance). Set it to false to do no special action (i.e.
             #   drop the currently generated plan)
-            def resolve(options = Hash.new)
+            def resolve(requirement_tasks: discover_requirement_tasks_from_plan(real_plan),
+                        on_error: nil,
+                        compute_deployments: true,
+                        compute_policies: true,
+                        garbage_collect: true,
+                        save_plans: false,
+                        validate_abstract_network: true,
+                        validate_generated_network: true,
+                        validate_deployed_network: true,
+                        validate_final_network: true)
                 log_timepoint_group_start 'syskit-engine-resolve'
-                @timepoints = []
-
-                @forced_update = false
-
-                # Set some objects to nil to make sure that noone is using them
-                # while they are not valid
-                @dataflow_dynamics =
-                    @port_dynamics =
-                    @deployment_tasks = nil
 
                 create_work_plan_transaction
                 log_timepoint_group 'prepare' do
-                    prepare(options)
+                    Engine.model_postprocessing.each do |block|
+                        block.call
+                    end
                 end
-
-                # We use simply "options" below, which resolves to the local
-                # variable. Update it.
-                options = self.options
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
                 log_timepoint_group 'compute_system_network' do
-                    compute_system_network(options[:requirement_tasks])
+                    compute_system_network(requirement_tasks,
+                                           garbage_collect: garbage_collect,
+                                           validate_abstract_network: validate_abstract_network,
+                                           validate_generated_network: validate_generated_network)
                 end
 
                 # Now, deploy the network by matching the available
@@ -1136,9 +1089,10 @@ module Syskit
                 #
                 # The mapping from this deployed network to the running
                 # tasks is done in #finalize_deployed_tasks
-                if options[:compute_deployments]
+                if compute_deployments
                     log_timepoint_group 'compute_deployed_network' do
-                        compute_deployed_network(compute_policies: options[:compute_policies])
+                        compute_deployed_network(compute_policies: compute_policies,
+                                                 validate_deployed_network: validate_deployed_network)
                     end
                 end
 
@@ -1154,12 +1108,12 @@ module Syskit
 
                 # Finally, we should now only have deployed tasks. Verify it
                 # and compute the connection policies
-                if options[:garbage_collect] && options[:validate_final_network]
-                    validate_final_network(work_plan, options)
+                if garbage_collect && validate_final_network
+                    validate_final_network(work_plan, compute_deployments: compute_deployments)
                     log_timepoint 'validate_final_network'
                 end
 
-                if options[:save_plans]
+                if save_plans
                     dataflow_path, hierarchy_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
                     info "saved generated plan into #{dataflow_path} and #{hierarchy_path}"
                 end
@@ -1175,7 +1129,7 @@ module Syskit
 
             rescue Exception => e
                 if !work_plan.finalized? && (work_plan != real_plan) # we started processing, look at what the user wants to do with the partial transaction
-                    if options[:on_error] == :save
+                    if on_error == :save
                         log_pp(:fatal, e)
                         fatal "Engine#resolve failed"
                         begin
@@ -1188,7 +1142,7 @@ module Syskit
                         end
                     end
 
-                    if options[:on_error] == :commit
+                    if on_error == :commit
                         work_plan.commit_transaction
                     else
                         work_plan.discard_transaction
@@ -1202,7 +1156,7 @@ module Syskit
             end
 
             # Validates the state of the network at the end of #resolve
-            def validate_final_network(plan, options = Hash.new)
+            def validate_final_network(plan, compute_deployments: true)
                 # Check that all device instances are proper tasks (not proxies)
                 required_instances.each do |req_task, task|
                     if task.transaction_proxy?
@@ -1212,7 +1166,7 @@ module Syskit
                     end
                 end
 
-                if options[:compute_deployments]
+                if compute_deployments
                     # Check for the presence of non-deployed tasks
                     verify_all_tasks_deployed
                 end

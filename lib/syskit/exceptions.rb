@@ -287,8 +287,9 @@ module Syskit
 
                 still_abstract.each do |task|
                     if task.respond_to?(:proxied_data_services)
+                        deployed_models = engine.compute_deployed_models
                         per_service_candidates = task.proxied_data_services.map do |m|
-                            engine.deployed_models.find_all { |deployed_m| deployed_m.fullfills?(m) }.to_set
+                            deployed_models.find_all { |deployed_m| deployed_m.fullfills?(m) }.to_set
                         end
                         candidates = per_service_candidates.inject { |a, b| a & b } || Set.new
                     else
@@ -491,7 +492,7 @@ module Syskit
                         [host, deployment, task_name, existing]
                     end
 
-                    @tasks[task] = [parents, candidates]
+                    @tasks[task] = [parents, candidates, task.deployment_hints]
                 end
             end
 
@@ -509,14 +510,13 @@ module Syskit
                     end
                 end
 
-                tasks.each do |task, (parents, possible_deployments)|
+                tasks.each do |task, (parents, possible_deployments, deployment_hints)|
                     has_free_deployment = possible_deployments.any? { |_, _, _, existing| existing.empty? }
                     pp.breakable
                     if has_free_deployment
                         pp.text "#{task}: multiple possible deployments, choose one with #prefer_deployed_tasks(deployed_task_name)"
-                        current_hints = task.deployment_hints
-                        if !current_hints.empty?
-                            current_hints.each do |hint|
+                        if !deployment_hints.empty?
+                            deployment_hints.each do |hint|
                                 pp.text "  current hints: #{current_hints.map(&:to_s).join(", ")}"
                             end
                         end
