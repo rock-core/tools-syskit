@@ -138,7 +138,7 @@ module Syskit
                 else
                     edit_cmd = edit_cmd.to_string.
                         gsub("%FILEPATH", url.to_local_file).
-                        gsub("%LINENO", url.query_item_value('lineno'))
+                        gsub("%LINENO", url.query_item_value('lineno') || '0')
 
                     edit_cmd = Shellwords.shellsplit(edit_cmd)
                     stdin, stdout, stderr, wait_thr = Open3.popen3(*edit_cmd)
