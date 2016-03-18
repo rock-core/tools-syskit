@@ -179,6 +179,40 @@ module Syskit
                 @selected_item = item
                 @selected_item_runtime = nil
                 test_result_page.clear
+                if test_file_path = item.slave.name[:path]
+                    items = []
+                    items << ['title', 'Test file']
+                    items << ['', test_result_page.link_to(Pathname.new(test_file_path), test_file_path)]
+
+                    models = (item.slave.name[:models] || Array.new)
+                    if !models.empty?
+                        items << ['title', 'Models']
+                        models.sort.each do |model_name|
+                            begin
+                                model_object = constant(model_name)
+                            rescue NameError
+                                items << ['', model_name]
+                                next
+                            end
+
+                            if definition_file = Roby.app.definition_file_for(model_object)
+                                link = test_result_page.link_to(Pathname.new(definition_file), "Open File")
+                                items << ['', "#{model_name} [#{link}]"]
+                            else
+                                items << ['', model_name]
+                            end
+                        end
+                    end
+
+                    items = items.map do |li_class, text|
+                        if li_class.empty?
+                            "<li>#{text}</li>"
+                        else
+                            "<li class=\"#{li_class}\">#{text}</li>"
+                        end
+                    end
+                    test_result_page.push nil, "<ul class='body-header-list'>#{items.join("")}</ul>"
+                end
                 update_selected_item_state
 
                 item.exceptions.each do |e|
