@@ -166,9 +166,9 @@ module Syskit
                 if runtime = item.runtime
                     status_text = item.status_text.join("<br/>")
                     if item.finished?
-                        test_result_page.push nil, "Ran for %.01fs: %s" % [runtime, status_text], id: 'status'
+                        test_result_page.push nil, "Run %i ran for %.01fs: %s" % [item.total_run_count, runtime, status_text], id: 'status'
                     elsif runtime = item.runtime
-                        test_result_page.push nil, "Running %.01fs: %s" % [runtime, status_text], id: 'status'
+                        test_result_page.push nil, "Run %i currently running %.01fs: %s" % [item.total_run_count, runtime, status_text], id: 'status'
                     end
                 else
                     test_result_page.push nil, "Never ran", id: 'status'
@@ -313,6 +313,8 @@ module Syskit
 
                 attr_reader :slave_exit_status
 
+                attr_reader :total_run_count
+
                 # The count of exceptions
                 def exception_count; exceptions.size end
 
@@ -324,6 +326,7 @@ module Syskit
                     @has_tested = false
                     @executed = false
                     @slave = slave
+                    @total_run_count = 0
                     name = (slave.name[:path] || "Robot: #{app.robot_name}")
                     if base_path = app.find_base_path_for(name)
                         name = File.basename(base_path) + ":" + name[(base_path.size + 1)..-1]
@@ -363,6 +366,7 @@ module Syskit
                 end
 
                 def start
+                    @total_run_count += 1
                     @start_time = Time.now
                     @runtime = nil
                     @executed = true
