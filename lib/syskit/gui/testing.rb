@@ -442,8 +442,8 @@ module Syskit
                     if slave_exit_status && !slave_exit_status.success?
                         if slave_exit_status.signaled?
                             text << "Test process terminated with signal #{slave_exit_status.termsig}"
-                        else
-                            text << "Test process finished with exist code #{slave_exit_status.exitstatus}"
+                        elsif slave_exit_status.exitstatus != 1 || !has_tested? || (exception_count == 0 && failure_count == 0)
+                            text << "Test process finished with exit code #{slave_exit_status.exitstatus}"
                         end
                     end
                     text
