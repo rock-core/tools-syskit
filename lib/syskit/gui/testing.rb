@@ -370,8 +370,10 @@ module Syskit
                     @start_time = Time.now
                     @runtime = nil
                     @executed = true
+                    @slave_exit_status = nil
                     self.background = Qt::Brush.new(Qt::Color.new(RUNNING_BACKGROUND))
                     clear
+                    update_text
                 end
 
                 def runtime
