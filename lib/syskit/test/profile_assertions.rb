@@ -9,6 +9,25 @@ module Syskit
         module ProfileAssertions
             include NetworkManipulation
 
+            class ProfileAssertionFailed < Roby::ExceptionBase
+                attr_reader :actions
+
+                def initialize(act, original_error)
+                    @actions = Array(act)
+                    super([original_error])
+                end
+
+                def pretty_print(pp)
+                    pp.text "Failure while running an assertion on"
+                    pp.nest(2) do
+                        actions.each do |act|
+                            pp.breakable
+                            act.pretty_print(pp)
+                        end
+                    end
+                end
+            end
+
             # Validates an argument that can be an action, an action collection
             # (e.g. a profile) or an array of action, and normalizes it into an
             # array of actions
@@ -35,23 +54,27 @@ module Syskit
             #
             # Note that it is a really good idea to maintain this property. No.
             # Seriously. Keep it in your tests.
-            def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "#{action_or_profile} is not self contained", **instanciate_options)
+            def assert_is_self_contained(action_or_profile = subject_syskit_model, message: "%s is not self contained", **instanciate_options)
                 Actions(action_or_profile).each do |act|
-                    self.assertions += 1
-                    syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
-                    task = syskit_deploy(act, syskit_engine: syskit_engine, compute_policies: false, compute_deployments: false, validate_generated_network: false, **instanciate_options)
-                    still_abstract = plan.find_local_tasks(Syskit::Component).
-                        abstract.to_a
-                    tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }
-                    tags_from_other = tags.find_all { |task| task.class.profile != subject_syskit_model }
-                    if !other.empty?
-                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, other)), message
-                    elsif !tags_from_other.empty?
-                        other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
-                        raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
+                    begin
+                        self.assertions += 1
+                        syskit_engine = Syskit::NetworkGeneration::Engine.new(plan)
+                        task = syskit_deploy(act, syskit_engine: syskit_engine, compute_policies: false, compute_deployments: false, validate_generated_network: false, **instanciate_options)
+                        still_abstract = plan.find_local_tasks(Syskit::Component).
+                            abstract.to_a
+                        tags, other = still_abstract.partition { |task| task.class <= Actions::Profile::Tag }
+                        tags_from_other = tags.find_all { |task| task.class.profile != subject_syskit_model }
+                        if !other.empty?
+                            raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, other)), message % [act.to_s]
+                        elsif !tags_from_other.empty?
+                            other_profiles = tags_from_other.map { |t| t.class.profile }.uniq
+                            raise Roby::Test::Assertion.new(TaskAllocationFailed.new(syskit_engine, tags)), "#{act} contains tags from another profile (found #{other_profiles.map(&:name).sort.join(", ")}, expected #{subject_syskit_model}"
+                        end
+                        plan.unmark_mission_task(task)
+                        plan.execution_engine.garbage_collect
+                    rescue Exception => e
+                        raise ProfileAssertionFailed.new(act, e), e.message
                     end
-                    plan.unmark_mission_task(task)
-                    plan.execution_engine.garbage_collect
                 end
             end
 
@@ -107,6 +130,8 @@ module Syskit
                 syskit_deploy(Actions(actions),
                                  compute_policies: false,
                                  compute_deployments: false)
+            rescue Exception => e
+                raise ProfileAssertionFailed.new(actions, e), e.message
             end
 
             # Spec-style call for {#assert_can_instanciate_together}
@@ -159,6 +184,8 @@ module Syskit
                 syskit_deploy(Actions(actions),
                                  compute_policies: true,
                                  compute_deployments: true)
+            rescue Exception => e
+                raise ProfileAssertionFailed.new(actions, e), e.message
             end
 
             # Spec-style call for {#assert_can_deploy_together}
@@ -189,6 +216,8 @@ module Syskit
                 plan.find_tasks(Syskit::TaskContext).each do |task_context|
                     syskit_configure(task_context)
                 end
+            rescue Exception => e
+                raise ProfileAssertionFailed.new(actions, e), e.message
             end
 
             # Spec-style call for {#assert_can_configure_together}
