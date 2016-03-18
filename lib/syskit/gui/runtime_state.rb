@@ -225,10 +225,11 @@ module Syskit
                     placeholder_task = job_task.planned_task
                     return if !placeholder_task
 
-                    tasks = placeholder_task.generated_subgraph(Roby::TaskStructure::Dependency)
+                    dependency = placeholder_task.relation_graph_for(Roby::TaskStructure::Dependency)
+                    tasks = dependency.enum_for(:depth_first_visit, placeholder_task).to_a
                     tasks << job_task
                 else
-                    tasks = syskit_log_stream.plan.known_tasks
+                    tasks = syskit_log_stream.plan.tasks
                 end
 
                 all_tasks.merge(tasks.to_set)
