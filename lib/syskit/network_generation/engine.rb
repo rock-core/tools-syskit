@@ -681,10 +681,6 @@ module Syskit
 
             class << self
                 # Set of blocks registered with
-                # register_model_postprocessing
-                attr_reader :model_postprocessing
-
-                # Set of blocks registered with
                 # register_instanciation_postprocessing
                 attr_reader :instanciation_postprocessing
 
@@ -704,22 +700,11 @@ module Syskit
                 # register_final_network_postprocessing
                 attr_reader :final_network_postprocessing
             end
-            @model_postprocessing = Array.new
             @instanciation_postprocessing = Array.new
             @instanciated_network_postprocessing = Array.new
             @system_network_postprocessing = Array.new
             @deployment_postprocessing = Array.new
             @final_network_postprocessing = Array.new
-
-            # Registers a system-wide post-processing stage for the models.
-            # This post-processing block is meant to modify the models according
-            # to the activity of some plugins. It can also be used if you want
-            # to validate some properties on them.
-            #
-            # The block will be given the SystemModel object
-            def self.register_model_postprocessing(&block)
-                model_postprocessing << block
-            end
 
             # Registers a system-wide post-processing stage for the instanciation
             # stage. This post-processing block is meant to add new tasks and
@@ -1068,11 +1053,6 @@ module Syskit
                 log_timepoint_group_start 'syskit-engine-resolve'
 
                 create_work_plan_transaction
-                log_timepoint_group 'prepare' do
-                    Engine.model_postprocessing.each do |block|
-                        block.call
-                    end
-                end
 
                 # We first generate a non-deployed network that fits all
                 # requirements.
