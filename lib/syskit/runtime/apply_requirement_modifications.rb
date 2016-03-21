@@ -10,12 +10,20 @@ module Syskit
 
             def syskit_start_async_resolution(requirement_tasks)
                 @syskit_resolution_pool ||= Concurrent::CachedThreadPool.new
+                # Protect all toplevel Syskit tasks while the resolution runs
+                @syskit_current_resolution_keepalive = Roby::Transaction.new(self)
+                find_local_tasks(InstanceRequirementsTask).each do |req_task|
+                    if !req_task.failed? && !req_task.pending? && req_task.planned_task && !req_task.planned_task.finished?
+                        syskit_current_resolution_keepalive.wrap(req_task.planned_task)
+                    end
+                end
                 @syskit_current_resolution = NetworkGeneration::Async.new(self, thread_pool: syskit_resolution_pool)
                 syskit_current_resolution.start(requirement_tasks)
             end
 
             def syskit_cancel_async_resolution
                 syskit_current_resolution.cancel
+                syskit_current_resolution_keepalive.discard_transaction
                 @syskit_current_resolution = nil
             end
 
@@ -34,6 +42,7 @@ module Syskit
 
             def syskit_apply_async_resolution_results
                 syskit_current_resolution.apply
+                syskit_current_resolution_keepalive.discard_transaction
                 @syskit_current_resolution = nil
             end
         end

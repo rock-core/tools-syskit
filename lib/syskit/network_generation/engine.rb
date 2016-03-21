@@ -505,9 +505,9 @@ module Syskit
             def self.discover_requirement_tasks_from_plan(plan)
                 req_tasks = plan.find_local_tasks(InstanceRequirementsTask).
                     find_all do |req_task|
-                    !req_task.failed? && !req_task.pending? &&
-                        req_task.planned_task && !req_task.planned_task.finished?
-                end
+                        !req_task.failed? && !req_task.pending? &&
+                            req_task.planned_task && !req_task.planned_task.finished?
+                    end
                 needed = plan.useful_tasks(with_transactions: false)
                 req_tasks.delete_if do |t|
                     !needed.include?(t)
