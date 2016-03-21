@@ -1,5 +1,4 @@
 require 'syskit/test/self'
-require './test/fixtures/simple_composition_model'
 
 module Syskit
     module NetworkGeneration

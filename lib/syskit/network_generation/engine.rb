@@ -69,10 +69,6 @@ module Syskit
                 @required_instances = Hash.new
             end
 
-            def update_task_context_deployment_candidates
-                @task_context_deployment_candidates = compute_task_context_deployment_candidates
-            end
-
             # Returns the set of deployments that are available for this network
             # generation
             def available_deployments
@@ -157,7 +153,8 @@ module Syskit
             # This does not access {#real_plan}
             def compute_deployed_network(compute_policies: true, validate_deployed_network: true)
                 log_timepoint_group 'deploy_system_network' do
-                    deploy_system_network(validate: validate_deployed_network)
+                    SystemNetworkDeployer.new(work_plan, event_logger: event_logger, merge_solver: merge_solver).
+                        deploy(validate: validate_deployed_network)
                 end
 
                 # Now that we have a deployed network, we can compute the
@@ -189,188 +186,6 @@ module Syskit
                     block.call(self, work_plan)
                     log_timepoint "postprocessing:#{block}"
                 end
-            end
-
-            # Computes a mapping from task models to the set of registered
-            # deployments that apply on these task models
-            #
-            # @return [{Model<TaskContext>=>[(String,Model<Deployment>,String)]}]
-            #   mapping from task context models to a set of
-            #   (machine_name,deployment_model,task_name) tuples representing
-            #   the known ways this task context model could be deployed
-            def compute_task_context_deployment_candidates
-                deployed_models = Hash.new
-                available_deployments.each do |machine_name, deployment_models|
-                    deployment_models.each do |model|
-                        model.each_orogen_deployed_task_context_model do |deployed_task|
-                            task_model = TaskContext.model_for(deployed_task.task_model)
-                            deployed_models[task_model] ||= Set.new
-                            deployed_models[task_model] << [machine_name, model, deployed_task.name]
-                        end
-                    end
-                end
-                deployed_models
-            end
-
-            # Try to resolve a set of deployment candidates for a given task
-            #
-            # @param [Array<(String,Model<Deployment>,String)>] candidates set
-            #   of deployment candidates as
-            #   (machine_name,deployment_model,task_name) tuples
-            # @param [Syskit::TaskContext] task the task context for which
-            #   candidates are possible deployments
-            # @return [(String,Model<Deployment>,String),nil] the resolved
-            #   deployment, if finding a single best candidate was possible, or
-            #   nil otherwise.
-            def resolve_deployment_ambiguity(candidates, task)
-                if task.orocos_name
-                    debug { "#{task} requests orocos_name to be #{task.orocos_name}" }
-                    resolved = candidates.find { |_, _, task_name| task_name == task.orocos_name }
-                    if !resolved
-                        debug { "cannot find requested orocos name #{task.orocos_name}" }
-                    end
-                    return resolved
-                end
-                hints = task.deployment_hints
-                debug { "#{task}.deployment_hints: #{hints.map(&:to_s).join(", ")}" }
-                # Look to disambiguate using deployment hints
-                resolved = candidates.find_all do |_, deployment_model, task_name|
-                    task.deployment_hints.any? do |rx|
-                        rx == deployment_model || rx === task_name
-                    end
-                end
-                if resolved.size != 1
-                    info do
-                        info { "ambiguous deployment for #{task} (#{task.model})" }
-                        candidates.each do |machine, deployment_model, task_name|
-                            info { "  #{task_name} of #{deployment_model.short_name} on #{machine}" }
-                        end
-                        break
-                    end
-                    return
-                end
-                return resolved.first
-            end
-
-            def find_suitable_deployment_for(task)
-                # task.model would be wrong here as task.model could be the
-                # singleton class (if there are dynamic services)
-                candidates = task_context_deployment_candidates[task.model]
-                if !candidates || candidates.empty?
-                    candidates = task_context_deployment_candidates[task.concrete_model]
-                    if !candidates || candidates.empty?
-                        debug { "no deployments found for #{task} (#{task.concrete_model})" }
-                        return
-                    end
-                end
-
-                if candidates.size > 1
-                    debug { "#{candidates.size} deployments available for #{task} (#{task.concrete_model}), trying to resolve" }
-                    selected = log_nest(2) do
-                        resolve_deployment_ambiguity(candidates, task)
-                    end
-                    if selected
-                        debug { "  selected #{selected}" }
-                        return selected
-                    else
-                        debug { "  deployment of #{task} (#{task.concrete_model}) is ambiguous" }
-                        return
-                    end
-                else
-                    return candidates.first
-                end
-            end
-
-            def select_deployments(tasks)
-                used_deployments = Set.new
-                missing_deployments = Set.new
-                selected_deployments = Hash.new
-
-                all_tasks = work_plan.find_local_tasks(TaskContext).to_a
-                all_tasks.each do |task|
-                    next if task.execution_agent
-                    if !(selected = find_suitable_deployment_for(task))
-                        missing_deployments << task
-                    elsif used_deployments.include?(selected)
-                        debug do
-                            machine, configured_deployment, task_name = *selected
-                            "#{task} resolves to #{configured_deployment}.#{task_name} on #{machine} for its deployment, but it is already used"
-                        end
-                        missing_deployments << task
-                    else
-                        used_deployments << selected
-                        selected_deployments[task] = selected
-                    end
-                end
-                return selected_deployments, missing_deployments
-            end
-
-            def apply_selected_deployments(selected_deployments)
-                deployment_tasks = Hash.new
-                selected_deployments.each do |task, selected|
-                    machine, configured_deployment, task_name = *selected
-
-                    deployment_task =
-                        (deployment_tasks[[machine, configured_deployment]] ||= configured_deployment.new(on: machine))
-                    work_plan.add(deployment_task)
-                    deployed_task = deployment_task.task(task_name)
-                    debug { "deploying #{task} with #{task_name} of #{configured_deployment.short_name} (#{deployed_task})" }
-                    merge_solver.apply_merge_group(task => deployed_task)
-                    debug { "  => #{deployed_task}" }
-                end
-            end
-
-            # Called after compute_system_network to map the required component
-            # network to deployments
-            #
-            # We are still purely within {#work_plan}, the mapping to
-            # {#real_plan} is done by calling {#finalize_deployed_tasks}
-            def deploy_system_network(validate: true)
-                update_task_context_deployment_candidates
-
-                debug do
-                    debug "Deploying the system network"
-                    debug "Available deployments"
-                    log_nest(2) do
-                        task_context_deployment_candidates.each do |model, deployments|
-                            if !deployments
-                                debug "#{model}: no deployments"
-                            elsif deployments.size == 1
-                                debug "#{model}: #{deployments.first}"
-                            else
-                                debug "#{model}"
-                                log_nest(2) do
-                                    deployments.each do |deployment|
-                                        debug deployment.to_s
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    break
-                end
-
-                all_tasks = work_plan.find_local_tasks(TaskContext).to_a
-                selected_deployments, missing_deployments = select_deployments(all_tasks)
-                log_timepoint 'select_deployments'
-
-                apply_selected_deployments(selected_deployments)
-                log_timepoint 'apply_selected_deployments'
-
-                if validate
-                    validate_deployed_network
-                    log_timepoint 'validate_deployed_network'
-                end
-
-                return missing_deployments
-            end
-
-            # Sanity checks to verify that the result of #deploy_system_network
-            # is valid
-            #
-            # @raise [MissingDeployments] if some tasks could not be deployed
-            def validate_deployed_network
-                verify_all_tasks_deployed
             end
 
             class << self
@@ -872,34 +687,7 @@ module Syskit
                     end
                 end
 
-                if compute_deployments
-                    # Check for the presence of non-deployed tasks
-                    verify_all_tasks_deployed
-                end
-
                 super if defined? super
-            end
-
-            def verify_all_tasks_deployed
-                not_deployed = work_plan.find_local_tasks(TaskContext).
-                    not_finished.not_abstract.
-                    find_all { |t| !t.execution_agent }
-
-                if !not_deployed.empty?
-                    tasks_with_candidates = Hash.new
-                    not_deployed.each do |task|
-                        candidates = task_context_deployment_candidates[task.concrete_model] || []
-                        candidates = candidates.map do |host, deployment, task_name|
-                            existing = work_plan.find_local_tasks(task.model).
-                                find_all { |t| t.orocos_name == task_name }
-                            [host, deployment, task_name, existing]
-                        end
-
-                        tasks_with_candidates[task] = candidates
-                    end
-                    raise MissingDeployments.new(tasks_with_candidates),
-                        "there are tasks for which it exists no deployed equivalent: #{not_deployed.map { |m| "#{m}(#{m.orogen_model.name})" }}"
-                end
             end
 
             @@dot_index = 0
