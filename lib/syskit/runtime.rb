@@ -6,7 +6,7 @@ module Syskit
     end
 end
 
-require 'syskit/runtime/apply_requirements_modifications'
+require 'syskit/runtime/apply_requirement_modifications'
 require 'syskit/runtime/exceptions'
 require 'syskit/runtime/runtime_connection_management'
 require 'syskit/runtime/update_deployment_states'

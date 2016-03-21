@@ -1,5 +1,6 @@
 require 'syskit/test/self'
 
+require './test/network_generation/test_async'
 require './test/network_generation/test_system_network_deployer'
 require './test/network_generation/test_system_network_generator'
 require './test/network_generation/test_engine'

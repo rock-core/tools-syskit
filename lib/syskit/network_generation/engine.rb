@@ -62,10 +62,9 @@ module Syskit
 
             def initialize(plan, event_logger: plan.event_logger)
                 @real_plan = plan
-                @work_plan = plan
+                @work_plan = Roby::Transaction.new(real_plan)
+                @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
                 @event_logger = event_logger
-
-                @merge_solver = NetworkGeneration::MergeSolver.new(real_plan)
                 @required_instances = Hash.new
             end
 
@@ -135,32 +134,19 @@ module Syskit
                 deployed_models
             end
 
-            # Resets the state of the solver to be ready for another call to
-            # #resolve
-            #
-            # It should be called as soon as #prepare has been called
-            def finalize
-                if work_plan && (work_plan != real_plan)
-                    if !work_plan.finalized?
-                        work_plan.discard_transaction
-                    end
-                    @work_plan = real_plan
-                end
-            end
-
             # Transform the system network into a deployed network
             #
             # This does not access {#real_plan}
-            def compute_deployed_network(compute_policies: true, validate_deployed_network: true)
+            def compute_deployed_network(plan: work_plan, compute_policies: true, validate_deployed_network: true)
                 log_timepoint_group 'deploy_system_network' do
-                    SystemNetworkDeployer.new(work_plan, event_logger: event_logger, merge_solver: merge_solver).
+                    SystemNetworkDeployer.new(plan, event_logger: event_logger, merge_solver: merge_solver).
                         deploy(validate: validate_deployed_network)
                 end
 
                 # Now that we have a deployed network, we can compute the
                 # connection policies and the port dynamics
                 if compute_policies
-                    @dataflow_dynamics = DataFlowDynamics.new(work_plan)
+                    @dataflow_dynamics = DataFlowDynamics.new(plan)
                     @port_dynamics = dataflow_dynamics.compute_connection_policies
                     log_timepoint 'compute_connection_policies'
                 end
@@ -275,9 +261,9 @@ module Syskit
                 final_network_postprocessing << block
             end
 
-            # Updates the tasks stored in {#required_instances} and in
-            # {#dataflow_dynamics} with the tasks that will replace them in
-            # {#real_plan} once the {#work_plan} transaction is committed.
+            # Updates the tasks stored in {#dataflow_dynamics} with the tasks
+            # that will replace them in {#real_plan} once the {#work_plan}
+            # transaction is committed.
             #
             # It also updates the merge graph in {#merge_solver} so that
             # it points to tasks in {#real_plan}
@@ -514,38 +500,30 @@ module Syskit
                 applied_merges
             end
 
-            def create_work_plan_transaction
-                @work_plan = Roby::Transaction.new(real_plan)
-                @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
-            end
-
-            def self.resolve(plan, **options)
-                new(plan).resolve(**options)
-            end
-
             # Computes the set of requirement tasks that should be used for
             # deployment within the given plan
-            def discover_requirement_tasks_from_plan(plan)
+            def self.discover_requirement_tasks_from_plan(plan)
                 req_tasks = plan.find_local_tasks(InstanceRequirementsTask).
                     find_all do |req_task|
                     !req_task.failed? && !req_task.pending? &&
                         req_task.planned_task && !req_task.planned_task.finished?
                 end
-                not_needed = plan.unneeded_tasks
+                needed = plan.useful_tasks(with_transactions: false)
                 req_tasks.delete_if do |t|
-                    not_needed.include?(t)
+                    !needed.include?(t)
                 end
                 req_tasks
             end
 
-            def compute_system_network(requirement_tasks = discover_requirement_tasks_from_plan(real_plan),
+            def compute_system_network(requirement_tasks = Engine.discover_requirement_tasks_from_plan(real_plan),
+                                       plan: work_plan,
                                        garbage_collect: true,
                                        validate_abstract_network: true,
                                        validate_generated_network: true)
                 requirement_tasks = requirement_tasks.to_a
                 instance_requirements = requirement_tasks.map(&:requirements)
                 system_network_generator = SystemNetworkGenerator.new(
-                    work_plan, event_logger: event_logger, merge_solver: merge_solver)
+                    plan, event_logger: event_logger, merge_solver: merge_solver)
                 toplevel_tasks = system_network_generator.generate(
                     instance_requirements,
                     garbage_collect: garbage_collect,
@@ -553,6 +531,33 @@ module Syskit
                     validate_generated_network: validate_generated_network)
 
                 Hash[ requirement_tasks.zip(toplevel_tasks) ]
+            end
+
+            def resolve_system_network(requirement_tasks,
+                                       plan: work_plan,
+                                       garbage_collect: true,
+                                       validate_abstract_network: true,
+                                       validate_generated_network: true,
+                                       validate_deployed_network: true,
+                                       compute_deployments: true,
+                                       compute_policies: true)
+
+                required_instances = compute_system_network(
+                    requirement_tasks,
+                    plan: plan,
+                    garbage_collect: garbage_collect,
+                    validate_abstract_network: validate_abstract_network,
+                    validate_generated_network: validate_generated_network)
+
+                if compute_deployments
+                    log_timepoint_group 'compute_deployed_network' do
+                        compute_deployed_network(
+                            plan: plan,
+                            compute_policies: compute_policies,
+                            validate_deployed_network: validate_deployed_network)
+                    end
+                end
+                required_instances
             end
 
             # Generate the deployment according to the current requirements, and
@@ -578,25 +583,39 @@ module Syskit
             #   the plan, allowing to display it anyway (for debugging of models
             #   for instance). Set it to false to do no special action (i.e.
             #   drop the currently generated plan)
-            def resolve(requirement_tasks: discover_requirement_tasks_from_plan(real_plan),
+            def resolve(requirement_tasks: Engine.discover_requirement_tasks_from_plan(real_plan),
                         on_error: nil,
                         compute_deployments: true,
                         compute_policies: true,
                         garbage_collect: true,
-                        save_plans: false,
                         validate_abstract_network: true,
                         validate_generated_network: true,
                         validate_deployed_network: true,
                         validate_final_network: true)
-                log_timepoint_group_start 'syskit-engine-resolve'
 
-                create_work_plan_transaction
-
-                required_instances = compute_system_network(
+                required_instances = resolve_system_network(
                     requirement_tasks,
                     garbage_collect: garbage_collect,
                     validate_abstract_network: validate_abstract_network,
-                    validate_generated_network: validate_generated_network)
+                    validate_generated_network: validate_generated_network,
+                    compute_deployments: compute_deployments,
+                    compute_policies: compute_policies,
+                    validate_deployed_network: validate_deployed_network)
+
+                apply_system_network_to_plan(
+                    required_instances,
+                    compute_deployments: compute_deployments,
+                    garbage_collect: garbage_collect,
+                    validate_final_network: validate_final_network)
+
+            rescue Exception => e
+                handle_resolution_exception(e, on_error: on_error)
+                raise
+            end
+
+            def apply_system_network_to_plan(
+                required_instances, compute_deployments: true,
+                garbage_collect: true, validate_final_network: true)
 
                 # Now, deploy the network by matching the available
                 # deployments to the one in the generated network. Note that
@@ -605,10 +624,6 @@ module Syskit
                 # The mapping from this deployed network to the running
                 # tasks is done in #finalize_deployed_tasks
                 if compute_deployments
-                    log_timepoint_group 'compute_deployed_network' do
-                        compute_deployed_network(compute_policies: compute_policies,
-                                                 validate_deployed_network: validate_deployed_network)
-                    end
                     log_timepoint_group 'apply_deployed_network_to_plan' do
                         apply_deployed_network_to_plan
                     end
@@ -634,10 +649,6 @@ module Syskit
                     log_timepoint 'validate_final_network'
                 end
 
-                if save_plans
-                    dataflow_path, hierarchy_path = Engine.autosave_plan_to_dot(work_plan, Roby.app.log_dir)
-                    info "saved generated plan into #{dataflow_path} and #{hierarchy_path}"
-                end
                 work_plan.commit_transaction
                 log_timepoint 'commit_transaction'
 
@@ -647,8 +658,9 @@ module Syskit
                         task.orocos_task.model = task.model.orogen_model
                     end
                 end
+            end
 
-            rescue Exception => e
+            def handle_resolution_exception(e, on_error: :discard)
                 if !work_plan.finalized? && (work_plan != real_plan) # we started processing, look at what the user wants to do with the partial transaction
                     if on_error == :save
                         log_pp(:fatal, e)
@@ -669,11 +681,6 @@ module Syskit
                         work_plan.discard_transaction
                     end
                 end
-                raise
-
-            ensure
-                finalize
-                log_timepoint_group_end 'syskit-engine-resolve'
             end
 
             # Validates the state of the network at the end of #resolve

@@ -183,8 +183,8 @@ module Syskit
                             flexmock(manager).should_receive(:removed_connections_require_network_update?).
                                 and_return(true)
                             flexmock(manager).should_receive(:update).once.pass_thru.ordered
-                            flexmock(Syskit::NetworkGeneration::Engine).should_receive(:resolve).once.ordered
-                            flexmock(manager).should_receive(:update).once.ordered
+                            flexmock(Runtime).should_receive(:apply_requirement_modifications).
+                                with(any, force: true).once.ordered
                             manager.update
                             assert_equal expected, dataflow_graph.pending_changes
                             dataflow_graph.pending_changes = nil
@@ -404,6 +404,7 @@ module Syskit
 
                     sink_srv = sink.as_service
                     ConnectionManagement.update(plan)
+                    plan.syskit_join_current_resolution
                     ConnectionManagement.update(plan)
                     refute_equal sink, sink_srv.to_task
                 end

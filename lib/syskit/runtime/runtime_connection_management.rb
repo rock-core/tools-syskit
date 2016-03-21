@@ -498,6 +498,9 @@ module Syskit
             end
 
             def update
+                # Don't do anything if the engine is deploying
+                return if plan.syskit_has_async_resolution?
+                
                 tasks = dataflow_graph.modified_tasks
                 tasks.delete_if { |t| !active_task?(t) }
                 debug "connection: updating, #{tasks.size} tasks modified in dataflow graph"
@@ -557,8 +560,8 @@ module Syskit
                     end
                     if removed_connections_require_network_update?(removed)
                         dataflow_graph.pending_changes = [main_tasks, new, removed]
-                        Syskit::NetworkGeneration::Engine.resolve(plan)
-                        return update
+                        Runtime.apply_requirement_modifications(plan, force: true)
+                        return
                     end
 
                     debug "applying pending changes from the data flow graph"
