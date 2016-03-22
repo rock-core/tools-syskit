@@ -120,9 +120,10 @@ describe Syskit::TaskContext do
                 input_port "in", "/double"
                 output_port "out", "/double"
             end
-            plan.add(@task = task_m.new(conf: [], orocos_name: ""))
+            @task = syskit_stub_and_deploy(task_m)
+            syskit_start_execution_agents(task)
+            @orocos_task = flexmock(task.orocos_task)
             task.executable = true
-            flexmock(task).should_receive(:orocos_task).and_return(@orocos_task = flexmock)
         end
 
         after do
@@ -132,9 +133,10 @@ describe Syskit::TaskContext do
             task.stop_event.emit if task.running?
         end
 
-        it "should start the underlying task" do
+        it "queues start for the underlying task" do
             orocos_task.should_receive(:start).once
             task.start!
+            execution_engine.join_all_waiting_work
         end
 
         it "should check that all required output ports are present" do
@@ -169,23 +171,21 @@ describe Syskit::TaskContext do
             orocos_task.should_receive(:start).once
             task.start!
             assert !task.running?
+            execution_engine.join_all_waiting_work
+            assert !task.running?
         end
         it "fails to start if orocos_task#start raises Orocos::ComError" do
             orocos_task.should_receive(:start).and_raise(Orocos::ComError)
-            assert_raises(Orocos::ComError) do
-                assert_event_becomes_unreachable task.start_event do
-                    task.start!
-                end
+            assert_event_becomes_unreachable task.start_event do
+                task.start!
             end
             assert task.failed_to_start?
             assert_kind_of Orocos::ComError, task.failure_reason.original_exception
         end
         it "fails to start if orocos_task#start raises Orocos::StateTransitionFailed" do
             orocos_task.should_receive(:start).and_raise(Orocos::StateTransitionFailed)
-            assert_raises(Orocos::StateTransitionFailed) do
-                assert_event_becomes_unreachable task.start_event do
-                    task.start!
-                end
+            assert_event_becomes_unreachable task.start_event do
+                task.start!
             end
             assert task.failed_to_start?
             assert_kind_of Orocos::StateTransitionFailed, task.failure_reason.original_exception
@@ -215,9 +215,7 @@ describe Syskit::TaskContext do
             flexmock(task.orocos_task).should_receive(:stop).and_raise(Orocos::ComError)
             plan.unmark_mission_task(task)
             assert_event_emission task.aborted_event do
-                assert_raises(Orocos::ComError) do
-                    task.stop!
-                end
+                task.stop!
             end
             assert task.interrupt_event.emitted?
         end

@@ -600,7 +600,9 @@ module Syskit
 
                 ::Robot.info "starting #{to_s} (#{orocos_name})"
                 @last_orogen_state = nil
-                orocos_task.start(false)
+                start_event.achieve_asynchronously(emit_on_success: false) do
+                    orocos_task.start(false)
+                end
             end
 
             # Handle a state transition by emitting the relevant events
@@ -638,30 +640,49 @@ module Syskit
                 end
             end
 
+            # @api private
+            #
+            # Helper method that is called in a separate thread to stop the
+            # orocos task, taking into account some corner cases such as a dead
+            # task, or a task that raises StateTransitionFailed but stops
+            # anyways
+            def stop_orocos_task
+                orocos_task.stop(false)
+                nil
+            rescue Orocos::ComError
+                # We actually aborted. Notify the callback so that it emits
+                # interrupt and stop
+                :aborted
+            rescue Orocos::StateTransitionFailed
+                # Use #rtt_state as it has no problem with asynchronous
+                # communication, unlike the port-based state updates.
+                state = orocos_task.rtt_state
+                if state != :RUNNING
+                    Runtime.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
+                    # Nothing to do, the poll block will finalize the task
+                    nil
+                else
+                    raise
+                end
+            end
+
             # Interrupts the execution of this task context
             event :interrupt do |context|
 	        ::Robot.info "interrupting #{name}"
-                begin
-		    if !orocos_task # already killed
-                        interrupt_event.emit
-                        aborted_event.emit
-		    elsif execution_agent && !execution_agent.finishing?
-		        orocos_task.stop(false)
-		    end
-                rescue Orocos::ComError
-                    # We actually aborted
+
+                if !orocos_task # already killed
                     interrupt_event.emit
                     aborted_event.emit
-                rescue Orocos::StateTransitionFailed
-                    # Use #rtt_state as it has no problem with asynchronous
-                    # communication, unlike the port-based state updates.
-		    state = orocos_task.rtt_state
-                    if state != :RUNNING
-			Runtime.debug { "in the interrupt event, StateTransitionFailed: task.state == #{state}" }
-                        # Nothing to do, the poll block will finalize the task
-                    else
-                        raise
-                    end
+                elsif execution_agent && !execution_agent.finishing?
+                    promise = execution_engine.promise { stop_orocos_task }.
+                        on_success do |result|
+                            if result == :aborted
+                                interrupt_event.emit
+                                aborted_event.emit
+                            end
+                        end
+
+                    interrupt_event.achieve_asynchronously(promise, emit_on_success: false)
                 end
             end
 
@@ -698,7 +719,7 @@ module Syskit
                     if execution_agent && execution_agent.running? && !execution_agent.finishing?
                         orocos_task.stop(false)
                     end
-                rescue Exception
+                rescue ::Exception
                 end
                 @orocos_task = nil
             end

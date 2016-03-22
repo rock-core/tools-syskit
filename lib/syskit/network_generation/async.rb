@@ -50,7 +50,7 @@ module Syskit
 
                 def cancel
                     add_observer do
-                        self.plan.execution_engine.queue_worker_completion_block do
+                        self.plan.execution_engine.once do
                             if !engine.work_plan.finalized?
                                 engine.work_plan.discard_transaction
                             end
