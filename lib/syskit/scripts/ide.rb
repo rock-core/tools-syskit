@@ -47,6 +47,8 @@ Roby.app.auto_load_all = load_all
 Roby.app.auto_load_models = direct_files.empty?
 Roby.app.additional_model_files.concat(direct_files)
 
+$qApp.disable_threading
+
 Syskit::Scripts.run do
     Orocos.initialize
     main = Syskit::GUI::IDE.new(host: options[:host] || 'localhost', runtime: runtime_mode, tests: test_mode)
