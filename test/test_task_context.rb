@@ -176,16 +176,20 @@ describe Syskit::TaskContext do
         end
         it "fails to start if orocos_task#start raises Orocos::ComError" do
             orocos_task.should_receive(:start).and_raise(Orocos::ComError)
-            assert_event_becomes_unreachable task.start_event do
-                task.start!
+            assert_raises(Roby::MissionFailedError) do
+                assert_event_becomes_unreachable task.start_event do
+                    task.start!
+                end
             end
             assert task.failed_to_start?
             assert_kind_of Orocos::ComError, task.failure_reason.original_exception
         end
         it "fails to start if orocos_task#start raises Orocos::StateTransitionFailed" do
             orocos_task.should_receive(:start).and_raise(Orocos::StateTransitionFailed)
-            assert_event_becomes_unreachable task.start_event do
-                task.start!
+            assert_raises(Roby::MissionFailedError) do
+                assert_event_becomes_unreachable task.start_event do
+                    task.start!
+                end
             end
             assert task.failed_to_start?
             assert_kind_of Orocos::StateTransitionFailed, task.failure_reason.original_exception
@@ -497,99 +501,102 @@ describe Syskit::TaskContext do
             assert !t1.needs_reconfiguration?
         end
     end
+    describe "#clean_dynamic_port_connections" do
+        it "removes connections that relate to the task's dynamic input ports" do
+            srv_m = Syskit::DataService.new_submodel { input_port 'p', '/double' }
+            task_m = Syskit::TaskContext.new_submodel do
+                orogen_model.dynamic_input_port /.*/, '/double'
+            end
+            task_m.dynamic_service srv_m, as: 'test' do
+                provides srv_m, 'p' => "dynamic"
+            end
+            task = syskit_stub_deploy_and_configure task_m
+            task.require_dynamic_service 'test', as: 'test'
+            source_task = syskit_stub_deploy_and_configure 'SourceTask', as: 'source_task' do
+                input_port "dynamic", "/double"
+            end
+            orocos_tasks = [source_task.orocos_task, task.orocos_task]
+
+            Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
+            assert Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
+            task.clean_dynamic_port_connections
+            assert !Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
+        end
+        it "removes connections that relate to the task's dynamic output ports" do
+            srv_m = Syskit::DataService.new_submodel { output_port 'p', '/double' }
+            task_m = Syskit::TaskContext.new_submodel do
+                orogen_model.dynamic_output_port /.*/, '/double'
+            end
+            task_m.dynamic_service srv_m, as: 'test' do
+                provides srv_m, 'p' => "dynamic"
+            end
+            task = syskit_stub_deploy_and_configure task_m
+            task.require_dynamic_service 'test', as: 'test'
+
+            sink_task = syskit_stub_deploy_and_configure 'SinkTask', as: 'sink_task' do
+                output_port "dynamic", "/double"
+            end
+            orocos_tasks = [task.orocos_task, sink_task.orocos_task]
+
+            Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
+            assert Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
+            task.clean_dynamic_port_connections
+            assert !Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
+        end
+    end
+
     describe "#prepare_for_setup" do
         attr_reader :task, :orocos_task
         before do
             task_m = Syskit::TaskContext.new_submodel
             @task = syskit_stub_deploy_and_configure(task_m, as: 'task')
+            flexmock(task)
             @orocos_task = flexmock(task.orocos_task)
         end
 
-        it "resets an exception state and calls prepare_for_setup back without arguments" do
+        def prepare_task_for_setup(rtt_state)
+            recorder = flexmock
+            recorder.should_receive(:called).once.ordered
+            flexmock(task.orocos_task).should_receive(:rtt_state).and_return(rtt_state)
+            promise = execution_engine.promise { recorder.called }
+            promise = task.prepare_for_setup(promise)
+            promise.execute
+            execution_engine.join_all_waiting_work
+            promise.value!
+        end
+
+        it "resets an exception state" do
             orocos_task.should_receive(:reset_exception).once.ordered
-            flexmock(task).should_receive(:prepare_for_setup).with(:EXCEPTION).once.ordered.pass_thru
-            flexmock(task).should_receive(:prepare_for_setup).with().once.ordered.and_return(ret = Object.new)
-            assert_same ret, task.prepare_for_setup(:EXCEPTION)
+            task.should_receive(:clean_dynamic_port_connections).once.ordered
+            prepare_task_for_setup(:EXCEPTION)
         end
         it "does nothing if the state is PRE_OPERATIONAL" do
-            task.prepare_for_setup(:PRE_OPERATIONAL)
-        end
-        it "returns true if the state is PRE_OPERATIONAL" do
-            assert task.prepare_for_setup(:PRE_OPERATIONAL)
+            prepare_task_for_setup(:PRE_OPERATIONAL)
+            task.should_receive(:clean_dynamic_port_connections).never
         end
         it "does nothing if the state is STOPPED and the task does not need to be reconfigured" do
             Syskit::TaskContext.configured['task'] = [nil, ['default'], Set.new]
-            task.prepare_for_setup(:STOPPED)
-        end
-        it "returns false if the state is STOPPED and the task does not need to be reconfigured" do
-            Syskit::TaskContext.configured['task'] = [nil, ['default'], Set.new]
-            assert !task.prepare_for_setup(:STOPPED)
+            orocos_task.should_receive(:cleanup).never
+            task.should_receive(:clean_dynamic_port_connections).never
+            prepare_task_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task is marked as requiring reconfiguration" do
-            flexmock(task).should_receive(:needs_reconfiguration?).and_return(true)
-            orocos_task.should_receive(:cleanup).once
-            assert task.prepare_for_setup(:STOPPED)
+            task.should_receive(:needs_reconfiguration?).and_return(true)
+            orocos_task.should_receive(:cleanup).once.ordered
+            task.should_receive(:clean_dynamic_port_connections).once.ordered
+            prepare_task_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task has never been configured" do
             Syskit::TaskContext.configured['task'] = nil
-            orocos_task.should_receive(:cleanup).once
-            assert task.prepare_for_setup(:STOPPED)
+            orocos_task.should_receive(:cleanup).once.ordered
+            task.should_receive(:clean_dynamic_port_connections).once.ordered
+            prepare_task_for_setup(:STOPPED)
         end
         it "cleans up if the state is STOPPED and the task's configuration changed" do
             Syskit::TaskContext.configured['task'] = [nil, [], Set.new]
-            orocos_task.should_receive(:cleanup).once
-            assert task.prepare_for_setup(:STOPPED)
-        end
-        describe "handling of dynamic input ports" do
-            it "removes the connections to dynamic input ports from ActualDataFlow" do
-                srv_m = Syskit::DataService.new_submodel { input_port 'p', '/double' }
-                task_m = Syskit::TaskContext.new_submodel do
-                    orogen_model.dynamic_input_port /.*/, '/double'
-                end
-                task_m.dynamic_service srv_m, as: 'test' do
-                    provides srv_m, 'p' => "dynamic"
-                end
-                task = syskit_stub_deploy_and_configure task_m
-                task.require_dynamic_service 'test', as: 'test'
-                source_task = syskit_stub_deploy_and_configure 'SourceTask', as: 'source_task' do
-                    input_port "dynamic", "/double"
-                end
-                orocos_tasks = [source_task.orocos_task, task.orocos_task]
-
-                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
-                assert Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
-
-                Syskit::TaskContext.configured['task'] = nil
-                flexmock(task.orocos_task).should_receive(:cleanup).once
-                assert task.prepare_for_setup(:STOPPED)
-                assert !Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
-            end
-        end
-        describe "handling of dynamic output ports" do
-            it "removes the connections to dynamic output ports from ActualDataFlow" do
-                srv_m = Syskit::DataService.new_submodel { output_port 'p', '/double' }
-                task_m = Syskit::TaskContext.new_submodel do
-                    orogen_model.dynamic_output_port /.*/, '/double'
-                end
-                task_m.dynamic_service srv_m, as: 'test' do
-                    provides srv_m, 'p' => "dynamic"
-                end
-                task = syskit_stub_deploy_and_configure task_m
-                task.require_dynamic_service 'test', as: 'test'
-
-                sink_task = syskit_stub_deploy_and_configure 'SinkTask', as: 'sink_task' do
-                    output_port "dynamic", "/double"
-                end
-                orocos_tasks = [task.orocos_task, sink_task.orocos_task]
-
-                Syskit::ActualDataFlow.add_connections(*orocos_tasks, Hash[['dynamic', 'dynamic'] => [Hash.new, false, false]])
-                assert Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
-
-                Syskit::TaskContext.configured['task'] = nil
-                flexmock(task.orocos_task).should_receive(:cleanup).once
-                assert task.prepare_for_setup(:STOPPED)
-                assert !Syskit::ActualDataFlow.has_edge?(*orocos_tasks)
-            end
+            orocos_task.should_receive(:cleanup).once.ordered
+            task.should_receive(:clean_dynamic_port_connections).once.ordered
+            prepare_task_for_setup(:STOPPED)
         end
     end
     describe "#setup" do
@@ -605,82 +612,74 @@ describe Syskit::TaskContext do
             orocos_task.should_receive(:rtt_state).by_default.and_return(:BLA)
         end
 
-        it "calls rtt_state only once" do
-            orocos_task.should_receive(:rtt_state).once.and_return(:PRE_OPERATIONAL)
+        def setup_task
+            promise = execution_engine.promise { }
+            promise = task.setup(promise)
+            promise.execute
+            execution_engine.join_all_waiting_work
+            promise.value!
+        end
+
+        it "calls rtt_state exactly twice" do
+            orocos_task.should_receive(:rtt_state).twice.and_return(:PRE_OPERATIONAL)
             flexmock(task).should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
-            task.setup
+            setup_task
         end
         it "raises if the task is not ready for setup" do
             flexmock(task).should_receive(:ready_for_setup?).with(:BLA).and_return(false)
             assert_raises(Syskit::InternalError) do
-                task.setup
+                setup_task
             end
         end
         it "resets the needs_configuration flag" do
-            orocos_task.should_receive(:rtt_state).once.and_return(:PRE_OPERATIONAL)
+            orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
             flexmock(task).should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
             task.needs_reconfiguration!
-            task.setup
+            setup_task
             assert !task.needs_reconfiguration?
         end
         it "registers the current task configuration" do
-            orocos_task.should_receive(:rtt_state).once.and_return(:PRE_OPERATIONAL)
+            orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
             flexmock(task).should_receive(:ready_for_setup?).with(:PRE_OPERATIONAL).and_return(true)
             task.needs_reconfiguration!
-            task.setup
+            setup_task
             assert_equal ['default'], Syskit::TaskContext.configured['task'][1]
         end
-        it "calls the user-provided #configure method after prepare_for_setup" do
-            flexmock(task).should_receive(:prepare_for_setup).once.
-                with(:BLA).and_return(true).ordered
-            flexmock(task).should_receive(:configure).once.ordered
-            task.setup
-        end
+        describe "ordering related to prepare_for_setup" do
+            attr_reader :recorder
 
-        describe "prepare_for_setup returns true" do
             before do
+                recorder = flexmock
+                recorder.should_receive(:called).once.ordered
+                promise = execution_engine.promise { recorder.called }
                 flexmock(task).should_receive(:prepare_for_setup).once.
-                    with(:BLA).and_return(true)
+                    and_return(promise)
             end
-            it "configures the task" do
-                orocos_task.should_receive(:configure).once
-                task.setup
+
+            it "calls the user-provided #configure method after prepare_for_setup" do
+                flexmock(task).should_receive(:configure).once.ordered
+                setup_task
             end
-            it "does not call is_setup!" do
-                flexmock(task).should_receive(:is_setup!).never
-                task.setup
+            it "calls the task's configure method if the task's state is PRE_OPERATIONAL" do
+                orocos_task.should_receive(:rtt_state).and_return(:PRE_OPERATIONAL)
+                orocos_task.should_receive(:configure).once.ordered
+                setup_task
             end
-            it "calls the user-provided #configure method" do
-                flexmock(task).should_receive(:configure).once
-                task.setup
-            end
-            it "does not call is_setup! if the task's configure method fails" do
-                orocos_task.should_receive(:configure).and_raise(ArgumentError)
-                flexmock(task).should_receive(:is_setup!).never
-                assert_raises(ArgumentError) { task.setup }
-            end
-            it "does not call is_setup! if the user-provided configure method raises" do
-                flexmock(task).should_receive(:configure).and_raise(ArgumentError)
-                flexmock(task).should_receive(:is_setup!).never
-                assert_raises(ArgumentError) { task.setup }
-            end
-        end
-        describe "prepare_for_setup returns false" do
-            before do
-                flexmock(task).should_receive(:prepare_for_setup).once.
-                    with(:BLA).and_return(false)
-            end
-            it "does not configure the task" do
+            it "does not call the task's configure method if the task's state is not PRE_OPERATIONAL" do
+                orocos_task.should_receive(:rtt_state).and_return(:STOPPED)
                 orocos_task.should_receive(:configure).never
-                task.setup
+                setup_task
             end
             it "does not call is_setup!" do
                 flexmock(task).should_receive(:is_setup!).never
-                task.setup
+                setup_task
             end
-            it "still calls the user-provided #configure method" do
-                flexmock(task).should_receive(:configure).once
-                task.setup
+            it "does not call the task's configure method if the user-provided configure method raises" do
+                flexmock(task).should_receive(:configure).and_raise(ArgumentError)
+                orocos_task.should_receive(:configure).never
+                assert_raises(ArgumentError) do
+                    setup_task
+                end
             end
         end
     end

@@ -148,16 +148,33 @@ module Syskit
             # Note that for error-handling reasons, the setup? flag is not set
             # by this method. Caller must call is_setup! after a successful call
             # to #setup
-            def setup
-                if self.model.needs_stub?(self)
-                    self.model.prepare_stub(self)
+            #
+            # @return [Promise] #setup must schedule the work to be done in a
+            #   promise, to allow subclasses to schedule work 
+            def setup(promise)
+                promise.on_success do
+                    if self.model.needs_stub?(self)
+                        self.model.prepare_stub(self)
+                    end
+                    configure
                 end
-
-                configure
             end
 
             def is_setup!
+                @setting_up = nil
                 self.setup = true
+            end
+
+            def setting_up?
+                @setting_up && !@setting_up.complete?
+            end
+
+            def setting_up!(promise)
+                promise.on_error do
+                    start_event.emit_failed(e)
+                end
+                promise.execute
+                @setting_up = promise
             end
 
             # User-provided part of the component configuration

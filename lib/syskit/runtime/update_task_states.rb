@@ -1,5 +1,23 @@
 module Syskit
     module Runtime
+        def self.start_task_setup(task)
+            execution_engine = task.execution_engine
+            promise = execution_engine.promise { }
+            promise = task.setup(promise).
+                on_success do
+                    task.is_setup!
+                    if task.all_inputs_connected?
+                        task.executable = nil
+                        execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", task
+                    else
+                        execution_engine.scheduler.report_action "configured, but some connections are pending", task
+                    end
+                end
+
+            task.setting_up!(promise)
+            promise
+        end
+
         # This method is called at the beginning of each execution cycle, and
         # updates the running TaskContext tasks.
         def self.update_task_states(plan) # :nodoc:
@@ -9,9 +27,7 @@ module Syskit
                 if !t.orocos_task
                     plan.execution_engine.scheduler.report_holdoff "did not configure, execution agent not started yet", t
                     next
-                end
-
-                if !t.execution_agent
+                elsif !t.execution_agent
                     raise NotImplementedError, "#{t} is not yet finished but has no execution agent. #{t}'s history is\n  #{t.history.map(&:to_s).join("\n  ")}"
                 elsif !t.execution_agent.ready?
                     raise InternalError, "orocos_task != nil on #{t}, but #{t.execution_agent} is not ready yet"
@@ -27,21 +43,9 @@ module Syskit
 		    next
 		end
 
-                if t.pending? && !t.setup? 
+                if t.pending? && !t.setup? && !t.setting_up?
                     if t.ready_for_setup? && Syskit.conf.auto_configure?
-                        begin
-                            t.setup 
-                            t.is_setup!
-                        rescue Exception => e
-                            t.start_event.emit_failed(e)
-                        end
-                        if t.all_inputs_connected?
-                            t.executable = nil
-                            plan.execution_engine.scheduler.report_action "configured and all inputs connected, marking as executable", t
-                        else
-                            plan.execution_engine.scheduler.report_action "configured, but some connections are pending", t
-                        end
-
+                        start_task_setup(t)
                         next
                     else
                         plan.execution_engine.scheduler.report_holdoff "did not configure, not ready for setup", t

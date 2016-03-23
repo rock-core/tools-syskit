@@ -516,8 +516,9 @@ module Syskit
                     current_state = pending.size
                     pending.delete_if do |t|
                         if !t.setup? && t.ready_for_setup?
-                            t.setup
-                            t.is_setup!
+                            Runtime.start_task_setup(t)
+                            execution_engine.join_all_waiting_work
+                            assert t.setup?, "ran the setup for #{t}, but t.setup? does not return true"
                             true
                         else
                             t.setup?

@@ -431,39 +431,12 @@ module Syskit
                 super && (!setup? || !needs_reconfiguration?)
             end
 
-            # Checks whether the task should be reconfigured, and if it should,
-            # make sure that it is in PRE_OPERATIONAL state.
+            # Remove connections manually to the dynamic ports
             #
-            # @param [Symbol] state the current state, as returned by
-            #   Orocos::TaskContext#rtt_state. It is passed to avoid calling
-            #   #rtt_state unnecessarily, as it is an asynchronous remote call.
-            # @return [Boolean] true if the task should be configured (in which
-            #   case it has been put in PRE_OPERATIONAL state) and false
-            #   otherwise.
-            def prepare_for_setup(state = orocos_task.rtt_state)
-                if state == :EXCEPTION
-                    ::Robot.info "reconfiguring #{self}: the task was in exception state"
-                    orocos_task.reset_exception(false)
-                    # Re-read the state. We might be in STOPPED in which case we
-                    # might need to cleanup
-                    return prepare_for_setup
-                elsif state == :PRE_OPERATIONAL
-                    return true
-                elsif !needs_reconfiguration?
-                    _, current_conf, dynamic_services = TaskContext.configured[orocos_name]
-                    if current_conf
-                        if current_conf == self.conf && dynamic_services == each_required_dynamic_service.to_set
-                            ::Robot.info "not reconfiguring #{self}: the task is already configured as required"
-                            return false
-                        end
-                    end
-                end
-
-                ::Robot.info "cleaning up #{self}"
-                orocos_task.cleanup(false)
-
-                # {#cleanup} is meant to clear dynamic ports, clear the
-                # ActualDataFlow graph accordingly
+            # This is called after orocos_task.cleanup, as a task's cleanupHook
+            # is supposed to delete all dynamic ports (and therefore disconnect
+            # them)
+            def clean_dynamic_port_connections
                 to_remove = Hash.new
                 to_remove.merge!(dynamic_input_port_connections)
                 to_remove.merge!(dynamic_output_port_connections)
@@ -471,8 +444,6 @@ module Syskit
                 to_remove.each do |(source_task, sink_task), connections|
                     ActualDataFlow.remove_connections(source_task, sink_task, connections)
                 end
-
-                return true
             end
 
             # @api private
@@ -537,40 +508,76 @@ module Syskit
                 to_remove
             end
 
+            def preparing_for_setup?
+                @preparing_for_setup && !@preparing_for_setup.complete?
+            end
+
+            def prepare_for_setup(promise)
+                promise.
+                    then { orocos_task.rtt_state }.
+                    on_success do |state|
+                        needs_reconfiguration = true
+                        if !ready_for_setup?(state)
+                            raise InternalError, "#setup called on #{self} but we are not ready for setup"
+                        elsif !needs_reconfiguration?
+                            _, current_conf, dynamic_services = TaskContext.configured[orocos_name]
+                            if current_conf
+                                if current_conf == self.conf && dynamic_services == each_required_dynamic_service.to_set
+                                    ::Robot.info "not reconfiguring #{self}: the task is already configured as required"
+                                    needs_reconfiguration = false
+                                end
+                            end
+                        end
+                        [needs_reconfiguration, state]
+                    end.
+                    then do |needs_reconfiguration, state|
+                        if state == :EXCEPTION
+                            ::Robot.info "reconfiguring #{self}: the task was in exception state"
+                            orocos_task.reset_exception(false)
+                            true
+                        elsif needs_reconfiguration && (state != :PRE_OPERATIONAL)
+                            ::Robot.info "cleaning up #{self}"
+                            orocos_task.cleanup(false)
+                            true
+                        end
+                    end.
+                    on_success do |cleaned_up|
+                        if cleaned_up
+                            clean_dynamic_port_connections
+                        end
+                    end
+            end
+
             # Called to configure the component
-            def setup
-                if @setup
+            def setup(promise)
+                if setup?
                     raise ArgumentError, "#{self} is already set up"
                 end
 
-                state = orocos_task.rtt_state
-                if !ready_for_setup?(state)
-                    raise InternalError, "#setup called on #{self} but we are not ready for setup"
-                end
-
-                # prepare_for_setup MUST be called before we call super (i.e.
-                # the user-provided #configure method). It might call
-                # reset_exception/cleanup, which would require the #configure
-                # method to re-apply some configuration (as e.g., call setup operations)
-                #
-                # In any case, #configure assumes that the task is in a state in
-                # which it can be configured !
-                needs_configuration = prepare_for_setup(state)
+                promise = prepare_for_setup(promise)
 
                 # This calls #configure
-                super
-
-                if needs_configuration
-                    ::Robot.info "setting up #{self}"
-                    orocos_task.configure(false)
-                else
-                    ::Robot.info "#{self} was already configured"
-                end
-
-                TaskContext.needs_reconfiguration.delete(orocos_name)
-                TaskContext.configured[orocos_name] = [model,
-                                                       self.conf.dup,
-                                                       self.each_required_dynamic_service.to_set]
+                super(promise).
+                    on_success do
+                        if self.model.needs_stub?(self)
+                            self.model.prepare_stub(self)
+                        end
+                    end.
+                    then do
+                        state = orocos_task.rtt_state
+                        if state == :PRE_OPERATIONAL
+                            ::Robot.info "setting up #{self}"
+                            orocos_task.configure(false)
+                        else
+                            ::Robot.info "#{self} was already configured"
+                        end
+                    end.on_success do
+                        TaskContext.needs_reconfiguration.delete(orocos_name)
+                        TaskContext.configured[orocos_name] = [
+                            model,
+                            self.conf.dup,
+                            self.each_required_dynamic_service.to_set]
+                    end
             end
 
             # Returns the start event object for this task

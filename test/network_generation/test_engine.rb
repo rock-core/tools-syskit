@@ -439,8 +439,8 @@ module Syskit
                     syskit_start_execution_agents(dev_driver)
 
                     bus_driver.orocos_task.create_output_port 'dev', '/int'
-                    flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered.pass_thru
-                    flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered.pass_thru
+                    flexmock(bus_driver.orocos_task, "bus").should_receive(:start).once.globally.ordered(:bus_startup).pass_thru
+                    flexmock(bus_driver.orocos_task.dev, "bus.dev").should_receive(:connect_to).once.globally.ordered(:bus_startup).pass_thru
                     flexmock(dev_driver.orocos_task, "dev").should_receive(:configure).once.globally.ordered.pass_thru
                     plan.execution_engine.scheduler.enabled = true
                     assert_event_emission bus_driver.start_event

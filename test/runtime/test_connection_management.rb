@@ -171,7 +171,7 @@ module Syskit
                         process_events
                         ConnectionManagement.update(plan)
                         assert sink_task.ready_for_setup?
-                        process_events
+                        assert_event_emission sink_task.start_event
                     end
 
                     describe "handling of static ports" do

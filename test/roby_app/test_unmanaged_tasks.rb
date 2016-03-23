@@ -80,7 +80,7 @@ module Syskit
                 end
                 process_task = task.execution_agent
                 monitor_thread = process_task.orocos_process.monitor_thread
-                assert_event_emission(task.stop_event) do
+                assert_event_emission(process_task.stop_event) do
                     task.stop!
                 end
                 assert !process_task.orocos_process.kill_thread.alive?
