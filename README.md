@@ -3,7 +3,7 @@
 homepage :: http://rock-robotics.org
 mailing list :: http://www.dfki.de/mailman/cgi-bin/listinfo/rock-dev
 bug tracker :: trac.rock-robotics.org
-git repository :: http://gitorious.org/rock-toolchain/syskit
+git repository :: http://github.com/rock-core/tools-syskit
 API documentation :: http://rock-robotics.org/stable/api/tools/syskit
 
 Syskit: a Roby plugin for component-based systems
