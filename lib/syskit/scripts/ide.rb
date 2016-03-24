@@ -3,6 +3,8 @@ require 'syskit/gui/ide'
 require 'syskit/scripts/common'
 require 'vizkit'
 
+Roby.app.require_app_dir
+
 load_all = false
 runtime_mode = nil
 test_mode = false
