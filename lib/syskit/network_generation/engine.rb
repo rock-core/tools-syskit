@@ -520,6 +520,27 @@ module Syskit
                 Hash[ requirement_tasks.zip(toplevel_tasks) ]
             end
 
+            # Computes the system network, that is the network that fullfills
+            # a list of requirements
+            # 
+            # This phase does not interact at all with {#real_plan}. It only
+            # computes the canonical plan that matches the requirements.
+            #
+            # Its return value can then be given to
+            # {#apply_system_network_to_plan} to adapt the current plan to the
+            # desired state.
+            #
+            # @param [Array<InstanceRequirementsTask>] requirement_tasks the
+            #   tasks that represent the requirements for the generated network
+            # @param [Plan] plan the plan into which the network should be
+            #   generated
+            # @param [Boolean] garbage_collect whether the plan should be
+            #   cleaned of unused tasks (debugging only)
+            # @return [Hash<InstanceRequirementsTask,InstanceRequirementsTask>]
+            #   mapping from a requirement task given to the method to the
+            #   corresponding requirement task in the generated plan. In other
+            #   words, the keys are in {#real_plan} and the values in
+            #   {#work_plan}
             def resolve_system_network(requirement_tasks,
                                        garbage_collect: true,
                                        validate_abstract_network: true,
