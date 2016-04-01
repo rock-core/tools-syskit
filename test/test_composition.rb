@@ -171,4 +171,95 @@ describe Syskit::Composition do
             assert_equal cmp.test_child.out_port, cmp_m.test_child.srv_out_port.bind(cmp.test_child).to_actual_port
         end
     end
+    
+    describe "handling of connection modifications" do
+        attr_reader :task_m, :child_cmp_m, :cmp_m, :cmp, :task, :dataflow_graph
+        before do
+            @task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+                output_port 'out', '/double'
+            end
+            @child_cmp_m = Syskit::Composition.new_submodel
+            child_cmp_m.add task_m, as: 'test'
+            child_cmp_m.export child_cmp_m.test_child.out_port
+            child_cmp_m.export child_cmp_m.test_child.in_port
+            @cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add child_cmp_m, as: 'test'
+            cmp_m.export cmp_m.test_child.out_port
+            cmp_m.export cmp_m.test_child.in_port
+
+            @cmp = cmp_m.instanciate(plan)
+            @task = task_m.instanciate(plan)
+
+            @dataflow_graph = plan.task_relation_graph_for(Syskit::DataFlow)
+            dataflow_graph.modified_tasks.clear
+        end
+
+        it "registers concrete components which got a new sink because of an exported port" do
+            cmp.out_port.connect_to task.in_port
+            assert_equal [cmp.test_child.test_child], dataflow_graph.modified_tasks.to_a
+        end
+        
+        it "registers concrete components which got a removed connection due to a forwarded port" do
+            cmp.out_port.connect_to task.in_port
+            dataflow_graph.modified_tasks.clear
+            cmp.out_port.disconnect_from task.in_port
+            assert_equal [cmp.test_child.test_child], dataflow_graph.modified_tasks.to_a
+        end
+        
+        it "generates an error if adding a connection involving a non-existent child" do
+            cmp.remove_child cmp.test_child
+            assert_raises(Roby::NoSuchChild) do
+                cmp.out_port.connect_to task.in_port
+            end
+        end
+        it "generates an error if adding a connection involving a non-existent grandchild" do
+            cmp.test_child.remove_child cmp.test_child.test_child
+            assert_raises(Roby::NoSuchChild) { cmp.out_port.connect_to task.in_port }
+        end
+        it "registers the child in modified_tasks when a child is removed" do
+            cmp.out_port.connect_to task.in_port
+            grandchild = cmp.test_child.test_child
+            dataflow_graph.modified_tasks.clear
+            cmp.remove_child cmp.test_child
+            assert_equal [grandchild], dataflow_graph.modified_tasks.to_a
+        end
+        it "registers the child in modified_tasks when a grandchild is removed" do
+            cmp.out_port.connect_to task.in_port
+            grandchild = cmp.test_child.test_child
+            dataflow_graph.modified_tasks.clear
+            cmp.test_child.remove_child cmp.test_child.test_child
+            assert_equal [grandchild], dataflow_graph.modified_tasks.to_a
+        end
+        it "registers both the child and its sources when a child is removed" do
+            task.out_port.connect_to cmp.in_port
+            grandchild = cmp.test_child.test_child
+            dataflow_graph.modified_tasks.clear
+            cmp.remove_child cmp.test_child
+            assert_equal Set[task, grandchild], dataflow_graph.modified_tasks.to_set
+        end
+        it "registers both the child and its sources  when a grandchild is removed" do
+            task.out_port.connect_to cmp.in_port
+            grandchild = cmp.test_child.test_child
+            dataflow_graph.modified_tasks.clear
+            cmp.test_child.remove_child cmp.test_child.test_child
+            assert_equal Set[task, grandchild], dataflow_graph.modified_tasks.to_set
+        end
+
+        it "successfully removes connections even if the corresponding child is absent" do
+            cmp.out_port.connect_to task.in_port
+            grandchild = cmp.test_child.test_child
+            cmp.remove_child cmp.test_child
+            cmp.out_port.disconnect_from task.in_port
+            assert !cmp.out_port.connected_to?(task.in_port)
+        end
+        it "successfully removes connections even if the corresponding grandchild is absent" do
+            cmp.out_port.connect_to task.in_port
+            grandchild = cmp.test_child.test_child
+            cmp.test_child.remove_child grandchild
+            cmp.out_port.disconnect_from task.in_port
+            assert !cmp.out_port.connected_to?(task.in_port)
+        end
+    end
 end
+

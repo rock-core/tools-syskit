@@ -190,17 +190,51 @@ module Syskit
                 return true
             end
 
+            # @api private
+            #
             # Helper for #added_child_object and #removing_child_object
             #
             # It adds the task to {Flows::DataFlow#modified_tasks} whenever the
             # DataFlow relations is changed in a way that could require changing
             # the underlying Orocos components connections.
-            def dataflow_change_handler(child, mappings) # :nodoc:
+            def dataflow_change_handler(ignore_missing_child, child, mappings) # :nodoc:
                 # The case where 'child' is already a task context is already
                 # taken care of by 
                 mappings.each_key do |source_port, sink_port|
-                    component = find_port(source_port).to_actual_port.component
-                    relation_graph_for(Flows::DataFlow).modified_tasks << component
+                    component =
+                        begin find_port(source_port).to_actual_port.component
+                        rescue Roby::NoSuchChild
+                            raise if !ignore_missing_child
+                        end
+
+                    if component
+                        relation_graph_for(Flows::DataFlow).modified_tasks << component
+                    end
+                end
+            end
+
+            # Hook called when one of the compositions' child has been removed
+            #
+            # If self has exported ports, this broke some connections (the
+            # exported ports are not "internally connected" anymore) and as such
+            # the corresponding tasks should be added to modified_tasks
+            def removing_child(child)
+                super
+                dataflow_graph = relation_graph_for(Flows::DataFlow)
+                if dataflow_graph.has_edge?(child, self)
+                    # output ports, we only need to make sure that the dataflow
+                    # handlers are called
+                    dataflow_graph.remove_relation(child, self)
+                end
+                if dataflow_graph.has_edge?(self, child)
+                    # This one is harder, we need to explicitely add the sources
+                    # because none of the other triggers will work
+                    dataflow_graph.edge_info(self, child).each_key do |self_port_name, _|
+                        self_port = find_input_port(self_port_name)
+                        self_port.each_concrete_connection do |source_port|
+                            dataflow_graph.modified_tasks << source_port.component
+                        end
+                    end
                 end
             end
 
@@ -210,12 +244,12 @@ module Syskit
             # update the underlying task's connections
             def added_sink(child, mappings) # :nodoc:
                 super
-                dataflow_change_handler(child, mappings)
+                dataflow_change_handler(false, child, mappings)
             end
 
             def updated_sink(child, mappings)
                 super
-                dataflow_change_handler(child, mappings)
+                dataflow_change_handler(false, child, mappings)
             end
 
             # Called when a child is removed from this composition.
@@ -224,7 +258,7 @@ module Syskit
             # update the underlying task's connections
             def removing_sink(child) # :nodoc:
                 super
-                dataflow_change_handler(child, self[child, Flows::DataFlow])
+                dataflow_change_handler(true, child, self[child, Flows::DataFlow])
             end
 
             # Generates the InstanceRequirements object that represents +self+
