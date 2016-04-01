@@ -32,6 +32,10 @@ module Syskit
         end
 
         def inspect; to_s end
+        def pretty_print(pp)
+            pp.text "port #{name} of "
+            component.pretty_print(pp)
+        end
 
         # Returns the port attached to a proper Component instance that
         # corresponds to self
