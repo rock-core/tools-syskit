@@ -46,9 +46,10 @@ module Syskit
 
             def new(options = Hash.new)
                 options = options.merge(
-                    :process_name => process_name,
-                    :name_mappings => name_mappings,
-                    :spawn_options => spawn_options)
+                    process_name: process_name,
+                    name_mappings: name_mappings,
+                    spawn_options: spawn_options,
+                    on: process_server_name)
                 options.delete(:working_directory)
                 options.delete(:output)
                 options.delete(:wait)
