@@ -351,8 +351,6 @@ module Syskit
                         end
                     end
 
-                    # NOTE: we cannot do the same for child tasks as RTT does
-                    # not support selective disconnection over CORBA
                     ActualDataFlow.remove_vertex(task)
                     RequiredDataFlow.remove_vertex(task)
                 end

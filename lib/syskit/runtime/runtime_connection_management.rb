@@ -475,19 +475,17 @@ module Syskit
             def dangling_task_cleanup
                 removed = Hash.new
 
-                present_tasks = plan.find_tasks(TaskContext).map(&:orocos_task).to_set
+                present_tasks = plan.find_tasks(TaskContext).inject(Hash.new) do |h, t|
+                    h[t.orocos_task] = t
+                    h
+                end
                 dangling_tasks = ActualDataFlow.each_vertex.find_all do |orocos_task|
-                    !present_tasks.include?(orocos_task)
+                    !present_tasks.has_key?(orocos_task)
                 end
                 dangling_tasks.each do |parent_t|
                     ActualDataFlow.each_out_neighbour(parent_t) do |child_t|
-                        if !present_tasks.include?(child_t)
-                            # NOTE: since the two tasks have been removed,
-                            # they cannot be within the 'removed' set
-                            # already
-                            mappings = ActualDataFlow.edge_info(parent_t, child_t)
-                            removed[[parent_t, child_t]] = mappings.keys.to_set
-                        end
+                        mappings = ActualDataFlow.edge_info(parent_t, child_t)
+                        removed[[parent_t, child_t]] = mappings.keys.to_set
                     end
                 end
                 removed
@@ -539,12 +537,12 @@ module Syskit
                     end
                 end
 
-                # Yes, we can do that. See documentation of
-                # {#dangling_task_cleanup}
                 dangling = dangling_task_cleanup
                 if !dangling.empty?
                     dataflow_graph.pending_changes ||= [[], Hash.new, Hash.new]
-                    dataflow_graph.pending_changes[2].merge!(dangling)
+                    dataflow_graph.pending_changes[2].merge!(dangling) do |k, m0, m1|
+                        m0.merge(m1)
+                    end
                 end
 
                 if dataflow_graph.pending_changes

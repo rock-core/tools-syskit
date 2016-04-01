@@ -476,25 +476,73 @@ module Syskit
                 end
             end
 
-            it "removes dangling connections" do
-                begin
-                    task_m = TaskContext.new_submodel do
-                        input_port('in', '/double').static
+            describe "connections involving finalized task" do
+                attr_reader :source, :sink, :task_m, :source_orocos_task, :sink_orocos_task
+                before do
+                    unplug_connection_management
+                    @task_m = TaskContext.new_submodel do
+                        input_port 'in', '/double'
                         output_port 'out', '/double'
                     end
-                    source = Orocos::RubyTasks::TaskContext.from_orogen_model 'source', task_m.orogen_model
-                    sink   = Orocos::RubyTasks::TaskContext.from_orogen_model 'sink', task_m.orogen_model
-
-                    source.out.connect_to sink.in
-                    ActualDataFlow.add_connections(source, sink, Hash[['out', 'in'] => [Hash.new, false, false]])
+                    @source = syskit_stub_deploy_and_configure(task_m.with_conf('test0'))
+                    @sink   = syskit_stub_deploy_and_configure(task_m.with_conf('test1'))
+                    plan.add_permanent(source.execution_agent)
+                    plan.add_permanent(sink.execution_agent)
+                    @source_orocos_task = source.orocos_task
+                    @sink_orocos_task = sink.orocos_task
+                    source.out_port.connect_to sink.in_port
                     ConnectionManagement.update(plan)
-                    assert !source.out.connected?
-                    assert !source.in.connected?
-                    assert !ActualDataFlow.has_vertex?(source)
-                    assert !ActualDataFlow.has_vertex?(sink)
-                ensure
-                    source.dispose if source
-                    sink.dispose if sink
+                    assert dataflow_graph.modified_tasks.empty?
+                end
+
+                def assert_is_disconnected(source_alive: true, sink_alive: true)
+                    assert ActualDataFlow.edges.empty?
+                    if source_alive
+                        assert !source_orocos_task.out.connected?
+                    end
+                    if sink_alive
+                        assert !sink_orocos_task.in.connected?
+                    end
+                end
+
+                it "successfully removes a connection from a non-finalized task and a finalized one" do
+                    orocos_task = sink.orocos_task
+                    plan.unmark_mission_task(sink)
+                    assert_event_emission sink.stop_event
+                    ConnectionManagement.update(plan)
+                    assert_is_disconnected
+                end
+
+                it "successfully removes a connection from a finalized task to a non-finalized one" do
+                    plan.unmark_mission_task(source)
+                    assert_event_emission source.stop_event
+                    ConnectionManagement.update(plan)
+                    assert_is_disconnected
+                end
+
+                it "removes dangling connections between tasks that have been finalized" do
+                    plan.unmark_mission_task(source)
+                    assert_event_emission source.stop_event
+                    plan.unmark_mission_task(sink)
+                    assert_event_emission sink.stop_event
+                    ConnectionManagement.update(plan)
+                    assert_is_disconnected
+                end
+
+                it "removes connections when the source deployment is stopped" do
+                    plan.unmark_permanent_task(source.execution_agent)
+                    plan.unmark_mission_task(source)
+                    assert_event_emission source.execution_agent.stop_event
+                    ConnectionManagement.update(plan)
+                    assert_is_disconnected(source_alive: false)
+                end
+
+                it "removes connections when the sink deployment is stopped" do
+                    plan.unmark_permanent_task(sink.execution_agent)
+                    plan.unmark_mission_task(sink)
+                    assert_event_emission sink.execution_agent.stop_event
+                    ConnectionManagement.update(plan)
+                    assert_is_disconnected(sink_alive: false)
                 end
             end
             
