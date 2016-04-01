@@ -681,10 +681,10 @@ module Syskit
                 
                 if task.respond_to?(:proxied_data_services)
                     name = task.proxied_data_services.map do |model|
-                        model.short_name
+                        model.name
                     end
                     if ![Syskit::Component, Syskit::TaskContext, Syskit::Composition].include?(task.model.superclass) &&
-                        name = [task.model.superclass.short_name] + name
+                        name = [task.model.superclass.name] + name
                     end
                     name = escape_dot(name.join(","))
                     if task.model.respond_to?(:tag_name)
@@ -708,7 +708,7 @@ module Syskit
                         end
 
                     else
-                        name = task.model.name || ""
+                        name = task.concrete_model.name || ""
                     end
 
                     if task.execution_agent && task.respond_to?(:orocos_name)
@@ -726,8 +726,7 @@ module Syskit
                     label << ann
                 end
 
-                label = "    " + label.join("\n    ")
-                return label
+                return "    " + label.join("\n    ")
             end
 
             def self.dot_iolabel(name, inputs, outputs)
