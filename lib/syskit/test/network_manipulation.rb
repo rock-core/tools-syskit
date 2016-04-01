@@ -34,11 +34,7 @@ module Syskit
                 @__test_created_deployments.concat(Syskit.conf.use_ruby_tasks(*args).to_a)
             end
 
-            # Run Syskit's deployer (i.e. engine) on the current plan
-            def syskit_deploy(*to_instanciate, add_mission: true, syskit_engine: nil, **resolve_options, &block)
-                # For backward-compatibility
-                to_instanciate = to_instanciate.flatten
-
+            def normalize_instanciation_models(to_instanciate)
                 # Instanciate all actions until we have a syskit instance
                 # requirement pattern
                 while true
@@ -59,6 +55,32 @@ module Syskit
                         end
                     end
                 end
+                to_instanciate
+            end
+
+            def syskit_generate_network(*to_instanciate, add_missions: true)
+                to_instanciate = normalize_instanciation_models(to_instanciate)
+                placeholders = to_instanciate.map(&:as_plan)
+                if add_missions
+                    placeholders.each { |t| plan.add_mission_task(t) }
+                end
+                engine = NetworkGeneration::Engine.new(plan)
+                task_mapping = engine.compute_system_network(
+                    placeholders.map(&:planning_task),
+                    plan: plan,
+                    validate_generated_network: false)
+                placeholders.map do |task|
+                    replacement = task_mapping[task.planning_task]
+                    plan.replace_task(task, replacement)
+                    plan.remove_task(replacement.planning_task)
+                    replacement
+                end
+            end
+
+            # Run Syskit's deployer (i.e. engine) on the current plan
+            def syskit_deploy(*to_instanciate, add_mission: true, syskit_engine: nil, **resolve_options, &block)
+                to_instanciate = to_instanciate.flatten # For backward-compatibility
+                to_instanciate = normalize_instanciation_models(to_instanciate)
 
                 emit_calls = Set.new
                 placeholder_tasks = to_instanciate.map do |act|
@@ -134,21 +156,7 @@ module Syskit
                 model
             end
 
-            # Create a new stub deployment model that can deploy a given task
-            # context model
-            #
-            # @param [Model<Syskit::TaskContext>,nil] task_model if given, a
-            #   task model that should be deployed by this deployment model
-            # @param [String] name the name of the deployed task as well as
-            #   of the deployment. If not given, and if task_model is provided,
-            #   task_model.name is used as default
-            # @yield the deployment model context, i.e. a context in which the
-            #   same declarations than in oroGen's #deployment statement are
-            #   available
-            # @return [Model<Syskit::Deployment>] the deployment model. This
-            #   deployment is declared as available on the 'stubs' process server,
-            #   i.e. it can be started
-            def syskit_stub_deployment_model(task_model = nil, name = nil, &block)
+            def syskit_stub_configured_deployment(task_model = nil, name = nil, &block)
                 if task_model
                     task_model = task_model.to_component_model
                 end
@@ -164,8 +172,24 @@ module Syskit
 
                 Syskit.conf.process_server_for('stubs').
                     register_deployment_model(deployment_model.orogen_model)
-                Syskit.conf.use_deployment(deployment_model.orogen_model, on: 'stubs')
-                deployment_model
+                Syskit.conf.use_deployment(deployment_model.orogen_model, on: 'stubs').first
+            end
+
+            # Create a new stub deployment model that can deploy a given task
+            # context model
+            #
+            # @param [Model<Syskit::TaskContext>,nil] task_model if given, a
+            #   task model that should be deployed by this deployment model
+            # @param [String] name the name of the deployed task as well as
+            #   of the deployment. If not given, and if task_model is provided,
+            #   task_model.name is used as default
+            # @yield the deployment model context, i.e. a context in which the
+            #   same declarations than in oroGen's #deployment statement are
+            #   available
+            # @return [Models::ConfiguredDeployment] the configured deployment
+            def syskit_stub_deployment_model(task_model = nil, name = nil, &block)
+                configured_deployment = syskit_stub_configured_deployment(task_model, name, &block)
+                configured_deployment.model
             end
 
             # Create a new stub deployment instance, optionally stubbing the
@@ -373,6 +397,117 @@ module Syskit
                 else
                     syskit_stub_task_context(model, as: as, devices: devices)
                 end
+            end
+
+            # Stub an already existing network
+            def syskit_stub_network(root_tasks)
+                tasks = Set.new
+                dependency_graph = plan.task_relation_graph_for(Roby::TaskStructure::Dependency)
+                root_tasks.each do |t|
+                    tasks << t
+                    dependency_graph.depth_first_visit(t) do |child_t|
+                        tasks << child_t
+                    end
+                end
+                tasks.delete_if { |t| t.kind_of?(Composition) }
+
+                merge_solver = NetworkGeneration::MergeSolver.new(plan)
+                merge_mappings = Hash.new
+                stubbed_tags = Hash.new
+                tasks.find_all(&:abstract?).each do |abstract_task|
+                    concrete_task =
+                        if abstract_task.kind_of?(Syskit::Actions::Profile::Tag)
+                            tag_id = [abstract_task.model.tag_name, abstract_task.model.profile.name]
+                            stubbed_tags[tag_id] ||= syskit_stub_network_abstract_task_context(abstract_task)
+                        else
+                            syskit_stub_network_abstract_task_context(abstract_task)
+                        end
+
+                    if !abstract_task.kind_of?(Syskit::TaskContext) # 'pure' proxied data services
+                        plan.replace_task(abstract_task, concrete_task)
+                        merge_solver.register_replacement(abstract_task, concrete_task)
+                    else
+                        merge_mappings[abstract_task] = concrete_task
+                    end
+                    concrete_task
+                end
+
+                # NOTE: must NOT call #apply_merge_group with merge_mappings
+                # directly. #apply_merge_group "replaces" the subnet represented
+                # by the keys with the subnet represented by the values. In
+                # other words, the connections present between two keys would
+                # NOT be copied between the corresponding values
+                merge_mappings.each do |original, replacement|
+                    merge_solver.apply_merge_group(original => replacement)
+                end
+                merge_solver.merge_identical_tasks
+
+                merge_mappings = Hash.new
+                tasks.each do |original_task|
+                    concrete_task = merge_solver.replacement_for(original_task)
+                    if !concrete_task.execution_agent
+                        merge_mappings[concrete_task] = syskit_stub_network_deployment(concrete_task)
+                    end
+                end
+                merge_mappings.each do |original, replacement|
+                    merge_solver.apply_merge_group(original => replacement)
+                end
+
+                root_tasks.map { |t| merge_solver.replacement_for(t) }
+            end
+
+            def syskit_stub_proxied_data_service(model)
+                superclass = if model.superclass <= Syskit::TaskContext
+                                 model.superclass
+                             else Syskit::TaskContext
+                             end
+
+                services = model.proxied_data_services
+                task_m = superclass.new_submodel(name: "#{model.to_s}-stub")
+                services.each_with_index do |srv, idx|
+                    srv.each_input_port do |p|
+                        task_m.orogen_model.input_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
+                    end
+                    srv.each_output_port do |p|
+                        task_m.orogen_model.output_port p.name, Orocos.find_orocos_type_name_by_type(p.type)
+                    end
+                    if srv <= Syskit::Device
+                        task_m.driver_for srv, as: "dev#{idx}"
+                    else
+                        task_m.provides srv, as: "srv#{idx}"
+                    end
+                end
+                task_m
+            end
+
+            def syskit_stub_network_abstract_task_context(task)
+                task_m = task.concrete_model
+                if task_m.respond_to?(:proxied_data_services)
+                    task_m = syskit_stub_proxied_data_service(task_m)
+                elsif task_m.abstract?
+                    task_m = task_m.new_submodel(name: "#{task_m.name}-stub")
+                end
+
+                arguments = task.arguments
+                task_m.each_master_driver_service do |srv|
+                    arguments["#{srv.name}_dev"] ||=
+                        syskit_stub_device(srv.model, driver: task_m)
+                end
+                task_m.new(arguments)
+            end
+
+            def syskit_stub_network_deployment(task, as: syskit_default_stub_name(task.model))
+                task_m = task.concrete_model
+                deployment_model = syskit_stub_configured_deployment(task_m, as)
+                syskit_stub_conf(task_m, *task.arguments[:conf])
+                plan.add(deployer = deployment_model.new)
+                deployed_task = deployer.instanciate_all_tasks.first
+
+                new_args = task.arguments.find_all do |key, arg|
+                    deployed_task.arguments.writable?(key, arg)
+                end
+                deployed_task.assign_arguments(new_args)
+                deployed_task
             end
 
             def syskit_start_all_execution_agents
