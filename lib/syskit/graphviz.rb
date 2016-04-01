@@ -189,7 +189,7 @@ module Syskit
 
             # Generate a svg file representing the current state of the
             # deployment
-            def to_file(kind, format, output_io = nil, options = Hash.new)
+            def to_file(kind, format, output_io, options = Hash.new)
                 # For backward compatibility reasons
                 filename ||= kind
                 if File.extname(filename) != ".#{format}"
