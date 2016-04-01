@@ -463,7 +463,9 @@ module Syskit
                             next
                         elsif seen[sink_port]
                             seen_task, seen_port = seen[sink_port]
-                            raise SpecError, "#{task}.#{sink_port} is connected multiple times, at least to #{source_task}.#{source_port} and #{seen_task}.#{seen_port}"
+                            if [source_task, source_port] != [seen_task, seen_port]
+                                raise SpecError, "#{task}.#{sink_port} is connected multiple times, at least to #{source_task}.#{source_port} and #{seen_task}.#{seen_port}"
+                            end
                         end
                         seen[sink_port] = [source_task, source_port]
                     end

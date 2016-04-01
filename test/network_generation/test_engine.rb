@@ -791,5 +791,25 @@ describe Syskit::NetworkGeneration::Engine do
             assert_equal dev2, task.find_device_attached_to(task.driver_srv)
         end
     end
+
+    describe "#verify_no_multiplexing_connections" do
+        it "does not raise if the same component can be reached through different paths" do
+            task_m = Syskit::TaskContext.new_submodel do
+                input_port 'in', '/double'
+                output_port 'out', '/double'
+            end
+            cmp_m = Syskit::Composition.new_submodel
+            cmp_m.add task_m, as: 'test'
+            cmp_m.export cmp_m.test_child.out_port
+
+            cmp0 = cmp_m.instanciate(plan)
+            cmp1 = cmp_m.instanciate(plan)
+            plan.replace_task(cmp1.test_child, cmp0.test_child)
+            plan.add(task = task_m.new)
+            cmp0.out_port.connect_to task.in_port
+            cmp1.out_port.connect_to task.in_port
+            Syskit::NetworkGeneration::Engine.verify_no_multiplexing_connections(plan)
+        end
+    end
 end
 
