@@ -94,6 +94,10 @@ module Syskit
             # @param [Roby::Task] new_task the task that replaced old_task
             # @return [void]
             def register_replacement(old_task, new_task)
+                if concrete_graph = dataflow_graph.concrete_connection_graph
+                    concrete_graph.replace_vertex(old_task, new_task)
+                end
+
                 task_replacement_graph.add_edge(old_task, new_task, nil)
             end
 
@@ -130,12 +134,6 @@ module Syskit
                     end
                 end
                 plan.replace_subplan(merged_task_to_task, merged_event_to_event)
-
-                if concrete_graph = dataflow_graph.concrete_connection_graph
-                    merged_task_to_task.each do |old, new|
-                        concrete_graph.replace_vertex(old, new)
-                    end
-                end
 
                 merged_task_to_task.each do |merged_task, task|
                     if !merged_task.transaction_proxy?
