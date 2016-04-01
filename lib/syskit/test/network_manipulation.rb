@@ -357,7 +357,7 @@ module Syskit
                     if model.respond_to?(:name) then model.name
                     else model.to_str
                     end
-                "#{self.name}_#{model_name}#{syskit_stub_model_id}"
+                "stub#{syskit_stub_model_id}"
             end
 
             # Create an InstanceRequirement instance that would allow to deploy
