@@ -517,7 +517,7 @@ module Syskit
                         pp.text "#{task}: multiple possible deployments, choose one with #prefer_deployed_tasks(deployed_task_name)"
                         if !deployment_hints.empty?
                             deployment_hints.each do |hint|
-                                pp.text "  current hints: #{current_hints.map(&:to_s).join(", ")}"
+                                pp.text "  current hints: #{deployment_hints.map(&:to_s).join(", ")}"
                             end
                         end
                     elsif possible_deployments.empty?

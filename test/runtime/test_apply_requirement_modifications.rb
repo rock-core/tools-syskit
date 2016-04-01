@@ -99,6 +99,7 @@ module Syskit
                 assert_raises(Roby::PlanningFailedError) { Runtime.apply_requirement_modifications(plan) }
                 assert requirement_task.failed?
                 assert_kind_of Syskit::MissingDeployments, requirement_task.failed_event.last.context.first
+                assert_exception_can_be_pretty_printed(requirement_task.failed_event.last.context.first)
             end
         end
     end
