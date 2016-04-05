@@ -39,8 +39,6 @@ module Syskit
             end
             execution_engine.scheduler = Roby::Schedulers::Temporal.new(true, true, plan)
 
-            Syskit::NetworkGeneration::Engine.keep_internal_data_structures = true
-
             @robot = Syskit::Robot::RobotDefinition.new
 
             @syskit_handler_ids = Hash.new

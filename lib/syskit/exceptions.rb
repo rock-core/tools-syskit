@@ -293,7 +293,7 @@ module Syskit
                         end
                         candidates = per_service_candidates.inject { |a, b| a & b } || Set.new
                     else
-                        candidates = engine.work_plan.find_local_tasks(task.concrete_model).not_abstract.to_set
+                        candidates = task.plan.find_local_tasks(task.concrete_model).not_abstract.to_set
                     end
 
                     parents = task.

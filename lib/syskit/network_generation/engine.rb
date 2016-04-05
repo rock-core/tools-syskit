@@ -20,11 +20,6 @@ module Syskit
             #
             # It is alised to {#plan} for backward compatibility reasons
             attr_reader :work_plan
-            # A mapping from requirement tasks in the real plan to the tasks
-            # that have been instantiated in the working plan
-            #
-            # This is only valid during resolution
-            attr_reader :required_instances
             # A mapping from task context models to deployment models that
             # contain such a task.
             # @return [Hash{Model<TaskContext>=>Model<Deployment>}]
@@ -33,18 +28,6 @@ module Syskit
             #
             # @return [MergeSolver]
             attr_reader :merge_solver
-
-            class << self
-                # If false (the default), {Engine#resolve} will clear the data
-                # structures built during resoltuion such as
-                # {#required_instances} and {#merge_solver}. This improves
-                # performance by reducing the required garbage collection times
-                # quite a lot. 
-                #
-                # Set to true only for debugging reasons
-                attr_predicate :keep_internal_data_structures?, true
-            end
-            @keep_internal_data_structures = false
 
             # The set of tasks that represent the running deployments
             attr_reader :deployment_tasks
@@ -167,217 +150,11 @@ module Syskit
                     end
                     @work_plan = real_plan
                 end
-
-                if !Engine.keep_internal_data_structures?
-                    merge_solver.task_replacement_graph.clear
-                    @merge_solver = NetworkGeneration::MergeSolver.new(work_plan)
-                    @required_instances.clear if @required_instances
-                end
             end
 
-            def find_selected_device_in_hierarchy(argument_name, leaf_task, requirements)
-                _, model, _ = leaf_task.requirements.resolved_dependency_injection.selection_for(nil, requirements)
-                if model && dev = model.arguments[argument_name]
-                    return dev
-                else
-                    devices = Set.new
-                    leaf_task.each_parent_task do |parent|
-                        if sel = find_selected_device_in_hierarchy(argument_name, parent, requirements)
-                            devices << sel
-                        end
-                    end
-                    if devices.size == 1
-                        return devices.first
-                    end
-                end
-            end
-
-            # Try to autoallocate the devices in +task+ based on the information
-            # in the instance requirements in the task's hierarchy
-            def allocate_devices(task)
-                Engine.debug do
-                    Engine.debug "allocating devices on #{task} using"
-                    break
-                end
-                    
-                task.model.each_master_driver_service do |srv|
-                    next if task.find_device_attached_to(srv)
-                    if dev = find_selected_device_in_hierarchy("#{srv.name}_dev", task, srv.model.to_instance_requirements)
-                        Engine.debug do
-                            Engine.debug "  selected #{dev} for #{srv.name}"
-                        end
-                        task.arguments["#{srv.name}_dev"] = dev
-                    end
-                end
-            end
-
-            # Computes the set of requirement tasks that should be used for
-            # deployment within the given plan
-            def discover_requirement_tasks_from_plan(plan)
-                req_tasks = plan.find_local_tasks(InstanceRequirementsTask).
-                    find_all do |req_task|
-                    !req_task.failed? && !req_task.pending? &&
-                        req_task.planned_task && !req_task.planned_task.finished?
-                end
-                not_needed = plan.unneeded_tasks
-                req_tasks.delete_if do |t|
-                    not_needed.include?(t)
-                end
-                req_tasks
-            end
-
-            # Create on {#work_plan} the task instances that are currently
-            # required in {#real_plan}
+            # Transform the system network into a deployed network
             #
-            # It does not try to merge the result, {#work_plan} is probably full
-            # of redundancies after this call
-            #
-            # @return [void]
-            def instanciate(requirement_tasks = discover_requirement_tasks_from_plan(real_plan))
-                log_timepoint "instanciate_requirements"
-                requirement_tasks.each_with_index do |req_task, i|
-                    req = req_task.requirements
-                    task = req.instanciate(work_plan).
-                        to_task
-                    # We add all these tasks as permanent tasks, to use
-                    # #static_garbage_collect to cleanup #work_plan.
-                    work_plan.add_permanent_task(task)
-
-                    fullfilled_task_m, fullfilled_modules, fullfilled_args = req.fullfilled_model
-                    fullfilled_args = fullfilled_args.each_key.inject(Hash.new) do |h, arg_name|
-                        if task.arguments.set?(arg_name)
-                            h[arg_name] = task.arguments[arg_name]
-                        end
-                        h
-                    end
-                    task.fullfilled_model = [fullfilled_task_m, fullfilled_modules, fullfilled_args]
-                    required_instances[req_task] = task
-                    log_timepoint "task-#{i}"
-                end
-                work_plan.each_task do |task|
-                    if task.respond_to?(:each_master_driver_service)
-                        allocate_devices(task)
-                    end
-                end
-                log_timepoint 'device_allocation'
-                Engine.instanciation_postprocessing.each do |block|
-                    block.call(self, work_plan)
-                    log_timepoint "postprocessing:#{block}"
-                end
-            end
-
-            # Creates communication busses and links the tasks to them
-            def link_to_busses
-                # Get all the tasks that need at least one communication bus
-                candidates = work_plan.find_local_tasks(Syskit::Device).
-                    inject(Hash.new) do |h, t|
-                        required_busses = t.each_master_device.inject(Array.new) do |list, dev|
-                            list + dev.com_busses
-                        end.to_set
-                        if !required_busses.empty?
-                            h[t] = required_busses
-                        end
-                        h
-                    end
-
-                bus_tasks = Hash.new
-                candidates.each do |task, needed_busses|
-                    needed_busses.each do |bus_device|
-                        com_bus_task = bus_tasks[bus_device] ||
-                            bus_device.instanciate(work_plan)
-                        bus_tasks[bus_device] ||= com_bus_task
-
-                        com_bus_task = com_bus_task.component
-                        com_bus_task.attach(task)
-                        task.depends_on com_bus_task
-                        task.should_configure_after com_bus_task.start_event
-                    end
-                end
-                nil
-            end
-
-            # Compute in #plan the network needed to fullfill the requirements
-            #
-            # This network is neither validated nor tied to actual deployments
-            def compute_system_network(requirement_tasks, garbage_collect: true,
-                                       validate_abstract_network: true,
-                                       validate_generated_network: true)
-                log_timepoint_group 'instanciate' do
-                    instanciate(requirement_tasks)
-                end
-
-                merge_solver.merge_identical_tasks
-                log_timepoint 'merge'
-                Engine.instanciated_network_postprocessing.each do |block|
-                    block.call(self, work_plan)
-                    log_timepoint "postprocessing:#{block}"
-                end
-                link_to_busses
-                log_timepoint 'link_to_busses'
-                merge_solver.merge_identical_tasks
-                log_timepoint 'merge'
-
-                # Now remove the optional, non-resolved children of compositions
-                work_plan.find_local_tasks(Syskit::Component).abstract.each do |task|
-                    parent_tasks = task.each_parent_task.to_a
-                    parent_tasks.each do |parent_task|
-                        next if !parent_task.kind_of?(Syskit::Composition)
-                        next if parent_task.abstract?
-
-                        roles = parent_task.roles_of(task).dup
-                        remaining_roles = roles.find_all do |child_role|
-                            !(child_model = parent_task.model.find_child(child_role)) || !child_model.optional?
-                        end
-                        if remaining_roles.empty?
-                            parent_task.remove_child(task)
-                        else
-                            parent_task.remove_roles(task, *(roles - remaining_roles))
-                        end
-                    end
-                end
-                log_timepoint 'remove-optional'
-
-                # Finally, select 'default' as configuration for all
-                # remaining tasks that do not have a 'conf' argument set
-                work_plan.find_local_tasks(Component).
-                    each do |task|
-                        task.freeze_delayed_arguments
-                    end
-                log_timepoint 'default_conf'
-
-                # Cleanup the remainder of the tasks that are of no use right
-                # now (mostly devices)
-                if garbage_collect
-                    work_plan.static_garbage_collect do |obj|
-                        debug { "  removing #{obj}" }
-                        # Remove tasks that we just added and are not
-                        # useful anymore
-                        work_plan.remove_task(obj)
-                    end
-                    log_timepoint 'static_garbage_collect'
-                end
-
-                # And get rid of the 'permanent' marking we use to be able to
-                # run static_garbage_collect
-                work_plan.each_task do |task|
-                    work_plan.unmark_permanent_task(task)
-                end
-
-                Engine.system_network_postprocessing.each do |block|
-                    block.call(self)
-                end
-                log_timepoint 'postprocessing'
-
-                if validate_abstract_network
-                    validate_abstract_network(work_plan)
-                    log_timepoint 'validate_abstract_network'
-                end
-                if validate_generated_network
-                    validate_generated_network(work_plan)
-                    log_timepoint 'validate_generated_network'
-                end
-            end
-
+            # This does not access {#real_plan}
             def compute_deployed_network(compute_policies: true, validate_deployed_network: true)
                 log_timepoint_group 'deploy_system_network' do
                     deploy_system_network(validate: validate_deployed_network)
@@ -390,7 +167,13 @@ module Syskit
                     @port_dynamics = dataflow_dynamics.compute_connection_policies
                     log_timepoint 'compute_connection_policies'
                 end
+            end
 
+            # Apply the deployed network created with
+            # {#compute_deployed_network} to the existing plan
+            #
+            # It accesses {#real_plan}
+            def apply_deployed_network_to_plan
                 # Finally, we map the deployed network to the currently
                 # running tasks
                 @deployment_tasks =
@@ -406,95 +189,6 @@ module Syskit
                     block.call(self, work_plan)
                     log_timepoint "postprocessing:#{block}"
                 end
-            end
-
-            # Verifies that the task allocation is complete
-            #
-            # @param [Roby::Plan] plan the plan on which we are working
-            # @raise [TaskAllocationFailed] if some abstract tasks are still in
-            #   the plan
-            def verify_task_allocation(plan)
-                components = plan.find_local_tasks(Component).to_a
-                still_abstract = components.find_all(&:abstract?)
-                if !still_abstract.empty?
-                    raise TaskAllocationFailed.new(self, still_abstract),
-                        "could not find implementation for the following abstract tasks: #{still_abstract}"
-                end
-            end
-
-            # Verifies that there are no multiple output - single input
-            # connections towards ports that are not multiplexing ports
-            #
-            # @param [Roby::Plan] plan the plan on which we are working
-            # @raise [SpecError] if some abstract tasks are still in
-            #   the plan
-            def self.verify_no_multiplexing_connections(plan)
-                task_contexts = plan.find_local_tasks(TaskContext).to_a
-                task_contexts.each do |task|
-                    seen = Hash.new
-                    task.each_concrete_input_connection do |source_task, source_port, sink_port, _|
-                        if (port_model = task.model.find_input_port(sink_port)) && port_model.multiplexes?
-                            next
-                        elsif seen[sink_port]
-                            seen_task, seen_port = seen[sink_port]
-                            if [source_task, source_port] != [seen_task, seen_port]
-                                raise SpecError, "#{task}.#{sink_port} is connected multiple times, at least to #{source_task}.#{source_port} and #{seen_task}.#{seen_port}"
-                            end
-                        end
-                        seen[sink_port] = [source_task, source_port]
-                    end
-                end
-            end
-            
-            # Verifies that all tasks that are device drivers have at least one
-            # device attached, and that the same device is not attached to more
-            # than one task in the plan
-            #
-            # @param [Roby::Plan] plan the plan on which we are working
-            # @raise [DeviceAllocationFailed] if some device drivers are not
-            #   attached to any device
-            # @raise [SpecError] if some devices are assigned to more than one
-            #   task
-            def self.verify_device_allocation(plan)
-                components = plan.find_local_tasks(Syskit::Device).to_a
-
-                # Check that all devices are properly assigned
-                missing_devices = components.find_all do |t|
-                    t.model.each_master_driver_service.
-                        any? { |srv| !t.find_device_attached_to(srv) }
-                end
-                if !missing_devices.empty?
-                    raise DeviceAllocationFailed.new(plan, missing_devices),
-                        "could not allocate devices for the following tasks: #{missing_devices}"
-                end
-
-                devices = Hash.new
-                components.each do |task|
-                    task.each_master_device do |dev|
-                        device_name = dev.full_name
-                        if old_task = devices[device_name]
-                            raise ConflictingDeviceAllocation.new(dev, task, old_task)
-                        else
-                            devices[device_name] = task
-                        end
-                    end
-                end
-            end
-            
-            # Validates the network generated by {#compute_system_network}
-            #
-            # It performs the tests that are only needed on an abstract network,
-            # i.e. on a network in which some tasks are still abstract
-            def validate_abstract_network(plan)
-                self.class.verify_no_multiplexing_connections(plan)
-                super if defined? super
-            end
-
-            # Validates the network generated by {#compute_system_network}
-            def validate_generated_network(plan)
-                verify_task_allocation(plan)
-                self.class.verify_device_allocation(plan)
-                super if defined? super
             end
 
             # Computes a mapping from task models to the set of registered
@@ -779,9 +473,6 @@ module Syskit
                     end
                 end
 
-                @required_instances = required_instances.map_value do |_, task|
-                    merge_solver.replacement_for(task)
-                end
                 if @dataflow_dynamics
                     @dataflow_dynamics.apply_merges(merge_solver)
                 end
@@ -791,7 +482,7 @@ module Syskit
             # InstanceRequirementsTask tasks) by their computed implementation.
             #
             # Also updates the permanent and mission flags for these tasks.
-            def fix_toplevel_tasks
+            def fix_toplevel_tasks(required_instances)
                 required_instances.each do |req_task, actual_task|
                     placeholder_task = work_plan.wrap_task(req_task.planned_task)
                     req_task         = work_plan.wrap_task(req_task)
@@ -1017,6 +708,38 @@ module Syskit
                 new(plan).resolve(**options)
             end
 
+            # Computes the set of requirement tasks that should be used for
+            # deployment within the given plan
+            def discover_requirement_tasks_from_plan(plan)
+                req_tasks = plan.find_local_tasks(InstanceRequirementsTask).
+                    find_all do |req_task|
+                    !req_task.failed? && !req_task.pending? &&
+                        req_task.planned_task && !req_task.planned_task.finished?
+                end
+                not_needed = plan.unneeded_tasks
+                req_tasks.delete_if do |t|
+                    not_needed.include?(t)
+                end
+                req_tasks
+            end
+
+            def compute_system_network(requirement_tasks = discover_requirement_tasks_from_plan(real_plan),
+                                       garbage_collect: true,
+                                       validate_abstract_network: true,
+                                       validate_generated_network: true)
+                requirement_tasks = requirement_tasks.to_a
+                instance_requirements = requirement_tasks.map(&:requirements)
+                system_network_generator = SystemNetworkGenerator.new(
+                    work_plan, event_logger: event_logger, merge_solver: merge_solver)
+                toplevel_tasks = system_network_generator.generate(
+                    instance_requirements,
+                    garbage_collect: garbage_collect,
+                    validate_abstract_network: validate_abstract_network,
+                    validate_generated_network: validate_generated_network)
+
+                Hash[ requirement_tasks.zip(toplevel_tasks) ]
+            end
+
             # Generate the deployment according to the current requirements, and
             # merges it into the current plan
             #
@@ -1054,14 +777,11 @@ module Syskit
 
                 create_work_plan_transaction
 
-                # We first generate a non-deployed network that fits all
-                # requirements.
-                log_timepoint_group 'compute_system_network' do
-                    compute_system_network(requirement_tasks,
-                                           garbage_collect: garbage_collect,
-                                           validate_abstract_network: validate_abstract_network,
-                                           validate_generated_network: validate_generated_network)
-                end
+                required_instances = compute_system_network(
+                    requirement_tasks,
+                    garbage_collect: garbage_collect,
+                    validate_abstract_network: validate_abstract_network,
+                    validate_generated_network: validate_generated_network)
 
                 # Now, deploy the network by matching the available
                 # deployments to the one in the generated network. Note that
@@ -1074,11 +794,17 @@ module Syskit
                         compute_deployed_network(compute_policies: compute_policies,
                                                  validate_deployed_network: validate_deployed_network)
                     end
+                    log_timepoint_group 'apply_deployed_network_to_plan' do
+                        apply_deployed_network_to_plan
+                    end
                 end
 
                 apply_merge_to_stored_instances
+                required_instances = required_instances.map_value do |_, task|
+                    merge_solver.replacement_for(task)
+                end
                 log_timepoint 'apply_merge_to_stored_instances'
-                fix_toplevel_tasks
+                fix_toplevel_tasks(required_instances)
                 log_timepoint 'fix_toplevel_tasks'
 
                 Engine.final_network_postprocessing.each do |block|
@@ -1089,7 +815,7 @@ module Syskit
                 # Finally, we should now only have deployed tasks. Verify it
                 # and compute the connection policies
                 if garbage_collect && validate_final_network
-                    validate_final_network(work_plan, compute_deployments: compute_deployments)
+                    validate_final_network(required_instances, work_plan, compute_deployments: compute_deployments)
                     log_timepoint 'validate_final_network'
                 end
 
@@ -1136,7 +862,7 @@ module Syskit
             end
 
             # Validates the state of the network at the end of #resolve
-            def validate_final_network(plan, compute_deployments: true)
+            def validate_final_network(required_instances, plan, compute_deployments: true)
                 # Check that all device instances are proper tasks (not proxies)
                 required_instances.each do |req_task, task|
                     if task.transaction_proxy?

@@ -15,7 +15,7 @@ describe Syskit::NetworkGeneration::Engine do
 
     def work_plan; syskit_engine.work_plan end
 
-    describe "#instanciate" do
+    describe "#discover_requirement_tasks_from_plan" do
         attr_reader :original_task
         attr_reader :planning_task
         attr_reader :requirements
@@ -23,38 +23,16 @@ describe Syskit::NetworkGeneration::Engine do
             plan.add_mission_task(@original_task = simple_component_model.as_plan)
             @planning_task = original_task.planning_task
             @requirements = planning_task.requirements
-            syskit_stub_deployment_model(simple_component_model)
-            syskit_engine.create_work_plan_transaction
         end
 
-        it "adds instanciated tasks as permanent tasks" do
+        it "returns running InstanceRequirementsTask tasks" do
             planning_task.start!
-            flexmock(requirements).should_receive(:instanciate).
-                and_return(instanciated_task = simple_component_model.new)
-            syskit_engine.instanciate
-            assert work_plan.permanent_task?(instanciated_task)
+            assert_equal [planning_task], syskit_engine.discover_requirement_tasks_from_plan(plan)
         end
-        it "saves the mapping from requirement task in real_plan to instanciated task in work_plan" do
-            planning_task.start!
-            flexmock(requirements).should_receive(:instanciate).
-                and_return(instanciated_task = simple_component_model.new)
-            syskit_engine.instanciate
-            assert_equal instanciated_task, syskit_engine.required_instances[planning_task]
-        end
-        it "adds to the plan requirements from running InstanceRequirementsTask tasks" do
-            planning_task.start!
-            flexmock(requirements).should_receive(:instanciate).
-                and_return(instanciated_task = simple_component_model.new).once
-            syskit_engine.instanciate
-            assert work_plan.has_task? instanciated_task
-        end
-        it "adds to the plan requirements from InstanceRequirementsTask tasks that successfully finished" do
+        it "returns InstanceRequirementsTask tasks that successfully finished" do
             planning_task.start!
             planning_task.success_event.emit
-            flexmock(requirements).should_receive(:instanciate).
-                and_return(instanciated_task = simple_component_model.new).once
-            syskit_engine.instanciate
-            assert work_plan.has_task? instanciated_task
+            assert_equal [planning_task], syskit_engine.discover_requirement_tasks_from_plan(plan)
         end
         it "ignores InstanceRequirementsTask tasks that failed" do
             planning_task.start!
@@ -64,108 +42,28 @@ describe Syskit::NetworkGeneration::Engine do
                 rescue Roby::PlanningFailedError
                 end
             end
-            flexmock(requirements).should_receive(:instanciate).never
-            syskit_engine.instanciate
-            plan.remove_task(planning_task) # for a silent teardown
+            assert_equal [], syskit_engine.discover_requirement_tasks_from_plan(plan)
         end
         it "ignores InstanceRequirementsTask tasks that are pending" do
-            flexmock(requirements).should_receive(:instanciate).never
-            syskit_engine.instanciate
-        end
-        it "allocates devices using the task instance requirement information" do
-            dev_m = Syskit::Device.new_submodel
-            cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add simple_task_model, as: 'test'
-            simple_task_model.driver_for dev_m, as: 'device'
-            device = robot.device dev_m, as: 'test'
-            requirements = cmp_m.use(device)
-
-            original_task = requirements.as_plan
-            plan.add_permanent_task(original_task)
-            original_task.planning_task.start!
-            syskit_engine.instanciate
-            cmp = syskit_engine.required_instances[original_task.planning_task]
-            assert_equal device, cmp.test_child.device_dev
-        end
-        it "sets the task's fullfilled model to the instance requirement's" do
-            task_m = Syskit::TaskContext.new_submodel do
-                argument :arg
-            end
-            req = Syskit::InstanceRequirements.new([task_m]).
-                with_arguments(arg: 10)
-            plan.add_permanent_task(original = req.as_plan)
-            original.planning_task.start!
-            syskit_engine.instanciate
-            task = syskit_engine.required_instances[original.planning_task]
-            assert_equal [[task_m], Hash[arg: 10]], task.fullfilled_model
-        end
-        it "use the arguments as filtered by the task" do
-            task_m = Syskit::TaskContext.new_submodel
-            task_m.argument :arg
-            task_m.class_eval do
-                def arg=(value)
-                    self.arguments[:arg] = value / 2
-                end
-            end
-            req = Syskit::InstanceRequirements.new([task_m]).
-                with_arguments(arg: 10)
-            plan.add_permanent_task(original = req.as_plan)
-            original.planning_task.start!
-            syskit_engine.instanciate
-            task = syskit_engine.required_instances[original.planning_task]
-            assert_equal 5, task.arg
-            assert_equal [[task_m], Hash[arg: 5]], task.fullfilled_model
+            assert_equal [], syskit_engine.discover_requirement_tasks_from_plan(plan)
         end
     end
 
     describe "#compute_system_network" do
-        describe "handling of optional dependencies" do
-            attr_reader :cmp_m, :srv_m, :task_m, :syskit_engine
-            before do
-                @srv_m = Syskit::DataService.new_submodel
-                @cmp_m = Syskit::Composition.new_submodel
-                cmp_m.add_optional srv_m, as: 'test'
-                @task_m = Syskit::TaskContext.new_submodel
-                task_m.provides srv_m, as: 'test'
-            end
+        attr_reader :original_task
+        attr_reader :planning_task
+        attr_reader :requirements
+        before do
+            plan.add_mission_task(@original_task = simple_component_model.as_plan)
+            @planning_task = original_task.planning_task
+            @requirements = planning_task.requirements
+        end
 
-            subject do
-                Syskit::NetworkGeneration::Engine.new(plan)
-            end
-
-            def compute_system_network(*requirements)
-                tasks = requirements.map do |req|
-                    plan.add_mission_task(task = req.as_plan)
-                    task
-                end
-                subject.compute_system_network(tasks.map(&:planning_task), validate_generated_network: false)
-                tasks.each { |task| plan.remove_task(task) if plan.has_task?(task) }
-
-                cmp = plan.find_tasks(cmp_m).to_a
-                assert_equal 1, cmp.size
-                cmp.first
-            end
-
-            it "keeps the compositions' optional dependencies that are not abstract" do
-                cmp = compute_system_network(cmp_m.use('test' => task_m))
-                assert cmp.has_role?('test')
-            end
-            it "keeps the compositions' non-optional dependencies that are abstract" do
-                cmp_m.add srv_m, as: 'non_optional'
-                cmp = compute_system_network(cmp_m)
-                assert cmp.has_role?('non_optional')
-            end
-            it "removes the compositions' optional dependencies that are still abstract" do
-                cmp = compute_system_network(cmp_m)
-                assert !cmp.has_role?('test')
-            end
-            it "enables the use of the abstract flag in InstanceRequirements to use an optional dep only if it is instanciated by other means" do
-                cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract))
-                assert !cmp.has_role?('test')
-                plan.remove_task(cmp)
-                cmp = compute_system_network(cmp_m.use('test' => task_m.to_instance_requirements.abstract), task_m)
-                assert cmp.has_role?('test')
-            end
+        it "saves the mapping from requirement task in real_plan to instanciated task in work_plan" do
+            flexmock(requirements).should_receive(:instanciate).
+                and_return(instanciated_task = simple_component_model.new)
+            mapping = syskit_engine.compute_system_network([planning_task])
+            assert_equal instanciated_task, mapping[planning_task]
         end
     end
 
@@ -173,18 +71,19 @@ describe Syskit::NetworkGeneration::Engine do
         attr_reader :original_task
         attr_reader :planning_task
         attr_reader :final_task
+        attr_reader :required_instances
         before do
             plan.add(@original_task = simple_component_model.as_plan)
             @planning_task = original_task.planning_task
             syskit_engine.create_work_plan_transaction
             syskit_engine.work_plan.add_permanent_task(@final_task = simple_component_model.new)
-            syskit_engine.required_instances[original_task.planning_task] = final_task
+            @required_instances = Hash[original_task.planning_task => final_task]
             syskit_stub_deployment_model(simple_component_model)
         end
 
         it "replaces toplevel tasks by their deployed equivalent" do
             service = original_task.as_service
-            syskit_engine.fix_toplevel_tasks
+            syskit_engine.fix_toplevel_tasks(required_instances)
             syskit_engine.work_plan.commit_transaction
             assert_same service.task, final_task
             assert_same final_task.planning_task, planning_task
@@ -753,59 +652,6 @@ describe Syskit::NetworkGeneration::Engine do
                 syskit_deploy
                 assert_equal Set[cmp1, cmp2, cmp2_srv.task], plan.find_tasks(cmp_m).to_set
             end
-        end
-    end
-
-    describe "#allocate_devices" do
-        attr_reader :dev_m, :task_m, :cmp_m, :device, :cmp, :task
-        before do
-            dev_m = @dev_m = Syskit::Device.new_submodel name: 'Driver'
-            @task_m = Syskit::TaskContext.new_submodel(name: 'Task') { driver_for dev_m, as: 'driver' }
-            @cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add task_m, as: 'test'
-            @device = robot.device dev_m, as: 'd'
-            @cmp = cmp_m.instanciate(plan)
-            @task = cmp.test_child
-        end
-        it "sets missing devices from its selections" do
-            engine = Syskit::NetworkGeneration::Engine.new(Roby::ExecutablePlan.new)
-            task.requirements.push_dependency_injection(Syskit::DependencyInjection.new(dev_m => device))
-            engine.allocate_devices(task)
-            assert_equal device, task.find_device_attached_to(task.driver_srv)
-        end
-        it "sets missing devices from the selections in its parent(s)" do
-            engine = Syskit::NetworkGeneration::Engine.new(Roby::ExecutablePlan.new)
-            cmp.requirements.merge(cmp_m.use(dev_m => device))
-            engine.allocate_devices(task)
-            assert_equal device, task.find_device_attached_to(task.driver_srv)
-        end
-        it "does not override already set devices" do
-            dev2 = robot.device dev_m, as: 'd2'
-            task.arguments['driver_dev'] = dev2
-            cmp.requirements.merge(cmp_m.use(dev_m => device))
-            engine = Syskit::NetworkGeneration::Engine.new(Roby::ExecutablePlan.new)
-            engine.allocate_devices(task)
-            assert_equal dev2, task.find_device_attached_to(task.driver_srv)
-        end
-    end
-
-    describe "#verify_no_multiplexing_connections" do
-        it "does not raise if the same component can be reached through different paths" do
-            task_m = Syskit::TaskContext.new_submodel do
-                input_port 'in', '/double'
-                output_port 'out', '/double'
-            end
-            cmp_m = Syskit::Composition.new_submodel
-            cmp_m.add task_m, as: 'test'
-            cmp_m.export cmp_m.test_child.out_port
-
-            cmp0 = cmp_m.instanciate(plan)
-            cmp1 = cmp_m.instanciate(plan)
-            plan.replace_task(cmp1.test_child, cmp0.test_child)
-            plan.add(task = task_m.new)
-            cmp0.out_port.connect_to task.in_port
-            cmp1.out_port.connect_to task.in_port
-            Syskit::NetworkGeneration::Engine.verify_no_multiplexing_connections(plan)
         end
     end
 end
